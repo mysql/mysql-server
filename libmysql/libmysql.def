@@ -124,3 +124,6 @@ EXPORTS
 	strmake
 	strmov
 	strxmov
+	mysql_stmt_prepare
+	mysql_stmt_init
+	mysql_stmt_insert_id

@@ -563,9 +563,11 @@ typedef struct st_mysql_stmt
   MYSQL_BIND     *params;              /* input parameters */
   MYSQL_BIND     *bind;                /* output parameters */
   MYSQL_FIELD    *fields;              /* result set metadata */
-  MYSQL_RES      *result;              /* cached result set */
+  MYSQL_DATA     result;               /* cached result set */
+  MYSQL_ROWS     *data_cursor;         /* current row in cached result */
   /* copy of mysql->affected_rows after statement execution */
   my_ulonglong   affected_rows;
+  my_ulonglong   insert_id;            /* copy of mysql->insert_id */
   /*
     mysql_stmt_fetch() calls this function to fetch one row (it's different
     for buffered, unbuffered and cursor fetch).
@@ -607,7 +609,7 @@ typedef struct st_mysql_methods
   MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
   my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (*stmt_execute)(MYSQL_STMT *stmt);
-  MYSQL_DATA *(*read_binary_rows)(MYSQL_STMT *stmt);
+  int (*read_binary_rows)(MYSQL_STMT *stmt);
   int (*unbuffered_fetch)(MYSQL *mysql, char **row);
   void (*free_embedded_thd)(MYSQL *mysql);
   const char *(*read_statistics)(MYSQL *mysql);
@@ -664,6 +666,7 @@ MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
 void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
 my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
+my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt);
 
 my_bool STDCALL mysql_commit(MYSQL * mysql);
 my_bool STDCALL mysql_rollback(MYSQL * mysql);

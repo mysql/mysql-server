@@ -1907,6 +1907,8 @@ mysql_stmt_init(MYSQL *mysql)
   }
 
   init_alloc_root(&stmt->mem_root, 2048, 2048);
+  init_alloc_root(&stmt->result.alloc, 4096, 4096);
+  stmt->result.alloc.min_malloc= sizeof(MYSQL_ROWS);
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
   stmt->list.data= stmt;
   stmt->state= MYSQL_STMT_INIT_DONE;
@@ -2335,6 +2337,7 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
     DBUG_RETURN(1);
   }
   stmt->affected_rows= mysql->affected_rows;
+  stmt->insert_id= mysql->insert_id;
   DBUG_RETURN(0);
 }
 
@@ -2414,12 +2417,10 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
 
 static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row)
 {
-  MYSQL_RES *result= stmt->result;
-
-  if (result && result->data_cursor)
+  if (stmt->data_cursor)
   {
-    *row= (uchar *) result->data_cursor->data;
-    result->data_cursor= result->data_cursor->next;
+    *row= (uchar *) stmt->data_cursor->data;
+    stmt->data_cursor= stmt->data_cursor->next;
     return 0;
   }
   *row= 0;
@@ -2563,6 +2564,15 @@ my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
   return stmt->affected_rows;
 }
 
+
+/*
+  Return last inserted id for auto_increment columns
+*/
+
+my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt)
+{
+  return stmt->insert_id;
+}
 
 static my_bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
 static my_bool int_is_null_false= 0;
@@ -3534,67 +3544,46 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
   Read all rows of data from server  (binary format)
 */
 
-MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
+int cli_read_binary_rows(MYSQL_STMT *stmt)
 {
   ulong      pkt_len;
   uchar      *cp;
   MYSQL      *mysql= stmt->mysql;
-  MYSQL_DATA *result;
-  MYSQL_ROWS *cur, **prev_ptr;
+  MYSQL_DATA *result= &stmt->result;
+  MYSQL_ROWS *cur, **prev_ptr= &result->data;
   NET        *net = &mysql->net;
   DBUG_ENTER("cli_read_binary_rows");
- 
+
   mysql= mysql->last_used_con;
-  if ((pkt_len= net_safe_read(mysql)) == packet_error)
+
+  while ((pkt_len= net_safe_read(mysql)) != packet_error)
   {
-    set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
-		    mysql->net.sqlstate);
-
-    DBUG_RETURN(0);
-  }
-  if (mysql->net.read_pos[0] == 254) /* end of data */
-    return 0;				
-
-  if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
-				       MYF(MY_WME | MY_ZEROFILL))))
-  {
-    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
-  }
-  init_alloc_root(&result->alloc,8192,0);	/* Assume rowlength < 8192 */
-  result->alloc.min_malloc= sizeof(MYSQL_ROWS);
-  prev_ptr= &result->data;
-  result->rows= 0;
-
-  while (*(cp=net->read_pos) != 254 || pkt_len >= 8)
-  {
-    result->rows++;
-
-    if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,sizeof(MYSQL_ROWS))) ||
-	!(cur->data= ((MYSQL_ROW) alloc_root(&result->alloc, pkt_len))))
+    cp= net->read_pos;
+    if (cp[0] != 254 || pkt_len >= 8)
     {
-      free_rows(result);
-      set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-      DBUG_RETURN(0);
+      if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,
+                                          sizeof(MYSQL_ROWS) + pkt_len - 1)))
+      {
+        set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
+      cur->data= (MYSQL_ROW) (cur+1);
+      *prev_ptr= cur;
+      prev_ptr= &cur->next;
+      memcpy((char *) cur->data, (char *) cp+1, pkt_len-1);
+      ++result->rows;
     }
-    *prev_ptr= cur;
-    prev_ptr= &cur->next;
-    memcpy(cur->data, (char*)cp+1, pkt_len-1); 
-	  
-    if ((pkt_len=net_safe_read(mysql)) == packet_error)
+    else
     {
-      free_rows(result);
+      /* end of data */
+      *prev_ptr= 0;
+      mysql->warning_count= uint2korr(cp+1);
+      mysql->server_status= uint2korr(cp+3);
       DBUG_RETURN(0);
     }
   }
-  *prev_ptr= 0;
-  if (pkt_len > 1)
-  {
-    mysql->warning_count= uint2korr(cp+1);
-    DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
-  }
-  DBUG_PRINT("exit",("Got %d rows",result->rows));
-  DBUG_RETURN(result);
+  set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
+  DBUG_RETURN(1);
 }
 
 
@@ -3605,7 +3594,7 @@ MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
-  MYSQL_RES *result;
+  MYSQL_DATA *result= &stmt->result;
   DBUG_ENTER("mysql_stmt_store_result");
 
   mysql= mysql->last_used_con;
@@ -3618,28 +3607,23 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     DBUG_RETURN(1);
   }
-  if (!(result= (MYSQL_RES*) my_malloc(sizeof(MYSQL_RES),
-				       MYF(MY_WME | MY_ZEROFILL))))
+  if (result->data)
   {
-    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+    result->data= NULL;
+    result->rows= 0;
+    stmt->data_cursor= NULL;
+  }
+  if ((*mysql->methods->read_binary_rows)(stmt))
+  {
+    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+    result->data= NULL;
+    result->rows= 0;
     DBUG_RETURN(1);
   }
-  result->methods= mysql->methods;
-  if ((result->data= (*mysql->methods->read_binary_rows)(stmt)))
-  {
-    result->row_count= result->data->rows;
-    result->data_cursor= result->data->data;
-  }
-  else if (stmt->last_errno)
-  {
-    my_free((gptr) result,MYF(0));
-    DBUG_RETURN(1);
-  }
-  mysql->affected_rows= stmt->affected_rows= result->row_count;
-  result->fields=	stmt->fields;
-  result->field_count=	stmt->field_count;
-  /* The rest of MYSQL_RES members were bzeroed inside my_malloc */
-  stmt->result= result;
+
+  stmt->data_cursor= result->data;
+  mysql->affected_rows= stmt->affected_rows= result->rows;
   stmt->read_row_func= stmt_read_row_buffered;
   mysql->unbuffered_fetch_owner= 0;             /* set in stmt_execute */
   mysql->status= MYSQL_STATUS_READY;		/* server is ready */
@@ -3654,19 +3638,11 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 MYSQL_ROW_OFFSET STDCALL
 mysql_stmt_row_seek(MYSQL_STMT *stmt, MYSQL_ROW_OFFSET row)
 {
-  MYSQL_RES *result;
+  MYSQL_ROW_OFFSET offset= stmt->data_cursor;
   DBUG_ENTER("mysql_stmt_row_seek");
   
-  if ((result= stmt->result))
-  {
-    MYSQL_ROW_OFFSET return_value= result->data_cursor;
-    result->current_row= 0;
-    result->data_cursor= row;
-    DBUG_RETURN(return_value);
-  }
-  
-  DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
-  DBUG_RETURN(0);
+  stmt->data_cursor= row;
+  DBUG_RETURN(offset);
 }
 
 
@@ -3679,11 +3655,7 @@ mysql_stmt_row_tell(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("mysql_stmt_row_tell");
   
-  if (stmt->result)
-    DBUG_RETURN(stmt->result->data_cursor);
-  
-  DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
-  DBUG_RETURN(0);
+  DBUG_RETURN(stmt->data_cursor);
 }
 
 
@@ -3694,20 +3666,13 @@ mysql_stmt_row_tell(MYSQL_STMT *stmt)
 void STDCALL
 mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
 {
-  MYSQL_RES   *result;
+  MYSQL_ROWS *tmp= stmt->result.data;
   DBUG_ENTER("mysql_stmt_data_seek");
   DBUG_PRINT("enter",("row id to seek: %ld",(long) row));
   
-  if ((result= stmt->result))
-  {
-    MYSQL_ROWS	*tmp= 0;
-    if (result->data)
-      for (tmp=result->data->data; row-- && tmp ; tmp = tmp->next) ;
-    result->current_row= 0;
-    result->data_cursor= tmp;
-  }
-  else
-    DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
+  for (; tmp && row; --row, tmp= tmp->next)
+    ;
+  stmt->data_cursor= tmp;
   DBUG_VOID_RETURN;
 }
 
@@ -3720,15 +3685,12 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("mysql_stmt_num_rows");
     
-  if (stmt->result)
-    DBUG_RETURN(stmt->result->row_count);
-  
-  DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
-  DBUG_RETURN(0);
+  DBUG_RETURN(stmt->result.rows);
 }
 
 my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
 {
+  MYSQL_DATA *result= &stmt->result;
   DBUG_ENTER("mysql_stmt_free_result");
 
   DBUG_ASSERT(stmt != 0);
@@ -3737,14 +3699,17 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
   {
     MYSQL *mysql= stmt->mysql;
 
-    if (stmt->result)
+    if (result->data)
     {
       /* Result buffered */
-      mysql_free_result(stmt->result);
-      stmt->result= 0;
+      free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+      result->data= NULL;
+      result->rows= 0;
+      stmt->data_cursor= NULL;
     }
-    else if (mysql && stmt->field_count
-             && (int) stmt->state > (int) MYSQL_STMT_PREPARE_DONE)
+
+    if (mysql && stmt->field_count &&
+        (int) stmt->state > (int) MYSQL_STMT_PREPARE_DONE)
     {
       if (mysql->unbuffered_fetch_owner == &stmt->unbuffered_fetch_cancelled)
         mysql->unbuffered_fetch_owner= 0;
@@ -3783,7 +3748,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   int rc= 0;
   DBUG_ENTER("mysql_stmt_close");
 
-  mysql_free_result(stmt->result);              /* if result is buffered */
+  free_root(&stmt->result.alloc, MYF(0));
   free_root(&stmt->mem_root, MYF(0));
 
   if (mysql)
