@@ -149,6 +149,9 @@
 /* Do we use user level threads */
 #undef HAVE_mit_thread
 
+/* Using Ndb Cluster DB */
+#undef HAVE_NDBCLUSTER_DB
+
 /* For some non posix threads */
 #undef HAVE_NONPOSIX_PTHREAD_GETSPECIFIC
 
