@@ -7,7 +7,7 @@
 
 #It is assumed we are running the script in mysql-test directory
 
-VERSION=4.0.0-debug-log
+VERSION=4.0.0-alpha-debug-log
 TEST_CASE=$1
 
 if [ -z "$TEST_CASE" ] ;

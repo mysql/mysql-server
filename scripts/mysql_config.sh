@@ -31,16 +31,18 @@ client_libs='@CLIENT_LIBS@'
 
 libs="$ldflags -L'$pkglibdir' -lmysqlclient $client_libs"
 cflags="-I'$pkgincludedir'"
+embedded_libs="$ldflags -L'$pkglibdir' -lmysqld @LIBS@ @innodb_system_libs@"
 
 usage () {
         cat <<EOF
 Usage: $0 [OPTIONS]
 Options:
-        --cflags        [$cflags]
-        --libs          [$libs]
-        --socket        [$socket]
-        --port          [$port]
-        --version       [$version]
+        --cflags         [$cflags]
+        --libs           [$libs]
+        --socket         [$socket]
+        --port           [$port]
+        --version        [$version]
+	--libmysqld-libs [$embedded_libs]
 EOF
         exit 1
 }
@@ -54,6 +56,7 @@ while test $# -gt 0; do
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
+	--embedded-libs | --embedded | libmysqld-libs) echo "$embedded_libs" ;;
         *)         usage ;;
         esac
 

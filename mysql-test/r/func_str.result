@@ -1,112 +1,186 @@
+drop table if exists t1;
+select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
 hello	'hello'	""hello""	'h'e'l'l'o'	hel"lo	hel'lo
 hello	'hello'	""hello""	'h'e'l'l'o'	hel"lo	hel'lo
+select 'hello' 'monty';
 hello
 hellomonty
+select length('\n\t\r\b\0\_\%\\');
 length('\n\t\r\b\0\_\%\\')
 10
+select concat('monty',' was here ','again'),length('hello'),char(ascii('h'));
 concat('monty',' was here ','again')	length('hello')	char(ascii('h'))
 monty was here again	5	h
+select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 locate('he','hello')	locate('he','hello',2)	locate('lo','hello',2)
 1	0	4
+select instr('hello','he');
 instr('hello','he')
 1
+select position('ll' in 'hello'),position('a' in 'hello');
 position('ll' in 'hello')	position('a' in 'hello')
 3	0
+select left('hello',2),right('hello',2),substring('hello',2,2),mid('hello',1,5) ;
 left('hello',2)	right('hello',2)	substring('hello',2,2)	mid('hello',1,5)
 he	lo	el	hello
+select concat('',left(right(concat('what ',concat('is ','happening')),9),4),'',substring('monty',5,1)) ;
 concat('',left(right(concat('what ',concat('is ','happening')),9),4),'',substring('monty',5,1))
 happy
+select substring_index('www.tcx.se','.',-2),substring_index('www.tcx.se','.',1);
 substring_index('www.tcx.se','.',-2)	substring_index('www.tcx.se','.',1)
 tcx.se	www
+select substring_index('www.tcx.se','tcx',1),substring_index('www.tcx.se','tcx',-1);
 substring_index('www.tcx.se','tcx',1)	substring_index('www.tcx.se','tcx',-1)
 www.	.se
+select substring_index('.tcx.se','.',-2),substring_index('.tcx.se','.tcx',-1);
 substring_index('.tcx.se','.',-2)	substring_index('.tcx.se','.tcx',-1)
 tcx.se	.se
+select concat(':',ltrim('  left  '),':',rtrim('  right  '),':');
 concat(':',ltrim('  left  '),':',rtrim('  right  '),':')
 :left  :  right:
+select concat(':',trim(LEADING FROM ' left'),':',trim(TRAILING FROM ' right '),':');
 concat(':',trim(LEADING FROM ' left'),':',trim(TRAILING FROM ' right '),':')
 :left: right:
+select concat(':',trim(' m '),':',trim(BOTH FROM ' y '),':',trim('*' FROM '*s*'),':');
 concat(':',trim(' m '),':',trim(BOTH FROM ' y '),':',trim('*' FROM '*s*'),':')
 :m:y:s:
+select concat(':',trim(BOTH 'ab' FROM 'ababmyabab'),':',trim(BOTH '*' FROM '***sql'),':');
 concat(':',trim(BOTH 'ab' FROM 'ababmyabab'),':',trim(BOTH '*' FROM '***sql'),':')
 :my:sql:
+select concat(':',trim(LEADING '.*' FROM '.*my'),':',trim(TRAILING '.*' FROM 'sql.*.*'),':');
 concat(':',trim(LEADING '.*' FROM '.*my'),':',trim(TRAILING '.*' FROM 'sql.*.*'),':')
 :my:sql:
+select TRIM("foo" FROM "foo"), TRIM("foo" FROM "foook"), TRIM("foo" FROM "okfoo");
 TRIM("foo" FROM "foo")	TRIM("foo" FROM "foook")	TRIM("foo" FROM "okfoo")
 	ok	ok
+select concat_ws(', ','monty','was here','again');
 concat_ws(', ','monty','was here','again')
 monty, was here, again
+select concat_ws(NULL,'a'),concat_ws(',',NULL,'');
 concat_ws(NULL,'a')	concat_ws(',',NULL,'')
 NULL	
+select concat_ws(',','',NULL,'a');
 concat_ws(',','',NULL,'a')
 a
+SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"');
 CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"')
 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
 this	is a	test
+select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 replace('aaaa','a','b')	replace('aaaa','aa','b')	replace('aaaa','a','bb')	replace('aaaa','','b')	replace('bbbb','a','c')
 bbbb	bb	bbbbbbbb	aaaa	bbbb
+select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
 replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL')
 this is a REAL test
+select soundex(''),soundex('he'),soundex('hello all folks');
 soundex('')	soundex('he')	soundex('hello all folks')
 	H000	H4142
+select password('test'),length(encrypt('test')),encrypt('test','aa');
 password('test')	length(encrypt('test'))	encrypt('test','aa')
 378b243e220ca493	13	aaqPiZY5xR5l.
+select md5('hello');
 md5('hello')
 5d41402abc4b2a76b9719d911017c592
+select repeat('monty',5),concat('*',space(5),'*');
 repeat('monty',5)	concat('*',space(5),'*')
 montymontymontymontymonty	*     *
+select reverse('abc'),reverse('abcd');
 reverse('abc')	reverse('abcd')
 cba	dcba
+select rpad('a',4,'1'),rpad('a',4,'12'),rpad('abcd',3,'12');
 rpad('a',4,'1')	rpad('a',4,'12')	rpad('abcd',3,'12')
 a111	a121	abc
+select lpad('a',4,'1'),lpad('a',4,'12'),lpad('abcd',3,'12');
 lpad('a',4,'1')	lpad('a',4,'12')	lpad('abcd',3,'12')
 111a	121a	abc
+select rpad(741653838,17,'0'),lpad(741653838,17,'0');
 rpad(741653838,17,'0')	lpad(741653838,17,'0')
 74165383800000000	00000000741653838
+select rpad('abcd',7,'ab'),lpad('abcd',7,'ab');
 rpad('abcd',7,'ab')	lpad('abcd',7,'ab')
 abcdaba	abaabcd
+select rpad('abcd',1,'ab'),lpad('abcd',1,'ab');
 rpad('abcd',1,'ab')	lpad('abcd',1,'ab')
 a	a
+select LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD'),GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD');
 LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')	GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')
 HAROLD	HARRY
+select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least(3,2,1)*1.0,greatest(1,1.1,1.0),least("10",9),greatest("A","B","0");
 least(1,2,3) | greatest(16,32,8)	least(5,4)*1	greatest(-1.0,1.0)*1	least(3,2,1)*1.0	greatest(1,1.1,1.0)	least("10",9)	greatest("A","B","0")
 33	4	1.0	1.0	1.1	9	B
+select decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000);
 decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000)
 1
+select decode(encode("abcdef","monty"),"monty")="abcdef";
 decode(encode("abcdef","monty"),"monty")="abcdef"
 1
+select reverse("");
 reverse("")
 
+select insert("aa",100,1,"b"),insert("aa",1,3,"b"),left("aa",-1),substring("a",1,2);
 insert("aa",100,1,"b")	insert("aa",1,3,"b")	left("aa",-1)	substring("a",1,2)
 aa	b		a
+select elt(2,1),field(NULL,"a","b","c"),reverse("");
 elt(2,1)	field(NULL,"a","b","c")	reverse("")
 NULL	0	
+select locate("a","b",2),locate("","a",1);
 locate("a","b",2)	locate("","a",1)
 0	1
+select ltrim("a"),rtrim("a"),trim(BOTH "" from "a"),trim(BOTH " " from "a");
 ltrim("a")	rtrim("a")	trim(BOTH "" from "a")	trim(BOTH " " from "a")
 a	a	a	a
+select concat("1","2")|0,concat("1",".5")+0.0;
 concat("1","2")|0	concat("1",".5")+0.0
 12	1.5
+select substring_index("www.tcx.se","",3);
 substring_index("www.tcx.se","",3)
 
+select length(repeat("a",100000000)),length(repeat("a",1000*64));
 length(repeat("a",100000000))	length(repeat("a",1000*64))
 NULL	64000
+select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
 position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
 1	0	3
+select position(("1" in (1,2,3)) in "01");
 position(("1" in (1,2,3)) in "01")
 2
+select length(repeat("a",65500)),length(concat(repeat("a",32000),repeat("a",32000))),length(replace("aaaaa","a",concat(repeat("a",10000)))),length(insert(repeat("a",40000),1,30000,repeat("b",50000)));
 length(repeat("a",65500))	length(concat(repeat("a",32000),repeat("a",32000)))	length(replace("aaaaa","a",concat(repeat("a",10000))))	length(insert(repeat("a",40000),1,30000,repeat("b",50000)))
 65500	64000	50000	60000
+select length(repeat("a",1000000)),length(concat(repeat("a",32000),repeat("a",32000),repeat("a",32000))),length(replace("aaaaa","a",concat(repeat("a",32000)))),length(insert(repeat("a",48000),1,1000,repeat("a",48000)));
 length(repeat("a",1000000))	length(concat(repeat("a",32000),repeat("a",32000),repeat("a",32000)))	length(replace("aaaaa","a",concat(repeat("a",32000))))	length(insert(repeat("a",48000),1,1000,repeat("a",48000)))
 1000000	96000	160000	95000
+create table t1 ( domain char(50) );
+insert into t1 VALUES ("hello.de" ), ("test.de" );
+select domain from t1 where concat('@', trim(leading '.' from concat('.', domain))) = '@hello.de';
 domain
 hello.de
+select domain from t1 where concat('@', trim(leading '.' from concat('.', domain))) = '@test.de';
 domain
 test.de
+drop table t1;
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL,
+title varchar(255) default NULL,
+prio int(10) unsigned default NULL,
+category int(10) unsigned default NULL,
+program int(10) unsigned default NULL,
+bugdesc text,
+created datetime default NULL,
+modified timestamp(14) NOT NULL,
+bugstatus int(10) unsigned default NULL,
+submitter int(10) unsigned default NULL
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','2001-02-28 08:40:16',20010228084016,0,4);
+SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter), '"') FROM t1;
 CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter), '"')
 "Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4"
+SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
 CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"')
 "Link";"1";"1";"1";"0";"4"
+SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter) FROM t1;
 CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter)
 Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4
+drop table t1;

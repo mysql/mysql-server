@@ -51,6 +51,7 @@ static void read_texts(const char *file_name,const char ***point,
   uchar head[32],*pos;
   DBUG_ENTER("read_texts");
 
+  *point=0;					// If something goes wrong
   LINT_INIT(buff);
   funktpos=0;
   if ((file=my_open(fn_format(name,file_name,language,"",4),
@@ -72,8 +73,7 @@ static void read_texts(const char *file_name,const char ***point,
 Check that the above file is the right version for this program!\n\n",
 	    my_progname,name,ant,error_messages);
     VOID(my_close(file,MYF(MY_WME)));
-    clean_up(0);			/* Clean_up frees everything */
-    exit(1);				/* We can't continue */
+    unireg_abort(1);
   }
 
   x_free((gptr) *point);		/* Free old language */
@@ -115,8 +115,7 @@ err:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
   fprintf(stderr,buff,my_progname,name);
-  clean_up(0);				/* Clean_up frees everything */
-  exit(1);				/* We can't continue */
+  unireg_abort(1);
 } /* read_texts */
 
 

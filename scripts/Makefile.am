@@ -28,6 +28,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
+			mysql_explain_log \
 			mysqld_multi
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
@@ -43,6 +44,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_find_rows.sh \
 			mysqlhotcopy.sh \
 		        mysqldumpslow.sh \
+			mysql_explain_log.sh \
 			mysqld_multi.sh \
 			mysqld_safe.sh
 
@@ -95,6 +97,8 @@ SUFFIXES = .sh
 	  -e 's!@''CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
 	  -e 's!@''LDFLAGS''@!@SAVE_LDFLAGS@!'\
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
+	  -e 's!@''LIBS''@!@LIBS@!' \
+	  -e 's!@''innodb_system_libs''@!@innodb_system_libs@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 	  -e 's!@''COMPILATION_COMMENT''@!@COMPILATION_COMMENT@!' \

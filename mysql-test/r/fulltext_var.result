@@ -1,3 +1,4 @@
+show variables like "ft\_%";
 Variable_name	Value
 ft_min_word_len	4
 ft_max_word_len	254

@@ -1,11 +1,48 @@
+drop table if exists t1;
+drop table if exists t1;
+drop table t1;
+Unknown table 't1'
+create table t1(n int);
+insert into t1 values(1);
+create temporary table t1( n int);
+insert into t1 values(2);
+create table t1(n int);
+Table 't1' already exists
+drop table t1;
+select * from t1;
 n
 1
+drop database if exists foo;
+create database foo;
+drop database if exists foo;
+create database foo;
+create table foo.foo (n int);
+insert into foo.foo values (4);
+select * from foo.foo;
 n
 4
+drop database if exists foo;
+create database foo;
+drop database foo;
+drop database if exists foo;
+flush tables with read lock;
+create database foo;
+Got one of the listed errors
+unlock tables;
+create database foo;
+show databases;
 Database
 foo
 mysql
 test
+flush tables with read lock;
+drop database foo;
+Got one of the listed errors
+unlock tables;
+drop database foo;
+show databases;
 Database
 mysql
 test
+drop database foo;
+Can't drop database 'foo'. Database doesn't exist

@@ -184,8 +184,10 @@ String *Item_num_func::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
+    else if (!unsigned_flag)
       str->set(nr);
+    else
+      str->set((ulonglong) nr);
   }
   else
   {
@@ -207,24 +209,31 @@ void Item_func::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
-
 String *Item_int_func::val_str(String *str)
 {
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else
+  else if (!unsigned_flag)
     str->set(nr);
+  else
+    str->set((ulonglong) nr);
   return str;
 }
 
-/* Change from REAL_RESULT (default) to INT_RESULT if both arguments are integers */
+/*
+  Change from REAL_RESULT (default) to INT_RESULT if both arguments are
+  integers
+*/
 
 void Item_num_op::find_num_type(void)
 {
   if (args[0]->result_type() == INT_RESULT &&
       args[1]->result_type() == INT_RESULT)
+  {
     hybrid_type=INT_RESULT;
+    unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
+  }
 }
 
 String *Item_num_op::val_str(String *str)
@@ -234,8 +243,10 @@ String *Item_num_op::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
+    else if (!unsigned_flag)
       str->set(nr);
+    else
+      str->set((ulonglong) nr);
   }
   else
   {
@@ -667,8 +678,10 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    else
+    else if (!unsigned_flag)
       str->set(nr);
+    else
+      str->set((ulonglong) nr);
     return str;
   }
   case REAL_RESULT:
@@ -1050,7 +1063,8 @@ udf_handler::~udf_handler()
     }
     free_udf(u_d);
   }
-  delete [] buffers;
+  if (buffers)					// Because of bug in ecc
+    delete [] buffers;
 }
 
 
@@ -1306,8 +1320,10 @@ String *Item_func_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else
+  else if (!unsigned_flag)
     str->set(nr);
+  else
+    str->set((ulonglong) nr);
   return str;
 }
 
@@ -1402,19 +1418,16 @@ void item_user_lock_release(ULL *ull)
   if (mysql_bin_log.is_open())
   {
     THD *thd = current_thd;
-    int save_errno;
     char buf[256];
     String tmp(buf,sizeof(buf));
     tmp.length(0);
     tmp.append("SELECT release_lock(\"");
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")");
-    save_errno=thd->net.last_errno;
-    thd->net.last_errno=0;
     thd->query_length=tmp.length();
     Query_log_event qev(thd,tmp.ptr());
+    qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
-    thd->net.last_errno=save_errno;
   }
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
@@ -1447,6 +1460,80 @@ longlong Item_master_pos_wait::val_int()
   }
   return event_count;
 }
+
+#ifdef EXTRA_DEBUG
+void debug_sync_point(const char* lock_name, uint lock_timeout)
+{
+  THD* thd=current_thd;
+  ULL* ull;
+  struct timespec abstime;
+  int lock_name_len,error=0;
+  lock_name_len=strlen(lock_name);
+  pthread_mutex_lock(&LOCK_user_locks);
+
+  if (thd->ull)
+  {
+    item_user_lock_release(thd->ull);
+    thd->ull=0;
+  }
+
+  /* if the lock has not been aquired by some client, we do not want to
+     create an entry for it, since we immediately release the lock. In
+     this case, we will not be waiting, but rather, just waste CPU and
+     memory on the whole deal
+  */
+  if (!(ull= ((ULL*) hash_search(&hash_user_locks,lock_name,
+				 lock_name_len))))
+  {
+    pthread_mutex_unlock(&LOCK_user_locks);
+    return;
+  }
+  ull->count++;
+
+  /* structure is now initialized.  Try to get the lock */
+  /* Set up control struct to allow others to abort locks */
+  thd->proc_info="User lock";
+  thd->mysys_var->current_mutex= &LOCK_user_locks;
+  thd->mysys_var->current_cond=  &ull->cond;
+
+#ifdef HAVE_TIMESPEC_TS_SEC
+  abstime.ts_sec=time((time_t*) 0)+(time_t) lock_timeout;
+  abstime.ts_nsec=0;
+#else
+  abstime.tv_sec=time((time_t*) 0)+(time_t) lock_timeout;
+  abstime.tv_nsec=0;
+#endif
+
+  while (!thd->killed &&
+	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
+	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+  if (ull->locked)
+  {
+    if (!--ull->count)
+      delete ull;				// Should never happen
+  }
+  else
+  {
+    ull->locked=1;
+    ull->thread=thd->real_id;
+    thd->ull=ull;
+  }
+  pthread_mutex_unlock(&LOCK_user_locks);
+  pthread_mutex_lock(&thd->mysys_var->mutex);
+  thd->proc_info=0;
+  thd->mysys_var->current_mutex= 0;
+  thd->mysys_var->current_cond=  0;
+  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  pthread_mutex_lock(&LOCK_user_locks);
+  if (thd->ull)
+  {
+    item_user_lock_release(thd->ull);
+    thd->ull=0;
+  }
+  pthread_mutex_unlock(&LOCK_user_locks);
+}
+
+#endif
 
 /*
   Get a user level lock. If the thread has an old lock this is first released.

@@ -19,13 +19,13 @@
 INCLUDES =			-I$(srcdir)/../include $(openssl_includes) \
 				-I../include -I$(srcdir)/.. -I$(top_srcdir) \
 				-I..
-noinst_HEADERS =		client_priv.h
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
- mysqldump mysqlimport mysqltest mysqlbinlog
+ mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen
 noinst_PROGRAMS =		insert_test select_test thread_test
-noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h
+noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
+				client_priv.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysql_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
@@ -36,14 +36,16 @@ mysqldump_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlimport_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-mysqltest_SOURCES=		mysqltest.c
+mysqltest_SOURCES=			mysqltest.c
 mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-mysqlbinlog_SOURCES =		mysqlbinlog.cc 
+mysqlbinlog_SOURCES =   mysqlbinlog.cc 
 mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-sql_src=			log_event.h log_event.cc
+mysqlmanagerc_SOURCES =   mysqlmanagerc.c 
+mysqlmanagerc_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
+sql_src=log_event.h log_event.cc
 
 # Fix for mit-threads
-DEFS=				-DUNDEF_THREADS_HACK
+DEFS =			-DUNDEF_THREADS_HACK
 
 link_sources:
 	for f in $(sql_src) ; do \

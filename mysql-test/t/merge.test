@@ -2,7 +2,7 @@
 # test of MERGE TABLES
 #
 
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4,t5,t6;
 create table t1 (a int not null primary key auto_increment, message char(20));
 create table t2 (a int not null primary key auto_increment, message char(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
@@ -31,6 +31,14 @@ select * from t3 where a > 10 and a < 20;
 explain select a from t3 order by a desc limit 10;
 select a from t3 order by a desc limit 10;
 select a from t3 order by a desc limit 300,10;
+delete from t3 where a=3;
+select * from t3 where a < 10;
+delete from t3 where a >= 6 and a <= 8;
+select * from t3 where a < 10;
+update t3 set a=3 where a=9;
+select * from t3 where a < 10;
+update t3 set a=6 where a=7;
+select * from t3 where a < 10;
 show create table t3;
 
 # The following should give errors
@@ -114,3 +122,49 @@ insert into t2 values (1,1),(2,2),(0,0),(4,4),(5,5),(6,6);
 flush tables;
 select * from t3 where a=1 order by b limit 2;
 drop table t3,t1,t2;
+
+#
+# [phi] testing INSERT_METHOD stuff
+#
+
+drop table if exists t6, t5, t4, t3, t2, t1;
+# first testing of common stuff with new parameters
+create table t1 (a int not null, b int not null, key(a,b));
+create table t2 (a int not null, b int not null, key(a,b));
+create table t3 (a int not null, b int not null, key(a,b)) UNION=(t1,t2) INSERT_METHOD=NO;
+create table t4 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=NO;
+create table t5 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+create table t6 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
+show create table t3;
+show create table t4;
+show create table t5;
+show create table t6;
+insert into t1 values (1,1),(1,2),(1,3),(1,4);
+insert into t2 values (2,1),(2,2),(2,3),(2,4);
+select * from t3 order by b,a limit 3;
+select * from t4 order by b,a limit 3;
+select * from t5 order by b,a limit 3,3;
+select * from t6 order by b,a limit 6,3;
+# now testing inserts and where the data gets written
+insert into t5 values (5,1),(5,2);
+insert into t6 values (6,1),(6,2);
+select * from t1 order by a,b;
+select * from t2 order by a,b;
+select * from t4 order by a,b;
+# preperation for next test
+insert into t3 values (3,1),(3,2),(3,3),(3,4);
+select * from t3 order by a,b;
+# now testing whether options are kept by alter table
+alter table t4 UNION=(t1,t2,t3);
+show create table t4;
+select * from t4 order by a,b;
+# testing switching off insert method and inserts again
+alter table t4 INSERT_METHOD=FIRST;
+show create table t4;
+insert into t4 values (4,1),(4,2);
+select * from t1 order by a,b;
+select * from t2 order by a,b;
+select * from t3 order by a,b;
+select * from t4 order by a,b;
+select * from t5 order by a,b;
+drop table if exists t6, t5, t4, t3, t2, t1;

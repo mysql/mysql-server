@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath);
+		  opt_ssl_capath, opt_ssl_cipher);
 #endif
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
 			   argv[0],opt_mysql_port,opt_mysql_unix_port,
@@ -713,7 +713,7 @@ static void print_res_header(MYSQL_RES *result)
   putchar('|');
   while ((field = mysql_fetch_field(result)))
   {
-    printf(" %-*s|",field->max_length+1,field->name);
+    printf(" %-*s|",(int) field->max_length+1,field->name);
   }
   putchar('\n');
   print_res_top(result);

@@ -45,9 +45,8 @@ static my_bool win32_init_tcp_ip();
 #else
 #define my_win_init()
 #endif
-static my_bool my_init_done=0;
 
-
+my_bool my_init_done=0;
 
 static ulong atoi_octal(const char *str)
 {

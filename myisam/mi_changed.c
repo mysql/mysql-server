@@ -24,7 +24,7 @@ int mi_is_changed(MI_INFO *info)
 {
   int result;
   DBUG_ENTER("mi_is_changed");
-  if (_mi_readinfo(info,F_RDLCK,1))
+  if (fast_mi_readinfo(info))
     DBUG_RETURN(-1);
   VOID(_mi_writeinfo(info,0));
   result=(int) info->data_changed;

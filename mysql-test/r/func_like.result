@@ -1,10 +1,18 @@
+drop table if exists t1;
+create table t1 (a varchar(10), key(a));
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%";
 a
 abc
 abcd
+select * from t1 where a like "ABC%";
 a
 abc
 abcd
+select * from t1 where a like "test%";
 a
 test
+select * from t1 where a like "te_t";
 a
 test
+drop table t1;

@@ -1,10 +1,25 @@
+select 0x41,0x41+0,0x41 | 0x7fffffffffffffff | 0,0xffffffffffffffff | 0 ;
 0x41	0x41+0	0x41 | 0x7fffffffffffffff | 0	0xffffffffffffffff | 0
 A	65	9223372036854775807	-1
+select 0x31+1,concat(0x31)+1,-0xf;
 0x31+1	concat(0x31)+1	-0xf
 50	2	-15
+select x'31',X'ffff'+0;
 x'31'	X'ffff'+0
 1	65535
+create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint(21) unsigned zerofill not null,primary key (ID),unique (UNIQ) );
+insert into t1 set UNIQ=0x38afba1d73e6a18a;
+insert into t1 set UNIQ=123;
+explain select * from t1 where UNIQ=0x38afba1d73e6a18a;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	const	UNIQ	UNIQ	8	const	1	
+drop table t1;
+select x'hello';
+You have an error in your SQL syntax near 'x'hello'' at line 1
+select 0xfg;
+Unknown column '0xfg' in 'field list'
+create table t1 select 1 as x, 2 as xx;
+select x,xx from t1;
 x	xx
 1	2
+drop table t1;

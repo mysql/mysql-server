@@ -34,7 +34,7 @@ FT_DOCLIST *ft_init_search(void *info, uint keynr, byte *query,
 /* black magic ON */
   if ((int) (keynr = _mi_check_index((MI_INFO *)info,keynr)) < 0)
     return NULL;
-  if (_mi_readinfo((MI_INFO *)info,F_RDLCK,1))
+  if (fast_mi_readinfo((MI_INFO *) info))
     return NULL;
 /* black magic OFF */
 

@@ -1,6 +1,34 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+use test;
+set SQL_LOG_BIN=0;
+drop table if exists t1;
+create table t1 (word char(20) not null, index(word));
+load data infile '../../std_data/words.dat' into table t1;
+drop table if exists t2;
+create table t2 (word char(20) not null);
+load data infile '../../std_data/words.dat' into table t2;
+create table t3 (word char(20) not null primary key);
+use test;
+drop table if exists t1;
+load table t1 from master;
+drop table if exists t2;
+load table t2 from master;
+drop table if exists t3;
+load table t3 from master;
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+select count(*) from t2;
 count(*)
 10
+select count(*) from t3;
 count(*)
 0
+set SQL_LOG_BIN=1;
+drop table if exists t1,t2,t3;
+create table t1(n int);
+drop table t1;

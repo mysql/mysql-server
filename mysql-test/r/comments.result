@@ -1,15 +1,27 @@
+select 1+2/*hello*/+3;
 1+2/*hello*/+3
 6
+select 1 /* long
+multi line comment */;
 1
 1
+/* empty query */;
+Query was empty
+select 1 /*!32301 +1 */;
 1 /*!32301 +1
 2
+select 1 /*!52301 +1 */;
 1
 1
+select 1--1;
 1--1
 2
+select 1 --2
++1;
 1 --2
 +1
 4
+select 1 # The rest of the row will be ignored
+;
 1
 1

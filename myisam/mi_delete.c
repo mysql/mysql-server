@@ -196,7 +196,8 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   DBUG_ENTER("d_search");
   DBUG_DUMP("page",(byte*) anc_buff,mi_getint(anc_buff));
 
-  flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key,key_length,SEARCH_SAME,
+  flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key, USE_WHOLE_KEY,
+			      SEARCH_SAME,
 			      &keypos, lastkey, &last_key);
   if (flag == MI_FOUND_WRONG_KEY)
   {

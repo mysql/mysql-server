@@ -70,6 +70,7 @@ extern ulint	srv_n_rows_read;
 extern ibool	srv_print_innodb_monitor;
 extern ibool    srv_print_innodb_lock_monitor;
 extern ibool    srv_print_innodb_tablespace_monitor;
+extern ibool    srv_print_verbose_log;
 
 extern ulint	srv_n_spin_wait_rounds;
 extern ulint	srv_spin_wait_delay;

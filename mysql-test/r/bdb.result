@@ -1,3 +1,7 @@
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
+create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) type=bdb;
+insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
+select id, code, name from t1 order by id;
 id	code	name
 1	1	Tim
 2	1	Monty
@@ -6,6 +10,8 @@ id	code	name
 5	3	Sasha
 6	3	Jeremy
 7	4	Matt
+update ignore t1 set id = 8, name = 'Sinisa' where id < 3;
+select id, code, name from t1 order by id;
 id	code	name
 2	1	Monty
 3	2	David
@@ -14,6 +20,8 @@ id	code	name
 6	3	Jeremy
 7	4	Matt
 8	1	Sinisa
+update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
+select id, code, name from t1 order by id;
 id	code	name
 3	2	David
 4	2	Erik
@@ -22,10 +30,26 @@ id	code	name
 7	4	Matt
 8	1	Sinisa
 12	1	Ralph
+drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+parent_id int(11) DEFAULT '0' NOT NULL,
+level tinyint(4) DEFAULT '0' NOT NULL,
+PRIMARY KEY (id),
+KEY parent_id (parent_id),
+KEY level (level)
+) type=bdb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1),(179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
 id	parent_id	level
 8	102	2
 9	102	2
 15	102	2
+update t1 set id=id+1000;
+update t1 set id=1024 where id=1009;
+Duplicate entry '1024' for key 1
+select * from t1;
 id	parent_id	level
 1001	100	0
 1002	101	1
@@ -66,6 +90,8 @@ id	parent_id	level
 1193	105	2
 1202	107	2
 1203	107	2
+update ignore t1 set id=id+1;
+select * from t1;
 id	parent_id	level
 1001	100	0
 1002	101	1
@@ -106,16 +132,22 @@ id	parent_id	level
 1194	105	2
 1202	107	2
 1204	107	2
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
 id	parent_id	level
 1008	102	2
 1015	102	2
 1010	102	2
+explain select level from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	level	level	1	const	1	where used; Using index
+explain select level,id from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	level	level	1	const	1	where used; Using index
+explain select level,id,parent_id from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	level	level	1	const	1	where used
+select level,id from t1 where level=1;
 level	id
 1	1002
 1	1003
@@ -123,6 +155,7 @@ level	id
 1	1005
 1	1006
 1	1007
+select level,id,parent_id from t1 where level=1;
 level	id	parent_id
 1	1002	101
 1	1003	101
@@ -130,31 +163,77 @@ level	id	parent_id
 1	1005	101
 1	1006	101
 1	1007	101
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	id	A	39	NULL	NULL	
 t1	1	parent_id	1	parent_id	A	9	NULL	NULL	
 t1	1	level	1	level	A	3	NULL	NULL	
+drop table t1;
+CREATE TABLE t1 (
+gesuchnr int(11) DEFAULT '0' NOT NULL,
+benutzer_id int(11) DEFAULT '0' NOT NULL,
+PRIMARY KEY (gesuchnr,benutzer_id)
+) type=BDB;
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+select * from t1;
 gesuchnr	benutzer_id
 1	1
 2	1
+drop table t1;
+create table t1 (id int not null primary key, x int not null, key (x)) type=bdb;
+insert into t1 (id, x) values (1, 1);
+replace into t1 (id, x) values (1, 2);
+select * from t1;
 id	x
 1	2
+drop table t1;
+create table t1 (a int) type=bdb;
+insert into t1 values (1), (2);
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+delete from t1 where a = 1;
+select * from t1;
 a
 2
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	error	The handler for the table doesn't support check/repair
+drop table t1;
+create table t1 (a int,b varchar(20)) type=bdb;
+insert into t1 values (1,""), (2,"testing");
+delete from t1 where a = 1;
+select * from t1;
 a	b
 2	testing
+create index skr on t1 (a);
+insert into t1 values (3,""), (4,"testing");
+analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	1	skr	1	a	A	3	NULL	NULL	
+drop table t1;
+create table t1 (a int,b varchar(20),key(a)) type=bdb;
+insert into t1 values (1,""), (2,"testing");
+select * from t1 where a = 1;
 a	b
 1	
+drop table t1;
+create table t1 (a char(10) not null, b int not null auto_increment, primary key(a,b)) type=BDB;
+insert into t1 values ("a",1),("b",2),("a",2),("c",1);
+insert into t1 values ("a",NULL),("b",NULL),("c",NULL),("e",NULL);
+insert into t1 (a) values ("a"),("b"),("c"),("d");
+insert into t1 (a) values ('k'),('d');
+insert into t1 (a) values ("a");
+insert into t1 values ("d",last_insert_id());
+select * from t1;
 a	b
 a	1
 a	2
@@ -172,51 +251,136 @@ d	2
 d	5
 e	1
 k	1
+flush tables;
+select count(*) from t1;
 count(*)
 16
+drop table t1;
+create table t1 (n int not null primary key) type=bdb;
+set autocommit=0;
+insert into t1 values (4);
+rollback;
+select n, "after rollback" from t1;
 n	after rollback
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
 n	after commit
 4	after commit
+commit;
+insert into t1 values (5);
+insert into t1 values (4);
+Duplicate entry '4' for key 1
+commit;
+select n, "after commit" from t1;
 n	after commit
 4	after commit
 5	after commit
+set autocommit=1;
+insert into t1 values (6);
+insert into t1 values (4);
+Duplicate entry '4' for key 1
+select n from t1;
 n
 4
 5
 6
+rollback;
+drop table t1;
+create table t1 ( id int NOT NULL PRIMARY KEY, nom varchar(64)) type=BDB;
+begin;
+insert into t1 values(1,'hamdouni');
+select id as afterbegin_id,nom as afterbegin_nom from t1;
 afterbegin_id	afterbegin_nom
 1	hamdouni
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
 afterrollback_id	afterrollback_nom
+set autocommit=0;
+insert into t1 values(2,'mysql');
+select id as afterautocommit0_id,nom as afterautocommit0_nom from t1;
 afterautocommit0_id	afterautocommit0_nom
 2	mysql
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
 afterrollback_id	afterrollback_nom
+set autocommit=1;
+drop table t1;
+CREATE TABLE t1 (id char(8) not null primary key, val int not null) type=bdb;
+insert into t1 values ('pippo', 12);
+insert into t1 values ('pippo', 12);
+Duplicate entry 'pippo' for key 1
+delete from t1;
+delete from t1 where id = 'pippo';
+select * from t1;
 id	val
+insert into t1 values ('pippo', 12);
+set autocommit=0;
+delete from t1;
+rollback;
+select * from t1;
 id	val
 pippo	12
+delete from t1;
+commit;
+select * from t1;
 id	val
+drop table t1;
+set autocommit=1;
+CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, NAME VARCHAR(64)) TYPE=BDB;
+INSERT INTO t1 VALUES (1, 'Jochen');
+select * from t1;
 ID	NAME
 1	Jochen
+drop table t1;
+CREATE TABLE t1 ( _userid VARCHAR(60) NOT NULL PRIMARY KEY) TYPE=BDB;
+set autocommit=0;
+INSERT INTO t1  SET _userid='marc@anyware.co.uk';
+COMMIT;
+SELECT * FROM t1;
 _userid
 marc@anyware.co.uk
+SELECT _userid FROM t1 WHERE _userid='marc@anyware.co.uk';
 _userid
 marc@anyware.co.uk
+drop table t1;
+set autocommit=1;
+CREATE TABLE t1 (
+user_id int(10) DEFAULT '0' NOT NULL,
+name varchar(100),
+phone varchar(100),
+ref_email varchar(100) DEFAULT '' NOT NULL,
+detail varchar(200),
+PRIMARY KEY (user_id,ref_email)
+)type=bdb;
+INSERT INTO t1 VALUES (10292,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10292,'shirish','2333604','shirish@yahoo.com','ddsds'),(10292,'sonali','323232','sonali@bolly.com','filmstar');
+select * from t1 where user_id=10292;
 user_id	name	phone	ref_email	detail
 10292	sanjeev	29153373	sansh777@hotmail.com	xxx
 10292	shirish	2333604	shirish@yahoo.com	ddsds
 10292	sonali	323232	sonali@bolly.com	filmstar
+INSERT INTO t1 VALUES (10291,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10293,'shirish','2333604','shirish@yahoo.com','ddsds');
+select * from t1 where user_id=10292;
 user_id	name	phone	ref_email	detail
 10292	sanjeev	29153373	sansh777@hotmail.com	xxx
 10292	shirish	2333604	shirish@yahoo.com	ddsds
 10292	sonali	323232	sonali@bolly.com	filmstar
+select * from t1 where user_id>=10292;
 user_id	name	phone	ref_email	detail
 10292	sanjeev	29153373	sansh777@hotmail.com	xxx
 10292	shirish	2333604	shirish@yahoo.com	ddsds
 10292	sonali	323232	sonali@bolly.com	filmstar
 10293	shirish	2333604	shirish@yahoo.com	ddsds
+select * from t1 where user_id>10292;
 user_id	name	phone	ref_email	detail
 10293	shirish	2333604	shirish@yahoo.com	ddsds
+select * from t1 where user_id<10292;
 user_id	name	phone	ref_email	detail
 10291	sanjeev	29153373	sansh777@hotmail.com	xxx
+drop table t1;
+CREATE TABLE t1 (a int not null, b int not null,c int not null,
+key(a),primary key(a,b), unique(c),key(a),unique(b));
+show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	NULL	NULL	NULL	
 t1	0	PRIMARY	2	b	A	0	NULL	NULL	
@@ -224,69 +388,153 @@ t1	0	b	1	b	A	0	NULL	NULL
 t1	0	c	1	c	A	0	NULL	NULL	
 t1	1	a	1	a	A	NULL	NULL	NULL	
 t1	1	a_2	1	a	A	NULL	NULL	NULL	
+drop table t1;
+create table t1 (col1 int not null, col2 char(4) not null, primary key(col1));
+alter table t1 type=BDB;
+insert into t1 values ('1','1'),('5','2'),('2','3'),('3','4'),('4','4');
+select * from t1;
 col1	col2
 1	1
 2	3
 3	4
 4	4
 5	2
+update t1 set col2='7' where col1='4';
+select * from t1;
 col1	col2
 1	1
 2	3
 3	4
 4	7
 5	2
+alter table t1 add co3 int not null;
+select * from t1;
 col1	col2	co3
 1	1	0
 2	3	0
 3	4	0
 4	7	0
 5	2	0
+update t1 set col2='9' where col1='2';
+select * from t1;
 col1	col2	co3
 1	1	0
 2	9	0
 3	4	0
 4	7	0
 5	2	0
+drop table t1;
+create table t1 (a int not null , b int, primary key (a)) type = BDB;
+create table t2 (a int not null , b int, primary key (a)) type = myisam;
+insert into t1 VALUES (1,3) , (2,3), (3,3);
+select * from t1;
 a	b
 1	3
 2	3
 3	3
+insert into t2 select * from t1;
+select * from t2;
 a	b
 1	3
 2	3
 3	3
+delete from t1 where b = 3;
+select * from t1;
 a	b
+insert into t1 select * from t2;
+select * from t1;
 a	b
 1	3
 2	3
 3	3
+select * from t2;
 a	b
 1	3
 2	3
 3	3
+drop table t1,t2;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+ggid varchar(32) binary DEFAULT '' NOT NULL,
+email varchar(64) DEFAULT '' NOT NULL,
+passwd varchar(32) binary DEFAULT '' NOT NULL,
+PRIMARY KEY (id),
+UNIQUE ggid (ggid)
+) TYPE=BDB;
+insert into t1 (ggid,passwd) values ('test1','xxx');
+insert into t1 (ggid,passwd) values ('test2','yyy');
+insert into t1 (ggid,passwd) values ('test2','this will fail');
+Duplicate entry 'test2' for key 2
+insert into t1 (ggid,id) values ('this will fail',1);
+Duplicate entry '1' for key 1
+select * from t1 where ggid='test1';
 id	ggid	email	passwd
 1	test1		xxx
+select * from t1 where passwd='xxx';
 id	ggid	email	passwd
 1	test1		xxx
+select * from t1 where id=2;
 id	ggid	email	passwd
 2	test2		yyy
+replace into t1 (ggid,id) values ('this will work',1);
+replace into t1 (ggid,passwd) values ('test2','this will work');
+update t1 set id=100,ggid='test2' where id=1;
+Duplicate entry 'test2' for key 2
+select * from t1;
 id	ggid	email	passwd
 1	this will work		
 3	test2		this will work
+select * from t1 where id=1;
 id	ggid	email	passwd
 1	this will work		
+select * from t1 where id=999;
 id	ggid	email	passwd
+drop table t1;
+CREATE TABLE t1 (
+user_name varchar(12),
+password text,
+subscribed char(1),
+user_id int(11) DEFAULT '0' NOT NULL,
+quota bigint(20),
+weight double,
+access_date date,
+access_time time,
+approved datetime,
+dummy_primary_key int(11) NOT NULL auto_increment,
+PRIMARY KEY (dummy_primary_key)
+) TYPE=BDB;
+INSERT INTO t1 VALUES ('user_0','somepassword','N',0,0,0,'2000-09-07','23:06:59','2000-09-07 23:06:59',1);
+INSERT INTO t1 VALUES ('user_1','somepassword','Y',1,1,1,'2000-09-07','23:06:59','2000-09-07 23:06:59',2);
+INSERT INTO t1 VALUES ('user_2','somepassword','N',2,2,1.4142135623731,'2000-09-07','23:06:59','2000-09-07 23:06:59',3);
+INSERT INTO t1 VALUES ('user_3','somepassword','Y',3,3,1.7320508075689,'2000-09-07','23:06:59','2000-09-07 23:06:59',4);
+INSERT INTO t1 VALUES ('user_4','somepassword','N',4,4,2,'2000-09-07','23:06:59','2000-09-07 23:06:59',5);
+select  user_name, password , subscribed, user_id, quota, weight, access_date, access_time, approved, dummy_primary_key from t1 order by user_name;
 user_name	password	subscribed	user_id	quota	weight	access_date	access_time	approved	dummy_primary_key
 user_0	somepassword	N	0	0	0	2000-09-07	23:06:59	2000-09-07 23:06:59	1
 user_1	somepassword	Y	1	1	1	2000-09-07	23:06:59	2000-09-07 23:06:59	2
 user_2	somepassword	N	2	2	1.4142135623731	2000-09-07	23:06:59	2000-09-07 23:06:59	3
 user_3	somepassword	Y	3	3	1.7320508075689	2000-09-07	23:06:59	2000-09-07 23:06:59	4
 user_4	somepassword	N	4	4	2	2000-09-07	23:06:59	2000-09-07 23:06:59	5
+drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+parent_id int(11) DEFAULT '0' NOT NULL,
+level tinyint(4) DEFAULT '0' NOT NULL,
+KEY (id),
+KEY parent_id (parent_id),
+KEY level (level)
+) type=bdb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1);
+INSERT INTO t1 values (179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
 id	parent_id	level
 8	102	2
 9	102	2
 15	102	2
+update t1 set id=id+1000;
+update t1 set id=1024 where id=1009;
+select * from t1;
 id	parent_id	level
 1001	100	0
 1003	101	1
@@ -327,6 +575,8 @@ id	parent_id	level
 1019	103	2
 1005	101	1
 1179	105	2
+update ignore t1 set id=id+1;
+select * from t1;
 id	parent_id	level
 1002	100	0
 1004	101	1
@@ -367,12 +617,16 @@ id	parent_id	level
 1020	103	2
 1006	101	1
 1180	105	2
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
 id	parent_id	level
 1009	102	2
 1025	102	2
 1016	102	2
+explain select level from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	level	level	1	const	1	where used; Using index
+select level,id from t1 where level=1;
 level	id
 1	1004
 1	1005
@@ -380,6 +634,7 @@ level	id
 1	1007
 1	1008
 1	1006
+select level,id,parent_id from t1 where level=1;
 level	id	parent_id
 1	1004	101
 1	1005	101
@@ -387,6 +642,7 @@ level	id	parent_id
 1	1007	101
 1	1008	101
 1	1006	101
+select level,id from t1 where level=1 order by id;
 level	id
 1	1003
 1	1004
@@ -394,6 +650,8 @@ level	id
 1	1006
 1	1007
 1	1008
+delete from t1 where level=1;
+select * from t1;
 id	parent_id	level
 1002	100	0
 1009	102	2
@@ -428,43 +686,86 @@ id	parent_id	level
 1022	104	2
 1020	103	2
 1180	105	2
+drop table t1;
+CREATE TABLE t1 (
+sca_code char(6) NOT NULL,
+cat_code char(6) NOT NULL,
+sca_desc varchar(50),
+lan_code char(2) NOT NULL,
+sca_pic varchar(100),
+sca_sdesc varchar(50),
+sca_sch_desc varchar(16),
+PRIMARY KEY (sca_code, cat_code, lan_code),
+INDEX sca_pic (sca_pic)
+) type = bdb ;
+INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING'),( 'QQ', 'N', 'RING', 'EN', 'not null', NULL, 'RING');
+select count(*) from t1 where sca_code = 'PD';
 count(*)
 1
+select count(*) from t1 where sca_code <= 'PD';
 count(*)
 1
+select count(*) from t1 where sca_pic is null;
 count(*)
 2
+alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
+select count(*) from t1 where cat_code='E';
 count(*)
 0
+alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
+select count(*) from t1 where sca_pic >= 'n';
 count(*)
 1
+select sca_pic from t1 where sca_pic is null;
 sca_pic
 NULL
 NULL
+update t1 set sca_pic="test" where sca_pic is null;
+delete from t1 where sca_code='pd';
+drop table t1;
+set @a:=now();
+CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) type=bdb;
+insert into t1 (a) values(1),(2),(3);
+select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
 a
 1
 2
 3
+update t1 set a=5 where a=1;
+select a from t1;
 a
 2
 3
 5
+drop table t1;
+flush logs;
+create table t1 (b blob, i int, key (b(100)), key (i), key (i, b(20))) type=bdb;
+insert into t1 values ('this is a blob', 1), (null, -1), (null, null),("",1),("",2),("",3);
+select b from t1 where b = 'this is a blob';
 b
 this is a blob
+select * from t1 where b like 't%';
 b	i
 this is a blob	1
+select b, i from t1 where b is not null;
 b	i
 this is a blob	1
 	1
 	2
 	3
+select * from t1 where b is null and i > 0;
 b	i
+select * from t1 where i is NULL;
 b	i
 NULL	NULL
+update t1 set b='updated' where i=1;
+select * from t1;
 b	i
 updated	1
 NULL	-1
@@ -472,63 +773,331 @@ NULL	NULL
 updated	1
 	2
 	3
+drop table t1;
+create table t1 (a varchar(100) not null, primary key(a), b int not null) type=bdb;
+insert into t1 values("hello",1),("world",2);
+select * from t1 order by b desc;
 a	b
 world	2
 hello	1
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	2	NULL	NULL	
+drop table t1;
+create table t1 (i int, j int )TYPE=BDB;
+insert into t1 values (1,2);
+select * from t1 where i=1 and j=2;
 i	j
 1	2
+create index ax1 on t1 (i,j);
+select * from t1 where i=1 and j=2;
 i	j
 1	2
+drop table t1;
+drop table if exists t1, t2, t3, t4, t5, t6, t7;
+create table t1
+(
+branch_id	int		auto_increment	primary key,
+branch_name	varchar(255)	not null,
+branch_active	int		not null 	default 1,
+unique  branch_name(branch_name),
+index	branch_active(branch_active)
+) type=bdb;
+drop table if exists t2 ;
+create table t2
+(
+target_id	int		auto_increment	primary key,
+target_name	varchar(255)	not null,
+target_active	int		not null 	default 1,
+unique	target_name(target_name),
+index	target_active(target_active)
+) type=bdb;
+drop table if exists t3 ;
+create table t3
+(
+platform_id	int		auto_increment	primary key,
+platform_name	varchar(255)	not null,
+platform_active	int		not null 	default 1,
+unique	platform_name(platform_name),
+index	platform_active(platform_active)
+) type=bdb;
+drop table if exists t4 ;
+create table t4
+(
+product_id	int		auto_increment	primary key,
+product_name	varchar(255)	not null,
+version_file	varchar(255)	not null,
+product_active	int		not null 	default 1,
+unique	product_name(product_name),
+index	product_active(product_active)
+) type=bdb;
+drop table if exists t5 ;
+create table t5
+(
+product_file_id		int		auto_increment	primary key,
+product_id		int		not null,
+file_name		varchar(255)	not null,
+/* cvs module used to find the file version */
+module_name		varchar(255)	not null,
+/* flag whether the file is still included in the product */
+file_included		int		not null	default 1,
+unique	product_file(product_id,file_name),
+index	file_included(file_included)
+) type=bdb;
+drop table if exists t6 ;
+create table t6
+(
+file_platform_id	int		auto_increment	primary key,
+product_file_id		int		not null,
+platform_id		int		not null,
+branch_id		int		not null,
+/* filename in the build system */
+build_filename		varchar(255)	not null,
+/* default filename in the build archive */
+archive_filename	varchar(255)	not null,
+unique  file_platform(product_file_id,platform_id,branch_id)
+) type=bdb;
+drop table if exists t8 ;
+create table t8
+(
+archive_id	int		auto_increment	primary key,
+branch_id	int		not null,
+target_id	int		not null,
+platform_id	int		not null,
+product_id	int		not null,
+status_id	int		not null	default 1,
+unique  archive(branch_id,target_id,platform_id,product_id),
+index	status_id(status_id)
+) type=bdb;
+drop table if exists t7 ;
+create table t7
+(
+build_id	int		auto_increment	primary key,
+branch_id	int		not null,
+target_id	int		not null,
+build_number	int		not null,
+build_date	date		not null,
+/* build system tag, e.g. 'rmanight-022301-1779' */
+build_tag	varchar(255)	not null,	
+/* path relative to the build archive root, e.g. 'current' */
+build_path	text		not null,	
+unique  build(branch_id,target_id,build_number)
+) type=bdb;
+insert into t1 (branch_name)
+values ('RealMedia');
+insert into t1 (branch_name)
+values ('RP8REV');
+insert into t1 (branch_name)
+values ('SERVER_8_0_GOLD');
+insert into t2 (target_name)
+values ('rmanight');
+insert into t2 (target_name)
+values ('playerall');
+insert into t2 (target_name)
+values ('servproxyall');
+insert into t3 (platform_name)
+values ('linux-2.0-libc6-i386');
+insert into t3 (platform_name)
+values ('win32-i386');
+insert into t4 (product_name, version_file)
+values ('realserver', 'servinst');
+insert into t4 (product_name, version_file)
+values ('realproxy', 'prxyinst');
+insert into t4 (product_name, version_file)
+values ('realplayer', 'playinst');
+insert into t4 (product_name, version_file)
+values ('plusplayer', 'plusinst');
+create temporary table tmp1
+select branch_id, target_id, platform_id, product_id
+from t1, t2, t3, t4 ;
+create temporary table tmp2 
+select tmp1.branch_id, tmp1.target_id, tmp1.platform_id, tmp1.product_id 
+from tmp1 left join t8 
+using (branch_id,target_id,platform_id,product_id) 
+where t8.archive_id is null ;
+insert into t8 
+(branch_id, target_id, platform_id, product_id, status_id)
+select branch_id, target_id, platform_id, product_id, 1
+from tmp2 ;
+drop table tmp1 ;
+drop table tmp2 ;
+insert into t5 (product_id, file_name, module_name)
+values (1, 'servinst', 'server');
+insert into t5 (product_id, file_name, module_name)
+values (2, 'prxyinst', 'server');
+insert into t5 (product_id, file_name, module_name)
+values (3, 'playinst', 'rpapp');
+insert into t5 (product_id, file_name, module_name)
+values (4, 'plusinst', 'rpapp');
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (1, 2, 3, 'servinst.exe', 'win32-servinst.exe');
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (1, 1, 3, 'v80_linux-2.0-libc6-i386_servinst.bin', 'linux2-servinst.exe');
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (3, 2, 2, 'playinst.exe', 'win32-playinst.exe');
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (4, 2, 2, 'playinst.exe', 'win32-playinst.exe');
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (2, 2, 1071, 'playerall-022101-1071', '2001-02-21', 'current');
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (2, 2, 1072, 'playerall-022201-1072', '2001-02-22', 'current');
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (3, 3, 388, 'servproxyall-022201-388', '2001-02-22', 'current');
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (3, 3, 389, 'servproxyall-022301-389', '2001-02-23', 'current');
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (4, 4, 100, 'foo target-010101-100', '2001-01-01', 'current');
+update t8
+set status_id=2
+where branch_id=2 and target_id=2 and platform_id=2 and product_id=1;
+select t7.build_path
+from 
+t1, 
+t7, 
+t2, 
+t3, 
+t4,
+t5, 
+t6
+where 
+t7.branch_id = t1.branch_id and 
+t7.target_id = t2.target_id and 
+t5.product_id = t4.product_id and
+t6.product_file_id = t5.product_file_id and
+t6.platform_id = t3.platform_id and
+t6.branch_id = t6.branch_id and
+t7.build_id = 1 and
+t4.product_id = 3 and
+t5.file_name = 'playinst' and
+t3.platform_id = 2;
 build_path
 current
+drop table t1, t2, t3, t4, t5, t6, t7, t8;
+CREATE TABLE t1 (
+a tinytext NOT NULL,
+b tinyint(3) unsigned NOT NULL default '0',
+PRIMARY KEY (a(32),b)
+) TYPE=BDB;
+INSERT INTO t1 VALUES ('a',1),('a',2);
+SELECT * FROM t1 WHERE a='a' AND b=2;
 a	b
 a	2
+SELECT * FROM t1 WHERE a='a' AND b in (2);
 a	b
 a	2
+SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 a	b
 a	1
 a	2
+drop table t1;
+CREATE TABLE t1 (
+a int3 unsigned NOT NULL,
+b int1 unsigned NOT NULL,
+UNIQUE (a, b)
+) TYPE = BDB;
+INSERT INTO t1 VALUES (1, 1);
+SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
 MIN(B)	MAX(b)
 1	1
+drop table t1;
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=bdb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
+LOCK TABLES t1 WRITE;
+insert into t1 values (99,1,2,'D'),(1,1,2,'D');
+Duplicate entry '1-1' for key 1
+select id from t1;
 id
 0
 1
 2
+select id from t1;
 id
 0
 1
 2
+UNLOCK TABLES;
+DROP TABLE t1;
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=bdb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
+LOCK TABLES t1 WRITE;
+begin;
+insert into t1 values (99,1,2,'D'),(1,1,2,'D');
+Duplicate entry '1-1' for key 1
+select id from t1;
 id
 0
 1
 2
+insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
+commit;
+select id,id3 from t1;
 id	id3
 0	0
 1	1
 2	2
 100	2
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (SYAIN_NO char(5) NOT NULL default '', KINMU_DATE char(6) NOT NULL default '', PRIMARY KEY  (SYAIN_NO,KINMU_DATE)) TYPE=BerkeleyDB;
+CREATE TABLE t2 ( SYAIN_NO char(5) NOT NULL default '',STR_DATE char(8) NOT NULL default '',PRIMARY KEY  (SYAIN_NO,STR_DATE) ) TYPE=BerkeleyDB;
+select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
 KINMU_DATE
+select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
 KINMU_DATE
+DROP TABLE t1,t2;
+drop table if exists t1;
+create table t1 (a int(11) not null, b int(11) not null, unique (a,b)) type=bdb;
+insert into t1 values (1,1), (1,2);
+select * from t1 where a = 1;
 a	b
 1	1
 1	2
+select t1.*, t2.* from t1, t1 t2 where t1.a = t2.a and t2.a = 1;
 a	b	a	b
 1	1	1	1
 1	1	1	2
 1	2	1	1
 1	2	1	2
+select * from t1 where a = 1;
 a	b
 1	1
 1	2
+drop table t1;
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=bdb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ');
+create table t2 (id int NOT NULL,primary key (id)) type=bdb;
+LOCK TABLES t1 WRITE, t2 WRITE;
+insert into t2 values(1);
+SELECT t1.* FROM t1 WHERE id IN (1);
 id	id2	id3	dummy1
+SELECT t1.* FROM t2 left outer join t1 on (t1.id=t2.id);
 id	id2	id3	dummy1
 NULL	NULL	NULL	NULL
+delete from t1 where id3 >= 0 and id3 <= 0;
+drop table t1,t2;
+CREATE TABLE t1 (i varchar(48) NOT NULL default '', p varchar(255) default NULL,s varchar(48) NOT NULL default '', PRIMARY KEY  (i), UNIQUE(p,s)) TYPE=BDB;
+INSERT INTO t1 VALUES ('00000000-e6c4ddeaa6-003b8-83458387','programs/xxxxxxxx.wmv','00000000-e6c4ddeb32-003bc-83458387');
+SELECT * FROM t1 WHERE p='programs/xxxxxxxx.wmv';
 i	p	s
 00000000-e6c4ddeaa6-003b8-83458387	programs/xxxxxxxx.wmv	00000000-e6c4ddeb32-003bc-83458387
+drop table t1;
+CREATE TABLE t1 ( STR_DATE varchar(8) NOT NULL default '',INFO_NOTE varchar(200) default NULL,PRIMARY KEY  (STR_DATE) ) TYPE=BerkeleyDB;
+select INFO_NOTE from t1 where STR_DATE = '20010610';
 INFO_NOTE
+select INFO_NOTE from t1 where STR_DATE < '20010610';
 INFO_NOTE
+select INFO_NOTE from t1 where STR_DATE > '20010610';
 INFO_NOTE
+drop table t1;

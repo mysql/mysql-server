@@ -1,19 +1,140 @@
+drop table if exists t1,t2,t3;
+CREATE TABLE t1 (
+ID CHAR(32) NOT NULL,
+name CHAR(32) NOT NULL,
+value CHAR(255),
+INDEX indexIDname (ID(8),name(8))
+) ;
+INSERT INTO t1 VALUES
+('keyword','indexdir','/export/home/local/www/database/indexes/keyword');
+INSERT INTO t1 VALUES ('keyword','urlprefix','text/ /text');
+INSERT INTO t1 VALUES ('keyword','urlmap','/text/ /');
+INSERT INTO t1 VALUES ('keyword','attr','personal employee company');
+INSERT INTO t1 VALUES
+('emailgids','indexdir','/export/home/local/www/database/indexes/emailgids');
+INSERT INTO t1 VALUES ('emailgids','urlprefix','text/ /text');
+INSERT INTO t1 VALUES ('emailgids','urlmap','/text/ /');
+INSERT INTO t1 VALUES ('emailgids','attr','personal employee company');
+SELECT value FROM t1 WHERE ID='emailgids' AND name='attr';
 value
 personal employee company
+drop table t1;
+CREATE TABLE t1 (
+price int(5) DEFAULT '0' NOT NULL,
+area varchar(40) DEFAULT '' NOT NULL,
+type varchar(40) DEFAULT '' NOT NULL,
+transityes enum('Y','N') DEFAULT 'Y' NOT NULL,
+shopsyes enum('Y','N') DEFAULT 'Y' NOT NULL,
+schoolsyes enum('Y','N') DEFAULT 'Y' NOT NULL,
+petsyes enum('Y','N') DEFAULT 'Y' NOT NULL,
+KEY price (price,area,type,transityes,shopsyes,schoolsyes,petsyes)
+);
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','','','','');
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
+INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
+SELECT * FROM t1 WHERE area='Vancouver' and transityes='y' and schoolsyes='y' and ( ((type='1 Bedroom' or type='Studio/Bach') and (price<=500)) or ((type='2 Bedroom') and (price<=550)) or ((type='Shared/Roomate') and (price<=300)) or ((type='Room and Board') and (price<=500)) ) and price <= 400;
 price	area	type	transityes	shopsyes	schoolsyes	petsyes
+drop table t1;
+CREATE TABLE t1 (program enum('signup','unique','sliding') not null,  type enum('basic','sliding','signup'),  sites set('mt'),  PRIMARY KEY (program));
+ALTER TABLE t1 modify program enum('signup','unique','sliding');
+All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
+drop table t1;
+CREATE TABLE t1 (
+name varchar(50) DEFAULT '' NOT NULL,
+author varchar(50) DEFAULT '' NOT NULL,
+category decimal(10,0) DEFAULT '0' NOT NULL,
+email varchar(50),
+password varchar(50),
+proxy varchar(50),
+bitmap varchar(20),
+msg varchar(255),
+urlscol varchar(127),
+urlhttp varchar(127),
+timeout decimal(10,0),
+nbcnx decimal(10,0),
+creation decimal(10,0),
+livinguntil decimal(10,0),
+lang decimal(10,0),
+type decimal(10,0),
+subcat decimal(10,0),
+subtype decimal(10,0),
+reg char(1),
+scs varchar(255),
+capacity decimal(10,0),
+userISP varchar(50),
+CCident varchar(50) DEFAULT '' NOT NULL,
+PRIMARY KEY (name,author,category)
+);
+INSERT INTO t1 VALUES
+('patnom','patauteur',0,'p.favre@cryo-networks.fr',NULL,NULL,'#p2sndnq6ae5g1u6t','essai\nsalut','scol://195.242.78.119:patauteur.patnom',NULL,NULL,NULL,950036174,-882087474,NULL,3,0,3,'1','Pub/patnom/futur_divers.scs',NULL,'pat','CC1');
+INSERT INTO t1 VALUES
+('LeNomDeMonSite','Marc',0,'m.barilley@cryo-networks.fr',NULL,NULL,NULL,NULL,'scol://195.242.78.119:Marc.LeNomDeMonSite',NULL,NULL,NULL,950560434,-881563214,NULL,3,0,3,'1','Pub/LeNomDeMonSite/domus_hibere.scs',NULL,'Marq','CC1');
+select * from t1 where name='patnom' and author='patauteur' and category=0;
 name	author	category	email	password	proxy	bitmap	msg	urlscol	urlhttp	timeout	nbcnx	creation	livinguntil	lang	type	subcat	subtype	reg	scs	capacity	userISP	CCident
 patnom	patauteur	0	p.favre@cryo-networks.fr	NULL	NULL	#p2sndnq6ae5g1u6t	essai
 salut	scol://195.242.78.119:patauteur.patnom	NULL	NULL	NULL	950036174	-882087474	NULL	3	0	3	1	Pub/patnom/futur_divers.scs	NULL	pat	CC1
+drop table t1;
+create table t1
+(
+name_id int not null auto_increment,
+name blob,
+INDEX name_idx (name(5)),
+primary key (name_id)
+);
+INSERT t1 VALUES(NULL,'/');
+INSERT t1 VALUES(NULL,'[T,U]_axpby');
+SELECT * FROM t1 WHERE name='[T,U]_axpy';
 name_id	name
+SELECT * FROM t1 WHERE name='[T,U]_axpby';
 name_id	name
 2	[T,U]_axpby
+create table t2
+(
+name_id int not null auto_increment,
+name char(255) binary,
+INDEX name_idx (name(5)),
+primary key (name_id)
+);
+INSERT t2 select * from t1;
+SELECT * FROM t2 WHERE name='[T,U]_axpy';
 name_id	name
+SELECT * FROM t2 WHERE name='[T,U]_axpby';
 name_id	name
 2	[T,U]_axpby
+drop table t1,t2;
+create table t1
+(
+SEQNO                         numeric(12 ) not null,
+MOTYPEID                 numeric(12 ) not null,
+MOINSTANCEID     numeric(12 ) not null,
+ATTRID                       numeric(12 ) not null,
+VALUE                         varchar(120) not null,
+primary key (SEQNO, MOTYPEID, MOINSTANCEID, ATTRID, VALUE )
+);
+INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
+INSERT INTO t1 VALUES (1, 1, 1, 1, 'b');
+INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
+Duplicate entry '1-1-1-1-a' for key 1
+drop table t1;
+CREATE TABLE t1 (
+a tinytext NOT NULL,
+b tinyint(3) unsigned NOT NULL default '0',
+PRIMARY KEY (a(32),b)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('a',1),('a',2);
+SELECT * FROM t1 WHERE a='a' AND b=2;
 a	b
 a	2
+SELECT * FROM t1 WHERE a='a' AND b in (2);
 a	b
 a	2
+SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 a	b
 a	1
 a	2
+drop table t1;

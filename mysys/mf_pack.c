@@ -459,8 +459,7 @@ my_string intern_filename(my_string to, const char *from)
   my_string pos,from_pos,to_pos,end_pos;
   char buff[FN_REFLEN];
 
-  (void) strmov(buff,from);
-  convert_dirname(buff);			/* change '<>' to '[]' */
+  convert_dirname(buff,from,NullS);		/* change '<>' to '[]' */
   from_pos=buff;
   if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skipp device part */
   {

@@ -61,8 +61,12 @@ subdirectory of 'mysql'. */
 /*			DEBUG VERSION CONTROL
 			===================== */
 
+/* The following flag will make InnoDB to initialize
+all memory it allocates to zero. It hides Purify
+warnings about reading unallocated memory unless
+memory is read outside the allocated blocks. */
 /*
-#define UNIV_SYNC_DEBUG
+#define UNIV_INIT_MEM_TO_ZERO
 */
 
 /* Make a non-inline debug version */
@@ -72,7 +76,7 @@ subdirectory of 'mysql'. */
 #define UNIV_SEARCH_DEBUG
 
 #define UNIV_IBUF_DEBUG
-
+#define UNIV_SYNC_DEBUG
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
 */

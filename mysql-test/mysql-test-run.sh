@@ -98,7 +98,8 @@ MYSQL_TEST_DIR=$BASEDIR/mysql-test
 export MYSQL_TEST_DIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
-  
+
+MANAGER_QUIET_OPT="-q"    
 TESTDIR="$MYSQL_TEST_DIR/t"
 TESTSUFFIX=test
 TOT_SKIP=0
@@ -113,11 +114,20 @@ SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
+#
+# Set LD_LIBRARY_PATH if we are using shared libraries
+#
+LD_LIBRARY_PATH="$BASEDIR/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH
 
 MASTER_RUNNING=0
 MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
+MYSQL_MANAGER_PORT=9308
+MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
+MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
+MYSQL_MANAGER_USER=root
 NO_SLAVE=0
 
 EXTRA_MASTER_OPT=""
@@ -130,15 +140,19 @@ DO_CLIENT_GDB=""
 SLEEP_TIME=2
 CHARACTER_SET=latin1
 DBUSER=""
+START_WAIT_TIMEOUT=3
+STOP_WAIT_TIMEOUT=3
 
 while test $# -gt 0; do
   case "$1" in
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
+    --verbose-manager)  MANAGER_QUIET_OPT="" ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
+    --manager-port=*) MYSQL_MANAGER_PORT=`$ECHO "$1" | $SED -e "s;--manager_port=;;"` ;;
     --with-openssl)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
      --ssl-ca=$BASEDIR/SSL/cacert.pem \
@@ -157,6 +171,9 @@ while test $# -gt 0; do
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
+    --wait-timeout=*)
+     START_WAIT_TIMEOUT=`$ECHO "$1" | $SED -e "s;--wait-timeout=;;"`
+     STOP_WAIT_TIMEOUT=$START_WAIT_TIMEOUT;;
     --record)
       RECORD=1;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
@@ -165,6 +182,8 @@ while test $# -gt 0; do
       NO_SLAVE=1
       ;;  
     --big*)			# Actually --big-test
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+    --compress)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
@@ -186,6 +205,8 @@ while test $# -gt 0; do
       DO_GPROF=1
       ;;  
     --gdb )
+      START_WAIT_TIMEOUT=300
+      STOP_WAIT_TIMEOUT=300
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
@@ -229,13 +250,13 @@ done
 
 MYRUN_DIR=$MYSQL_TEST_DIR/var/run
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
-MASTER_MYSOCK="$MYSQL_TMP_DIR/mysql-master.sock"
+MASTER_MYSOCK="$MYSQL_TMP_DIR/master.sock"
 MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
 MASTER_MYERR="$MYSQL_TEST_DIR/var/log/mysqld.err"
 
 SLAVE_MYDDIR="$MYSQL_TEST_DIR/var/slave-data"
-SLAVE_MYSOCK="$MYSQL_TMP_DIR/mysql-slave.sock"
+SLAVE_MYSOCK="$MYSQL_TMP_DIR/slave.sock"
 SLAVE_MYPID="$MYRUN_DIR/mysqld-slave.pid"
 SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
@@ -269,13 +290,15 @@ DASH72=`$ECHO '-----------------------------------------------------------------
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
- if [ -e "$BASEDIR/client/.libs/mysqltest" ] ; then
-   [ -e "$BASEDIR/client/.libs/lt-mysqltest" ] || $BASEDIR/client/mysqltest -V
+ if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
    MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
  else
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
+ MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
+ MYSQL_MANAGER_PWGEN="$BASEDIR/client/mysqlmanager-pwgen"
  MYSQL="$BASEDIR/client/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
@@ -284,6 +307,9 @@ else
  MYSQLD="$BASEDIR/bin/mysqld"
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
+ MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
+ MYSQL_MANAGER_CLIENT="$BASEDIR/bin/mysqlmanagerc"
+ MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
  MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
  if test -d "$BASEDIR/share/mysql/english" 
@@ -318,7 +344,9 @@ then
 fi
 
 
-MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
+ --user=$DBUSER --password=$DBPASSWD --silent -v \
+ --tmpdir=$MYSQL_TMP_DIR"
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
@@ -331,6 +359,7 @@ GPROF_MASTER=$GPROF_DIR/master.gprof
 GPROF_SLAVE=$GPROF_DIR/slave.gprof
 TIMEFILE="$MYSQL_TMP_DIR/mysqltest-time"
 SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
+XTERM=`which xterm`
 
 #++
 # Function Definitions
@@ -346,7 +375,7 @@ prompt_user ()
  read unused
 }
 
-# We can't use diff -u as this isn't portable
+# We can't use diff -u or diff -a as these are not portable
 
 show_failed_diff ()
 {
@@ -363,7 +392,7 @@ show_failed_diff ()
   then
     echo "Below are the diffs between actual and expected results:"
     echo "-------------------------------------------------------"
-    $DIFF -c -a $result_file $reject_file
+    $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
     echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
@@ -487,23 +516,83 @@ gcov_collect () {
     $ECHO "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
 }
 
+abort_if_failed()
+{
+ if [ ! $? = 0 ] ; then
+  echo $1
+  exit 1
+ fi 
+}
+
+start_manager()
+{
+ MYSQL_MANAGER_PW=`$MYSQL_MANAGER_PWGEN -u $MYSQL_MANAGER_USER \
+ -o $MYSQL_MANAGER_PW_FILE`
+ $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
+  --password-file=$MYSQL_MANAGER_PW_FILE
+  abort_if_failed "Could not start MySQL manager"
+  mysqltest_manager_args="--manager-user=$MYSQL_MANAGER_USER \
+  --manager-password=$MYSQL_MANAGER_PW \
+  --manager-port=$MYSQL_MANAGER_PORT \
+  --manager-wait-timeout=$START_WAIT_TIMEOUT"
+  MYSQL_TEST="$MYSQL_TEST $mysqltest_manager_args"
+  MYSQL_TEST_ARGS="$MYSQL_TEST_ARGS $mysqltest_manager_args"
+  
+}
+
+stop_manager()
+{
+ $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT -u$MYSQL_MANAGER_USER \
+  -p$MYSQL_MANAGER_PW -P $MYSQL_MANAGER_PORT <<EOF
+shutdown
+EOF
+}
+
+manager_launch()
+{
+  ident=$1
+  shift
+  $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
+   --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
+def_exec $ident $@
+set_exec_stdout $ident $CUR_MYERR
+set_exec_stderr $ident $CUR_MYERR
+set_exec_con $ident root localhost $CUR_MYSOCK
+start_exec $ident $START_WAIT_TIMEOUT
+EOF
+ abort_if_failed "Could not execute manager command"
+}
+
+manager_term()
+{
+  ident=$1
+  shift
+  $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
+   --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
+stop_exec $ident $STOP_WAIT_TIMEOUT
+EOF
+ abort_if_failed "Could not execute manager command"
+}
+
 
 start_master()
 {
     [ x$MASTER_RUNNING = 1 ] && return
+    # Remove old berkeley db log files that can confuse the server
+    $RM -f $MASTER_MYDDIR/log.*
+    # Remove stale binary logs
+    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
     #run master initialization shell script if one exists
     if [ -f "$master_init_script" ] ;
     then
         /bin/sh $master_init_script
     fi
     cd $BASEDIR # for gcov
-    # Remove old berkeley db log files that can confuse the server
-    $RM -f $MASTER_MYDDIR/log.*	
     #start master
     if [ -z "$DO_BENCH" ]
     then
-      master_args="--no-defaults --log-bin=master-bin \
-    	    --server-id=1 \
+      master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
+    	    --server-id=1 --rpl-recovery-rank=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
 	    --exit-info=256 \
@@ -519,7 +608,8 @@ start_master()
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     else
-      master_args="--no-defaults --log-bin=master-bin --server-id=1 \
+      master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
+	    --server-id=1 --rpl-recovery-rank=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
             --datadir=$MASTER_MYDDIR \
@@ -533,21 +623,24 @@ start_master()
             --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
-    fi	     
+    fi
+    
+    CUR_MYERR=$MASTER_MYERR
+    CUR_MYSOCK=$MASTER_MYSOCK
+    
     if [ x$DO_DDD = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
-      ddd --debugger "gdb -x $GDB_MASTER_INIT" $MYSQLD &
-      prompt_user "Hit enter to continue after you've started the master"
+      manager_launch master ddd -display $DISPLAY --debugger \
+      "gdb -x $GDB_MASTER_INIT" $MYSQLD 
     elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
-      xterm -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD &
-      prompt_user "Hit enter to continue after you've started the master"
+      manager_launch master $XTERM -display :0 -title "Master" -e gdb -x \
+       $GDB_MASTER_INIT $MYSQLD 
     else	    
-      $MYSQLD $master_args  >> $MASTER_MYERR 2>&1 &
+      manager_launch master $MYSQLD $master_args  
     fi  
-  wait_for_server_start $MASTER_MYPORT
   MASTER_RUNNING=1
 }
 
@@ -555,6 +648,9 @@ start_slave()
 {
     [ x$SKIP_SLAVE = x1 ] && return
     [ x$SLAVE_RUNNING = 1 ] && return
+    
+    # Remove stale binary logs
+    $RM -f $MYSQL_TEST_DIR/var/log/slave-bin.*
     
     #run slave initialization shell script if one exists
     if [ -f "$slave_init_script" ] ;
@@ -568,7 +664,7 @@ start_slave()
 	    --master-host=127.0.0.1 \
 	    --master-password= \
 	    --master-port=$MASTER_MYPORT \
-	    --server-id=2"
+	    --server-id=2 --rpl-recovery-rank=2"
    else
      master_info=$SLAVE_MASTER_INFO
    fi	    
@@ -576,13 +672,14 @@ start_slave()
     $RM -f $SLAVE_MYDDIR/log.*	
     slave_args="--no-defaults $master_info \
     	    --exit-info=256 \
-	    --log-bin=slave-bin --log-slave-updates \
+	    --log-bin=$MYSQL_TEST_DIR/var/log/slave-bin \
+	    --log-slave-updates \
+            --log=$SLAVE_MYLOG \
             --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
-            --log=$SLAVE_MYLOG \
 	    --character-sets-dir=$CHARSETSDIR \
 	    --default-character-set=$CHARACTER_SET \
 	    --core \
@@ -592,22 +689,25 @@ start_slave()
 	    --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
 	    --report-host=127.0.0.1 --report-user=root \
 	    --report-port=$SLAVE_MYPORT \
+	    --master-retry-count=5 \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
+    CUR_MYERR=$SLAVE_MYERR
+    CUR_MYSOCK=$SLAVE_MYSOCK
+  
     if [ x$DO_DDD = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_SLAVE_INIT
-      ddd --debugger "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD &
-      prompt_user "Hit enter to continue after you've started the slave"
+      manager_launch slave ddd -display $DISPLAY --debugger \
+       "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD 
     elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
-      xterm -title "Slave" -e gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD &
-      prompt_user "Hit enter to continue after you've started the slave"
+      manager_launch slave $XTERM -display $DISPLAY -title "Slave" -e gdb -x \
+       $GDB_SLAVE_INIT $SLAVE_MYSQLD 
     else
-      $SLAVE_MYSQLD $slave_args  >> $SLAVE_MYERR 2>&1 &
+      manager_launch slave $SLAVE_MYSQLD $slave_args
     fi
-    wait_for_server_start $SLAVE_MYPORT
     SLAVE_RUNNING=1
 }
 
@@ -623,7 +723,7 @@ stop_slave ()
 {
   if [ x$SLAVE_RUNNING = x1 ]
   then
-    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O shutdown_timeout=10 shutdown
+    manager_term slave
     if [ $? != 0 ] && [ -f $SLAVE_MYPID ]
     then # try harder!
      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
@@ -645,7 +745,7 @@ stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
   then
-    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O shutdown_timeout=10 shutdown
+    manager_term master
     if [ $? != 0 ] && [ -f $MASTER_MYPID ]
     then # try harder!
      $ECHO "master not cooperating with mysqladmin, will try manual kill"
@@ -780,10 +880,10 @@ run_testcase ()
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
     mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
-     if [ -z "$DO_CLIENT_GDB" ] ; then
-     mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
+    if [ -z "$DO_CLIENT_GDB" ] ; then
+      mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
     else
-     do_gdb_test "$mysql_test_args" "$tf"
+      do_gdb_test "$mysql_test_args" "$tf"
     fi
      
     res=$?
@@ -830,6 +930,7 @@ run_testcase ()
          if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 	 then
 	   mysql_stop
+	   stop_manager
    	 fi
 	 exit 1
 	fi
@@ -862,7 +963,8 @@ then
   $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
   $ECHO "Installing Test Databases"
   mysql_install_db
-
+  $ECHO "Starting MySQL Manager"
+  start_manager
 #do not automagically start deamons if we are in gdb or running only one test
 #case
   if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
@@ -894,9 +996,9 @@ then
  fi  
  cd $savedir
  mysql_stop
+ stop_manager
  exit
 fi
-
 
 $ECHO
 $ECHO " TEST                         USER   SYSTEM  ELAPSED        RESULT"
@@ -931,6 +1033,7 @@ then
     mysql_stop
 fi
 
+stop_manager
 report_stats
 $ECHO
 

@@ -1,32 +1,82 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+drop database if exists foo;
+create database foo;
+drop database if exists bar;
+create database bar;
+drop table if exists foo.foo;
+create table foo.foo (n int);
+insert into foo.foo values(4);
+drop table if exists foo.foo;
+create table foo.foo (n int);
+insert into foo.foo values(5);
+drop table if exists bar.bar;
+create table bar.bar (m int);
+insert into bar.bar values(15);
+select foo.foo.n,bar.bar.m from foo.foo,bar.bar;
 n	m
 4	15
+drop database if exists bar;
+drop database if exists foo;
+drop database if exists bar;
+drop database if exists foo;
+set sql_log_bin = 0;
+create database foo;
+create database bar;
+show databases;
 Database
 bar
 foo
 mysql
 test
+create table foo.t1(n int, s char(20));
+create table foo.t2(n int, s text);
+insert into foo.t1 values (1, 'one'), (2, 'two'), (3, 'three');
+insert into foo.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen');
+create table bar.t1(n int, s char(20));
+create table bar.t2(n int, s text);
+insert into bar.t1 values (1, 'one bar'), (2, 'two bar'), (3, 'three bar');
+insert into bar.t2 values (11, 'eleven bar'), (12, 'twelve bar'),
+(13, 'thirteen bar');
+set sql_log_bin = 1;
+show databases;
 Database
 mysql
 test
+load data from master;
+show databases;
 Database
 bar
 foo
 mysql
 test
+use foo;
+show tables;
 Tables_in_foo
+use bar;
+show tables;
 Tables_in_bar
 t1
 t2
+select * from bar.t1;
 n	s
 1	one bar
 2	two bar
 3	three bar
+select * from bar.t2;
 n	s
 11	eleven bar
 12	twelve bar
 13	thirteen bar
+insert into bar.t1 values (4, 'four bar');
+select * from bar.t1;
 n	s
 1	one bar
 2	two bar
 3	three bar
 4	four bar
+drop database bar;
+drop database foo;

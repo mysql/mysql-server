@@ -1,14 +1,70 @@
+drop table if exists t1,t2;
+create table t1 (b char(0));
+insert into t1 values (""),(null);
+select * from t1;
 b
 
 NULL
+drop table if exists t1;
+create table t1 (b char(0) not null);
+create table if not exists t1 (b char(0) not null);
+insert into t1 values (""),(null);
+select * from t1;
 b
 
 
+drop table if exists t1;
+create table t2 type=heap select * from t1;
+Table 'test.t1' doesn't exist
+create table t2 select auto+1 from t1;
+Table 'test.t1' doesn't exist
+drop table if exists t1,t2;
+create table t1 (b char(0) not null, index(b));
+The used table handler can't index column 'b'
+create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+The used table type doesn't support AUTO_INCREMENT columns
+create table t1 (a int not null,b text) type=heap;
+The used table type doesn't support BLOB/TEXT columns
+create table t1 (a int ,primary key(a)) type=heap;
+All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
+drop table if exists t1;
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
+The used table type doesn't support AUTO_INCREMENT columns
+create table t1 (ordid int(8), primary key (ordid));
+All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
+create table not_existing_database.test (a int);
+Got one of the listed errors
+create table `a/a` (a int);
+Incorrect table name 'a/a'
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
+Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
+Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+create table 1ea10 (1a20 int,1e int);
+insert into 1ea10 values(1,1);
+select 1ea10.1a20,1e+ 1e+10 from 1ea10;
 1a20	1e+ 1e+10
 1	10000000001
+drop table 1ea10;
+create table t1 (t1.index int);
+drop table t1;
+drop database if exists test_$1;
+create database test_$1;
+create table test_$1.$test1 (a$1 int, $b int, c$ int);
+insert into test_$1.$test1 values (1,2,3);
+select a$1, $b, c$ from test_$1.$test1;
 a$1	$b	c$
 1	2	3
+create table test_$1.test2$ (a int);
+drop table test_$1.test2$;
+drop database test_$1;
+create table t1 (a int auto_increment not null primary key, B CHAR(20));
+insert into t1 (b) values ("hello"),("my"),("world");
+create table t2 (key (b)) select * from t1;
+explain select * from t2 where b="world";
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t2	ref	B	B	21	const	1	where used
+select * from t2 where b="world";
 a	B
 3	world
+drop table t1,t2;

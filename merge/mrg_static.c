@@ -14,16 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Delete last read record */
+/*
+  Static variables for pisam library. All definied here for easy making of
+  a shared library
+*/
 
-#include "mrgdef.h"
+#ifndef stdin
+#include "mrg_def.h"
+#endif
 
-int mrg_delete(MRG_INFO *info,const byte *record)
-{
-  if (!info->current_table)
-  {
-    my_errno=HA_ERR_NO_ACTIVE_RECORD;
-    return(-1);
-  }
-  return nisam_delete(info->current_table->table,record);
-}
+LIST	*mrg_open_list=0;

@@ -114,15 +114,20 @@ enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
 	       DB_TYPE_DEFAULT };
 
-enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
-	        ROW_TYPE_COMPRESSED };
+enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
+		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED};
 
 /* struct to hold information about the table that should be created */
 
 /* Bits in used_fields */
-#define HA_CREATE_USED_AUTO	1
-#define HA_CREATE_USED_RAID	2
-#define HA_CREATE_USED_UNION	4
+#define HA_CREATE_USED_AUTO		1
+#define HA_CREATE_USED_RAID		2
+#define HA_CREATE_USED_UNION		4
+#define HA_CREATE_USED_INSERT_METHOD	8
+#define HA_CREATE_USED_MIN_ROWS		16
+#define HA_CREATE_USED_MAX_ROWS		32
+#define HA_CREATE_USED_AVG_ROW_LENGTH	64
+#define HA_CREATE_USED_PACK_KEYS	128
 
 typedef struct st_thd_trans {
   void *bdb_tid;
@@ -150,6 +155,7 @@ typedef struct st_ha_create_information
   bool if_not_exists;
   ulong used_fields;
   SQL_LIST merge_list;
+  uint merge_insert_method;
 } HA_CREATE_INFO;
 
 

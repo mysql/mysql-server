@@ -3187,7 +3187,7 @@ encounter per year, but we are as always very flexible towards our customers!
 @c @image{Flags/estonia} Estonia [Tradenet] @ 
 @c @uref{http://mysql.tradenet.ee, WWW}
 @item
-@c EMAIL: tonu@spamm.ee (Tonu Samuel)
+@c EMAIL: tonu@spam.ee (Tonu Samuel)
 @image{Flags/estonia} Estonia [OKinteractive] @ 
 @uref{http://mysql.mirror.ok.ee, WWW}
 @item

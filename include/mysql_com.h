@@ -104,26 +104,31 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
+#define MAX_BLOB_WIDTH		8192	// Default width for blob
+
 typedef struct st_net {
   Vio* vio;
-  my_socket fd;					/* For Perl DBI/dbd */
-  int fcntl;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
+  my_socket fd;					/* For Perl DBI/dbd */
+  unsigned long max_packet;
+  int fcntl;
+  unsigned int last_errno,timeout,pkt_nr,compress_pkt_nr;
   char last_error[MYSQL_ERRMSG_SIZE];
-  unsigned int last_errno,max_packet,timeout,pkt_nr;
   unsigned char error;
   my_bool return_errno,compress;
-  my_bool no_send_ok; /* needed if we are doing several
-   queries in one command ( as in LOAD TABLE ... FROM MASTER ),
-   and do not want to confuse the client with OK at the wrong time
-		      */
+  /*
+    The following variable is set if we are doing several queries in one
+    command ( as in LOAD TABLE ... FROM MASTER ),
+    and do not want to confuse the client with OK at the wrong time
+  */
   unsigned long remain_in_buf,length, buf_length, where_b;
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
+  my_bool no_send_ok;
 } NET;
 
-#define packet_error ((unsigned int) -1)
+#define packet_error (~(unsigned long) 0)
 
 enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
 			FIELD_TYPE_SHORT,  FIELD_TYPE_LONG,
@@ -165,6 +170,11 @@ int	net_write_command(NET *net,unsigned char command,const char *packet,
 int	net_real_write(NET *net,const char *packet,unsigned long len);
 unsigned long my_net_read(NET *net);
 
+/* The following function is not meant for normal usage */
+struct sockaddr;
+int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
+	       unsigned int timeout);
+
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
@@ -193,7 +203,7 @@ typedef struct st_udf_init
 {
   my_bool maybe_null;			/* 1 if function can return NULL */
   unsigned int decimals;		/* for real functions */
-  unsigned int max_length;		/* For string functions */
+  unsigned long max_length;		/* For string functions */
   char	  *ptr;				/* free pointer for function data */
   my_bool const_item;			/* 0 if result is independent of arguments */
 } UDF_INIT;

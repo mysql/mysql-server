@@ -31,7 +31,7 @@ noinst_PROGRAMS = conf_to_src
 CHARSET_OBJS=@CHARSET_OBJS@
 LTCHARSET_OBJS= ${CHARSET_OBJS:.o=.lo}
 
-target_sources = libmysql.c net.c  password.c \
+target_sources = libmysql.c net.c  password.c manager.c \
 			    get_password.c errmsg.c
 
 mystringsobjects =	strmov.lo strxmov.lo strnmov.lo strmake.lo strend.lo \
@@ -56,7 +56,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			thr_mutex.lo mulalloc.lo string.lo default.lo \
 			my_compress.lo array.lo my_once.lo list.lo my_net.lo \
                         charset.lo hash.lo mf_iocache.lo my_seek.lo \
-			my_pread.lo mf_cache.lo my_vsnprintf.lo
+			my_pread.lo mf_cache.lo my_vsnprintf.lo md5.lo
 
 # Not needed in the minimum library
 mysysobjects2 =		getopt.lo getopt1.lo getvar.lo my_lib.lo

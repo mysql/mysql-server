@@ -126,7 +126,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 			  aio->key_root);
     else
 	r=_mi_search(aio->info, aio->keyinfo, aio->info->lastkey,
-		     aio->info->lastkey_length, SEARCH_BIGGER,
+		     USE_WHOLE_KEY, SEARCH_BIGGER,
 		     aio->key_root);
   }
   if(doc_cnt) {

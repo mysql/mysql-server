@@ -84,7 +84,8 @@ int find_type(my_string x, TYPELIB *typelib, uint full_name)
 	/* Get name of type nr 'nr' */
 	/* Warning first type is 1, 0 = empty field */
 
-void make_type(register my_string to, register uint nr, register TYPELIB *typelib)
+void make_type(register my_string to, register uint nr,
+	       register TYPELIB *typelib)
 {
   DBUG_ENTER("make_type");
   if (!nr)

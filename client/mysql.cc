@@ -24,6 +24,7 @@
  *   Jani Tolonen <jani@mysql.com>
  *   Matt Wagner  <mwagner@mysql.com>
  *   Jeremy Cole  <jcole@mysql.com>
+ *   Tonu Samuel  <tonu@mysql.com>
  *
  **/
 
@@ -74,7 +75,6 @@ extern "C" {
 #endif
 
 #undef bcmp				// Fix problem with new readline
-#undef bzero
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #else
@@ -137,6 +137,7 @@ static const char *xmlmeta[] = {
 static char default_pager[FN_REFLEN];
 char pager[FN_REFLEN], outfile[FN_REFLEN];
 FILE *PAGER, *OUTFILE;
+MEM_ROOT hash_mem_root;
 
 #include "sslopt-vars.h"
 
@@ -243,7 +244,8 @@ static COMMANDS commands[] = {
 };
 
 static const char *load_default_groups[]= { "mysql","client",0 };
-static const char *server_default_groups[]= { "server", "mysql_SERVER", 0 };
+static const char *server_default_groups[]=
+{ "server", "embedded", "mysql_SERVER", 0 };
 
 #ifdef HAVE_READLINE
 extern "C" void add_history(char *command); /* From readline directory */
@@ -271,7 +273,6 @@ int main(int argc,char *argv[])
 {
   char buff[80];
 
-  mysql_server_init(0, NULL, server_default_groups);
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
@@ -302,7 +303,10 @@ int main(int argc,char *argv[])
       !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
     exit(1);
   glob_buffer.realloc(512);
-  completion_hash_init(&ht,50);
+  mysql_server_init(0, NULL, (char**) server_default_groups);
+  completion_hash_init(&ht, 128);
+  init_alloc_root(&hash_mem_root, 16384, 0);
+  bzero((char*) &mysql, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
@@ -326,11 +330,13 @@ int main(int argc,char *argv[])
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
 #ifdef HAVE_OPENSSL
-  if(mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_)) {
+  if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
+  {
     sprintf((char*) glob_buffer.ptr(),
-  	  "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
+	    "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
     put_info((char*) glob_buffer.ptr(),INFO_INFO);
-  } else
+  }
+  else
     put_info("SSL is not in use\n",INFO_INFO);
 #endif /* HAVE_OPENSSL */
 
@@ -365,7 +371,6 @@ int main(int argc,char *argv[])
   if (opt_outfile)
     end_tee();
   mysql_end(0);
-  mysql_server_end();
 #ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
 #endif
@@ -373,13 +378,7 @@ int main(int argc,char *argv[])
 
 sig_handler mysql_end(int sig)
 {
-  if (connected)
-    mysql_close(&mysql);
-#ifdef HAVE_OPENSSL
-  else
-    mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
-				even if connection was not made */
-#endif
+  mysql_close(&mysql);
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
@@ -390,6 +389,8 @@ sig_handler mysql_end(int sig)
   }
   batch_readline_end(status.line_buff);
   completion_hash_free(&ht);
+  free_root(&hash_mem_root,MYF(0));
+
 #endif
   if (sig >= 0)
     put_info(sig ? "Aborted" : "Bye", INFO_RESULT);
@@ -401,6 +402,7 @@ sig_handler mysql_end(int sig)
   my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
+  mysql_server_end();
   my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(status.exit_status);
 }
@@ -970,7 +972,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     {					// mSQL or postgreSQL style command ?
       if (!(inchar = (uchar) *++pos))
 	break;				// readline adds one '\'
-      if (*in_string || inchar == 'N')
+      if (*in_string || inchar == 'N')	// \N is short for NULL
       {					// Don't allow commands in string
 	*out++='\\';
 	*out++= (char) inchar;
@@ -1172,7 +1174,8 @@ static char *new_command_generator(char *text,int state)
 static void build_completion_hash(bool skip_rehash,bool write_info)
 {
   COMMANDS *cmd=commands;
-  static MYSQL_RES *databases=0,*tables=0,*fields;
+  MYSQL_RES *databases=0,*tables=0;
+  MYSQL_RES *fields;
   static char ***field_names= 0;
   MYSQL_ROW database_row,table_row;
   MYSQL_FIELD *sql_field;
@@ -1183,15 +1186,10 @@ static void build_completion_hash(bool skip_rehash,bool write_info)
   if (status.batch || quick || !current_db)
     DBUG_VOID_RETURN;			// We don't need completion in batches
 
-  completion_hash_clean(&ht);
   if (tables)
   {
     mysql_free_result(tables);
     tables=0;
-  }
-  if (databases) {
-    mysql_free_result(databases);
-    databases=0;
   }
 
   /* hash SQL commands */
@@ -1202,16 +1200,28 @@ static void build_completion_hash(bool skip_rehash,bool write_info)
   if (skip_rehash)
     DBUG_VOID_RETURN;
 
+  /* Free old used memory */
+  if (field_names)
+    field_names=0;
+  completion_hash_clean(&ht);
+  free_root(&hash_mem_root,MYF(0));
+
   /* hash MySQL functions (to be implemented) */
 
   /* hash all database names */
-  if (mysql_query(&mysql,"show databases")==0) {
+  if (mysql_query(&mysql,"show databases") == 0)
+  {
     if (!(databases = mysql_store_result(&mysql)))
       put_info(mysql_error(&mysql),INFO_INFO);
     else
     {
       while ((database_row=mysql_fetch_row(databases)))
-	add_word(&ht,(char*) database_row[0]);
+      {
+	char *str=strdup_root(&hash_mem_root, (char*) database_row[0]);
+	if (str)
+	  add_word(&ht,(char*) str);
+      }
+      mysql_free_result(databases);
     }
   }
   /* hash all table names */
@@ -1229,22 +1239,13 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       }
       while ((table_row=mysql_fetch_row(tables)))
       {
-	if (!completion_hash_exists(&ht,(char*) table_row[0],
-				    (uint) strlen((const char*) table_row[0])))
-	  add_word(&ht,table_row[0]);
+	char *str=strdup_root(&hash_mem_root, (char*) table_row[0]);
+	if (str &&
+	    !completion_hash_exists(&ht,(char*) str, (uint) strlen(str)))
+	  add_word(&ht,str);
       }
     }
   }
-  if (field_names) {
-    for (i=0; field_names[i]; i++) {
-      for (j=0; field_names[i][j]; j++) {
-	my_free(field_names[i][j],MYF(0));
-      }
-      my_free((gptr) field_names[i],MYF(0));
-    }
-    my_free((gptr) field_names,MYF(0));
-  }
-  field_names=0;
 
   /* hash all field names, both with the table prefix and without it */
   if (!tables)					/* no tables */
@@ -1252,36 +1253,37 @@ You can turn off this feature to get a quicker startup with -A\n\n");
     DBUG_VOID_RETURN;
   }
   mysql_data_seek(tables,0);
-  field_names = (char ***) my_malloc(sizeof(char **) *
-				     (uint) (mysql_num_rows(tables)+1),
-				     MYF(MY_WME));
-  if (!field_names)
+  if (!(field_names= (char ***) alloc_root(&hash_mem_root,sizeof(char **) *
+					   (uint) (mysql_num_rows(tables)+1))))
+  {
+    mysql_free_result(tables);
     DBUG_VOID_RETURN;
+  }
   i=0;
   while ((table_row=mysql_fetch_row(tables)))
   {
     if ((fields=mysql_list_fields(&mysql,(const char*) table_row[0],NullS)))
     {
       num_fields=mysql_num_fields(fields);
-      field_names[i] = (char **) my_malloc(sizeof(char *)*(num_fields*2+1),
-					   MYF(0));
-      if (!field_names[i])
-      {
-	continue;
-      }
+      if (!(field_names[i] = (char **) alloc_root(&hash_mem_root,
+						  sizeof(char *) *
+						  (num_fields*2+1))))
+	break;
       field_names[i][num_fields*2]='\0';
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
       {
 	sprintf(buf,"%s.%s",table_row[0],sql_field->name);
-	field_names[i][j] = my_strdup(buf,MYF(0));
+	field_names[i][j] = strdup_root(&hash_mem_root,buf);
 	add_word(&ht,field_names[i][j]);
-	field_names[i][num_fields+j] = my_strdup(sql_field->name,MYF(0));
+	field_names[i][num_fields+j] = strdup_root(&hash_mem_root,
+						   sql_field->name);
 	if (!completion_hash_exists(&ht,field_names[i][num_fields+j],
 				    (uint) strlen(field_names[i][num_fields+j])))
 	  add_word(&ht,field_names[i][num_fields+j]);
 	j++;
       }
+      mysql_free_result(fields);
     }
     else
     {
@@ -1291,6 +1293,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
     }
     i++;
   }
+  mysql_free_result(tables);
   field_names[i]=0;				// End pointer
   DBUG_VOID_RETURN;
 }
@@ -2208,16 +2211,8 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
-  if (connected)
-  {					/* if old is open, close it first */
-    mysql_close(&mysql);
-    connected= 0;
-  }
-#ifdef HAVE_OPENSSL
-  else
-    mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
-				even if connection was not made */
-#endif
+  mysql_close(&mysql);
+  connected= 0;
   mysql_init(&mysql);
   if (opt_connect_timeout)
   {
@@ -2230,7 +2225,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath);
+		  opt_ssl_capath, opt_ssl_cipher);
 #endif
   if (safe_updates)
   {
@@ -2569,7 +2564,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
   strmov(strend(buff),")");
 }
 
-#ifndef EMBEDDED_SERVER
+#ifndef EMBEDDED_LIBRARY
 /* Keep sql_string library happy */
 
 gptr sql_alloc(unsigned int Size)
@@ -2581,4 +2576,4 @@ void sql_element_free(void *ptr)
 {
   my_free((gptr) ptr,MYF(0));
 }
-#endif /* EMBEDDED_SERVER */
+#endif /* EMBEDDED_LIBRARY */

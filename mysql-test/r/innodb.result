@@ -1,3 +1,7 @@
+drop table if exists t1,t2;
+create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) type=innodb;
+insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
+select id, code, name from t1 order by id;
 id	code	name
 1	1	Tim
 2	1	Monty
@@ -6,6 +10,8 @@ id	code	name
 5	3	Sasha
 6	3	Jeremy
 7	4	Matt
+update ignore t1 set id = 8, name = 'Sinisa' where id < 3;
+select id, code, name from t1 order by id;
 id	code	name
 2	1	Monty
 3	2	David
@@ -14,6 +20,8 @@ id	code	name
 6	3	Jeremy
 7	4	Matt
 8	1	Sinisa
+update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
+select id, code, name from t1 order by id;
 id	code	name
 3	2	David
 4	2	Erik
@@ -22,10 +30,26 @@ id	code	name
 7	4	Matt
 8	1	Sinisa
 12	1	Ralph
+drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+parent_id int(11) DEFAULT '0' NOT NULL,
+level tinyint(4) DEFAULT '0' NOT NULL,
+PRIMARY KEY (id),
+KEY parent_id (parent_id),
+KEY level (level)
+) type=innodb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1),(179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
 id	parent_id	level
 8	102	2
 9	102	2
 15	102	2
+update t1 set id=id+1000;
+update t1 set id=1024 where id=1009;
+Got one of the listed errors
+select * from t1;
 id	parent_id	level
 1001	100	0
 1002	101	1
@@ -66,6 +90,8 @@ id	parent_id	level
 1193	105	2
 1202	107	2
 1203	107	2
+update ignore t1 set id=id+1;
+select * from t1;
 id	parent_id	level
 1001	100	0
 1002	101	1
@@ -106,16 +132,22 @@ id	parent_id	level
 1194	105	2
 1202	107	2
 1204	107	2
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
 id	parent_id	level
 1008	102	2
 1010	102	2
 1015	102	2
+explain select level from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	level	level	1	NULL	39	where used; Using index
+explain select level,id from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	level	level	1	NULL	39	where used; Using index
+explain select level,id,parent_id from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	level	NULL	NULL	NULL	39	where used
+select level,id from t1 where level=1;
 level	id
 1	1002
 1	1003
@@ -123,6 +155,7 @@ level	id
 1	1005
 1	1006
 1	1007
+select level,id,parent_id from t1 where level=1;
 level	id	parent_id
 1	1002	101
 1	1003	101
@@ -130,72 +163,196 @@ level	id	parent_id
 1	1005	101
 1	1006	101
 1	1007	101
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
+show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	id	A	2	NULL	NULL	
 t1	1	parent_id	1	parent_id	A	4	NULL	NULL	
 t1	1	level	1	level	A	4	NULL	NULL	
+drop table t1;
+CREATE TABLE t1 (
+gesuchnr int(11) DEFAULT '0' NOT NULL,
+benutzer_id int(11) DEFAULT '0' NOT NULL,
+PRIMARY KEY (gesuchnr,benutzer_id)
+) type=innodb;
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+select * from t1;
 gesuchnr	benutzer_id
 1	1
 2	1
+drop table t1;
+create table t1 (a int) type=innodb;
+insert into t1 values (1), (2);
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
+delete from t1 where a = 1;
+select * from t1;
 a
 2
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;
+create table t1 (a int,b varchar(20)) type=innodb;
+insert into t1 values (1,""), (2,"testing");
+delete from t1 where a = 1;
+select * from t1;
 a	b
 2	testing
+create index skr on t1 (a);
+insert into t1 values (3,""), (4,"testing");
+analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	error	The handler for the table doesn't support check/repair
+show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	1	skr	1	a	A	3	NULL	NULL	
+drop table t1;
+create table t1 (a int,b varchar(20),key(a)) type=innodb;
+insert into t1 values (1,""), (2,"testing");
+select * from t1 where a = 1;
 a	b
 1	
+drop table t1;
+create table t1 (n int not null primary key) type=innodb;
+set autocommit=0;
+insert into t1 values (4);
+rollback;
+select n, "after rollback" from t1;
 n	after rollback
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
 n	after commit
 4	after commit
+commit;
+insert into t1 values (5);
+insert into t1 values (4);
+Duplicate entry '4' for key 1
+commit;
+select n, "after commit" from t1;
 n	after commit
 4	after commit
 5	after commit
+set autocommit=1;
+insert into t1 values (6);
+insert into t1 values (4);
+Duplicate entry '4' for key 1
+select n from t1;
 n
 4
 5
 6
+rollback;
+drop table t1;
+create table t1 ( id int NOT NULL PRIMARY KEY, nom varchar(64)) type=innodb;
+begin;
+insert into t1 values(1,'hamdouni');
+select id as afterbegin_id,nom as afterbegin_nom from t1;
 afterbegin_id	afterbegin_nom
 1	hamdouni
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
 afterrollback_id	afterrollback_nom
+set autocommit=0;
+insert into t1 values(2,'mysql');
+select id as afterautocommit0_id,nom as afterautocommit0_nom from t1;
 afterautocommit0_id	afterautocommit0_nom
 2	mysql
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
 afterrollback_id	afterrollback_nom
+set autocommit=1;
+drop table t1;
+CREATE TABLE t1 (id char(8) not null primary key, val int not null) type=innodb;
+insert into t1 values ('pippo', 12);
+insert into t1 values ('pippo', 12);
+Duplicate entry 'pippo' for key 1
+delete from t1;
+delete from t1 where id = 'pippo';
+select * from t1;
 id	val
+insert into t1 values ('pippo', 12);
+set autocommit=0;
+delete from t1;
+rollback;
+select * from t1;
 id	val
 pippo	12
+delete from t1;
+commit;
+select * from t1;
 id	val
+drop table t1;
+create table t1 (a integer) type=innodb;
+begin;
+rename table t1 to t2;
+create table t1 (b integer) type=innodb;
+insert into t1 values (1);
+rollback;
+drop table t1;
+rename table t2 to t1;
+drop table t1;
+set autocommit=1;
+CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, NAME VARCHAR(64)) TYPE=innodb;
+INSERT INTO t1 VALUES (1, 'Jochen');
+select * from t1;
 ID	NAME
 1	Jochen
+drop table t1;
+CREATE TABLE t1 ( _userid VARCHAR(60) NOT NULL PRIMARY KEY) TYPE=innodb;
+set autocommit=0;
+INSERT INTO t1  SET _userid='marc@anyware.co.uk';
+COMMIT;
+SELECT * FROM t1;
 _userid
 marc@anyware.co.uk
+SELECT _userid FROM t1 WHERE _userid='marc@anyware.co.uk';
 _userid
 marc@anyware.co.uk
+drop table t1;
+set autocommit=1;
+CREATE TABLE t1 (
+user_id int(10) DEFAULT '0' NOT NULL,
+name varchar(100),
+phone varchar(100),
+ref_email varchar(100) DEFAULT '' NOT NULL,
+detail varchar(200),
+PRIMARY KEY (user_id,ref_email)
+)type=innodb;
+INSERT INTO t1 VALUES (10292,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10292,'shirish','2333604','shirish@yahoo.com','ddsds'),(10292,'sonali','323232','sonali@bolly.com','filmstar');
+select * from t1 where user_id=10292;
 user_id	name	phone	ref_email	detail
 10292	sanjeev	29153373	sansh777@hotmail.com	xxx
 10292	shirish	2333604	shirish@yahoo.com	ddsds
 10292	sonali	323232	sonali@bolly.com	filmstar
+INSERT INTO t1 VALUES (10291,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10293,'shirish','2333604','shirish@yahoo.com','ddsds');
+select * from t1 where user_id=10292;
 user_id	name	phone	ref_email	detail
 10292	sanjeev	29153373	sansh777@hotmail.com	xxx
 10292	shirish	2333604	shirish@yahoo.com	ddsds
 10292	sonali	323232	sonali@bolly.com	filmstar
+select * from t1 where user_id>=10292;
 user_id	name	phone	ref_email	detail
 10292	sanjeev	29153373	sansh777@hotmail.com	xxx
 10292	shirish	2333604	shirish@yahoo.com	ddsds
 10292	sonali	323232	sonali@bolly.com	filmstar
 10293	shirish	2333604	shirish@yahoo.com	ddsds
+select * from t1 where user_id>10292;
 user_id	name	phone	ref_email	detail
 10293	shirish	2333604	shirish@yahoo.com	ddsds
+select * from t1 where user_id<10292;
 user_id	name	phone	ref_email	detail
 10291	sanjeev	29153373	sansh777@hotmail.com	xxx
+drop table t1;
+CREATE TABLE t1 (a int not null, b int not null,c int not null,
+key(a),primary key(a,b), unique(c),key(a),unique(b));
+show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	NULL	NULL	NULL	
 t1	0	PRIMARY	2	b	A	0	NULL	NULL	
@@ -203,69 +360,153 @@ t1	0	b	1	b	A	0	NULL	NULL
 t1	0	c	1	c	A	0	NULL	NULL	
 t1	1	a	1	a	A	NULL	NULL	NULL	
 t1	1	a_2	1	a	A	NULL	NULL	NULL	
+drop table t1;
+create table t1 (col1 int not null, col2 char(4) not null, primary key(col1));
+alter table t1 type=innodb;
+insert into t1 values ('1','1'),('5','2'),('2','3'),('3','4'),('4','4');
+select * from t1;
 col1	col2
 1	1
 2	3
 3	4
 4	4
 5	2
+update t1 set col2='7' where col1='4';
+select * from t1;
 col1	col2
 1	1
 2	3
 3	4
 4	7
 5	2
+alter table t1 add co3 int not null;
+select * from t1;
 col1	col2	co3
 1	1	0
 2	3	0
 3	4	0
 4	7	0
 5	2	0
+update t1 set col2='9' where col1='2';
+select * from t1;
 col1	col2	co3
 1	1	0
 2	9	0
 3	4	0
 4	7	0
 5	2	0
+drop table t1;
+create table t1 (a int not null , b int, primary key (a)) type = innodb;
+create table t2 (a int not null , b int, primary key (a)) type = myisam;
+insert into t1 VALUES (1,3) , (2,3), (3,3);
+select * from t1;
 a	b
 1	3
 2	3
 3	3
+insert into t2 select * from t1;
+select * from t2;
 a	b
 1	3
 2	3
 3	3
+delete from t1 where b = 3;
+select * from t1;
 a	b
+insert into t1 select * from t2;
+select * from t1;
 a	b
 1	3
 2	3
 3	3
+select * from t2;
 a	b
 1	3
 2	3
 3	3
+drop table t1,t2;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+ggid varchar(32) binary DEFAULT '' NOT NULL,
+email varchar(64) DEFAULT '' NOT NULL,
+passwd varchar(32) binary DEFAULT '' NOT NULL,
+PRIMARY KEY (id),
+UNIQUE ggid (ggid)
+) TYPE=innodb;
+insert into t1 (ggid,passwd) values ('test1','xxx');
+insert into t1 (ggid,passwd) values ('test2','yyy');
+insert into t1 (ggid,passwd) values ('test2','this will fail');
+Duplicate entry 'test2' for key 2
+insert into t1 (ggid,id) values ('this will fail',1);
+Duplicate entry '1' for key 1
+select * from t1 where ggid='test1';
 id	ggid	email	passwd
 1	test1		xxx
+select * from t1 where passwd='xxx';
 id	ggid	email	passwd
 1	test1		xxx
+select * from t1 where id=2;
 id	ggid	email	passwd
 2	test2		yyy
+replace into t1 (ggid,id) values ('this will work',1);
+replace into t1 (ggid,passwd) values ('test2','this will work');
+update t1 set id=100,ggid='test2' where id=1;
+Duplicate entry 'test2' for key 2
+select * from t1;
 id	ggid	email	passwd
 1	this will work		
 4	test2		this will work
+select * from t1 where id=1;
 id	ggid	email	passwd
 1	this will work		
+select * from t1 where id=999;
 id	ggid	email	passwd
+drop table t1;
+CREATE TABLE t1 (
+user_name varchar(12),
+password text,
+subscribed char(1),
+user_id int(11) DEFAULT '0' NOT NULL,
+quota bigint(20),
+weight double,
+access_date date,
+access_time time,
+approved datetime,
+dummy_primary_key int(11) NOT NULL auto_increment,
+PRIMARY KEY (dummy_primary_key)
+) TYPE=innodb;
+INSERT INTO t1 VALUES ('user_0','somepassword','N',0,0,0,'2000-09-07','23:06:59','2000-09-07 23:06:59',1);
+INSERT INTO t1 VALUES ('user_1','somepassword','Y',1,1,1,'2000-09-07','23:06:59','2000-09-07 23:06:59',2);
+INSERT INTO t1 VALUES ('user_2','somepassword','N',2,2,1.4142135623731,'2000-09-07','23:06:59','2000-09-07 23:06:59',3);
+INSERT INTO t1 VALUES ('user_3','somepassword','Y',3,3,1.7320508075689,'2000-09-07','23:06:59','2000-09-07 23:06:59',4);
+INSERT INTO t1 VALUES ('user_4','somepassword','N',4,4,2,'2000-09-07','23:06:59','2000-09-07 23:06:59',5);
+select  user_name, password , subscribed, user_id, quota, weight, access_date, access_time, approved, dummy_primary_key from t1 order by user_name;
 user_name	password	subscribed	user_id	quota	weight	access_date	access_time	approved	dummy_primary_key
 user_0	somepassword	N	0	0	0	2000-09-07	23:06:59	2000-09-07 23:06:59	1
 user_1	somepassword	Y	1	1	1	2000-09-07	23:06:59	2000-09-07 23:06:59	2
 user_2	somepassword	N	2	2	1.4142135623731	2000-09-07	23:06:59	2000-09-07 23:06:59	3
 user_3	somepassword	Y	3	3	1.7320508075689	2000-09-07	23:06:59	2000-09-07 23:06:59	4
 user_4	somepassword	N	4	4	2	2000-09-07	23:06:59	2000-09-07 23:06:59	5
+drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+parent_id int(11) DEFAULT '0' NOT NULL,
+level tinyint(4) DEFAULT '0' NOT NULL,
+KEY (id),
+KEY parent_id (parent_id),
+KEY level (level)
+) type=innodb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1);
+INSERT INTO t1 values (179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
 id	parent_id	level
 8	102	2
 9	102	2
 15	102	2
+update t1 set id=id+1000;
+update t1 set id=1024 where id=1009;
+select * from t1;
 id	parent_id	level
 1001	100	0
 1003	101	1
@@ -306,6 +547,8 @@ id	parent_id	level
 1019	103	2
 1005	101	1
 1179	105	2
+update ignore t1 set id=id+1;
+select * from t1;
 id	parent_id	level
 1002	100	0
 1004	101	1
@@ -346,12 +589,16 @@ id	parent_id	level
 1020	103	2
 1006	101	1
 1180	105	2
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
 id	parent_id	level
 1009	102	2
 1025	102	2
 1016	102	2
+explain select level from t1 where level=1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	level	level	1	const	6	where used; Using index
+select level,id from t1 where level=1;
 level	id
 1	1004
 1	1005
@@ -359,6 +606,7 @@ level	id
 1	1007
 1	1008
 1	1006
+select level,id,parent_id from t1 where level=1;
 level	id	parent_id
 1	1004	101
 1	1005	101
@@ -366,6 +614,7 @@ level	id	parent_id
 1	1007	101
 1	1008	101
 1	1006	101
+select level,id from t1 where level=1 order by id;
 level	id
 1	1003
 1	1004
@@ -373,6 +622,8 @@ level	id
 1	1006
 1	1007
 1	1008
+delete from t1 where level=1;
+select * from t1;
 id	parent_id	level
 1002	100	0
 1009	102	2
@@ -407,77 +658,212 @@ id	parent_id	level
 1022	104	2
 1020	103	2
 1180	105	2
+drop table t1;
+CREATE TABLE t1 (
+sca_code char(6) NOT NULL,
+cat_code char(6) NOT NULL,
+sca_desc varchar(50),
+lan_code char(2) NOT NULL,
+sca_pic varchar(100),
+sca_sdesc varchar(50),
+sca_sch_desc varchar(16),
+PRIMARY KEY (sca_code, cat_code, lan_code),
+INDEX sca_pic (sca_pic)
+) type = innodb ;
+INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING'),( 'QQ', 'N', 'RING', 'EN', 'not null', NULL, 'RING');
+select count(*) from t1 where sca_code = 'PD';
 count(*)
 1
+select count(*) from t1 where sca_code <= 'PD';
 count(*)
 1
+select count(*) from t1 where sca_pic is null;
 count(*)
 2
+alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
+select count(*) from t1 where cat_code='E';
 count(*)
 0
+alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
+select count(*) from t1 where sca_pic >= 'n';
 count(*)
 1
+select sca_pic from t1 where sca_pic is null;
 sca_pic
 NULL
 NULL
+update t1 set sca_pic="test" where sca_pic is null;
+delete from t1 where sca_code='pd';
+drop table t1;
+set @a:=now();
+CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) type=innodb;
+insert into t1 (a) values(1),(2),(3);
+select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
 a
 1
 2
 3
+update t1 set a=5 where a=1;
+select a from t1;
 a
 2
 3
 5
+drop table t1;
+create table t1 (a varchar(100) not null, primary key(a), b int not null) type=innodb;
+insert into t1 values("hello",1),("world",2);
+select * from t1 order by b desc;
 a	b
 world	2
 hello	1
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
+show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	2	NULL	NULL	
+drop table t1;
+create table t1 (i int, j int ) TYPE=innodb;
+insert into t1 values (1,2);
+select * from t1 where i=1 and j=2;
 i	j
 1	2
+create index ax1 on t1 (i,j);
+select * from t1 where i=1 and j=2;
 i	j
 1	2
+drop table t1;
+CREATE TABLE t1 (
+a int3 unsigned NOT NULL,
+b int1 unsigned NOT NULL,
+UNIQUE (a, b)
+) TYPE = innodb;
+INSERT INTO t1 VALUES (1, 1);
+SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
 MIN(B)	MAX(b)
 1	1
+drop table t1;
+CREATE TABLE t1 (a int unsigned NOT NULL) type=innodb;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
 a
 1
+DROP TABLE t1;
+create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) type = innodb;
+insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
+explain select * from t1 where a > 0 and a < 50;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	PRIMARY	PRIMARY	4	NULL	1	where used
+drop table t1;
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=innodb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
+LOCK TABLES t1 WRITE;
+insert into t1 values (99,1,2,'D'),(1,1,2,'D');
+Duplicate entry '1-1' for key 1
+select id from t1;
 id
 0
 1
 2
+select id from t1;
 id
 0
 1
 2
+UNLOCK TABLES;
+DROP TABLE t1;
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=innodb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
+LOCK TABLES t1 WRITE;
+begin;
+insert into t1 values (99,1,2,'D'),(1,1,2,'D');
+Duplicate entry '1-1' for key 1
+select id from t1;
 id
 0
 1
 2
+insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
+commit;
+select id,id3 from t1;
 id	id3
 0	0
 1	1
 2	2
 100	2
+UNLOCK TABLES;
+DROP TABLE t1;
+create table t1 (a char(20), unique (a(5))) type=innodb;
+Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the table handler doesn't support unique sub keys
+create table t1 (a char(20), index (a(5))) type=innodb;
+show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(20) default NULL,
   KEY `a` (`a`)
 ) TYPE=InnoDB
+drop table t1;
+create temporary table t1 (a int not null auto_increment, primary key(a)) type=innodb;
+insert into t1 values (NULL),(NULL),(NULL);
+delete from t1 where a=3;
+insert into t1 values (NULL);
+select * from t1;
 a
 1
 2
 4
+drop table t1;
+create table t1
+(
+id int auto_increment primary key,
+name varchar(32) not null,
+value text not null,
+uid int not null,
+unique key(name,uid)
+) type=innodb;
+insert into t1 values (1,'one','one value',101),
+(2,'two','two value',102),(3,'three','three value',103);
+set insert_id=5;
+replace into t1 (value,name,uid) values ('other value','two',102);
+delete from t1 where uid=102;
+set insert_id=5;
+replace into t1 (value,name,uid) values ('other value','two',102);
+set insert_id=6;
+replace into t1 (value,name,uid) values ('other value','two',102);
+select * from t1;
 id	name	value	uid
 1	one	one value	101
 3	three	three value	103
 6	two	other value	102
+drop table t1;
+create database test_$1;
+create table test_$1.t1 (a int not null) type= innodb;
+insert into test_$1.t1 values(1);
+create table test_$1.t2 (a int not null) type= myisam;
+insert into test_$1.t2 values(1);
+create table test_$1.t3 (a int not null) type= heap;
+insert into test_$1.t3 values(1);
+commit;
+drop database test_$1;
+show tables from test_$1;
+Can't read dir of './test_$1/' (Errcode: 2)
+create table t1 (a int not null) type= innodb;
+insert into t1 values(1),(2);
+truncate table t1;
+Can't execute the given command because you have active locked tables or an active transaction
+commit;
+truncate table t1;
+select * from t1;
 a
+insert into t1 values(1),(2);
+delete from t1;
+select * from t1;
 a
+commit;
+drop table t1;

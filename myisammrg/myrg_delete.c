@@ -16,7 +16,7 @@
 
 /* Delete last read record */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 int myrg_delete(
 MYRG_INFO *info,
