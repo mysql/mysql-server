@@ -1299,6 +1299,7 @@ then
       with_named_thread="-lgthreads -lsocket -lgthreads"
       # sched.h conflicts with fsu-threads
       touch ./include/sched.h
+      touch ./include/semaphore.h
 
       # We must have gcc
       if expr "$CC" : ".*gcc.*"
