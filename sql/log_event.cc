@@ -3140,10 +3140,9 @@ void Xid_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_eve
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Xid_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  rli->inc_event_relay_log_pos();
   /* For a slave Xid_log_event is COMMIT */
   mysql_log.write(thd,COM_QUERY,"COMMIT /* implicit, from Xid_log_event */");
-  return end_trans(thd, COMMIT);
+  return end_trans(thd, COMMIT) || Log_event::exec_event(rli);
 }
 #endif /* !MYSQL_CLIENT */
 
