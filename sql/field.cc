@@ -3511,9 +3511,17 @@ void Field_time::sql_type(String &res) const
 
 int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
-  int not_used;				// We can ignore result from str2int
+  int err;
   char *end;
-  long nr= my_strntol(cs, from, len, 10, &end, &not_used);
+  long nr= my_strntol(cs, from, len, 10, &end, &err);
+
+  if (err)
+  {
+    if (table->in_use->count_cuted_fields)
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
+    *ptr= 0;
+    return 0;
+  }
 
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
