@@ -35,6 +35,10 @@ extern "C" {
 enum enum_vio_type { VIO_CLOSED, VIO_TYPE_TCPIP, VIO_TYPE_SOCKET,
 	                     VIO_TYPE_NAMEDPIPE, VIO_TYPE_SSL};
 
+#ifndef __WIN__
+#define HANDLE void *
+#endif
+
 Vio*		vio_new(my_socket	sd,
 			enum enum_vio_type type,
 			my_bool		localhost);
@@ -45,6 +49,10 @@ void		vio_delete(Vio* vio);
 
 #ifdef EMBEDDED_LIBRARY
 void vio_reset(Vio *vio);
+#else
+void vio_reset(Vio* vio, enum enum_vio_type type,
+                      my_socket sd, HANDLE hPipe,
+                      my_bool localhost);
 #endif
 
 /*
@@ -188,8 +196,6 @@ struct st_VioSSLAcceptorFd
 /* One copy for client */
 struct st_VioSSLConnectorFd
 {
-  BIO* bio_;
-  gptr ssl_;
   SSL_CTX* ssl_context_;
   SSL_METHOD* ssl_method_;
   /* function pointers which are only once for SSL client */ 
@@ -211,10 +217,6 @@ Vio* new_VioSSL(struct st_VioSSLAcceptorFd* fd, Vio* sd,int state);
 }
 #endif
 #endif /* HAVE_OPENSSL */
-
-#ifndef __WIN__
-#define HANDLE void *
-#endif
 
 #ifndef EMBEDDED_LIBRARY
 /* This structure is for every connection on both sides */
