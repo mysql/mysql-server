@@ -6965,8 +6965,9 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     if (cur_arg->type() == Item::FIELD_ITEM)
     {
       if (min_max_arg_item->eq(cur_arg, 1)) 
-      {/*
-         If pred references the MIN/MAX argument check whether pred is a range
+      {
+       /*
+         If pred references the MIN/MAX argument, check whether pred is a range
          condition that compares the MIN/MAX argument with a constant.
        */
         Item_func::Functype pred_type= pred->functype();
