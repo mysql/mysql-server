@@ -28445,20 +28445,20 @@ Most of the options to @code{safe_mysqld} are the same as the options to
 @table @code
 @item --basedir=path
 @item --core-file-size=#
+@item --datadir=path
 @item --defaults-extra-file=path
 @item --defaults-file=path
-@item --open-files=#
-Size of the core file @code{mysqld} should be able to create. Passed to
-@code{ulimit -c}.
-@item --datadir=path
 @item --err-log=path
 @item --ledir=path
 Path to @code{mysqld}
 @item --log=path
+@item --mysqld=mysqld-version
+Name of the mysqld version in the @code{ledir} directory you want to start.
 @item --no-defaults
 @item --open-files=#
-Number of files @code{mysqld} should be able to open. Passed to
-@code{ulimit -n}.
+Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}.
+@item --open-files=#
+Size of the core file @code{mysqld} should be able to create. Passed to @code{ulimit -c}.
 @item --pid-file=path
 @item --port=#
 @item --socket=path
@@ -40056,6 +40056,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.30, News-3.23.29, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
+@item
+Added option @code{--mysqld=#} to @code{safe_mysqld}
 @item
 Allow hex constants in the @code{--fields-*-by} and
 @code{--lines-terminated-by} options to @code{mysqldump} and

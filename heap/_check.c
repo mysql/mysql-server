@@ -18,11 +18,12 @@
 
 #include "heapdef.h"
 
-static int check_one_key(HP_KEYDEF *keydef,ulong records,ulong blength);
+static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
+			 ulong blength, my_bool print_status);
 
 /* Returns 0 if the HEAP is ok */
 
-int heap_check_heap(HP_INFO *info)
+int heap_check_heap(HP_INFO *info,my_bool print_status)
 {
   int error;
   uint key;
@@ -30,13 +31,15 @@ int heap_check_heap(HP_INFO *info)
   DBUG_ENTER("heap_check_keys");
 
   for (error=key=0 ; key < share->keys ; key++)
-    error|=check_one_key(share->keydef+key,share->records,share->blength);
+    error|=check_one_key(share->keydef+key,key, share->records,share->blength,
+			 print_status);
 
   DBUG_RETURN(error);
 }
 
 
-static int check_one_key(HP_KEYDEF *keydef, ulong records, ulong blength)
+static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
+			 ulong blength, my_bool print_status)
 {
   int error;
   uint i,found,max_links,seek,links;
@@ -76,6 +79,9 @@ static int check_one_key(HP_KEYDEF *keydef, ulong records, ulong blength)
   }
   DBUG_PRINT("info",
 	     ("records: %ld   seeks: %d   max links: %d   hitrate: %.2f",
-	      records,seek,max_links,(float) seek / (float) records));
+	      records,seek,max_links,(float) seek / (float) (records ? records : 1)));
+  if (print_status)
+    printf("Key: %d  records: %ld   seeks: %d   max links: %d   hitrate: %.2f\n",
+	   keynr, records, seek, max_links, (float) seek / (float) records);
   return error;
 }

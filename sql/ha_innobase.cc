@@ -1971,11 +1971,17 @@ ha_innobase::external_lock(
 THR_LOCK_DATA **ha_innobase::store_lock(THD *thd, THR_LOCK_DATA **to,
 					enum thr_lock_type lock_type)
 {
-	/*??????????????????*/
-
-  	*to++= &lock;
-  	
-	return(to);
+  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK)
+  {
+    /* If we are not doing a LOCK TABLE, then allow multiple writers */
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
+	 lock_type <= TL_WRITE) &&
+	!thd->in_lock_tables)
+      lock_type = TL_WRITE_ALLOW_WRITE;
+    lock.type=lock_type;
+  }
+  *to++= &lock;
+  return(to);
 }
 
 /*********************************************************************

@@ -145,6 +145,7 @@ void _hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
   return;
 }
 
+#ifndef NEW_HASH_FUNCTION
 
 	/* Calc hashvalue for a key */
 
@@ -152,13 +153,14 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 {
   register ulong nr=1, nr2=4;
   HP_KEYSEG *seg,*endseg;
-  uchar *pos;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
+    uchar *pos=(uchar*) key;
+    key+=seg->length;
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      for (pos=(uchar*) key,key+=seg->length ; pos < (uchar*) key ; pos++)
+      for (; pos < (uchar*) key ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) my_sort_order[(uint) *pos]))+ (nr << 8);
 	nr2+=3;
@@ -166,7 +168,7 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     else
     {
-      for (pos=(uchar*) key,key+=seg->length ; pos < (uchar*) key ; pos++)
+      for (; pos < (uchar*) key ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
 	nr2+=3;
@@ -182,13 +184,13 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 {
   register ulong nr=1, nr2=4;
   HP_KEYSEG *seg,*endseg;
-  uchar *pos,*end;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
+    uchar *pos=(uchar*) rec+seg->start,*end=pos+seg->length;
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      for (pos=(uchar*) rec+seg->start,end=pos+seg->length ; pos < end ; pos++)
+      for (; pos < end ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) my_sort_order[(uint) *pos]))+ (nr << 8);
 	nr2+=3;
@@ -196,7 +198,7 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     else
     {
-      for (pos=(uchar*) rec+seg->start,end=pos+seg->length ; pos < end ; pos++)
+      for (; pos < end ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
 	nr2+=3;
@@ -205,6 +207,85 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
   }
   return((ulong) nr);
 }
+
+#else
+
+/*
+ * Fowler/Noll/Vo hash
+ *
+ * The basis of the hash algorithm was taken from an idea sent by email to the
+ * IEEE Posix P1003.2 mailing list from Phong Vo (kpv@research.att.com) and
+ * Glenn Fowler (gsf@research.att.com).  Landon Curt Noll (chongo@toad.com)
+ * later improved on their algorithm.
+ *
+ * The magic is in the interesting relationship between the special prime
+ * 16777619 (2^24 + 403) and 2^32 and 2^8.
+ *
+ * This hash produces the fewest collisions of any function that we've seen so
+ * far, and works well on both numbers and strings.
+ */
+
+ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
+{
+  register ulong nr=0;
+  HP_KEYSEG *seg,*endseg;
+
+  for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
+  {
+    uchar *pos=(uchar*) key;
+    key+=seg->length;
+    if (seg->type == HA_KEYTYPE_TEXT)
+    {
+      for (; pos < (uchar*) key ; pos++)
+      {
+	nr *=16777619; 
+	nr ^=((uint) my_sort_order[(uint) *pos]);
+      }
+    }
+    else
+    {
+      for ( ; pos < (uchar*) key ; pos++)
+      {
+	nr *=16777619; 
+	nr ^=(uint) *pos;
+      }
+    }
+  }
+  return((ulong) nr);
+}
+
+	/* Calc hashvalue for a key in a record */
+
+ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
+{
+  register ulong nr=0;
+  HP_KEYSEG *seg,*endseg;
+
+  for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
+  {
+    uchar *pos=(uchar*) rec+seg->start,*end=pos+seg->length;
+    if (seg->type == HA_KEYTYPE_TEXT)
+    {
+      for ( ; pos < end ; pos++)
+      {
+	nr *=16777619; 
+	nr ^=(uint) my_sort_order[(uint) *pos];
+      }
+    }
+    else
+    {
+      for ( ; pos < end ; pos++)
+      {
+	nr *=16777619; 
+	nr ^=(uint) *pos;
+      }
+    }
+  }
+  return((ulong) nr);
+}
+
+#endif
+
 
 	/* Compare keys for two records. Returns 0 if they are identical */
 
