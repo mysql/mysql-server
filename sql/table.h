@@ -54,6 +54,7 @@ struct st_table {
   Field_blob **blob_field;		/* Pointer to blob fields */
   HASH	name_hash;			/* hash of field names */
   byte *record[3];			/* Pointer to records */
+  byte *default_values;
   uint fields;				/* field count */
   uint reclength;			/* Recordlength */
   uint rec_buff_length;

@@ -36,7 +36,7 @@ public:
 	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
 	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, 
 	     FIELD_VARIANCE_ITEM,CONST_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM};
+             SUBSELECT_ITEM, ROW_ITEM, DEFAULT_VALUE_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -216,8 +216,8 @@ public:
   bool get_date(TIME *ltime,bool fuzzydate);  
   bool get_time(TIME *ltime);  
   bool is_null() { return field->is_null(); }
+  friend class Item_default_value;
 };
-
 
 class Item_null :public Item
 {
@@ -704,6 +704,17 @@ public:
     buff= (char*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
+};
+
+class Item_default_value : public Item_field
+{
+public:
+  Item *arg;
+  Item_default_value(Item *a) : 
+    Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(a) {}
+  enum Type type() const { return DEFAULT_VALUE_ITEM; }
+  bool eq(const Item *item, bool binary_cmp) const;
+  bool fix_fields(THD *, struct st_table_list *, Item **);
 };
 
 extern Item_buff *new_Item_buff(Item *item);
