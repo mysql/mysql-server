@@ -236,7 +236,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count)
 {
   NET *net= &thd->net;
-  uint max=0;
+  USER_RESOURCES ur;
   thd->db=0;
 
   if (!(thd->user = my_strdup(user, MYF(0))))
@@ -248,22 +248,22 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD),&max);
-  DBUG_PRINT("general",
+				   CLIENT_LONG_PASSWORD),&ur);
+  DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_packet_length,
-	      thd->host ? thd->host : thd->ip, thd->priv_user,
+	      thd->host_or_ip, thd->priv_user,
 	      passwd[0] ? "yes": "no",
 	      thd->master_access, thd->db ? thd->db : "*none*"));
   if (thd->master_access & NO_ACCESS)
   {
     net_printf(net, ER_ACCESS_DENIED_ERROR,
 	       thd->user,
-	       thd->host ? thd->host : thd->ip,
+	       thd->host_or_ip,
 	       passwd[0] ? ER(ER_YES) : ER(ER_NO));
     mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
 		    thd->user,
-		    thd->host ? thd->host : thd->ip ? thd->ip : "unknown ip",
+		    thd->host_or_ip,
 		    passwd[0] ? ER(ER_YES) : ER(ER_NO));
     return(1);					// Error already given
   }
@@ -284,7 +284,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		   (char*) "%s@%s on %s" :
 		   (char*) "%s@%s as anonymous on %s"),
 		  user,
-		  thd->host ? thd->host : thd->ip ? thd->ip : "unknown ip",
+		  thd->host_or_ip,
 		  db ? db : (char*) "");
   thd->db_access=0;
   if (db && db[0])
