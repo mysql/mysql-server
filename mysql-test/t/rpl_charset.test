@@ -63,10 +63,10 @@ connection master;
 set character_set_client=latin1, collation_connection=latin1_german1_ci;
 truncate table t1;
 insert into t1 (b) values(@@collation_connection);
-insert into t1 (b) values(LEAST("M¸ller","Muffler"));
+insert into t1 (b) values(LEAST("M√ºller","Muffler"));
 set collation_connection=latin1_german2_ci;
 insert into t1 (b) values(@@collation_connection);
-insert into t1 (b) values(LEAST("M¸ller","Muffler"));
+insert into t1 (b) values(LEAST("M√ºller","Muffler"));
 --disable_query_log
 select "--- --master--" as "";
 --enable_query_log
@@ -90,7 +90,7 @@ select * from mysqltest2.t1 order by a;
 # which provokes error messages (like 'Illegal mix of collation') when
 # we replay the master's INSERT/etc statements.
 connection master;
-set @a= _cp850 'M¸ller' collate cp850_general_ci;
+set @a= _cp850 'M√ºller' collate cp850_general_ci;
 truncate table t1;
 insert into t1 (b) values(collation(@a));
 --disable_query_log
@@ -145,7 +145,7 @@ CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255));
 SET CHARACTER_SET_CLIENT=koi8r,
  CHARACTER_SET_CONNECTION=cp1251, 
  CHARACTER_SET_RESULTS=koi8r;
-INSERT INTO t1 (c1, c2) VALUES ('Ó’, ⁄¡ “Ÿ¬¡ÃÀ’','Ó’, ⁄¡ “Ÿ¬¡ÃÀ’');
+INSERT INTO t1 (c1, c2) VALUES ('√Æ√ï, √ö√Å √í√ô√Ç√Å√å√ã√ï','√Æ√ï, √ö√Å √í√ô√Ç√Å√å√ã√ï');
 select hex(c1), hex(c2) from t1;
 sync_slave_with_master;
 select hex(c1), hex(c2) from t1;
@@ -157,3 +157,15 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
+#
+#  BUG#6676: Derivation of variables must be correct on slave
+#
+connection master;
+create table `t1` (
+  `pk` varchar(10) not null default '', 
+  primary key (`pk`)
+) engine=myisam default charset=latin1;
+set @p=_latin1 'test';
+update t1 set pk='test' where pk=@p;
+drop table t1;
+sync_slave_with_master;
