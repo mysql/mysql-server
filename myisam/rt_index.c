@@ -710,7 +710,8 @@ err1:
 
 int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 {
-  return (rtree_insert_level(info, keynr, key, key_length, -1) == -1) ? -1 : 0;
+  return (!key_length ||
+	  (rtree_insert_level(info, keynr, key, key_length, -1) == -1)) ? -1 : 0;
 }
 
 
