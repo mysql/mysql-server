@@ -380,22 +380,7 @@ bool Item_in_optimizer::fix_left(THD *thd,
       (!cache && !(cache= Item_cache::get_cache(args[0]->result_type()))))
     return 1;
   cache->setup(args[0]);
-  return 0;
-}
-
-
-
-bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
-				   Item ** ref)
-{
-  if (fix_left(thd, tables, ref))
-    return 1;
-  if (args[0]->maybe_null)
-    maybe_null=1;
-
-  with_sum_func= args[0]->with_sum_func;
-  used_tables_cache= args[0]->used_tables();
-  const_item_cache= args[0]->const_item();
+  cache->store(args[0]);
   if (cache->cols() == 1)
   {
     if (args[0]->used_tables())
@@ -414,6 +399,22 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 	((Item_cache *)cache->el(i))->set_used_tables(0);
     }
   }
+  return 0;
+}
+
+
+
+bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
+				   Item ** ref)
+{
+  if (fix_left(thd, tables, ref))
+    return 1;
+  if (args[0]->maybe_null)
+    maybe_null=1;
+
+  with_sum_func= args[0]->with_sum_func;
+  used_tables_cache= args[0]->used_tables();
+  const_item_cache= args[0]->const_item();
   if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args))
     return 1;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
