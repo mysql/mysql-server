@@ -46913,6 +46913,14 @@ not yet 100% confident in this code.
 
 @itemize @bullet
 @item
+Fixed problem with @code{crash-me} and gcc 3.0.4.
+@item
+Fixed that @code{@@@@unknown_variable} doesn't hang server.
+@item
+Added @code{@@@@VERSION} as a synonym for @code{VERSION()}.
+@item
+@code{SHOW VARIABLES LIKE 'xxx'} is now case insensitive.
+@item
 Fixed timeout for @code{GET_LOCK()} on HPUX with DCE threads.
 @item
 Fixed memory allocation bug in the glibc library used to build Linux

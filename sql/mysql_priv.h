@@ -73,22 +73,30 @@ void kill_one_thread(THD *thd, ulong id);
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
+#define STACK_BUFF_ALLOC	32	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
 #define TEMP_POOL_SIZE          128
-/* The following parameters is to decide when to use an extra cache to
-   optimise seeks when reading a big table in sorted order */
+/*
+  The following parameters is to decide when to use an extra cache to
+   optimise seeks when reading a big table in sorted order
+*/
 #define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
 
-// The following is used to decide if MySQL should use table scanning
-// instead of reading with keys.  The number says how many evaluation of the
-// WHERE clause is comparable to reading one extra row from a table.
+/*
+  The following is used to decide if MySQL should use table scanning
+  instead of reading with keys.  The number says how many evaluation of the
+  WHERE clause is comparable to reading one extra row from a table.
+*/
 #define TIME_FOR_COMPARE   5	// 5 compares == one read
-// Number of rows in a reference table when refereed through a not unique key.
-// This value is only used when we don't know anything about the key
-// distribution.
+
+/*
+  Number of rows in a reference table when refereed through a not unique key.
+  This value is only used when we don't know anything about the key
+  distribution.
+*/
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
 
 /* Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used) */

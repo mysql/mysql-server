@@ -59,7 +59,7 @@ bool
 Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
 {
   Item **arg,**arg_end;
-  char buff[sizeof(double)];			// Max argument in function
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
   binary=0;
   used_tables_cache=0;
   const_item_cache=1;
@@ -1058,7 +1058,7 @@ bool
 udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
-  char buff[sizeof(double)];			// Max argument in function
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (thd)
@@ -2161,9 +2161,12 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 
 Item *get_system_var(LEX_STRING name)
 {
-  if (!strcmp(name.str,"IDENTITY"))
+  if (!my_strcasecmp(name.str,"IDENTITY"))
     return new Item_int((char*) "@@IDENTITY",
 			current_thd->insert_id(),21);
-  my_error(ER_UNKNOWN_SYSTEM_VARIABLE,MYF(0),name);
+  if (!my_strcasecmp(name.str,"VERSION"))
+    return new Item_string("@@VERSION",server_version,
+			   (uint) strlen(server_version));
+  net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name);
   return 0;
 }

@@ -198,7 +198,7 @@
 "Net error writing to master",
 "Can't find FULLTEXT index matching the column list",
 "Can't execute the given command because you have active locked tables or an active transaction",
-"Tundmatu süsteemne muutja '%-.64'",
+"Tundmatu süsteemne muutja '%-.64s'",
 "Tabel '%-.64s' on märgitud vigaseks ja tuleb parandada",
 "Tabel '%-.64s' on märgitud vigaseks ja viimane (automaatne?) parandamiskatse ebaõnnestus",
 "Warning:  Some non-transactional changed tables couldn't be rolled back",

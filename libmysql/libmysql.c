@@ -675,7 +675,7 @@ static const char *default_options[]=
   "port","socket","compress","password","pipe", "timeout", "user",
   "init-command", "host", "database", "debug", "return-found-rows",
   "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
-  "character-set-dir", "default-character-set", "interactive-timeout",
+  "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
  NullS
 };
