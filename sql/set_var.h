@@ -423,10 +423,10 @@ public:
   bool check_default(enum_var_type type) { return 0; }
 };
 
-class sys_var_thd_client_charset :public sys_var_thd
+class sys_var_client_collation :public sys_var_thd
 {
 public:
-  sys_var_thd_client_charset(const char *name_arg) :sys_var_thd(name_arg)
+  sys_var_client_collation(const char *name_arg) :sys_var_thd(name_arg)
   {}
   bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);

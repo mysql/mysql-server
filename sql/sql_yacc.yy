@@ -635,6 +635,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <lex_user> user grant_user
 
 %type <charset>
+	opt_collate
 	charset_name
 	charset_name_or_default
 	collation_name
@@ -1302,7 +1303,7 @@ attribute:
 
 
 charset_name:
-	ident
+	ident_or_text
 	{
 	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))))
 	  {
@@ -1316,7 +1317,7 @@ charset_name_or_default:
 	| DEFAULT    { $$=NULL; } ;
 
 collation_name:
-	ident
+	ident_or_text
 	{
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
@@ -1324,6 +1325,11 @@ collation_name:
 	    YYABORT;
 	  }
 	};
+
+opt_collate:
+	/* empty */	{ $$=NULL; }
+	| COLLATE_SYM collation_name { $$=$2; }
+	;
 
 collation_name_or_default:
 	collation_name { $$=$1;   }
@@ -1989,7 +1995,7 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$3,$4,0); }
 	| expr '-' interval_expr interval
 	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| expr COLLATE_SYM ident
+	| expr COLLATE_SYM ident_or_text
 	  { 
 	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
 					    YYTHD->variables.thd_charset));
@@ -4216,12 +4222,26 @@ option_value:
 					      find_sys_var("convert_character_set"),
 					      $4));
 	}
-	| NAMES_SYM opt_equal set_expr_or_default
+	| NAMES_SYM charset_name_or_default opt_collate
 	{
-	  LEX *lex=Lex;
+	  THD* thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  system_variables vars= thd->variables;
+	  CHARSET_INFO *cs= $2 ? $2 : thd->db_charset;
+	  CHARSET_INFO *cl= $3 ? $3 : cs;
+
+	  if ((cl != cs) && strcmp(cs->csname,cl->csname))
+	  {
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
+		         cl->name,cs->csname);
+	      YYABORT;
+	  }
+	  Item_string *csname= new Item_string(cl->name, 
+					       strlen(cl->name), 
+					       &my_charset_latin1);
 	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_character_set"),
-					      $3));
+					      find_sys_var("client_collation"),
+					      csname));
 	}
 	| PASSWORD equal text_or_password
 	  {

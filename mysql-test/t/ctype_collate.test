@@ -127,4 +127,18 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 SHOW FIELDS FROM  t1;
 
+SET NAMES 'latin1';
+SET NAMES latin1;
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+SET NAMES latin1 COLLATE latin1_bin;
+SET NAMES 'latin1' COLLATE 'latin1_bin';
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+SET NAMES DEFAULT;
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+--error 1251
+SET NAMES latin1 COLLATE koi8r;
+--error 1115
+SET NAMES 'DEFAULT';
+
+
 DROP TABLE t1;
