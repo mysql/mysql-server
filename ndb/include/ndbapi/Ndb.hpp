@@ -467,51 +467,52 @@
 /**
    @page secAdapt  Adaptive Send Algorithm
 
-   At the time of "sending" the transaction 
+   At the time of "sending" a transaction 
    (using NdbTransaction::execute()), the transactions 
    are in reality <em>not</em> immediately transfered to the NDB Kernel.  
    Instead, the "sent" transactions are only kept in a 
    special send list (buffer) in the Ndb object to which they belong.
    The adaptive send algorithm decides when transactions should
-   be transfered to the NDB kernel.
+   actually be transferred to the NDB kernel.
   
-   The NDB API is designed as a multi-threaded interface and
-   it is desirable to transfer database operations from more than 
+   The NDB API is designed as a multi-threaded interface and so
+   it is often desirable to transfer database operations from more than 
    one thread at a time. 
-   The NDB API keeps track of which Ndb objects are active in transfering
+   The NDB API keeps track of which Ndb objects are active in transferring
    information to the NDB kernel and the expected amount of threads to 
    interact with the NDB kernel.
-   Note that an Ndb object should be used in at most one thread. 
-   Two different threads should <em>not</em> use the same Ndb object.
+   Note that a given instance of Ndb should be used in at most one thread; 
+   different threads should <em>not</em> use the same Ndb object.
   
-   There are four reasons leading to transfering of database 
-   operations:
+   There are four conditions leading to the transfer of database 
+   operations from Ndb object buffers to the NDB kernel:
    -# The NDB Transporter (TCP/IP, OSE, SCI or shared memory)
       decides that a buffer is full and sends it off. 
-      The buffer size is implementation dependent and
-      might change between NDB Cluster releases.
-      On TCP/IP the buffer size is usually around 64 kByte and 
+      The buffer size is implementation-dependent and
+      may change between MySQL Cluster releases.
+      On TCP/IP the buffer size is usually around 64 KB;
       on OSE/Delta it is usually less than 2000 bytes. 
-      In each Ndb object there is one buffer per DB node, 
-      so this criteria of a full buffer is only 
-      local to the connection to one DB node.
-   -# Statistical information on the transfered information
-      may force sending of buffers to all DB nodes.
-   -# Every 10 ms a special send-thread checks whether 
-      any send activity has occurred.  If not, then the thread will 
-      force sending to all nodes. 
+      Since each Ndb object provides a single buffer per storage node, 
+      the notion of a "full" buffer is local to this storage node.
+   -# The accumulation of statistical data on transferred information
+      may force sending of buffers to all storage nodes.
+   -# Every 10 ms, a special transmission thread checks whether or not
+      any send activity has occurred. If not, then the thread will 
+      force transmission to all nodes. 
       This means that 20 ms is the maximum time database operations 
-      are waiting before being sent off. The 10 millisecond limit 
+      are kept waiting before being sent off. The 10-millisecond limit 
       is likely to become a configuration parameter in
-      later releases of NDB Cluster.
-      However, to support faster than 10 ms checks, 
-      there has to be support from the operating system.
-   -# When methods that are affected by the adaptive send alorithm,
-      e.g. NdbTransaction::execute(), there is a force parameter 
-      that overrides it forces the send to all nodes.
+      future releases of MySQL Cluster; however, for checks that
+      are more frequent than each 10 ms, 
+      additional support from the operating system is required.
+   -# For methods that are affected by the adaptive send alorithm
+      (such as NdbTransaction::execute()), there is a <var>force</var> parameter 
+      that overrides its default behaviour in this regard and forces 
+      immediate transmission to all nodes. See the inidvidual NDB API class 
+      listings for more information.
 
-   @note The reasons mentioned above are examples.  These might 
-         change in later releases of NDB Cluster.
+   @note The conditions listed above are subject to change in future releases 
+   of MySQL Cluster.
 */
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
