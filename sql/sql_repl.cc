@@ -34,7 +34,7 @@ static int send_file(THD *thd)
   char fname[FN_REFLEN+1];
   char *buf;
   const char *errmsg = 0;
-  int old_timeout;
+  int old_timeout,fname_len;
   DBUG_ENTER("send_file");
 
   // the client might be slow loading the data, give him wait_timeout to do
@@ -51,12 +51,14 @@ static int send_file(THD *thd)
 
   // we need net_flush here because the client will not know it needs to send
   // us the file name until it has processed the load event entry
-  if (net_flush(net) || my_net_read(net) == packet_error)
+  if (net_flush(net) || (fname_len = my_net_read(net)) == packet_error)
   {
     errmsg = "Failed reading file name";
     goto err;
   }
 
+  *((char*)net->read_pos + 1 + fname_len) = 0; // terminate with \0
+   //for fn_format
   fn_format(fname, (char*)net->read_pos + 1, "", "", 4);
   // this is needed to make replicate-ignore-db
   if (!strcmp(fname,"/dev/null"))
@@ -513,6 +515,7 @@ int start_slave(THD* thd , bool net_report)
 	    {
 	      err = "cannot create slave thread";
 	    }
+	  pthread_cond_wait(&COND_slave_start, &LOCK_slave);
 	}
       else
 	err = "Master host not set, or server id not configured";

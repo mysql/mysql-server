@@ -65,6 +65,16 @@ public:
   int valid_exec_time; // if false, the exec time setting is bogus 
   uint32 server_id;
 
+  static void *operator new(size_t size)
+  {
+    return (void*) my_malloc((uint)size, MYF(MY_WME|MY_FAE));
+  }
+
+  static void operator delete(void *ptr, size_t size)
+  {
+    my_free((byte*)ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+  }
+  
   int write(IO_CACHE* file);
   int write_header(IO_CACHE* file);
   virtual int write_data(IO_CACHE* file __attribute__((unused))) { return 0; }
