@@ -596,25 +596,31 @@ static int f_dictionary_count = 0;
 NdbDictionaryImpl::~NdbDictionaryImpl()
 {
   NdbElement_t<NdbTableImpl> * curr = m_localHash.m_tableHash.getNext(0);
-  while(curr != 0){
-    m_globalHash->lock();
-    m_globalHash->release(curr->theData);    
-    m_globalHash->unlock();
+  if(m_globalHash){
+    while(curr != 0){
+      m_globalHash->lock();
+      m_globalHash->release(curr->theData);    
+      m_globalHash->unlock();
+      
+      curr = m_localHash.m_tableHash.getNext(curr);
+    }
     
-    curr = m_localHash.m_tableHash.getNext(curr);
+    m_globalHash->lock();
+    if(--f_dictionary_count == 0){
+      delete NdbDictionary::Column::FRAGMENT; 
+      delete NdbDictionary::Column::ROW_COUNT;
+      delete NdbDictionary::Column::COMMIT_COUNT;
+      NdbDictionary::Column::FRAGMENT= 0;
+      NdbDictionary::Column::ROW_COUNT= 0;
+      NdbDictionary::Column::COMMIT_COUNT= 0;
+    }
+    m_globalHash->unlock();
+  } else {
+    assert(curr == 0);
   }
-
-  m_globalHash->lock();
-  if(--f_dictionary_count == 0){
-    delete NdbDictionary::Column::FRAGMENT; 
-    delete NdbDictionary::Column::ROW_COUNT;
-    delete NdbDictionary::Column::COMMIT_COUNT;
-    NdbDictionary::Column::FRAGMENT= 0;
-    NdbDictionary::Column::ROW_COUNT= 0;
-    NdbDictionary::Column::COMMIT_COUNT= 0;
-  }
-  m_globalHash->unlock();
 }
+
+
 
 #if 0
 bool
