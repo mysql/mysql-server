@@ -54,6 +54,9 @@ static int stuck_count = 0;
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 
 void skip_load_data_infile(NET* net);
+static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev);
+static int queue_old_event(MASTER_INFO* mi, const char* buf,
+			   uint event_len);
 static inline bool slave_killed(THD* thd,MASTER_INFO* mi);
 static inline bool slave_killed(THD* thd,RELAY_LOG_INFO* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
@@ -1918,26 +1921,15 @@ the slave SQL thread with \"mysqladmin start-slave\". We stopped at log \
   DBUG_RETURN(0);				// Can't return anything here
 }
 
-int queue_event(MASTER_INFO* mi,const char* buf,uint event_len)
+static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
 {
-  int error;
-  bool inc_pos = 1;
-  if (mi->old_format)
-    return 1; // TODO: deal with old format
-  
-  switch (buf[EVENT_TYPE_OFFSET])
-  {
-  case ROTATE_EVENT:
-  {
-    Rotate_log_event rev(buf,event_len,0);
-    if (!rev.is_valid())
-      return 1;
-    DBUG_ASSERT(rev.ident_len<sizeof(mi->master_log_name));
-    memcpy(mi->master_log_name,rev.new_log_ident,
-	    rev.ident_len);
-    mi->master_log_name[rev.ident_len] = 0;
-    mi->master_log_pos = rev.pos;
-    inc_pos = 0;
+  if (!rev->is_valid())
+    return 1;
+  DBUG_ASSERT(rev->ident_len<sizeof(mi->master_log_name));
+  memcpy(mi->master_log_name,rev->new_log_ident,
+	 rev->ident_len);
+  mi->master_log_name[rev->ident_len] = 0;
+  mi->master_log_pos = rev->pos;
 #ifndef DBUG_OFF
     /* if we do not do this, we will be getting the first
        rotate event forever, so
@@ -1945,7 +1937,70 @@ int queue_event(MASTER_INFO* mi,const char* buf,uint event_len)
     */
     if (disconnect_slave_event_count)
       events_till_disconnect++;
-#endif    
+#endif
+    return 0;
+}
+
+static int queue_old_event(MASTER_INFO* mi, const char* buf,
+			   uint event_len)
+{
+  const char* errmsg = 0;
+  bool inc_pos = 1;
+  Log_event* ev = Log_event::read_log_event(buf,event_len, &errmsg,
+					    1/*old format*/);
+  if (!ev)
+  {
+    sql_print_error("Read invalid event from master: '%s',\
+ master could be corrupt  but a more likely cause of this is a bug",
+		    errmsg);
+    return 1;
+  }
+  ev->log_pos = mi->master_log_pos;
+  switch (ev->get_type_code())
+  {
+  case ROTATE_EVENT:
+    if (process_io_rotate(mi,(Rotate_log_event*)ev))
+    {
+      delete ev;
+      return 1;
+    }
+    inc_pos = 0;
+    break;
+  case LOAD_EVENT:
+    // TODO: actually process it
+    mi->master_log_pos += event_len;
+    return 0;
+    break;
+  default:
+    break;
+  }
+  if (mi->rli.relay_log.append(ev))
+  {
+    delete ev;
+    return 1;
+  }
+  delete ev;
+  if (inc_pos)
+    mi->master_log_pos += event_len;
+  return 0;
+}
+
+int queue_event(MASTER_INFO* mi,const char* buf,uint event_len)
+{
+  int error;
+  bool inc_pos = 1;
+  if (mi->old_format)
+    return queue_old_event(mi,buf,event_len);
+  // TODO: figure out if other events in addition to Rotate
+  // require special processing
+  switch (buf[EVENT_TYPE_OFFSET])
+  {
+  case ROTATE_EVENT:
+  {
+    Rotate_log_event rev(buf,event_len,0);
+    if (process_io_rotate(mi,&rev))
+      return 1;
+    inc_pos=0;
     break;
   }
   default:

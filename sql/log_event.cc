@@ -26,6 +26,18 @@
 
 #include <assert.h>
 
+inline int my_b_safe_write(IO_CACHE* file, const char* buf,
+			      int len)
+{
+  // Sasha: We are not writing this with the ? operator to avoid hitting
+  // a possible compiler bug. At least gcc 2.95 cannot deal with 
+  // several layers of ternary operators that evaluated comma(,) operator
+  // expressions inside - I do have a test case if somebody wants it
+  if (file->type == SEQ_READ_APPEND)
+    return my_b_append(file,buf,len);
+  return my_b_write(file,buf,len);
+ }
+
 #ifdef MYSQL_CLIENT
 static void pretty_print_str(FILE* file, char* str, int len)
 {
@@ -403,7 +415,7 @@ int Log_event::write_header(IO_CACHE* file)
   pos += 4;
   int2store(pos, flags);
   pos += 2;
-  return (my_b_write(file, (byte*) buf, (uint) (pos - buf)));
+  return (my_b_safe_write(file, (byte*) buf, (uint) (pos - buf)));
 }
 
 #ifndef MYSQL_CLIENT
@@ -677,7 +689,7 @@ int Start_log_event::write_data(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   int4store(buff + ST_CREATED_OFFSET,created);
-  return (my_b_write(file, (byte*) buff, sizeof(buff)) ? -1 : 0);
+  return (my_b_safe_write(file, (byte*) buff, sizeof(buff)) ? -1 : 0);
 }
 
 Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
@@ -714,8 +726,8 @@ int Rotate_log_event::write_data(IO_CACHE* file)
 {
   char buf[ROTATE_HEADER_LEN];
   int8store(buf, pos + R_POS_OFFSET);
-  return my_b_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
-    my_b_write(file, (byte*)new_log_ident, (uint) ident_len);
+  return my_b_safe_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
+    my_b_safe_write(file, (byte*)new_log_ident, (uint) ident_len);
 }
 
 #ifndef MYSQL_CLIENT
@@ -812,9 +824,9 @@ int Query_log_event::write_data(IO_CACHE* file)
   buf[Q_DB_LEN_OFFSET] = (char)db_len;
   int2store(buf + Q_ERR_CODE_OFFSET, error_code);
 
-  return (my_b_write(file, (byte*) buf, QUERY_HEADER_LEN) ||
-	  my_b_write(file, (db) ? (byte*) db : (byte*)"", db_len + 1) ||
-	  my_b_write(file, (byte*) query, q_len)) ? -1 : 0;
+  return (my_b_safe_write(file, (byte*) buf, QUERY_HEADER_LEN) ||
+	  my_b_safe_write(file, (db) ? (byte*) db : (byte*)"", db_len + 1) ||
+	  my_b_safe_write(file, (byte*) query, q_len)) ? -1 : 0;
 }
 
 Intvar_log_event::Intvar_log_event(const char* buf, bool old_format):
@@ -840,7 +852,7 @@ int Intvar_log_event::write_data(IO_CACHE* file)
   char buf[9];
   buf[I_TYPE_OFFSET] = type;
   int8store(buf + I_VAL_OFFSET, val);
-  return my_b_write(file, (byte*) buf, sizeof(buf));
+  return my_b_safe_write(file, (byte*) buf, sizeof(buf));
 }
 
 #ifdef MYSQL_CLIENT
@@ -878,7 +890,7 @@ int Load_log_event::write_data_header(IO_CACHE* file)
   buf[L_TBL_LEN_OFFSET] = (char)table_name_len;
   buf[L_DB_LEN_OFFSET] = (char)db_len;
   int4store(buf + L_NUM_FIELDS_OFFSET, num_fields);
-  return my_b_write(file, (byte*)buf, LOAD_HEADER_LEN);
+  return my_b_safe_write(file, (byte*)buf, LOAD_HEADER_LEN);
 }
 
 int Load_log_event::write_data_body(IO_CACHE* file)
@@ -886,20 +898,20 @@ int Load_log_event::write_data_body(IO_CACHE* file)
   if (sql_ex.write_data(file)) return 1;
   if (num_fields && fields && field_lens)
   {
-    if (my_b_write(file, (byte*)field_lens, num_fields) ||
-	my_b_write(file, (byte*)fields, field_block_len))
+    if (my_b_safe_write(file, (byte*)field_lens, num_fields) ||
+	my_b_safe_write(file, (byte*)fields, field_block_len))
       return 1;
   }
-  return (my_b_write(file, (byte*)table_name, table_name_len + 1) ||
-	  my_b_write(file, (byte*)db, db_len + 1) ||
-	  my_b_write(file, (byte*)fname, fname_len));
+  return (my_b_safe_write(file, (byte*)table_name, table_name_len + 1) ||
+	  my_b_safe_write(file, (byte*)db, db_len + 1) ||
+	  my_b_safe_write(file, (byte*)fname, fname_len));
 }
 
 
 static bool write_str(IO_CACHE *file, char *str, byte length)
 {
-  return (my_b_write(file, &length, 1) ||
-	  my_b_write(file, (byte*) str, (int) length));
+  return (my_b_safe_write(file, &length, 1) ||
+	  my_b_safe_write(file, (byte*) str, (int) length));
 }
 
 int sql_ex_info::write_data(IO_CACHE* file)
@@ -911,7 +923,7 @@ int sql_ex_info::write_data(IO_CACHE* file)
 	    write_str(file, line_term,  line_term_len) ||
 	    write_str(file, line_start, line_start_len) ||
 	    write_str(file, escaped,    escaped_len) ||
-	    my_b_write(file,(byte*) &opt_flags,1));
+	    my_b_safe_write(file,(byte*) &opt_flags,1));
   }
   else
   {
@@ -923,7 +935,7 @@ int sql_ex_info::write_data(IO_CACHE* file)
     old_ex.escaped=    *escaped;
     old_ex.opt_flags=  opt_flags;
     old_ex.empty_flags=empty_flags;
-    return my_b_write(file, (byte*) &old_ex, sizeof(old_ex));
+    return my_b_safe_write(file, (byte*) &old_ex, sizeof(old_ex));
   }
 }
 
@@ -1280,7 +1292,7 @@ int Slave_log_event::write_data(IO_CACHE* file)
   int8store(mem_pool + SL_MASTER_POS_OFFSET, master_pos);
   int2store(mem_pool + SL_MASTER_PORT_OFFSET, master_port);
   // log and host are already there
-  return my_b_write(file, (byte*)mem_pool, get_data_size());
+  return my_b_safe_write(file, (byte*)mem_pool, get_data_size());
 }
 
 void Slave_log_event::init_from_mem_pool(int data_size)
@@ -1330,8 +1342,8 @@ int Create_file_log_event::write_data_body(IO_CACHE* file)
   int res;
   if ((res = Load_log_event::write_data_body(file)) || fake_base)
     return res;
-  return (my_b_write(file, (byte*) "", 1) ||
-	  my_b_write(file, (byte*) block, block_len));
+  return (my_b_safe_write(file, (byte*) "", 1) ||
+	  my_b_safe_write(file, (byte*) block, block_len));
 }
 
 int Create_file_log_event::write_data_header(IO_CACHE* file)
@@ -1341,7 +1353,7 @@ int Create_file_log_event::write_data_header(IO_CACHE* file)
     return res;
   byte buf[CREATE_FILE_HEADER_LEN];
   int4store(buf + CF_FILE_ID_OFFSET, file_id);
-  return my_b_write(file, buf, CREATE_FILE_HEADER_LEN);
+  return my_b_safe_write(file, buf, CREATE_FILE_HEADER_LEN);
 }
 
 int Create_file_log_event::write_base(IO_CACHE* file)
@@ -1423,8 +1435,8 @@ int Append_block_log_event::write_data(IO_CACHE* file)
 {
   byte buf[APPEND_BLOCK_HEADER_LEN];
   int4store(buf + AB_FILE_ID_OFFSET, file_id);
-  return (my_b_write(file, buf, APPEND_BLOCK_HEADER_LEN) ||
-	  my_b_write(file, (byte*) block, block_len));
+  return (my_b_safe_write(file, buf, APPEND_BLOCK_HEADER_LEN) ||
+	  my_b_safe_write(file, (byte*) block, block_len));
 }
 
 #ifdef MYSQL_CLIENT  
@@ -1473,7 +1485,7 @@ int Delete_file_log_event::write_data(IO_CACHE* file)
 {
  byte buf[DELETE_FILE_HEADER_LEN];
  int4store(buf + DF_FILE_ID_OFFSET, file_id);
- return my_b_write(file, buf, DELETE_FILE_HEADER_LEN);
+ return my_b_safe_write(file, buf, DELETE_FILE_HEADER_LEN);
 }
 
 #ifdef MYSQL_CLIENT  
@@ -1520,7 +1532,7 @@ int Execute_load_log_event::write_data(IO_CACHE* file)
 {
   byte buf[EXEC_LOAD_HEADER_LEN];
   int4store(buf + EL_FILE_ID_OFFSET, file_id);
-  return my_b_write(file, buf, EXEC_LOAD_HEADER_LEN);
+  return my_b_safe_write(file, buf, EXEC_LOAD_HEADER_LEN);
 }
 
 #ifdef MYSQL_CLIENT  

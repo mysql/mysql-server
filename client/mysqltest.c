@@ -15,7 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* mysqltest test tool
- * See man page for more information.
+ * See the manual for more information
+ * TODO: document better how mysqltest works
  *
  * Written by:
  *   Sasha Pachev <sasha@mysql.com>
@@ -25,9 +26,6 @@
 
 /**********************************************************************
   TODO:
-
-- Print also the queries that returns a result to the log file;  This makes
-  it much easier to find out what's wrong.
 
 - Do comparison line by line, instead of doing a full comparison of
   the text file.  This will save space as we don't need to keep many
@@ -43,7 +41,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.13"
+#define MTEST_VERSION "1.14"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -87,6 +85,12 @@
 */
 #define CON_RETRY_SLEEP 2
 #define MAX_CON_TRIES   5
+
+#ifndef OS2
+#define SLAVE_POLL_INTERVAL 300000 /* 0.3 of a sec */
+#else
+#defile SLAVE_POLL_INTERVAL 0.3
+#endif
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT};
@@ -187,6 +191,7 @@ Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
 Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
 Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
+Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -222,7 +227,7 @@ const char *command_names[] = {
   "enable_query_log", "disable_query_log",
   "enable_result_log", "disable_result_log",
   "server_start", "server_stop",
-  "require_manager",
+  "require_manager", "wait_for_slave_to_stop",
   0
 };
 
@@ -650,6 +655,45 @@ int open_file(const char* name)
   cur_file++;
   *++lineno=1;
 
+  return 0;
+}
+
+/* ugly long name, but we are following the convention */
+int do_wait_for_slave_to_stop(struct st_query* __attribute__((unused)) q)
+{
+  MYSQL* mysql = &cur_con->mysql;
+#ifndef OS2 
+  struct timeval t;
+#endif
+  for (;;)
+  {
+    MYSQL_RES* res;
+    MYSQL_ROW row;
+    int done;
+    LINT_INIT(res);
+    
+    if (mysql_query(mysql,"show status like 'Slave_running'")
+	|| !(res=mysql_store_result(mysql)))
+      die("Query failed while probing slave for stop: %s",
+	  mysql_error(mysql));
+    if (!(row=mysql_fetch_row(res)) || !row[1])
+    {
+      mysql_free_result(res);
+      die("Strange result from query while probing slave for stop");
+    }
+    done = !strcmp(row[1],"OFF");
+    mysql_free_result(res);
+    if (done)
+      break;
+#ifndef OS2  
+    t.tv_sec=0;
+    t.tv_usec=SLAVE_POLL_INTERVAL;
+    select(0,0,0,0,&t); /* sleep */
+#else
+    DosSleep(OS2_SLAVE_POLL_INTERVAL);
+#endif
+  }
+  
   return 0;
 }
 
@@ -2335,6 +2379,7 @@ int main(int argc, char** argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
+      case Q_WAIT_FOR_SLAVE_TO_STOP: do_wait_for_slave_to_stop(q); break;
       case Q_REQUIRE_MANAGER: do_require_manager(q); break;
 #ifndef EMBEDDED_LIBRARY	
       case Q_SERVER_START: do_server_start(q); break;

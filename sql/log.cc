@@ -703,11 +703,36 @@ void MYSQL_LOG::new_file(bool inside_mutex)
   }
 }
 
+bool MYSQL_LOG::append(Log_event* ev)
+{
+  bool error = 0;
+  pthread_mutex_lock(&LOCK_log);
+  
+  DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
+  // Log_event::write() is smart enough to use my_b_write() or
+  // my_b_append() depending on the kind of cache we have
+  if (ev->write(&log_file))
+  {
+    error=1;
+    goto err;
+  }
+  if ((uint)my_b_append_tell(&log_file) > max_binlog_size)
+  {
+    new_file(1);
+  }
+  signal_update();
+err:  
+  pthread_mutex_unlock(&LOCK_log);
+  return error;
+}
+
 bool MYSQL_LOG::appendv(const char* buf, uint len,...)
 {
   bool error = 0;
   va_list(args);
   va_start(args,len);
+  
+  DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
   
   pthread_mutex_lock(&LOCK_log);
   do

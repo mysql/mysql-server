@@ -48290,13 +48290,13 @@ Fixed bug in multi table delete.
 Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
 @item
 @code{SELECT .. INSERT} did a full rollback in case of an error. Fixed
-so that we only rollback the last statement.
+so that we only roll back the last statement.
 @item
 Fixed bug with empty expression for boolean fulltext search.
 @item
 Fixed core dump bug in updating fulltext key from/to @code{NULL}.
 @item
-ODBC compatibility: Added @code{BIT_LENGTH()} 
+ODBC compatibility: Added @code{BIT_LENGTH()}.
 @item
 Fixed core dump bug in @code{GROUP BY BINARY column}.
 @item
@@ -48315,7 +48315,7 @@ For more information, read @ref{Cast Functions}.
 @code{CREATE ... SELECT} on @code{DATE} and @code{TIME} functions now
 create columns of the expected type.
 @item
-Changed order of how keys are created in tables.
+Changed order in which keys are created in tables.
 @item
 Added a new columns @code{Null} and @code{Index_type} to @code{SHOW INDEX}.
 @end itemize
@@ -48330,17 +48330,17 @@ Fixed bug when @code{HANDLER} was used with some unsupported table type.
 @code{mysqldump} now puts @code{ALTER TABLE table_name DISABLE KEYS} and
 @code{ALTER TABLE table_name DISABLE KEYS} in the sql dump.
 @item
-Added @code{mysql_fix_extensions} script
+Added @code{mysql_fix_extensions} script.
 @item
 Fixed stack overrun problem @code{LOAD DATA FROM MASTER} on OSF1.
 @item
-Fixed shutdown problem on HPUX.
+Fixed shutdown problem on HP-UX.
 @item
 Added functions @code{des_encrypt()} and @code{des_decrypt()}.
 @item
 Added statement @code{FLUSH DES_KEY_FILE}.
 @item
-Added mysqld option @code{--des-key-file}.
+Added @code{mysqld} option @code{--des-key-file}.
 @item
 @code{HEX(string)} now returns the characters in string converted to
 hexadecimal.
@@ -48352,7 +48352,7 @@ Changed @code{SELECT ... IN SHARE MODE} to
 @item
 A new query cache to cache results from identical @code{SELECT} queries.
 @item
-Fixed core dump bug on 64 bit machines when it got a wrong communication
+Fixed core dump bug on 64-bit machines when it got an incorrect communication
 packet.
 @item
 @code{MATCH ... AGAINST(... IN BOOLEAN MODE)} can now work
@@ -48370,7 +48370,7 @@ of @code{FULLTEXT} indexes.
 Fixed bug in @code{DELETE ... WHERE ... MATCH ...}.
 @item
 Added support for @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
-@strong{Note: you have to rebuild your tables with
+@strong{Note: you must rebuild your tables with
 @code{ALTER TABLE tablename TYPE=MyISAM} to be
 able to use boolean fulltext search}.
 @item
@@ -48391,7 +48391,7 @@ Added boolean fulltext search code. It should be considered early alpha.
 Extended @code{MODIFY} and @code{CHANGE} in @code{ALTER TABLE} to accept
 the @code{AFTER} keyword.
 @item
-Index are now used with @code{ORDER BY} on a whole @code{InnoDB} table.
+Indexes are now used with @code{ORDER BY} on a whole @code{InnoDB} table.
 @end itemize
 
 @node News-4.0.0,  , News-4.0.1, News-4.0.x
@@ -48446,28 +48446,28 @@ Speed up all internal list handling.
 @item
 Speed up @code{IS NULL}, @code{ISNULL()} and some other internal primitives.
 @item
-Creating full text indexes are now much faster.
+Full text index creation now is much faster.
 @item
 Tree-like cache to speed up bulk inserts and
 @code{myisam_bulk_insert_tree_size} variable.
 @item
-Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
+Searching on packed (@code{CHAR}/@code{VARCHAR}) keys is now much faster.
 @item
 Optimised queries of type:
-@code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
+@code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}.
 @item
 @code{SHOW CREATE TABLE} now shows all table attributes.
 @item
 @code{ORDER BY ... DESC} can now use keys.
 @item
-@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
+@code{LOAD DATA FROM MASTER} ``auto-magically'' sets up a slave.
 @item
 Renamed @code{safe_mysqld} to @code{mysqld_safe}.
 @item
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
 @item
-@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
+@code{LOAD DATA FROM MASTER} ``auto-magically'' sets up a slave.
 @item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned
@@ -48486,15 +48486,15 @@ Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 Added @code{ALTER TABLE table_name DISABLE KEYS} and
 @code{ALTER TABLE table_name ENABLE KEYS} commands.
 @item
-Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
+Allow use of @code{IN} as a synonym for @code{FROM} in @code{SHOW} commands.
 @item
 Implemented ``repair by sort'' for @code{FULLTEXT} indexes.
 @code{REPAIR TABLE}, @code{ALTER TABLE}, and @code{OPTIMIZE TABLE}
 for tables with @code{FULLTEXT} indexes are now up to 100 times faster.
 @item
-Allow ANSI SQL syntax @code{X'hexadecimal-number'}
+Allow ANSI SQL syntax @code{X'hexadecimal-number'}.
 @item
-Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
+Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}.
 @item
 Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimisation.
 @item
@@ -48610,13 +48610,13 @@ Restrict InnoDB keys to 500 bytes.
 @item
 InnoDB now supports @code{NULL} in keys.
 @item
-Fixed shutdown problem on HPUX. (Introduced in 3.23.46)
+Fixed shutdown problem on HP-UX. (Introduced in 3.23.46)
 @item
-Fixed core-dump bug in replication when using SELECT RELEASE_LOCK();
+Fixed core-dump bug in replication when using @code{SELECT RELEASE_LOCK()}.
 @item
 Added new command: @code{DO expression,[expression]}
 @item
-Added @code{slave-skip-errors} option
+Added @code{slave-skip-errors} option.
 @item
 Added statistics variables for all MySQL commands. (@code{SHOW STATUS} is
 now much longer).
@@ -48627,7 +48627,7 @@ Fixed that @code{GROUP BY expr DESC} works.
 @item
 Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @item
-@code{mysql_config} now also work with binary (relocated) distributions.
+@code{mysql_config} now also works with binary (relocated) distributions.
 @end itemize
 
 @node News-3.23.46, News-3.23.45, News-3.23.47, News-3.23.x

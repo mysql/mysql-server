@@ -51,9 +51,7 @@ insert into t2 values(NULL);
 connection slave;
 sync_with_master;
 
-#the slave may have already stopped, so we ignore the error
---error 0,1199
-!slave stop;
+wait_for_slave_to_stop;
 
 #restart slave skipping one event
 set sql_slave_skip_counter=1;
