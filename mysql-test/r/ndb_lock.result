@@ -11,6 +11,11 @@ x	y
 2	two
 start transaction;
 insert into t1 values (3,'three');
+select * from t1 order by x;
+x	y
+1	one
+2	two
+3	three
 start transaction;
 select * from t1 order by x;
 x	y
