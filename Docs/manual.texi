@@ -33608,7 +33608,7 @@ non-magic value (that is, a value that is not @code{NULL} and not @code{0}).
 
 If you insert many rows at the same time with an insert statement,
 @code{LAST_INSERT_ID()} returns the value for the first inserted row.
-The reason for this is so that you it makes it possible to easily reproduce
+The reason for this is to make it possible to easily reproduce
 the same @code{INSERT} statement against some other server.
 
 @cindex sequence emulation
