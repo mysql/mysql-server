@@ -387,10 +387,11 @@ check table t1;
 drop table t1;
 
 #
-# sort-repair bug
+# two bugs in myisam-space-stripping feature
 #
 create table t1 ( a text not null, key a (a(20)));
 insert into t1 values ('aaa   '),('aaa');
 repair table t1;
+select concat(a,'.') from t1 where a='aaa';
 drop table t1;
 
