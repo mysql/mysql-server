@@ -318,6 +318,16 @@ bool Field::optimize_range(uint idx)
 }
 
 /****************************************************************************
+  Functions for the Field_null
+****************************************************************************/
+
+void Field_null::sql_type(String &res) const
+{
+  res.set("null",4,system_charset_info);
+}
+
+
+/****************************************************************************
   Functions for the Field_decimal class
   This is an number stored as a pre-space (or pre-zero) string
 ****************************************************************************/

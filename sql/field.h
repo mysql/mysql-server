@@ -556,7 +556,7 @@ public:
   int cmp(const char *a, const char *b) { return 0;}
   void sort_string(char *buff, uint length)  {}
   uint32 pack_length() const { return 0; }
-  void sql_type(String &str) const { str.set("null",4,my_thd_charset); }
+  void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
 };
 
