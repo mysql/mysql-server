@@ -689,7 +689,10 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
   mysql->affected_rows= affected_rows;
   mysql->insert_id= id;
   if (message)
+  {
     strmake(thd->net.last_error, message, sizeof(thd->net.last_error)-1);
+    mysql->info= thd->net.last_error;
+  }
   DBUG_VOID_RETURN;
 }
 
