@@ -45,8 +45,8 @@ CREATE TABLE `таблица`
 поле CHAR(32) CHARACTER SET koi8r NOT NULL COMMENT "комментарий поля"
 ) COMMENT "комментарий таблицы";
 SHOW TABLES;
-Tables_in_test	table_type
-таблица	BASE TABLE
+Tables_in_test
+таблица
 SHOW CREATE TABLE таблица;
 Table	Create Table
 таблица	CREATE TABLE `таблица` (
@@ -57,8 +57,8 @@ Field	Type	Null	Key	Default	Extra
 поле	char(32)				
 SET CHARACTER SET cp1251;
 SHOW TABLES;
-Tables_in_test	table_type
-РЮАКХЖЮ	BASE TABLE
+Tables_in_test
+РЮАКХЖЮ
 SHOW CREATE TABLE РЮАКХЖЮ;
 Table	Create Table
 РЮАКХЖЮ	CREATE TABLE `РЮАКХЖЮ` (
@@ -69,8 +69,8 @@ Field	Type	Null	Key	Default	Extra
 ОНКЕ	char(32)				
 SET CHARACTER SET utf8;
 SHOW TABLES;
-Tables_in_test	table_type
-я┌п╟п╠п╩п╦я├п╟	BASE TABLE
+Tables_in_test
+я┌п╟п╠п╩п╦я├п╟
 SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
 Table	Create Table
 я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
@@ -93,14 +93,14 @@ SET CHARACTER SET koi8r;
 CREATE DATABASE тест;
 USE тест;
 SHOW TABLES;
-Tables_in_тест	table_type
+Tables_in_тест
 SHOW TABLES IN тест;
-Tables_in_тест	table_type
+Tables_in_тест
 SET CHARACTER SET cp1251;
 SHOW TABLES;
-Tables_in_РЕЯР	table_type
+Tables_in_РЕЯР
 SHOW TABLES IN РЕЯР;
-Tables_in_РЕЯР	table_type
+Tables_in_РЕЯР
 SET CHARACTER SET koi8r;
 DROP DATABASE тест;
 SET NAMES koi8r;

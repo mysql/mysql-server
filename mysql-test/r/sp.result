@@ -1659,7 +1659,7 @@ Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
 Variable_name	Value
-Tables_in_test (foo)	table_type
+Tables_in_test (foo)
 Variable_name	Value
 Level	Code	Message
 call bug4902()|
@@ -1709,7 +1709,7 @@ Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
 Variable_name	Value
-Tables_in_test (foo)	table_type
+Tables_in_test (foo)
 Variable_name	Value
 Level	Code	Message
 drop procedure bug4902|

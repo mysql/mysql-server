@@ -688,7 +688,8 @@ int mysql_do(THD *thd, List<Item> &values);
 /* sql_show.cc */
 int mysqld_show_dbs(THD *thd,const char *wild);
 int mysqld_show_open_tables(THD *thd,const char *wild);
-int mysqld_show_tables(THD *thd,const char *db,const char *wild);
+int mysqld_show_tables(THD *thd, const char *db, const char *wild,
+		       bool verbose);
 int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
 		       bool verbose);

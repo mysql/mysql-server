@@ -73,25 +73,25 @@ mysqltest3
 test
 use mysqltest2;
 show tables;
-Tables_in_mysqltest2	table_type
-t1	BASE TABLE
-t3	BASE TABLE
+Tables_in_mysqltest2
+t1
+t3
 select * from t1;
 n	s
 1	original foo.t1
 use mysqltest3;
 show tables;
-Tables_in_mysqltest3	table_type
-t1	BASE TABLE
+Tables_in_mysqltest3
+t1
 select * from t1;
 n	s
 1	original foo2.t1
 use mysqltest;
 show tables;
-Tables_in_mysqltest	table_type
-t1	BASE TABLE
-t2	BASE TABLE
-t3	BASE TABLE
+Tables_in_mysqltest
+t1
+t2
+t3
 select * from mysqltest.t1;
 n	s
 1	one test

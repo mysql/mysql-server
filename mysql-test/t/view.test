@@ -82,6 +82,7 @@ explain extended select c from v6;
 
 # show table/table status test
 show tables;
+show full tables;
 --replace_column 12 # 13 #
 show table status;
 

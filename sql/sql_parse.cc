@@ -3053,8 +3053,9 @@ unsent_create_error:
         res= mysqld_extend_show_tables(thd,db,
 				       (lex->wild ? lex->wild->ptr() : NullS));
       else
-	res= mysqld_show_tables(thd,db,
-				(lex->wild ? lex->wild->ptr() : NullS));
+	res= mysqld_show_tables(thd, db,
+				(lex->wild ? lex->wild->ptr() : NullS),
+				lex->verbose);
       break;
     }
 #endif

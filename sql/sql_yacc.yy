@@ -5844,11 +5844,11 @@ show:	SHOW
 show_param:
 	DATABASES wild
 	  { Lex->sql_command= SQLCOM_SHOW_DATABASES; }
-	| TABLES opt_db wild
+	| opt_full TABLES opt_db wild
 	  {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
-	    lex->select_lex.db= $2;
+	    lex->select_lex.db= $3;
 	   }
 	| TABLE_SYM STATUS_SYM opt_db wild
 	  {
