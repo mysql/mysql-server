@@ -175,6 +175,9 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
    * implementations of select that don't adjust tv upon
    * failure to reflect the time remaining
    */
+#ifdef HAVE_POLL
+  return(0);
+#endif
   start_time = time(NULL);
   for (;;)
   {
