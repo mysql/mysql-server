@@ -266,10 +266,11 @@ public:
     ExtBinary = NdbSqlUtil::Type::Binary,
     ExtVarbinary = NdbSqlUtil::Type::Varbinary,
     ExtDatetime = NdbSqlUtil::Type::Datetime,
-    ExtTimespec = NdbSqlUtil::Type::Timespec,
+    ExtDate = NdbSqlUtil::Type::Date,
     ExtBlob = NdbSqlUtil::Type::Blob,
     ExtText = NdbSqlUtil::Type::Text,
-    ExtBit = NdbSqlUtil::Type::Bit
+    ExtBit = NdbSqlUtil::Type::Bit,
+    ExtTime = NdbSqlUtil::Type::Time
   };
 
   // Attribute data interpretation
@@ -371,16 +372,21 @@ public:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 8 * AttributeExtLength;
         return true;
-      case DictTabInfo::ExtTimespec:
+      case DictTabInfo::ExtDate:
         // to fix
         AttributeSize = DictTabInfo::an8Bit;
-        AttributeArraySize = 12 * AttributeExtLength;
+        AttributeArraySize = 3 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtBlob:
       case DictTabInfo::ExtText:
         AttributeSize = DictTabInfo::an8Bit;
         // head + inline part [ attr precision lower half ]
         AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
+        return true;
+      case DictTabInfo::ExtTime:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 3 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtBit:
 	AttributeSize = DictTabInfo::aBit;
