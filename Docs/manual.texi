@@ -7252,7 +7252,7 @@ MySQL. How well a certain platform is suited for a high-load
 mission critical MySQL server is determined by the following
 factors:
 
-@itemize
+@itemize @bullet
 @item
 General stability of the thread library. A platform may have excellent
 reputation otherwise, but if the thread library is unstable in the code
@@ -7384,7 +7384,7 @@ If you want to configure @code{mysqld} with some extra features that are
 NOT in the standard binary distributions.  Here is a list of the most 
 common extra options that you may want to use:
 
-@itemize
+@itemize @bullet
 @item @code{--with-berkeley-db}
 @item @code{--with-innodb}
 @item @code{--with-raid}
@@ -23950,7 +23950,7 @@ to it clean up.
  You should start by creating a wrapper library
 /module with the following functions:
 
-@itemize
+@itemize @bullet
 @item
 @code{safe_writer_connect()}
 @item
@@ -26902,7 +26902,7 @@ flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
 You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
 
-@item SQL_SAFE_MODE = 0 | 1
+@item SQL_SAFE_UPDATES = 0 | 1
 If set to @code{1}, MySQL will abort if an @code{UPDATE} or
 @code{DELETE} is attempted that doesn't use a key or @code{LIMIT} in the
 @code{WHERE} clause. This makes it possible to catch wrong updates
@@ -34893,7 +34893,7 @@ effectiveness.  Modifying the default behavior will, in most cases,
 only make the search results worse.  Do not alter the MySQL sources
 unless you know what you are doing!
 
-@itemize
+@itemize @bullet
 
 @item
 Minimal length of word to be indexed is defined in
@@ -42849,7 +42849,7 @@ Unfortunately, we have not yet written full documentation for it - we plan to
 do this shortly.  You can, however, look at our current test cases and use 
 them as an example.  The following points should help you get started:
 
-@itemize
+@itemize @bullet
 @item
 The tests are located in @code{mysql-test/t/*.test}
 
@@ -46711,6 +46711,9 @@ not yet 100% confident in this code.
 @node News-3.23.42, News-3.23.41, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
+@item
+Fixed problem with @code{INSERT DELAYED} where delay thread could be
+hanging on @code{upgrading locks} without any apparent reasons.
 @item
 Fixed problem with @code{myisampack} and @code{BLOB}.
 @item

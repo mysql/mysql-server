@@ -511,10 +511,12 @@ public:
     delayed_row *row;
     while ((row=rows.get()))
       delete row;
-    pthread_mutex_destroy(&mutex);
     if (table)
       close_thread_tables(&thd);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond);
+    pthread_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
     x_free(thd.query);
     thd.user=thd.host=0;
@@ -842,7 +844,7 @@ void kill_delayed_threads(void)
     if (tmp->thd.mysys_var)
     {
       pthread_mutex_lock(&tmp->thd.mysys_var->mutex);
-      if (tmp->thd.mysys_var->current_mutex)
+      if (tmp->thd.mysys_var->current_cond)
       {
 	if (&tmp->mutex != tmp->thd.mysys_var->current_mutex)
 	  pthread_mutex_lock(tmp->thd.mysys_var->current_mutex);
@@ -970,7 +972,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
       di->thd.proc_info=0;
 
       DBUG_PRINT("info",("Waiting for someone to insert rows"));
-      for ( ; ;)
+      while (!thd->killed)
       {
 	int error;
 #if (defined(HAVE_BROKEN_COND_TIMEDWAIT) || defined(HAVE_LINUXTHREADS))
