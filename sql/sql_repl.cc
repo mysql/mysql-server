@@ -763,7 +763,6 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			        1 /* wait for start*/,
 			        mi,master_info_file,relay_log_info_file,
 				restart_thread_mask);
-err:  
   unlock_slave_threads(mi);
   thd->proc_info = 0;
   if (error)
@@ -1006,9 +1005,9 @@ int log_loaded_block(IO_CACHE* file)
 
   /* file->request_pos contains position where we started last read */
   char* buffer = (char*) file->request_pos;
-  if (!(block_len = file->read_end - buffer))
+  if (!(block_len = (char*) file->read_end - (char*) buffer))
     return 0;
-  lf_info = (LOAD_FILE_INFO*)file->arg;
+  lf_info = (LOAD_FILE_INFO*) file->arg;
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
       lf_info->last_pos_in_file >= file->pos_in_file)
     return 0;
@@ -1030,5 +1029,3 @@ int log_loaded_block(IO_CACHE* file)
   }
   return 0;
 }
-
-

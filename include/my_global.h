@@ -51,15 +51,16 @@
 #endif
 #endif /* _WIN32... */
 
-/* The macros below are borrowed from include/linux/compiler.h in the
-   Linux kernel. Use them to indicate the likelyhood of the truthfulness
-   of a condition. This serves two purposes - newer versions of gcc will be
-   able to optimize for branch predication, which could yield siginficant
-   performance gains in frequently executed sections of the code, and the
-   other reason to use them is for documentation
+/*
+  The macros below are borrowed from include/linux/compiler.h in the
+  Linux kernel. Use them to indicate the likelyhood of the truthfulness
+  of a condition. This serves two purposes - newer versions of gcc will be
+  able to optimize for branch predication, which could yield siginficant
+  performance gains in frequently executed sections of the code, and the
+  other reason to use them is for documentation
 */
 
-#if __GNUC__ == 2 && __GNUC_MINOR__ < 96
+#if !defined(__GNUC__) || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
 #define __builtin_expect(x, expected_value) (x)
 #endif
 

@@ -33,8 +33,11 @@ extern my_string opt_relay_logname, opt_relaylog_index_name;
 extern bool opt_skip_slave_start;
 struct st_master_info;
 
-// TODO: this needs to be redone, but for now it does not matter since
-// we do not have multi-master yet.
+/*
+  TODO: this needs to be redone, but for now it does not matter since
+  we do not have multi-master yet.
+*/
+
 #define LOCK_ACTIVE_MI { pthread_mutex_lock(&LOCK_active_mi); \
  ++active_mi_in_use; \
  pthread_mutex_unlock(&LOCK_active_mi);}
@@ -62,50 +65,64 @@ struct st_master_info;
 
   To clean up, call end_relay_log_info()
  */
+
 typedef struct st_relay_log_info
 {
-  // info_fd - file descriptor of the info file. set only during
-  //  initialization or clean up - safe to read anytime
-  // cur_log_fd - file descriptor of the current read  relay log, protected by
-  //  data_lock
+  /*** The following variables can only be read when protect by data lock ****/
+  /*
+    info_fd - file descriptor of the info file. set only during
+    initialization or clean up - safe to read anytime
+    cur_log_fd - file descriptor of the current read  relay log
+  */
   File info_fd,cur_log_fd;
-  
-  // IO_CACHE of the info file - set only during init or end, safe to read
-  //  anytime
+  // name of current read relay log
+  char relay_log_name[FN_REFLEN];
+  // master log name corresponding to current read position
+  char master_log_name[FN_REFLEN];
+  // original log position of last processed event
+  volatile my_off_t master_log_pos;
+
+  /*
+    current offset in the relay log.
+    pending - in some cases we do not increment offset immediately after
+    processing an event, because the following event needs to be processed
+    atomically together with this one ( so far, there is only one type of
+    such event - Intvar_event that sets auto_increment value). However, once
+    both events have been processed, we need to increment by the cumulative
+    offset. pending stored the extra offset to be added to the position.
+  */
+  ulonglong relay_log_pos, pending;
+
+  // protected with internal locks
+  // must get data_lock when resetting the logs
+  MYSQL_LOG relay_log;
+  LOG_INFO linfo;
+  IO_CACHE cache_buf,*cur_log;
+
+  /*** The following variables are safe to read any time ***/
+
+  // IO_CACHE of the info file - set only during init or end
   IO_CACHE info_file;
 
-  // name of current read relay log - protected by data_lock
-  char relay_log_name[FN_REFLEN];
-
-  // master log name corresponding to current read position - protected by
-  // data lock
-  char master_log_name[FN_REFLEN];
-
-  // original log position of last processed event - protected by data_lock
-  volatile uint32 master_log_pos;
-
-  // when we restart slave thread we need to have access to the previously
-  // created temporary tables. Modified only on init/end and by the SQL
-  // thread, read only by SQL thread, need no mutex
+  /*
+    When we restart slave thread we need to have access to the previously
+    created temporary tables. Modified only on init/end and by the SQL
+    thread, read only by SQL thread.
+  */
   TABLE* save_temporary_tables;
 
-  // relay_log_pos - current offset in the relay log - protected by data_lock
-  // pending - in some cases we do not increment offset immediately after
-  //  processing an event, because the following event needs to be processed
-  // atomically together with this one ( so far, there is only one type of
-  // such event - Intvar_event that sets auto_increment value). However, once
-  // both events have been processed, we need to increment by the cumulative
-  // offset. pending stored the extra offset to be added to the position.
-  ulonglong relay_log_pos,pending;
-
-  // standard lock acquistion order to avoid deadlocks:
-  //  run_lock, data_lock, relay_log.LOCK_log,relay_log.LOCK_index
+  /*
+    standard lock acquistion order to avoid deadlocks:
+    run_lock, data_lock, relay_log.LOCK_log, relay_log.LOCK_index
+  */
   pthread_mutex_t data_lock,run_lock;
 
-  // start_cond is broadcast when SQL thread is started
-  // stop_cond - when stopped
-  // data_cond - when data protected by data_lock changes
-  pthread_cond_t start_cond,stop_cond,data_cond;
+  /*
+    start_cond is broadcast when SQL thread is started
+    stop_cond - when stopped
+    data_cond - when data protected by data_lock changes
+  */
+  pthread_cond_t start_cond, stop_cond, data_cond;
 
   // if not set, the value of other members of the structure are undefined
   bool inited;
@@ -113,21 +130,19 @@ typedef struct st_relay_log_info
   // parent master info structure
   struct st_master_info *mi;
 
-  // protected with internal locks
-  // must get data_lock when resetting the logs
-  MYSQL_LOG relay_log;
-  LOG_INFO linfo;
-  IO_CACHE cache_buf,*cur_log;
-  
-  /* needed to deal properly with cur_log getting closed and re-opened with
-     a different log under our feet
+  /*
+    Needed to deal properly with cur_log getting closed and re-opened with
+    a different log under our feet
   */
   int cur_log_init_count;
   
   volatile bool abort_slave, slave_running;
-// needed for problems when slave stops and
-// we want to restart it skipping one or more events in the master log that
-// have caused errors, and have been manually applied by DBA already
+
+  /*
+    Needed for problems when slave stops and we want to restart it
+    skipping one or more events in the master log that have caused
+    errors, and have been manually applied by DBA already.
+  */
   volatile uint32 slave_skip_counter;
 #ifndef DBUG_OFF
   int events_till_abort;
@@ -168,13 +183,15 @@ typedef struct st_relay_log_info
     relay_log_pos += val+pending;
     pending = 0;
     if (log_pos)
-      master_log_pos = log_pos+val;
+      master_log_pos = log_pos+ val;
     pthread_cond_broadcast(&data_cond);
     if (!skip_lock)
       pthread_mutex_unlock(&data_lock);
   }
-  // thread safe read of position - not needed if we are in the slave thread,
-  // but required otherwise
+  /*
+    thread safe read of position - not needed if we are in the slave thread,
+    but required otherwise
+  */
   inline void read_pos(ulonglong& var)
   {
     pthread_mutex_lock(&data_lock);
@@ -185,12 +202,17 @@ typedef struct st_relay_log_info
   int wait_for_pos(THD* thd, String* log_name, ulonglong log_pos);
 } RELAY_LOG_INFO;
 
-// repopen_relay_log() is called when we notice that the current "hot" log
-// got rotated under our feet
+/*
+  repopen_relay_log() is called when we notice that the current "hot" log
+  got rotated under our feet
+*/
+
 IO_CACHE* reopen_relay_log(RELAY_LOG_INFO* rli, const char** errmsg);
 Log_event* next_event(RELAY_LOG_INFO* rli);
 
-/* st_master_info contains information about how to connect to a master,
+
+/*
+  st_master_info contains information about how to connect to a master,
    current master log name, and current log offset, as well as misc
    control variables
 
@@ -214,14 +236,14 @@ Log_event* next_event(RELAY_LOG_INFO* rli);
    flush_master_info() is required.
 
    To clean up, call end_master_info()
-   
 */
+
    
 typedef struct st_master_info
 {
   char master_log_name[FN_REFLEN];
   
-  ulonglong master_log_pos;
+  my_off_t master_log_pos;
   File fd; 
   IO_CACHE file;
   
@@ -229,24 +251,22 @@ typedef struct st_master_info
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
   char password[HASH_PASSWORD_LENGTH+1];
-  uint port;
-  uint connect_retry;
   pthread_mutex_t data_lock,run_lock;
   pthread_cond_t data_cond,start_cond,stop_cond;
-  bool inited;
-  bool old_format; /* master binlog is in 3.23 format */
+  THD *io_thd;
   RELAY_LOG_INFO rli;
+  uint port;
+  uint connect_retry;
 #ifndef DBUG_OFF
   int events_till_abort;
 #endif
+  bool inited;
+  bool old_format;			// master binlog is in 3.23 format
   volatile bool abort_slave, slave_running;
-  
   bool ignore_stop_event;
   
-  THD* io_thd;
   
-  st_master_info():fd(-1),inited(0),
-		   old_format(0),io_thd(0)
+  st_master_info():fd(-1), io_thd(0), inited(0), old_format(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
@@ -267,7 +287,7 @@ typedef struct st_master_info
 
 } MASTER_INFO;
 
-int queue_event(MASTER_INFO* mi,const char* buf,uint event_len);
+int queue_event(MASTER_INFO* mi,const char* buf,ulong event_len);
 
 typedef struct st_table_rule_ent
 {
@@ -288,10 +308,12 @@ typedef struct st_table_rule_ent
 /* masks for start/stop operations on io and sql slave threads */
 #define SLAVE_IO  1
 #define SLAVE_SQL 2
-#define SLAVE_FORCE_ALL 4 /* if this is set, if  first gives an
-				   error, second will be tried. Otherwise,
-				   if first fails, we fail
-				*/
+
+/*
+  If the following is set, if first gives an error, second will be
+  tried. Otherwise, if first fails, we fail.
+*/
+#define SLAVE_FORCE_ALL 4
 
 int init_slave();
 void init_slave_skip_errors(char* arg);
@@ -307,10 +329,11 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_mutex,
 int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 			MASTER_INFO* mi, const char* master_info_fname,
 			const char* slave_info_fname, int thread_mask);
-/* cond_lock is usually same as start_lock. It is needed for the case when
-   start_lock is 0 which happens if start_slave_thread() is called already
-   inside the start_lock section, but at the same time we want a
-   pthread_cond_wait() on start_cond,start_lock
+/*
+  cond_lock is usually same as start_lock. It is needed for the case when
+  start_lock is 0 which happens if start_slave_thread() is called already
+  inside the start_lock section, but at the same time we want a
+  pthread_cond_wait() on start_cond,start_lock
 */
 int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       pthread_mutex_t *cond_lock,
@@ -318,24 +341,26 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       volatile bool* slave_running,
 		       MASTER_INFO* mi);
 
+// If fd is -1, dump to NET
 int mysql_table_dump(THD* thd, const char* db,
 		     const char* tbl_name, int fd = -1);
-// if fd is -1, dump to NET
 
-int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		   MASTER_INFO* mi, MYSQL* mysql);
 // retrieve non-exitent table from master
+int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
+		       MASTER_INFO* mi, MYSQL* mysql);
 
 int show_master_info(THD* thd, MASTER_INFO* mi);
 int show_binlog_info(THD* thd);
 
+// See if the query uses any tables that should not be replicated
 int tables_ok(THD* thd, TABLE_LIST* tables);
-// see if the query uses any tables that should not be replicated
 
+/*
+  Check to see if the database is ok to operate on with respect to the
+  do and ignore lists - used in replication
+*/
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list );
-// check to see if the database is ok to operate on with respect to the
-// do and ignore lists - used in replication
 
 int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
@@ -380,13 +405,11 @@ extern int disconnect_slave_event_count, abort_slave_event_count ;
 // the master variables are defaults read from my.cnf or command line
 extern uint master_port, master_connect_retry, report_port;
 extern my_string master_user, master_password, master_host,
-  master_info_file, relay_log_info_file, report_user, report_host,
-  report_password;
+       master_info_file, relay_log_info_file, report_user, report_host,
+       report_password;
 
 extern I_List<i_string> replicate_do_db, replicate_ignore_db;
 extern I_List<i_string_pair> replicate_rewrite_db;
 extern I_List<THD> threads;
 
 #endif
-
-

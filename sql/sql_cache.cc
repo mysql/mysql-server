@@ -3088,6 +3088,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
 	result = 1;
       break;
     case Query_cache_block::QUERY:
+    {
       if (in_list(queries_blocks, block, "query"))
 	result = 1;
       for (TABLE_COUNTER_TYPE j=0; j < block->n_tables; j++)
@@ -3102,6 +3103,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
     	  result = 1;
       }
       break;
+    }
     case Query_cache_block::RES_INCOMPLETE:
       // This type of block can be not lincked yet (in multithread environment)
       break;

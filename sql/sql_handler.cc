@@ -90,6 +90,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 static enum enum_ha_read_modes rkey_to_rnext[]=
     { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
 
+
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     enum enum_ha_read_modes mode, char *keyname, List<Item> *key_expr,
     enum ha_rkey_function ha_rkey_mode, Item *cond,
@@ -121,6 +122,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   List<Item> list;
   list.push_front(new Item_field(NULL,NULL,"*"));
   List_iterator<Item> it(list);
+  uint num_rows;
   it++;
 
   insert_fields(thd,tables,tables->db,tables->name,&it);
@@ -136,65 +138,64 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (!lock)
      goto err0; // mysql_lock_tables() printed error message already
 
-  for (uint num_rows=0; num_rows < select_limit; )
+  for (num_rows=0; num_rows < select_limit; )
   {
-    switch(mode)
+    switch(mode) {
+    case RFIRST:
+      err=keyname ?
+	table->file->index_first(table->record[0]) :
+	table->file->rnd_init(1) ||
+	table->file->rnd_next(table->record[0]);
+      mode=RNEXT;
+      break;
+    case RLAST:
+      DBUG_ASSERT(keyname != 0);
+      err=table->file->index_last(table->record[0]);
+      mode=RPREV;
+      break;
+    case RNEXT:
+      err=keyname ?
+	table->file->index_next(table->record[0]) :
+	table->file->rnd_next(table->record[0]);
+      break;
+    case RPREV:
+      DBUG_ASSERT(keyname != 0);
+      err=table->file->index_prev(table->record[0]);
+      break;
+    case RKEY:
     {
-      case RFIRST:
-         err=keyname ?
-             table->file->index_first(table->record[0]) :
-             table->file->rnd_init(1) ||
-             table->file->rnd_next(table->record[0]);
-         mode=RNEXT;
-         break;
-      case RLAST:
-         DBUG_ASSERT(keyname != 0);
-         err=table->file->index_last(table->record[0]);
-         mode=RPREV;
-         break;
-      case RNEXT:
-         err=keyname ?
-             table->file->index_next(table->record[0]) :
-             table->file->rnd_next(table->record[0]);
-         break;
-      case RPREV:
-         DBUG_ASSERT(keyname != 0);
-         err=table->file->index_prev(table->record[0]);
-         break;
-      case RKEY:
-        {
-          DBUG_ASSERT(keyname != 0);
-          KEY *keyinfo=table->key_info+keyno;
-	  KEY_PART_INFO *key_part=keyinfo->key_part;
-          uint key_len;
-          byte *key;
-          if (key_expr->elements > keyinfo->key_parts)
-          {
-             my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
-                 MYF(0),keyinfo->key_parts);
-             goto err;
-          }
-          List_iterator_fast<Item> it_ke(*key_expr);
-	  Item *item;
-          for (key_len=0 ; (item=it_ke++) ; key_part++)
-          {
-            item->save_in_field(key_part->field);
-            key_len+=key_part->store_length;
-          }
-          if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
-          {
-            send_error(&thd->net,ER_OUTOFMEMORY);
-            goto err;
-          }
-          key_copy(key, table, keyno, key_len);
-          err=table->file->index_read(table->record[0],
-              key,key_len,ha_rkey_mode);
-          mode=rkey_to_rnext[(int)ha_rkey_mode];
-          break;
-        }
-      default:
-          send_error(&thd->net,ER_ILLEGAL_HA);
-          goto err;
+      DBUG_ASSERT(keyname != 0);
+      KEY *keyinfo=table->key_info+keyno;
+      KEY_PART_INFO *key_part=keyinfo->key_part;
+      uint key_len;
+      byte *key;
+      if (key_expr->elements > keyinfo->key_parts)
+      {
+	my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
+			MYF(0),keyinfo->key_parts);
+	goto err;
+      }
+      List_iterator_fast<Item> it_ke(*key_expr);
+      Item *item;
+      for (key_len=0 ; (item=it_ke++) ; key_part++)
+      {
+	item->save_in_field(key_part->field);
+	key_len+=key_part->store_length;
+      }
+      if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
+      {
+	send_error(&thd->net,ER_OUTOFMEMORY);
+	goto err;
+      }
+      key_copy(key, table, keyno, key_len);
+      err=table->file->index_read(table->record[0],
+				  key,key_len,ha_rkey_mode);
+      mode=rkey_to_rnext[(int)ha_rkey_mode];
+      break;
+    }
+    default:
+      send_error(&thd->net,ER_ILLEGAL_HA);
+      goto err;
     }
 
     if (err)

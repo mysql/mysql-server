@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 			     const char *ip);
 
-int  acl_init(bool dont_read_acl_tables)
+int acl_init(bool dont_read_acl_tables)
 {
   THD  *thd;
   TABLE_LIST tables[3];
@@ -243,13 +243,16 @@ int  acl_init(bool dont_read_acl_tables)
     user.hostname_length=user.host.hostname ? (uint) strlen(user.host.hostname) : 0;
     if (table->fields >=23)
     {
+      /* Table has new MySQL usage limits */
       char *ptr = get_field(&mem, table, 21);
       user.questions=atoi(ptr);
       ptr = get_field(&mem, table, 22);
       user.updates=atoi(ptr);
       if (user.questions)
-	mqh_used=true;
+	mqh_used=1;
     }
+    else
+      user.questions=user.updates=0;
 #ifndef TO_BE_REMOVED
     if (table->fields <= 13)
     {						// Without grant
@@ -430,15 +433,20 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 }
 
 
-/* Get master privilges for user (priviliges for all tables). Required to connect */
+/*
+  Get master privilges for user (priviliges for all tables).
+  Required before connecting to MySQL
+*/
+
 uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		 const char *password,const char *message,char **priv_user,
-		 bool old_ver, uint *max)
+		 bool old_ver, uint *max_questions)
 {
   uint user_access=NO_ACCESS;
   *priv_user=(char*) user;
   char *ptr=0;
 
+  *max_questions=0;
   if (!initialized)
     return (uint) ~NO_ACCESS;			// If no data allow anything /* purecov: tested */
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -546,7 +554,7 @@ uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 #else  /* HAVE_OPENSSL */
 	  user_access=acl_user->access;
 #endif /* HAVE_OPENSSL */
-	  *max=acl_user->questions;
+	  *max_questions=acl_user->questions;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
 	  break;
@@ -1221,12 +1229,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     }
   }
 #endif /* HAVE_OPENSSL */
-  if (table->fields>=23 && thd->lex.mqh)
+  if (table->fields >= 23 && thd->lex.mqh)
   {
-    char buff[33];
-    int len =int2str((long)thd->lex.mqh,buff,10) - buff;
-    table->field[21]->store(buff,len);
-    mqh_used=true;
+    table->field[21]->store((longlong) thd->lex.mqh);
+    mqh_used=1;
   }
   if (old_row_exists)
   {
@@ -2181,7 +2187,7 @@ int  grant_init (void)
     delete thd;
     DBUG_RETURN(0);				// Empty table is ok!
   }
-  grant_option = TRUE;
+  grant_option= TRUE;
   t_table->file->index_end();
 
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);

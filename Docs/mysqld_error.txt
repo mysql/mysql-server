@@ -453,3 +453,5 @@
 "Mixing of transactional and non-transactional tables is disabled",
 #define ER_DUP_ARGUMENT 225
 "Option '%s' used twice in statement",
+#define ER_TOO_MANY_USER_CONNECTIONS 203
+"User %-.64s has already more than 'max_user_connections' active connections",

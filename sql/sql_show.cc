@@ -708,7 +708,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 
       /* Null flag */
       uint flags= key_part->field ? key_part->field->flags : 0;
-      char *pos=(byte*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
+      char *pos=(char*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
       net_store_data(packet,convert,(const char*) pos);
       net_store_data(packet,convert,table->file->index_type(i));
       /* Comment */

@@ -370,6 +370,7 @@ err:
   return error;
 }
 
+
 int MYSQL_LOG::reset_logs(THD* thd)
 {
   LOG_INFO linfo;
@@ -403,6 +404,7 @@ err:
   return error;
 }
 
+
 int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 {
   // pre-conditions
@@ -410,17 +412,17 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
   DBUG_ASSERT(index_file >= 0);
   DBUG_ASSERT(rli->slave_running == 1);
   DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->relay_log_name));
-  // assume that we have previously read the first log and
-  // stored it in rli->relay_log_name
+  /*
+    Assume that we have previously read the first log and
+    stored it in rli->relay_log_name
+  */
   DBUG_ASSERT(rli->linfo.index_file_offset ==
 	      strlen(rli->relay_log_name) + 1);
-  
   int tmp_fd;
-  
-
   char* fname, *io_buf;
   int error = 0;
-  if (!(fname = (char*)my_malloc(IO_SIZE+FN_REFLEN, MYF(MY_WME))))
+
+  if (!(fname= (char*) my_malloc(IO_SIZE+FN_REFLEN, MYF(MY_WME))))
     return 1;
   pthread_mutex_lock(&LOCK_index);
   my_seek(index_file,rli->linfo.index_file_offset,
@@ -436,21 +438,22 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
   for (;;)
   {
     int bytes_read;
-    bytes_read = my_read(index_file, io_buf, IO_SIZE, MYF(0));
-    if (bytes_read < 0) // error
+    bytes_read = my_read(index_file, (byte*) io_buf, IO_SIZE, MYF(0));
+    if (bytes_read < 0)				// error
     {
       error=1;
       goto err;
     }
     if (!bytes_read)
-      break; // end of file
+      break;					// end of file
     // otherwise, we've read something and need to write it out
-    if (my_write(tmp_fd, io_buf, bytes_read, MYF(MY_WME|MY_NABP)))
+    if (my_write(tmp_fd, (byte*) io_buf, bytes_read, MYF(MY_WME|MY_NABP)))
     {
       error=1;
       goto err;
     }
   }
+
 err:
   if (tmp_fd)
     my_close(tmp_fd, MYF(MY_WME));
@@ -476,18 +479,20 @@ err:
     strnmov(rli->relay_log_name,rli->linfo.log_file_name,
 	    sizeof(rli->relay_log_name));
   }
-  // no need to free io_buf because we allocated both fname and io_buf in
-  // one malloc()
+  /*
+    No need to free io_buf because we allocated both fname and io_buf in
+    one malloc()
+  */
+
 err2:
   pthread_mutex_unlock(&LOCK_index);
   my_free(fname, MYF(MY_WME));
   return error;
 }
 
+
 int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
 {
-  if (index_file < 0) return LOG_INFO_INVALID;
-  if (no_rotate) return LOG_INFO_PURGE_NO_ROTATE;
   int error;
   char fname[FN_REFLEN];
   char *p;
@@ -498,6 +503,10 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
   LINT_INIT(purge_offset);
   IO_CACHE io_cache;
   
+  if (index_file < 0)
+    return LOG_INFO_INVALID;
+  if (no_rotate)
+    return LOG_INFO_PURGE_NO_ROTATE;
   pthread_mutex_lock(&LOCK_index);
   
   if (init_io_cache(&io_cache,index_file, IO_SIZE*2, READ_CACHE, (my_off_t) 0,
@@ -569,9 +578,10 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
       sql_print_error("Error deleting %s during purge", l);
   }
   
-  // if we get killed -9 here, the sysadmin would have to do a small
-  // vi job on the log index file after restart - otherwise, this should
-  // be safe
+  /*
+    If we get killed -9 here, the sysadmin would have to edit
+    the log index file after restart - otherwise, this should be safe
+  */
 #ifdef HAVE_FTRUNCATE
   if (ftruncate(index_file,0))
   {
@@ -737,14 +747,14 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
   pthread_mutex_lock(&LOCK_log);
   do
   {
-    if (my_b_append(&log_file,buf,len))
+    if (my_b_append(&log_file,(byte*) buf,len))
     {
       error = 1;
       break;
     }
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   
-  if ((uint)my_b_append_tell(&log_file) > max_binlog_size)
+  if ((uint) my_b_append_tell(&log_file) > max_binlog_size)
   {
     new_file(1);
   }
@@ -754,6 +764,7 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
   pthread_mutex_unlock(&LOCK_log);
   return error;
 }
+
 
 bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 		      const char *format,...)

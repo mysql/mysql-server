@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,9 @@ extern "C" pthread_mutex_t THR_LOCK_keycache;
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-static int check_for_max_user_connections(const char *user, const char *host, uint max);
+static int check_for_max_user_connections(const char *user, const char *host, uint max_questions);
+static bool check_mqh(THD *thd, const char *user, const char *host,
+		      uint max_questions);
 static void decrease_user_connections(const char *user, const char *host);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
@@ -121,101 +123,22 @@ extern  pthread_mutex_t LOCK_user_conn;
 
 struct  user_conn {
   char *user;
-  uint len, connections, questions, max;
+  uint len, connections, questions, max_questions;
   time_t intime;
 };
 
-static byte* get_key_conn(user_conn *buff, uint *length,
-			  my_bool not_used __attribute__((unused)))
-{
-  *length=buff->len;
-  return (byte*) buff->user;
-}
-
-#define DEF_USER_COUNT 50
-
-static void free_user(struct user_conn *uc)
-{
-  my_free((char*) uc,MYF(0));
-}
 
 /*
-** Check if maximum queries per hour limit has been reached
-** returns 0 if OK.
-*/
-
-static bool check_mqh(THD *thd, const char *user, const char *host,uint max)
-{
-  uint temp_len;
-  char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
-  struct  user_conn *uc;
-  if (!user)
-    user="";
-  if (!host)
-    host="";
-  temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user), user, "@", host,
-			     NullS) - temp_user);
-//This would be MUCH faster if there was already temp_user made in THD !!! May I ??
-  (void) pthread_mutex_lock(&LOCK_user_conn);
-  uc = (struct  user_conn *) hash_search(&hash_user_connections,
-					 (byte*) temp_user, temp_len);
-  if (uc) /* user found ; check for no. of queries */
-  {
-    bool my_start = thd->start_time != 0;
-    time_t check_time = (my_start) ?  thd->start_time : time(NULL);
-    if (check_time  - uc->intime >= 3600)
-    {
-      uc->questions=(uint)my_start;
-      uc->intime=check_time;
-    }
-    else if (uc->max && ++(uc->questions) > uc->max)
-    {
-      (void) pthread_mutex_unlock(&LOCK_user_conn);
-      send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	// change this to appropriate message
-      return 1;
-    }
-  }
-  else
-  {
-    struct user_conn *uc= ((struct user_conn*)
-			   my_malloc(sizeof(struct user_conn) + temp_len+1,
-				     MYF(MY_WME)));
-    if (!uc)
-    {
-      send_error(&current_thd->net, 0, NullS);	// Out of memory
-      (void) pthread_mutex_unlock(&LOCK_user_conn);
-      return 1;
-    }      
-    uc->user=(char*) (uc+1);
-    memcpy(uc->user,temp_user,temp_len+1);
-    uc->len = temp_len;
-    uc->connections = 1; 
-    uc->questions=0;
-    uc->max=max;
-    uc->intime=current_thd->thr_create_time;
-    if (hash_insert(&hash_user_connections, (byte*) uc))
-    {
-      my_free((char*) uc,0);
-      send_error(&current_thd->net, 0, NullS);	// Out of memory
-      (void) pthread_mutex_unlock(&LOCK_user_conn);
-      return 1;
-    }
-  }
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
-  return 0;
-}
-
-/*
-** Check if user is ok
-** Updates:
-** thd->user, thd->master_access, thd->priv_user, thd->db, thd->db_access
+  Check if user is ok
+  Updates:
+  thd->user, thd->master_access, thd->priv_user, thd->db, thd->db_access
 */
 
 static bool check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count)
 {
   NET *net= &thd->net;
-  uint max=0;
+  uint max_questions=0;
   thd->db=0;
   thd->db_length=0;
 
@@ -228,7 +151,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD),&max);
+				   CLIENT_LONG_PASSWORD),&max_questions);
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_packet_length,
@@ -259,8 +182,6 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
       return(1);
     }
   }
-  if (mqh_used && max && check_mqh(thd,user,thd->host,max))
-    return -1;
   mysql_log.write(thd,command,
 		  (thd->priv_user == thd->user ?
 		   (char*) "%s@%s on %s" :
@@ -269,8 +190,11 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		  thd->host_or_ip,
 		  db ? db : (char*) "");
   thd->db_access=0;
+  /* Don't allow user to connect if he has done too many queries */
+  if (max_questions && check_mqh(thd,user,thd->host_or_ip,max_questions))
+    return -1;
   if (max_user_connections &&
-      check_for_max_user_connections(user, thd->host, max))
+      check_for_max_user_connections(user, thd->host, max_questions))
     return -1;
   if (db && db[0])
   {
@@ -285,30 +209,40 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 }
 
 /*
-** check for maximum allowable user connections
-** if mysql server is started with corresponding
-** variable that is greater then 0
+  Check for maximum allowable user connections, if the mysqld server is
+  started with corresponding variable that is greater then 0.
 */
+
+static byte* get_key_conn(user_conn *buff, uint *length,
+			  my_bool not_used __attribute__((unused)))
+{
+  *length=buff->len;
+  return (byte*) buff->user;
+}
+
+static void free_user(struct user_conn *uc)
+{
+  my_free((char*) uc,MYF(0));
+}
 
 void init_max_user_conn(void) 
 {
-  (void) hash_init(&hash_user_connections,DEF_USER_COUNT,0,0,
+  (void) hash_init(&hash_user_connections,max_connections,0,0,
 		   (hash_get_key) get_key_conn, (void (*)(void*)) free_user,
 		   0);
 }
 
 
-static int check_for_max_user_connections(const char *user, const char *host, uint max) 
+static int check_for_max_user_connections(const char *user, const char *host,
+					  uint max_questions) 
 {
   int error=1;
   uint temp_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
-  if (!user)
-    user="";
-  if (!host)
-    host="";
   DBUG_ENTER("check_for_max_user_connections");
+  DBUG_ASSERT(user != 0);
+  DBUG_ASSERT(host != 0);
   DBUG_PRINT("enter",("user: '%s'  host: '%s'", user, host));
 
   temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user), user, "@", host,
@@ -341,7 +275,7 @@ static int check_for_max_user_connections(const char *user, const char *host, ui
     uc->len = temp_len;
     uc->connections = 1; 
     uc->questions=0;
-    uc->max=max;
+    uc->max_questions=max_questions;
     uc->intime=current_thd->thr_create_time;
     if (hash_insert(&hash_user_connections, (byte*) uc))
     {
@@ -397,9 +331,82 @@ void free_max_user_conn(void)
   hash_free(&hash_user_connections);
 }
 
+
 /*
-** check connnetion and get priviliges
-** returns 0 on ok, -1 < if error is given > 0 on error.
+  Check if maximum queries per hour limit has been reached
+  returns 0 if OK.
+*/
+
+static bool check_mqh(THD *thd, const char *user, const char *host,
+		      uint max_questions)
+{
+  uint temp_len;
+  char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+  struct user_conn *uc;
+  bool error=0;
+
+  DBUG_ASSERT(user != 0);
+  DBUG_ASSERT(host != 0);
+
+  /* TODO: Add username + host to THD for faster execution */
+  temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user)-1, user, "@", host,
+			     NullS) - temp_user);
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+  uc = (struct  user_conn *) hash_search(&hash_user_connections,
+					 (byte*) temp_user, temp_len);
+  if (uc)
+  {
+    /* user found ; check for no. of queries */
+    bool my_start = thd->start_time != 0;
+    time_t check_time = (my_start) ?  thd->start_time : time(NULL);
+    if (check_time  - uc->intime >= 3600)
+    {
+      uc->questions=(uint) my_start;
+      uc->intime=check_time;
+    }
+    else if (uc->max_questions && ++(uc->questions) > uc->max_questions)
+    {
+      net_printf(&thd->net, ER_USER_LIMIT_REACHED, temp_user, "max_questions",
+		 (long) uc->questions);
+      error=1;
+      goto end;
+    }
+  }
+  else
+  {
+    struct user_conn *uc= ((struct user_conn*)
+			   my_malloc(sizeof(struct user_conn) + temp_len+1,
+				     MYF(MY_WME)));
+    if (!uc)
+    {
+      send_error(&current_thd->net, 0, NullS);	// Out of memory
+      error=1;
+      goto end;
+    }      
+    uc->user=(char*) (uc+1);
+    memcpy(uc->user,temp_user,temp_len+1);
+    uc->len = temp_len;
+    uc->connections = 1; 
+    uc->questions=0;
+    uc->max_questions=max_questions;
+    uc->intime=current_thd->thr_create_time;
+    if (hash_insert(&hash_user_connections, (byte*) uc))
+    {
+      my_free((char*) uc,0);
+      send_error(&current_thd->net, 0, NullS);	// Out of memory
+      error=1;
+    }
+  }
+
+end:
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  return error;
+}
+
+
+/*
+  Check connnetion and get priviliges
+  Returns 0 on ok, -1 < if error is given > 0 on error.
 */
 
 
@@ -408,9 +415,7 @@ check_connections(THD *thd)
 {
   uint connect_errors=0;
   NET *net= &thd->net;
-  /*
-  ** store the connection details
-  */
+  /* Store the connection details */
   DBUG_PRINT("info", (("check_connections called by thread %d"),
 	     thd->thread_id));
   DBUG_PRINT("info",("New connection received on %s",

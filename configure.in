@@ -2276,9 +2276,9 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  include/mysql_version.h
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
-  rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
  ])
 
+rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 echo
 echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
 echo "latest release, upcoming features, and other information to make your"
@@ -2288,6 +2288,6 @@ echo
 echo "Remember to check the platform specific part in the reference manual for"
 echo "hints about installing on your platfrom. See the Docs directory."
 echo
-# This text is checked in ./Do-compile to se that the configure finished.
+# The following text is checked in ./Do-compile to se that the configure ends.
 echo "Thank you for choosing MySQL!"
 echo

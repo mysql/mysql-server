@@ -129,7 +129,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
     if (!access(name,F_OK))
     {
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),name);
-      return ren_table;				// This can't be skipped
+      DBUG_RETURN(ren_table);			// This can't be skipped
     }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
 	    ren_table->db,ren_table->name,
@@ -138,7 +138,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
     {
       my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
       if (!skip_error)
-	return ren_table;
+	DBUG_RETURN(ren_table);
     }
     else if (mysql_rename_table(table_type,
 				ren_table->db, ren_table->name,

@@ -2965,7 +2965,7 @@ for the records to be deleted, and then use these values to construct
 the @code{DELETE} statement (@code{DELETE FROM ... WHERE ... IN (key1,
 key2, ...)}).
 
-The second option is to use interactive SQL to contruct a set of
+The second option is to use interactive SQL to construct a set of
 @code{DELETE} statements automatically, using the MySQL
 extension @code{CONCAT()} (in lieu of the standard @code{||} operator).
 For example:
@@ -3686,6 +3686,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 
 @menu
 * TODO MySQL 4.0::              Things That Should be in Version 4.0
+* TODO MySQL 4.1::              
 * TODO future::                 Things That Must be Done in the Near Future
 * TODO sometime::               Things That Have to be Done Sometime
 * TODO unplanned::              Things we don't Have any Plans to do
@@ -3702,30 +3703,30 @@ standard, but with a lot of useful extensions. The challenge is to do
 this without sacrifying the speed or compromise the code.
 
 
-@node TODO MySQL 4.0, TODO future, TODO, TODO
+@node TODO MySQL 4.0, TODO MySQL 4.1, TODO, TODO
 @subsection Things That Should be in 4.0
 
-We have now shifted development to MySQL Server 4.0.  Most of the basic
-things we want to have in 4.0 are already done.  The target is to quickly
-implement the rest of the following features and then shift development
-to MySQL Server 4.1. @xref{MySQL 4.0 In A Nutshell}.
+We have now in the final stages one the development of the MySQL Server
+4.0.  server. The target is to quickly implement the rest of the
+following features and then shift development to MySQL Server
+4.1. @xref{MySQL 4.0 In A Nutshell}.
 
 The news section for 4.0 includes a list of the features we have already
 implemented in the 4.0 tree. @xref{News-4.0.x}.
 
-This section lists features not yet implemented in the current
-version of MySQL Server 4.0, which will however be implemented in 
-later versions of MySQL 4.0. This being very volatile information,
-please consider this list valid only if you are reading it from
-the MySQL web site (@uref{http://www.mysql.com/}).
+This section lists features not yet implemented in the current version
+of MySQL Server 4.0, which will however be implemented in later versions
+of MySQL 4.0. This being very volatile information, please consider this
+list valid only if you are reading it from the MySQL web site
+(@uref{http://www.mysql.com/}).
 
 @itemize @bullet
 @item
 Allow users to change startup options without taking down the server.
 @item
-Fail safe replication.
+Better command line argument handling.
 @item
-New key cache
+New key cache, which will give better performance when using many threads.
 @item
 New table definition file format (@code{.frm} files) This will enable us
 to not run out of bits when adding more table options.  One will still
@@ -3733,7 +3734,34 @@ be able to use the old @code{.frm} file format with 4.0.  All newly created
 tables will, however, use the new format.
 
 The new file format will enable us to add new column types, more options
-for keys and @code{FOREIGN KEY} support.
+for keys and possible to store and retrieve @code{FOREIGN KEY} definitions.
+@item
+@code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
+expansions of column names) should not open the table, but only the
+definition file. This will require less memory and be much faster.
+@item
+@code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | HEAP]}.
+@end itemize
+
+
+@node TODO MySQL 4.1, TODO future, TODO MySQL 4.0, TODO
+@subsection Things That Should be in 4.1
+
+We will start working on MySQL 4.1 as soon as MySQL 4.0 goes into beta.
+
+The following features is the ones we plan that should be in MySQL 4.1.
+Note that because we have many developers that are working on different
+projects, there will also be many additional features. There is also a
+small change that some of these features will be added to MySQL 4.0.
+
+@itemize @bullet
+@item
+Subqueries.
+@code{SELECT id FROM t WHERE grp IN (SELECT grp FROM g WHERE u > 100)}
+@item
+Foreign keys, including cascading delete.
+@item
+Fail safe replication.
 @item
 Replication should work with @code{RAND()} and user variables @code{@@var}.
 @item
@@ -3741,17 +3769,20 @@ Online backup with very low performance penalty.  The online backup will
 make it easy to add a new replication slave without taking down the
 master.
 @item
+Derived tables.
+@example
+SELECT a.col1, b.col2
+       FROM (SELECT MAX(col1) AS col1 FROM root_table) a,
+       other_table b
+       WHERE a.col1=b.col1;
+@end example
+
+This could be done by automatically creating temporary tables for the
+derived tables for the duration of the query.
+@item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
 the @code{.MYD} file.
-@item
-Character set casts and syntax for handling multiple character sets.
-@item
-Help for all commands from the client.
-@item
-@code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
-expansions of column names) should not open the table, but only the
-definition file. This will require less memory and be much faster.
 @item
 When using @code{SET CHARACTER SET} we should translate the whole query
 at once and not only strings. This will enable users to use the translated
@@ -3765,46 +3796,30 @@ of @code{analyze} is run on all sub tables.
 @code{RENAME TABLE} on a table used in an active @code{MERGE} table may
 corrupt the table.
 @item
-@code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | HEAP]}.
-@end itemize
-
-
-@node TODO future, TODO sometime, TODO MySQL 4.0, TODO
-@subsection Things That Must be Done in the Real Near Future
-
-@itemize @bullet
+A faster, smaller embedded MySQL library. (Compatible with the old one)
 @item
-Subqueries.
-@code{SELECT id FROM t WHERE grp IN (SELECT grp FROM g WHERE u > 100)}
+Stable openssl support.  (MySQL 4.0 supports rudimentary, not 100 % tested
+support for openssl).
 @item
-Atomic multi-table updates, eg @code{update items,month set
-items.price=month.price where items.id=month.id;};
+Add support for sorting on @code{UNICODE}.
 @item
-Derived tables.
-@example
-SELECT a.col1, b.col2
-       FROM (SELECT MAX(col1) AS col1 FROM root_table) a,
-       other_table b
-       WHERE a.col1=b.col1;
-@end example
-
-This could be done by automatically creating temporary tables for the
-derived tables for the duration of the query.
+Character set casts and syntax for handling multiple character sets.
 @item
-Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
+When using @code{SET CHARACTER SET} we should translate the whole query
+at once and not only strings. This will enable users to use the translated
+characters in database, table and column names.
 @item
-Extend the client/server protocol to support warnings.
+Help for all commands from the client.
 @item
-Add options to the client/server protocol to get progress notes
-for long running commands.
+New faster client/server protocol which will support prepared statements,
+bound parameters and bound result columns, binary transfer of data,
+warnings...
 @item
 Add database and real table name (in case of alias) to the MYSQL_FIELD
 structure.
 @item
-Don't allow more than a defined number of threads to run MyISAM recover
-at the same time.
-@item
-Change @code{INSERT ... SELECT} to optionally use concurrent inserts.
+Add options to the client/server protocol to get progress notes
+for long running commands.
 @item
 Implement @code{RENAME DATABASE}. To make this safe for all table handlers,
 it should work as follows:
@@ -3818,15 +3833,44 @@ we do with the @code{RENAME} command.
 Drop the old database.
 @end itemize
 @item
+Add true @code{VARCHAR} support (There is already support for this in
+@code{MyISAM}).
+@item
+Optimise @code{BIT} type to take 1 bit (now @code{BIT} takes 1 char).
+@item
+New internal file interface change.  This will make all file handling much
+more general and make it easier to add extensions like RAID nicely.
+(The current implementation is a hack).
+@item
+Better in-memory (@code{HEAP}) tables:
+@itemize @bullet
+@item
+Support for B-tree indexes
+@item
+Dynamic size rows
+@item
+Faster row handling (less copying)
+@end itemize
+@end itemize
+
+
+@node TODO future, TODO sometime, TODO MySQL 4.1, TODO
+@subsection Things That Must be Done in the Real Near Future
+
+@itemize @bullet
+@item
+Atomic multi-table updates, eg @code{update items,month set
+items.price=month.price where items.id=month.id;};
+@item
+Don't allow more than a defined number of threads to run MyISAM recover
+at the same time.
+@item
+Change @code{INSERT ... SELECT} to optionally use concurrent inserts.
+@item
 Return the original field types() when doing @code{SELECT MIN(column)
 ... GROUP BY}.
 @item
 Multiple result sets.
-@item
-Change the protocol to allow binary transfer of values. To do this
-efficiently, we need to add an API to allow binding of variables.
-@item
-Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
 @item
 Make it possible to specify @code{long_query_time} with a granularity
 in microseconds.
@@ -3835,6 +3879,8 @@ Add a configurable prompt to the @code{mysql} command line client, with
 options like database in use, time and date...
 @item
 Link the @code{myisampack} code into the server.
+@item
+Port of the MySQL code to QNX.
 @item
 Port of the MySQL code to BeOS.
 @item
@@ -3864,10 +3910,6 @@ Allow join on key parts (optimisation issue).
 @code{INSERT SQL_CONCURRENT} and @code{mysqld --concurrent-insert} to do
 a concurrent insert at the end of the file if the file is read-locked.
 @item
-Remember @code{FOREIGN} key definitions in the @file{.frm} file.
-@item
-Cascading @code{DELETE}
-@item
 Server side cursors.
 @item
 Check if @code{lockd} works with modern Linux kernels; If not, we have
@@ -3890,8 +3932,6 @@ an @code{INSERT} that doesn't contain a column that doesn't have a
 @item
 Fix @file{libmysql.c} to allow two @code{mysql_query()} commands in a row
 without reading results or give a nice error message when one does this.
-@item
-Optimise @code{BIT} type to take 1 bit (now @code{BIT} takes 1 char).
 @item
 Check why MIT-pthreads @code{ctime()} doesn't work on some FreeBSD systems.
 @item
@@ -3933,14 +3973,9 @@ and maybe
 data_line      - the line from the data file
 @end example
 @item
-Add true @code{VARCHAR} support (There is already support for this in
-@code{MyISAM}).
-@item
 Automatic output from @code{mysql} to Netscape.
 @item
 @code{LOCK DATABASES}. (with various options)
-@item
-Change sort to allocate memory in ``hunks'' to get better memory utilisation.
 @item
 @code{DECIMAL} and @code{NUMERIC} types can't read exponential numbers;
 @code{Field_decimal::store(const char *from,uint len)} must be recoded
@@ -3964,8 +3999,6 @@ Add a handler interface for table information so you can use it as a system
 table. This would be a bit slow if you requested information about all tables,
 but very flexible.  @code{SHOW INFO FROM tbl_name} for basic table information
 should be implemented.
-@item
-Add support for UNICODE.
 @item
 @code{NATURAL JOIN}.
 @item
@@ -4005,9 +4038,6 @@ Change that @code{ALTER TABLE} doesn't abort clients that executes
 @item
 Fix that when columns referenced in an @code{UPDATE} clause contains the old
 values before the update started.
-@item
-@code{myisamchk}, @code{REPAIR} and @code{OPTIMIZE TABLE} should be able
-to handle cases where the data and/or index files are symbolic links.
 @item
 Add simulation of @code{pread()}/@code{pwrite()} on Windows to enable
 concurrent inserts.
@@ -6436,7 +6466,7 @@ sometimes required.  If you have problems, we recommend trying GNU
 If you are using a recent version of @strong{gcc}, recent enough to understand
 @code{-fno-exceptions} option, it is @strong{very important} that you use
 it. Otherwise, you may compile a binary that crashes randomly. We also
-recommend that you use @code{-felide-contructors} and @code{-fno-rtti} along
+recommend that you use @code{-felide-constructors} and @code{-fno-rtti} along
 with @code{-fno-exceptions}. When in doubt, do the following:
 
 @example
@@ -6969,8 +6999,9 @@ speed of your connection; be patient.
 @item
 You will need GNU @code{autoconf 2.13}, @code{automake 1.4},
 @code{libtool}, and @code{m4} to run the next set of commands.
-Note that the new versions of @code{autoconf} (2.52) and @code{automake}
-(1.5) do not work.
+
+If you are using the 3.23 tree the new versions of @code{autoconf}
+(2.52) and @code{automake} (1.5) will not work.
 
 If you get some strange error during this stage, check that you really
 have @code{libtool} installed!
@@ -8100,12 +8131,24 @@ than it had in 3.23.
 @item
 @code{SIGNED} is a reserved word.
 @item
+The result of all bitwise operators @code{|}, @code{&}, @code{<<},
+@code{>>} and @code{~} is now unsigned.  This may cause problems if your
+are using them in a context where you want an signed result. @xref{Cast
+Functions}.
+@item
+@strong{NOTE:} When you use subtraction between integers values where
+one is of type @code{UNSIGNED}, the result will be unsigned!  In other
+words, before upgrading to MySQL 4.0, you should check your application
+for cases where you are subtracting a value from an unsigned entity
+and want a negative answer or subtracting an unsigned value from a an
+integer column. @xref{Cast Functions}.
+@item
 To use @code{MATCH ... AGAINST (... IN BOOLEAN MODE)} with your tables,
 you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @strong{even} if they are of @code{MyISAM} type.
 @item
-@code{LOCATE()} and @code{INSTR()} are case sensitive if neither
-argument is a binary string.
+@code{LOCATE()} and @code{INSTR()} are case sensitive if one of the
+arguments is a binary string.
 @item
 @code{HEX(string)} now returns the characters in string converted to
 hexadecimal.  If you want to convert a number to hexadecimal, you should
@@ -16159,7 +16202,7 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
 	[CIPHER cipher [AND]] 
 	[ISSUER issuer [AND]] 
 	[SUBJECT subject]]
-    [WITH GRANT OPTION]
+    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=#]]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
@@ -16319,6 +16362,12 @@ The @code{WITH GRANT OPTION} clause gives the user the ability to give
 to other users any privileges the user has at the specified privilege level.
 You should be careful to whom you give the @strong{grant} privilege, as two
 users with different privileges may be able to join privileges!
+
+@code{MAX_QUERIES_PER_HOUR=#} limits the number of queries the user can
+do during one hour. If @code{#} is 0, then this means that there is no
+limit of the number of queries. This works by MySQL resetting a user
+specific query counter to 0, after it has gone more than one hour
+since the counter started incrementing.
 
 You cannot grant another user a privilege you don't have yourself;
 the @strong{grant} privilege allows you to give away only those privileges
@@ -28068,6 +28117,10 @@ that are optional.
 Note that if you specify @code{ZEROFILL} for a column, MySQL will
 automatically add the @code{UNSIGNED} attribute to the column.
 
+@strong{Warning:} You should be aware that when you use subtraction
+between integers values where one is of type @code{UNSIGNED}, the result
+will be unsigned! @xref{Cast Functions}.
+
 @table @code
 @tindex TINYINT
 @item TINYINT[(M)] [UNSIGNED] [ZEROFILL]
@@ -30841,9 +30894,13 @@ make string comparison even more flexible.
 @node Arithmetic functions, Mathematical functions, Numeric Functions, Numeric Functions
 @subsubsection Arithmetic Operations
 
+@cindex operators, cast
 The usual arithmetic operators are available. Note that in the case of
 @samp{-}, @samp{+}, and @samp{*}, the result is calculated with
 @code{BIGINT} (64-bit) precision if both arguments are integers!
+If one of the argument is an unsigned integer, and the other argument
+is also an integer, the result will be an unsigned integer.
+@xref{Cast Functions}.
 
 @cindex operations, arithmetic
 @cindex arithmetic expressions
@@ -30879,8 +30936,9 @@ mysql> select 18014398509481984*18014398509481984;
         -> 0
 @end example
 
-The result of the last expression is incorrect because the result of the integer
-multiplication exceeds the 64-bit range of @code{BIGINT} calculations.
+The result of the last expression is incorrect because the result of the
+integer multiplication exceeds the 64-bit range of @code{BIGINT}
+calculations.
 
 @findex / (division)
 @findex division (/)
@@ -31903,10 +31961,10 @@ mysql> select 1+'1';
 
 MySQL supports arithmetic with both signed and unsigned 64 bit values.
 If you are using an numerical operations (like @code{+}) and one of the
-operands are @code{unsigned}, then the result will be unsigned.  You can
-override this by using the @code{SIGNED} and @code{UNSIGNED} cast
-operators, which will cast the operation to signed respective unsigned
-64 bit integer.
+operands are @code{unsigned integer}, then the result will be unsigned.
+You can override this by using the @code{SIGNED} and @code{UNSIGNED}
+cast operators, which will cast the operation to signed respective
+unsigned 64 bit integer.
 
 @example
 mysql> select CAST(1-2 AS UNSIGNED)
@@ -31915,7 +31973,32 @@ mysql  select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED);
         -> -1
 @end example
 
+Note that if either operation is a floating point value (In this context
+@code{DECIMAL()} is regarded as a floating point value) the result will
+be a floating point value and is not affected by the above rule.
+
+@example
+mysql> select CAST(1 AS UNSIGNED) -2.0
+        -> -1.0
+@end example
+
+If you are using a string in an arithmetic operation, this is converted
+to a floating point number.
+
 The @code{CAST()} and @code{CONVERT()} function was added in MySQL 4.0.2.
+
+The handing of unsigned values was changed in MySQL 4.0 to be able to
+support @code{BIGINT} values properly. If you have some code that you
+want to run in both MySQL 4.0 and 3.23 (in which case you probably can't
+use the CAST function), you can use the following trick to get a signed
+result when subtracting two unsigned integer columns:
+
+@example
+SELECT (unsigned_column_1+0.0)-(unsigned_column_2+0.0);
+@end example
+
+The idea is that the columns are converted to floating point before doing
+the subtraction.
 
 @node Other Functions, Group by functions, Cast Functions, Functions
 @subsection Other Functions
@@ -31941,11 +32024,13 @@ these operators have a maximum range of 64 bits.
 @findex | (bitwise OR)
 @findex OR, bitwise
 @item |
-Bitwise OR:
+Bitwise OR
 @example
 mysql> select 29 | 15;
         -> 31
 @end example
+
+The result is an unsigned 64 bit integer.
 
 @findex & (bitwise AND)
 @findex AND, bitwise
@@ -31956,6 +32041,8 @@ mysql> select 29 & 15;
         -> 13
 @end example
 
+The result is an unsigned 64 bit integer.
+
 @findex << (left shift)
 @item <<
 Shifts a longlong (@code{BIGINT}) number to the left:
@@ -31963,6 +32050,8 @@ Shifts a longlong (@code{BIGINT}) number to the left:
 mysql> select 1 << 2;
         -> 4
 @end example
+
+The result is an unsigned 64 bit integer.
 
 @findex >> (right shift)
 @item >>
@@ -31972,6 +32061,8 @@ mysql> select 4 >> 2;
         -> 1
 @end example
 
+The result is an unsigned 64 bit integer.
+
 @findex ~
 @item ~
 Invert all bits:
@@ -31979,6 +32070,8 @@ Invert all bits:
 mysql> select 5 & ~1;
         -> 4
 @end example
+
+The result is an unsigned 64 bit integer.
 
 @findex BIT_COUNT()
 @item BIT_COUNT(N)
@@ -35091,6 +35184,7 @@ If MySQL encounters any errors in a multiple table rename, it
 will do a reverse rename for all renamed tables to get everything back
 to the original state.
 
+@code{RENAME TABLE} was added in MySQL 3.23.23.
 
 @node DROP TABLE, CREATE INDEX, RENAME TABLE, Data Definition
 @subsection @code{DROP TABLE} Syntax
@@ -48267,6 +48361,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added @code{WITH MAX_QUERIES_PER_HOUR=#} to @code{GRANT} command.
+@item
+The type returned for all bit functions (@code{|}, @code{<<} ...) are now of
+type @code{unsigned integer}.
+@item
 Added detection if @code{nan} values in MyISAM to make it possible to
 repair tables with @code{nan} in float or double columns.
 @item
@@ -48377,8 +48476,8 @@ able to use boolean fulltext search}.
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
 argument is a binary string.
 @item
-Changed @code{RND()} initialization so that @code{RND(N)} and @code{RND(N+1)}
-are more distinct.
+Changed @code{RAND()} initialization so that @code{RAND(N)} and
+@code{RAND(N+1)} are more distinct.
 @item
 Fixed core dump bug in @code{UPDATE ... ORDER BY}.
 @item
@@ -48603,7 +48702,7 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
-Fixed in when using the following construct:
+Fixed bug when using the following construct:
 @code{SELECT ... WHERE key=@@var_name OR $key=@@var_name2}
 @item
 Restrict InnoDB keys to 500 bytes.
@@ -50031,7 +50130,7 @@ that both non-threaded (@code{-lmysqlclient}) and threaded
 against a threaded @code{-lmysqlclient} will need to link against
 @code{libmysqlclient_r} now.
 @item
-Added atomic @code{RENAME} command.
+Added atomic @code{RENAME TABLE} command.
 @item
 Don't count entries with @code{NULL} in @code{COUNT(DISTINCT ...)}.
 @item

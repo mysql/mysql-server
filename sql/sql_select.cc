@@ -185,7 +185,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	     ulong select_options,select_result *result)
 {
   TABLE		*tmp_table;
-  int		error, tmp_error, tmp;
+  int		error, tmp_error;
   bool		need_tmp,hidden_group_fields;
   bool		simple_order,simple_group,no_order, skip_sort_order;
   Item::cond_result cond_value;
