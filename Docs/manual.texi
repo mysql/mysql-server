@@ -41017,10 +41017,10 @@ use @code{mysql_field_count()} to check for this.
 allocates a @code{MYSQL_RES} structure, and places the result into this
 structure.
 
-@code{mysql_store_results()} returns a null pointer if the query didn't return
+@code{mysql_store_result()} returns a null pointer if the query didn't return
 a result set (if the query was, for example, an @code{INSERT} statement).
 
-@code{mysql_store_results()} also returns a null pointer if reading of the
+@code{mysql_store_result()} also returns a null pointer if reading of the
 result set failed. You can check if you got an error by checking if
 @code{mysql_error()} doesn't return a null pointer, if
 @code{mysql_errno()} returns <> 0, or if @code{mysql_field_count()}
