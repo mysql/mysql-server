@@ -2824,9 +2824,9 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
       if (tables->with_check != VIEW_CHECK_NONE)
       {
         if (tables->with_check == VIEW_CHECK_LOCAL)
-          table->field[4]->store("WITH LOCAL CHECK OPTION", 23, cs);
+          table->field[4]->store("LOCAL", 5, cs);
         else
-          table->field[4]->store("WITH CASCADED CHECK OPTION", 26, cs);
+          table->field[4]->store("CASCADED", 8, cs);
       }
       else
         table->field[4]->store("NONE", 4, cs);
@@ -3522,7 +3522,7 @@ ST_FIELD_INFO view_fields_info[]=
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"VIEW_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHECK_OPTION", 30, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CHECK_OPTION", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_UPDATABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
