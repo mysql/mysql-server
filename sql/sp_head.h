@@ -85,6 +85,7 @@ public:
   my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
+  ulong m_sql_mode;		// For SHOW CREATE
 #if NOT_USED_NOW
   // QQ We're not using this at the moment.
   List<char *> m_calls;		// Called procedures.
@@ -194,7 +195,7 @@ public:
 
   void set_info(char *definer, uint definerlen,
 		longlong created, longlong modified,
-		st_sp_chistics *chistics);
+		st_sp_chistics *chistics, ulong sql_mode);
 
   void reset_thd_mem_root(THD *thd);
 
