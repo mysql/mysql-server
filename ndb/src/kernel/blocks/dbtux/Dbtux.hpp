@@ -25,6 +25,9 @@
 #include <DataBuffer.hpp>
 #include <md5_hash.hpp>
 
+// big brother
+#include <Dbtup.hpp>
+
 // signal classes
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/TuxContinueB.hpp>
@@ -91,6 +94,9 @@ class Dbtux : public SimulatedBlock {
 public:
   Dbtux(const Configuration& conf);
   virtual ~Dbtux();
+
+  // pointer to TUP instance in this thread
+  Dbtup* c_tup;
 
 private:
   // sizes are in words (Uint32)
