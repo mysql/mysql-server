@@ -99,17 +99,21 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex)
 int
 sp_head::create(THD *thd)
 {
+  DBUG_ENTER("sp_head::create");
   String *name= m_name->const_string();
   String *def= m_defstr->const_string();
 
-  return sp_create_procedure(thd,
-			     name->c_ptr(), name->length(),
-			     def->c_ptr(), def->length());
+  DBUG_PRINT("info", ("name: %s def: %s", name->c_ptr(), def->c_ptr()));
+  DBUG_RETURN(sp_create_procedure(thd,
+				  name->c_ptr(), name->length(),
+				  def->c_ptr(), def->length()));
 }
 
 int
 sp_head::execute(THD *thd)
 {
+  DBUG_ENTER("sp_head::execute");
+  DBUG_PRINT("executing", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
   int ret= 0;
   sp_instr *p;
   sp_pcontext *pctx = m_call_lex->spcont;
@@ -171,6 +175,7 @@ sp_head::execute(THD *thd)
       i = get_instr(ip);	// Returns NULL when we're done.
       if (i == NULL)
 	break;
+      DBUG_PRINT("execute", ("Instruction %u", ip));
       ret= i->execute(thd, &ip);
     }
   }
@@ -218,7 +223,7 @@ sp_head::execute(THD *thd)
       thd->spcont= octx;
   }
 
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 
@@ -351,6 +356,8 @@ sp_head::backpatch(sp_label_t *lab)
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
+  DBUG_ENTER("sp_instr_stmt::execute");
+  DBUG_PRINT("info", ("command: %d", m_lex.sql_command));
   LEX olex;			// The other lex
   int res;
 
@@ -364,7 +371,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   memcpy(&thd->lex, &olex, sizeof(LEX)); // Restore the other lex
 
   *nextp = m_ip+1;
-  return res;
+  DBUG_RETURN(res);
 }
 
 //
@@ -373,9 +380,11 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 int
 sp_instr_set::execute(THD *thd, uint *nextp)
 {
+  DBUG_ENTER("sp_instr_set::execute");
+  DBUG_PRINT("info", ("offset: %u", m_offset));
   thd->spcont->set_item(m_offset, eval_func_item(thd, m_value, m_type));
   *nextp = m_ip+1;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 //
@@ -384,13 +393,15 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 int
 sp_instr_jump_if::execute(THD *thd, uint *nextp)
 {
+  DBUG_ENTER("sp_instr_jump_if::execute");
+  DBUG_PRINT("info", ("destination: %u", m_dest));
   Item *it= eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
   if (it->val_int())
     *nextp = m_dest;
   else
     *nextp = m_ip+1;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 //
@@ -399,11 +410,13 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
 int
 sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
+  DBUG_ENTER("sp_instr_jump_if_not::execute");
+  DBUG_PRINT("info", ("destination: %u", m_dest));
   Item *it= eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
   if (! it->val_int())
     *nextp = m_dest;
   else
     *nextp = m_ip+1;
-  return 0;
+  DBUG_RETURN(0);
 }
