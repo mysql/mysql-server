@@ -129,7 +129,7 @@ delete from mysql.columns_priv where user='mysqltest_1' or user="mysqltest_2" or
 flush privileges;
 drop table t1;
 GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
-ERROR HY000: Wrong usage of DB GRANT and GLOBAL PRIVILEGES
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
 select 1;
 1
 1
