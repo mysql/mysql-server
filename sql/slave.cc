@@ -1450,7 +1450,7 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
   my_b_seek(file, 0L);
-  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n",
+  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
 	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
 	      mi->host, mi->user,
 	      mi->password, mi->port, mi->connect_retry

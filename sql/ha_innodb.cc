@@ -747,6 +747,14 @@ innobase_init(void)
 				default_charset_info->sort_order, 256);
 	}
 
+	/* Since we in this module access directly the fields of a trx
+        struct, and due to different headers and flags it might happen that
+	mutex_t has a different size in this module and in InnoDB
+	modules, we check at run time that the size is the same in
+	these compilation modules. */
+
+	srv_sizeof_trx_t_in_ha_innodb_cc = sizeof(trx_t);
+
 	err = innobase_start_or_create_for_mysql();
 
 	if (err != DB_SUCCESS) {

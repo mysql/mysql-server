@@ -55,11 +55,11 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
-# test_fn removed 980815 since it not upp to date test_dir
-noinst_PROGRAMS =	test_charset @THREAD_LPROGRAMS@
+# test_fn removed 980815 since it not up to date test_dir
+noinst_PROGRAMS =	@THREAD_LPROGRAMS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
-test_charset_DEPENDENCIES=	$(LIBRARIES)
+# test_charset_DEPENDENCIES=	$(LIBRARIES)
 EXTRA_PROGRAMS =	
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
@@ -100,7 +100,7 @@ test_io_cache: mf_iocache.c $(LIBRARIES)
 test_dir: test_dir.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
 
-test_charset$(EXEEXT): test_charset.c $(LIBRARIES)
+test_charset: test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
 
 testhash: testhash.c $(LIBRARIES)
