@@ -47441,6 +47441,8 @@ the database, which fixes a problem with InnoDB tables.
 @item
 Added support for @code{UNION}.
 @item
+@code(DELETE) and @code(UPDATE) can now operate on multiple tables.
+@item
 A new @code{HANDLER} interface to @code{MyISAM} tables.
 @item
 Added support for @code{INSERT} on @code{MERGE} tables. Patch from
