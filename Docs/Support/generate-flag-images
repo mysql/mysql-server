@@ -1,37 +1,31 @@
 #!/bin/sh
 
-tmp=/tmp/temp-pic.pnm
-
-all="argentina austria czech-republic germany great-britain hungary israel
-italy russia portugal sweden canada usa south-korea japan taiwan australia
-romania denmark france estonia poland singapore bulgaria south-africa
-netherlands chile ukraine greece finland switzerland croatia china
-brazil spain iceland ireland denmark"
-
-new=""
+flags=`grep @image mirrors.texi | cut -d" " -f1 | cut -d/ -f2 | tr -d "}" | sort | uniq`
 
 set -x
-cd  Flags
+cd Flags
 
-# for c in $all; do cp empty.png $c.pdf; done; exit
-
-for c in $new
+for c in $flags
 do
-  # For HTML version
-  giftopnm ../Raw-Flags/$c.gif | \
-  pnmscale -xsize 30 > $tmp
-  pnmpaste $tmp 1 1 ../Images/flag-background.pnm > $c.pnm
-  rm -f $tmp
-  # For web version
+  # For PNM, to be used later
+  giftopnm ../Raw-Flags/$c.gif | pnmscale -xsize 30 > $c-tmp.pnm
+  pnmpaste $c-tmp.pnm 1 1 ../Images/flag-background.pnm > $c.pnm
+  rm -f $c-tmp.pnm
+
+  # For GIF version
   ppmtogif $c.pnm > $c.gif
   # or cjpeg -optimize -quality 70 -outfile $c.jpg
-  # For PDF version (this coredumps. use empty file until fixed)
-  # pnmtopng -verbose $c.pnm > $c.png
-  cp ../Images/empty.png $c.pdf
-  # For TeX version
-  giftopnm ../Raw-Flags/$c.gif | \
-   pnmscale -xsize 30 | \
-   pnmtops -noturn > $c.eps
+
+  # For EPS version
+  pnmtops -noturn $c.pnm > $c.eps
+
+  # For PDF version
+  ps2pdf $c.eps $c.pdf
+
   # For text version
   echo -n "" > $c.txt
+
+  # PNM isn't really needed
+  rm -f $c.pnm
+
 done
