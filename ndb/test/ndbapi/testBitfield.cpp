@@ -66,10 +66,15 @@ main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  Ndb::setConnectString(opt_connect_str);
+  Ndb_cluster_connection con(opt_connect_str);
+  if(con.connect(12, 5, 1))
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  
 
   Ndb* pNdb;
-  pNdb = new Ndb(_dbname);  
+  pNdb = new Ndb(&con, _dbname);  
   pNdb->init();
   while (pNdb->waitUntilReady() != 0);
   int res = NDBT_FAILED;

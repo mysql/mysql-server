@@ -209,7 +209,7 @@ makeOff(int k)
 }
 
 static int
-testcase(int flag)
+testcase(Ndb_cluster_connection&cc, int flag)
 {
     ndbout << "--- case " << flag << " ---" << endl;
     sprintf(tab, "TB%02d", flag);
@@ -254,7 +254,7 @@ testcase(int flag)
     ndbout << "tab=" << tab << " cols=" << attrcnt
 	<< " size max=" << smax << " tot=" << stot << endl;
 
-    ndb = new Ndb("TEST_DB");
+    ndb = new Ndb(&cc, "TEST_DB");
     if (ndb->init() != 0)
 	return ndberror("init");
     if (ndb->waitUntilReady(30) < 0)
@@ -606,10 +606,17 @@ NDB_COMMAND(testDataBuffers, "testDataBuffers", "testDataBuffers", "testDataBuff
 	}
     }
     unsigned ok = true;
+
+    Ndb_cluster_connection con;
+    if(con.connect(12, 5, 1))
+    {
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+
     for (i = 1; 0 == loopcnt || i <= loopcnt; i++) {
 	ndbout << "=== loop " << i << " ===" << endl;
 	for (int flag = 0; flag < (1<<testbits); flag++) {
-	    if (testcase(flag) < 0) {
+	    if (testcase(con, flag) < 0) {
 		ok = false;
 		if (! kontinue)
 		    goto out;
