@@ -2276,7 +2276,7 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
   }
   
   if (dst < de)  /* Clear the last byte, if "dstlen" was an odd number */
-    *de= 0x00;
+    *dst= 0x00;
   
   return dstlen;
 }
