@@ -3880,6 +3880,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
     result->data= NULL;
     result->rows= 0;
+    mysql->status= MYSQL_STATUS_READY;
     DBUG_RETURN(1);
   }
 
