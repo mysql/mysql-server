@@ -1610,7 +1610,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		       join_tab[i].table->map);
       }
     }
-    if (init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
+    if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
       return TRUE;
     /* fill keyuse with found key parts */
     for (KEY_FIELD *field=key_fields ; field != end ; field++)
