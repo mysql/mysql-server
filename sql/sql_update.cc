@@ -490,9 +490,8 @@ int mysql_multi_update(THD *thd,
       table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
   }
 
-  if (thd->lex->derived_tables)
+  /* Assign table map values to check updatability of derived tables */
   {
-    // Assign table map values to check updatability of derived tables
     uint tablenr=0;
     for (TABLE_LIST *table_list= update_list;
 	 table_list;
@@ -501,11 +500,12 @@ int mysql_multi_update(THD *thd,
       table_list->table->map= (table_map) 1 << tablenr;
     }
   }
+
   if (setup_fields(thd, 0, update_list, *fields, 1, 0, 0))
     DBUG_RETURN(-1);
-  if (thd->lex->derived_tables)
+
+  /* Find tables used in items */
   {
-    // Find tables used in items
     List_iterator_fast<Item> it(*fields);
     Item *item;
     while ((item= it++))
@@ -527,7 +527,23 @@ int mysql_multi_update(THD *thd,
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
       table->timestamp_on_update_now= 0;
-    
+
+    /* if table will be updated then check that it is unique */
+    if (table->map & item_tables)
+    {
+      /*
+	 Multi-update can't be constructed over-union => we always have
+	 single SELECT on top and have to check underlaying SELECTs of it
+      */
+      if (select_lex->check_updateable_in_subqueries(tl->db,
+                                                     tl->real_name))
+      {
+        my_error(ER_UPDATE_TABLE_USED, MYF(0),
+                 tl->real_name);
+        DBUG_RETURN(-1);
+      }
+    }
+
     if (tl->derived)
       derived_tables|= table->map;
   }
