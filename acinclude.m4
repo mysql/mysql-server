@@ -675,8 +675,7 @@ fi
 
 for ac_arg in $cpu_set;
 do
-  CFLAGS="$ac_save_CFLAGS -mcpu=$ac_arg -march=$ac_arg"
-  echo "trying $ac_arg";
+  CFLAGS="$ac_save_CFLAGS -mcpu=$ac_arg -march=$ac_arg -DCPU=$ac_arg" 
   AC_TRY_COMPILE([],[int i],mysql_cv_cpu=$ac_arg; break;, mysql_cv_cpu="unknown")
 done
 
