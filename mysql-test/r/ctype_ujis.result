@@ -123,7 +123,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=ujis
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	char(1)				
+a	char(1)	NO			
 b	enum('¤¢','¤¤')	YES		NULL	
 DROP TABLE t1;
 CREATE TABLE t1
