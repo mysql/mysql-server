@@ -82,6 +82,13 @@ struct remember *pRememberRoot = NULL;
 int volatile my_have_got_alarm=0;	/* declare variable to reset */
 ulong my_time_to_wait_for_lock=2;	/* In seconds */
 
+	/*
+	  We need to have this define here as otherwise linking will fail
+	  on OSF1 when compiling --without-raid --with-debug
+	*/
+
+const char *raid_type_string[]={"none","striped"};
+
 	/* from errors.c */
 #ifdef SHARED_LIBRARY
 char * NEAR globerrs[GLOBERRS];		/* my_error_messages is here */

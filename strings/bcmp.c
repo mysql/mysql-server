@@ -18,11 +18,17 @@
   bcmp(s1, s2, len) returns 0 if the "len" bytes starting at "s1" are
   identical to the "len" bytes starting at "s2", non-zero if they are
   different.
-  Now only used with purify.
+  Now only used with purify because purify gives wrong warnings when
+  comparing a shorter string with bcmp.
 */
 
 #include <my_global.h>
 #include "m_string.h"
+
+#ifdef HAVE_purify
+#undef bcmp
+#undef HAVE_BCMP
+#endif
 
 #if !defined(bcmp) && !defined(HAVE_BCMP)
 
@@ -45,14 +51,7 @@ uint len;					/* 0 <= len <= 65535 */
 
 #else
 
-#ifdef HAVE_purify
-int my_bcmp(s1, s2, len)
-#else
-int bcmp(s1, s2, len)
-#endif
-    register const char *s1;
-    register const char *s2;
-    register uint len;
+int bcmp(register const char *s1,register const char *s2, register uint len)
 {
   while (len-- != 0 && *s1++ == *s2++) ;
   return len+1;
