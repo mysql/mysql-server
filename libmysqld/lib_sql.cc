@@ -26,7 +26,8 @@
 static int fake_argc= 1;
 static char *fake_argv[]= {(char *)"", 0};
 static const char *fake_groups[] = { "server", "embedded", 0 };
-static char inited, org_my_init_done;
+static my_bool  org_my_init_done;
+my_bool         server_inited;
 
 #if defined (__WIN__)
 #include "../sql/mysqld.cpp"
@@ -181,9 +182,9 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
 
   /* Only call MY_INIT() if it hasn't been called before */
-  if (!inited)
+  if (!server_inited)
   {
-    inited=1;
+    server_inited=1;
     org_my_init_done=my_init_done;
   }
   if (!org_my_init_done)

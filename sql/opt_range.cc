@@ -692,7 +692,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	    uint keynr= param.real_keynr[idx];
 	    if ((*key)->type == SEL_ARG::MAYBE_KEY ||
 		(*key)->maybe_flag)
-	      needed_reg|= (key_map) 1 << keynr;
+	        needed_reg|= (key_map) 1 << keynr;
 
 	    found_records=check_quick_select(&param, idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
@@ -716,7 +716,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 						      param.range_count,
 						      found_records)+
 				(double) found_records / TIME_FOR_COMPARE);
-	    if (read_time > found_read_time)
+	    if (read_time > found_read_time && found_records != HA_POS_ERROR)
 	    {
 	      read_time=found_read_time;
 	      records=found_records;

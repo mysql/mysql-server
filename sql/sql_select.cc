@@ -158,7 +158,7 @@ static void copy_sum_funcs(Item_sum **func_ptr);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
-static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
+static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 
 
@@ -2178,6 +2178,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->key_item()->real_item()))->field, 0,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
+#endif
                     usable_tables);
     break;
   case Item_func::OPTIMIZE_OP:
@@ -3337,13 +3338,30 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	       join->best_positions[i].records_read &&
 	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
+	    /* Join with outer join condition */
+	    COND *orig_cond=sel->cond;
+	    sel->cond=and_conds(sel->cond,tab->on_expr);
 	    if (sel->test_quick_select(tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
 					join->unit->select_limit_cnt)) < 0)
-	      DBUG_RETURN(1);				// Impossible range
+            { /* before reporting "Impossible WHERE" for the whole query
+                 we have to check isn't it only "impossible ON" instead */
+              sel->cond=orig_cond;
+              if (!tab->on_expr ||
+                  sel->test_quick_select(tab->keys,
+                                         used_tables & ~ current_map,
+                                         (join->select_options &
+                                          OPTION_FOUND_ROWS ?
+                                          HA_POS_ERROR :
+                                          join->thd->select_limit)) < 0)
+	         DBUG_RETURN(1);			// Impossible WHERE
+            }
+            else
+	      sel->cond=orig_cond;
+
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
 	      join->best_positions[i].records_read= sel->quick->records;
