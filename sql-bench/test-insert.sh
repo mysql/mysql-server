@@ -1011,12 +1011,13 @@ if ($server->small_rollback_segment())
 ### Test speed of IN( value list)
 ###
 
-if ($limits->{'functions'})
+if ($limits->{'left_outer_join'})
 {
   if ($opt_lock_tables)
   {
     $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
   }
+  print "\n";
   do_many($dbh,$server->create("bench2",
 			       ["id int NOT NULL"],
 			       ["primary key (id)"]));
@@ -1029,13 +1030,8 @@ if ($limits->{'functions'})
       die $DBI::errstr;
   }
   test_where_in("bench1","bench2","id",1,10);
-  test_where_in("bench1","bench2","id",11,100);
+  test_where_in("bench1","bench2","id",11,min(100,$max_tests));
   test_where_in("bench1","bench2","id",101,min(1000,$max_tests));
-  test_where_in("bench1","bench2","id",1000,$max_tests/2);
-  if ($max_tests > 1000)
-  {
-    test_where_in("bench1","bench2","id",$max_tests/2+1,$max_tests);
-  }
   if ($opt_lock_tables)
   {
     $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
@@ -1647,7 +1643,7 @@ sub check_or_range
 }
 
 #
-# Test if SELECT ... WHERE id in(value-list)
+# General test of SELECT ... WHERE id in(value-list)
 #
 
 sub test_where_in
@@ -1673,10 +1669,10 @@ sub test_where_in
     $server->vacuum(1,\$dbh,"bench1");
   }
 
-  time_fetch_all_rows("\nTesting SELECT ... WHERE id in ($to values)",
+  time_fetch_all_rows("Testing SELECT ... WHERE id in ($to values)",
 		      "select_in", $query, $dbh,
 		      $range_loop_count);
   time_fetch_all_rows(undef, "select_join_in",
-		      "SELECT $t1.* FROM $t1,$t2 WHERE $t1.$id=$t2.$id",
+		      "SELECT $t1.* FROM $t2 left outer join $t1 on ($t1.$id=$t2.$id)",
 		       $dbh, $range_loop_count);
 }
