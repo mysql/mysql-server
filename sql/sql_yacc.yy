@@ -5880,6 +5880,9 @@ show:	SHOW
 	{
 	  LEX *lex=Lex;
 	  lex->wild=0;
+          lex->lock_option= TL_READ;
+          mysql_init_select(lex);
+          lex->current_select->parsing_place= SELECT_LIST;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	}
 	show_param
@@ -5887,7 +5890,7 @@ show:	SHOW
 	;
 
 show_param:
-         DATABASES ext_select_item_list wild_and_where
+         DATABASES wild_and_where
          {
            LEX *lex= Lex;
            lex->sql_command= SQLCOM_SELECT;
@@ -5895,44 +5898,44 @@ show_param:
            if (prepare_schema_table(YYTHD, lex, 0, SCH_SCHEMATA))
              YYABORT;
          }
-         | opt_full TABLES ext_select_item_list opt_db wild_and_where
+         | opt_full TABLES opt_db wild_and_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SELECT;
              lex->orig_sql_command= SQLCOM_SHOW_TABLES;
-             lex->select_lex.db= $4;
+             lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                YYABORT;
            }
-         | TABLE_SYM STATUS_SYM ext_select_item_list opt_db wild_and_where
+         | TABLE_SYM STATUS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SELECT;
              lex->orig_sql_command= SQLCOM_SHOW_TABLE_STATUS;
-             lex->select_lex.db= $4;
+             lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
                YYABORT;
            }
-        | OPEN_SYM TABLES ext_select_item_list opt_db wild_and_where
+        | OPEN_SYM TABLES opt_db wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_OPEN_TABLES;
-            lex->select_lex.db= $4;
+            lex->select_lex.db= $3;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
               YYABORT;
           }
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
-	| opt_full COLUMNS ext_select_item_list from_or_in table_ident opt_db wild_and_where
+	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
  	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SELECT;
 	    lex->orig_sql_command= SQLCOM_SHOW_FIELDS;
-	    if ($6)
-	      $5->change_db($6);
-	    if (prepare_schema_table(YYTHD, lex, $5, SCH_COLUMNS))
+	    if ($5)
+	      $4->change_db($5);
+	    if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
@@ -5958,14 +5961,14 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
           } opt_limit_clause_init
-        | keys_or_index ext_select_item_list from_or_in table_ident opt_db where_clause
+        | keys_or_index from_or_in table_ident opt_db where_clause
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_KEYS;
-	    if ($5)
-	      $4->change_db($5);
-            if (prepare_schema_table(YYTHD, lex, $4, SCH_STATISTICS))
+	    if ($4)
+	      $3->change_db($4);
+            if (prepare_schema_table(YYTHD, lex, $3, SCH_STATISTICS))
               YYABORT;
 	  }
 	| COLUMN_SYM TYPES_SYM
@@ -5997,7 +6000,7 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
-        | opt_var_type STATUS_SYM ext_select_item_list wild_and_where
+        | opt_var_type STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
@@ -6012,7 +6015,7 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_MUTEX_STATUS; }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-        | opt_var_type  VARIABLES ext_select_item_list wild_and_where
+        | opt_var_type  VARIABLES wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
@@ -6021,7 +6024,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
               YYABORT;
           }
-        | charset ext_select_item_list wild_and_where
+        | charset wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
@@ -6029,7 +6032,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_CHARSETS))
               YYABORT;
           }
-        | COLLATION_SYM ext_select_item_list wild_and_where
+        | COLLATION_SYM wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
@@ -6115,7 +6118,7 @@ show_param:
 	    lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
 	    lex->spname= $3;
 	  }
-	| PROCEDURE STATUS_SYM ext_select_item_list wild_and_where
+	| PROCEDURE STATUS_SYM wild_and_where
 	  {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
@@ -6123,7 +6126,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
 	  }
-	| FUNCTION_SYM STATUS_SYM ext_select_item_list wild_and_where
+	| FUNCTION_SYM STATUS_SYM wild_and_where
 	  {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
@@ -6196,20 +6199,6 @@ wild_and_where:
             $2->top_level_item();
         }
       ;
-
-ext_select_item_list:
-      {
-        LEX *lex=Lex;
-        SELECT_LEX *sel= lex->current_select;
-        lex->lock_option= TL_READ;
-        mysql_init_select(lex);
-        lex->current_select->parsing_place= SELECT_LIST;
-      }
-      ext_select_item_list2;
-
-ext_select_item_list2:
-      /* empty */        {}
-      | select_item_list {};
 
 
 /* A Oracle compatible synonym for show */

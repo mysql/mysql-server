@@ -260,6 +260,7 @@ row_mysql_handle_errors(
 	que_thr_t*	thr,	/* in: query thread */
 	trx_savept_t*	savept)	/* in: savepoint or NULL */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	err;
 
 handle_new_error:
@@ -359,6 +360,12 @@ handle_new_error:
 	trx->error_state = DB_SUCCESS;
 
 	return(FALSE);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /************************************************************************
@@ -2072,6 +2079,7 @@ row_add_table_to_background_drop_list(
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
@@ -2692,6 +2700,7 @@ funct_exit:
 
 	return((int) err);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Drops a table for MySQL. If the name of the table to be dropped is equal
@@ -3088,7 +3097,9 @@ funct_exit:
 
 	trx->op_info = "";
 
+#ifndef UNIV_HOTBACKUP
 	srv_wake_master_thread();
+#endif /* !UNIV_HOTBACKUP */
 
 	return((int) err);
 }
