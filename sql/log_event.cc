@@ -26,6 +26,8 @@
 
 #include <assert.h>
 
+#define log_cs	my_charset_latin1
+
 /*****************************************************************************
 
   my_b_safe_write()
@@ -676,7 +678,7 @@ void Log_event::set_log_pos(MYSQL_LOG* log)
 void Query_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf), system_charset_info);
+  String tmp(buf, sizeof(buf), log_cs);
   tmp.length(0);
   if (db && db_len)
   {
@@ -930,7 +932,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 void Start_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1), system_charset_info);
+  String tmp(buf1, sizeof(buf1), log_cs);
   tmp.length(0);
   char buf[22];
 
@@ -1041,7 +1043,7 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
 void Load_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf), system_charset_info);
+  String tmp(buf, sizeof(buf), log_cs);
   tmp.length(0);
   if (db && db_len)
   {
@@ -1453,15 +1455,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 	handle_dup = DUP_REPLACE;
       sql_exchange ex((char*)fname, sql_ex.opt_flags &&
 		      DUMPFILE_FLAG );
-      String field_term(sql_ex.field_term,sql_ex.field_term_len,
-			system_charset_info);
-      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len,
-		      system_charset_info);
-      String line_term(sql_ex.line_term,sql_ex.line_term_len,
-		       system_charset_info);
-      String line_start(sql_ex.line_start,sql_ex.line_start_len,
-			system_charset_info);
-      String escaped(sql_ex.escaped,sql_ex.escaped_len, system_charset_info);
+      String field_term(sql_ex.field_term,sql_ex.field_term_len,log_cs);
+      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len,log_cs);
+      String line_term(sql_ex.line_term,sql_ex.line_term_len,log_cs);
+      String line_start(sql_ex.line_start,sql_ex.line_start_len,log_cs);
+      String escaped(sql_ex.escaped,sql_ex.escaped_len, log_cs);
 
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
@@ -1547,7 +1545,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 void Rotate_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1), system_charset_info);
+  String tmp(buf1, sizeof(buf1), log_cs);
   tmp.length(0);
   tmp.append(new_log_ident, ident_len);
   tmp.append(";pos=");
@@ -1685,7 +1683,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 void Intvar_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1), system_charset_info);
+  String tmp(buf1, sizeof(buf1), log_cs);
   tmp.length(0);
   tmp.append(get_var_type_name());
   tmp.append('=');
@@ -1893,7 +1891,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 void Slave_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], buf[22], *end;
-  String tmp(buf1, sizeof(buf1), system_charset_info);
+  String tmp(buf1, sizeof(buf1), log_cs);
   tmp.length(0);
   tmp.append("host=");
   tmp.append(master_host);
@@ -2241,7 +2239,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 void Create_file_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256],buf[22], *end;
-  String tmp(buf1, sizeof(buf1), system_charset_info);
+  String tmp(buf1, sizeof(buf1), log_cs);
   tmp.length(0);
   tmp.append("db=");
   tmp.append(db, db_len);
