@@ -77,7 +77,11 @@ public:
   /**
    * Set r_port to connect to
    */
-  void set_r_port(unsigned int port) { m_r_port = port; };
+  void set_r_port(unsigned int port) {
+    m_r_port = port;
+    if(m_socket_client)
+      m_socket_client->set_port(port);
+  };
 
 protected:
   Transporter(TransporterRegistry &,

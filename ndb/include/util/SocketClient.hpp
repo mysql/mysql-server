@@ -31,6 +31,10 @@ public:
   SocketClient(const char *server_name, unsigned short port, SocketAuthenticator *sa = 0);
   ~SocketClient();
   bool init();
+  void set_port(unsigned short port) {
+    m_port = port;
+    m_servaddr.sin_port = htons(m_port);
+  };
   NDB_SOCKET_TYPE connect();
   bool close();
 };
