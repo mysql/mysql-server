@@ -1,0 +1,75 @@
+<!--$Id: txn_checkpoint.so,v 10.25 2000/09/08 15:20:28 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::txn_checkpoint</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::txn_checkpoint</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbEnv::txn_checkpoint(u_int32_t kbyte, u_int32_t min, u_int32_t flags) const;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::txn_checkpoint method flushes the underlying memory pool,
+writes a checkpoint record to the log and then flushes the log.
+<p>If either <b>kbyte</b> or <b>min</b> is non-zero, the checkpoint is only
+done if there has been activity since the last checkpoint and either
+more than <b>min</b> minutes have passed since the last checkpoint,
+or if more than <b>kbyte</b> kilobytes of log data have been written since
+the last checkpoint.
+<p>The <b>flags</b> parameter must be set to 0 or one of the following
+values:
+<p><dl compact>
+<p><dt><a name="DB_FORCE">DB_FORCE</a><dd>Force a checkpoint record even if there has been no activity since the
+last checkpoint.
+</dl>
+<p>The DbEnv::txn_checkpoint method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, 0 on success, and returns <a href="../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a> if there were pages that needed to be
+written to complete the checkpoint but that <a href="../api_cxx/memp_sync.html">DbEnv::memp_sync</a> was unable
+to write immediately.
+<h1>Errors</h1>
+<p>The DbEnv::txn_checkpoint method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<p>The DbEnv::txn_checkpoint method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::txn_checkpoint method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/txn_class.html">DbTxn</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_tx_max.html">DbEnv::set_tx_max</a>,
+<a href="../api_cxx/env_set_tx_recover.html">DbEnv::set_tx_recover</a>,
+<a href="../api_cxx/env_set_tx_timestamp.html">DbEnv::set_tx_timestamp</a>,
+<a href="../api_cxx/txn_abort.html">DbTxn::abort</a>,
+<a href="../api_cxx/txn_begin.html">DbEnv::txn_begin</a>,
+<a href="../api_cxx/txn_checkpoint.html">DbEnv::txn_checkpoint</a>,
+<a href="../api_cxx/txn_commit.html">DbTxn::commit</a>,
+<a href="../api_cxx/txn_id.html">DbTxn::id</a>,
+<a href="../api_cxx/txn_prepare.html">DbTxn::prepare</a>
+and
+<a href="../api_cxx/txn_stat.html">DbEnv::txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!--$Id: test.so,v 10.19 2000/06/28 14:33:57 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Running the test suite under UNIX</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/shlib.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/notes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Running the test suite under UNIX</h1>
+<p>The Berkeley DB test suite is built if you specify --enable-test as an
+argument when configuring Berkeley DB.
+<p>Before running the tests for the first time, you may need to edit the
+<b>include.tcl</b> file in your build directory.  The Berkeley DB
+configuration assumes you intend to use the version of the tclsh utility
+included in the Tcl installation with which Berkeley DB was configured to run
+the test suite, and further assumes that the test suite will be run with
+the libraries pre-built in the Berkeley DB build directory.  If either of these
+assumptions are incorrect, you will need to edit the <b>include.tcl</b>
+file and change the line that reads:
+<p><blockquote><pre>set tclsh_path ...</pre></blockquote>
+<p>to correctly specify the full path to the version of tclsh with which you
+are going to run the test suite.  You may also need to change the line
+that reads:
+<p><blockquote><pre>set test_path ...</pre></blockquote>
+<p>to correctly specify the path from the directory where you are running
+the test suite to the location of the Berkeley DB Tcl API library you built.
+It may not be necessary that this be a full path if you have configured
+your system's dynamic shared library mechanisms to search the directory
+where you built or installed the Tcl library.
+<p>All Berkeley DB tests are run from within <b>tclsh</b>.  After starting tclsh,
+you must source the file <b>test.tcl</b> in the test directory.  For
+example, if you built in the <b>build_unix</b> directory of the
+distribution, this would be done using the command:
+<p><blockquote><pre>% source ../test/test.tcl</pre></blockquote>
+<p>Once you have executed that command and the "%" prompt has returned
+without errors, you are ready to run tests in the test suite.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/shlib.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/notes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

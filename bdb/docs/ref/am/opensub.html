@@ -1,0 +1,64 @@
+<!--$Id: opensub.so,v 10.6 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Opening multiple databases in a single file</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/upgrade.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Opening multiple databases in a single file</h1>
+<p>Applications may create multiple databases within a single physical
+file.  This is useful when the databases are both numerous and
+reasonably small, in order to avoid creating a large number of
+underlying files, or when it is desirable to include secondary index
+databases in the same file as the primary index database.  Multiple
+databases are an administrative convenience and using them is unlikely
+to effect database performance.  To open or create a file that will
+include more than a single database, specify a database name when
+calling the <a href="../../api_c/db_open.html">DB-&gt;open</a> method.
+<p>Physical files do not need to be comprised of a single type of database,
+and databases in a file may be of any type (e.g., Btree, Hash or Recno),
+except for Queue databases.  Queue databases must be created one per file
+and cannot share a file with any other database type.  There is no limit
+on the number of databases that may be created in a single file other than
+the standard Berkeley DB file size and disk space limitations.
+<p>It is an error to attempt to open a second database in a file that was
+not initially created using a database name, that is, the file must
+initially be specified as capable of containing multiple databases for a
+second database to be created in it.
+<p>It is not an error to open a file that contains multiple databases without
+specifying a database name, however the database type should be specified
+as DB_UNKNOWN and the database must be opened read-only.  The handle that
+is returned from such a call is a handle on a database whose key values
+are the names of the databases stored in the database file and whose data
+values are opaque objects.  No keys or data values may be modified or
+stored using this database handle.
+<p>Storing multiple databases in a single file is almost identical to
+storing each database in its own separate file.  The one crucial
+difference is how locking and the underlying memory pool services must
+to be configured.  As an example, consider two databases instantiated
+in two different physical files.  If access to each separate database
+is single-threaded, there is no reason to perform any locking of any
+kind, and the two databases may be read and written simultaneously.
+Further, there would be no requirement to create a shared database
+environment in which to open the databases.  Because multiple databases
+in a file exist in a single physical file, opening two databases in the
+same file requires that locking be enabled, unless access to the
+databases is known to be single-threaded, that is, only one of the
+databases is ever accessed at a time.  (As the locks for the two
+databases can only conflict during page allocation, this additional
+locking is unlikely to effect performance.)  Further, the databases must
+share an underlying memory pool so that per-physical-file information
+is updated correctly.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/upgrade.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

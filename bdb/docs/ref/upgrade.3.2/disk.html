@@ -1,0 +1,28 @@
+<!--$Id: disk.so,v 1.4 2000/12/21 18:37:09 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.2: upgrade requirements</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.2/db_dump.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/test/run.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.2: upgrade requirements</h1>
+<p>Log file formats and the Queue Access Method database formats changed
+in the Berkeley DB 3.2 release.  (The on-disk Queue format changed from
+version 2 to version 3.)  Until the underlying databases are upgraded,
+the <a href="../../api_c/db_open.html">DB-&gt;open</a> function will return a <a href="../../api_c/db_open.html#DB_OLD_VERSION">DB_OLD_VERSION</a> error.
+<p>For further information on upgrading Berkeley DB installations, see
+<a href="../../ref/upgrade/process.html">Upgrading Berkeley DB
+installations</a>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.2/db_dump.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/test/run.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

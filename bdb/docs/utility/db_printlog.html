@@ -1,0 +1,69 @@
+<!--$Id: db_printlog.so,v 10.10 2000/04/03 20:10:39 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_printlog</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_printlog</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_printlog [<b>-NV</b>] [<b>-h home</b>]</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>    
+<p>The db_printlog utility is a debugging utility that dumps Berkeley DB
+log files in a human-readable format.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment; by
+default, the current working directory is used.
+<p><dt><b>-N</b><dd>Do not acquire shared region locks while running.  Other problems such as
+potentially fatal errors in Berkeley DB will be ignored as well.  This option
+is intended only for debugging errors and should not be used under any
+other circumstances.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+</dl>
+<p>For more information on the db_printlog output and using it to
+debug applications, see <a href="../ref/debug/printlog.html">Reviewing
+Berkeley DB log files</a>.
+<p>The db_printlog utility uses a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_printlog should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_printlog to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The db_printlog utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../utility/db_dump.html">db_dump</a>,
+<a href="../utility/db_load.html">db_load</a>,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

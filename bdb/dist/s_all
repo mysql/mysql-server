@@ -1,0 +1,16 @@
+#!/bin/sh -
+#	$Id: s_all,v 1.7 2000/12/22 15:35:32 bostic Exp $
+
+sh s_perm		# permissions.
+sh s_symlink		# symbolic links.
+sh s_config		# autoconf.
+sh s_readme		# db/README file.
+sh s_recover		# logging/recovery files.
+sh s_rpc		# RPC files.
+sh s_include		# standard include files.
+sh s_win32		# Win32 include files.
+sh s_win32_dsp		# Win32 build environment.
+sh s_vxworks		# VxWorks include files.
+sh s_java		# Java support.
+sh s_tcl		# Tcl support.
+sh s_tags		# Tags files.

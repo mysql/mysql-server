@@ -1,0 +1,60 @@
+<!--$Id: flags.so,v 10.6 2000/12/01 00:19:10 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Changing compile or load options</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/conf.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/install.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Changing compile or load options</h1>
+<p>You can specify compiler and/or compile and load time flags by using
+environment variables during Berkeley DB configuration.  For example, if you
+want to use a specific compiler, specify the CC environment variable
+before running configure:
+<p><blockquote><pre>prompt: env CC=gcc ../dist/configure</pre></blockquote>
+<p>Using anything other than the native compiler will almost certainly mean
+that you'll want to check the flags specified to the compiler and
+loader, too.
+<p>To specify debugging and optimization options for the C compiler,
+use the CFLAGS environment variable:
+<p><blockquote><pre>prompt: env CFLAGS=-O2 ../dist/configure</pre></blockquote>
+<p>To specify header file search directories and other miscellaneous options
+for the C preprocessor and compiler, use the CPPFLAGS environment variable:
+<p><blockquote><pre>prompt: env CPPFLAGS=-I/usr/contrib/include ../dist/configure</pre></blockquote>
+<p>To specify debugging and optimization options for the C++ compiler,
+use the CXXFLAGS environment variable:
+<p><blockquote><pre>prompt: env CXXFLAGS=-Woverloaded-virtual ../dist/configure</pre></blockquote>
+<p>To specify miscellaneous options or additional library directories for
+the linker, use the LDFLAGS environment variable:
+<p><blockquote><pre>prompt: env LDFLAGS="-N32 -L/usr/local/lib" ../dist/configure</pre></blockquote>
+<p>If you want to specify additional libraries, set the LIBS environment
+variable before running configure.  For example:
+<p><blockquote><pre>prompt: env LIBS="-lposix -lsocket" ../dist/configure</pre></blockquote>
+<p>would specify two additional libraries to load, "posix" and "socket".
+<p>Make sure that you prepend -L to any library directory names and that you
+prepend -I to any include file directory names!  Also, if the arguments
+you specify contain blank or tab characters, be sure to quote them as
+shown above, i.e. with single or double quotes around the values you're
+specifying for LIBS.
+<p>The env command is available on most systems, and simply sets one or more
+environment variables before running a command.  If the env command is
+not available to you, you can set the environment variables in your shell
+before running configure.  For example, in sh or ksh, you could do:
+<p><blockquote><pre>prompt: LIBS="-lposix -lsocket" ../dist/configure</pre></blockquote>
+<p>and in csh or tcsh, you could do:
+<p><blockquote><pre>prompt: setenv LIBS "-lposix -lsocket"
+prompt: ../dist/configure</pre></blockquote>
+<p>See your command shell's manual page for further information.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/conf.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/install.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

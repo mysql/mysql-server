@@ -1,0 +1,230 @@
+<!--$Id: dbt_class.so,v 10.33 2000/12/18 21:05:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Dbt</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Dbt</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+class Dbt {
+public:
+	void *get_data() const;
+	void set_data(void *);
+<p>
+	u_int32_t get_size() const;
+	void set_size(u_int32_t);
+<p>
+	u_int32_t get_ulen() const;
+	void set_ulen(u_int32_t);
+<p>
+	u_int32_t get_dlen() const;
+	void set_dlen(u_int32_t);
+<p>
+	u_int32_t get_doff() const;
+	void set_doff(u_int32_t);
+<p>
+	u_int32_t get_flags() const;
+	void set_flags(u_int32_t);
+<p>
+	Dbt(void *data, size_t size);
+	Dbt();
+	Dbt(const Dbt &);
+	Dbt &operator = (const Dbt &);
+	~Dbt();
+};
+</pre></h3>
+<h1>Description</h1>
+<p>This manual page describes the specific details of the Dbt class,
+used to encode keys and data items in a database.
+        <a name="3"><!--meow--></a>    
+<h3>Key/Data Pairs</h3>
+<p>Storage and retrieval for the Db access methods are based on
+key/data pairs.  Both key and data items are represented by Dbt
+objects.  Key and data byte strings may reference strings of zero length
+up to strings of essentially unlimited length.  See
+<a href="../ref/program/dbsizes.html">Database limits</a> for more
+information.
+<p>The Dbt class provides simple access to an underlying data structure,
+whose elements can be examined or changed using the <b>set_</b> or
+<b>get_</b> methods.  The remainder of the manual page sometimes refers
+to these accesses using the underlying name, e.g., simply <b>ulen</b>
+instead of Dbt::get_ulen and Dbt::set_ulen.
+Dbt can be subclassed, providing a way to associate
+with it additional data, or references to other structures.
+<p>The constructors set all elements of the underlying structure to zero.
+The constructor with two arguments has the effect of setting all elements
+to zero except for the specified <b>data</b> and <b>size</b> elements.
+<p>In the case where the <b>flags</b> structure element is 0, when the
+application is providing Berkeley DB a key or data item to store into the
+database, Berkeley DB expects the <b>data</b> object to point to a byte string
+of <b>size</b> bytes.  When returning a key/data item to the application,
+Berkeley DB will store into the <b>data</b> object a pointer to a byte string
+of <b>size</b> bytes, and the memory referenced by the pointer will be
+allocated and managed by Berkeley DB.
+<p>The elements of the structure underlying the Dbt class are defined as follows:
+<p><dl compact>
+<p><dt>void *<a name="data">data</a>;<dd>A pointer to a byte string.
+This element is accessed using Dbt::get_data and
+Dbt::set_data, and may be initialized using one
+of the constructors.
+<p><dt>int offset;<dd>The number of bytes offset into the <b>data</b> array to determine the
+portion of the array actually used.
+This element is accessed using Dbt::get_offset and
+Dbt::set_offset.
+<p><dt>u_int32_t size;<dd>The length of <b>data</b>, in bytes.
+This element is accessed using Dbt::get_size and
+Dbt::set_size, and may be initialized
+using the constructor with two arguments.
+<p><dt>u_int32_t ulen;<dd>The size of the user's buffer (referenced by <b>data</b>), in bytes.
+This location is not written by the Db methods.
+<p>Note that applications can determine the length of a record by setting
+the <b>ulen</b> to 0 and checking the return value found in <b>size</b>.
+See the DB_DBT_USERMEM flag for more information.
+<p>This element is accessed using
+Dbt::get_ulen and Dbt::set_ulen.
+<p><dt>u_int32_t dlen;<dd>The length of the partial record being read or written by the application,
+in bytes.
+See the DB_DBT_PARTIAL flag for more information.
+This element is accessed using
+Dbt::get_dlen, and Dbt::set_dlen.
+<p><dt>u_int32_t doff;<dd>The offset of the partial record being read or written by the application,
+in bytes.
+See the DB_DBT_PARTIAL flag for more information.
+This element is accessed using
+Dbt::get_doff and Dbt::set_doff.
+<p><dt>u_int32_t flags;<dd>This element is accessed using Dbt::get_flags and
+Dbt::set_flags.
+<p>The <b>flags</b> value must be set to 0 or by bitwise inclusively <b>OR</b>'ing together one or more
+of the following values.
+<p><dl compact>
+<p><dt><a name="DB_DBT_MALLOC">DB_DBT_MALLOC</a><dd>When this flag is set Berkeley DB will allocate memory for the returned key
+or data item
+(using <b>malloc</b>(3) or the user-specified malloc method) and
+return a pointer to it in the <b>data</b> field of the key or data
+Dbt object.  As any allocated memory becomes the responsibility
+of the calling application, the caller must be able to determine if
+memory was allocated.
+<p>It is an error to specify more than one of DB_DBT_MALLOC,
+DB_DBT_REALLOC and DB_DBT_USERMEM.
+<p><dt><a name="DB_DBT_REALLOC">DB_DBT_REALLOC</a><dd>When this flag is set Berkeley DB
+will allocate memory for the returned key or data item (using
+<b>realloc</b>(3) or the user-specified realloc method) and return
+a pointer to it in the <b>data</b> field of the key or data Dbt
+object.  As any allocated memory becomes the responsibility of the
+calling application, the caller must be able to determine if memory was
+allocated.
+<p>It is an error to specify more than one of DB_DBT_MALLOC,
+DB_DBT_REALLOC and DB_DBT_USERMEM.
+<p><dt><a name="DB_DBT_USERMEM">DB_DBT_USERMEM</a><dd>The <b>data</b> field of the key or data object must reference memory
+that is at least <b>ulen</b> bytes in length.  If the length of the
+requested item is less than or equal to that number of bytes, the item
+is copied into the memory referenced by the <b>data</b> field.
+Otherwise, the <b>size</b> field is set to the length needed for the
+requested item, and the error ENOMEM is returned.
+<p>It is an error to specify more than one of DB_DBT_MALLOC,
+DB_DBT_REALLOC and DB_DBT_USERMEM.
+</dl>
+<p>If DB_DBT_MALLOC or DB_DBT_REALLOC is specified, Berkeley DB
+allocates a properly sized byte array to contain the data.  This can be
+convenient if you know little about the nature of the data, specifically
+the size of data in the database.  However, if your application makes
+repeated calls to retrieve keys or data, you may notice increased garbage
+collection due to this allocation.  If you know the maximum size of data
+you are retrieving, you might decrease the memory burden and speed your
+application by allocating your own byte array and using
+DB_DBT_USERMEM.  Even if you don't know the maximum size, you can
+use this option and reallocate your array whenever your retrieval API call
+returns an ENOMEM error, or throws an exception encapsulating an ENOMEM.
+<p><dl compact>
+<p><dt><a name="DB_DBT_PARTIAL">DB_DBT_PARTIAL</a><dd>Do partial retrieval or storage of an item.  If the calling application
+is doing a get, the <b>dlen</b> bytes starting <b>doff</b> bytes from
+the beginning of the retrieved data record are returned as if they
+comprised the entire record.  If any or all of the specified bytes do
+not exist in the record, the get is successful and the existing bytes
+or nul bytes are returned.
+<p>For example, if the data portion of a retrieved record was 100 bytes,
+and a partial retrieval was done using a Dbt having a <b>dlen</b>
+field of 20 and a <b>doff</b> field of 85, the get call would succeed,
+the <b>data</b> field would reference the last 15 bytes of the record,
+and the <b>size</b> field would be set to 15.
+<p>If the calling application is doing a put, the <b>dlen</b> bytes starting
+<b>doff</b> bytes from the beginning of the specified key's data record
+are replaced by the data specified by the <b>data</b> and <b>size</b>
+objects.
+If <b>dlen</b> is smaller than <b>size</b>, the record will grow, and if
+<b>dlen</b> is larger than <b>size</b>, the record will shrink.
+If the specified bytes do not exist, the record will be extended using nul
+bytes as necessary, and the put call will succeed.
+<p>It is an error to attempt a partial put using the <a href="../api_cxx/db_put.html">Db::put</a>
+method in a database that supports duplicate records.
+Partial puts in databases supporting duplicate records must be done
+using a <a href="../api_cxx/dbc_class.html">Dbc</a> method.
+<p>It is an error to attempt a partial put with differing <b>dlen</b> and
+<b>size</b> values in Queue or Recno databases with fixed-length records.
+<p>For example, if the data portion of a retrieved record was 100 bytes,
+and a partial put was done using a Dbt having a <b>dlen</b>
+field of 20, a <b>doff</b> field of 85, and a <b>size</b> field of 30,
+the resulting record would be 115 bytes in length, where the last 30
+bytes would be those specified by the put call.
+</dl>
+</dl>
+        <a name="4"><!--meow--></a>        <a name="5"><!--meow--></a>    
+<h3>Retrieved key/data permanence</h3>
+<p>When using the non-cursor Berkeley DB calls to retrieve key/data items (e.g.,
+<a href="../api_cxx/db_get.html">Db::get</a>), the memory referenced by the pointer stored into the
+Dbt is only valid until the next call to Berkeley DB using the
+Db handle returned by <a href="../api_cxx/db_open.html">Db::open</a>.  (This includes
+<b>any</b> use of the returned Db handle, including by another
+thread of control within the process.  For this reason, when multiple
+threads are using the returned DB handle concurrently, one of the
+DB_DBT_MALLOC, DB_DBT_REALLOC or DB_DBT_USERMEM
+flags must be specified for any non-cursor Dbt used for key or
+data retrieval.)
+<p>When using the cursor Berkeley DB calls to retrieve key/data items (e.g.,
+<a href="../api_cxx/dbc_get.html">Dbc::get</a>), the memory referenced by the pointer into the
+Dbt is only valid until the next call to Berkeley DB using the
+<a href="../api_cxx/dbc_class.html">Dbc</a> handle returned by <a href="../api_cxx/db_cursor.html">Db::cursor</a>.
+        <a name="6"><!--meow--></a>    
+<h3>Data alignment</h3>
+<p>The Berkeley DB access methods provide no guarantees about key/data byte string
+alignment, and applications are responsible for arranging any necessary
+alignment. The DB_DBT_MALLOC, DB_DBT_REALLOC and
+DB_DBT_USERMEM flags may be used to store returned items in memory
+of arbitrary alignment.
+        <a name="7"><!--meow--></a>    
+<h3>Logical Record Numbers</h3>
+<p>In all cases for the Queue and Recno access methods, and when calling the
+<a href="../api_cxx/db_get.html">Db::get</a> and <a href="../api_cxx/dbc_get.html">Dbc::get</a> functions with the
+<a href="../api_cxx/db_get.html#DB_SET_RECNO">DB_SET_RECNO</a> flag specified, the <b>data</b>
+field of the key must be a pointer to a memory location of type
+<b>db_recno_t</b>, as typedef'd in the #include &lt;db_cxx.h&gt; include file.
+This type is a 32-bit unsigned type,
+(which limits the number of logical records in a Queue or Recno database,
+and the maximum logical record which may be directly retrieved from a
+Btree database, to 4,294,967,296).  The <b>size</b> field of the key
+should be the size of that type, i.e.,
+in the C programming language, <b>sizeof(db_recno_t)</b>.
+<p>Logical record numbers are 1-based, not 0-based, i.e., the first record
+in the database is record number 1.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

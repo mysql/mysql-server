@@ -1,0 +1,6066 @@
+Document file - DO NOT EDIT
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_BUILDRULE
+BerkeleyDB.out
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_AR
+ar386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_ARCHIVE
+$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB_sim.a
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_AS
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_CC
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_CFLAGS
+-g \
+	-mpentium \
+	-ansi \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM \
+	-O0 \
+	-I$(PRJ_DIR) \
+	-I/export/home/db/include \
+	-DDIAGNOSTIC \
+	-DDEBUG \
+	-DHAVE_RPC
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_CFLAGS_AS
+-g \
+	-mpentium \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_CPP
+cc386 -E -P -xc
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_LD
+ld386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_LDFLAGS
+-X -N
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_NM
+nm386 -g
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_POST_BUILD_RULE
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_PRJ_LIBS
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_MACRO_SIZE
+size386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} \
+	{$(WIND_BASE)/target/src/} \
+	{$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCdebug_TC
+::tc_PENTIUMgnu
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_BUILDRULE
+BerkeleyDB.out
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_AR
+ar386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_ARCHIVE
+$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB_sim.a
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_AS
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_CC
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_CFLAGS
+-mpentium \
+	-ansi \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM \
+	-O2 \
+	-I$(PRJ_DIR) \
+	-I/export/home/db/include \
+	-DHAVE_RPC
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_CFLAGS_AS
+-g \
+	-mpentium \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_CPP
+cc386 -E -P -xc
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_LD
+ld386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_LDDEPS
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_LDFLAGS
+-X -N
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_NM
+nm386 -g
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_POST_BUILD_RULE
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_PRJ_LIBS
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_MACRO_SIZE
+size386
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} \
+	{$(WIND_BASE)/target/src/} \
+	{$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_PENTIUM_RPCnodebug_TC
+::tc_PENTIUMgnu
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_BUILDRULE
+BerkeleyDB.out
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_AR
+ar386
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_ARCHIVE
+$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB_sim.a
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_AS
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_CC
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_CFLAGS
+-g \
+	-mpentium \
+	-ansi \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM \
+	-O0 \
+	-I$(PRJ_DIR) \
+	-I/export/home/db/include \
+	-DDIAGNOSTIC \
+	-DDEBUG
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_CFLAGS_AS
+-g \
+	-mpentium \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_CPP
+cc386 -E -P -xc
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_LD
+ld386
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_LDFLAGS
+-X -N
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_NM
+nm386 -g
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_POST_BUILD_RULE
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_PRJ_LIBS
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_MACRO_SIZE
+size386
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} \
+	{$(WIND_BASE)/target/src/} \
+	{$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_PENTIUM_debug_TC
+::tc_PENTIUMgnu
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_BUILDRULE
+BerkeleyDB.out
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_AR
+ar386
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_ARCHIVE
+$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB_sim.a
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_AS
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_CC
+cc386
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_CFLAGS
+-mpentium \
+	-ansi \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM \
+	-O2 \
+	-I$(PRJ_DIR) \
+	-I/export/home/db/include
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_CFLAGS_AS
+-g \
+	-mpentium \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-nostdlib \
+	-fno-builtin \
+	-fno-defer-pop \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PENTIUM
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_CPP
+cc386 -E -P -xc
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_LD
+ld386
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_LDFLAGS
+-X -N
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_NM
+nm386 -g
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_POST_BUILD_RULE
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_PRJ_LIBS
+
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_MACRO_SIZE
+size386
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} \
+	{$(WIND_BASE)/target/src/} \
+	{$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_PENTIUM_nodebug_TC
+::tc_PENTIUMgnu
+<END>
+
+<BEGIN> BUILD_RULE_BerkeleyDB.out
+
+<END>
+
+<BEGIN> BUILD_RULE_BerkeleyDB_sim.out
+
+<END>
+
+<BEGIN> BUILD_RULE_archive
+
+<END>
+
+<BEGIN> BUILD_RULE_objects
+
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_AR
+arsimso
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_ARCHIVE
+$(PRJ_DIR)/SIMSPARCSOLARISgnu/BerkeleyDB.a
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_AS
+ccsimso
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_CC
+ccsimso
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_CFLAGS
+-g \
+	-ansi \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-fno-builtin \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=SIMSPARCSOLARIS \
+	-O2 \
+	-I$(PRJ_DIR) \
+	-I/export/home/db/include
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_CFLAGS_AS
+-g \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-fno-builtin \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=SIMSPARCSOLARIS
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_CPP
+ccsimso -E -P -xc
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_LD
+ccsimso
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_LDFLAGS
+-N
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_LD_PARTIAL_FLAGS
+-nostdlib -r
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_NM
+nmsimso
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_MACRO_SIZE
+sizesimso
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} \
+	{$(WIND_BASE)/target/src/} \
+	{$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_SIMSPARCSOLARISgnu_TC
+::tc_SIMSPARCSOLARISgnu
+<END>
+
+<BEGIN> BUILD__CURRENT
+PENTIUM_RPCdebug
+<END>
+
+<BEGIN> BUILD__LIST
+PENTIUM_nodebug \
+	PENTIUM_RPCdebug \
+	PENTIUM_RPCnodebug \
+	PENTIUM_debug \
+	SIMSPARCSOLARISgnu
+<END>
+
+<BEGIN> CORE_INFO_TYPE
+::prj_vxApp
+<END>
+
+<BEGIN> CORE_INFO_VERSION
+2.0
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_compare.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_compare.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_compare.c_objects
+bt_compare.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_compare.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_conv.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_conv.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_conv.c_objects
+bt_conv.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_conv.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_curadj.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_curadj.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_curadj.c_objects
+bt_curadj.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_curadj.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_cursor.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_cursor.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_cursor.c_objects
+bt_cursor.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_cursor.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_delete.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_delete.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_delete.c_objects
+bt_delete.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_delete.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_method.c_objects
+bt_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_open.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_open.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_open.c_objects
+bt_open.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_open.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_put.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_put.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_put.c_objects
+bt_put.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_put.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rec.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rec.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rec.c_objects
+bt_rec.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rec.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_reclaim.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_reclaim.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_reclaim.c_objects
+bt_reclaim.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_reclaim.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_recno.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_recno.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_recno.c_objects
+bt_recno.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_recno.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rsearch.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rsearch.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rsearch.c_objects
+bt_rsearch.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_rsearch.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_search.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_search.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_search.c_objects
+bt_search.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_search.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_split.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_split.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_split.c_objects
+bt_split.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_split.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_stat.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_stat.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_stat.c_objects
+bt_stat.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_stat.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_upgrade.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_upgrade.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_upgrade.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_upgrade.c_objects
+bt_upgrade.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_upgrade.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_verify.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_verify.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_verify.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_verify.c_objects
+bt_verify.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/bt_verify.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/btree_auto.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/btree_auto.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/btree_auto.c_objects
+btree_auto.o
+<END>
+
+<BEGIN> FILE_/export/home/db/btree/btree_auto.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/getopt.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/getopt.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/getopt.c_objects
+getopt.o
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/getopt.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/snprintf.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/snprintf.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/snprintf.c_objects
+snprintf.o
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/snprintf.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/strcasecmp.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/strcasecmp.c_dependencies
+$(PRJ_DIR)/db_config.h
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/strcasecmp.c_objects
+strcasecmp.o
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/strcasecmp.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/vsnprintf.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/vsnprintf.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/vsnprintf.c_objects
+vsnprintf.o
+<END>
+
+<BEGIN> FILE_/export/home/db/clib/vsnprintf.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_byteorder.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_byteorder.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_byteorder.c_objects
+db_byteorder.o
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_byteorder.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_err.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_err.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/clib_ext.h \
+	/export/home/db/include/db_auto.h
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_err.c_objects
+db_err.o
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_err.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_getlong.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_getlong.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/clib_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_getlong.c_objects
+db_getlong.o
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_getlong.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_log2.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_log2.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_log2.c_objects
+db_log2.o
+<END>
+
+<BEGIN> FILE_/export/home/db/common/db_log2.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_log.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_log.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_log.c_objects
+util_log.o
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_log.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_sig.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_sig.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_sig.c_objects
+util_sig.o
+<END>
+
+<BEGIN> FILE_/export/home/db/common/util_sig.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_auto.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_auto.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_auto.c_objects
+crdel_auto.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_auto.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_rec.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_rec.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_rec.c_objects
+crdel_rec.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/crdel_rec.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db.c_objects
+db.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_am.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_am.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_am.c_objects
+db_am.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_am.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_auto.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_auto.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_auto.c_objects
+db_auto.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_auto.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_cam.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_cam.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_cam.c_objects
+db_cam.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_cam.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_conv.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_conv.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_conv.c_objects
+db_conv.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_conv.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dispatch.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dispatch.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dispatch.c_objects
+db_dispatch.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dispatch.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dup.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dup.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dup.c_objects
+db_dup.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_dup.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_iface.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_iface.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_iface.c_objects
+db_iface.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_iface.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_join.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_join.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_join.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_join.c_objects
+db_join.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_join.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_meta.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_meta.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_meta.c_objects
+db_meta.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_meta.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_method.c_objects
+db_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_overflow.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_overflow.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_verify.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_overflow.c_objects
+db_overflow.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_overflow.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_pr.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_pr.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/db_verify.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_pr.c_objects
+db_pr.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_pr.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_rec.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_rec.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_rec.c_objects
+db_rec.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_rec.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_reclaim.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_reclaim.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_reclaim.c_objects
+db_reclaim.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_reclaim.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_ret.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_ret.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_ret.c_objects
+db_ret.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_ret.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg.c_objects
+db_upg.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg_opd.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg_opd.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg_opd.c_objects
+db_upg_opd.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_upg_opd.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfy.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfy.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/db_verify.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfy.c_objects
+db_vrfy.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfy.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfyutil.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfyutil.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_verify.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfyutil.c_objects
+db_vrfyutil.o
+<END>
+
+<BEGIN> FILE_/export/home/db/db/db_vrfyutil.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_salloc.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_salloc.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_salloc.c_objects
+db_salloc.o
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_salloc.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_shash.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_shash.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_shash.c_objects
+db_shash.o
+<END>
+
+<BEGIN> FILE_/export/home/db/env/db_shash.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_method.c_objects
+env_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_open.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_open.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/clib_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_open.c_objects
+env_open.o
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_open.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_recover.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_recover.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_recover.c_objects
+env_recover.o
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_recover.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_region.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_region.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_region.c_objects
+env_region.o
+<END>
+
+<BEGIN> FILE_/export/home/db/env/env_region.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash.c_objects
+hash.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_auto.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_auto.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_auto.c_objects
+hash_auto.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_auto.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_conv.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_conv.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_conv.c_objects
+hash_conv.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_conv.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_dup.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_dup.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_dup.c_objects
+hash_dup.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_dup.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_func.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_func.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_func.c_objects
+hash_func.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_func.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_meta.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_meta.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_meta.c_objects
+hash_meta.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_meta.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_method.c_objects
+hash_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_page.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_page.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_page.c_objects
+hash_page.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_page.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_rec.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_rec.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_rec.c_objects
+hash_rec.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_rec.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_reclaim.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_reclaim.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_reclaim.c_objects
+hash_reclaim.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_reclaim.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_stat.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_stat.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_stat.c_objects
+hash_stat.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_stat.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_upgrade.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_upgrade.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_upgrade.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_upgrade.c_objects
+hash_upgrade.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_upgrade.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_verify.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_verify.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_verify.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_verify.c_objects
+hash_verify.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hash/hash_verify.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/hsearch/hsearch.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/hsearch/hsearch.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/hsearch/hsearch.c_objects
+hsearch.o
+<END>
+
+<BEGIN> FILE_/export/home/db/hsearch/hsearch.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/include/tcl_db.h_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock.c_objects
+lock.o
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_conflict.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_conflict.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_conflict.c_objects
+lock_conflict.o
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_conflict.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_deadlock.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_deadlock.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_deadlock.c_objects
+lock_deadlock.o
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_deadlock.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_method.c_objects
+lock_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_region.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_region.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_region.c_objects
+lock_region.o
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_region.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_stat.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_stat.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_stat.c_objects
+lock_stat.o
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_stat.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_util.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_util.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_util.c_objects
+lock_util.o
+<END>
+
+<BEGIN> FILE_/export/home/db/lock/lock_util.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log.c_objects
+log.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_archive.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_archive.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/clib_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_archive.c_objects
+log_archive.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_archive.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_auto.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_auto.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_auto.c_objects
+log_auto.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_auto.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_compare.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_compare.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_compare.c_objects
+log_compare.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_compare.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_findckp.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_findckp.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_findckp.c_objects
+log_findckp.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_findckp.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_get.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_get.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_get.c_objects
+log_get.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_get.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_method.c_objects
+log_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_put.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_put.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/hash.h \
+	/export/home/db/include/hash_auto.h \
+	/export/home/db/include/hash_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/clib_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_put.c_objects
+log_put.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_put.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_rec.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_rec.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_rec.c_objects
+log_rec.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_rec.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_register.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_register.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_register.c_objects
+log_register.o
+<END>
+
+<BEGIN> FILE_/export/home/db/log/log_register.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_alloc.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_alloc.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_alloc.c_objects
+mp_alloc.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_alloc.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_bh.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_bh.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/db_page.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_bh.c_objects
+mp_bh.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_bh.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fget.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fget.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fget.c_objects
+mp_fget.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fget.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fopen.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fopen.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fopen.c_objects
+mp_fopen.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fopen.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fput.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fput.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fput.c_objects
+mp_fput.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fput.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fset.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fset.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fset.c_objects
+mp_fset.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_fset.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_method.c_objects
+mp_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_region.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_region.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_region.c_objects
+mp_region.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_region.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_register.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_register.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_register.c_objects
+mp_register.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_register.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_stat.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_stat.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_stat.c_objects
+mp_stat.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_stat.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_sync.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_sync.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_sync.c_objects
+mp_sync.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_sync.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_trickle.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_trickle.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_trickle.c_objects
+mp_trickle.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mp/mp_trickle.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mut_tas.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mut_tas.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mut_tas.c_objects
+mut_tas.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mut_tas.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mutex.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mutex.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mutex.c_objects
+mutex.o
+<END>
+
+<BEGIN> FILE_/export/home/db/mutex/mutex.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_alloc.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_alloc.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_alloc.c_objects
+os_alloc.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_alloc.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_dir.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_dir.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_dir.c_objects
+os_dir.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_dir.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_errno.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_errno.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_errno.c_objects
+os_errno.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_errno.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fid.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fid.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fid.c_objects
+os_fid.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fid.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fsync.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fsync.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fsync.c_objects
+os_fsync.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_fsync.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_handle.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_handle.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_handle.c_objects
+os_handle.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_handle.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_method.c_objects
+os_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_oflags.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_oflags.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_oflags.c_objects
+os_oflags.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_oflags.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_open.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_open.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_open.c_objects
+os_open.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_open.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_region.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_region.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_region.c_objects
+os_region.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_region.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rename.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rename.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rename.c_objects
+os_rename.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rename.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_root.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_root.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_root.c_objects
+os_root.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_root.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rpath.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rpath.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rpath.c_objects
+os_rpath.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rpath.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rw.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rw.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rw.c_objects
+os_rw.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_rw.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_seek.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_seek.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_seek.c_objects
+os_seek.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_seek.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_sleep.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_sleep.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_sleep.c_objects
+os_sleep.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_sleep.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_spin.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_spin.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_spin.c_objects
+os_spin.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_spin.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_stat.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_stat.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_stat.c_objects
+os_stat.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_stat.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_tmpdir.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_tmpdir.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_tmpdir.c_objects
+os_tmpdir.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_tmpdir.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_unlink.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_unlink.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/os_jump.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_unlink.c_objects
+os_unlink.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os/os_unlink.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_abs.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_abs.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_abs.c_objects
+os_abs.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_abs.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_finit.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_finit.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_finit.c_objects
+os_finit.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_finit.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_map.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_map.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_map.c_objects
+os_map.o
+<END>
+
+<BEGIN> FILE_/export/home/db/os_vxworks/os_map.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam.c_objects
+qam.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_auto.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_auto.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_auto.c_objects
+qam_auto.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_auto.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_conv.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_conv.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_conv.c_objects
+qam_conv.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_conv.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_files.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_files.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/btree.h \
+	/export/home/db/include/btree_auto.h \
+	/export/home/db/include/btree_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_files.c_objects
+qam_files.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_files.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_method.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_method.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_method.c_objects
+qam_method.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_method.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_open.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_open.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_open.c_objects
+qam_open.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_open.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_rec.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_rec.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_rec.c_objects
+qam_rec.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_rec.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_stat.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_stat.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_stat.c_objects
+qam_stat.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_stat.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_upgrade.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_upgrade.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_swap.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/db_upgrade.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_upgrade.c_objects
+qam_upgrade.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_upgrade.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_verify.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_verify.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_verify.h \
+	/export/home/db/include/qam.h \
+	/export/home/db/include/qam_auto.h \
+	/export/home/db/include/qam_ext.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_verify.c_objects
+qam_verify.o
+<END>
+
+<BEGIN> FILE_/export/home/db/qam/qam_verify.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/client.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/client.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/client.c_objects
+client.o
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/client.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/db_server_clnt.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/db_server_clnt.c_dependencies
+$(PRJ_DIR)/db_config.h /export/home/db/include/db_server.h
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/db_server_clnt.c_objects
+db_server_clnt.o
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/db_server_clnt.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/mp.h \
+	/export/home/db/include/mp_ext.h \
+	/export/home/db/include/rpc_client_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/gen_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client.c_objects
+gen_client.o
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client_ret.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client_ret.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client_ret.c_objects
+gen_client_ret.o
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_client/gen_client_ret.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_server/db_server_xdr.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_server/db_server_xdr.c_dependencies
+$(PRJ_DIR)/db_config.h /export/home/db/include/db_server.h
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_server/db_server_xdr.c_objects
+db_server_xdr.o
+<END>
+
+<BEGIN> FILE_/export/home/db/rpc_server/db_server_xdr.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_shash.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/lock.h \
+	/export/home/db/include/lock_ext.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn.c_objects
+txn.o
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_auto.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_auto.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_auto.c_objects
+txn_auto.o
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_auto.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_rec.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_rec.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_rec.c_objects
+txn_rec.o
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_rec.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_region.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_region.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	/export/home/db/include/db_server.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h \
+	/export/home/db/include/gen_client_ext.h \
+	/export/home/db/include/rpc_client_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_region.c_objects
+txn_region.o
+<END>
+
+<BEGIN> FILE_/export/home/db/txn/txn_region.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/db_page.h \
+	/export/home/db/include/log.h \
+	/export/home/db/include/log_auto.h \
+	/export/home/db/include/log_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/db_am.h \
+	/export/home/db/include/db_dispatch.h \
+	/export/home/db/include/db_auto.h \
+	/export/home/db/include/crdel_auto.h \
+	/export/home/db/include/db_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa.c_objects
+xa.o
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_db.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_db.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/xa_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_db.c_objects
+xa_db.o
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_db.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_map.c_dependDone
+TRUE
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_map.c_dependencies
+$(PRJ_DIR)/db_config.h \
+	$(PRJ_DIR)/db_int.h \
+	$(PRJ_DIR)/db.h \
+	/export/home/db/include/queue.h \
+	/export/home/db/include/shqueue.h \
+	/export/home/db/include/debug.h \
+	/export/home/db/include/mutex.h \
+	/export/home/db/include/region.h \
+	/export/home/db/include/mutex_ext.h \
+	/export/home/db/include/env_ext.h \
+	/export/home/db/include/os.h \
+	/export/home/db/include/os_ext.h \
+	/export/home/db/include/common_ext.h \
+	/export/home/db/include/txn.h \
+	/export/home/db/include/xa.h \
+	/export/home/db/include/txn_auto.h \
+	/export/home/db/include/txn_ext.h \
+	/export/home/db/include/xa_ext.h
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_map.c_objects
+xa_map.o
+<END>
+
+<BEGIN> FILE_/export/home/db/xa/xa_map.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> PROJECT_FILES
+/export/home/db/hsearch/hsearch.c \
+	/export/home/db/mp/mp_trickle.c \
+	/export/home/db/mp/mp_bh.c \
+	/export/home/db/mp/mp_fget.c \
+	/export/home/db/mp/mp_fopen.c \
+	/export/home/db/mp/mp_fput.c \
+	/export/home/db/mp/mp_fset.c \
+	/export/home/db/mp/mp_method.c \
+	/export/home/db/mp/mp_region.c \
+	/export/home/db/mp/mp_register.c \
+	/export/home/db/mp/mp_stat.c \
+	/export/home/db/mp/mp_sync.c \
+	/export/home/db/mp/mp_alloc.c \
+	/export/home/db/db/crdel_rec.c \
+	/export/home/db/db/db.c \
+	/export/home/db/db/db_am.c \
+	/export/home/db/db/db_auto.c \
+	/export/home/db/db/db_cam.c \
+	/export/home/db/db/db_conv.c \
+	/export/home/db/db/db_dispatch.c \
+	/export/home/db/db/db_dup.c \
+	/export/home/db/db/db_iface.c \
+	/export/home/db/db/db_join.c \
+	/export/home/db/db/db_meta.c \
+	/export/home/db/db/db_method.c \
+	/export/home/db/db/db_overflow.c \
+	/export/home/db/db/db_pr.c \
+	/export/home/db/db/db_rec.c \
+	/export/home/db/db/db_reclaim.c \
+	/export/home/db/db/db_ret.c \
+	/export/home/db/db/crdel_auto.c \
+	/export/home/db/clib/getopt.c \
+	/export/home/db/clib/snprintf.c \
+	/export/home/db/clib/strcasecmp.c \
+	/export/home/db/os/os_unlink.c \
+	/export/home/db/os/os_alloc.c \
+	/export/home/db/os/os_dir.c \
+	/export/home/db/os/os_errno.c \
+	/export/home/db/os/os_fid.c \
+	/export/home/db/os/os_fsync.c \
+	/export/home/db/os/os_handle.c \
+	/export/home/db/os/os_method.c \
+	/export/home/db/os/os_oflags.c \
+	/export/home/db/os/os_open.c \
+	/export/home/db/os/os_region.c \
+	/export/home/db/os/os_rename.c \
+	/export/home/db/os/os_root.c \
+	/export/home/db/os/os_rpath.c \
+	/export/home/db/os/os_rw.c \
+	/export/home/db/os/os_seek.c \
+	/export/home/db/os/os_spin.c \
+	/export/home/db/os/os_stat.c \
+	/export/home/db/os/os_tmpdir.c \
+	/export/home/db/qam/qam_upgrade.c \
+	/export/home/db/qam/qam_auto.c \
+	/export/home/db/qam/qam_conv.c \
+	/export/home/db/qam/qam_method.c \
+	/export/home/db/qam/qam_open.c \
+	/export/home/db/qam/qam_rec.c \
+	/export/home/db/qam/qam_stat.c \
+	/export/home/db/qam/qam.c \
+	/export/home/db/hash/hash_upgrade.c \
+	/export/home/db/hash/hash_auto.c \
+	/export/home/db/hash/hash_conv.c \
+	/export/home/db/hash/hash_dup.c \
+	/export/home/db/hash/hash_func.c \
+	/export/home/db/hash/hash_meta.c \
+	/export/home/db/hash/hash_method.c \
+	/export/home/db/hash/hash_page.c \
+	/export/home/db/hash/hash_rec.c \
+	/export/home/db/hash/hash_reclaim.c \
+	/export/home/db/hash/hash_stat.c \
+	/export/home/db/hash/hash.c \
+	/export/home/db/xa/xa_map.c \
+	/export/home/db/xa/xa_db.c \
+	/export/home/db/xa/xa.c \
+	/export/home/db/btree/btree_auto.c \
+	/export/home/db/btree/bt_conv.c \
+	/export/home/db/btree/bt_curadj.c \
+	/export/home/db/btree/bt_cursor.c \
+	/export/home/db/btree/bt_delete.c \
+	/export/home/db/btree/bt_method.c \
+	/export/home/db/btree/bt_open.c \
+	/export/home/db/btree/bt_put.c \
+	/export/home/db/btree/bt_rec.c \
+	/export/home/db/btree/bt_reclaim.c \
+	/export/home/db/btree/bt_recno.c \
+	/export/home/db/btree/bt_rsearch.c \
+	/export/home/db/btree/bt_search.c \
+	/export/home/db/btree/bt_split.c \
+	/export/home/db/btree/bt_stat.c \
+	/export/home/db/btree/bt_upgrade.c \
+	/export/home/db/btree/bt_compare.c \
+	/export/home/db/common/db_log2.c \
+	/export/home/db/common/db_err.c \
+	/export/home/db/common/db_getlong.c \
+	/export/home/db/common/db_byteorder.c \
+	/export/home/db/env/env_region.c \
+	/export/home/db/env/db_shash.c \
+	/export/home/db/env/env_method.c \
+	/export/home/db/env/env_open.c \
+	/export/home/db/env/env_recover.c \
+	/export/home/db/env/db_salloc.c \
+	/export/home/db/lock/lock_util.c \
+	/export/home/db/lock/lock_conflict.c \
+	/export/home/db/lock/lock_deadlock.c \
+	/export/home/db/lock/lock_region.c \
+	/export/home/db/lock/lock.c \
+	/export/home/db/txn/txn_region.c \
+	/export/home/db/txn/txn_auto.c \
+	/export/home/db/txn/txn_rec.c \
+	/export/home/db/txn/txn.c \
+	/export/home/db/log/log_register.c \
+	/export/home/db/log/log_archive.c \
+	/export/home/db/log/log_auto.c \
+	/export/home/db/log/log_compare.c \
+	/export/home/db/log/log_findckp.c \
+	/export/home/db/log/log_get.c \
+	/export/home/db/log/log_method.c \
+	/export/home/db/log/log_put.c \
+	/export/home/db/log/log_rec.c \
+	/export/home/db/log/log.c \
+	/export/home/db/mutex/mut_tas.c \
+	/export/home/db/mutex/mutex.c \
+	/export/home/db/clib/vsnprintf.c \
+	/export/home/db/common/util_log.c \
+	/export/home/db/common/util_sig.c \
+	/export/home/db/os/os_sleep.c \
+	/export/home/db/btree/bt_verify.c \
+	/export/home/db/hash/hash_verify.c \
+	/export/home/db/qam/qam_verify.c \
+	/export/home/db/db/db_upg_opd.c \
+	/export/home/db/rpc_client/gen_client_ret.c \
+	/export/home/db/rpc_client/db_server_clnt.c \
+	/export/home/db/rpc_client/gen_client.c \
+	/export/home/db/rpc_client/client.c \
+	/export/home/db/include/tcl_db.h \
+	/export/home/db/rpc_server/db_server_xdr.c \
+	/export/home/db/os_vxworks/os_map.c \
+	/export/home/db/db/db_vrfy.c \
+	/export/home/db/db/db_upg.c \
+	/export/home/db/db/db_vrfyutil.c \
+	/export/home/db/os_vxworks/os_finit.c \
+	/export/home/db/os_vxworks/os_abs.c \
+	/export/home/db/lock/lock_method.c \
+	/export/home/db/lock/lock_stat.c \
+	/export/home/db/qam/qam_files.c
+<END>
+
+<BEGIN> userComments
+BerkeleyDB
+<END>
+

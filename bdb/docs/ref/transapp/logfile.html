@@ -1,0 +1,104 @@
+<!--$Id: logfile.so,v 11.1 2000/07/25 16:31:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Log file removal</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/archival.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/recovery.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Log file removal</h1>
+<p>The fourth component of the infrastructure, log file removal, concerns
+the ongoing disk consumption of the database log files.  Depending on
+the rate at which the application writes to the databases and the
+available disk space, the number of log files may increase quickly
+enough that disk space will be a resource problem.  For this reason,
+you will periodically want to remove log files in order to conserve disk
+space.  This procedure is distinct from database and log file archival
+for catastrophic recovery, and you cannot remove the current log files
+simply because you have created a database snapshot or copied log files
+to archival media.
+<p>Log files may be removed at any time, as long as:
+<ul type=disc>
+<li>the log file is not involved in an active transaction
+<li>at least two checkpoints have been written subsequent to the
+log file's creation, and
+<li>the log file is not the only log file in the environment.
+</ul>
+<p>Obviously, if you are preparing for catastrophic failure, you will want
+to copy the log files to archival media before you remove them.
+<p>To remove log files, take the following steps:
+<p><ol>
+<p><li>If you are concerned with catastrophic failure, first copy the log files
+to backup media as described in <a href="archival.html">Archival for
+catastrophic recovery</a>.
+<p><li>Run <a href="../../utility/db_archive.html">db_archive</a> without options to identify all of the log files
+that are no longer in use (e.g., no longer involved in an active
+transaction).
+<p><li>Remove those log files from the system.
+</ol>
+<p>The functionality provided by the <a href="../../utility/db_archive.html">db_archive</a> utility is also
+available directly from the Berkeley DB library.  The following code fragment
+removes log files that are no longer needed by the database
+environment.
+<p><blockquote><pre>int
+main(int argc, char *argv)
+{
+	...
+<p>
+<b>	/* Start a logfile removal thread. */
+	if ((errno = pthread_create(
+	    &ptid, NULL, logfile_thread, (void *)dbenv)) != 0) {
+		fprintf(stderr,
+		    "txnapp: failed spawning log file removal thread: %s\n",
+		    strerror(errno));
+		exit (1);
+	}</b>
+<p>
+	...
+}
+<p>
+<b>void *
+logfile_thread(void *arg)
+{
+	DB_ENV *dbenv;
+	int ret;
+	char **begin, **list;
+<p>
+	dbenv = arg;
+	dbenv-&gt;errx(dbenv,
+	    "Log file removal thread: %lu", (u_long)pthread_self());
+<p>
+	/* Check once every 5 minutes. */
+	for (;; sleep(300)) {
+		/* Get the list of log files. */
+		if ((ret = log_archive(dbenv, &list, DB_ARCH_ABS, NULL)) != 0) {
+			dbenv-&gt;err(dbenv, ret, "log_archive");
+			exit (1);
+		}
+<p>
+		/* Remove the log files. */
+		if (list != NULL) {
+			for (begin = list; *list != NULL; ++list)
+				if ((ret = remove(*list)) != 0) {
+					dbenv-&gt;err(dbenv,
+					    ret, "remove %s", *list);
+					exit (1);
+				}
+			free (begin);
+		}
+	}
+	/* NOTREACHED */
+}</b></pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/archival.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/recovery.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

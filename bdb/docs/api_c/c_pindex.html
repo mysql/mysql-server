@@ -1,0 +1,530 @@
+<html>
+<head>
+<title>Berkeley DB: C Interface Index</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<h1 align=center>C Interface Index</h1>
+<center>
+<table cellspacing=0 cellpadding=0>
+<tr><td align=right>    configuring Berkeley DB </td><td><a href="../ref/build_unix/conf.html#5">1.85</a> API compatibility</td></tr>
+<tr><td align=right>    building a utility to dump Berkeley DB </td><td><a href="../ref/build_unix/conf.html#7">1.85</a> databases</td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.2.0/intro.html#2">2.0</a></td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.3.0/intro.html#2">3.0</a></td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.3.1/intro.html#2">3.1</a></td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.3.2/intro.html#2">3.2</a></td></tr>
+<tr><td align=right>    selecting an </td><td><a href="../ref/am_conf/select.html#2">access</a> method</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/intro.html#2">access</a> methods</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/aix.html#2">AIX</a></td></tr>
+<tr><td align=right>    data </td><td><a href="../api_c/dbt.html#5">alignment</a></td></tr>
+<tr><td align=right>    programmatic </td><td><a href="../ref/arch/apis.html#2">APIs</a></td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_archive.html#3">archive</a> log files</td></tr>
+<tr><td align=right>    </td><td><a href="../utility/berkeley_db_svc.html#2">berkeley_db_svc</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/intro.html#2">building</a> for UNIX</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/notes.html#2">building</a> for UNIX FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_vxworks/intro.html#2">building</a> for VxWorks</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_vxworks/faq.html#2">building</a> for VxWorks FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_win/intro.html#2">building</a> for Win32</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_win/faq.html#2">building</a> for Windows FAQ</td></tr>
+<tr><td align=right>    selecting a </td><td><a href="../ref/am_conf/byteorder.html#2">byte</a> order</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/byteorder.html#2">byte</a> ordering</td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#6">C++</a> API</td></tr>
+<tr><td align=right>    flushing the database </td><td><a href="../ref/am/sync.html#2">cache</a></td></tr>
+<tr><td align=right>    selecting a </td><td><a href="../ref/am_conf/cachesize.html#2">cache</a> size</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/archival.html#3">catastrophic</a> recovery</td></tr>
+<tr><td align=right>Patches, Updates and </td><td><a href="http://www.sleepycat.com/update/index.html">Change</a> logs</td></tr>
+<tr><td align=right>    utility to take </td><td><a href="../utility/db_checkpoint.html#3">checkpoints</a></td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#clear_len">clear_len</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curclose.html#2">closing</a> a cursor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/close.html#2">closing</a> a database</td></tr>
+<tr><td align=right>    specifying a Btree </td><td><a href="../ref/am_conf/bt_compare.html#2">comparison</a> function</td></tr>
+<tr><td align=right>    changing </td><td><a href="../ref/build_unix/flags.html#2">compile</a> or load options</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/cam/intro.html#2">Concurrent</a> Data Store</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/conf.html#2">configuring</a> Berkeley DB for UNIX systems</td></tr>
+<tr><td align=right>    recovering </td><td><a href="../ref/am/verify.html#4">corrupted</a> databases</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/count.html#2">counting</a> data items for a key</td></tr>
+<tr><td align=right>    closing a </td><td><a href="../ref/am/curclose.html#3">cursor</a></td></tr>
+<tr><td align=right>    deleting records with a </td><td><a href="../ref/am/curdel.html#3">cursor</a></td></tr>
+<tr><td align=right>    duplicating a </td><td><a href="../ref/am/curdup.html#3">cursor</a></td></tr>
+<tr><td align=right>    retrieving records with a </td><td><a href="../ref/am/curget.html#3">cursor</a></td></tr>
+<tr><td align=right>    storing records with a </td><td><a href="../ref/am/curput.html#3">cursor</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/stability.html#2">cursor</a> stability</td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/cursor.html#2">cursors</a></td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#data">data</a></td></tr>
+<tr><td align=right>    utility to upgrade </td><td><a href="../utility/db_upgrade.html#3">database</a> files</td></tr>
+<tr><td align=right>    utility to verify </td><td><a href="../utility/db_verify.html#3">database</a> files</td></tr>
+<tr><td align=right>DBcursor-&gt;c_put</td><td><a href="../api_c/dbc_put.html#DB_AFTER">DB_AFTER</a></td></tr>
+<tr><td align=right>DB-&gt;verify</td><td><a href="../api_c/db_verify.html#DB_AGGRESSIVE">DB_AGGRESSIVE</a></td></tr>
+<tr><td align=right>DB-&gt;put</td><td><a href="../api_c/db_put.html#DB_APPEND">DB_APPEND</a></td></tr>
+<tr><td align=right>log_archive</td><td><a href="../api_c/log_archive.html#DB_ARCH_ABS">DB_ARCH_ABS</a></td></tr>
+<tr><td align=right>log_archive</td><td><a href="../api_c/log_archive.html#DB_ARCH_DATA">DB_ARCH_DATA</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_archive.html#2">db_archive</a></td></tr>
+<tr><td align=right>log_archive</td><td><a href="../api_c/log_archive.html#DB_ARCH_LOG">DB_ARCH_LOG</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_put</td><td><a href="../api_c/dbc_put.html#DB_BEFORE">DB_BEFORE</a></td></tr>
+<tr><td align=right>DB-&gt;stat</td><td><a href="../api_c/db_stat.html#DB_CACHED_COUNTS">DB_CACHED_COUNTS</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_flags</td><td><a href="../api_c/env_set_flags.html#DB_CDB_ALLDB">DB_CDB_ALLDB</a></td></tr>
+<tr><td align=right>log_get</td><td><a href="../api_c/log_get.html#DB_CHECKPOINT">DB_CHECKPOINT</a></td></tr>
+<tr><td align=right>log_put</td><td><a href="../api_c/log_put.html#DB_CHECKPOINT">DB_CHECKPOINT</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_checkpoint.html#2">db_checkpoint</a></td></tr>
+<tr><td align=right>db_env_create</td><td><a href="../api_c/env_create.html#DB_CLIENT">DB_CLIENT</a></td></tr>
+<tr><td align=right>File naming</td><td><a href="../ref/env/naming.html#DB_CONFIG">DB_CONFIG</a></td></tr>
+<tr><td align=right>DB-&gt;get</td><td><a href="../api_c/db_get.html#DB_CONSUME">DB_CONSUME</a></td></tr>
+<tr><td align=right>DB-&gt;get</td><td><a href="../api_c/db_get.html#DB_CONSUME_WAIT">DB_CONSUME_WAIT</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_create.html#2">db_create</a></td></tr>
+<tr><td align=right>DB-&gt;open</td><td><a href="../api_c/db_open.html#DB_CREATE">DB_CREATE</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_CREATE">DB_CREATE</a></td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#DB_CREATE">DB_CREATE</a></td></tr>
+<tr><td align=right>log_put</td><td><a href="../api_c/log_put.html#DB_CURLSN">DB_CURLSN</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_CURRENT">DB_CURRENT</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_put</td><td><a href="../api_c/dbc_put.html#DB_CURRENT">DB_CURRENT</a></td></tr>
+<tr><td align=right>log_get</td><td><a href="../api_c/log_get.html#DB_CURRENT">DB_CURRENT</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbc_close.html#2">DBcursor-&gt;c_close</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbc_count.html#2">DBcursor-&gt;c_count</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbc_del.html#2">DBcursor-&gt;c_del</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbc_dup.html#2">DBcursor-&gt;c_dup</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbc_get.html#2">DBcursor-&gt;c_get</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbc_put.html#2">DBcursor-&gt;c_put</a></td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#DB_DBT_MALLOC">DB_DBT_MALLOC</a></td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#DB_DBT_PARTIAL">DB_DBT_PARTIAL</a></td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#DB_DBT_REALLOC">DB_DBT_REALLOC</a></td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#DB_DBT_USERMEM">DB_DBT_USERMEM</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_deadlock.html#2">db_deadlock</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_dump.html#2">db_dump</a></td></tr>
+<tr><td align=right>DB-&gt;set_flags</td><td><a href="../api_c/db_set_flags.html#DB_DUP">DB_DUP</a></td></tr>
+<tr><td align=right>DB-&gt;set_flags</td><td><a href="../api_c/db_set_flags.html#DB_DUPSORT">DB_DUPSORT</a></td></tr>
+<tr><td align=right>DB-&gt;upgrade</td><td><a href="../api_c/db_upgrade.html#DB_DUPSORT">DB_DUPSORT</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_create.html#2">db_env_create</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_close.html#2">DBENV-&gt;close</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_err.html#2">DBENV-&gt;err</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_open.html#2">DBENV-&gt;open</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_remove.html#2">DBENV-&gt;remove</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_cachesize.html#2">DBENV-&gt;set_cachesize</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_data_dir.html#2">DBENV-&gt;set_data_dir</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_errcall.html#2">DBENV-&gt;set_errcall</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_errfile.html#2">DBENV-&gt;set_errfile</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_errpfx.html#2">DBENV-&gt;set_errpfx</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_feedback.html#2">DBENV-&gt;set_feedback</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_flags.html#2">DBENV-&gt;set_flags</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lg_bsize.html#2">DBENV-&gt;set_lg_bsize</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lg_dir.html#2">DBENV-&gt;set_lg_dir</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lg_max.html#2">DBENV-&gt;set_lg_max</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lk_conflicts.html#2">DBENV-&gt;set_lk_conflicts</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lk_detect.html#2">DBENV-&gt;set_lk_detect</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lk_max.html#2">DBENV-&gt;set_lk_max</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lk_max_lockers.html#2">DBENV-&gt;set_lk_max_lockers</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lk_max_locks.html#2">DBENV-&gt;set_lk_max_locks</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_lk_max_objects.html#2">DBENV-&gt;set_lk_max_objects</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_mp_mmapsize.html#2">DBENV-&gt;set_mp_mmapsize</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_mutexlocks.html#2">DBENV-&gt;set_mutexlocks</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_paniccall.html#2">DBENV-&gt;set_paniccall</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_rec_init.html#2">DBENV-&gt;set_recovery_init</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_server.html#2">DBENV-&gt;set_server</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_shm_key.html#2">DBENV-&gt;set_shm_key</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_tmp_dir.html#2">DBENV-&gt;set_tmp_dir</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_tx_max.html#2">DBENV-&gt;set_tx_max</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_tx_recover.html#2">DBENV-&gt;set_tx_recover</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_tx_timestamp.html#2">DBENV-&gt;set_tx_timestamp</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_verbose.html#2">DBENV-&gt;set_verbose</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_close.html#2">db_env_set_func_close</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_dirfree.html#2">db_env_set_func_dirfree</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_dirlist.html#2">db_env_set_func_dirlist</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_exists.html#2">db_env_set_func_exists</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_free.html#2">db_env_set_func_free</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_fsync.html#2">db_env_set_func_fsync</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_ioinfo.html#2">db_env_set_func_ioinfo</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_malloc.html#2">db_env_set_func_malloc</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_map.html#2">db_env_set_func_map</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_open.html#2">db_env_set_func_open</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_read.html#2">db_env_set_func_read</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_realloc.html#2">db_env_set_func_realloc</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_rename.html#2">db_env_set_func_rename</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_seek.html#2">db_env_set_func_seek</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_sleep.html#2">db_env_set_func_sleep</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_unlink.html#2">db_env_set_func_unlink</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_unmap.html#2">db_env_set_func_unmap</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_write.html#2">db_env_set_func_write</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/set_func_yield.html#2">db_env_set_func_yield</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_pageyield.html#2">db_env_set_pageyield</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_panicstate.html#2">db_env_set_panicstate</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_region_init.html#2">db_env_set_region_init</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_set_tas_spins.html#2">db_env_set_tas_spins</a></td></tr>
+<tr><td align=right>DB-&gt;open</td><td><a href="../api_c/db_open.html#DB_EXCL">DB_EXCL</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_FIRST">DB_FIRST</a></td></tr>
+<tr><td align=right>log_get</td><td><a href="../api_c/log_get.html#DB_FIRST">DB_FIRST</a></td></tr>
+<tr><td align=right>log_put</td><td><a href="../api_c/log_put.html#DB_FLUSH">DB_FLUSH</a></td></tr>
+<tr><td align=right>DBENV-&gt;remove</td><td><a href="../api_c/env_remove.html#DB_FORCE">DB_FORCE</a></td></tr>
+<tr><td align=right>txn_checkpoint</td><td><a href="../api_c/txn_checkpoint.html#DB_FORCE">DB_FORCE</a></td></tr>
+<tr><td align=right>DB-&gt;get</td><td><a href="../api_c/db_get.html#DB_GET_BOTH">DB_GET_BOTH</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_GET_BOTH">DB_GET_BOTH</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_GET_RECNO">DB_GET_RECNO</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_close.html#2">DB-&gt;close</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_cursor.html#2">DB-&gt;cursor</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_del.html#2">DB-&gt;del</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_fd.html#2">DB-&gt;fd</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_get.html#2">DB-&gt;get</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_get_byteswapped.html#2">DB-&gt;get_byteswapped</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_get_type.html#2">DB-&gt;get_type</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_join.html#2">DB-&gt;join</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_key_range.html#2">DB-&gt;key_range</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_open.html#2">DB-&gt;open</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_put.html#2">DB-&gt;put</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_remove.html#2">DB-&gt;remove</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_rename.html#2">DB-&gt;rename</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_append_recno.html#2">DB-&gt;set_append_recno</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_bt_compare.html#2">DB-&gt;set_bt_compare</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_bt_minkey.html#2">DB-&gt;set_bt_minkey</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_bt_prefix.html#2">DB-&gt;set_bt_prefix</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_cachesize.html#2">DB-&gt;set_cachesize</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_dup_compare.html#2">DB-&gt;set_dup_compare</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_errcall.html#2">DB-&gt;set_errcall</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_errfile.html#2">DB-&gt;set_errfile</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_errpfx.html#2">DB-&gt;set_errpfx</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_feedback.html#2">DB-&gt;set_feedback</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_flags.html#2">DB-&gt;set_flags</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_h_ffactor.html#2">DB-&gt;set_h_ffactor</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_h_hash.html#2">DB-&gt;set_h_hash</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_h_nelem.html#2">DB-&gt;set_h_nelem</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_lorder.html#2">DB-&gt;set_lorder</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_malloc.html#2">DB-&gt;set_malloc</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_pagesize.html#2">DB-&gt;set_pagesize</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_paniccall.html#2">DB-&gt;set_paniccall</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_q_extentsize.html#2">DB-&gt;set_q_extentsize</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_realloc.html#2">DB-&gt;set_realloc</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_re_delim.html#2">DB-&gt;set_re_delim</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_re_len.html#2">DB-&gt;set_re_len</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_re_pad.html#2">DB-&gt;set_re_pad</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_set_re_source.html#2">DB-&gt;set_re_source</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_stat.html#2">DB-&gt;stat</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_sync.html#2">DB-&gt;sync</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_upgrade.html#2">DB-&gt;upgrade</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_verify.html#2">DB-&gt;verify</a></td></tr>
+<tr><td align=right>File naming</td><td><a href="../ref/env/naming.html#DB_HOME">DB_HOME</a></td></tr>
+<tr><td align=right>File naming</td><td><a href="../ref/env/naming.html#db_home">db_home</a></td></tr>
+<tr><td align=right>    DB-&gt;close </td><td><a href="../api_c/db_close.html#3">DB_INCOMPLETE</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_INIT_LOG">DB_INIT_LOG</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_JOINENV">DB_JOINENV</a></td></tr>
+<tr><td align=right>DB-&gt;join</td><td><a href="../api_c/db_join.html#DB_JOIN_ITEM">DB_JOIN_ITEM</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_JOIN_ITEM">DB_JOIN_ITEM</a></td></tr>
+<tr><td align=right>DB-&gt;join</td><td><a href="../api_c/db_join.html#DB_JOIN_NOSORT">DB_JOIN_NOSORT</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_KEYEMPTY">DB_KEYEMPTY</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_put</td><td><a href="../api_c/dbc_put.html#DB_KEYFIRST">DB_KEYFIRST</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_put</td><td><a href="../api_c/dbc_put.html#DB_KEYLAST">DB_KEYLAST</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_LAST">DB_LAST</a></td></tr>
+<tr><td align=right>log_get</td><td><a href="../api_c/log_get.html#DB_LAST">DB_LAST</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_load.html#2">db_load</a></td></tr>
+<tr><td align=right>lock_detect</td><td><a href="../api_c/lock_detect.html#DB_LOCK_CONFLICT">DB_LOCK_CONFLICT</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_lk_detect</td><td><a href="../api_c/env_set_lk_detect.html#DB_LOCK_DEFAULT">DB_LOCK_DEFAULT</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_LOCKDOWN">DB_LOCKDOWN</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#DB_LOCK_GET">DB_LOCK_GET</a></td></tr>
+<tr><td align=right>lock_get</td><td><a href="../api_c/lock_get.html#DB_LOCK_NOTGRANTED">DB_LOCK_NOTGRANTED</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#DB_LOCK_NOTGRANTED">DB_LOCK_NOTGRANTED</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_LOCK_NOTGRANTED">DB_LOCK_NOTGRANTED</a></td></tr>
+<tr><td align=right>lock_get</td><td><a href="../api_c/lock_get.html#DB_LOCK_NOWAIT">DB_LOCK_NOWAIT</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#DB_LOCK_NOWAIT">DB_LOCK_NOWAIT</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_lk_detect</td><td><a href="../api_c/env_set_lk_detect.html#DB_LOCK_OLDEST">DB_LOCK_OLDEST</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#DB_LOCK_PUT">DB_LOCK_PUT</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#DB_LOCK_PUT_ALL">DB_LOCK_PUT_ALL</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#DB_LOCK_PUT_OBJ">DB_LOCK_PUT_OBJ</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_lk_detect</td><td><a href="../api_c/env_set_lk_detect.html#DB_LOCK_RANDOM">DB_LOCK_RANDOM</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_lk_detect</td><td><a href="../api_c/env_set_lk_detect.html#DB_LOCK_YOUNGEST">DB_LOCK_YOUNGEST</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/db_lsn.html#2">DB_LSN</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbm.html#2">dbm/ndbm</a></td></tr>
+<tr><td align=right>memp_fput</td><td><a href="../api_c/memp_fput.html#DB_MPOOL_CLEAN">DB_MPOOL_CLEAN</a></td></tr>
+<tr><td align=right>memp_fset</td><td><a href="../api_c/memp_fset.html#DB_MPOOL_CLEAN">DB_MPOOL_CLEAN</a></td></tr>
+<tr><td align=right>memp_fget</td><td><a href="../api_c/memp_fget.html#DB_MPOOL_CREATE">DB_MPOOL_CREATE</a></td></tr>
+<tr><td align=right>memp_fput</td><td><a href="../api_c/memp_fput.html#DB_MPOOL_DIRTY">DB_MPOOL_DIRTY</a></td></tr>
+<tr><td align=right>memp_fset</td><td><a href="../api_c/memp_fset.html#DB_MPOOL_DIRTY">DB_MPOOL_DIRTY</a></td></tr>
+<tr><td align=right>memp_fput</td><td><a href="../api_c/memp_fput.html#DB_MPOOL_DISCARD">DB_MPOOL_DISCARD</a></td></tr>
+<tr><td align=right>memp_fset</td><td><a href="../api_c/memp_fset.html#DB_MPOOL_DISCARD">DB_MPOOL_DISCARD</a></td></tr>
+<tr><td align=right>memp_fget</td><td><a href="../api_c/memp_fget.html#DB_MPOOL_LAST">DB_MPOOL_LAST</a></td></tr>
+<tr><td align=right>memp_fget</td><td><a href="../api_c/memp_fget.html#DB_MPOOL_NEW">DB_MPOOL_NEW</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_NEXT">DB_NEXT</a></td></tr>
+<tr><td align=right>log_get</td><td><a href="../api_c/log_get.html#DB_NEXT">DB_NEXT</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_NEXT_DUP">DB_NEXT_DUP</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_NEXT_NODUP">DB_NEXT_NODUP</a></td></tr>
+<tr><td align=right>DB-&gt;put</td><td><a href="../api_c/db_put.html#DB_NODUPDATA">DB_NODUPDATA</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_put</td><td><a href="../api_c/dbc_put.html#DB_NODUPDATA">DB_NODUPDATA</a></td></tr>
+<tr><td align=right>DB-&gt;open</td><td><a href="../api_c/db_open.html#DB_NOMMAP">DB_NOMMAP</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_flags</td><td><a href="../api_c/env_set_flags.html#DB_NOMMAP">DB_NOMMAP</a></td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#DB_NOMMAP">DB_NOMMAP</a></td></tr>
+<tr><td align=right>DB-&gt;verify</td><td><a href="../api_c/db_verify.html#DB_NOORDERCHK">DB_NOORDERCHK</a></td></tr>
+<tr><td align=right>DB-&gt;put</td><td><a href="../api_c/db_put.html#DB_NOOVERWRITE">DB_NOOVERWRITE</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_server</td><td><a href="../api_c/env_set_server.html#DB_NOSERVER">DB_NOSERVER</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_server</td><td><a href="../api_c/env_set_server.html#DB_NOSERVER_ID">DB_NOSERVER_ID</a></td></tr>
+<tr><td align=right>DB-&gt;close</td><td><a href="../api_c/db_close.html#DB_NOSYNC">DB_NOSYNC</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a></td></tr>
+<tr><td align=right>DB-&gt;open</td><td><a href="../api_c/db_open.html#DB_OLD_VERSION">DB_OLD_VERSION</a></td></tr>
+<tr><td align=right>DB-&gt;upgrade</td><td><a href="../api_c/db_upgrade.html#DB_OLD_VERSION">DB_OLD_VERSION</a></td></tr>
+<tr><td align=right>DB-&gt;verify</td><td><a href="../api_c/db_verify.html#DB_ORDERCHKONLY">DB_ORDERCHKONLY</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_dup</td><td><a href="../api_c/dbc_dup.html#DB_POSITION">DB_POSITION</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_PREV">DB_PREV</a></td></tr>
+<tr><td align=right>log_get</td><td><a href="../api_c/log_get.html#DB_PREV">DB_PREV</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_PREV_NODUP">DB_PREV_NODUP</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_printlog.html#2">db_printlog</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a></td></tr>
+<tr><td align=right>DB-&gt;open</td><td><a href="../api_c/db_open.html#DB_RDONLY">DB_RDONLY</a></td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#DB_RDONLY">DB_RDONLY</a></td></tr>
+<tr><td align=right>DB-&gt;set_flags</td><td><a href="../api_c/db_set_flags.html#DB_RECNUM">DB_RECNUM</a></td></tr>
+<tr><td align=right>DB-&gt;stat</td><td><a href="../api_c/db_stat.html#DB_RECORDCOUNT">DB_RECORDCOUNT</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_RECOVER">DB_RECOVER</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_feedback</td><td><a href="../api_c/env_set_feedback.html#DB_RECOVER">DB_RECOVER</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_recover.html#2">db_recover</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_RECOVER_FATAL">DB_RECOVER_FATAL</a></td></tr>
+<tr><td align=right>DB-&gt;set_flags</td><td><a href="../api_c/db_set_flags.html#DB_RENUMBER">DB_RENUMBER</a></td></tr>
+<tr><td align=right>DB-&gt;set_flags</td><td><a href="../api_c/db_set_flags.html#DB_REVSPLITOFF">DB_REVSPLITOFF</a></td></tr>
+<tr><td align=right>DB-&gt;get</td><td><a href="../api_c/db_get.html#DB_RMW">DB_RMW</a></td></tr>
+<tr><td align=right>DB-&gt;join</td><td><a href="../api_c/db_join.html#DB_RMW">DB_RMW</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_RMW">DB_RMW</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a></td></tr>
+<tr><td align=right>DB-&gt;verify</td><td><a href="../api_c/db_verify.html#DB_SALVAGE">DB_SALVAGE</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_SET">DB_SET</a></td></tr>
+<tr><td align=right>log_get</td><td><a href="../api_c/log_get.html#DB_SET">DB_SET</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_SET_RANGE">DB_SET_RANGE</a></td></tr>
+<tr><td align=right>DB-&gt;get</td><td><a href="../api_c/db_get.html#DB_SET_RECNO">DB_SET_RECNO</a></td></tr>
+<tr><td align=right>DBcursor-&gt;c_get</td><td><a href="../api_c/dbc_get.html#DB_SET_RECNO">DB_SET_RECNO</a></td></tr>
+<tr><td align=right>DB-&gt;set_flags</td><td><a href="../api_c/db_set_flags.html#DB_SNAPSHOT">DB_SNAPSHOT</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_stat.html#2">db_stat</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_strerror.html#2">db_strerror</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a></td></tr>
+<tr><td align=right>DB-&gt;open</td><td><a href="../api_c/db_open.html#DB_THREAD">DB_THREAD</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_THREAD">DB_THREAD</a></td></tr>
+<tr><td align=right>DB-&gt;open</td><td><a href="../api_c/db_open.html#DB_TRUNCATE">DB_TRUNCATE</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_tx_recover</td><td><a href="../api_c/env_set_tx_recover.html#DB_TXN_ABORT">DB_TXN_ABORT</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_tx_recover</td><td><a href="../api_c/env_set_tx_recover.html#DB_TXN_BACKWARD_ROLL">DB_TXN_BACKWARD_ROLL</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_tx_recover</td><td><a href="../api_c/env_set_tx_recover.html#DB_TXN_FORWARD_ROLL">DB_TXN_FORWARD_ROLL</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_flags</td><td><a href="../api_c/env_set_flags.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a></td></tr>
+<tr><td align=right>txn_begin</td><td><a href="../api_c/txn_begin.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a></td></tr>
+<tr><td align=right>txn_commit</td><td><a href="../api_c/txn_commit.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a></td></tr>
+<tr><td align=right>txn_begin</td><td><a href="../api_c/txn_begin.html#DB_TXN_NOWAIT">DB_TXN_NOWAIT</a></td></tr>
+<tr><td align=right>txn_begin</td><td><a href="../api_c/txn_begin.html#DB_TXN_SYNC">DB_TXN_SYNC</a></td></tr>
+<tr><td align=right>txn_commit</td><td><a href="../api_c/txn_commit.html#DB_TXN_SYNC">DB_TXN_SYNC</a></td></tr>
+<tr><td align=right>DB-&gt;set_feedback</td><td><a href="../api_c/db_set_feedback.html#DB_UPGRADE">DB_UPGRADE</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_upgrade.html#2">db_upgrade</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_USE_ENVIRON">DB_USE_ENVIRON</a></td></tr>
+<tr><td align=right>DBENV-&gt;remove</td><td><a href="../api_c/env_remove.html#DB_USE_ENVIRON">DB_USE_ENVIRON</a></td></tr>
+<tr><td align=right>DBENV-&gt;open</td><td><a href="../api_c/env_open.html#DB_USE_ENVIRON_ROOT">DB_USE_ENVIRON_ROOT</a></td></tr>
+<tr><td align=right>DBENV-&gt;remove</td><td><a href="../api_c/env_remove.html#DB_USE_ENVIRON_ROOT">DB_USE_ENVIRON_ROOT</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_verbose</td><td><a href="../api_c/env_set_verbose.html#DB_VERB_CHKPOINT">DB_VERB_CHKPOINT</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_verbose</td><td><a href="../api_c/env_set_verbose.html#DB_VERB_DEADLOCK">DB_VERB_DEADLOCK</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_verbose</td><td><a href="../api_c/env_set_verbose.html#DB_VERB_RECOVERY">DB_VERB_RECOVERY</a></td></tr>
+<tr><td align=right>DBENV-&gt;set_verbose</td><td><a href="../api_c/env_set_verbose.html#DB_VERB_WAITSFOR">DB_VERB_WAITSFOR</a></td></tr>
+<tr><td align=right>DB-&gt;set_feedback</td><td><a href="../api_c/db_set_feedback.html#DB_VERIFY">DB_VERIFY</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_verify.html#2">db_verify</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/env_version.html#2">db_version</a></td></tr>
+<tr><td align=right>DB-&gt;cursor</td><td><a href="../api_c/db_cursor.html#DB_WRITECURSOR">DB_WRITECURSOR</a></td></tr>
+<tr><td align=right>db_create</td><td><a href="../api_c/db_create.html#DB_XA_CREATE">DB_XA_CREATE</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/dead.html#2">deadlocks</a></td></tr>
+<tr><td align=right>    utility to detect </td><td><a href="../utility/db_deadlock.html#3">deadlocks</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/debug/common.html#2">debugging</a> applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/delete.html#2">deleting</a> records</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curdel.html#2">deleting</a> records with a cursor</td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--disable-bigfile">--disable-bigfile</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/diskspace.html#2">disk</a> space requirements</td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#dlen">dlen</a></td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#doff">doff</a></td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_dump.html#3">dump</a> databases as text files</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/dup.html#2">duplicate</a> data items</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curdup.html#2">duplicating</a> a cursor</td></tr>
+<tr><td align=right>    configuring </td><td><a href="../ref/build_unix/conf.html#9">dynamic</a> shared libraries</td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-compat185">--enable-compat185</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-cxx">--enable-cxx</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-debug">--enable-debug</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-debug_rop">--enable-debug_rop</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-debug_wop">--enable-debug_wop</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-diagnostic">--enable-diagnostic</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-dump185">--enable-dump185</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-dynamic">--enable-dynamic</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-java">--enable-java</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-posixmutexes">--enable-posixmutexes</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-rpc">--enable-rpc</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-shared">--enable-shared</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-tcl">--enable-tcl</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-test">--enable-test</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-uimutexes">--enable-uimutexes</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-umrw">--enable-umrw</a></td></tr>
+<tr><td align=right>    byte </td><td><a href="../ref/program/byteorder.html#3">endian</a></td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/env/create.html#2">environment</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/environ.html#2">environment</a> variables</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/error.html#2">error</a> handling</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/errorret.html#3">error</a> name space</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/errorret.html#2">error</a> returns</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/install/file.html#2">/etc/magic</a></td></tr>
+<tr><td align=right>    selecting a Queue </td><td><a href="../ref/am_conf/extentsize.html#2">extent</a> size</td></tr>
+<tr><td align=right>    Java </td><td><a href="../ref/java/faq.html#2">FAQ</a></td></tr>
+<tr><td align=right>    Tcl </td><td><a href="../ref/tcl/faq.html#2">FAQ</a></td></tr>
+<tr><td align=right>    configuring without large </td><td><a href="../ref/build_unix/conf.html#4">file</a> support</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/install/file.html#3">file</a> utility</td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#fileid">fileid</a></td></tr>
+<tr><td align=right>    recovery and </td><td><a href="../ref/transapp/filesys.html#2">filesystem</a> operations</td></tr>
+<tr><td align=right>    remote </td><td><a href="../ref/env/remote.html#2">filesystems</a></td></tr>
+<tr><td align=right>    page </td><td><a href="../ref/am_conf/h_ffactor.html#2">fill</a> factor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/freebsd.html#2">FreeBSD</a></td></tr>
+<tr><td align=right>    Berkeley DB </td><td><a href="../ref/program/scope.html#3">free-threaded</a> handles</td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#ftype">ftype</a></td></tr>
+<tr><td align=right>    specifying a database </td><td><a href="../ref/am_conf/h_hash.html#2">hash</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/h_nelem.html#2">hash</a> table size</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/hpux.html#2">HP-UX</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/hsearch.html#2">hsearch</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/install.html#2">installing</a> Berkeley DB for UNIX systems</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/compatible.html#2">interface</a> compatibility</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/irix.html#2">IRIX</a></td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#10">Java</a> API</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/java/compat.html#2">Java</a> compatibility</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/java/conf.html#2">Java</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/java/faq.html#3">Java</a> FAQ</td></tr>
+<tr><td align=right>    logical </td><td><a href="../ref/am/join.html#2">join</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/dbt.html#2">key/data</a> pairs</td></tr>
+<tr><td align=right>    retrieved </td><td><a href="../api_c/dbt.html#4">key/data</a> permanence</td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/program/dbsizes.html#2">limits</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/linux.html#2">Linux</a></td></tr>
+<tr><td align=right>    changing compile or </td><td><a href="../ref/build_unix/flags.html#3">load</a> options</td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_load.html#3">load</a> text files into databases</td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#lock">lock</a></td></tr>
+<tr><td align=right>    standard </td><td><a href="../ref/lock/stdmode.html#2">lock</a> modes</td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/lock_detect.html#2">lock_detect</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/lock_get.html#2">lock_get</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/lock_id.html#2">lock_id</a></td></tr>
+<tr><td align=right>    page-level </td><td><a href="../ref/lock/page.html#2">locking</a></td></tr>
+<tr><td align=right>    two-phase </td><td><a href="../ref/lock/twopl.html#2">locking</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/nondb.html#2">locking</a> and non-Berkeley DB applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/config.html#2">locking</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/am_conv.html#2">locking</a> conventions</td></tr>
+<tr><td align=right>    Berkeley DB Concurrent Data Store </td><td><a href="../ref/lock/cam_conv.html#2">locking</a> conventions</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/intro.html#2">locking</a> introduction</td></tr>
+<tr><td align=right>    sizing the </td><td><a href="../ref/lock/max.html#2">locking</a> subsystem</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/notxn.html#2">locking</a> without transactions</td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/lock_put.html#2">lock_put</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/lock_stat.html#2">lock_stat</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/lock_vec.html#2">lock_vec</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/log/limits.html#2">log</a> file limits</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/logfile.html#2">log</a> file removal</td></tr>
+<tr><td align=right>    utility to display </td><td><a href="../utility/db_printlog.html#3">log</a> files as text</td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_archive.html#2">log_archive</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_compare.html#2">log_compare</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_file.html#2">log_file</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_flush.html#2">log_flush</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_get.html#2">log_get</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/log/config.html#2">logging</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/log/intro.html#2">logging</a> introduction</td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_put.html#2">log_put</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_register.html#2">log_register</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_stat.html#2">log_stat</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/log_unregister.html#2">log_unregister</a></td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#lsn_offset">lsn_offset</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/mp/config.html#2">memory</a> pool configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_fclose.html#2">memp_fclose</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_fget.html#2">memp_fget</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_fopen.html#2">memp_fopen</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_fput.html#2">memp_fput</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_fset.html#2">memp_fset</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_fsync.html#2">memp_fsync</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_register.html#2">memp_register</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_stat.html#2">memp_stat</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_sync.html#2">memp_sync</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/memp_trickle.html#2">memp_trickle</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#mode">mode</a></td></tr>
+<tr><td align=right>    Berkeley DB library </td><td><a href="../ref/program/namespace.html#2">name</a> spaces</td></tr>
+<tr><td align=right>    file </td><td><a href="../ref/env/naming.html#2">naming</a></td></tr>
+<tr><td align=right>    retrieving Btree records by </td><td><a href="../ref/am_conf/bt_recnum.html#2">number</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#obj">obj</a></td></tr>
+<tr><td align=right>lock_vec</td><td><a href="../api_c/lock_vec.html#op">op</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/open.html#2">opening</a> a database</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/osf1.html#2">OSF/1</a></td></tr>
+<tr><td align=right>    selecting a </td><td><a href="../ref/am_conf/pagesize.html#2">page</a> size</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/partial.html#2">partial</a> record storage and retrieval</td></tr>
+<tr><td align=right></td><td><a href="http://www.sleepycat.com/update/index.html">Patches,</a> Updates and Change logs</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/perl/intro.html#2">Perl</a></td></tr>
+<tr><td align=right>    retrieved key/data </td><td><a href="../api_c/dbt.html#3">permanence</a></td></tr>
+<tr><td align=right>memp_fopen</td><td><a href="../api_c/memp_fopen.html#pgcookie">pgcookie</a></td></tr>
+<tr><td align=right>    Sleepycat Software's Berkeley DB </td><td><a href="../ref/intro/products.html#2">products</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/qnx.html#2">QNX</a></td></tr>
+<tr><td align=right>    logical </td><td><a href="../api_c/dbt.html#6">record</a> number format</td></tr>
+<tr><td align=right>    logical </td><td><a href="../ref/am_conf/logrec.html#2">record</a> numbers</td></tr>
+<tr><td align=right>    managing </td><td><a href="../ref/am_conf/recno.html#2">record-based</a> databases</td></tr>
+<tr><td align=right>    logically renumbering </td><td><a href="../ref/am_conf/renumber.html#2">records</a></td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_recover.html#3">recover</a> database environments</td></tr>
+<tr><td align=right>    Berkeley DB </td><td><a href="../ref/transapp/reclimit.html#2">recoverability</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/get.html#2">retrieving</a> records</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curget.html#2">retrieving</a> records with a cursor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/rpc/client.html#2">RPC</a> client</td></tr>
+<tr><td align=right>    configuring a </td><td><a href="../ref/build_unix/conf.html#11">RPC</a> client/server</td></tr>
+<tr><td align=right>    utility to support </td><td><a href="../utility/berkeley_db_svc.html#3">RPC</a> client/server</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/rpc/server.html#2">RPC</a> server</td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/verify.html#3">salvage</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/sco.html#2">SCO</a></td></tr>
+<tr><td align=right>    Berkeley DB handle </td><td><a href="../ref/program/scope.html#2">scope</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/env/security.html#2">security</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/sendmail/intro.html#2">Sendmail</a></td></tr>
+<tr><td align=right>    configuring </td><td><a href="../ref/build_unix/conf.html#8">shared</a> libraries</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/shlib.html#2">shared</a> libraries</td></tr>
+<tr><td align=right>    application </td><td><a href="../ref/program/appsignals.html#2">signal</a> handling</td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#size">size</a></td></tr>
+<tr><td align=right></td><td><a href="http://www.sleepycat.com/">Sleepycat</a> Software</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/solaris.html#2">Solaris</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/distrib/layout.html#2">source</a> code layout</td></tr>
+<tr><td align=right>    cursor </td><td><a href="../ref/am/stability.html#3">stability</a></td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/stat.html#2">statistics</a></td></tr>
+<tr><td align=right>    utility to display database and environment </td><td><a href="../utility/db_stat.html#3">statistics</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/put.html#2">storing</a> records</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curput.html#2">storing</a> records with a cursor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/sunos.html#2">SunOS</a></td></tr>
+<tr><td align=right>    loading Berkeley DB with </td><td><a href="../ref/tcl/intro.html#2">Tcl</a></td></tr>
+<tr><td align=right>    using Berkeley DB with </td><td><a href="../ref/tcl/using.html#2">Tcl</a></td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#12">Tcl</a> API</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/tcl/program.html#2">Tcl</a> API programming notes</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/tcl/faq.html#3">Tcl</a> FAQ</td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#13">test</a> suite</td></tr>
+<tr><td align=right>    running the </td><td><a href="../ref/test/run.html#2">test</a> suite</td></tr>
+<tr><td align=right>    running the </td><td><a href="../ref/build_unix/test.html#2">test</a> suite under UNIX</td></tr>
+<tr><td align=right>    running the </td><td><a href="../ref/build_win/test.html#2">test</a> suite under Windows</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/re_source.html#2">text</a> backing files</td></tr>
+<tr><td align=right>    loading </td><td><a href="../ref/dumpload/text.html#2">text</a> into databases</td></tr>
+<tr><td align=right>    dumping/loading </td><td><a href="../ref/dumpload/utility.html#2">text</a> to/from databases</td></tr>
+<tr><td align=right>    building </td><td><a href="../ref/program/mt.html#2">threaded</a> applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/txn/config.html#2">transaction</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/txn/limits.html#2">transaction</a> limits</td></tr>
+<tr><td align=right>    administering </td><td><a href="../ref/transapp/admin.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    archival in </td><td><a href="../ref/transapp/archival.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    checkpoints in </td><td><a href="../ref/transapp/checkpoint.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    deadlock detection in </td><td><a href="../ref/transapp/deadlock.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    recovery in </td><td><a href="../ref/transapp/recovery.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/throughput.html#2">transaction</a> throughput</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/intro.html#2">Transactional</a> Data Store</td></tr>
+<tr><td align=right>    Berkeley DB and </td><td><a href="../ref/txn/intro.html#2">transactions</a></td></tr>
+<tr><td align=right>    nested </td><td><a href="../ref/txn/nested.html#2">transactions</a></td></tr>
+<tr><td align=right>    configuring Berkeley DB with the </td><td><a href="../ref/xa/config.html#2">Tuxedo</a> System</td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/txn_abort.html#2">txn_abort</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/txn_begin.html#2">txn_begin</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/txn_checkpoint.html#2">txn_checkpoint</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/txn_commit.html#2">txn_commit</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/txn_id.html#2">txn_id</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/txn_prepare.html#2">txn_prepare</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_c/txn_stat.html#2">txn_stat</a></td></tr>
+<tr><td align=right>DBT</td><td><a href="../api_c/dbt.html#ulen">ulen</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/ultrix.html#2">Ultrix</a></td></tr>
+<tr><td align=right>    building for </td><td><a href="../ref/build_unix/notes.html#3">UNIX</a> FAQ</td></tr>
+<tr><td align=right>    configuring Berkeley DB for </td><td><a href="../ref/build_unix/conf.html#3">UNIX</a> systems</td></tr>
+<tr><td align=right>Patches, </td><td><a href="http://www.sleepycat.com/update/index.html">Updates</a> and Change logs</td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_upgrade.html#4">upgrade</a> database files</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/upgrade.html#2">upgrading</a> databases</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/arch/utilities.html#2">utilities</a></td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/verify.html#2">verification</a></td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_verify.html#4">verify</a> database files</td></tr>
+<tr><td align=right>    building for </td><td><a href="../ref/build_vxworks/faq.html#3">VxWorks</a> FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_vxworks/notes.html#2">VxWorks</a> notes</td></tr>
+<tr><td align=right>    running the test suite under </td><td><a href="../ref/build_win/test.html#3">Windows</a></td></tr>
+<tr><td align=right>    building for </td><td><a href="../ref/build_win/faq.html#3">Windows</a> FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_win/notes.html#2">Windows</a> notes</td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--with-tcl=DIR">--with-tcl=DIR</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/xa/intro.html#2">XA</a> Resource Manager</td></tr>
+</table>
+</center>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

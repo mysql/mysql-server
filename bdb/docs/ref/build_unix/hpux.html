@@ -1,0 +1,89 @@
+<!--$Id: hpux.so,v 11.11 2000/12/14 17:04:02 krinsky Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: HP-UX</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/freebsd.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/irix.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>HP-UX</h1>
+<p><ol>
+<p><li><b>I can't specify the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> flag to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.</b>
+<p>The <b>shmget</b>(2) interfaces are not always used on HP-UX, even
+though they exist, as anonymous memory allocated using <b>shmget</b>(2)
+cannot be used to store the standard HP-UX msemaphore semaphores.  For
+this reason, it may not be possible to specify the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a>
+flag on some versions of HP-UX.  (We have only seen this problem on HP-UX
+10.XX, so the simplest workaround may be to upgrade your HP-UX release.)
+<hr size=1 noshade>
+<p><li><b>I can't specify both the <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> and <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a>
+flags to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.</b>
+<p>It is not possible to store the standard HP-UX msemaphore semaphores in
+memory returned by <b>malloc</b>(3) in some versions of HP-UX.  For
+this reason, it may not be possible to specify both the <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a>
+and <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flags on some versions of HP-UX.  (We have only seen
+this problem on HP-UX 10.XX, so the simplest workaround may be to upgrade
+your HP-UX release.)
+<hr size=1 noshade>
+<p><li><b>During configuration I see a message that large file support has
+been turned off.</b>
+<p>Some HP-UX system include files redefine "open" when big-file support (the
+HAVE_FILE_OFFSET_BITS and _FILE_OFFSET_BITS #defines) is enabled.  This
+causes problems when compiling for C++, where "open" is a legal
+identifier, used in the Berkeley DB C++ API.  For this reason, we automatically
+turn off big-file support when Berkeley DB is configured with a C++ API.  This
+should not be a problem for applications unless there is a need to create
+databases larger than 2GB.
+<hr size=1 noshade>
+<p><li><b>I can't compile and run multi-threaded applications.</b>
+<p>Special compile-time flags are required when compiling threaded
+applications on HP-UX.  If you are compiling a threaded application, you
+must compile with the _REENTRANT flag:
+<p><blockquote><pre>cc -D_REENTRANT ...</pre></blockquote>
+<p>The Berkeley DB library will automatically build with the correct options.
+<hr size=1 noshade>
+<p><li><b>An ENOMEM error is returned from <a href="../../api_c/env_open.html">DBENV-&gt;open</a> or
+<a href="../../api_c/env_remove.html">DBENV-&gt;remove</a>.</b>
+<p>Due to the constraints of the PA-RISC memory architecture, HP-UX does not
+allow a process to map a file into its address space multiple times.
+For this reason, each Berkeley DB environment may be opened only once by a
+process on HP-UX, i.e., calls to <a href="../../api_c/env_open.html">DBENV-&gt;open</a> will fail if the
+specified Berkeley DB environment has been opened and not subsequently closed.
+<hr size=1 noshade>
+<p><li><b>When compiling with gcc, I see the following error:
+<p><blockquote><pre>#error "Large Files (ILP32) not supported in strict ANSI mode."</pre></blockquote></b>
+<p>We believe this is an error in the HP-UX include files, but we don't
+really understand it.  The only workaround we have found is to add
+-D__STDC_EXT__ to the C preprocessor defines as part of compilation.
+<hr size=1 noshade>
+<p><li><b>When using the Tcl or Perl APIs (including running the test suite) I
+see the error "Can't shl_load() a library containing Thread Local Storage".</b>
+<p>This problem happens when HP-UX has been configured to use pthread mutex
+locking and an attempt is made to call Berkeley DB using the Tcl or Perl APIs.  We
+have never found any way to fix this problem as part of the Berkeley DB build
+process.  To work around the problem, rebuild tclsh or perl and modify its build
+process to explicitly link it against the HP-UX pthread library (currently
+/usr/lib/libpthread.a).
+<hr size=1 noshade>
+<p><li><b>When running an executable that has been dynamically linked 
+against the Berkeley DB library, I see the error "Can't find path for shared library" 
+even though I've correctly set the SHLIB_PATH environment variable.</b>
+<p>By default, some versions of HP-UX ignore the dynamic library search path
+specified by the SHLIB_PATH environment variable.  To work around this, specify
+the "+s" flag to ld when linking, or run
+<p><blockquote><pre>chatr +s enable -l /full/path/to/libdb-3.2.sl ...</pre></blockquote>
+<p>on the executable that is not working.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/freebsd.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/irix.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!--$Id: db.so,v 11.9 2000/12/01 17:57:34 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: the DB structure</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/xa.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/dbinfo.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: the DB structure</h1>
+<p>The DB structure is now opaque for applications in the Berkeley DB 3.0
+release.  Accesses to any fields within that structure by the application
+should be replaced with method calls.  The following example illustrates
+this using the historic type structure field.  In the Berkeley DB 2.X releases,
+applications could find the type of an underlying database using code
+similar to the following:
+<p><blockquote><pre>DB *db;
+DB_TYPE type;
+<p>
+	type = db-&gt;type;</pre></blockquote>
+<p>in the Berkeley DB 3.X releases, this should be done using the
+<a href="../../api_c/db_get_type.html">DB-&gt;get_type</a> method, as follows:
+<p><blockquote><pre>DB *db;
+DB_TYPE type;
+<p>
+	type = db-&gt;get_type(db);</pre></blockquote>
+<p>The following table lists the DB fields previously used by
+applications and the methods that should now be used to get or set them.
+<p><table border=1 align=center>
+<tr><th>DB field</th><th>Berkeley DB 3.X method</th></tr>
+<tr><td>byteswapped</td><td><a href="../../api_c/db_get_byteswapped.html">DB-&gt;get_byteswapped</a></td></tr>
+<tr><td>db_errcall</td><td><a href="../../api_c/db_set_errcall.html">DB-&gt;set_errcall</a></td></tr>
+<tr><td>db_errfile</td><td><a href="../../api_c/db_set_errfile.html">DB-&gt;set_errfile</a></td></tr>
+<tr><td>db_errpfx</td><td><a href="../../api_c/db_set_errpfx.html">DB-&gt;set_errpfx</a></td></tr>
+<tr><td>db_paniccall</td><td><a href="../../api_c/db_set_paniccall.html">DB-&gt;set_paniccall</a></td></tr>
+<tr><td>type</td><td><a href="../../api_c/db_get_type.html">DB-&gt;get_type</a></td></tr>
+</table>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/xa.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/dbinfo.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!--$Id: handle.so,v 1.2 2000/11/17 19:56:16 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.2: Java and C++ object re-use</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.2/mutexlock.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/notfound.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.2: Java and C++ object re-use</h1>
+<p>In previous releases of Berkeley DB, Java <a href="../../api_java/dbenv_class.html">DbEnv</a> and <a href="../../api_java/db_class.html">Db</a>
+objects, and C++ <a href="../../api_cxx/dbenv_class.html">DbEnv</a> and <a href="../../api_cxx/db_class.html">Db</a> objects could be
+re-used after they were closed, by calling open on them again.  This is
+no longer permitted, and these objects no longer allow any operations
+after a close.  Applications re-using these objects should be modified
+to create new objects instead.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.2/mutexlock.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/notfound.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!--$Id: stability.so,v 10.20 2000/12/13 16:48:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Cursor Stability</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/am/curclose.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/partial.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Cursor Stability</h1>
+<p>In the absence of locking, no guarantees are made about the stability of
+cursors in different processes or threads.  However, the Btree, Queue
+and Recno access methods guarantee that cursor operations, interspersed
+with other cursor or non-cursor operations in the same thread of control
+will always return keys in order and will return each non-deleted key/data
+pair exactly once.  Because the Hash access method uses a dynamic hashing
+algorithm, it cannot guarantee any form of stability in the presence of
+inserts and deletes unless locking is performed.
+<p>If locking was specified when the Berkeley DB file was opened, but transactions
+are not in effect, the access methods provide repeatable reads with
+respect to the cursor.  That is, a <a href="../../api_c/dbc_get.html#DB_CURRENT">DB_CURRENT</a> call on the cursor
+is guaranteed to return the same record as was returned on the last call
+to the cursor.
+<p>With the exception of the Queue access method, in the presence of
+transactions, all access method calls between a call to <a href="../../api_c/txn_begin.html">txn_begin</a>
+and a call to <a href="../../api_c/txn_abort.html">txn_abort</a> or <a href="../../api_c/txn_commit.html">txn_commit</a> provide degree 3
+consistency (serializable transactions).
+<p>The Queue access method permits phantom records to appear between calls.
+That is, deleted records are not locked, therefore another transaction may
+replace a deleted record between two calls to retrieve it.  The record would
+not appear in the first call but would be seen by the second call.
+<p>For all access methods, a cursor scan of the database performed within
+the context of a transaction is guaranteed to return each key/data pair
+once and only once, except in the following case.  If, while performing
+a cursor scan using the Hash access method, the transaction performing
+the scan inserts a new pair into the database, it is possible that duplicate
+key/data pairs will be returned.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/curclose.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/partial.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

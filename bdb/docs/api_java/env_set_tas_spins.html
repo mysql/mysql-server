@@ -1,0 +1,71 @@
+<!--$Id: env_set_tas_spins.so,v 10.9 2000/05/31 15:10:00 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.set_tas_spins</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.set_tas_spins</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+static int
+DbEnv.set_tas_spins(u_int32_t tas_spins);
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>Specify that test-and-set mutexes should spin <b>tas_spins</b> times
+without blocking.  The value defaults to 1 on uniprocessor systems and
+to 50 times the number of processors on multiprocessor systems.
+<p>The DbEnv.set_tas_spins interface affects the entire application, not a single
+database or database environment.
+<p>While the DbEnv.set_tas_spins interface may be used to configure Berkeley DB at any time
+during the life of the application, it should normally be called before
+making any calls to the <a href="../api_c/env_create.html">db_env_create</a> or <a href="../api_c/db_create.html">db_create</a> methods.
+<p>The DbEnv.set_tas_spins method throws an exception that encapsulates a non-zero error value on
+failure.
+<p>The database environment's test-and-set spin count may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_tas_spins", one or more whitespace characters,
+and the number of spins.  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_close.html">DbEnv.close</a>,
+<a href="../api_java/env_open.html">DbEnv.open</a>,
+<a href="../api_java/env_remove.html">DbEnv.remove</a>,
+<a href="../api_java/env_strerror.html">DbEnv.strerror</a>,
+<a href="../api_java/env_version.html">DbEnv.get_version_string</a>
+<a href="../api_java/env_set_cachesize.html">DbEnv.set_cachesize</a>,
+<a href="../api_java/env_set_errcall.html">DbEnv.set_errcall</a>,
+<a href="../api_java/env_set_error_stream.html">DbEnv.set_error_stream</a>,
+<a href="../api_java/env_set_errpfx.html">DbEnv.set_errpfx</a>,
+<a href="../api_java/env_set_flags.html">DbEnv.set_flags</a>,
+<a href="../api_java/env_set_mutexlocks.html">DbEnv.set_mutexlocks</a>,
+and
+<a href="../api_java/env_set_verbose.html">DbEnv.set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!--$Id: shlib.so,v 10.9 2000/03/18 21:43:10 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Dynamic shared libraries</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/install.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/test.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Dynamic shared libraries</h1>
+<p><b>Warning</b>: the following information is intended to be generic and
+is likely to be correct for most UNIX systems.  Unfortunately, dynamic
+shared libraries are not standard between UNIX systems, so there may be
+information here that is not correct for your system.  If you have
+problems, consult your compiler and linker manual pages or your system
+administrator.
+<p>The Berkeley DB dynamic shared libraries are created with the name
+libdb-<b>major</b>.<b>minor</b>.so, where <b>major</b> is the major
+version number and <b>minor</b> is the minor version number.  Other
+shared libraries are created if Java and Tcl support are enabled,
+specifically libdb_java-<b>major</b>.<b>minor</b>.so and
+libdb_tcl-<b>major</b>.<b>minor</b>.so.
+<p>On most UNIX systems, when any shared library is created, the linker
+stamps it with a "SONAME".  In the case of Berkeley DB, the SONAME is
+libdb-<b>major</b>.<b>minor</b>.so.  It is important to realize that
+applications linked against a shared library remember the SONAMEs of the
+libraries they use and not the underlying names in the filesystem.
+<p>When the Berkeley DB shared library is installed, links are created in the
+install lib directory so that libdb-<b>major</b>.<b>minor</b>.so,
+libdb-<b>major</b>.so and libdb.so all reference the same library.  This
+library will have an SONAME of libdb-<b>major</b>.<b>minor</b>.so.
+<p>Any previous versions of the Berkeley DB libraries that are present in the
+install directory (such as libdb-2.7.so or libdb-2.so) are left unchanged.
+(Removing or moving old shared libraries is one drastic way to identify
+applications that have been linked against those vintage releases.)
+<p>Once you have installed the Berkeley DB libraries, unless they are installed in
+a directory where the linker normally looks for shared libraries, you will
+need to specify the installation directory as part of compiling and
+linking against Berkeley DB.  Consult your system manuals or system
+administrator for ways to specify a shared library directory when
+compiling and linking applications with the Berkeley DB libraries.  Many systems
+support environment variables (e.g., LD_LIBRARY_PATH, LD_RUN_PATH) ), or
+system configuration files (e.g., /etc/ld.so.conf) for this purpose.
+<p><b>Warning</b>: some UNIX installations may have an already existing
+<b>/usr/lib/libdb.so</b>, and this library may be an incompatible
+version of Berkeley DB.
+<p>We recommend that applications link against libdb.so (e.g., using -ldb).
+Even though the linker uses the file named libdb.so, the executable file
+for the application remembers the library's SONAME
+(libdb-<b>major</b>.<b>minor</b>.so).  This has the effect of marking
+the applications with the versions they need at link time.  Because
+applications locate their needed SONAMEs when they are executed, all
+previously linked applications will continue to run using the library they
+were linked with, even when a new version of Berkeley DB is installed and the
+file <b>libdb.so</b> is replaced with a new version.
+<p>Applications that know they are using features specific to a particular
+Berkeley DB release can be linked to that release.  For example, an application
+wanting to link to Berkeley DB major release "3" can link using -ldb-3, and
+applications that know about a particular minor release number can specify
+both major and minor release numbers, for example, -ldb-3.5.
+<p>If you want to link with Berkeley DB before performing library installation,
+the "make" command will have created a shared library object in the
+<b>.libs</b> subdirectory of the build directory, such as
+<b>build_unix/.libs/libdb-major.minor.so</b>.  If you want to link a
+file against this library, with, for example, a major number of "3" and
+a minor number of "5", you should be able to do something like:
+<p><blockquote><pre>cc -L BUILD_DIRECTORY/.libs -o testprog testprog.o -ldb-3.5
+env LD_LIBRARY_PATH="BUILD_DIRECTORY/.libs:$LD_LIBRARY_PATH" ./testprog</pre></blockquote>
+<p>where <b>BUILD_DIRECTORY</b> is the full directory path to the directory
+where you built Berkeley DB.
+<p>The libtool program (which is configured in the build_unix directory) can
+be used to set the shared library path and run a program.  For example,
+<p><blockquote><pre>libtool gdb db_dump</pre></blockquote>
+<p>runs the gdb debugger on the db_dump utility after setting the appropriate
+paths.  Libtool may not know what to do with arbitrary commands (it is
+hardwired to recognize "gdb" and some other commands).  If it complains
+the mode argument will usually resolve the problem:
+<p><blockquote><pre>libtool --mode=execute my_debugger db_dump</pre></blockquote>
+<p>On most systems, using libtool in this way is exactly equivalent to
+setting the LD_LIBRARY_PATH environment variable and then executing the
+program.  On other systems, using libtool has the virtue of knowing about
+any other details on systems that don't behave in this typical way.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/install.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/test.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

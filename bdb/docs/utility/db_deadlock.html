@@ -1,0 +1,85 @@
+<!--$Id: db_deadlock.so,v 10.22 2000/11/29 16:52:38 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_deadlock</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_deadlock</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_deadlock [<b>-Vvw</b>]
+    [<b>-a o | y</b>] [<b>-h home</b>] [<b>-L file</b>] [<b>-t sec</b>]</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>    
+<p>The db_deadlock utility traverses the database lock structures
+and aborts a lock request each time it detects a deadlock.  By default,
+a random lock request is chosen to be aborted. This utility should be
+run as a background daemon, or the underlying Berkeley DB deadlock detection
+interfaces should be called in some other way, whenever there are
+multiple threads or processes accessing a database and at least one of
+them is modifying it.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-a</b><dd>When a deadlock is detected, abort the oldest (o) lock request or the
+youngest (y) lock request.
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment; by
+default, the current working directory is used.
+<p><dt><b>-L</b><dd>Log the execution of the db_deadlock utility to the specified file in the
+following format, where <i>###</i> is the process ID, and the date
+is the time the utility was started.
+<p><blockquote><pre>db_deadlock: ### Wed Jun 15 01:23:45 EDT 1995</pre></blockquote>
+This file will be removed if the db_deadlock utility exits gracefully.
+<p><dt><b>-t</b><dd>Initiate a pass over the database locks at least every <b>sec</b>
+seconds.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+<p><dt><b>-v</b><dd>Run in verbose mode, generating messages each time the detector runs.
+<p><dt><b>-w</b><dd>Make a single pass over the database locks every time a process is
+forced to wait for a lock.
+</dl>
+<p>At least one of the <b>-t</b> and <b>-w</b> options must be specified.
+<p>The db_deadlock utility uses a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_deadlock should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_deadlock to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The db_deadlock utility does not attempt to create the Berkeley DB
+shared memory regions if they do not already exist.  The application
+which creates the region should be started first, and then, once the
+region is created, the db_deadlock utility should be started.
+<p>The db_deadlock utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+db_deadlock,
+<a href="../utility/db_dump.html">db_dump</a>,
+<a href="../utility/db_load.html">db_load</a>,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

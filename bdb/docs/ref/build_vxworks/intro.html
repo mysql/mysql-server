@@ -1,0 +1,86 @@
+<!--$Id: intro.so,v 1.7 2000/08/10 17:54:49 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Building for VxWorks</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for VxWorks systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_win/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_vxworks/notes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Building for VxWorks</h1>
+<p>The build_vxworks directory in the Berkeley DB distribution contains a workspace
+and project files for Tornado 2.0.
+<p><table border=1 align=center>
+<tr><th>File</th><th>Description</th></tr>
+<tr>    <td align=center>Berkeley DB.wsp</td>    <td align=center>Berkeley DB Workspace file</td>    </tr>
+<tr>    <td align=center>Berkeley DB.wpj</td>    <td align=center>Berkeley DB Project file</td>    </tr>
+<tr>    <td align=center>ex_*/*.wpj</td>    <td align=center>Example programs project files</td>    </tr>
+</table>
+<h3>Building With Tornado 2.0</h3>
+<p>Open the workspace <b>Berkeley DB.wsp</b>.  The list of projects
+in this workspace will be shown.  These projects were created for
+the x86 BSP for VxWorks.
+<p>The remainder of this document assumes you already have a
+VxWorks target and a target server, both up and running.
+<p>First, you'll need to set the include directories.
+To do this, go to the <i>Builds</i> tab for the workspace.
+Open up <i>Berkeley DB Builds</i>.  You will see several different
+builds, containing different configurations.  All of the projects
+in the Berkeley DB workspace are created to be downloadable applications.
+<p><table border=1 align=center>
+<tr><th>Build</th><th>Description</th></tr>
+<tr>    <td align=left>PENTIUM_RPCdebug</td>    <td align=left>x86 BSP with RPC and debugging</td>    </tr>
+<tr>    <td align=left>PENTIUM_RPCnodebug</td>    <td align=left>x86 BSP with RPC no debugging</td>    </tr>
+<tr>    <td align=left>PENTIUM_debug</td>    <td align=left>x86 BSP no RPC with debugging</td>    </tr>
+<tr>    <td align=left>PENTIUM_nodebug</td>    <td align=left>x86 BSP no RPC no debugging</td>    </tr>
+<tr>    <td align=left>SIMSPARCSOLARISgnu</td>    <td align=left>VxSim BSP no RPC with debugging</td>    </tr>
+</table>
+<p>You will have to add a new build specification if you are using a
+different BSP or wish to customize further.  For instance, if you have
+the Power PC (PPC) BSP, you will need to add a new build for the PPC tool
+chain.  To do so, select the "Builds" tab and then select the Berkeley DB
+project name and right click.  Choose the <i>New Build...</i>
+selection and create the new build target.  For your new build target,
+you will need to decide if you want it configured to support RPC and
+whether it should be built for debugging.  See the properties of the
+Pentium builds for how to configure for each case.  After you have added
+this build you still need to correctly configure the include directories
+as described below.
+<p>Select the build you are interested in and right click.  Choose the
+<i>Properties...</i> selection.  At this point, a tabbed dialogue
+should appear.  In this new window, choose the <i>C/C++ compiler</i>
+tab.  In the edit box, you need to modify the full pathname of the
+<i>build_vxworks</i> subdirectory of Berkeley DB, followed by the full
+pathname of the <i>include</i> subdirectory of Berkeley DB.  Then click
+OK.
+<p>If the architecture for this new build has the most significant byte
+first, you will also need to edit the <i>db_config.h</i> file in
+the build directory and define <b>WORDS_BIGENDIAN</b>.
+<p>To build and download the Berkeley DB downloadable application for the first time
+requires several steps: 
+<p><ol>
+<p><li>Select the build you are interested in and right click.
+Choose the <i>Set ... as Active Build</i> selection.
+<p><li>Select the build you are interested in and right click.
+Choose the <i>Dependencies ...</i> selection.
+Run dependencies over all files in the Berkeley DB project.
+<p><li>Select the build you are interested in and right click.
+Choose the <i>Rebuild All (Berkeley DB.out)</i> selection.
+<p><li>Select the Berkeley DB project name and right click.
+Choose the <i>Download 'Berkeley DB.out'</i> selection.
+</ol>
+<p>You will need to repeat this procedure for
+all builds you are interested in building, as well as for
+all of the example project builds you wish to run.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_win/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_vxworks/notes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

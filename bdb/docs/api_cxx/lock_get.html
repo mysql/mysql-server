@@ -1,0 +1,94 @@
+<!--$Id: lock_get.so,v 10.28 2000/04/24 16:33:54 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::lock_get</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::lock_get</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbEnv::lock_get(u_int32_t locker, u_int32_t flags,
+    const Dbt *obj, const db_lockmode_t lock_mode, DbLock *lock);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::lock_get method acquires a lock from the lock table, returning
+information about it in
+the <b>lock</b> argument.
+<p>The <b>locker</b> argument specified to DbEnv::lock_get is an unsigned
+32-bit integer quantity.  It represents the entity requesting or releasing
+the lock.
+<p>The <b>flags</b> value must be set to 0 or the following value:
+<p><dl compact>
+<p><dt><a name="DB_LOCK_NOWAIT">DB_LOCK_NOWAIT</a><dd>If a lock cannot be granted because the requested lock conflicts with an
+existing lock, return immediately instead of waiting for the lock to
+become available.
+</dl>
+<p>The <b>obj</b> argument is an untyped byte string that specifies the
+object to be locked or released.
+<p>The <b>mode</b> argument is an index into the environment's lock conflict
+array.  See <a href="../api_cxx/env_set_lk_conflicts.html">DbEnv::set_lk_conflicts</a> and
+<a href="../ref/lock/stdmode.html">Standard Lock Modes</a>
+for a description of that array.
+<p>The DbEnv::lock_get method may
+return or throw an exception encapsulating
+one of the following values:
+<p><dl compact>
+<p><dt><a name="DB_LOCK_NOTGRANTED">DB_LOCK_NOTGRANTED</a><dd>A lock was requested that could not be immediately granted and the
+<b>flags</b> parameter was set to DB_LOCK_NOWAIT.
+</dl>
+<p>Otherwise, the DbEnv::lock_get method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::lock_get method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>DB_LOCK_DEADLOCK<dd>The operation was selected to resolve a deadlock.
+</dl>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<p><dl compact>
+<p><dt>ENOMEM<dd>The maximum number of locks has been reached.
+</dl>
+<p>The DbEnv::lock_get method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::lock_get method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/lock_class.html">DbLock</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_lk_conflicts.html">DbEnv::set_lk_conflicts</a>,
+<a href="../api_cxx/env_set_lk_detect.html">DbEnv::set_lk_detect</a>,
+<a href="../api_cxx/env_set_lk_max_locks.html">DbEnv::set_lk_max_locks</a>,
+<a href="../api_cxx/env_set_lk_max_lockers.html">DbEnv::set_lk_max_lockers</a>,
+<a href="../api_cxx/env_set_lk_max_objects.html">DbEnv::set_lk_max_objects</a>,
+<a href="../api_cxx/env_set_lk_max.html">DbEnv::set_lk_max</a>,
+<a href="../api_cxx/lock_detect.html">DbEnv::lock_detect</a>,
+<a href="../api_cxx/lock_get.html">DbEnv::lock_get</a>,
+<a href="../api_cxx/lock_id.html">DbEnv::lock_id</a>,
+<a href="../api_cxx/lock_put.html">DbLock::put</a>,
+<a href="../api_cxx/lock_stat.html">DbEnv::lock_stat</a>
+and
+<a href="../api_cxx/lock_vec.html">DbEnv::lock_vec</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

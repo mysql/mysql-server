@@ -1,0 +1,63 @@
+<!--$Id: env_set_tx_timestamp.so,v 10.6 2000/12/21 18:33:42 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_tx_timestamp</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_tx_timestamp</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_tx_timestamp(DB_ENV *dbenv, time_t *timestamp);
+</pre></h3>
+<h1>Description</h1>
+<p>Recover to the time specified by <b>timestamp</b> rather than to the most
+current possible date.
+The <b>timestamp</b> argument should be the number of seconds since 0
+hours, 0 minutes, 0 seconds, January 1, 1970, Coordinated Universal Time,
+i.e., the Epoch.
+<p>Once a database environment has been upgraded to a new version of Berkeley DB
+involving a log format change (see <a href="../ref/upgrade/process.html">Upgrading Berkeley DB installations</a>, it is no longer possible to recover
+to a specific time before that upgrade.
+<p>The DBENV-&gt;set_tx_timestamp interface may only be used to configure Berkeley DB before
+the <a href="../api_c/env_open.html">DBENV-&gt;open</a> interface is called.
+<p>The DBENV-&gt;set_tx_timestamp function returns a non-zero error value on failure and 0 on success.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>It is not possible to recover to the specified time using the
+log files currently present in the environment.
+</dl>
+<h1>See Also</h1>
+<a href="../api_c/env_set_tx_max.html">DBENV-&gt;set_tx_max</a>,
+<a href="../api_c/env_set_tx_recover.html">DBENV-&gt;set_tx_recover</a>,
+<a href="../api_c/env_set_tx_timestamp.html">DBENV-&gt;set_tx_timestamp</a>,
+<a href="../api_c/txn_abort.html">txn_abort</a>,
+<a href="../api_c/txn_begin.html">txn_begin</a>,
+<a href="../api_c/txn_checkpoint.html">txn_checkpoint</a>,
+<a href="../api_c/txn_commit.html">txn_commit</a>,
+<a href="../api_c/txn_id.html">txn_id</a>,
+<a href="../api_c/txn_prepare.html">txn_prepare</a>
+and
+<a href="../api_c/txn_stat.html">txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

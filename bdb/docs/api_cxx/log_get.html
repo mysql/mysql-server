@@ -1,0 +1,118 @@
+<!--$Id: log_get.so,v 10.22 2000/03/17 01:53:59 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::log_get</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::log_get</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbEnv::log_get(DbLsn *lsn, Dbt *data, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::log_get method implements a cursor inside of the log,
+retrieving records from the log according to the <b>lsn</b> and
+<b>flags</b> arguments.
+<p>The data field of the <b>data</b> structure is set to the record
+retrieved and the size field indicates the number of bytes in the record.
+See <a href="../api_cxx/dbt_class.html">Dbt</a> for a description of other fields in the <b>data</b>
+structure.  When multiple threads are using the returned log handle
+concurrently, one of the <a href="../api_cxx/dbt_class.html#DB_DBT_MALLOC">DB_DBT_MALLOC</a>, <a href="../api_cxx/dbt_class.html#DB_DBT_REALLOC">DB_DBT_REALLOC</a> or
+<a href="../api_cxx/dbt_class.html#DB_DBT_USERMEM">DB_DBT_USERMEM</a> flags must be specified for any <a href="../api_cxx/dbt_class.html">Dbt</a> used
+for data retrieval.
+<p>The <b>flags</b> argument must be set to exactly one of the following values:
+<p><dl compact>
+<p><dt><a name="DB_CHECKPOINT">DB_CHECKPOINT</a><dd>The last record written with the DB_CHECKPOINT flag specified to the
+<a href="../api_cxx/log_put.html">DbEnv::log_put</a> method is returned in the <b>data</b> argument.  The
+<b>lsn</b> argument is overwritten with the <a href="../api_cxx/lsn_class.html">DbLsn</a> of the record
+returned.  If no record has been previously written with the DB_CHECKPOINT
+flag specified, the first record in the log is returned.
+<p>If the log is empty, the DbEnv::log_get method will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p><dt><a name="DB_FIRST">DB_FIRST</a><dd>The first record from any of the log files found in the log directory
+is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_cxx/lsn_class.html">DbLsn</a> of the
+record returned.
+<p>If the log is empty, the DbEnv::log_get method will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p><dt><a name="DB_LAST">DB_LAST</a><dd>The last record in the log is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_cxx/lsn_class.html">DbLsn</a> of the
+record returned.
+<p>If the log is empty, the DbEnv::log_get method will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p><dt><a name="DB_NEXT">DB_NEXT</a><dd>The current log position is advanced to the next record in the log and that
+record is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_cxx/lsn_class.html">DbLsn</a> of the
+record returned.
+<p>If the pointer has not been initialized via DB_FIRST, DB_LAST, DB_SET,
+DB_NEXT, or DB_PREV, DbEnv::log_get will return the first record in the log.
+If the last log record has already been returned or the log is empty, the
+DbEnv::log_get method will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p>If the log was opened with the DB_THREAD flag set, calls to
+DbEnv::log_get with the DB_NEXT flag set will return EINVAL.
+<p><dt><a name="DB_PREV">DB_PREV</a><dd>The current log position is moved to the previous record in the log and that
+record is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_cxx/lsn_class.html">DbLsn</a> of the
+record returned.
+<p>If the pointer has not been initialized via DB_FIRST, DB_LAST, DB_SET,
+DB_NEXT, or DB_PREV,
+DbEnv::log_get will return the last record in the log.
+If the first log record has already been returned or the log is empty, the
+DbEnv::log_get method will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p>If the log was opened with the DB_THREAD flag set, calls to
+DbEnv::log_get with the DB_PREV flag set will return EINVAL.
+<p><dt><a name="DB_CURRENT">DB_CURRENT</a><dd>Return the log record currently referenced by the log.
+<p>If the log pointer has not been initialized via DB_FIRST, DB_LAST, DB_SET,
+DB_NEXT, or DB_PREV, or if the log was opened with the DB_THREAD flag set,
+DbEnv::log_get will return EINVAL.
+<p><dt><a name="DB_SET">DB_SET</a><dd>Retrieve the record specified by the <b>lsn</b> argument.  If the
+specified <a href="../api_cxx/lsn_class.html">DbLsn</a> is invalid (e.g., does not appear in the log)
+DbEnv::log_get will return EINVAL.
+</dl>
+<p>Otherwise, the DbEnv::log_get method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::log_get method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The DB_FIRST flag was specified and no log files were found.
+</dl>
+<p>The DbEnv::log_get method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::log_get method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_lg_bsize.html">DbEnv::set_lg_bsize</a>,
+<a href="../api_cxx/env_set_lg_max.html">DbEnv::set_lg_max</a>,
+<a href="../api_cxx/log_archive.html">DbEnv::log_archive</a>,
+<a href="../api_cxx/log_compare.html">DbEnv::log_compare</a>,
+<a href="../api_cxx/log_file.html">DbEnv::log_file</a>,
+<a href="../api_cxx/log_flush.html">DbEnv::log_flush</a>,
+<a href="../api_cxx/log_get.html">DbEnv::log_get</a>,
+<a href="../api_cxx/log_put.html">DbEnv::log_put</a>,
+<a href="../api_cxx/log_register.html">DbEnv::log_register</a>,
+<a href="../api_cxx/log_stat.html">DbEnv::log_stat</a>
+and
+<a href="../api_cxx/log_unregister.html">DbEnv::log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

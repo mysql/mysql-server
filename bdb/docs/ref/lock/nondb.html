@@ -1,0 +1,50 @@
+<!--$Id: nondb.so,v 10.10 2000/12/08 20:43:16 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Locking and non-Berkeley DB applications</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/max.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/log/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Locking and non-Berkeley DB applications</h1>
+<p>The locking subsystem is useful outside the context of Berkeley DB.  It can be
+used to manage concurrent access to any collection of either ephemeral or
+persistent objects.  That is, the lock region can persist across
+invocations of an application, so it can be used to provide long-term
+locking (e.g., conference room scheduling).
+<p>In order to use the locking subsystem in such a general way, the
+applications must adhere to a convention for naming objects and lockers.
+Consider the conference room scheduling problem described above.  Assume
+there are three conference rooms and that we wish to schedule them in
+half-hour intervals.
+<p>The scheduling application must then select a way to identify each
+conference room/time slot combination.  In this case, we could describe
+the objects being locker as bytestrings consisting of the conference room
+name, the date on which it is needed, and the beginning of the appropriate
+half-hour slot.
+<p>Lockers are 32-bit numbers, so we might choose to use the User ID of the
+individual running the scheduling program.  To schedule half-hour slots,
+all the application need do is issue a <a href="../../api_c/lock_get.html">lock_get</a> call for the
+appropriate locker/object pair.  To schedule a longer slot, the
+application would issue a <a href="../../api_c/lock_vec.html">lock_vec</a> call with one <a href="../../api_c/lock_get.html">lock_get</a>
+operation per half-hour up to the total length.  If the <a href="../../api_c/lock_vec.html">lock_vec</a>
+call fails, the application would have to release the parts of the time
+slot that were obtained.
+<p>To cancel a reservation, the application would make the appropriate
+<a href="../../api_c/lock_put.html">lock_put</a> calls.  To reschedule a reservation, the <a href="../../api_c/lock_get.html">lock_get</a>
+and <a href="../../api_c/lock_put.html">lock_put</a> calls could all be made inside of a single
+<a href="../../api_c/lock_vec.html">lock_vec</a> call.  The output of <a href="../../api_c/lock_stat.html">lock_stat</a> could be
+post-processed into a human-readable schedule of conference room use.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/max.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/log/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

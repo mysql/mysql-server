@@ -1,0 +1,74 @@
+<!--$Id: db_put.so,v 11.10 2000/06/12 17:50:01 sue Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db put</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>db</i> <b>put</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db put
+	-append
+	[-partial {doff dlen}]
+	[-txn txnid]
+	data
+db put
+	[-nooverwrite]
+	[-partial {doff dlen}]
+	[-txn txnid]
+	key data
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>db</i> <b>put</b> command stores the specified key/data pair into the
+database.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-append<dd>Append the data item to the end of the database. For the <b>-append</b>
+option to be specified, the underlying database must be a Queue or Recno
+database.  The record number allocated to the record is returned on
+success.
+<p><dt>-nooverwrite<dd>Enter the new key/data pair only if the key does not already appear in
+the database.
+<p><dt>-partial {doff dlen}<dd>
+<p>The <b>dlen</b> bytes starting <b>doff</b> bytes from the beginning of
+the specified key's data record are replaced by the data specified by the
+data and size structure elements.  If <b>dlen</b> is smaller than the
+length of the supplied data, the record will grow, and if <b>dlen</b> is
+larger than the length of the supplied data, the record will shrink.  If
+the specified bytes do not exist, the record will be extended using nul
+bytes as necessary, and the <i>db</i> <b>put</b> call will succeed.
+<p>It is an error to attempt a partial put using the <i>db</i> <b>put</b> command in a database
+that supports duplicate records. Partial puts in databases supporting
+duplicate records must be done using a <i>dbc</i> <b>put</b> command.
+<p>It is an error to attempt a partial put with differing <b>dlen</b> and
+supplied data length values in Queue or Recno databases with fixed-length
+records.
+<p><dt>-txn txnid<dd>If the file is being accessed under transaction protection, the
+<b>txnid</b> parameter is a transaction handle returned from <i>env</i> <b>txn</b>.
+</dl>
+<p>The <i>db</i> <b>put</b> command returns either 0 or a record number for success
+(the record number is returned if the <b>-append</b> option was specified).
+If an error occurs, a Berkeley DB error message is returned or a Tcl error is
+thrown.
+<p>If the underlying database is a Queue or Recno database, then the given
+key will be interpreted by Tcl as an integer.  For all other database
+types, the key is interpreted by Tcl as a byte array.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

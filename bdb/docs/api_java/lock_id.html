@@ -1,0 +1,59 @@
+<!--$Id: lock_id.so,v 10.19 2000/03/01 21:41:29 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.lock_id</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.lock_id</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public int lock_id()
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv.lock_id method
+returns a locker ID, which is guaranteed to be unique in the specified lock
+table.
+<p>The DbEnv.lock_id method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p>The DbEnv.lock_id method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv.lock_id method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Classes</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>, <a href="../api_java/lock_class.html">DbLock</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_lk_conflicts.html">DbEnv.set_lk_conflicts</a>,
+<a href="../api_java/env_set_lk_detect.html">DbEnv.set_lk_detect</a>,
+<a href="../api_java/env_set_lk_max_locks.html">DbEnv.set_lk_max_locks</a>,
+<a href="../api_java/env_set_lk_max_lockers.html">DbEnv.set_lk_max_lockers</a>,
+<a href="../api_java/env_set_lk_max_objects.html">DbEnv.set_lk_max_objects</a>,
+<a href="../api_java/env_set_lk_max.html">DbEnv.set_lk_max</a>,
+<a href="../api_java/lock_detect.html">DbEnv.lock_detect</a>,
+<a href="../api_java/lock_get.html">DbEnv.lock_get</a>,
+<a href="../api_java/lock_id.html">DbEnv.lock_id</a>,
+<a href="../api_java/lock_put.html">DbLock.put</a>
+and
+<a href="../api_java/lock_stat.html">DbEnv.lock_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

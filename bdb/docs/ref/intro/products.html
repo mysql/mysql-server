@@ -1,0 +1,69 @@
+<!--$Id: products.so,v 10.13 2000/12/04 18:05:42 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Sleepycat Software's Berkeley DB products</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Introduction</dl></h3></td>
+<td width="1%"><a href="../../ref/intro/where.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Sleepycat Software's Berkeley DB products</h1>
+<p>Sleepycat Software licenses three different products that use the Berkeley DB
+technology.  Each product offers a distinct level of database support.
+It is not possible to mix-and-match products, that is, each application
+or group of applications must use the same Berkeley DB product.
+<p>All three products are included in the single Open Source distribution of
+Berkeley DB from Sleepycat Software, and building that distribution
+automatically builds all three products.  Each product adds services, and
+new interfaces, to the product that precedes it in the list.  As a result,
+developers can download Berkeley DB and build an application that does only
+single-user, read-only database access, and later add support for more
+users and more complex database access patterns.
+<p>Users who distribute Berkeley DB must ensure that they are licensed for the
+Berkeley DB interfaces they use.  Information on licensing is available directly
+from Sleepycat Software.
+<h3>Berkeley DB Data Store</h3>
+<p>The Berkeley DB Data Store product is an embeddable, high-performance data store.  It
+supports multiple concurrent threads of control to read information
+managed by Berkeley DB.  When updates are required, only a single process may
+be using the database.  That process may be multi-threaded, but only one
+thread of control should be allowed to update the database at any time.
+The Berkeley DB Data Store does no locking, and so provides no guarantees of correct
+behavior if more than one thread of control is updating the database at
+a time.
+<p>The Berkeley DB Data Store product includes the <a href="../../api_c/db_create.html">db_create</a> interface, the
+DB handle methods, and the methods returned by <a href="../../api_c/db_cursor.html">DB-&gt;cursor</a>.
+<p>The Berkeley DB Data Store is intended for use in single-user or read-only applications
+that can guarantee that no more than one thread of control will ever
+update the database at any time.
+<h3>Berkeley DB Concurrent Data Store</h3>
+<p>The Berkeley DB Concurrent Data Store product adds multiple-reader, single writer capabilities to
+the Berkeley DB Data Store product, supporting applications that need concurrent updates
+and do not want to implement their own locking protocols.  The additional
+interfaces included with the Berkeley DB Concurrent Data Store product are <a href="../../api_c/env_create.html">db_env_create</a>, the
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> method (using the <a href="../../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a> flag), and the
+<a href="../../api_c/env_close.html">DBENV-&gt;close</a> method.
+<p>Berkeley DB Concurrent Data Store is intended for applications that require occasional write access
+to a database that is largely used for reading.
+<h3>Berkeley DB Transactional Data Store</h3>
+<p>The Berkeley DB Transactional Data Store product adds full transactional support and recoverability
+to the Berkeley DB Data Store product.  This product includes all of the interfaces
+in the Berkeley DB library.
+<p>Berkeley DB Transactional Data Store is intended for applications that require industrial-strength
+database services, including good performance under high-concurrency
+workloads with a mixture of readers and writers, the ability to commit
+or roll back multiple changes to the database at a single instant, and
+the guarantee that even in the event of a catastrophic system or hardware
+failure, any committed database changes will be preserved.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/intro/where.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

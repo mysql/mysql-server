@@ -1,0 +1,58 @@
+<!--$Id: intro.so,v 10.15 2000/12/04 18:05:41 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Introduction</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Debugging Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/install/file.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/debug/compile.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Introduction</h1>
+<p>As Berkeley DB is an embedded library, debugging applications that use Berkeley DB
+is both harder and easier than debugging a separate server.  Debugging
+can be harder, because, when a problem arises, it is not always readily
+apparent whether the problem is in the application, in the database
+library, or is a result of an unexpected interaction between the two.
+Debugging can be easier, as it is easier to track down a problem when
+you can review a stack trace rather than deciphering inter-process
+communication messages.  This chapter is intended to assist you in
+debugging applications and in reporting bugs to us in a manner such that
+we can provide you with the correct answer or fix as quickly as
+possible.
+<p>When you encounter a problem, there are a few general actions you can
+take:
+<p><dl compact>
+<p><dt>Review the Berkeley DB error output<dd>If an error output mechanism has been configured in the Berkeley DB
+environment, additional run-time error messages are made available to
+the applications.  If you are not using an environment, it is well worth
+modifying your application to create one so that you can get more
+detailed error messages.  See <a href="runtime.html">Run-time error
+information</a> for more information on configuring Berkeley DB to output these
+error messages.
+<p><dt>Review <a href="../../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a><dd>Check the list of flags for the <a href="../../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a> function, and
+see if any of them will produce additional information that might help
+understand the problem.
+<p><dt>Add run-time diagnostics<dd>You can configure and build Berkeley DB to perform run-time diagnostics.
+(These checks are not done by default as they can seriously impact
+performance.  See <a href="compile.html">Compile-time configuration</a> for more
+information.
+<p><dt>Apply all available patches<dd>Before reporting a problem to Sleepycat Software, please upgrade to the
+latest Sleepycat Software release of Berkeley DB, if possible, or at least
+make sure you have applied any updates available for your release from
+the <a href="http://www.sleepycat.com/update/index.html">Sleepycat
+Software web site</a>.
+<p><dt>Run the test suite<dd>If you are seeing repeated failures, or failures of simple test cases,
+run the Berkeley DB test suite to determine if the distribution of Berkeley DB you
+are using was built and configured correctly.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/install/file.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/debug/compile.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

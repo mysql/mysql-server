@@ -1,0 +1,73 @@
+<!--$Id: lock_detect.so,v 10.26 2000/03/17 01:53:59 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::lock_detect</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::lock_detect</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbEnv::lock_detect(u_int32_t flags, u_int32_t atype, int *aborted);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::lock_detect method runs one iteration of the deadlock detector.
+The deadlock detector traverses the lock table, and for each deadlock
+it finds, marks one of the participating transactions for abort.
+<p>The <b>flags</b> value must be set to 0 or by bitwise inclusively <b>OR</b>'ing together one or more
+of the following values.
+<p><dl compact>
+<p><dt><a name="DB_LOCK_CONFLICT">DB_LOCK_CONFLICT</a><dd>Only run the deadlock detector if a lock conflict has occurred since
+the last time that the deadlock detector was run.
+</dl>
+<p>The <b>atype</b> parameter specifies which transaction to abort in the
+case of deadlock.  It must be set to one of possible arguments listed for
+the <a href="../api_cxx/env_set_lk_detect.html">DbEnv::set_lk_detect</a> interface.
+<p>If the <b>aborted</b> parameter is non-NULL, the memory location it
+references will be set to the number of transactions aborted by the
+DbEnv::lock_detect method.
+<p>The DbEnv::lock_detect method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::lock_detect method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::lock_detect method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/lock_class.html">DbLock</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_lk_conflicts.html">DbEnv::set_lk_conflicts</a>,
+<a href="../api_cxx/env_set_lk_detect.html">DbEnv::set_lk_detect</a>,
+<a href="../api_cxx/env_set_lk_max_locks.html">DbEnv::set_lk_max_locks</a>,
+<a href="../api_cxx/env_set_lk_max_lockers.html">DbEnv::set_lk_max_lockers</a>,
+<a href="../api_cxx/env_set_lk_max_objects.html">DbEnv::set_lk_max_objects</a>,
+<a href="../api_cxx/env_set_lk_max.html">DbEnv::set_lk_max</a>,
+<a href="../api_cxx/lock_detect.html">DbEnv::lock_detect</a>,
+<a href="../api_cxx/lock_get.html">DbEnv::lock_get</a>,
+<a href="../api_cxx/lock_id.html">DbEnv::lock_id</a>,
+<a href="../api_cxx/lock_put.html">DbLock::put</a>,
+<a href="../api_cxx/lock_stat.html">DbEnv::lock_stat</a>
+and
+<a href="../api_cxx/lock_vec.html">DbEnv::lock_vec</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

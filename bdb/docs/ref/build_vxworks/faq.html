@@ -1,0 +1,85 @@
+<!--$Id: faq.so,v 1.12 2000/12/21 18:33:43 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: VxWorks FAQ</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for VxWorks systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_vxworks/notes.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade/process.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>VxWorks FAQ</h1>
+<p><ol>
+<p><li><b>Can I run the test suite under VxWorks?</b>
+<p>The test suite requires the Berkeley DB Tcl library.  In turn, this library
+requires Tcl 8.1 or greater.  In order to run the test suite, you would
+need to port Tcl 8.1 or greater to VxWorks.  The Tcl shell included in
+<i>windsh</i> is not adequate for two reasons.  First, it is based on
+Tcl 8.0.  Second, it does not include the necessary Tcl components for
+adding a Tcl extension.
+<p><li><b>Are all Berkeley DB features available for VxWorks?</b>
+<p>All Berkeley DB features are available for VxWorks with the exception of the
+<a href="../../api_c/db_open.html#DB_TRUNCATE">DB_TRUNCATE</a> flag for <a href="../../api_c/db_open.html">DB-&gt;open</a>.  The underlying mechanism
+needed for that flag is not available consistently across different file
+systems for VxWorks.
+<p><li><b>Are there any constraints using particular file system drivers?</b>
+<p>There are constraints using the dosFs file systems with Berkeley DB.  Namely,
+you must configure your dosFs file system to support long file names if
+you are using Berkeley DB logging in your application.  The VxWorks' dosFs
+1.0 file system, by default, uses the old MS-DOS 8.3 file naming
+constraints, restricting to 8 character file names with a 3 character
+extension.  If you have configured with VxWorks' dosFs 2.0 you should
+be compatible with Windows FAT32 filesystems which supports long
+filenames.
+<p><li><b>Are there any dependencies on particular file system drivers?</b>
+<p>There is one dependency on specifics of file system drivers in the port
+of Berkeley DB to VxWorks.  Berkeley DB synchronizes data using the FIOSYNC function
+to ioctl() (another option would have been to use the FIOFLUSH function
+instead).  The FIOSYNC function was chosen because the NFS client driver,
+nfsDrv, only supports it and doesn't support FIOFLUSH.  All local file
+systems, as of VxWorks 5.4, support FIOSYNC with the exception of
+rt11fsLib, which only supports FIOFLUSH.  To use rt11fsLib, you will need
+to modify the os/os_fsync.c file to use the FIOFLUSH function; note that
+rt11fsLib cannot work with NFS clients.
+<p><li><b>Are there any known file system problems?</b>
+<p>During the course of our internal testing we came across two problems
+with the dosFs 2.0 file system that warranted patches from Wind River Systems.
+You should ask Wind River Systems for the patches to these
+problems if you encounter them.
+<p>The first problem is that files will seem to disappear.  You should
+look at <b>SPR 31480</b> in the Wind River Systems' Support pages for
+a more detailed description of this problem.
+<p>The second problem is a semaphore deadlock within the dosFs file system
+code.  Looking at a stack trace via CrossWind, you will see two or more of
+your application's tasks waiting in semaphore code within dosFs.  The patch
+for this problem is under <b>SPR 33221</b> at Wind River Systems.
+<p><li><b>Are there any file systems I cannot use?</b>
+<p>The Target Server File System (TSFS) uses the netDrv driver.  This driver
+does not support any ioctl that allows flushing to the disk and therefore
+cannot be used with Berkeley DB.
+<p><li><b>Why aren't the utility programs part of the project?</b>
+<p>The utility programs, in their Unix-style form, are not ported to VxWorks.
+The reasoning is the utility programs are essentially wrappers for the
+specific Berkeley DB interface they call.  Their interface and generic model
+are not the appropriate paradigm for VxWorks.  It is most likely that
+specific applications will want to spawn tasks that call the appropriate
+Berkeley DB function to perform the actions of some utility programs, using
+VxWorks native functions.  For example, an application that spawns several
+tasks that all may operate on the same database would also want to spawn
+a task that calls <a href="../../api_c/lock_detect.html">lock_detect</a> for deadlock detection, but specific
+to the environment used for that application.
+<p><li><b>What VxWorks primitives are used for mutual exclusion in Berkeley DB?</b>
+<p>Mutexes inside of Berkeley DB use the basic binary semaphores in VxWorks.  The
+mutexes are created using the FIFO queue type.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_vxworks/notes.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade/process.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!--$Id: run.so,v 10.34 2000/11/28 21:27:49 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Running the test suite</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Test Suite</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.2/disk.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/test/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Running the test suite</h1>
+<p>Once you have started tclsh and have loaded the test.tcl source file (see
+<a href="../../ref/build_unix/test.html">Running the test suite under UNIX</a>
+and <a href="../../ref/build_win/test.html">Running the test suite under
+Windows</a> for more information), you are ready to run the test suite.  At
+the tclsh prompt, to run the entire test suite, enter:
+<p><blockquote><pre>% run_all</pre></blockquote>
+<p>Running all the tests can take from several hours to a few days to
+complete, depending on your hardware.  For this reason, the output from
+this command is re-directed to a file in the current directory named
+<b>ALL.OUT</b>.  Periodically, a line will be written to the standard
+output indicating what test is being run.  When the suite has finished,
+a single message indicating that the test suite completed successfully or
+that it failed will be written.  If the run failed, you should review the
+file ALL.OUT to determine which tests failed.  Any errors will appear in
+that file as output lines beginning with the string: FAIL.
+<p>It is also possible to run specific tests or tests for a particular
+subsystem:
+<p><blockquote><pre>% r archive
+% r btree
+% r env
+% r frecno
+% r hash
+% r join
+% r join
+% r lock
+% r log
+% r mpool
+% r mutex
+% r queue
+% r rbtree
+% r recno
+% r rrecno
+% r subdb
+% r txn</pre></blockquote>
+<p>Or to run a single, individual test:
+<p><blockquote><pre>% test001 btree</pre></blockquote>
+<p>It is also possible to modify the test run based on arguments on the
+command line.  For example, the command:
+<p><blockquote><pre>% test001 btree 10</pre></blockquote>
+<p>will run a greatly abbreviated form of test001, doing 10 operations
+instead of 10,000.
+<p>In all cases, when not running the entire test suite as described above,
+a successful test run will return you to the tclsh prompt (%).  On
+failure, a message is displayed indicating what failed.
+<p>Tests are run, by default, in the directory <b>TESTDIR</b>.  However,
+the test files are often very large.  To use a different directory for
+the test directory, edit the file include.tcl in your build directory,
+and change the line:
+<p><blockquote><pre>set testdir ./TESTDIR</pre></blockquote>
+<p>to a more appropriate value for your system, e.g.:
+<p><blockquote><pre>set testdir /var/tmp/db.test</pre></blockquote>
+<p>Alternatively, you can create a symbolic link named TESTDIR in your build
+directory to an appropriate location for running the tests.  Regardless
+of where you run the tests, the TESTDIR directory should be on a local
+filesystem, using a remote filesystem (e.g., NFS) will almost certainly
+cause spurious test failures.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.2/disk.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/test/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

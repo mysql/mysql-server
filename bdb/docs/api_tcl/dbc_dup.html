@@ -1,0 +1,46 @@
+<!--$Id: dbc_dup.so,v 11.4 1999/12/20 08:52:35 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db dup</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>dbc</i> <b>dup</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>dbc dup
+	[-position]
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>dbc</i> <b>dup</b> command duplicates the cursor, creates a new cursor
+that uses the same transaction and locker ID as the original cursor. This
+is useful when an application is using locking and requires two or more
+cursors in the same thread of control.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-position<dd>The newly created cursor is initialized to reference the same position in
+the database as the original cursor and hold the same locks. If the
+<b>-position</b> flag is not specified, then the created cursor is
+uninitialized and will behave like a cursor newly created using the
+<i>db</i> <b>cursor</b> command.
+</dl>
+<p>The <i>dbc</i> <b>dup</b> command returns 0 on success, and in the case of error, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

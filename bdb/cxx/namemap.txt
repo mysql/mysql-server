@@ -1,0 +1,21 @@
+$Id: namemap.txt,v 10.4 2000/02/19 20:57:54 bostic Exp $
+
+The bulk of DB provides for wrapper classes and appropriately named methods
+that call into DB.  For the most part, there is a straightforward mapping of
+names.  For the purposes of referencing documentation, this chart shows the
+underlying C structure name for each C++ class.  In some cases, using the
+given C prefix with a C++ method name gives the underlying C function name.
+For example, DbMpoolFile::close() is implemented by memp_fclose().
+
+C++                          C                       C prefix
+
+Db                          DB
+DbEnv                       DB_ENV
+Dbc                         DBC
+DbException                 none
+DbInfo                      DB_INFO
+DbLock                      DB_LOCK                  lock_
+DbLsn                       DB_LSN
+DbMpoolFile                 DB_MPOOL_FILE            memp_
+Dbt                         DBT
+DbTxn                       DB_TXN                   txn_

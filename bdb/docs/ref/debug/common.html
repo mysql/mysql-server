@@ -1,0 +1,109 @@
+<!--$Id: common.so,v 10.13 2000/12/05 18:04:26 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Common errors</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Debugging Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/debug/printlog.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Common errors</h1>
+<p>This page outlines some of the most common problems that people encounter
+and some suggested courses of action.
+<p><dl compact>
+<p><dt><b>Symptom:</b><dd>Core dumps or garbage returns from random Berkeley DB operations.
+<p><dt>Possible Cause:<dd>Failure to zero out DBT structure before issuing request.
+<p><dt>Fix:<dd>Before using a <a href="../../api_c/dbt.html">DBT</a>, you must initialize all its elements
+to 0 and then set the ones you are using explicitly.
+<p><dt><b>Symptom:</b><dd>Random crashes and/or database corruption.
+<p><dt>Possible Cause:<dd>Running multiple threads, but did not specify <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a>
+to <a href="../../api_c/db_open.html">DB-&gt;open</a> or <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.
+<p><dt>Fix:<dd>Any time you are sharing a handle across multiple threads, you must
+specify <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> when you open that handle.
+<p><dt><b>Symptom:</b><dd><a href="../../api_c/env_open.html">DBENV-&gt;open</a> returns EINVAL.
+<p><dt>Possible Cause:<dd>The environment home directory is a remote mounted filesystem.
+<p><dt>Fix:<dd>Use a locally mounted filesystem instead.
+<p><dt><b>Symptom:</b><dd><a href="../../api_c/db_get.html">DB-&gt;get</a> calls are returning EINVAL.
+<p><dt>Possible Cause:<dd>The application is running with threads, but did not specify the
+<a href="../../api_c/dbt.html#DB_DBT_MALLOC">DB_DBT_MALLOC</a>, <a href="../../api_c/dbt.html#DB_DBT_REALLOC">DB_DBT_REALLOC</a> or <a href="../../api_c/dbt.html#DB_DBT_USERMEM">DB_DBT_USERMEM</a>
+flags in the <a href="../../api_c/dbt.html">DBT</a> structures used in the call.
+<p><dt>Fix:<dd>When running with threaded handles (i.e., specifying <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a>
+to <a href="../../api_c/env_open.html">DBENV-&gt;open</a> or <a href="../../api_c/db_open.html">DB-&gt;open</a>), you must specify one of those
+flags for all <a href="../../api_c/dbt.html">DBT</a> structures in which Berkeley DB is returning data.
+<p><dt><b>Symptom:</b><dd>Running multiple threads or processes, and the database appears to be
+getting corrupted.
+<p><dt>Possible Cause:<dd>Locking is not enabled.
+<p><dt>Fix:<dd>Make sure that you are acquiring locks in your access methods.  You
+must specify <a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a> to your <a href="../../api_c/env_open.html">DBENV-&gt;open</a> call and then
+pass that environment to <a href="../../api_c/db_open.html">DB-&gt;open</a>.
+<p><dt><b>Symptom:</b><dd>Locks are accumulating or threads and/or processes are
+deadlocking even though there is no concurrent access to the database.
+<p><dt>Possible Cause:<dd>Failure to close a cursor.
+<p><dt>Fix:<dd>Cursors retain locks between calls.  Everywhere the application uses
+a cursor, the cursor should be explicitly closed as soon as possible after
+it is used.
+<p><dt><b>Symptom:</b><dd>The system locks up.
+<p><dt>Possible Cause:<dd>Application not checking for <a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a>.
+<p><dt>Fix:<dd>Unless you are using the Concurrent Data Store product, whenever you
+have multiple threads and/or processes and at least one of them is
+writing, you have the potential for deadlock.  As a result, you must
+test for the <a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a> return on every Berkeley DB call.  In
+general, updates should take place in a transaction or you might leave
+the database in an inconsistent state.  Reads may take place outside
+the context of a transaction under common conditions.
+<p>Whenever you get a <a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a> return, you should:
+<p><ol>
+<p><li>If you are running in a transaction, abort the transaction, first closing
+any cursors opened in the transaction.
+<p><li>If you are not running in a transaction, simply close the cursor that got
+the <a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a> (if it was a cursor operation) and retry.
+</ol>
+<p>See <a href="../../ref/transapp/put.html">Recoverability and deadlock
+avoidance</a> for further information.
+<p><dt><b>Symptom:</b><dd>An inordinately high number of deadlocks.
+<p><dt>Possible Cause:<dd>Read-Modify-Write pattern without using the RMW flag.
+<p><dt>Fix:<dd>If you frequently read a piece of data, modify it and then write
+it, you may be inadvertently causing a large number of deadlocks.  Try
+specifying the <a href="../../api_c/dbc_get.html#DB_RMW">DB_RMW</a> flag on your get calls.
+<p>Or, if the application is doing a large number of updates in a small
+database, turning off Btree splits may help (see <a href="../../api_c/db_set_flags.html#DB_REVSPLITOFF">DB_REVSPLITOFF</a>
+for more information.)
+<p><dt><b>Symptom:</b><dd>I run recovery and it exits cleanly, but my database changes are missing.
+<p><dt>Possible Cause:<dd>Failure to enable logging and transactions in the database environment,
+failure to specify DB_ENV handle when creating DB handle,
+transaction handle not passed to Berkeley DB interface, failure to commit
+transaction.
+<p><dt>Fix:<dd>Make sure that the environment and database handles are properly
+created, and that the application passes the transaction handle returned
+by <a href="../../api_c/txn_begin.html">txn_begin</a> to the appropriate Berkeley DB interfaces, and that each
+transaction is eventually committed.
+<p><dt><b>Symptom:</b><dd>Recovery fails.
+<p><dt>Possible Cause:<dd>A database was updated in a transactional environment both with and
+without transactional handles.
+<p><dt>Fix:<dd>If any database write operation is done using a transaction handle,
+every write operation must be done in the context of a transaction.
+<p><dt><b>Symptom:</b><dd>A database environment locks up, sometimes gradually.
+<p><dt>Possible Cause:<dd>A thread of control exited unexpectedly, holding Berkeley DB resources.
+<p><dt>Fix:<dd>Whenever a thread of control exits holding Berkeley DB resources, all threads
+of control must exit the database environment, and recovery must be run.
+<p><dt><b>Symptom:</b><dd>A database environment locks up, sometimes gradually.
+<p><dt>Possible Cause:<dd>Cursors are not being closed before transaction abort.
+<p><dt>Fix:<dd>Before an application aborts a transaction, any cursors opened within
+the context of that transaction must be closed.
+<p><dt><b>Symptom:</b><dd>Transaction abort or recovery fail, or database corruption occurs.
+<p><dt>Possible Cause:<dd>Log files were removed before it was safe.
+<p><dt>Fix:<dd>Do not remove any log files from a database environment until Berkeley DB
+declares it safe.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/debug/printlog.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

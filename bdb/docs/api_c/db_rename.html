@@ -1,0 +1,109 @@
+<!--$Id: db_rename.so,v 10.7 2000/10/25 15:24:44 dda Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DB-&gt;rename</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DB-&gt;rename</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DB-&gt;rename(DB *db, const char *file,
+	const char *database, const char *newname, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The DB-&gt;rename interface renames the database specified by the
+<b>file</b> and <b>database</b> arguments to <b>newname</b>.  If no
+<b>database</b> is specified, the physical file represented by
+<b>file</b> is renamed, incidentally renaming all databases that it
+contained.
+<p>If a physical file is being renamed and logging is currently enabled in
+the database environment, no database in the file may be open when the
+DB-&gt;rename function is called.  Otherwise, no reference count of database
+use is maintained by Berkeley DB.  Applications should not rename databases that
+are currently in use.  In particular, some architectures do not permit
+renaming files with open handles.  On these architectures, attempts to
+rename databases that are currently in use will fail.
+<p>The <b>flags</b> parameter is currently unused, and must be set to 0.
+<p>Once DB-&gt;rename has been called, regardless of its return, the
+DB handle may not be accessed again.
+<p>The DB-&gt;rename function returns a non-zero error value on failure and 0 on success.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>dbenv</b> argument to <a href="../api_c/db_create.html">db_create</a> was initialized using
+<a href="../api_c/env_open.html">DBENV-&gt;open</a> the environment variable <b>DB_HOME</b> may be used
+as the path of the database environment home.  Specifically, DB-&gt;rename
+is affected by the configuration value DB_DATA_DIR.
+</dl>
+<h1>Errors</h1>
+<p>The DB-&gt;rename function may fail and return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>A database in the file is currently open.
+</dl>
+<p>The DB-&gt;rename function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the DB-&gt;rename function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h1>See Also</h1>
+<a href="../api_c/db_create.html">db_create</a>,
+<a href="../api_c/db_close.html">DB-&gt;close</a>,
+<a href="../api_c/db_cursor.html">DB-&gt;cursor</a>,
+<a href="../api_c/db_del.html">DB-&gt;del</a>,
+<a href="../api_c/db_err.html">DB-&gt;err</a>,
+<a href="../api_c/db_fd.html">DB-&gt;fd</a>,
+<a href="../api_c/db_get.html">DB-&gt;get</a>,
+<a href="../api_c/db_get_byteswapped.html">DB-&gt;get_byteswapped</a>,
+<a href="../api_c/db_get_type.html">DB-&gt;get_type</a>,
+<a href="../api_c/db_join.html">DB-&gt;join</a>,
+<a href="../api_c/db_key_range.html">DB-&gt;key_range</a>,
+<a href="../api_c/db_open.html">DB-&gt;open</a>,
+<a href="../api_c/db_put.html">DB-&gt;put</a>,
+<a href="../api_c/db_remove.html">DB-&gt;remove</a>,
+<a href="../api_c/db_set_bt_compare.html">DB-&gt;set_bt_compare</a>,
+<a href="../api_c/db_set_bt_minkey.html">DB-&gt;set_bt_minkey</a>,
+<a href="../api_c/db_set_bt_prefix.html">DB-&gt;set_bt_prefix</a>,
+<a href="../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a>,
+<a href="../api_c/db_set_dup_compare.html">DB-&gt;set_dup_compare</a>,
+<a href="../api_c/db_set_errcall.html">DB-&gt;set_errcall</a>,
+<a href="../api_c/db_set_errfile.html">DB-&gt;set_errfile</a>,
+<a href="../api_c/db_set_errpfx.html">DB-&gt;set_errpfx</a>,
+<a href="../api_c/db_set_flags.html">DB-&gt;set_flags</a>,
+<a href="../api_c/db_set_h_ffactor.html">DB-&gt;set_h_ffactor</a>,
+<a href="../api_c/db_set_h_hash.html">DB-&gt;set_h_hash</a>,
+<a href="../api_c/db_set_h_nelem.html">DB-&gt;set_h_nelem</a>,
+<a href="../api_c/db_set_lorder.html">DB-&gt;set_lorder</a>,
+<a href="../api_c/db_set_malloc.html">DB-&gt;set_malloc</a>,
+<a href="../api_c/db_set_pagesize.html">DB-&gt;set_pagesize</a>,
+<a href="../api_c/db_set_paniccall.html">DB-&gt;set_paniccall</a>,
+<a href="../api_c/db_set_q_extentsize.html">DB-&gt;set_q_extentsize</a>,
+<a href="../api_c/db_set_realloc.html">DB-&gt;set_realloc</a>,
+<a href="../api_c/db_set_re_delim.html">DB-&gt;set_re_delim</a>,
+<a href="../api_c/db_set_re_len.html">DB-&gt;set_re_len</a>,
+<a href="../api_c/db_set_re_pad.html">DB-&gt;set_re_pad</a>,
+<a href="../api_c/db_set_re_source.html">DB-&gt;set_re_source</a>,
+<a href="../api_c/db_stat.html">DB-&gt;stat</a>,
+<a href="../api_c/db_sync.html">DB-&gt;sync</a>,
+<a href="../api_c/db_upgrade.html">DB-&gt;upgrade</a>
+and
+<a href="../api_c/db_verify.html">DB-&gt;verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

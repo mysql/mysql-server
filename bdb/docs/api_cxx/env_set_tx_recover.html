@@ -1,0 +1,77 @@
+<!--$Id: env_set_tx_recover.so,v 10.26 2000/07/09 19:13:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::set_tx_recover</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::set_tx_recover</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbEnv::set_tx_recover(int (*)(DbEnv *dbenv,
+    Dbt *log_rec, DbLsn *lsn, db_recops op));
+</pre></h3>
+<h1>Description</h1>
+<p>Set the application's method to be called during transaction abort
+and recovery.  This method must return 0 on success and either
+<b>errno</b> or a value outside of the Berkeley DB error name space on
+failure.  It takes four arguments:
+<p><dl compact>
+<p><dt>dbenv  <dd>A Berkeley DB environment.
+<p><dt>log_rec<dd>A log record.
+<p><dt>lsn<dd>A log sequence number.
+<p><dt>op<dd>One of the following values:
+<p><dl compact>
+<p><dt><a name="DB_TXN_BACKWARD_ROLL">DB_TXN_BACKWARD_ROLL</a><dd>The log is being read backward to determine which transactions have been
+committed and to abort those operations that were not, undo the operation
+described by the log record.
+<p><dt><a name="DB_TXN_FORWARD_ROLL">DB_TXN_FORWARD_ROLL</a><dd>The log is being played forward, redo the operation described by the log
+record.
+<p><dt><a name="DB_TXN_ABORT">DB_TXN_ABORT</a><dd>The log is being read backwards during a transaction abort, undo the
+operation described by the log record.
+</dl>
+</dl>
+<p>The DbEnv::set_tx_recover interface may only be used to configure Berkeley DB before
+the <a href="../api_cxx/env_open.html">DbEnv::open</a> interface is called.
+<p>The DbEnv::set_tx_recover method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_cxx/env_open.html">DbEnv::open</a> was called.
+</dl>
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/txn_class.html">DbTxn</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_tx_max.html">DbEnv::set_tx_max</a>,
+<a href="../api_cxx/env_set_tx_recover.html">DbEnv::set_tx_recover</a>,
+<a href="../api_cxx/env_set_tx_timestamp.html">DbEnv::set_tx_timestamp</a>,
+<a href="../api_cxx/txn_abort.html">DbTxn::abort</a>,
+<a href="../api_cxx/txn_begin.html">DbEnv::txn_begin</a>,
+<a href="../api_cxx/txn_checkpoint.html">DbEnv::txn_checkpoint</a>,
+<a href="../api_cxx/txn_commit.html">DbTxn::commit</a>,
+<a href="../api_cxx/txn_id.html">DbTxn::id</a>,
+<a href="../api_cxx/txn_prepare.html">DbTxn::prepare</a>
+and
+<a href="../api_cxx/txn_stat.html">DbEnv::txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

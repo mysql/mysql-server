@@ -1,0 +1,51 @@
+<!--$Id: txn_id.so,v 10.12 1999/12/20 08:52:32 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbTxn.id</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbTxn.id</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public int id()
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbTxn.id method returns the unique transaction id associated with the
+specified transaction.  Locking calls made on behalf of this transaction
+should use the value returned from DbTxn.id as the locker parameter
+to the <a href="../api_java/lock_get.html">DbEnv.lock_get</a> or <a href="../api_java/lock_vec.html">DbEnv.lock_vec</a> calls.
+<h3>Classes</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>, <a href="../api_java/txn_class.html">DbTxn</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_tx_max.html">DbEnv.set_tx_max</a>,
+<a href="../api_java/env_set_tx_timestamp.html">DbEnv.set_tx_timestamp</a>,
+<a href="../api_java/txn_abort.html">DbTxn.abort</a>,
+<a href="../api_java/txn_begin.html">DbEnv.txn_begin</a>,
+<a href="../api_java/txn_checkpoint.html">DbEnv.txn_checkpoint</a>,
+<a href="../api_java/txn_commit.html">DbTxn.commit</a>,
+<a href="../api_java/txn_id.html">DbTxn.id</a>,
+<a href="../api_java/txn_prepare.html">DbTxn.prepare</a>
+and
+<a href="../api_java/txn_stat.html">DbEnv.txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

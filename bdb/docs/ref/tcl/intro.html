@@ -1,0 +1,70 @@
+<!--$Id: intro.so,v 11.14 2000/12/04 20:49:18 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Loading Berkeley DB with Tcl</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Tcl</dl></h3></td>
+<td width="1%"><a href="../../ref/perl/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/tcl/using.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Loading Berkeley DB with Tcl</h1>
+<p>Berkeley DB includes a dynamically loadable Tcl API. The Tcl API requires that
+Tcl/Tk 8.1 or later already be installed on your system.  We recommend
+that you install later releases of Tcl/Tk than 8.1, if possible,
+especially on Windows platforms, as we found that we had to make local
+fixes to the 8.1 release in a few cases.  You can download a copy of
+Tcl from the <a href="http://www.ajubasolutions.com/home.html">Ajuba
+Solutions</a> corporate web site.
+<p>This document assumes that you have already configured Berkeley DB for Tcl
+support and you have built and installed everything where you want it
+to be.  If you have not done so, see
+<a href="../../ref/build_unix/conf.html">Configuring Berkeley DB</a> or
+<a href="../../ref/build_win/intro.html">Building for Win32</a> for more
+information.
+<h3>Installing as a Tcl Package</h3>
+<p>Once enabled, the Berkeley DB shared library for Tcl is automatically installed
+as part of the standard installation process.  However, if you wish to be
+able to dynamically load it as a Tcl package into your script there are
+several steps that must be performed:
+<p><ol>
+<p><li>Run the Tcl shell in the install directory
+<li>Append this directory to your auto_path variable
+<li>Run the pkg_mkIndex proc giving the name of the Berkeley DB Tcl library
+</ol>
+<p>For example:
+<p><blockquote><pre># tclsh8.1
+% lappend auto_path /usr/local/BerkeleyDB/lib
+% pkg_mkIndex /usr/local/BerkeleyDB/lib libdb_tcl-3.2.so libdb-3.2.so</pre></blockquote>
+<p>Note that your Tcl and Berkeley DB version numbers may differ from the example,
+and so your tclsh and and library names may be different.
+<h3>Loading Berkeley DB with Tcl</h3>
+<p>The Berkeley DB package may be loaded into the user's interactive Tcl script
+(or wish session) via the "load" command. For example:
+<p><blockquote><pre>load /usr/local/BerkeleyDB/lib/libdb_tcl-3.2.so</pre></blockquote>
+<p>Note that your Berkeley DB version numbers may differ from the example, and so
+the library name may be different.
+<p>If you installed your library to run as a Tcl package, Tcl application
+scripts should use the "package" command to indicate to the Tcl
+interpreter that it needs the Berkeley DB package and where to find it. For
+example:
+<p><blockquote><pre>lappend auto_path "/usr/local/BerkeleyDB/lib"
+package require Db_tcl</pre></blockquote>
+<p>No matter which way the library gets loaded, it creates a command named
+<b>berkdb</b>.  All of the Berkeley DB functionality is accessed via this
+command and additional commands it creates on behalf of the application.
+A simple test to determine if everything is loaded and ready is to ask
+for the version:
+<p><blockquote><pre>berkdb version -string</pre></blockquote>
+<p>This should return you the Berkeley DB version in a string format.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/perl/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/tcl/using.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,47 @@
+#!/bin/sh -
+#	$Id: s_tags,v 1.5 2000/09/05 21:27:04 bostic Exp $
+#
+# Build tags files.
+
+files="../include/*.h \
+	../include/*.src \
+	../btree/*.[ch] \
+	../clib/*.[ch] \
+	../common/*.[ch] \
+	../db/*.[ch] \
+	../db185/*.[ch] \
+	../dbm/*.[ch] \
+	../env/*.[ch] \
+	../hash/*.[ch] \
+	../hsearch/*.[ch] \
+	../libdb_java/*.[ch] \
+	../lock/*.[ch] \
+	../log/*.[ch] \
+	../mp/*.[ch] \
+	../mutex/*.[ch] \
+	../os/*.[ch] \
+	../qam/*.[ch] \
+	../rpc_client/*.[ch] \
+	../rpc_server/*.[ch] \
+	../tcl/*.[ch] \
+	../txn/*.[ch] \
+	../xa/*.[ch]"
+
+f=tags
+echo "Building $f"
+rm -f $f
+
+# Figure out what flags this ctags accepts.
+flags=""
+if ctags -d ../db/db.c 2>/dev/null; then
+	flags="-d $flags"
+fi
+if ctags -t ../db/db.c 2>/dev/null; then
+	flags="-t $flags"
+fi
+if ctags -w ../db/db.c 2>/dev/null; then
+	flags="-w $flags"
+fi
+
+ctags $flags $files 2>/dev/null
+chmod 444 $f

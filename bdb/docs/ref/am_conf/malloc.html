@@ -1,0 +1,31 @@
+<!--$Id: malloc.so,v 10.19 2000/03/18 21:43:09 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Non-local memory allocation</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/dup.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/bt_compare.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Non-local memory allocation</h1>
+<p>Berkeley DB can allocate memory for returned key/data pairs which then becomes
+the responsibility of the application.  See <a href="../../api_c/dbt.html#DB_DBT_MALLOC">DB_DBT_MALLOC</a> or
+<a href="../../api_c/dbt.html#DB_DBT_REALLOC">DB_DBT_REALLOC</a> for further information.
+<p>On systems where there may be multiple library versions of malloc (notably
+Windows NT), the Berkeley DB library could allocate memory from a different heap
+than the application will use to free it. To avoid this problem, the
+allocation routine to be used for allocating such key/data items can be
+specified by calling the <a href="../../api_c/db_set_malloc.html">DB-&gt;set_malloc</a> or
+<a href="../../api_c/db_set_realloc.html">DB-&gt;set_realloc</a> functions.  If no allocation function is specified, the
+underlying C library functions are used.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/dup.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/bt_compare.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

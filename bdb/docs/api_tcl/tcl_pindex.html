@@ -1,0 +1,258 @@
+<html>
+<head>
+<title>Berkeley DB: Tcl Interface Index</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<h1 align=center>Tcl Interface Index</h1>
+<center>
+<table cellspacing=0 cellpadding=0>
+<tr><td align=right>    configuring Berkeley DB </td><td><a href="../ref/build_unix/conf.html#5">1.85</a> API compatibility</td></tr>
+<tr><td align=right>    building a utility to dump Berkeley DB </td><td><a href="../ref/build_unix/conf.html#7">1.85</a> databases</td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.2.0/intro.html#2">2.0</a></td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.3.0/intro.html#2">3.0</a></td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.3.1/intro.html#2">3.1</a></td></tr>
+<tr><td align=right>    Upgrading to release </td><td><a href="../ref/upgrade.3.2/intro.html#2">3.2</a></td></tr>
+<tr><td align=right>    selecting an </td><td><a href="../ref/am_conf/select.html#2">access</a> method</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/intro.html#2">access</a> methods</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/aix.html#2">AIX</a></td></tr>
+<tr><td align=right>    programmatic </td><td><a href="../ref/arch/apis.html#2">APIs</a></td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_archive.html#3">archive</a> log files</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_remove.html#2">berkdb</a> dbremove</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_rename.html#2">berkdb</a> dbrename</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/env_open.html#2">berkdb</a> env</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/env_remove.html#2">berkdb</a> envremove</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_open.html#2">berkdb</a> open</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/version.html#2">berkdb</a> version</td></tr>
+<tr><td align=right>    </td><td><a href="../utility/berkeley_db_svc.html#2">berkeley_db_svc</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/intro.html#2">building</a> for UNIX</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/notes.html#2">building</a> for UNIX FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_vxworks/intro.html#2">building</a> for VxWorks</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_vxworks/faq.html#2">building</a> for VxWorks FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_win/intro.html#2">building</a> for Win32</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_win/faq.html#2">building</a> for Windows FAQ</td></tr>
+<tr><td align=right>    selecting a </td><td><a href="../ref/am_conf/byteorder.html#2">byte</a> order</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/byteorder.html#2">byte</a> ordering</td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#6">C++</a> API</td></tr>
+<tr><td align=right>    flushing the database </td><td><a href="../ref/am/sync.html#2">cache</a></td></tr>
+<tr><td align=right>    selecting a </td><td><a href="../ref/am_conf/cachesize.html#2">cache</a> size</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/archival.html#3">catastrophic</a> recovery</td></tr>
+<tr><td align=right>Patches, Updates and </td><td><a href="http://www.sleepycat.com/update/index.html">Change</a> logs</td></tr>
+<tr><td align=right>    utility to take </td><td><a href="../utility/db_checkpoint.html#3">checkpoints</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curclose.html#2">closing</a> a cursor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/close.html#2">closing</a> a database</td></tr>
+<tr><td align=right>    specifying a Btree </td><td><a href="../ref/am_conf/bt_compare.html#2">comparison</a> function</td></tr>
+<tr><td align=right>    changing </td><td><a href="../ref/build_unix/flags.html#2">compile</a> or load options</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/cam/intro.html#2">Concurrent</a> Data Store</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/conf.html#2">configuring</a> Berkeley DB for UNIX systems</td></tr>
+<tr><td align=right>    recovering </td><td><a href="../ref/am/verify.html#4">corrupted</a> databases</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/count.html#2">counting</a> data items for a key</td></tr>
+<tr><td align=right>    closing a </td><td><a href="../ref/am/curclose.html#3">cursor</a></td></tr>
+<tr><td align=right>    deleting records with a </td><td><a href="../ref/am/curdel.html#3">cursor</a></td></tr>
+<tr><td align=right>    duplicating a </td><td><a href="../ref/am/curdup.html#3">cursor</a></td></tr>
+<tr><td align=right>    retrieving records with a </td><td><a href="../ref/am/curget.html#3">cursor</a></td></tr>
+<tr><td align=right>    storing records with a </td><td><a href="../ref/am/curput.html#3">cursor</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/stability.html#2">cursor</a> stability</td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/cursor.html#2">cursors</a></td></tr>
+<tr><td align=right>    utility to upgrade </td><td><a href="../utility/db_upgrade.html#3">database</a> files</td></tr>
+<tr><td align=right>    utility to verify </td><td><a href="../utility/db_verify.html#3">database</a> files</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_close.html#2">db</a> close</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/dbc_close.html#2">db</a> close</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_count.html#2">db</a> count</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_cursor.html#2">db</a> cursor</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_del.html#2">db</a> del</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/dbc_del.html#2">db</a> del</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/dbc_dup.html#2">db</a> dup</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_get.html#2">db</a> get</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/dbc_get.html#2">db</a> get</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_get_join.html#2">db</a> get_join</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_get_type.html#2">db</a> get_type</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_is_byteswapped.html#2">db</a> is_byteswapped</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_join.html#2">db</a> join</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_put.html#2">db</a> put</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_stat.html#2">db</a> stat</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/db_sync.html#2">db</a> sync</td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_archive.html#2">db_archive</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/dbc_put.html#2">dbc</a> put</td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_checkpoint.html#2">db_checkpoint</a></td></tr>
+<tr><td align=right>File naming</td><td><a href="../ref/env/naming.html#DB_CONFIG">DB_CONFIG</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_deadlock.html#2">db_deadlock</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_dump.html#2">db_dump</a></td></tr>
+<tr><td align=right>File naming</td><td><a href="../ref/env/naming.html#DB_HOME">DB_HOME</a></td></tr>
+<tr><td align=right>File naming</td><td><a href="../ref/env/naming.html#db_home">db_home</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_KEYEMPTY">DB_KEYEMPTY</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_load.html#2">db_load</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_LOCK_NOTGRANTED">DB_LOCK_NOTGRANTED</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_printlog.html#2">db_printlog</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_recover.html#2">db_recover</a></td></tr>
+<tr><td align=right>Error returns to applications</td><td><a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_stat.html#2">db_stat</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_upgrade.html#2">db_upgrade</a></td></tr>
+<tr><td align=right>    </td><td><a href="../utility/db_verify.html#2">db_verify</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/dead.html#2">deadlocks</a></td></tr>
+<tr><td align=right>    utility to detect </td><td><a href="../utility/db_deadlock.html#3">deadlocks</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/debug/common.html#2">debugging</a> applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/delete.html#2">deleting</a> records</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curdel.html#2">deleting</a> records with a cursor</td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--disable-bigfile">--disable-bigfile</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/diskspace.html#2">disk</a> space requirements</td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_dump.html#3">dump</a> databases as text files</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/dup.html#2">duplicate</a> data items</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curdup.html#2">duplicating</a> a cursor</td></tr>
+<tr><td align=right>    configuring </td><td><a href="../ref/build_unix/conf.html#9">dynamic</a> shared libraries</td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-compat185">--enable-compat185</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-cxx">--enable-cxx</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-debug">--enable-debug</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-debug_rop">--enable-debug_rop</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-debug_wop">--enable-debug_wop</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-diagnostic">--enable-diagnostic</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-dump185">--enable-dump185</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-dynamic">--enable-dynamic</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-java">--enable-java</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-posixmutexes">--enable-posixmutexes</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-rpc">--enable-rpc</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-shared">--enable-shared</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-tcl">--enable-tcl</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-test">--enable-test</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-uimutexes">--enable-uimutexes</a></td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--enable-umrw">--enable-umrw</a></td></tr>
+<tr><td align=right>    byte </td><td><a href="../ref/program/byteorder.html#3">endian</a></td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/env_close.html#2">env</a> close</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/txn.html#2">env</a> txn</td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/env/create.html#2">environment</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/environ.html#2">environment</a> variables</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/error.html#2">error</a> handling</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/errorret.html#3">error</a> name space</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/errorret.html#2">error</a> returns</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/install/file.html#2">/etc/magic</a></td></tr>
+<tr><td align=right>    selecting a Queue </td><td><a href="../ref/am_conf/extentsize.html#2">extent</a> size</td></tr>
+<tr><td align=right>    Java </td><td><a href="../ref/java/faq.html#2">FAQ</a></td></tr>
+<tr><td align=right>    Tcl </td><td><a href="../ref/tcl/faq.html#2">FAQ</a></td></tr>
+<tr><td align=right>    configuring without large </td><td><a href="../ref/build_unix/conf.html#4">file</a> support</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/install/file.html#3">file</a> utility</td></tr>
+<tr><td align=right>    recovery and </td><td><a href="../ref/transapp/filesys.html#2">filesystem</a> operations</td></tr>
+<tr><td align=right>    remote </td><td><a href="../ref/env/remote.html#2">filesystems</a></td></tr>
+<tr><td align=right>    page </td><td><a href="../ref/am_conf/h_ffactor.html#2">fill</a> factor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/freebsd.html#2">FreeBSD</a></td></tr>
+<tr><td align=right>    Berkeley DB </td><td><a href="../ref/program/scope.html#3">free-threaded</a> handles</td></tr>
+<tr><td align=right>    specifying a database </td><td><a href="../ref/am_conf/h_hash.html#2">hash</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/h_nelem.html#2">hash</a> table size</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/hpux.html#2">HP-UX</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/install.html#2">installing</a> Berkeley DB for UNIX systems</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/program/compatible.html#2">interface</a> compatibility</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/irix.html#2">IRIX</a></td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#10">Java</a> API</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/java/compat.html#2">Java</a> compatibility</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/java/conf.html#2">Java</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/java/faq.html#3">Java</a> FAQ</td></tr>
+<tr><td align=right>    logical </td><td><a href="../ref/am/join.html#2">join</a></td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/program/dbsizes.html#2">limits</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/linux.html#2">Linux</a></td></tr>
+<tr><td align=right>    changing compile or </td><td><a href="../ref/build_unix/flags.html#3">load</a> options</td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_load.html#3">load</a> text files into databases</td></tr>
+<tr><td align=right>    standard </td><td><a href="../ref/lock/stdmode.html#2">lock</a> modes</td></tr>
+<tr><td align=right>    page-level </td><td><a href="../ref/lock/page.html#2">locking</a></td></tr>
+<tr><td align=right>    two-phase </td><td><a href="../ref/lock/twopl.html#2">locking</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/nondb.html#2">locking</a> and non-Berkeley DB applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/config.html#2">locking</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/am_conv.html#2">locking</a> conventions</td></tr>
+<tr><td align=right>    Berkeley DB Concurrent Data Store </td><td><a href="../ref/lock/cam_conv.html#2">locking</a> conventions</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/intro.html#2">locking</a> introduction</td></tr>
+<tr><td align=right>    sizing the </td><td><a href="../ref/lock/max.html#2">locking</a> subsystem</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/lock/notxn.html#2">locking</a> without transactions</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/log/limits.html#2">log</a> file limits</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/logfile.html#2">log</a> file removal</td></tr>
+<tr><td align=right>    utility to display </td><td><a href="../utility/db_printlog.html#3">log</a> files as text</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/log/config.html#2">logging</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/log/intro.html#2">logging</a> introduction</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/mp/config.html#2">memory</a> pool configuration</td></tr>
+<tr><td align=right>    Berkeley DB library </td><td><a href="../ref/program/namespace.html#2">name</a> spaces</td></tr>
+<tr><td align=right>    file </td><td><a href="../ref/env/naming.html#2">naming</a></td></tr>
+<tr><td align=right>    retrieving Btree records by </td><td><a href="../ref/am_conf/bt_recnum.html#2">number</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/open.html#2">opening</a> a database</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/osf1.html#2">OSF/1</a></td></tr>
+<tr><td align=right>    selecting a </td><td><a href="../ref/am_conf/pagesize.html#2">page</a> size</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/partial.html#2">partial</a> record storage and retrieval</td></tr>
+<tr><td align=right></td><td><a href="http://www.sleepycat.com/update/index.html">Patches,</a> Updates and Change logs</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/perl/intro.html#2">Perl</a></td></tr>
+<tr><td align=right>    Sleepycat Software's Berkeley DB </td><td><a href="../ref/intro/products.html#2">products</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/qnx.html#2">QNX</a></td></tr>
+<tr><td align=right>    logical </td><td><a href="../ref/am_conf/logrec.html#2">record</a> numbers</td></tr>
+<tr><td align=right>    managing </td><td><a href="../ref/am_conf/recno.html#2">record-based</a> databases</td></tr>
+<tr><td align=right>    logically renumbering </td><td><a href="../ref/am_conf/renumber.html#2">records</a></td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_recover.html#3">recover</a> database environments</td></tr>
+<tr><td align=right>    Berkeley DB </td><td><a href="../ref/transapp/reclimit.html#2">recoverability</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/get.html#2">retrieving</a> records</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curget.html#2">retrieving</a> records with a cursor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/rpc/client.html#2">RPC</a> client</td></tr>
+<tr><td align=right>    configuring a </td><td><a href="../ref/build_unix/conf.html#11">RPC</a> client/server</td></tr>
+<tr><td align=right>    utility to support </td><td><a href="../utility/berkeley_db_svc.html#3">RPC</a> client/server</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/rpc/server.html#2">RPC</a> server</td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/verify.html#3">salvage</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/sco.html#2">SCO</a></td></tr>
+<tr><td align=right>    Berkeley DB handle </td><td><a href="../ref/program/scope.html#2">scope</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/env/security.html#2">security</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/sendmail/intro.html#2">Sendmail</a></td></tr>
+<tr><td align=right>    configuring </td><td><a href="../ref/build_unix/conf.html#8">shared</a> libraries</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/shlib.html#2">shared</a> libraries</td></tr>
+<tr><td align=right>    application </td><td><a href="../ref/program/appsignals.html#2">signal</a> handling</td></tr>
+<tr><td align=right></td><td><a href="http://www.sleepycat.com/">Sleepycat</a> Software</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/solaris.html#2">Solaris</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/distrib/layout.html#2">source</a> code layout</td></tr>
+<tr><td align=right>    cursor </td><td><a href="../ref/am/stability.html#3">stability</a></td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/stat.html#2">statistics</a></td></tr>
+<tr><td align=right>    utility to display database and environment </td><td><a href="../utility/db_stat.html#3">statistics</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/put.html#2">storing</a> records</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/curput.html#2">storing</a> records with a cursor</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/sunos.html#2">SunOS</a></td></tr>
+<tr><td align=right>    loading Berkeley DB with </td><td><a href="../ref/tcl/intro.html#2">Tcl</a></td></tr>
+<tr><td align=right>    using Berkeley DB with </td><td><a href="../ref/tcl/using.html#2">Tcl</a></td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#12">Tcl</a> API</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/tcl/program.html#2">Tcl</a> API programming notes</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/tcl/faq.html#3">Tcl</a> FAQ</td></tr>
+<tr><td align=right>    configuring the </td><td><a href="../ref/build_unix/conf.html#13">test</a> suite</td></tr>
+<tr><td align=right>    running the </td><td><a href="../ref/test/run.html#2">test</a> suite</td></tr>
+<tr><td align=right>    running the </td><td><a href="../ref/build_unix/test.html#2">test</a> suite under UNIX</td></tr>
+<tr><td align=right>    running the </td><td><a href="../ref/build_win/test.html#2">test</a> suite under Windows</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am_conf/re_source.html#2">text</a> backing files</td></tr>
+<tr><td align=right>    loading </td><td><a href="../ref/dumpload/text.html#2">text</a> into databases</td></tr>
+<tr><td align=right>    dumping/loading </td><td><a href="../ref/dumpload/utility.html#2">text</a> to/from databases</td></tr>
+<tr><td align=right>    building </td><td><a href="../ref/program/mt.html#2">threaded</a> applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/txn/config.html#2">transaction</a> configuration</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/txn/limits.html#2">transaction</a> limits</td></tr>
+<tr><td align=right>    administering </td><td><a href="../ref/transapp/admin.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    archival in </td><td><a href="../ref/transapp/archival.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    checkpoints in </td><td><a href="../ref/transapp/checkpoint.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    deadlock detection in </td><td><a href="../ref/transapp/deadlock.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    recovery in </td><td><a href="../ref/transapp/recovery.html#2">transaction</a> protected applications</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/throughput.html#2">transaction</a> throughput</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/transapp/intro.html#2">Transactional</a> Data Store</td></tr>
+<tr><td align=right>    Berkeley DB and </td><td><a href="../ref/txn/intro.html#2">transactions</a></td></tr>
+<tr><td align=right>    nested </td><td><a href="../ref/txn/nested.html#2">transactions</a></td></tr>
+<tr><td align=right>    configuring Berkeley DB with the </td><td><a href="../ref/xa/config.html#2">Tuxedo</a> System</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/txn_abort.html#2">txn</a> abort</td></tr>
+<tr><td align=right>    </td><td><a href="../api_tcl/txn_commit.html#2">txn</a> commit</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_unix/ultrix.html#2">Ultrix</a></td></tr>
+<tr><td align=right>    building for </td><td><a href="../ref/build_unix/notes.html#3">UNIX</a> FAQ</td></tr>
+<tr><td align=right>    configuring Berkeley DB for </td><td><a href="../ref/build_unix/conf.html#3">UNIX</a> systems</td></tr>
+<tr><td align=right>Patches, </td><td><a href="http://www.sleepycat.com/update/index.html">Updates</a> and Change logs</td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_upgrade.html#4">upgrade</a> database files</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/am/upgrade.html#2">upgrading</a> databases</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/arch/utilities.html#2">utilities</a></td></tr>
+<tr><td align=right>    database </td><td><a href="../ref/am/verify.html#2">verification</a></td></tr>
+<tr><td align=right>    utility to </td><td><a href="../utility/db_verify.html#4">verify</a> database files</td></tr>
+<tr><td align=right>    building for </td><td><a href="../ref/build_vxworks/faq.html#3">VxWorks</a> FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_vxworks/notes.html#2">VxWorks</a> notes</td></tr>
+<tr><td align=right>    running the test suite under </td><td><a href="../ref/build_win/test.html#3">Windows</a></td></tr>
+<tr><td align=right>    building for </td><td><a href="../ref/build_win/faq.html#3">Windows</a> FAQ</td></tr>
+<tr><td align=right>    </td><td><a href="../ref/build_win/notes.html#2">Windows</a> notes</td></tr>
+<tr><td align=right>Configuring Berkeley DB</td><td><a href="../ref/build_unix/conf.html#--with-tcl=DIR">--with-tcl=DIR</a></td></tr>
+<tr><td align=right>    </td><td><a href="../ref/xa/intro.html#2">XA</a> Resource Manager</td></tr>
+</table>
+</center>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

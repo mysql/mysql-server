@@ -1,0 +1,174 @@
+<!--$Id: env_open.so,v 1.1 2000/07/25 17:56:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Opening the environment</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/app.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/data_open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Opening the environment</h1>
+<p>Creating transaction-protected applications using the Berkeley DB library is
+quite easy.  Applications first use <a href="../../api_c/env_open.html">DBENV-&gt;open</a> to initialize
+the database environment.  Transaction-protected applications normally
+require all four Berkeley DB subsystems, so the <a href="../../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a>,
+<a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a>, <a href="../../api_c/env_open.html#DB_INIT_LOG">DB_INIT_LOG</a> and <a href="../../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a> flags
+should be specified.
+<p>Once the application has called <a href="../../api_c/env_open.html">DBENV-&gt;open</a>, it opens its
+databases within the environment.  Once the databases are opened, the
+application makes changes to the databases inside of transactions.  Each
+set of changes that entail a unit of work should be surrounded by the
+appropriate <a href="../../api_c/txn_begin.html">txn_begin</a>, <a href="../../api_c/txn_commit.html">txn_commit</a> and <a href="../../api_c/txn_abort.html">txn_abort</a>
+calls.  The Berkeley DB access methods will make the appropriate calls into
+the lock, log and memory pool subsystems in order to guarantee
+transaction semantics.  When the application is ready to exit, all
+outstanding transactions should have been committed or aborted.
+<p>Databases accessed by a transaction must not be closed during the
+transaction.  Once all outstanding transactions are finished, all open
+Berkeley DB files should be closed.  When the Berkeley DB database files have been
+closed, the environment should be closed by calling <a href="../../api_c/env_close.html">DBENV-&gt;close</a>.
+<p>The following code fragment creates the database environment directory,
+then opens the environment, running recovery.  Our DB_ENV
+database environment handle is declared to be free-threaded using the
+<a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flag, and so may be used by any number of threads that
+we may subsequently create.
+<p><blockquote><pre>#include &lt;sys/types.h&gt;
+#include &lt;sys/stat.h&gt;
+<p>
+#include &lt;errno.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;stdarg.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+<p>
+#include &lt;db.h&gt;
+<p>
+#define	ENV_DIRECTORY	"TXNAPP"
+<p>
+void  env_dir_create(void);
+void  env_open(DB_ENV **);
+<p>
+int
+main(int argc, char *argv)
+{
+	extern char *optarg;
+	extern int optind;
+	DB *db_cats, *db_color, *db_fruit;
+	DB_ENV *dbenv;
+	pthread_t ptid;
+	int ch;
+<p>
+	while ((ch = getopt(argc, argv, "")) != EOF)
+		switch (ch) {
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+<p>
+	env_dir_create();
+	env_open(&dbenv);
+<p>
+	return (0);
+}
+<p>
+void
+env_dir_create()
+{
+	struct stat sb;
+<p>
+	/*
+	 * If the directory exists, we're done.  We do not further check
+	 * the type of the file, DB will fail appropriately if it's the
+	 * wrong type.
+	 */
+	if (stat(ENV_DIRECTORY, &sb) == 0)
+		return;
+<p>
+	/* Create the directory, read/write/access owner only. */
+	if (mkdir(ENV_DIRECTORY, S_IRWXU) != 0) {
+		fprintf(stderr,
+		    "txnapp: mkdir: %s: %s\n", ENV_DIRECTORY, strerror(errno));
+		exit (1);
+	}
+}
+<p>
+void
+env_open(DB_ENV **dbenvp)
+{
+	DB_ENV *dbenv;
+	int ret;
+<p>
+	/* Create the environment handle. */
+	if ((ret = db_env_create(&dbenv, 0)) != 0) {
+		fprintf(stderr,
+		    "txnapp: db_env_create: %s\n", db_strerror(ret));
+		exit (1);
+	}
+<p>
+	/* Set up error handling. */
+	dbenv-&gt;set_errpfx(dbenv, "txnapp");
+<p>
+	/*
+	 * Open a transactional environment:
+	 *	create if it doesn't exist
+	 *	free-threaded handle
+	 *	run recovery
+	 *	read/write owner only
+	 */
+	if ((ret = dbenv-&gt;open(dbenv, ENV_DIRECTORY,
+	    DB_CREATE | DB_INIT_LOCK | DB_INIT_LOG |
+	    DB_INIT_MPOOL | DB_INIT_TXN | DB_RECOVER | DB_THREAD,
+	    S_IRUSR | S_IWUSR)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "dbenv-&gt;open: %s", ENV_DIRECTORY);
+		exit (1);
+	}
+<p>
+	*dbenvp = dbenv;
+}</pre></blockquote>
+<p>After running this initial program, we can use the <a href="../../utility/db_stat.html">db_stat</a>
+utility to display the contents of the environment directory:
+<p><blockquote><pre>prompt&gt; db_stat -e -h TXNAPP
+3.2.1   Environment version.
+120897  Magic number.
+0       Panic value.
+1       References.
+6       Locks granted without waiting.
+0       Locks granted after waiting.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Mpool Region: 4.
+264KB   Size (270336 bytes).
+-1      Segment ID.
+1       Locks granted without waiting.
+0       Locks granted after waiting.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Log Region: 3.
+96KB    Size (98304 bytes).
+-1      Segment ID.
+3       Locks granted without waiting.
+0       Locks granted after waiting.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Lock Region: 2.
+240KB   Size (245760 bytes).
+-1      Segment ID.
+1       Locks granted without waiting.
+0       Locks granted after waiting.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Txn Region: 5.
+8KB     Size (8192 bytes).
+-1      Segment ID.
+1       Locks granted without waiting.
+0       Locks granted after waiting.</pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/app.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/data_open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!--$Id: notes.so,v 1.6 2000/08/09 15:45:52 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: VxWorks notes</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for VxWorks systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_vxworks/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_vxworks/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>VxWorks notes</h1>
+<p>Berkeley DB currently disallows the DB_TRUNC flag to <a href="../../api_c/db_open.html">DB-&gt;open</a>.
+The operations this flag represent are not fully supported under
+VxWorks 5.4.
+<p>The memory on VxWorks is always resident and fully shared among all tasks
+running on the target.  For this reason, the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> flag
+is implied for any application that does not specify the
+<a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flag.  Additionally, applications must use a
+segment ID to ensure different applications do not overwrite each other's
+database environments.
+See the <a href="../../api_c/env_set_shm_key.html">DBENV-&gt;set_shm_key</a> function for more information.
+Also, the <a href="../../api_c/env_open.html#DB_LOCKDOWN">DB_LOCKDOWN</a> flag has no effect.
+<p>The <a href="../../api_c/db_sync.html">DB-&gt;sync</a> function is implemented using an ioctl call into the
+file system driver with the FIOSYNC command.  Most, but not all, file
+system drivers support this call.  Berkeley DB requires the use of a file system
+supporting FIOSYNC.
+<h3>Building and Running the Example Programs</h3>
+<p>Each example program can be downloaded and run by calling the function
+equivalent to the example's name.  You may have to edit the pathname to
+the environments and database names in the examples' sources.  The
+examples included are:
+<p><table border=1 align=center>
+<tr><th>Name</th><th>Description</th></tr>
+<tr>    <td align=left>ex_access</td>    <td align=left>Simple access method example.</td>    </tr>
+<tr>    <td align=left>ex_btrec</td>    <td align=left>Example using Btree and record numbers.</td>    </tr>
+<tr>    <td align=left>ex_dbclient</td>    <td align=left>Example running an RPC client.  Takes a hostname as an argument, e.g.,
+<i>ex_dbclient "myhost"</i>.</td>    </tr>
+<tr>    <td align=left>ex_env</td>    <td align=left>Example using an environment.</td>    </tr>
+<tr>    <td align=left>ex_mpool</td>    <td align=left>Example using mpools.</td>    </tr>
+<tr>    <td align=left>ex_tpcb</td>    <td align=left>Example using transactions.  This example requires two invocations both
+taking an integer identifier as an argument.  This identifier allows for
+multiple sets of databases to be used within the same environment.  The
+first is to initialize the databases, e.g., <i>ex_tpcb_init 1</i>.  The
+second is to run the program on those databases, e.g., <i>ex_tpcb 1</i>.</td>    </tr>
+</table>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_vxworks/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_vxworks/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

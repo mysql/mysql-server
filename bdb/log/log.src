@@ -1,0 +1,46 @@
+/*-
+ * See the file LICENSE for redistribution information.
+ *
+ * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ *	Sleepycat Software.  All rights reserved.
+ *
+ *	$Id: log.src,v 10.12 2000/02/17 20:24:10 bostic Exp $
+ */
+
+PREFIX	log
+
+INCLUDE	#include "db_config.h"
+INCLUDE
+INCLUDE #ifndef NO_SYSTEM_INCLUDES
+INCLUDE #include <sys/types.h>
+INCLUDE
+INCLUDE #include <ctype.h>
+INCLUDE #include <errno.h>
+INCLUDE #include <string.h>
+INCLUDE #endif
+INCLUDE
+INCLUDE #include "db_int.h"
+INCLUDE #include "db_page.h"
+INCLUDE #include "db_dispatch.h"
+INCLUDE #include "db_am.h"
+INCLUDE #include "log.h"
+INCLUDE #include "txn.h"
+INCLUDE
+
+/* Used for registering name/id translations at open or close. */
+DEPRECATED register1	1
+ARG	opcode		u_int32_t	lu
+DBT	name		DBT		s
+DBT	uid		DBT		s
+ARG	fileid		int32_t		ld
+ARG	ftype		DBTYPE		lx
+END
+
+BEGIN register		2
+ARG	opcode		u_int32_t	lu
+DBT	name		DBT		s
+DBT	uid		DBT		s
+ARG	fileid		int32_t		ld
+ARG	ftype		DBTYPE		lx
+ARG	meta_pgno	db_pgno_t	lu
+END

@@ -1,0 +1,67 @@
+<!--$Id: other.so,v 10.16 2000/03/18 21:43:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Transactions and non-Berkeley DB applications</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/txn/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/rpc/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Transactions and non-Berkeley DB applications</h1>
+<p>It is possible to use the locking, logging and transaction subsystems
+of Berkeley DB to provide transaction semantics on objects other than those
+described by the Berkeley DB access methods.  In these cases, the application
+will need more explicit customization of the subsystems as well as the
+development of appropriate data-structure-specific recovery functions.
+<p>For example, consider an application that provides transaction semantics
+on data stored in plain UNIX files accessed using the POSIX read and write
+system calls.  The operations for which transaction protection is desired
+are bracketed by calls to <a href="../../api_c/txn_begin.html">txn_begin</a> and <a href="../../api_c/txn_commit.html">txn_commit</a>.
+<p>Before data are referenced, the application must make a call to the lock
+manager, <a href="../../api_c/lock_get.html">lock_get</a>, for a lock of the appropriate type (e.g.,
+read) on the object being locked.  The object might be a page in the file,
+a byte, a range of bytes, or some key.  It is up to the application to
+ensure that appropriate locks are acquired.  Before a write is performed,
+the application should acquire a write lock on the object, by making an
+appropriate call to the lock manager, <a href="../../api_c/lock_get.html">lock_get</a>.  Then, the
+application should make a call to the log manager, <a href="../../api_c/log_put.html">log_put</a>, to
+record enough information to redo the operation in case of failure after
+commit and to undo the operation in case of abort.
+<p>It is important, when designing applications that will use the log
+subsystem, to remember that the application is responsible for providing
+any necessary structure to the log record.  For example, the application
+must understand what part of the log record is an operation code, what
+part identifies the file being modified, what part is redo information,
+and what part is undo information.
+<p>After the log message is written, the application may issue the write
+system call.  After all requests are issued, the application may call
+<a href="../../api_c/txn_commit.html">txn_commit</a>.  When <a href="../../api_c/txn_commit.html">txn_commit</a> returns, the caller is
+guaranteed that all necessary log writes have been written to disk.
+<p>At any time, the application may call <a href="../../api_c/txn_abort.html">txn_abort</a>, which will result
+in restoration of the database to a consistent pre-transaction state.
+(The application may specify its own recovery function for this purpose
+using the <a href="../../api_c/env_set_tx_recover.html">DBENV-&gt;set_tx_recover</a> function.  The recovery function must be
+able to either re-apply or undo the update depending on the context, for
+each different type of log record.)
+<p>If the application should crash, the recovery process uses the log to
+restore the database to a consistent state.
+<p>The <a href="../../api_c/txn_prepare.html">txn_prepare</a> function provides the core functionality to
+implement distributed transactions, but it does not manage the
+notification of distributed transaction managers.  The caller is
+responsible for issuing <a href="../../api_c/txn_prepare.html">txn_prepare</a> calls to all sites
+participating in the transaction.  If all responses are positive, the
+caller can issue a <a href="../../api_c/txn_commit.html">txn_commit</a>.  If any of the responses are
+negative, the caller should issue a <a href="../../api_c/txn_abort.html">txn_abort</a>.  In general, the
+<a href="../../api_c/txn_prepare.html">txn_prepare</a> call requires that the transaction log be flushed to
+disk.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/txn/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/rpc/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

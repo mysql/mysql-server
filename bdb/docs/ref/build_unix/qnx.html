@@ -1,0 +1,58 @@
+<!--$Id: qnx.so,v 11.5 2000/11/29 15:03:24 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: QNX</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/osf1.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/sco.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>QNX</h1>
+<p><ol>
+<p><li><b>To what versions of QNX has DB been ported?</b>
+<p>Berkeley DB has been ported to the QNX Neutrino technology which is commonly
+referred to as QNX RTP (Real-Time Platform).  Berkeley DB has not been
+ported to earlier versions of QNX, such as QNX 4.25.
+<p><li><b>What is the impact of QNX's use of <b>shm_open</b>(2) for
+shared memory regions?</b>
+<p>QNX requires the use of the POSIX <b>shm_open</b>(2) and
+<b>shm_unlink</b>(2) calls for shared memory regions that will later
+be mapped into memory using <b>mmap</b>(2).  QNX's implementation
+of the shared memory functions requires that the name given must begin
+with a slash, and that no other slash may appear in the name.
+<p>In order to comply with those requirements and allow relative pathnames
+to find the same environment, Berkeley DB uses only the last component of the
+home directory path and the name of the shared memory file, separated
+by a colon, as the name specified to the shared memory functions.  For
+example, if an application specifies a home directory of
+<b>/home/db/DB_DIR</b>, Berkeley DB will use <b>/DB_DIR:__db.001</b> as
+the name for the shared memory area argument to <b>shm_open</b>(2).
+<p>The impact of this decision is that the last component of all
+environment home directory pathnames on QNX must be unique with respect
+to each other.  Additionally, Berkeley DB requires that environments use home
+directories for QNX in order to generate a reasonable entry in the
+shared memory area.
+<p><li><b>What are the implications of QNX's requirement to use
+<b>shm_open</b>(2) in order to use <b>mmap</b>(2)?</b>
+<p>QNX requires that files mapped with <b>mmap</b>(2) be opened using
+<b>shm_open</b>(2).  There are other places in addition to the
+environment shared memory regions, where Berkeley DB tries to memory map files
+if it can.
+<p>The memory pool subsystem normally attempts to use <b>mmap</b>(2)
+even when using private memory, as indicated by the <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a>
+flag to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.  In the case of QNX, if an application is
+using private memory, Berkeley DB will not attempt to map the memory and will
+instead use the local cache.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/osf1.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/sco.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

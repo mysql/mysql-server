@@ -1,0 +1,114 @@
+<!--$Id: bigpic.so,v 8.21 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: The big picture</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Architecture</dl></h3></td>
+<td width="1%"><a href="../../ref/am/error.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/arch/progmodel.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>The big picture</h1>
+<p>The previous chapters in this Reference Guide have described applications
+that use the Berkeley DB Access Methods for fast data storage and retrieval.
+The applications we describe here and in subsequent chapters are similar
+in nature to the Access Method applications, but they are also fully
+recoverable in the face of application or system failure.
+<p>Application code that only uses the Berkeley DB Access Methods might appear as
+follows:
+<p><blockquote><pre>switch (ret = dbp-&gt;put(dbp, NULL, &key, &data, 0)) {
+case 0:
+	printf("db: %s: key stored.\n", (char *)key.data);
+	break;
+default:
+	dbp-&gt;err(dbp, ret, "dbp-&gt;put");
+	exit (1);
+}</pre></blockquote>
+<p>The underlying Berkeley DB architecture that supports this is:
+<p align=center><img src="smallpic.gif" alt="small">
+<p>As you can see from this diagram, the application makes calls into the
+Access Methods, and the Access Methods use the underlying shared memory
+buffer cache to hold recently used file pages in main memory.
+<p>When applications require recoverability, then their calls to the Access
+Methods must be wrapped in calls to the transaction subsystem.  The
+application must inform Berkeley DB where to begin and end transactions, and
+must be prepared for the possibility that an operation may fail at any
+particular time, causing the transaction to abort.
+<p>An example of transaction protected code might appear as follows:
+<p><blockquote><pre>retry:	if ((ret = txn_begin(dbenv, NULL, &tid)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "txn_begin");
+		exit (1);
+	}
+<p>
+	switch (ret = dbp-&gt;put(dbp, tid, &key, &data, 0)) {
+	case DB_LOCK_DEADLOCK:
+		(void)txn_abort(tid);
+		goto retry;
+	case 0:
+		printf("db: %s: key stored.\n", (char *)key.data);
+		break;
+	default:
+		dbenv-&gt;err(dbenv, ret, "dbp-&gt;put");
+		exit (1);
+	}
+<p>
+	if ((ret = txn_commit(tid)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "txn_commit");
+		exit (1);
+	}</pre></blockquote>
+<p>In this example, the same operation is being done as before, however, it
+is wrapped in transaction calls.  The transaction is started with
+<a href="../../api_c/txn_begin.html">txn_begin</a>, and finished with <a href="../../api_c/txn_commit.html">txn_commit</a>.  If the operation
+fails due to a deadlock, then the transaction is aborted using
+<a href="../../api_c/txn_abort.html">txn_abort</a>, after which the operation may be retried.
+<p>There are actually five major subsystems in Berkeley DB, as follows:
+<p><dl compact>
+<p><dt>The Access Methods<dd>The Access Method subsystem provides general-purpose support for creating
+and accessing database files formatted as Btrees, Hashed files, and
+Fixed- and Variable-length records.  These modules are useful in the
+absence of transactions for applications that need fast, formatted file
+support.  See <a href="../../api_c/db_open.html">DB-&gt;open</a> and <a href="../../api_c/db_cursor.html">DB-&gt;cursor</a> for more
+information.  These functions were already discussed in detail in the
+previous chapters.
+<p><dt>The Memory Pool<dd>The memory pool subsystem is the general-purpose shared memory buffer pool
+used by Berkeley DB.  This is the shared memory cache that allows multiple
+processes and threads within processes to share access to databases.  This
+module is useful outside of the Berkeley DB package for processes that require
+portable, page-oriented, cached, shared file access.
+<p><dt>Transactions<dd>The transaction subsystem allows a group of database changes to be
+treated as an atomic unit so that either all of the changes are done, or
+none of the changes are done.  The transaction subsystem implements the
+Berkeley DB transaction model.  This module is useful outside of the Berkeley DB
+package for processes that want to transaction protect their own data
+modifications.
+<p><dt>Locking<dd>The locking subsystem is the general-purpose lock manager used by Berkeley DB.
+This module is useful outside of the Berkeley DB package for processes that
+require a portable, fast, configurable lock manager.
+<p><dt>Logging<dd>The logging subsystem is the write-ahead logging used to support the Berkeley DB
+transaction model.  It is largely specific to the Berkeley DB package, and
+unlikely to be useful elsewhere except as a supporting module for the
+Berkeley DB transaction subsystem.
+</dl>
+<p>Here is a more complete picture of the Berkeley DB library:
+<p align=center><img src="bigpic.gif" alt="large">
+<p>In this example, the application makes calls to the Access Methods and to
+the transaction subsystem.  The Access Methods and transaction subsystem
+in turn make calls into the Buffer Pool, Locking and Logging subsystems
+on behalf of the application.
+<p>While the underlying subsystems can each be called independently.  For
+example, the Buffer Pool subsystem can be used apart from the rest of
+Berkeley DB by applications simply wanting a shared memory buffer pool, or
+the Locking subsystem may be called directly by applications that are
+doing their own locking outside of Berkeley DB.  However, this usage is fairly
+rare, and most applications will either use only the Access Methods, or
+the Access Methods wrapped in calls to the transaction interfaces.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/error.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/arch/progmodel.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,91 @@
+#!/bin/sh -
+#	$Id: s_symlink,v 1.9 2000/09/05 21:27:04 bostic Exp $
+
+echo 'Creating Berkeley DB source tree symbolic links...'
+
+build()
+{
+	echo "	$1 -> $2"
+	(cd ../`dirname $1` && rm -f `basename $1` && ln -s $2 `basename $1`)
+}
+
+build btree/tags ../dist/tags
+build build_unix/tags ../dist/tags
+build clib/tags ../dist/tags
+build common/tags ../dist/tags
+build cxx/tags ../dist/tags
+build db/tags ../dist/tags
+build db185/tags ../dist/tags
+build db_archive/tags ../dist/tags
+build db_checkpoint/tags ../dist/tags
+build db_deadlock/tags ../dist/tags
+build db_dump/tags ../dist/tags
+build db_dump185/tags ../dist/tags
+build db_load/tags ../dist/tags
+build db_printlog/tags ../dist/tags
+build db_recover/tags ../dist/tags
+build db_stat/tags ../dist/tags
+build db_upgrade/tags ../dist/tags
+build db_verify/tags ../dist/tags
+build dbm/tags ../dist/tags
+build docs_src/api_cxx/Makefile ../api_c/Makefile
+build docs_src/api_cxx/m4.seealso ../api_c/m4.seealso
+build docs_src/api_cxx/spell.ok ../api_c/spell.ok
+build docs_src/api_java/Makefile ../api_c/Makefile
+build docs_src/api_java/java_index.so ../api_cxx/cxx_index.so
+build docs_src/api_java/m4.seealso ../api_c/m4.seealso
+build docs_src/api_java/spell.ok ../api_c/spell.ok
+build docs_src/api_tcl/spell.ok ../api_c/spell.ok
+build docs_src/ref/am/spell.ok ../spell.ok
+build docs_src/ref/am_conf/spell.ok ../spell.ok
+build docs_src/ref/arch/spell.ok ../spell.ok
+build docs_src/ref/build_unix/spell.ok ../spell.ok
+build docs_src/ref/build_vxworks/spell.ok ../spell.ok
+build docs_src/ref/build_win/spell.ok ../spell.ok
+build docs_src/ref/cam/spell.ok ../spell.ok
+build docs_src/ref/debug/spell.ok ../spell.ok
+build docs_src/ref/distrib/spell.ok ../spell.ok
+build docs_src/ref/dumpload/spell.ok ../spell.ok
+build docs_src/ref/env/spell.ok ../spell.ok
+build docs_src/ref/install/spell.ok ../spell.ok
+build docs_src/ref/intro/spell.ok ../spell.ok
+build docs_src/ref/java/spell.ok ../spell.ok
+build docs_src/ref/lock/spell.ok ../spell.ok
+build docs_src/ref/log/spell.ok ../spell.ok
+build docs_src/ref/mp/spell.ok ../spell.ok
+build docs_src/ref/perl/spell.ok ../spell.ok
+build docs_src/ref/program/spell.ok ../spell.ok
+build docs_src/ref/refs/spell.ok ../spell.ok
+build docs_src/ref/rpc/spell.ok ../spell.ok
+build docs_src/ref/sendmail/spell.ok ../spell.ok
+build docs_src/ref/simple_tut/spell.ok ../spell.ok
+build docs_src/ref/tcl/spell.ok ../spell.ok
+build docs_src/ref/test/spell.ok ../spell.ok
+build docs_src/ref/transapp/spell.ok ../spell.ok
+build docs_src/ref/txn/spell.ok ../spell.ok
+build docs_src/ref/upgrade.2.0/spell.ok ../spell.ok
+build docs_src/ref/upgrade.3.0/spell.ok ../spell.ok
+build docs_src/ref/upgrade.3.1/spell.ok ../spell.ok
+build docs_src/ref/upgrade.3.2/spell.ok ../spell.ok
+build docs_src/ref/xa/spell.ok ../spell.ok
+build env/tags ../dist/tags
+build examples_c/tags ../dist/tags
+build examples_cxx/tags ../dist/tags
+build examples_java java/src/com/sleepycat/examples
+build hash/tags ../dist/tags
+build hsearch/tags ../dist/tags
+build include/tags ../dist/tags
+build libdb_java/tags ../dist/tags
+build lock/tags ../dist/tags
+build log/tags ../dist/tags
+build mp/tags ../dist/tags
+build mutex/tags ../dist/tags
+build os/tags ../dist/tags
+build os_vxworks/tags ../dist/tags
+build os_win32/tags ../dist/tags
+build qam/tags ../dist/tags
+build rpc_client/tags ../dist/tags
+build rpc_server/tags ../dist/tags
+build tcl/tags ../dist/tags
+build txn/tags ../dist/tags
+build xa/tags ../dist/tags

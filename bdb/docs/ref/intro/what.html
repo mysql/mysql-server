@@ -1,0 +1,53 @@
+<!--$Id: what.so,v 10.22 2000/09/22 18:23:59 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: What other services does Berkeley DB provide?</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Introduction</dl></h3></td>
+<td width="1%"><a href="../../ref/intro/need.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/intro/distrib.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>What other services does Berkeley DB provide?</h1>
+<p>Berkeley DB also provides core database services to developers.  These
+services include:
+<p><dl compact>
+<p><dt>Page cache management:<dd>The page cache provides fast access to a cache of database pages,
+handling the I/O associated with the cache to ensure that dirty pages
+are written back to the file system and that new pages are allocated on
+demand.  Applications may use the Berkeley DB shared memory buffer manager to
+serve their own files and pages.
+<p><dt>Transactions and logging:<dd>The transaction and logging systems provide recoverability and atomicity
+for multiple database operations. The transaction system uses two-phase
+locking and write-ahead logging protocols to ensure that database
+operations may be undone or redone in the case of application or system
+failure.  Applications may use Berkeley DB transaction and logging subsystems
+to protect their own data structures and operations from application or
+system failure.
+<p><dt>Locking:<dd>The locking system provides multiple reader or single writer access to
+objects.  The Berkeley DB access methods use the locking system to acquire
+the right to read or write database pages.  Applications may use the
+Berkeley DB locking subsystem to support their own locking needs.
+</dl>
+<p>By combining the page cache, transaction, locking, and logging systems,
+Berkeley DB provides the same services found in much larger, more complex and
+more expensive database systems.  Berkeley DB supports multiple simultaneous
+readers and writers and guarantees that all changes are recoverable, even
+in the case of a catastrophic hardware failure during a database update.
+<p>Developers may select some or all of the core database services for any
+access method or database.  Therefore, it is possible to choose the
+appropriate storage structure and the right degrees of concurrency and
+recoverability for any application.  In addition, some of the systems
+(e.g., the locking subsystem) can be called separately from the Berkeley DB
+access method.  As a result, developers can integrate non-database
+objects into their transactional applications using Berkeley DB.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/intro/need.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/intro/distrib.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

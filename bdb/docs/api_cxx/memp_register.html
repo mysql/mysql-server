@@ -1,0 +1,102 @@
+<!--$Id: memp_register.so,v 10.23 2000/05/25 13:47:08 dda Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::memp_register</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::memp_register</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+extern "C" {
+	typedef int (*pgin_fcn_type)(DB_ENV *dbenv,
+		db_pgno_t pgno, void *pgaddr, DBT *pgcookie);
+	typedef int (*pgout_fcn_type)(DB_ENV *dbenv,
+		db_pgno_t pgno, void *pgaddr, DBT *pgcookie);
+};
+int
+DbEnv::memp_register(int ftype,
+	pgin_fcn_type pgin_fcn, pgout_fcn_type pgout_fcn);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::memp_register method registers page-in and page-out
+functions for files of type <b>ftype</b> in the specified pool.
+<p>If the <b>pgin_fcn</b> function is non-NULL, it is called each time
+a page is read into the memory pool from a file of type <b>ftype</b>, or
+a page is created for a file of type <b>ftype</b> (see the
+DB_MPOOL_CREATE flag for the <a href="../api_cxx/memp_fget.html">DbMpoolFile::get</a> method).
+<p>If the <b>pgout_fcn</b> function is non-NULL, it is called each time
+a page is written to a file of type <b>ftype</b>.
+<p>Both the <b>pgin_fcn</b> and <b>pgout_fcn</b> functions are called with
+a reference to the current environment, the page number, a pointer to the
+page being read or written, and any argument <b>pgcookie</b> that was
+specified to the <a href="../api_cxx/memp_fopen.html">DbMpoolFile::open</a> function when the file was opened.
+The <b>pgin_fcn</b> and <b>pgout_fcn</b> functions should return 0 on
+success, and an applicable non-zero <b>errno</b> value on failure, in
+which case the shared memory pool interface routine (and, by extension,
+any Berkeley DB library function) calling it will also fail, returning that
+<b>errno</b> value.
+<p>The purpose of the DbEnv::memp_register function is to support processing
+when pages are entered into, or flushed from, the pool.  A file type must
+be specified to make it possible for unrelated threads or processes, that
+are sharing a pool, to evict each other's pages from the pool.
+Applications should call DbEnv::memp_register, during initialization,
+for each type of file requiring input or output processing that will be
+sharing the underlying pool.  (No registry is necessary for the standard
+Berkeley DB access method types, as <a href="../api_cxx/db_open.html">Db::open</a> registers them
+separately.)
+<p>If a thread or process does not call DbEnv::memp_register for a file
+type, it is impossible for it to evict pages for any file requiring input
+or output processing from the pool.  For this reason,
+DbEnv::memp_register should always be called by each application sharing
+a pool for each type of file included in the pool, regardless of whether
+or not the application itself uses files of that type.
+<p>There are no standard values for <b>ftype</b>, <b>pgin_fcn</b>,
+<b>pgout_fcn</b> and <b>pgcookie</b>, except that the <b>ftype</b>
+value for a file must be a non-zero positive number, as negative numbers
+are reserved for internal use by the Berkeley DB library.  For this reason,
+applications sharing a pool must coordinate their values amongst
+themselves.
+<p>The DbEnv::memp_register method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::memp_register method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::memp_register method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/mempfile_class.html">DbMpoolFile</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_mp_mmapsize.html">DbEnv::set_mp_mmapsize</a>,
+<a href="../api_cxx/memp_fclose.html">DbMpoolFile::close</a>,
+<a href="../api_cxx/memp_fget.html">DbMpoolFile::get</a>,
+<a href="../api_cxx/memp_fopen.html">DbMpoolFile::open</a>,
+<a href="../api_cxx/memp_fput.html">DbMpoolFile::put</a>,
+<a href="../api_cxx/memp_fset.html">DbMpoolFile::set</a>,
+<a href="../api_cxx/memp_fsync.html">DbMpoolFile::sync</a>,
+<a href="../api_cxx/memp_register.html">DbEnv::memp_register</a>,
+<a href="../api_cxx/memp_stat.html">DbEnv::memp_stat</a>,
+<a href="../api_cxx/memp_sync.html">DbEnv::memp_sync</a>
+and
+<a href="../api_cxx/memp_trickle.html">DbEnv::memp_trickle</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

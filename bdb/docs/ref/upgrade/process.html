@@ -1,0 +1,108 @@
+<!--$Id: process.so,v 1.1 2000/12/05 20:39:10 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Upgrading Berkeley DB installations</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/build_vxworks/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.2.0/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Upgrading Berkeley DB installations</h1>
+<p>The following information describes the general process of upgrading
+Berkeley DB installations.  There are three issues to be considered when
+upgrading Berkeley DB applications and database environments.  They are the
+application API, the underlying database formats, and, in the case of
+transactional database environments, the log files.
+<p>An application must always be re-compiled to use a new Berkeley DB release.
+Internal Berkeley DB interfaces may change at any time and in any release,
+without warning. This means the application and library must be entirely
+recompiled and reinstalled when upgrading to new releases of the
+library, as there is no guarantee that modules from one version of the
+library will interact correctly with modules from another release.
+<p>A Berkeley DB patch release will never modify the Berkeley DB API, log file or
+database formats in non-backward compatible ways.  Berkeley DB minor and major
+releases may optionally include changes to the Berkeley DB application API,
+log files and database formats that are not backward compatible.  Note,
+that there are several underlying Berkeley DB database formats.  As all of
+them do not necessarily change at the same time, changes to one database
+format in a release may not affect any particular application.
+<p>Each Berkeley DB minor or major release has an upgrading section in this
+chapter of the Berkeley DB Reference Guide.  The section describes any API
+changes that were made in the release.  Application maintainers must
+review the API changes, update their applications as necessary, and then
+re-compile using the new release.  In addition, each section includes
+a page specifying if the log file format or database formats changed in
+non-backward compatible ways as part of the release.
+<p>If the application does not have a Berkeley DB transactional environment, the
+re-compiled application may be installed in the field using the
+following steps:
+<p><ol>
+<p><li>Shut down the old version of the application.
+<p><li>Remove any Berkeley DB environment, using the <a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> function or an
+appropriate system utility.
+<p><li>Install the new version of the application.
+<p><li>If the database format has changed, upgrade the application's databases.
+See <a href="../../ref/am/upgrade.html">Upgrading databases</a> for more
+information.
+<p><li>Re-start the application.
+</ol>
+<p>If the application has a Berkeley DB transactional environment, but neither
+the log file or database formats have changed, the re-compiled
+application may be installed in the field using the following steps:
+<p><ol>
+<p><li>Shut down the old version of the application.
+<p><li>Run recovery on the database environment, using the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function
+or the <a href="../../utility/db_recover.html">db_recover</a> utility.
+<p><li>Install the new version of the application.
+<p><li>Re-start the application.
+</ol>
+<p>If the application has a Berkeley DB transactional environment, and the log
+file format has changed but the database formats have not, the
+re-compiled application may be installed in the field using the
+following steps:
+<p><ol>
+<p><li>Shut down the old version of the application.
+<p><li>Run recovery on the database environment, using the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function
+or the <a href="../../utility/db_recover.html">db_recover</a> utility.
+<p><li>Archive the database environment for catastrophic recovery.  See
+<a href="../../ref/transapp/archival.html">Archival procedures</a> for more
+information.
+<p><li>Install the new version of the application.
+<p><li>Re-start the application.
+</ol>
+<p>If the application has a Berkeley DB transactional environment and the
+database format has changed, the re-compiled application may be
+installed in the field using the following steps:
+<p><ol>
+<p><li>Shut down the old version of the application.
+<p><li>Run recovery on the database environment, using the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function
+or the <a href="../../utility/db_recover.html">db_recover</a> utility.
+<p><li>Archive the database environment for catastrophic recovery.  See
+<a href="../../ref/transapp/archival.html">Archival procedures</a> for more
+information.
+<p><li>Install the new version of the application.
+<p><li>Upgrade the application's databases.  See
+<a href="../../ref/am/upgrade.html">Upgrading databases</a> for more
+information.
+<p><li>Archive the database for catastrophic recovery again (using different
+media than before, of course).
+<p>This archival is not strictly necessary.  However, if you have to perform
+catastrophic recovery after restarting your applications, that recovery
+must be done based on the last archive you have made.  If you make this
+archive, you can use it as the basis of your catastrophic recovery.  If
+you do not make this archive, you will have to use the archive you made
+in step #2 as the basis of your recovery, and you will have to upgrade it
+as described in step #3 before you can apply your log files to it.
+<p><li>Re-start the application.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_vxworks/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.2.0/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!--$Id: db_set_flags.so,v 10.26 2000/03/17 01:53:58 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Db::set_flags</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Db::set_flags</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+Db::set_flags(u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>Calling Db::set_flags is additive, there is no way to clear flags.
+<p>The <b>flags</b> value must be set to 0 or by bitwise inclusively <b>OR</b>'ing together one or more
+of the following values.
+<h3>Btree</h3>
+<p>The following flags may be specified for the Btree access method:
+<p><dl compact>
+<p><dt><a name="DB_DUP">DB_DUP</a><dd>Permit duplicate data items in the tree, i.e. insertion when the key of
+the key/data pair being inserted already exists in the tree will be
+successful.  The ordering of duplicates in the tree is determined by the
+order of insertion, unless the ordering is otherwise specified by use of
+a cursor operation.  It is an error to specify both DB_DUP and
+DB_RECNUM.
+<p><dt><a name="DB_DUPSORT">DB_DUPSORT</a><dd>Permit duplicate data items in the tree, i.e. insertion when the key of
+the key/data pair being inserted already exists in the tree will be
+successful.  The ordering of duplicates in the tree is determined by the
+duplicate comparison function.
+If the application does not specify a comparison function using the
+<a href="../api_cxx/db_set_dup_compare.html">Db::set_dup_compare</a> method, a default, lexical comparison will be
+used.
+It is an error to specify both DB_DUPSORT and DB_RECNUM.
+<p><dt><a name="DB_RECNUM">DB_RECNUM</a><dd>Support retrieval from the Btree using record numbers.  For more
+information, see the DB_GET_RECNO flag to the <a href="../api_cxx/db_get.html">Db::get</a> and
+<a href="../api_cxx/dbc_get.html">Dbc::get</a> methods.
+<p>Logical record numbers in Btree databases are mutable in the face of
+record insertion or deletion.  See the DB_RENUMBER flag in the Recno
+access method information for further discussion.
+<p>Maintaining record counts within a Btree introduces a serious point of
+contention, namely the page locations where the record counts are stored.
+In addition, the entire tree must be locked during both insertions and
+deletions, effectively single-threading the tree for those operations.
+Specifying DB_RECNUM can result in serious performance degradation for
+some applications and data sets.
+<p>It is an error to specify both DB_DUP and DB_RECNUM.
+<p><dt><a name="DB_REVSPLITOFF">DB_REVSPLITOFF</a><dd>Turn off reverse splitting in the Btree.  As pages are emptied in a
+database, the Berkeley DB Btree implementation attempts to coalesce empty pages
+into higher-level pages in order to keep the tree as small as possible
+and minimize tree search time.  This can hurt performance in applications
+with cyclical data demands, that is, applications where the database grows
+and shrinks repeatedly.  For example, because Berkeley DB does page-level
+locking, the maximum level of concurrency in a database of 2 pages is far
+smaller than that in a database of 100 pages, and so a database that has
+shrunk to a minimal size can cause severe deadlocking when a new cycle of
+data insertion begins.
+</dl>
+<h3>Hash</h3>
+<p>The following flags may be specified for the Hash access method:
+<p><dl compact>
+<p><dt><a name="DB_DUP">DB_DUP</a><dd>Permit duplicate data items in the tree, i.e. insertion when the key of
+the key/data pair being inserted already exists in the tree will be
+successful.  The ordering of duplicates in the tree is determined by the
+order of insertion, unless the ordering is otherwise specified by use of
+a cursor operation.  It is an error to specify both DB_DUP and
+DB_RECNUM.
+<p><dt><a name="DB_DUPSORT">DB_DUPSORT</a><dd>Permit duplicate data items in the tree, i.e. insertion when the key of
+the key/data pair being inserted already exists in the tree will be
+successful.  The ordering of duplicates in the tree is determined by the
+duplicate comparison function.
+If the application does not specify a comparison function using the
+<a href="../api_cxx/db_set_dup_compare.html">Db::set_dup_compare</a> method, a default, lexical comparison will be
+used.
+It is an error to specify both DB_DUPSORT and DB_RECNUM.
+</dl>
+<h3>Queue</h3>
+<p>There are no additional flags that may be specified for the Queue access
+method.
+<h3>Recno</h3>
+<p>The following flags may be specified for the Recno access method:
+<p><dl compact>
+<p><dt><a name="DB_RENUMBER">DB_RENUMBER</a><dd>Specifying the DB_RENUMBER flag causes the logical record numbers to be
+mutable, and change as records are added to and deleted from the database.
+For example, the deletion of record number 4 causes records numbered 5
+and greater to be renumbered downward by 1.  If a cursor was positioned
+to record number 4 before the deletion, it will reference the new record
+number 4, if any such record exists, after the deletion.  If a cursor was
+positioned after record number 4 before the deletion, it will be shifted
+downward 1 logical record, continuing to reference the same record as it
+did before.
+<p>Using the <a href="../api_cxx/db_put.html">Db::put</a> or <a href="../api_cxx/dbc_put.html">Dbc::put</a> interfaces to create new
+records will cause the creation of multiple records if the record number
+is more than one greater than the largest record currently in the
+database.  For example, creating record 28, when record 25 was previously
+the last record in the database, will create records 26 and 27 as well as
+28.  Attempts to retrieve records that were created in this manner will
+result in an error return of <a href="../ref/program/errorret.html#DB_KEYEMPTY">DB_KEYEMPTY</a>.
+<p>If a created record is not at the end of the database, all records
+following the new record will be automatically renumbered upward by 1.
+For example, the creation of a new record numbered 8 causes records
+numbered 8 and greater to be renumbered upward by 1.  If a cursor was
+positioned to record number 8 or greater before the insertion, it will be
+shifted upward 1 logical record, continuing to reference the same record
+as it did before.
+<p>For these reasons, concurrent access to a Recno database with the
+DB_RENUMBER flag specified may be largely meaningless, although
+it is supported.
+<p><dt><a name="DB_SNAPSHOT">DB_SNAPSHOT</a><dd>This flag specifies that any specified <b>re_source</b> file be read in
+its entirety when <a href="../api_cxx/db_open.html">Db::open</a> is called.  If this flag is not
+specified, the <b>re_source</b> file may be read lazily.
+</dl>
+<p>The Db::set_flags interface may only be used to configure Berkeley DB before
+the <a href="../api_cxx/db_open.html">Db::open</a> interface is called.
+<p>The Db::set_flags method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<h3>Class</h3>
+<a href="../api_cxx/db_class.html">Db</a>
+<h1>See Also</h1>
+<a href="../api_cxx/db_close.html">Db::close</a>,
+<a href="../api_cxx/db_cursor.html">Db::cursor</a>,
+<a href="../api_cxx/db_del.html">Db::del</a>,
+<a href="../api_cxx/db_err.html">Db::err</a>,
+<a href="../api_cxx/db_fd.html">Db::fd</a>,
+<a href="../api_cxx/db_get.html">Db::get</a>,
+<a href="../api_cxx/db_get_byteswapped.html">Db::get_byteswapped</a>,
+<a href="../api_cxx/db_get_type.html">Db::get_type</a>,
+<a href="../api_cxx/db_join.html">Db::join</a>,
+<a href="../api_cxx/db_key_range.html">Db::key_range</a>,
+<a href="../api_cxx/db_open.html">Db::open</a>,
+<a href="../api_cxx/db_put.html">Db::put</a>,
+<a href="../api_cxx/db_remove.html">Db::remove</a>,
+<a href="../api_cxx/db_set_bt_compare.html">Db::set_bt_compare</a>,
+<a href="../api_cxx/db_set_bt_minkey.html">Db::set_bt_minkey</a>,
+<a href="../api_cxx/db_set_bt_prefix.html">Db::set_bt_prefix</a>,
+<a href="../api_cxx/db_set_cachesize.html">Db::set_cachesize</a>,
+<a href="../api_cxx/db_set_dup_compare.html">Db::set_dup_compare</a>,
+<a href="../api_cxx/db_set_errcall.html">Db::set_errcall</a>,
+<a href="../api_cxx/db_set_errfile.html">Db::set_errfile</a>,
+<a href="../api_cxx/db_set_errpfx.html">Db::set_errpfx</a>,
+<a href="../api_cxx/db_set_flags.html">Db::set_flags</a>,
+<a href="../api_cxx/db_set_h_ffactor.html">Db::set_h_ffactor</a>,
+<a href="../api_cxx/db_set_h_hash.html">Db::set_h_hash</a>,
+<a href="../api_cxx/db_set_h_nelem.html">Db::set_h_nelem</a>,
+<a href="../api_cxx/db_set_lorder.html">Db::set_lorder</a>,
+<a href="../api_cxx/db_set_malloc.html">Db::set_malloc</a>,
+<a href="../api_cxx/db_set_pagesize.html">Db::set_pagesize</a>,
+<a href="../api_cxx/db_set_paniccall.html">Db::set_paniccall</a>,
+<a href="../api_cxx/db_set_q_extentsize.html">Db::set_q_extentsize</a>,
+<a href="../api_cxx/db_set_realloc.html">Db::set_realloc</a>,
+<a href="../api_cxx/db_set_re_delim.html">Db::set_re_delim</a>,
+<a href="../api_cxx/db_set_re_len.html">Db::set_re_len</a>,
+<a href="../api_cxx/db_set_re_pad.html">Db::set_re_pad</a>,
+<a href="../api_cxx/db_set_re_source.html">Db::set_re_source</a>,
+<a href="../api_cxx/db_stat.html">Db::stat</a>,
+<a href="../api_cxx/db_sync.html">Db::sync</a>,
+<a href="../api_cxx/db_upgrade.html">Db::upgrade</a>
+and
+<a href="../api_cxx/db_verify.html">Db::verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!--$Id: intro.so,v 10.21 2001/01/18 19:50:57 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Building Berkeley DB Concurrent Data Store applications</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Berkeley DB Concurrent Data Store Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/env/error.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Building Berkeley DB Concurrent Data Store applications</h1>
+<p>It is often desirable to have concurrent read-write access to a database
+when there is no need for full recoverability or transaction semantics.
+For this class of applications, Berkeley DB provides an interface supporting
+deadlock free, multiple-reader/single writer access to the database.
+This means that, at any instant in time, there may be either multiple
+readers accessing data or a single writer modifying data.  The
+application is entirely unaware of which is happening, and Berkeley DB
+implements the necessary locking and blocking to ensure this behavior.
+<p>In order to create Berkeley DB Concurrent Data Store applications, you must first initialize an
+environment by calling <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.  You must specify the
+<a href="../../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a> and <a href="../../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a> flags to that interface.
+It is an error to specify any of the other <a href="../../api_c/env_open.html">DBENV-&gt;open</a> subsystem
+or recovery configuration flags, e.g., <a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a>,
+<a href="../../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a> or <a href="../../api_c/env_open.html#DB_RECOVER">DB_RECOVER</a>.
+<p>All databases must, of course, be created in this environment, by using
+the <a href="../../api_c/db_create.html">db_create</a> interface and specifying the correct environment
+as an argument.
+<p>The Berkeley DB access method calls used to support concurrent access are
+unchanged from the normal access method calls, with one exception: the
+<a href="../../api_c/db_cursor.html">DB-&gt;cursor</a> interface.  In Berkeley DB Concurrent Data Store, each cursor must encapsulate
+the idea of being used for read-only access or for read-write access.
+There may only be one read-write cursor active at any one time.  When your
+application creates a cursor, if that cursor will ever be used for
+writing, the <a href="../../api_c/db_cursor.html#DB_WRITECURSOR">DB_WRITECURSOR</a> flag must be specified when the cursor
+is created.
+<p>No deadlock detector needs to be run in a Berkeley DB Concurrent Data Store database environment.
+<p>Only a single thread of control may write the database at a time.  For
+this reason care must be taken to ensure that applications do not
+inadvertently block themselves causing the application to hang, unable
+to proceed.  Some common mistakes include:
+<p><ol>
+<p><li>Leaving a cursor open while issuing a <a href="../../api_c/db_put.html">DB-&gt;put</a> or <a href="../../api_c/db_del.html">DB-&gt;del</a>
+access method call.
+<p><li>Attempting to open a cursor for read-write access while already holding
+a cursor open for read-write access.
+<p><li>Not testing Berkeley DB error return codes (if any cursor operation returns an
+unexpected error, that cursor should be closed).
+<p><li>By default, Berkeley DB Concurrent Data Store does locking on a per-database basis.  For this reason,
+accessing multiple databases in different orders in different threads
+or processes, or leaving cursors open on one database while accessing
+another database, can cause an application to hang.  If this behavior
+is a requirement for the application, Berkeley DB can be configured to do
+locking on an environment wide basis.  See the <a href="../../api_c/env_set_flags.html#DB_CDB_ALLDB">DB_CDB_ALLDB</a> flag
+of the <a href="../../api_c/env_set_flags.html">DBENV-&gt;set_flags</a> function for more information.
+</ol>
+<p>Note that it is correct operation for two different threads of control
+(actual threads or processes) to have multiple read-write cursors open,
+or for one thread to issue a <a href="../../api_c/db_put.html">DB-&gt;put</a> call while another thread
+has a read-write cursor open, and it is only a problem if these things
+are done within a single thread of control.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/env/error.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!--$Id: error.so,v 10.13 2001/01/11 15:23:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Error support</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Environment</dl></h3></td>
+<td width="1%"><a href="../../ref/env/open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/cam/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Error support</h1>
+<p>Berkeley DB offers programmatic support for displaying error return values.
+The <a href="../../api_c/env_strerror.html">db_strerror</a> interface returns a pointer to the error
+message corresponding to any Berkeley DB error return, similar to the ANSI C
+strerror interface, but able to handle both system error returns and
+Berkeley DB specific return values.
+<p>For example:
+<p><blockquote><pre>int ret;
+if ((ret = dbenv-&gt;set_cachesize(dbenv, 0, 32 * 1024)) != 0) {
+	fprintf(stderr, "set_cachesize failed: %s\n", db_strerror(ret));
+	return (1);
+}</pre></blockquote>
+<p>There are also two additional error functions, <a href="../../api_c/db_err.html">DBENV-&gt;err</a> and
+<a href="../../api_c/db_err.html">DBENV-&gt;errx</a>.  These functions work like the ANSI C printf
+interface, taking a printf-style format string and argument list, and
+writing a message constructed from the format string and arguments.
+<p>The <a href="../../api_c/db_err.html">DBENV-&gt;err</a> function appends the standard error string to the
+constructed message and the <a href="../../api_c/db_err.html">DBENV-&gt;errx</a> function does not.
+<p>Error messages can be configured always to include a prefix (e.g., the
+program name) using the <a href="../../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a> interface.
+<p>These functions provide simpler ways of displaying Berkeley DB error messages:
+<p><blockquote><pre>int ret;
+dbenv-&gt;set_errpfx(dbenv, argv0);
+if ((ret = dbenv-&gt;open(dbenv, home, NULL,
+    DB_CREATE | DB_INIT_LOG | DB_INIT_TXN | DB_USE_ENVIRON))
+    != 0) {
+	dbenv-&gt;err(dbenv, ret, "open: %s", home);
+	dbenv-&gt;errx(dbenv,
+	    "contact your system administrator: session ID was %d",
+	    session_id);
+	return (1);
+}</pre></blockquote>
+<p>For example, if the program was called "my_app", attempting to open an
+environment home directory in "/tmp/home", and the open call returned a
+permission error, the error messages shown would look like:
+<p><blockquote><pre>my_app: open: /tmp/home: Permission denied.
+my_app: contact your system administrator: session ID was 2</pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/env/open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/cam/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!--$Id: filesys.so,v 10.30 2000/07/25 16:31:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Recovery and filesystem operations</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/recovery.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/reclimit.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Recovery and filesystem operations</h1>
+<p>When running in a transaction-protected environment, database creation
+and deletion are logged as stand-alone transactions internal to Berkeley DB.
+That is, for each such operation a new transaction is begun and aborted
+or committed internally, so that they will be recovered during recovery.
+<p>The Berkeley DB API supports removing and renaming files.  Renaming files is
+supported by the <a href="../../api_c/db_rename.html">DB-&gt;rename</a> method, and removing files by the
+<a href="../../api_c/db_remove.html">DB-&gt;remove</a> method.  Berkeley DB does not permit specifying the
+<a href="../../api_c/db_open.html#DB_TRUNCATE">DB_TRUNCATE</a> flag when opening a file in a transaction protected
+environment.  This is an implicit file deletion, but one that does not
+always require the same operating system file permissions as does deleting
+and creating a file.
+<p>If you have changed the name of a file or deleted it outside of the Berkeley DB
+library (e.g., you explicitly removed a file using your normal operating
+system utilities), then it is possible that recovery will not be able to
+find a database referenced in the log.  In this case, <a href="../../utility/db_recover.html">db_recover</a>
+will produce a warning message saying it was unable to locate a file it
+expected to find.  This message is only a warning, as the file may have
+been subsequently deleted as part of normal database operations before
+the failure occurred, and so is not necessarily a problem.
+<p>Generally, any filesystem operations that are performed outside the Berkeley DB
+interface should be performed at the same time as making a snapshot of
+the database.  To perform filesystem operations correctly:
+<p><ol>
+<p><li>Cleanly shutdown database operations.
+<p>To shutdown database operations cleanly, all applications accessing the
+database environment must be shutdown and a transaction checkpoint must
+be taken.  If the applications are not implemented such that they can be
+shutdown gracefully (i.e., closing all references to the database
+environment), recovery must be performed after all applications have been
+killed to ensure that the underlying databases are consistent on disk.
+<p><li>Perform the filesystem operations, e.g., remove or rename one
+or more files.
+<p><li>Make an archival snapshot of the database.
+<p>While this step is not strictly necessary, it is strongly recommended.
+If this step is not performed, recovery from catastrophic failure will
+require that recovery first be performed up to the time of the
+filesystem operations, the filesystem operations be redone, and then
+recovery be performed from the filesystem operations forward.
+<p><li>Restart the database applications.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/recovery.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/reclimit.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

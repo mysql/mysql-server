@@ -1,0 +1,86 @@
+<!--$Id: env_set_cachesize.so,v 10.19 2000/05/20 16:29:11 bostic Exp $-->
+<!--$Id: m4.cachesize,v 10.7 2000/02/11 18:54:45 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.set_cachesize</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.set_cachesize</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public int set_cachesize(int gbytes, int bytes, in ncache)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>Set the size of the database's shared memory buffer pool, i.e., the cache,
+to <b>gbytes</b> gigabytes plus <b>bytes</b>.  The cache should be the
+size of the normal working data set of the application, with some small
+amount of additional memory for unusual situations.  (Note, the working
+set is not the same as the number of simultaneously referenced pages, and
+should be quite a bit larger!)
+<p>The default cache size is 256KB, and may not be specified as less than
+20KB.  Any cache size less than 500MB is automatically increased by 25%
+to account for buffer pool overhead, cache sizes larger than 500MB are
+used as specified.  For information on tuning the Berkeley DB cache size, see
+<a href="../ref/am_conf/cachesize.html">Selecting a cache size</a>.
+<p>It is possible to specify caches to Berkeley DB that are large enough so that
+they cannot be allocated contiguously on some architectures, e.g., some
+releases of Solaris limit the amount of memory that may be allocated
+contiguously by a process.  If <b>ncache</b> is 0 or 1, the cache will
+be allocated contiguously in memory.  If it is greater than 1, the cache
+will be broken up into <b>ncache</b> equally sized separate pieces of
+memory.
+<p>The DbEnv.set_cachesize interface may only be used to configure Berkeley DB before
+the <a href="../api_java/env_open.html">DbEnv.open</a> interface is called.
+<p>The DbEnv.set_cachesize method throws an exception that encapsulates a non-zero error value on
+failure.
+<p>The database environment's cache size may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_cachesize", one or more whitespace characters,
+and the three arguments specified to this interface, separated by whitespace
+characters, for example, "set_cachesize 1 500 2".  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_java/env_open.html">DbEnv.open</a> was called.
+<p>The specified cache size was impossibly small.
+</dl>
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_close.html">DbEnv.close</a>,
+<a href="../api_java/env_open.html">DbEnv.open</a>,
+<a href="../api_java/env_remove.html">DbEnv.remove</a>,
+<a href="../api_java/env_strerror.html">DbEnv.strerror</a>,
+<a href="../api_java/env_version.html">DbEnv.get_version_string</a>
+<a href="../api_java/env_set_cachesize.html">DbEnv.set_cachesize</a>,
+<a href="../api_java/env_set_errcall.html">DbEnv.set_errcall</a>,
+<a href="../api_java/env_set_error_stream.html">DbEnv.set_error_stream</a>,
+<a href="../api_java/env_set_errpfx.html">DbEnv.set_errpfx</a>,
+<a href="../api_java/env_set_flags.html">DbEnv.set_flags</a>,
+<a href="../api_java/env_set_mutexlocks.html">DbEnv.set_mutexlocks</a>,
+and
+<a href="../api_java/env_set_verbose.html">DbEnv.set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

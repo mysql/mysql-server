@@ -1,0 +1,98 @@
+#!/bin/sh -
+#	$Id: s_win32_dsp,v 1.3 2000/12/02 04:36:47 dda Exp $
+#
+# Build Windows/32 .dsp files.
+
+. RELEASE
+
+BUILDDIR=../build_win32
+SRCFILES=srcfiles.in
+
+create_dsp()
+{
+    projname="$1"       # name of the .dsp file
+    match="$2"          # the string used to egrep the $sources file
+    sources="$3"        # a modified version of $SRCFILES to facilitate matches
+    dsptemplate="$4"    # overall template file for the .dsp
+    srctemplate="$5"    # template file for the src file fragments
+
+    dspoutput=$BUILDDIR/$projname.dsp
+
+    echo "Building $dspoutput"
+    rm -f $dspoutput.insert
+    for srcpath in `egrep "$match" $sources | sed -e 's/[ 	].*//'`
+    do
+        # take the path name and break it up, converting / to \\.
+        # so many backslashes needed because of shell quoting and
+        # sed quoting -- we'll end up with two backslashes for every
+        # forward slash, but we need that when feeding that to the
+        # later sed command.
+        set - `echo $srcpath | sed -e 's;\(.*\)/;../\\1 ;' \
+            -e 's;../build_win32;.;' \
+            -e 's;/;\\\\\\\\;g'`
+	srcdir="$1"
+	srcfile="$2"
+        sed -e "s/@srcdir@/$srcdir/g" \
+            -e "s/@srcfile@/$srcfile/g" \
+            < $srctemplate >> $dspoutput.insert
+    done
+    sed -e "/@SOURCE_FILES@/r$dspoutput.insert" \
+        -e "/@SOURCE_FILES@/d" \
+        -e "s/@project_name@/$projname/g" \
+        -e "s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/g" \
+        -e "s/@DB_VERSION_MINOR@/$DB_VERSION_MINOR/g" \
+      < $dsptemplate > $dspoutput.new
+    rm -f $dspoutput $dspoutput.insert
+    mv $dspoutput.new $dspoutput
+}
+
+TMPA=/tmp/swin32dsp$$a
+trap "rm -f $TMPA; exit 1" 1 2 3 15 
+
+# create a copy of the srcfiles with comments and 'skip' lines removed.
+# add a space at the end of each list of modules so that each module
+# can be unambiguously matched e.g. ' dynamic '
+#
+sed -e "s/#.*$//" \
+    -e "/^[ 	]*$/d" \
+    -e "s/[ 	][ 	]*/ /" \
+    -e "s/[ 	]*$//" \
+    -e "/ skip$/d" \
+    -e "s/$/ /" < $SRCFILES > $TMPA
+
+# get a list of all modules mentioned
+#
+MODULES="`sed -e 's/^[^ ]* //' < $TMPA \
+    | tr ' ' '\012' | sort | uniq`"
+
+for module in $MODULES
+do
+    case "$module" in
+    dynamic )
+        create_dsp db_dll " $module " $TMPA \
+		$BUILDDIR/dynamic_dsp.src $BUILDDIR/srcfile_dsp.src
+        ;;
+    java )
+        create_dsp db_java " $module " $TMPA \
+		$BUILDDIR/java_dsp.src $BUILDDIR/srcfile_dsp.src
+        ;;
+    tcl )
+        create_dsp db_tcl " $module " $TMPA \
+		$BUILDDIR/tcl_dsp.src $BUILDDIR/srcfile_dsp.src
+        ;;
+    static )
+        create_dsp db_static " $module " $TMPA \
+		$BUILDDIR/static_dsp.src $BUILDDIR/srcfile_dsp.src
+        ;;
+    app=* )
+	appname=`echo $module | sed -e 's/^app=//'`
+        create_dsp $appname " $module " $TMPA \
+		$BUILDDIR/app_dsp.src $BUILDDIR/srcfile_dsp.src
+        ;;
+    * )
+        echo "s_win32_dsp: module name $module in $SRCFILES is unknown type"
+        ;;
+    esac
+done
+
+rm -f $TMPA

@@ -1,0 +1,60 @@
+<!--$Id: need.so,v 10.2 2000/12/08 23:59:06 mao Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Do you need Berkeley DB?</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Introduction</dl></h3></td>
+<td width="1%"><a href="../../ref/intro/dbisnot.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/intro/what.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Do you need Berkeley DB?</h1>
+<p>Berkeley DB is an ideal database system for applications that need fast,
+scalable, and reliable embedded database management. For applications
+that need different services, however, it can be a poor choice.
+<p>First, do you need the ability to access your data in ways you cannot
+predict in advance? If your users want to be able to enter SQL
+queries to perform
+complicated searches that you cannot program into your application to
+begin with, then you should consider a relational engine instead. Berkeley DB
+requires a programmer to write code in order to run a new kind of query.
+<p>On the other hand, if you can predict your data access patterns up front
+-- and in particular if you need fairly simple key/value lookups -- then
+Berkeley DB is a good choice. The queries can be coded up once, and will then
+run very quickly because there is no SQL to parse and execute.
+<p>Second, are there political arguments for or against a standalone
+relational server? If you're building an application for your own use
+and have a relational system installed with administrative support
+already, it may be simpler to use that than to build and learn Berkeley DB.
+On the other hand, if you'll be shipping many copies of your application
+to customers, and don't want your customers to have to buy, install,
+and manage a separate database system, then Berkeley DB may be a better
+choice.
+<p>Third, are there any technical advantages to an embedded database? If
+you're building an application that will run unattended for long periods
+of time, or for end users who are not sophisticated administrators, then
+a separate server process may be too big a burden. It will require
+separate installation and management, and if it creates new ways for
+the application to fail, or new complexities to master in the field,
+then Berkeley DB may be a better choice.
+<p>The fundamental question is, how closely do your requirements match the
+Berkeley DB design? Berkeley DB was conceived and built to provide fast, reliable,
+transaction-protected record storage. The library itself was never
+intended to provide interactive query support, graphical reporting
+tools, or similar services that some other database systems provide. We
+have tried always to err on the side of minimalism and simplicity. By
+keeping the library small and simple, we create fewer opportunities for
+bugs to creep in, and we guarantee that the database system stays fast,
+because there is very little code to execute. If your application needs
+that set of features, then Berkeley DB is almost certainly the best choice
+for you.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/intro/dbisnot.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/intro/what.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

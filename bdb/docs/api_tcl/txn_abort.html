@@ -1,0 +1,45 @@
+<!--$Id: txn_abort.so,v 11.12 2000/06/28 14:30:15 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: txn abort</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>txn</i> <b>abort</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>txn abort
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>txn</i> <b>abort</b> command causes an abnormal termination of the
+transaction.
+<p>The log is played backwards and any necessary recovery operations are
+performed.  After recovery is completed, all locks held by the
+transaction are acquired by the parent transaction in the case of a
+nested transaction or released in the case of a non-nested transaction.
+As is the case for <i>txn</i> <b>commit</b>, applications that require strict
+two-phase locking should not explicitly release any locks.
+<p>In the case of nested transactions, aborting the parent transaction
+causes all children of that transaction to be aborted.
+<p>Once <i>txn</i> <b>abort</b> has been called, regardless of its return, the
+<b>txn</b> handle may not be accessed again.
+<p>The <i>txn</i> <b>abort</b> command returns 0 on success, and in the case of error, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

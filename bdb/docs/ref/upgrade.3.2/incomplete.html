@@ -1,0 +1,39 @@
+<!--$Id: incomplete.so,v 1.4 2000/12/07 15:59:23 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.2: DB_INCOMPLETE</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.2/renumber.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/tx_recover.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.2: DB_INCOMPLETE</h1>
+<p>There are a number of functions that flush pages from the Berkeley DB shared
+memory buffer pool to disk.  Most of those functions can potentially
+fail because a page that needs to be flushed is not currently available.
+However, this is not a hard failure and is rarely cause for concern.
+In the Berkeley DB 3.2 release, the C++ API (if that API is configured to
+throw exceptions) and the Java API have been changed so that this
+failure does not throw an exception, but rather returns a non-zero error
+code of <a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a>.
+<p>The following C++ methods will return <a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a> rather than throw
+an exception: <a href="../../api_cxx/db_close.html">Db::close</a>, <a href="../../api_cxx/db_sync.html">Db::sync</a>, <a href="../../api_cxx/memp_sync.html">DbEnv::memp_sync</a>,
+<a href="../../api_cxx/txn_checkpoint.html">DbEnv::txn_checkpoint</a>, <a href="../../api_cxx/memp_fsync.html">DbMpoolFile::sync</a>.
+<p>The following Java methods are now declared "public int" rather than
+"public void", and will return <a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">Db.DB_INCOMPLETE</a> rather than
+throw an exception: <a href="../../api_java/db_close.html">Db.close</a>, <a href="../../api_java/db_sync.html">Db.sync</a>,
+<a href="../../api_java/txn_checkpoint.html">DbEnv.txn_checkpoint</a>.
+<p>It is likely that the only change required by any application will be
+those currently checking for a <a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a> return that has
+been encapsulated in an exception.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.2/renumber.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/tx_recover.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

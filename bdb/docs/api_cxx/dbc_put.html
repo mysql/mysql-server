@@ -1,0 +1,158 @@
+<!--$Id: dbc_put.so,v 10.33 2000/12/04 17:02:01 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Dbc::put</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Dbc::put</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+Dbc::put(Dbt *key, Dbt *data, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The Dbc::put method stores key/data pairs into the database.
+<p>The <b>flags</b> parameter must be set to one of the following values:
+<p><dl compact>
+<p><dt><a name="DB_AFTER">DB_AFTER</a><dd>In the case of the Btree and Hash access methods, insert the data
+element as a duplicate element of the key referenced by the cursor.
+The new element appears immediately after the current cursor position.
+It is an error to specify DB_AFTER if the underlying Btree or
+Hash database does not support duplicate data items.  The <b>key</b>
+parameter is ignored.
+<p>In the case of the Recno access method, it is an error to specify
+DB_AFTER if the underlying Recno database was not created with
+the <a href="../api_cxx/db_set_flags.html#DB_RENUMBER">DB_RENUMBER</a> flag.  If the <a href="../api_cxx/db_set_flags.html#DB_RENUMBER">DB_RENUMBER</a> flag was
+specified, a new key is created, all records after the inserted item
+are automatically renumbered, and the key of the new record is returned
+in the structure referenced by the parameter <b>key</b>.  The initial
+value of the <b>key</b> parameter is ignored.  See <a href="../api_cxx/db_open.html">Db::open</a>
+for more information.
+<p>The DB_AFTER flag may not be specified to the Queue access method.
+<p>If the current cursor record has already been deleted and the underlying
+access method is Hash, Dbc::put will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+If the underlying access method is Btree or Recno, the operation will
+succeed.
+<p>If the cursor is not yet initialized or a duplicate sort function has been
+specified, the Dbc::put function will return EINVAL.
+<p><dt><a name="DB_BEFORE">DB_BEFORE</a><dd>In the case of the Btree and Hash access methods, insert the data element
+as a duplicate element of the key referenced by the cursor.  The new
+element appears immediately before the current cursor position.  It is
+an error to specify DB_BEFORE if the underlying Btree or Hash
+database does not support duplicate data items.  The <b>key</b>
+parameter is ignored.
+<p>In the case of the Recno access method, it is an error to specify
+DB_BEFORE if the underlying Recno database was not created with
+the <a href="../api_cxx/db_set_flags.html#DB_RENUMBER">DB_RENUMBER</a> flag.  If the <a href="../api_cxx/db_set_flags.html#DB_RENUMBER">DB_RENUMBER</a> flag was
+specified, a new key is created, the current record and all records
+after it are automatically renumbered, and the key of the new record is
+returned in the structure referenced by the parameter <b>key</b>.  The
+initial value of the <b>key</b> parameter is ignored.  See
+<a href="../api_cxx/db_open.html">Db::open</a> for more information.
+<p>The DB_BEFORE flag may not be specified to the Queue access method.
+<p>If the current cursor record has already been deleted and the underlying
+access method is Hash, Dbc::put will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+If the underlying access method is Btree or Recno, the operation will
+succeed.
+<p>If the cursor is not yet initialized or a duplicate sort function has been
+specified, Dbc::put will return EINVAL.
+<p><dt><a name="DB_CURRENT">DB_CURRENT</a><dd>Overwrite the data of the key/data pair referenced by the cursor with the
+specified data item.  The <b>key</b> parameter is ignored.
+<p>If a duplicate sort function has been specified and the data item of the
+current referenced key/data pair does not compare equally to the <b>data</b>
+parameter, Dbc::put will return EINVAL.
+<p>If the current cursor record has already been deleted and the underlying
+access method is Hash, Dbc::put will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+If the underlying access method is Btree, Queue or Recno, the operation
+will succeed.
+<p>If the cursor is not yet initialized, Dbc::put will return EINVAL.
+<p><dt><a name="DB_KEYFIRST">DB_KEYFIRST</a><dd>In the case of the Btree and Hash access methods, insert the specified
+key/data pair into the database.
+<p>If the underlying database supports duplicate data items, and if the
+key already exists in the database and a duplicate sort function has
+been specified, the inserted data item is added in its sorted location.
+If the key already exists in the database and no duplicate sort function
+has been specified, the inserted data item is added as the first of the
+data items for that key.
+<p>The DB_KEYFIRST flag may not be specified to the Queue or Recno
+access methods.
+<p><dt><a name="DB_KEYLAST">DB_KEYLAST</a><dd>In the case of the Btree and Hash access methods, insert the specified
+key/data pair into the database.
+<p>If the underlying database supports duplicate data items, and if the
+key already exists in the database and a duplicate sort function has
+been specified, the inserted data item is added in its sorted location.
+If the key already exists in the database, and no duplicate sort
+function has been specified, the inserted data item is added as the last
+of the data items for that key.
+<p>The DB_KEYLAST flag may not be specified to the Queue or Recno
+access methods.
+<p><dt><a name="DB_NODUPDATA">DB_NODUPDATA</a><dd>In the case of the Btree and Hash access methods, insert the specified
+key/data pair into the database unless it already exists in the database.
+If the key/data pair already appears in the database, <a href="../api_cxx/dbc_put.html#DB_KEYEXIST">DB_KEYEXIST</a>
+is returned.  The DB_NODUPDATA flag may only be specified if
+the underlying database has been configured to support sorted duplicate
+data items.
+<p>The DB_NODUPDATA flag may not be specified to the Queue or Recno
+access methods.
+</dl>
+<p>Otherwise, the Dbc::put method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<p>If Dbc::put fails for any reason, the state of the cursor will be
+unchanged.  If Dbc::put succeeds and an item is inserted into the
+database, the cursor is always positioned to reference the newly inserted
+item.
+<h1>Errors</h1>
+<p>The Dbc::put method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>DB_LOCK_DEADLOCK<dd>The operation was selected to resolve a deadlock.
+</dl>
+<p><dl compact>
+<p><dt>EACCES<dd>An attempt was made to modify a read-only database.
+</dl>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The DB_BEFORE or DB_AFTER flags were specified, and the
+underlying access method is Queue.
+<p>An attempt was made to add a record to a fixed-length database that was too
+large to fit.
+</dl>
+<p><dl compact>
+<p><dt>EPERM  <dd>Write attempted on read-only cursor when the <a href="../api_cxx/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a> flag was
+specified to <a href="../api_cxx/env_open.html">DbEnv::open</a>.
+</dl>
+<p>The Dbc::put method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the Dbc::put method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Class</h3>
+<a href="../api_cxx/dbc_class.html">Dbc</a>
+<h1>See Also</h1>
+<a href="../api_cxx/dbc_close.html">Dbc::close</a>,
+<a href="../api_cxx/dbc_count.html">Dbc::count</a>,
+<a href="../api_cxx/dbc_del.html">Dbc::del</a>,
+<a href="../api_cxx/dbc_dup.html">Dbc::dup</a>,
+<a href="../api_cxx/dbc_get.html">Dbc::get</a>
+and
+<a href="../api_cxx/dbc_put.html">Dbc::put</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

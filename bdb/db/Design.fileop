@@ -1,0 +1,452 @@
+# $Id: Design.fileop,v 11.4 2000/02/19 20:57:54 bostic Exp $
+
+The design of file operation recovery.
+
+Keith has asked me to write up notes on our current status of database
+create and delete and recovery, why it's so hard, and how we've violated
+all the cornerstone assumptions on which our recovery framework is based.
+
+I am including two documents at the end of this one.   The first is the
+initial design of the recoverability of file create and delete (there is
+no talk of subdatabases there, because we didn't think we'd have to do
+anything special there).  I will annotate this document on where things
+changed.
+
+The second is the design of recd007 which is supposed to test our ability
+to recover these operations regardless of where one crashes.  This test
+is fundamentally different from our other recovery tests in the following
+manner.  Normally, the application controls transaction boundaries.
+Therefore, we can perform an operation and then decide whether to commit
+or abort it.  In the normal recovery tests, we force the database into
+each of the four possible states from a recovery perspective:
+
+	database is pre-op, undo (do nothing)
+	database is pre-op, redo
+	database is post-op, undo
+	database is post-op, redo (do nothing)
+
+By copying databases at various points and initiating txn_commit and abort
+appropriately, we can make all these things happen.  Notice that the one
+case we don't handle is where page A is in one state (e.g., pre-op) and
+page B is in another state (e.g., post-op).  I will argue that these don't
+matter because each page is recovered independently.  If anyone can poke
+holes in this, I'm interested.
+
+The problem with create/delete recovery testing is that the transaction
+is begun and ended all inside the library.  Therefore, there is never any
+point (outside the library) where we can copy files and or initiate
+abort/commit.  In order to still put the recovery code through its paces,
+Sue designed an infrastructure that lets you tell the library where to
+make copies of things and where to suddenly inject errors so that the
+transaction gets aborted.  This level of detail allows us to push the
+create/delete recovery code through just about every recovery path
+possible (although I'm sure Mike will tell me I'm wrong when he starts to
+run code coverage tools).
+
+OK, so that's all preamble and a brief discussion of the documents I'm
+enclosing.
+
+Why was this so hard and painful and why is the code so Q@#$!% complicated?
+The following is a discussion/explanation, but to the best of my knowledge,
+the structure we have in place now works.  The key question we need to be
+asking is, "Does this need to have to be so complex or should we redesign
+portions to simplify it?"  At this point, there is no obvious way to simplify
+it in my book, but I may be having difficulty seeing this because my mind is
+too polluted at this point.
+
+Our overall strategy for recovery is that we do write-ahead logging,
+that is we log an operation and make sure it is on disk before any
+data corresponding to the data that log record describes is on disk.
+Typically we use log sequence numbers (LSNs) to mark the data so that
+during recovery, we can look at the data and determine if it is in a
+state before a particular log record or after a particular log record.
+
+In the good old days, opens were not transaction protected, so we could
+do regular old opens during recovery and if the file existed, we opened
+it and if it didn't (or appeared corrupt), we didn't and treated it like
+a missing file.  As will be discussed below in detail, our states are much
+more complicated and recovery can't make such simplistic assumptions.
+
+Also, since we are now dealing with file system operations, we have less
+control about when they actually happen and what the state of the system
+can be.  That is, we have to write create log records synchronously, because
+the create/open system call may force a newly created (0-length) file to
+disk.  This file has to now be identified as being in the "being-created"
+state.
+
+A. We used to make a number of assumptions during recovery:
+
+1. We could call db_open at any time and one of three things would happen:
+	a) the file would be opened cleanly
+	b) the file would not exist
+	c) we would encounter an error while opening the file
+
+Case a posed no difficulty.
+In Case b, we simply spit out a warning that a file was missing and then
+	ignored all subsequent operations to that file.
+In Case c, we reported a fatal error.
+
+2.  We can always generate a warning if a file is missing.
+
+3. We never encounter NULL file names in the log.
+
+B. We also made some assumptions in the main-line library:
+
+1. If you try to open a file and it exists but is 0-length, then
+someone else is trying to open it.
+
+2. You can write pages anywhere in a file and any non-existent pages
+are 0-filled. [This breaks on Windows.]
+
+3. If you have proper permissions then you can always evict pages from
+the buffer pool.
+
+4. During open, we can close the master database handle as soon as
+we're done with it since all the rest of the activity will take place
+on the subdatabase handle.
+
+In our brave new world, most of these assumptions are no longer valid.
+Let's address them one at a time.
+
+A.1 We could call db_open at any time and one of three things would happen:
+	a) the file would be opened cleanly
+	b) the file would not exist
+	c) we would encounter an error while opening the file
+There are now additional states.  Since we are trying to make file
+operations recoverable, you can now die in the middle of such an
+operation and we have to be able to pick up the pieces.  What this
+now means is that:
+
+	* a 0-length file can be an indication of a create in-progress
+	* you can have a meta-data page but no root page (of a btree)
+	* if a file doesn't exist, it could mean that it was just about
+		to be created and needs to be rolled forward.
+	* if you encounter an error in a file (e.g., the meta-data page
+		is all 0's) you could still be in mid-open.
+
+I have now made this all work, but it required significant changes to the
+db_open code and error handling and this is the sort of change that makes
+everyone nervous.
+
+A.2.  We can always generate a warning if a file is missing.
+
+Now that we have a delete file method in the API, we need to make sure
+that we do not generate warning messages for files that don't exist if
+we see that they were explicitly deleted.
+
+This means that we need to save state during recovery, determine which
+files were missing and were not being recreated and were not deleted and
+only complain about those.
+
+A.3. We never encounter NULL file names in the log.
+
+Now that we allow tranaction protection on memory-resident files, we write
+log messages for files with NULL file names.  This means that our assumption
+of always being able to call "db_open" on any log_register OPEN message found
+in the log is no longer valid.
+
+B.1. If you try to open a file and it exists but is 0-length, then
+someone else is trying to open it.
+
+As discussed for A.1, this is no longer true.  It may be instead that you
+are in the process of recovering a create.
+
+B.2. You can write pages anywhere in a file and any non-existent pages
+are 0-filled.
+
+It turns out that this is not true on Windows.  This means that places
+we do group allocation (hash) must explicitly allocate each page, because
+we can't count on recognizing the uninitialized pages later.
+
+B.3. If you have proper permissions then you can always evict pages from
+the buffer pool.
+
+In the brave new world though, files can be deleted and they may
+have pages in the mpool.  If you later try to evict these, you
+discover that the file doesn't exist.  We'd get here when we had
+to dirty pages during a remove operation.
+
+B.4. You can close files any time you want.
+
+However, if the file takes part in the open/remove transaction,
+then we had better not close it until after the transaction
+commits/aborts, because we need to be able to get our hands on the
+dbp and the open happened in a different transaction.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Design for recovering file create and delete in the presence of subdatabases.
+
+Assumptions:
+	Remove the O_TRUNCATE flag.
+	Single-thread all open/create/delete operations.
+		(Well, almost all; we'll optimize opens without DB_CREATE set.)
+		The reasoning for this is that with two simultaneous
+		open/creaters, during recovery, we cannot identify which
+		transaction successfully created files and therefore cannot
+		recovery correctly.
+	File system creates/deletes are synchronous
+	Once the file is open, subdatabase creates look like regular
+		get/put operations and a metadata page creation.
+
+There are 4 cases to deal with:
+	1. Open/create file
+	2. Open/create subdatabase
+	3. Delete
+	4. Recovery records
+
+		__db_fileopen_recover
+		__db_metapage_recover
+		__db_delete_recover
+		existing c_put and c_get routines for subdatabase creation
+
+	Note that the open/create of the file and the open/create of the
+	subdatabase need to be in the same transaction.
+
+1. Open/create (full file and subdb version)
+
+If create
+	LOCK_FILEOP
+	txn_begin
+	log create message (open message below)
+	do file system open/create
+	if we did not create
+		abort transaction (before going to open_only)
+		if (!subdb)
+			set dbp->open_txn = NULL
+		else
+			txn_begin a new transaction for the subdb open
+
+	construct meta-data page
+	log meta-data page (see metapage)
+	write the meta-data page
+	* It may be the case that btrees need to log both meta-data pages
+	  and root pages. If that is the case, I believe that we can use
+	  this same record and recovery routines for both
+
+	txn_commit
+	UNLOCK_FILEOP
+
+2. Delete
+	LOCK_FILEOP
+	txn_begin
+	log delete message (delete message below)
+	mv file __db.file.lsn
+	txn_commit
+	unlink __db.file.lsn
+	UNLOCK_FILEOP
+
+3. Recovery Routines
+
+__db_fileopen_recover
+	if (argp->name.size == 0
+		done;
+
+	if (redo)	/* Commit */
+		__os_open(argp->name, DB_OSO_CREATE, argp->mode, &fh)
+		__os_closehandle(fh)
+	if (undo)	/* Abort */
+		if (argp->name exists)
+			unlink(argp->name);
+
+__db_metapage_recover
+	if (redo)
+		__os_open(argp->name, 0, 0, &fh)
+		__os_lseek(meta data page)
+		__os_write(meta data page)
+		__os_closehandle(fh);
+	if (undo)
+		done = 0;
+		if (argp->name exists)
+			if (length of argp->name != 0)
+				__os_open(argp->name, 0, 0, &fh)
+				__os_lseek(meta data page)
+				__os_read(meta data page)
+				if (read succeeds && page lsn != current_lsn)
+					done = 1
+				__os_closehandle(fh);
+			if (!done)
+				unlink(argp->name)
+
+__db_delete_recover
+	if (redo)
+		Check if the backup file still exists and if so, delete it.
+
+	if (undo)
+		if (__db_appname(__db.file.lsn exists))
+			mv __db_appname(__db.file.lsn) __db_appname(file)
+
+__db_metasub_recover
+	/* This is like a normal recovery routine */
+	Get the metadata page
+	if (cmp_n && redo)
+		copy the log page onto the page
+		update the lsn
+		make sure page gets put dirty
+	else if (cmp_p && undo)
+		update the lsn to the lsn in the log record
+		make sure page gets put dirty
+
+	if the page was modified, put it back dirty
+
+In db.src
+
+# name: filename (before call to __db_appname)
+# mode: file system mode
+BEGIN open
+DBT	name		DBT		s
+ARG	mode		u_int32_t	o
+END
+
+# opcode: indicate if it is a create/delete and if it is a subdatabase
+# pgsize: page size on which we're going to write the meta-data page
+# pgno: page number on which to write this meta-data page
+# page: the actual meta-data page
+# lsn: LSN of the meta-data page -- 0 for new databases, may be non-0
+#	for subdatabases.
+
+BEGIN metapage
+ARG	opcode		u_int32_t	x
+DBT	name		DBT		s
+ARG	pgno		db_pgno_t	d
+DBT	page		DBT		s
+POINTER	lsn		DB_LSN *	lu
+END
+
+# We do not need a subdatabase name here because removing a subdatabase
+# name is simply a regular bt_delete operation from the master database.
+# It will get logged normally.
+# name: filename
+BEGIN delete
+DBT	name		DBT		s
+END
+
+# We also need to reclaim pages, but we can use the existing
+# bt_pg_alloc routines.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+Testing recoverability of create/delete.
+
+These tests are unlike other tests in that they are going to
+require hooks in the library.  The reason is that the create
+and delete calls are internally wrapped in a transaction, so
+that if the call returns, the transaction has already either
+commited or aborted.  Using only that interface limits what
+kind of testing we can do.  To match our other recovery testing
+efforts, we need to add hooks to trigger aborts at particular
+times in the create/delete path.
+
+The general recovery testing strategy is that we wish to
+execute every path through every recovery routine.  That
+means that we try to:
+	catch each operation in its pre-operation state
+		call the recovery function with redo
+		call the recovery function with undo
+	catch each operation in its post-operation state
+		call the recovery function with redo
+		call the recovery function with undo
+
+In addition, there are a few critical points in the create and
+delete path that we want to make sure we capture.
+
+1. Test Structure
+
+The test structure should be similar to the existing recovery
+tests.  We will want to have a structure in place where we
+can execute different commands:
+	create a file/database
+	create a file that will contain subdatabases.
+	create a subdatabase
+	remove a subdatabase (that contains valid data)
+	remove a subdatabase (that does not contain any data)
+	remove a file that used to contain subdatabases
+	remove a file that contains a database
+
+The tricky part is capturing the state of the world at the
+various points in the create/delete process.
+
+The critical points in the create process are:
+
+	1. After we've logged the create, but before we've done anything.
+		in db/db.c
+		after the open_retry
+		after the __crdel_fileopen_log call (and before we've
+			called __os_open).
+
+	2. Immediately after the __os_open
+
+	3. Immediately after each __db_log_page call
+		in bt_open.c
+			log meta-data page
+			log root page
+		in hash.c
+			log meta-data page
+
+	4. With respect to the log records above, shortly after each
+		log write is an memp_fput.  We need to do a sync after
+		each memp_fput and trigger a point after that sync.
+
+The critical points in the remove process are:
+
+	1. Right after the crdel_delete_log in db/db.c
+
+	2. Right after the __os_rename call (below the crdel_delete_log)
+
+	3. After the __db_remove_callback call.
+
+I believe that there are the places where we'll need some sort of hook.
+
+2. Adding hooks to the library.
+
+The hooks need two components.  One component is to capture the state of
+the database at the hook point and the other is to trigger a txn_abort at
+the hook point.  The second part is fairly trivial.
+
+The first part requires more thought.  Let me explain what we do in a
+"normal" recovery test.  In a normal recovery test, we save an intial
+copy of the database (this copy is called init).  Then we execute one
+or more operations.  Then, right before the commit/abort, we sync the
+file, and save another copy (the afterop copy).  Finally, we call txn_commit
+or txn_abort, sync the file again, and save the database one last time (the
+final copy).
+
+Then we run recovery.  The first time, this should be a no-op, because
+we've either committed the transaction and are checking to redo it or
+we aborted the transaction, undid it on the abort and are checking to
+undo it again.
+
+We then run recovery again on whatever database will force us through
+the path that requires work.  In the commit case, this means we start
+with the init copy of the database and run recovery.  This pushes us
+through all the redo paths.  In the abort case, we start with the afterop
+copy which pushes us through all the undo cases.
+
+In some sense, we're asking the create/delete test to be more exhaustive
+by defining all the trigger points, but I think that's the correct thing
+to do, since the create/delete is not initiated by a user transaction.
+
+So, what do we have to do at the hook points?
+	1. sync the file to disk.
+	2. save the file itself
+	3. save any files named __db_backup_name(name, &backup_name, lsn)
+		Since we may not know the right lsns, I think we should save
+		every file of the form __db.name.0xNNNNNNNN.0xNNNNNNNN into
+		some temporary files from which we can restore it to run
+		recovery.
+
+3. Putting it all together
+
+So, the three pieces are writing the test structure, putting in the hooks
+and then writing the recovery portions so that we restore the right thing
+that the hooks saved in order to initiate recovery.
+
+Some of the technical issues that need to be solved are:
+	How does the hook code become active (i.e., we don't
+		want it in there normally, but it's got to be
+		there when you configure for testing)?
+	How do you (the test) tell the library that you want a
+		particular hook to abort?
+	How do you (the test) tell the library that you want the
+		hook code doing its copies (do we really want
+		*every* test doing these copies during testing?
+		Maybe it's not a big deal, but maybe it is; we
+		should at least think about it).

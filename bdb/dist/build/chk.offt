@@ -1,0 +1,19 @@
+#!/bin/sh -
+#
+# $Id: chk.offt,v 1.3 2000/12/12 18:20:59 bostic Exp $
+#
+# Make sure that no off_t's have snuck into the release.
+
+# Run from the top-level directory.
+[ -f db_config.h ] && cd ..
+
+egrep -w off_t */*.[ch] |
+sed -e "/#undef off_t/d" \
+    -e "/mp_fopen.c:.*can't use off_t's here/d" \
+    -e "/mp_fopen.c:.*size or type off_t's or/d" \
+    -e "/mp_fopen.c:.*where an off_t is 32-bits/d" \
+    -e "/os_map.c:.*(off_t)0))/d" \
+    -e "/os_rw.c:.*(off_t)db_iop->pgno/d" \
+    -e "/os_seek.c:.*off_t offset;/d" \
+    -e "/os_seek.c:.*offset = /d" \
+    -e "/test_vxworks\/vx_mutex.c:/d"

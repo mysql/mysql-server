@@ -1,0 +1,45 @@
+<!--$Id: logrec.so,v 10.23 2000/12/04 18:05:41 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Logical record numbers</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/select.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/pagesize.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Logical record numbers</h1>
+<p>The Berkeley DB Btree, Queue and Recno access methods can operate on logical
+record numbers.  In all cases for the Queue and Recno access methods,
+and in some cases with the Btree access method, a record number is
+specified to reference a specific key/data pair.  In the case of Btree
+supporting duplicate data items, the logical record number refers to a
+key and all of its data items.
+<p>Record numbers are 32-bit unsigned types, which limits the number of
+logical records in a database to 4,294,967,296.  The first record in the
+database is record number 1.
+<p>Record numbers in Recno databases can be configured to run in either
+mutable or fixed mode: mutable, where logical record numbers change as
+records are deleted or inserted, and fixed, where record numbers never
+change regardless of the database operation.  Record numbers in Btree
+databases are always mutable, and as records are deleted or inserted, the
+logical record number for other records in the database can change.  See
+<a href="../../ref/am_conf/renumber.html">Logically renumbering records</a> for
+more information.
+<p>Record numbers in Queue databases are always fixed, and never change
+regardless of the database operation.
+<p>Configuring Btree databases to support record numbers can severely limit
+the throughput of applications with multiple concurrent threads writing
+the database, because locations used to store record counts often become
+hot spots that many different threads all need to update.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/select.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/pagesize.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

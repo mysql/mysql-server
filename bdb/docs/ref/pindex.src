@@ -1,0 +1,212 @@
+__APIREL__/ref/am/close.html#2     @closing a database
+__APIREL__/ref/am/count.html#2     @counting data items for a key
+__APIREL__/ref/am/curclose.html#2     @closing a cursor
+__APIREL__/ref/am/curclose.html#3     closing a @cursor
+__APIREL__/ref/am/curdel.html#2     @deleting records with a cursor
+__APIREL__/ref/am/curdel.html#3     deleting records with a @cursor
+__APIREL__/ref/am/curdup.html#2     @duplicating a cursor
+__APIREL__/ref/am/curdup.html#3     duplicating a @cursor
+__APIREL__/ref/am/curget.html#2     @retrieving records with a cursor
+__APIREL__/ref/am/curget.html#3     retrieving records with a @cursor
+__APIREL__/ref/am/curput.html#2     @storing records with a cursor
+__APIREL__/ref/am/curput.html#3     storing records with a @cursor
+__APIREL__/ref/am/cursor.html#2     database @cursors
+__APIREL__/ref/am/delete.html#2     @deleting records
+__APIREL__/ref/am/error.html#2     @error handling
+__APIREL__/ref/am/get.html#2     @retrieving records
+__APIREL__/ref/am/join.html#2     logical @join
+__APIREL__/ref/am/open.html#2     @opening a database
+__APIREL__/ref/am/partial.html#2     @partial record storage and retrieval
+__APIREL__/ref/am/put.html#2     @storing records
+__APIREL__/ref/am/stability.html#2     @cursor stability
+__APIREL__/ref/am/stability.html#3     cursor @stability
+__APIREL__/ref/am/stat.html#2     database @statistics
+__APIREL__/ref/am/sync.html#2     flushing the database @cache
+__APIREL__/ref/am/upgrade.html#2     @upgrading databases
+__APIREL__/ref/am/verify.html#2     database @verification
+__APIREL__/ref/am/verify.html#3     database @salvage
+__APIREL__/ref/am/verify.html#4     recovering @corrupted databases
+__APIREL__/ref/am_conf/bt_compare.html#2     specifying a Btree @comparison function
+__APIREL__/ref/am_conf/bt_recnum.html#2     retrieving Btree records by @number
+__APIREL__/ref/am_conf/byteorder.html#2     selecting a @byte order
+__APIREL__/ref/am_conf/cachesize.html#2     selecting a @cache size
+__APIREL__/ref/am_conf/dup.html#2     @duplicate data items
+__APIREL__/ref/am_conf/extentsize.html#2     selecting a Queue @extent size
+__APIREL__/ref/am_conf/h_ffactor.html#2     page @fill factor
+__APIREL__/ref/am_conf/h_hash.html#2     specifying a database @hash
+__APIREL__/ref/am_conf/h_nelem.html#2     @hash table size
+__APIREL__/ref/am_conf/intro.html#2     @access methods
+__APIREL__/ref/am_conf/logrec.html#2     logical @record numbers
+__APIREL__/ref/am_conf/pagesize.html#2     selecting a @page size
+__APIREL__/ref/am_conf/re_source.html#2     @text backing files
+__APIREL__/ref/am_conf/recno.html#2     managing @record-based databases
+__APIREL__/ref/am_conf/renumber.html#2     logically renumbering @records
+__APIREL__/ref/am_conf/select.html#2     selecting an @access method
+__APIREL__/ref/arch/apis.html#2     programmatic @APIs
+__APIREL__/ref/arch/utilities.html#2     @utilities
+__APIREL__/ref/build_unix/aix.html#2     @AIX
+__APIREL__/ref/build_unix/conf.html#2     @configuring Berkeley DB for UNIX systems
+__APIREL__/ref/build_unix/conf.html#3     configuring Berkeley DB for @UNIX systems
+__APIREL__/ref/build_unix/conf.html#4     configuring without large @file support
+__APIREL__/ref/build_unix/conf.html#--disable-bigfile Configuring Berkeley DB@--disable-bigfile
+__APIREL__/ref/build_unix/conf.html#5     configuring Berkeley DB @1.85 API compatibility
+__APIREL__/ref/build_unix/conf.html#--enable-compat185 Configuring Berkeley DB@--enable-compat185
+__APIREL__/ref/build_unix/conf.html#6     configuring the @C++ API
+__APIREL__/ref/build_unix/conf.html#--enable-cxx Configuring Berkeley DB@--enable-cxx
+__APIREL__/ref/build_unix/conf.html#--enable-debug Configuring Berkeley DB@--enable-debug
+__APIREL__/ref/build_unix/conf.html#--enable-debug_rop Configuring Berkeley DB@--enable-debug_rop
+__APIREL__/ref/build_unix/conf.html#--enable-debug_wop Configuring Berkeley DB@--enable-debug_wop
+__APIREL__/ref/build_unix/conf.html#--enable-diagnostic Configuring Berkeley DB@--enable-diagnostic
+__APIREL__/ref/build_unix/conf.html#7     building a utility to dump Berkeley DB @1.85 databases
+__APIREL__/ref/build_unix/conf.html#--enable-dump185 Configuring Berkeley DB@--enable-dump185
+__APIREL__/ref/build_unix/conf.html#8     configuring @shared libraries
+__APIREL__/ref/build_unix/conf.html#9     configuring @dynamic shared libraries
+__APIREL__/ref/build_unix/conf.html#--enable-dynamic Configuring Berkeley DB@--enable-dynamic
+__APIREL__/ref/build_unix/conf.html#10     configuring the @Java API
+__APIREL__/ref/build_unix/conf.html#--enable-java Configuring Berkeley DB@--enable-java
+__APIREL__/ref/build_unix/conf.html#--enable-posixmutexes Configuring Berkeley DB@--enable-posixmutexes
+__APIREL__/ref/build_unix/conf.html#11     configuring a @RPC client/server
+__APIREL__/ref/build_unix/conf.html#--enable-rpc Configuring Berkeley DB@--enable-rpc
+__APIREL__/ref/build_unix/conf.html#--enable-shared Configuring Berkeley DB@--enable-shared
+__APIREL__/ref/build_unix/conf.html#12     configuring the @Tcl API
+__APIREL__/ref/build_unix/conf.html#--enable-tcl Configuring Berkeley DB@--enable-tcl
+__APIREL__/ref/build_unix/conf.html#13     configuring the @test suite
+__APIREL__/ref/build_unix/conf.html#--enable-test Configuring Berkeley DB@--enable-test
+__APIREL__/ref/build_unix/conf.html#--enable-uimutexes Configuring Berkeley DB@--enable-uimutexes
+__APIREL__/ref/build_unix/conf.html#--enable-umrw Configuring Berkeley DB@--enable-umrw
+__APIREL__/ref/build_unix/conf.html#--with-tcl=DIR Configuring Berkeley DB@--with-tcl=DIR
+__APIREL__/ref/build_unix/flags.html#2     changing @compile or load options
+__APIREL__/ref/build_unix/flags.html#3     changing compile or @load options
+__APIREL__/ref/build_unix/freebsd.html#2     @FreeBSD
+__APIREL__/ref/build_unix/hpux.html#2     @HP-UX
+__APIREL__/ref/build_unix/install.html#2     @installing Berkeley DB for UNIX systems
+__APIREL__/ref/build_unix/intro.html#2     @building for UNIX
+__APIREL__/ref/build_unix/irix.html#2     @IRIX
+__APIREL__/ref/build_unix/linux.html#2     @Linux
+__APIREL__/ref/build_unix/notes.html#2     @building for UNIX FAQ
+__APIREL__/ref/build_unix/notes.html#3     building for @UNIX FAQ
+__APIREL__/ref/build_unix/osf1.html#2     @OSF/1
+__APIREL__/ref/build_unix/qnx.html#2     @QNX
+__APIREL__/ref/build_unix/sco.html#2     @SCO
+__APIREL__/ref/build_unix/shlib.html#2     @shared libraries
+__APIREL__/ref/build_unix/solaris.html#2     @Solaris
+__APIREL__/ref/build_unix/sunos.html#2     @SunOS
+__APIREL__/ref/build_unix/test.html#2     running the @test suite under UNIX
+__APIREL__/ref/build_unix/ultrix.html#2     @Ultrix
+__APIREL__/ref/build_vxworks/faq.html#2     @building for VxWorks FAQ
+__APIREL__/ref/build_vxworks/faq.html#3     building for @VxWorks FAQ
+__APIREL__/ref/build_vxworks/intro.html#2     @building for VxWorks
+__APIREL__/ref/build_vxworks/notes.html#2     @VxWorks notes
+__APIREL__/ref/build_win/faq.html#2     @building for Windows FAQ
+__APIREL__/ref/build_win/faq.html#3     building for @Windows FAQ
+__APIREL__/ref/build_win/intro.html#2     @building for Win32
+__APIREL__/ref/build_win/notes.html#2     @Windows notes
+__APIREL__/ref/build_win/test.html#2     running the @test suite under Windows
+__APIREL__/ref/build_win/test.html#3     running the test suite under @Windows
+__APIREL__/ref/cam/intro.html#2     @Concurrent Data Store
+__APIREL__/ref/debug/common.html#2     @debugging applications
+__APIREL__/ref/distrib/layout.html#2     @source code layout
+__APIREL__/ref/dumpload/text.html#2     loading @text into databases
+__APIREL__/ref/dumpload/utility.html#2     dumping/loading @text to/from databases
+__APIREL__/ref/env/create.html#2     database @environment
+__APIREL__/ref/env/naming.html#2     file @naming
+__APIREL__/ref/env/naming.html#db_home File naming@db_home
+__APIREL__/ref/env/naming.html#DB_HOME File naming@DB_HOME
+__APIREL__/ref/env/naming.html#DB_CONFIG File naming@DB_CONFIG
+__APIREL__/ref/env/remote.html#2     remote @filesystems
+__APIREL__/ref/env/security.html#2     @security
+__APIREL__/ref/intro/products.html#2     Sleepycat Software's Berkeley DB @products
+__APIREL__/ref/install/file.html#2     @/etc/magic
+__APIREL__/ref/install/file.html#3     @file utility
+__APIREL__/ref/java/compat.html#2     @Java compatibility
+__APIREL__/ref/java/conf.html#2     @Java configuration
+__APIREL__/ref/java/faq.html#2     Java @FAQ
+__APIREL__/ref/java/faq.html#3     @Java FAQ
+__APIREL__/ref/lock/am_conv.html#2     @locking conventions
+__APIREL__/ref/lock/cam_conv.html#2     Berkeley DB Concurrent Data Store @locking conventions
+__APIREL__/ref/lock/config.html#2     @locking configuration
+__APIREL__/ref/lock/dead.html#2     @deadlocks
+__APIREL__/ref/lock/intro.html#2     @locking introduction
+__APIREL__/ref/lock/max.html#2     sizing the @locking subsystem
+__APIREL__/ref/lock/nondb.html#2     @locking and non-Berkeley DB applications
+__APIREL__/ref/lock/notxn.html#2     @locking without transactions
+__APIREL__/ref/lock/page.html#2     page-level @locking
+__APIREL__/ref/lock/stdmode.html#2     standard @lock modes
+__APIREL__/ref/lock/twopl.html#2     two-phase @locking
+__APIREL__/ref/log/config.html#2     @logging configuration
+__APIREL__/ref/log/intro.html#2     @logging introduction
+__APIREL__/ref/log/limits.html#2     @log file limits
+__APIREL__/ref/mp/config.html#2     @memory pool configuration
+__APIREL__/ref/perl/intro.html#2     @Perl
+__APIREL__/ref/program/appsignals.html#2     application @signal handling
+__APIREL__/ref/program/byteorder.html#2     @byte ordering
+__APIREL__/ref/program/byteorder.html#3     byte @endian
+__APIREL__/ref/program/compatible.html#2     @interface compatibility
+__APIREL__/ref/program/dbsizes.html#2     database @limits
+__APIREL__/ref/program/diskspace.html#2     @disk space requirements
+__APIREL__/ref/program/environ.html#2     @environment variables
+__APIREL__/ref/program/errorret.html#2     @error returns
+__APIREL__/ref/program/errorret.html#3     @error name space
+__APIREL__/ref/program/errorret.html#DB_NOTFOUND Error returns to applications@DB_NOTFOUND
+__APIREL__/ref/program/errorret.html#DB_KEYEMPTY Error returns to applications@DB_KEYEMPTY
+__APIREL__/ref/program/errorret.html#DB_LOCK_DEADLOCK Error returns to applications@DB_LOCK_DEADLOCK
+__APIREL__/ref/program/errorret.html#DB_LOCK_NOTGRANTED Error returns to applications@DB_LOCK_NOTGRANTED
+__APIREL__/ref/program/errorret.html#DB_RUNRECOVERY Error returns to applications@DB_RUNRECOVERY
+__APIREL__/ref/program/mt.html#2     building @threaded applications
+__APIREL__/ref/program/namespace.html#2     Berkeley DB library @name spaces
+__APIREL__/ref/program/scope.html#2     Berkeley DB handle @scope
+__APIREL__/ref/program/scope.html#3     Berkeley DB @free-threaded handles
+__APIREL__/ref/rpc/client.html#2     @RPC client
+__APIREL__/ref/rpc/server.html#2     @RPC server
+__APIREL__/ref/sendmail/intro.html#2     @Sendmail
+__APIREL__/ref/tcl/intro.html#2     loading Berkeley DB with @Tcl
+__APIREL__/ref/tcl/faq.html#2     Tcl @FAQ
+__APIREL__/ref/tcl/faq.html#3     @Tcl FAQ
+__APIREL__/ref/tcl/program.html#2     @Tcl API programming notes
+__APIREL__/ref/tcl/using.html#2     using Berkeley DB with @Tcl
+__APIREL__/ref/test/run.html#2     running the @test suite
+__APIREL__/ref/transapp/admin.html#2     administering @transaction protected applications
+__APIREL__/ref/transapp/archival.html#2     archival in @transaction protected applications
+__APIREL__/ref/transapp/archival.html#3     @catastrophic recovery
+__APIREL__/ref/transapp/checkpoint.html#2     checkpoints in @transaction protected applications
+__APIREL__/ref/transapp/deadlock.html#2     deadlock detection in @transaction protected applications
+__APIREL__/ref/transapp/filesys.html#2     recovery and @filesystem operations
+__APIREL__/ref/transapp/intro.html#2     @Transactional Data Store
+__APIREL__/ref/transapp/logfile.html#2     @log file removal
+__APIREL__/ref/transapp/reclimit.html#2     Berkeley DB @recoverability
+__APIREL__/ref/transapp/recovery.html#2     recovery in @transaction protected applications
+__APIREL__/ref/transapp/throughput.html#2     @transaction throughput
+__APIREL__/ref/txn/config.html#2     @transaction configuration
+__APIREL__/ref/txn/intro.html#2     Berkeley DB and @transactions
+__APIREL__/ref/txn/limits.html#2     @transaction limits
+__APIREL__/ref/txn/nested.html#2     nested @transactions
+__APIREL__/ref/upgrade.2.0/intro.html#2     Upgrading to release @2.0
+__APIREL__/ref/upgrade.3.0/intro.html#2     Upgrading to release @3.0
+__APIREL__/ref/upgrade.3.1/intro.html#2     Upgrading to release @3.1
+__APIREL__/ref/upgrade.3.2/intro.html#2     Upgrading to release @3.2
+__APIREL__/ref/xa/config.html#2     configuring Berkeley DB with the @Tuxedo System
+__APIREL__/ref/xa/intro.html#2     @XA Resource Manager
+__APIREL__/utility/berkeley_db_svc.html#2     @berkeley_db_svc
+__APIREL__/utility/berkeley_db_svc.html#3     utility to support @RPC client/server
+__APIREL__/utility/db_archive.html#2     @db_archive
+__APIREL__/utility/db_archive.html#3     utility to @archive log files
+__APIREL__/utility/db_checkpoint.html#2     @db_checkpoint
+__APIREL__/utility/db_checkpoint.html#3     utility to take @checkpoints
+__APIREL__/utility/db_deadlock.html#2     @db_deadlock
+__APIREL__/utility/db_deadlock.html#3     utility to detect @deadlocks
+__APIREL__/utility/db_dump.html#2     @db_dump
+__APIREL__/utility/db_dump.html#3     utility to @dump databases as text files
+__APIREL__/utility/db_load.html#2     @db_load
+__APIREL__/utility/db_load.html#3     utility to @load text files into databases
+__APIREL__/utility/db_printlog.html#2     @db_printlog
+__APIREL__/utility/db_printlog.html#3     utility to display @log files as text
+__APIREL__/utility/db_recover.html#2     @db_recover
+__APIREL__/utility/db_recover.html#3     utility to @recover database environments
+__APIREL__/utility/db_stat.html#2     @db_stat
+__APIREL__/utility/db_stat.html#3     utility to display database and environment @statistics
+__APIREL__/utility/db_upgrade.html#2     @db_upgrade
+__APIREL__/utility/db_upgrade.html#3     utility to upgrade @database files
+__APIREL__/utility/db_upgrade.html#4     utility to @upgrade database files
+__APIREL__/utility/db_verify.html#2     @db_verify
+__APIREL__/utility/db_verify.html#3     utility to verify @database files
+__APIREL__/utility/db_verify.html#4     utility to @verify database files

@@ -1,0 +1,72 @@
+<!--$Id: env_set_lk_detect.so,v 10.19 2000/12/08 20:43:15 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_lk_detect</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_lk_detect</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_lk_detect(DB_ENV *dbenv, u_int32_t detect);
+</pre></h3>
+<h1>Description</h1>
+<p>Set if the deadlock detector is to be run whenever a lock conflict occurs,
+and specify which transaction should be aborted in the case of a deadlock.
+The specified value must be one of the following list:
+<p><dl compact>
+<p><dt><a name="DB_LOCK_DEFAULT">DB_LOCK_DEFAULT</a><dd>Use the default policy as specified by <a href="../utility/db_deadlock.html">db_deadlock</a>.
+<dt><a name="DB_LOCK_OLDEST">DB_LOCK_OLDEST</a><dd>Abort the oldest transaction.
+<dt><a name="DB_LOCK_RANDOM">DB_LOCK_RANDOM</a><dd>Abort a random transaction involved in the deadlock.
+<dt><a name="DB_LOCK_YOUNGEST">DB_LOCK_YOUNGEST</a><dd>Abort the youngest transaction.
+</dl>
+<p>The DBENV-&gt;set_lk_detect interface may only be used to configure Berkeley DB before
+the <a href="../api_c/env_open.html">DBENV-&gt;open</a> interface is called.
+<p>The DBENV-&gt;set_lk_detect function returns a non-zero error value on failure and 0 on success.
+<p>The database environment's deadlock detector configuration may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_lk_detect", one or more whitespace characters,
+and the interface <b>detect</b> argument as a string, for example,
+"set_lk_detect DB_LOCK_OLDEST".  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_c/env_open.html">DBENV-&gt;open</a> was called.
+</dl>
+<h1>See Also</h1>
+<a href="../api_c/env_set_lk_conflicts.html">DBENV-&gt;set_lk_conflicts</a>,
+<a href="../api_c/env_set_lk_detect.html">DBENV-&gt;set_lk_detect</a>,
+<a href="../api_c/env_set_lk_max_locks.html">DBENV-&gt;set_lk_max_locks</a>,
+<a href="../api_c/env_set_lk_max_lockers.html">DBENV-&gt;set_lk_max_lockers</a>,
+<a href="../api_c/env_set_lk_max_objects.html">DBENV-&gt;set_lk_max_objects</a>,
+<a href="../api_c/env_set_lk_max.html">DBENV-&gt;set_lk_max</a>,
+<a href="../api_c/lock_detect.html">lock_detect</a>,
+<a href="../api_c/lock_get.html">lock_get</a>,
+<a href="../api_c/lock_id.html">lock_id</a>,
+<a href="../api_c/lock_put.html">lock_put</a>,
+<a href="../api_c/lock_stat.html">lock_stat</a>
+and
+<a href="../api_c/lock_vec.html">lock_vec</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

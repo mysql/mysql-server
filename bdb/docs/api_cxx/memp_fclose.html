@@ -1,0 +1,65 @@
+<!--$Id: memp_fclose.so,v 10.20 2000/06/13 13:55:49 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbMpoolFile::close</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbMpoolFile::close</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbMpoolFile::close();
+</pre></h3>
+<h1>Description</h1>
+<p>The DbMpoolFile::close method closes the source file indicated by the
+<a href="../api_cxx/mempfile_class.html">DbMpoolFile</a> object.  Calling DbMpoolFile::close does not imply
+a call to <a href="../api_cxx/memp_fsync.html">DbMpoolFile::sync</a>, i.e. no pages are written to the source
+file as as a result of calling DbMpoolFile::close.
+<p>In addition, if the <b>file</b> argument to <a href="../api_cxx/memp_fopen.html">DbMpoolFile::open</a> was NULL,
+any underlying files created for this <a href="../api_cxx/mempfile_class.html">DbMpoolFile</a> will be removed.
+<p>Once DbMpoolFile::close has been called, regardless of its return, the
+<a href="../api_cxx/mempfile_class.html">DbMpoolFile</a> handle may not be accessed again.
+<p>The DbMpoolFile::close method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbMpoolFile::close method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbMpoolFile::close method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/mempfile_class.html">DbMpoolFile</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_mp_mmapsize.html">DbEnv::set_mp_mmapsize</a>,
+<a href="../api_cxx/memp_fclose.html">DbMpoolFile::close</a>,
+<a href="../api_cxx/memp_fget.html">DbMpoolFile::get</a>,
+<a href="../api_cxx/memp_fopen.html">DbMpoolFile::open</a>,
+<a href="../api_cxx/memp_fput.html">DbMpoolFile::put</a>,
+<a href="../api_cxx/memp_fset.html">DbMpoolFile::set</a>,
+<a href="../api_cxx/memp_fsync.html">DbMpoolFile::sync</a>,
+<a href="../api_cxx/memp_register.html">DbEnv::memp_register</a>,
+<a href="../api_cxx/memp_stat.html">DbEnv::memp_stat</a>,
+<a href="../api_cxx/memp_sync.html">DbEnv::memp_sync</a>
+and
+<a href="../api_cxx/memp_trickle.html">DbEnv::memp_trickle</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

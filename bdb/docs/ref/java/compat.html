@@ -1,0 +1,34 @@
+<!--$Id: compat.so,v 10.11 2000/12/04 18:05:42 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Compatibility</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Java API</dl></h3></td>
+<td width="1%"><a href="../../ref/java/conf.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/java/program.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Compatibility</h1>
+<p>The Berkeley DB Java API has been tested with the
+<a href="http://www.javasoft.com">Sun Microsystems JDK 1.1.3</a> on SunOS
+5.5, and Sun's JDK 1.1.7, JDK 1.2.2 and JDK 1.3.0 on Linux and
+Windows/NT.  It should work with any JDK 1.1, 1.2 or 1.3 (the latter
+two are known as Java 2) compatible environment.  IBM's VM 1.3.0 has
+also been tested on Linux.
+<p>The primary requirement of the Berkeley DB Java API is that the target Java
+environment supports JNI (Java Native Interface), rather than another
+method for allowing native C/C++ code to interface to Java. The JNI was
+new in JDK 1.1, but is the most likely interface to be implemented across
+multiple platforms.  However, using the JNI means that Berkeley DB will not be
+compatible with Microsoft Visual J++.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/java/conf.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/java/program.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

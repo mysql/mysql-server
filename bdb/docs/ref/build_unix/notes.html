@@ -1,0 +1,138 @@
+<!--$Id: notes.so,v 10.42 2001/01/09 18:49:53 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Architecture independent FAQs</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/test.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/aix.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Architecture independent FAQs</h1>
+<p><ol>
+<p><li><b>When compiling with gcc, I get unreferenced symbols, e.g.,:
+<p><blockquote><pre>symbol __muldi3: referenced symbol not found
+symbol __cmpdi2: referenced symbol not found</pre></blockquote></b>
+<p>On systems where they're available (e.g., HP-UX, Solaris), Berkeley DB uses
+64-bit integral types.  As far as we can tell, some versions of gcc
+don't support these types.  The simplest workaround is to reconfigure
+Berkeley DB using the --disable-bigfile configuration option, and then rebuild.
+<hr size=1 noshade>
+<p><li><b>My C++ program traps during a failure in a DB call on my
+gcc-based system.</b>
+<p>We believe there are some severe bugs in the implementation of exceptions
+for some gcc compilers.  Exceptions require some interaction between
+compiler, assembler, runtime libraries, and we're not sure exactly what
+is at fault, but one failing combination is gcc 2.7.2.3 running on SuSE
+Linux 6.0.  The problem on this system can be seen with a rather simple
+test case of an exception thrown from a shared library and caught in the
+main program.
+<p>A variation of this problem seems to occur on AIX, although we believe it
+does not necessarily involve shared libraries on that platform.
+<p>If you see a trap that occurs when an exception might be thrown by the DB
+runtime, we suggest that you use static libraries instead of dynamic
+(shared) libraries.  See the documentation for configuration.  If this
+doesn't work, and you have a choice of compilers, try using a more recent
+gcc or a non-gcc based compiler to build Berkeley DB.
+<p>Finally, you can disable the use of exceptions in the C++ runtime for
+Berkeley DB by using the <a href="../../api_c/db_create.html#DB_CXX_NO_EXCEPTIONS">DB_CXX_NO_EXCEPTIONS</a> flag with
+<a href="../../api_c/env_create.html">db_env_create</a> or <a href="../../api_c/db_create.html">db_create</a>.  When this flag is on, all
+C++ methods fail by returning an error code rather than throwing an
+exception.
+<hr size=1 noshade>
+<p><li><b>I get unexpected results and database corruption when running
+threaded programs.</b>
+<p><b>I get error messages that mutex (e.g., pthread_mutex_XXX or
+mutex_XXX) functions are undefined when linking applications with Berkeley DB.</b>
+<p>On some architectures, the Berkeley DB library uses the ISO POSIX standard
+pthreads and UNIX International (UI) threads interfaces for underlying
+mutex support, e.g., Solaris and HP-UX.  You can specify compilers,
+compiler flags or link with the appropriate thread library when loading
+your application, to resolve the undefined references:
+<p><blockquote><pre>cc ... -lpthread ...
+cc ... -lthread ...
+xlc_r ...
+cc ... -mt ...</pre></blockquote>
+<p>See the appropriate architecture-specific Reference Guide pages for more
+information.
+<p>On systems where more than one type of mutex is available, it may be
+necessary for applications to use the same threads package from which
+Berkeley DB draws its mutexes, e.g., if Berkeley DB was built to use the POSIX
+pthreads mutex calls for mutex support, the application may need to be
+written to use the POSIX pthreads interfaces for its threading model.
+While this is only conjecture at this time and we know of no systems that
+actually have this requirement, it's not unlikely that some exist.
+<p>In a few cases, Berkeley DB can be configured to use specific underlying mutex
+interfaces.  You can use the <a href="../../ref/build_unix/conf.html#--enable-posixmutexes">--enable-posixmutexes</a> and
+<a href="../../ref/build_unix/conf.html#--enable-uimutexes">--enable-uimutexes</a> configuration options to specify the POSIX and Unix
+International (UI) threads packages.  This should not, however, be
+necessary in most cases.
+<p>In some cases, it is vitally important to make sure that you load
+the correct library.  For example, on Solaris systems, there are POSIX
+pthread interfaces in the C library, and so applications can link Berkeley DB
+using only C library and not see any undefined symbols.  However, the C
+library POSIX pthread mutex support is insufficient for Berkeley DB and Berkeley DB
+cannot detect that fact.  Similar errors can arise when applications
+(e.g., tclsh) use dlopen to dynamically load Berkeley DB as a library.
+<p>If you are seeing problems in this area after you've confirmed that you're
+linking with the correct libraries, there are two other things you can
+try.  First, if your platform supports inter-library dependencies, we
+recommend that you change the Berkeley DB Makefile to specify the appropriate
+threads library when creating the Berkeley DB dynamic library, as an
+inter-library dependency.  Second, if your application is using dlopen to
+dynamically load Berkeley DB, specify the appropriate thread library on the link
+line when you load the application itself.
+<hr size=1 noshade>
+<p><li><b>I get core dumps when running programs that fork children.</b>
+<p>Berkeley DB handles should not be shared across process forks, each forked
+child should acquire its own Berkeley DB handles.
+<hr size=1 noshade>
+<p><li><b>I get reports of uninitialized memory reads and writes when
+running software analysis tools (e.g., Rational Software Corp.'s Purify
+tool).</b>
+<p>For performance reasons, Berkeley DB does not write the unused portions of
+database pages or fill in unused structure fields.  To turn off these
+errors when running software analysis tools, build with the
+--enable-umrw configuration option.
+<hr size=1 noshade>
+<p><li><b>Berkeley DB programs or the test suite fail unexpectedly.</b>
+<p>The Berkeley DB architecture does not support placing the shared memory regions
+on remote filesystems, e.g., the Network File System (NFS) or the Andrew
+File System (AFS).  For this reason, the shared memory regions (normally
+located in the database home directory) must reside on a local filesystem.
+See <a href="../../ref/env/region.html">Shared Memory Regions</a> for more
+information.
+<p>With respect to running the test suite, always check to make sure that
+TESTDIR is not on a remote mounted filesystem.
+<hr size=1 noshade>
+<p><li><b>The <a href="../../utility/db_dump.html">db_dump185</a> utility fails to build.</b>
+<p>The <a href="../../utility/db_dump.html">db_dump185</a> utility is the utility that supports conversion
+of Berkeley DB 1.85 and earlier databases to current database formats.  If
+the errors look something like:
+<p><blockquote><pre>cc -o db_dump185 db_dump185.o
+ld:
+Unresolved:
+dbopen</pre></blockquote>
+<p>it means that the Berkeley DB 1.85 code was not found in the standard
+libraries.  To build <a href="../../utility/db_dump.html">db_dump185</a>, the Berkeley DB version 1.85 code
+must have already been built and installed on the system.  If the Berkeley DB
+1.85 header file is not found in a standard place, or the library is
+not part of the standard libraries used for loading, you will need to
+edit your Makefile, and change the lines:
+<p><blockquote><pre>DB185INC=
+DB185LIB=</pre></blockquote>
+<p>So that the system Berkeley DB 1.85 header file and library are found, e.g.,
+<p><blockquote><pre>DB185INC=/usr/local/include
+DB185LIB=-ldb185</pre></blockquote>
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/test.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/aix.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

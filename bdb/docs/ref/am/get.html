@@ -1,0 +1,39 @@
+<!--$Id: get.so,v 10.15 2000/12/18 21:05:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Retrieving records</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/upgrade.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Retrieving records</h1>
+<p>The <a href="../../api_c/db_get.html">DB-&gt;get</a> function is the standard interface for retrieving records from
+the database.  In general, <a href="../../api_c/db_get.html">DB-&gt;get</a> takes a key and returns the
+associated data from the database.
+<p>There are a few flags that you can set to customize retrieval:
+<p><dl compact>
+<p><dt><a href="../../api_c/db_get.html#DB_GET_BOTH">DB_GET_BOTH</a><dd>Search for a matching key and data item, i.e., only return success if both
+the key and the data items match those stored in the database.
+<p><dt><a href="../../api_c/dbc_get.html#DB_RMW">DB_RMW</a><dd>Read-modify-write: acquire write locks instead of read locks during
+retrieval. This can enhance performance in threaded applications by
+reducing the chance of deadlock.
+<p><dt><a href="../../api_c/db_get.html#DB_SET_RECNO">DB_SET_RECNO</a><dd>If the underlying database is a Btree, and was configured so that it
+is possible to search it by logical record number, retrieve a specific
+record.
+</dl>
+<p>If the database has been configured to support duplicate records,
+<a href="../../api_c/db_get.html">DB-&gt;get</a> will always return the first data item in the duplicate
+set.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/upgrade.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

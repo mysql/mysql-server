@@ -1,0 +1,242 @@
+<!--$Id: extending.so,v 10.32 2000/07/25 16:31:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Application-specific logging and recovery</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/recimp.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/runtime.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Application-specific logging and recovery</h1>
+<p>Berkeley DB includes tools to assist in the development of application-specific
+logging and recovery.  Specifically, given a description of the
+information to be logged, these tools will automatically create logging
+functions (functions that take the values as parameters and construct a
+single record that is written to the log), read functions (functions that
+read a log record and unmarshall the values into a structure that maps
+onto the values you chose to log), a print function (for debugging),
+templates for the recovery functions, and automatic dispatching to your
+recovery functions.
+<h3>Defining Application-Specific Operations</h3>
+<p>Log records are described in files named XXX.src, where "XXX" is a
+unique prefix.  The prefixes currently used in the Berkeley DB package are
+btree, crdel, db, hash, log, qam, and txn.  These files contain interface
+definition language descriptions for each type of log record that
+is supported.
+<p>All lines beginning with a hash character in <b>.src</b> files are
+treated as comments.
+<p>The first non-comment line in the file should begin with the keyword
+PREFIX followed by a string that will be prepended to every function.
+Frequently, the PREFIX is either identical or similar to the name of the
+<b>.src</b> file.
+<p>The rest of the file consists of one or more log record descriptions.
+Each log record description begins with the line:
+<p><blockquote><pre>BEGIN RECORD_NAME RECORD_NUMBER</pre></blockquote>
+<p>and ends with the line:
+<p><blockquote><pre>END</pre></blockquote>
+<p>The RECORD_NAME keyword should be replaced with a unique record name for
+this log record.  Record names must only be unique within <b>.src</b>
+files.
+<p>The RECORD_NUMBER keyword should be replaced with a record number.  Record
+numbers must be unique for an entire application, that is, both
+application-specific and Berkeley DB log records must have unique values.
+Further, as record numbers are stored in log files, which often must be
+portable across application releases, no record number should ever be
+re-used.  The record number space below 10,000 is reserved for Berkeley DB
+itself, applications should choose record number values equal to or
+greater than 10,000.
+<p>Between the BEGIN and END statements, there should be one line for each
+data item that will be logged in this log record.  The format of these
+lines is as follows:
+<p><blockquote><pre>ARG | DBT | POINTER	variable_name	variable_type	printf_format</pre></blockquote>
+<p>The keyword ARG indicates that the argument is a simple parameter of the
+type specified.  The keyword DBT indicates that the argument is a DBT
+containing a length and pointer.  The keyword PTR indicates that the
+argument is a pointer to the data type specified and that the entire type
+should be logged.
+<p>The variable name is the field name within the structure that will be used
+to reference this item.  The variable type is the C type of the variable,
+and the printf format should be "s", for string, "d" for signed integral
+type, or "u" for unsigned integral type.
+<h3>Automatically Generated Functions</h3>
+<p>For each log record description found in the file, the following structure
+declarations and #defines will be created in the file PREFIX_auto.h.
+<p><blockquote><pre><p>
+#define DB_PREFIX_RECORD_TYPE        /* Integer ID number */
+<p>
+typedef struct _PREFIX_RECORD_TYPE_args {
+    /*
+     * These three fields are generated for every record.
+     */
+    u_int32_t type;      /* Record type used for dispatch. */
+<p>
+    /*
+     * Transaction id that identifies the transaction on whose
+     * behalf the record is being logged.
+     */
+    DB_TXN *txnid;
+<p>
+    /*
+     * The LSN returned by the previous call to log for
+     * this transaction.
+     */
+    DB_LSN *prev_lsn;
+<p>
+    /*
+     * The rest of the structure contains one field for each of
+     * the entries in the record statement.
+     */
+};</pre></blockquote>
+<p>The DB_PREFIX_RECORD_TYPE will be described in terms of a value
+DB_PREFIX_BEGIN, which should be specified by the application writer in
+terms of the library provided DB_user_BEGIN macro (this is the value of
+the first identifier available to users outside the access method system).
+<p>In addition to the PREFIX_auto.h file, a file named PREFIX_auto.c is
+created, containing the following functions for each record type:
+<p><dl compact>
+<p><dt>The log function, with the following parameters:<dd><p><dl compact>
+<p><dt>dbenv<dd>The environment handle returned by <a href="../../api_c/env_create.html">db_env_create</a>.
+<p><dt>txnid<dd>The transaction identifier returned by <a href="../../api_c/txn_begin.html">txn_begin</a>.
+<p><dt>lsnp<dd>A pointer to storage for an LSN into which the LSN of the new log record
+will be returned.
+<p><dt>syncflag<dd>A flag indicating if the record must be written synchronously.  Valid
+values are 0 and <a href="../../api_c/log_put.html#DB_FLUSH">DB_FLUSH</a>.
+</dl>
+<p>The log function marshalls the parameters into a buffer and calls
+<a href="../../api_c/log_put.html">log_put</a> on that buffer returning 0 on success and 1 on failure.
+<p><dt>The read function with the following parameters:<dd>
+<p><dl compact>
+<p><dt>recbuf<dd>A buffer.
+<p><dt>argp<dd>A pointer to a structure of the appropriate type.
+</dl>
+<p>The read function takes a buffer and unmarshalls its contents into a
+structure of the appropriate type.  It returns 0 on success and non-zero
+on error.  After the fields of the structure have been used, the pointer
+returned from the read function should be freed.
+<p><dt>The recovery function with the following parameters:<dd><p><dl compact>
+<p><dt>dbenv<dd>The handle returned from the <a href="../../api_c/env_create.html">db_env_create</a> call which identifies
+the environment in which recovery is running.
+<p><dt>rec<dd>The <b>rec</b> parameter is the record being recovered.
+<p><dt>lsn<dd>The log sequence number of the record being recovered.
+<p><dt>op<dd>A parameter of type db_recops which indicates what operation is being run
+(DB_TXN_OPENFILES, DB_TXN_ABORT, DB_TXN_BACKWARD_ROLL, DB_TXN_FORWARD_ROLL).
+<p><dt>info<dd>A structure passed by the dispatch function.  It is used to contain a list
+of committed transactions and information about files that may have been
+deleted.
+</dl>
+<p>The recovery function is called on each record read from the log during
+system recovery or transaction abort.
+<p>The recovery function is created in the file PREFIX_rtemp.c since it
+contains templates for recovery functions.  The actual recovery functions
+must be written manually, but the templates usually provide a good starting
+point.
+<p><dt>The print function:<dd>The print function takes the same parameters as the recover function so
+that it is simple to dispatch both to simple print functions as well as
+to the actual recovery functions.  This is useful for debugging purposes
+and is used by the <a href="../../utility/db_printlog.html">db_printlog</a> utility to produce a human-readable
+version of the log.  All parameters except the <b>rec</b> and
+<b>lsnp</b> parameters are ignored.  The <b>rec</b> parameter contains
+the record to be printed.
+</dl>
+One additional function, an initialization function,
+is created for each <b>.src</b> file.
+<p><dl compact>
+<p><dt>The initialization function has the following parameters:<dd><p><dl compact>
+<p><dt>dbenv<dd>The environment handle returned by <a href="../../api_c/env_create.html">db_env_create</a>.
+</dl>
+<p>The recovery initialization function registers each log record type
+declared with the recovery system, so that the appropriate function is
+called during recovery.
+</dl>
+<h3>Using Automatically Generated Routines</h3>
+<p>Applications use the automatically generated functions as follows:
+<p><ol>
+<p><li>When the application starts,
+call the <a href="../../api_c/env_set_rec_init.html">DBENV-&gt;set_recovery_init</a> with your recovery
+initialization function so that the initialization function is called
+at the appropriate time.
+<p><li>Issue a <a href="../../api_c/txn_begin.html">txn_begin</a> call before any operations you wish
+to be transaction protected.
+<p><li>Before accessing any data, issue the appropriate lock call to
+lock the data (either for reading or writing).
+<p><li>Before modifying any data that is transaction protected, issue
+a call to the appropriate log function.
+<p><li>Issue a <a href="../../api_c/txn_commit.html">txn_commit</a> to save all of the changes or a
+<a href="../../api_c/txn_abort.html">txn_abort</a> to cancel all of the modifications.
+</ol>
+<p>The recovery functions (described below) can be called in two cases:
+<p><ol>
+<p><li>From the recovery daemon upon system failure, with op set to
+DB_TXN_FORWARD_ROLL or DB_TXN_BACKWARD_ROLL.
+<p><li>From <a href="../../api_c/txn_abort.html">txn_abort</a>, if it is called to abort a transaction, with
+op set to DB_TXN_ABORT.
+</ol>
+<p>For each log record type you declare, you must write the appropriate
+function to undo and redo the modifications.  The shell of these functions
+will be generated for you automatically, but you must fill in the details.
+<p>Your code should be able to detect whether the described modifications
+have been applied to the data or not.  The function will be called with
+the "op" parameter set to DB_TXN_ABORT when a transaction that wrote the
+log record aborts and with DB_TXN_FORWARD_ROLL and DB_TXN_BACKWARD_ROLL
+during recovery.  The actions for DB_TXN_ABORT and DB_TXN_BACKWARD_ROLL
+should generally be the same.  For example, in the access methods, each
+page contains the log sequence number of the most recent log record that
+describes a modification to the page.  When the access method changes a
+page it writes a log record describing the change and including the the
+LSN that was on the page before the change.  This LSN is referred to as
+the previous LSN.  The recovery functions read the page described by a
+log record and compare the log sequence number (LSN) on the page to the
+LSN they were passed.  If the page LSN is less than the passed LSN and
+the operation is undo, no action is necessary (because the modifications
+have not been written to the page).  If the page LSN is the same as the
+previous LSN and the operation is redo, then the actions described are
+reapplied to the page.  If the page LSN is equal to the passed LSN and
+the operation is undo, the actions are removed from the page; if the page
+LSN is greater than the passed LSN and the operation is redo, no further
+action is necessary.  If the action is a redo and the LSN on the page is
+less than the previous LSN in the log record this is an error, since this
+could only happen if some previous log record was not processed.
+<p>Please refer to the internal recovery functions in the Berkeley DB library
+(found in files named XXX_rec.c) for examples of how recovery functions
+should work.
+<h3>Non-conformant Logging</h3>
+<p>If your application cannot conform to the default logging and recovery
+structure, then you will have to create your own logging and recovery
+functions explicitly.
+<p>First, you must decide how you will dispatch your records.  Encapsulate
+this algorithm in a dispatch function that is passed to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.
+The arguments for the dispatch function are as follows:
+<p><dl compact>
+<p><dt>dbenv<dd>The environment handle returned by <a href="../../api_c/env_create.html">db_env_create</a>.
+<p><dt>rec<dd>The record being recovered.
+<p><dt>lsn<dd>The log sequence number of the record to be recovered.
+<p><dt>op<dd>Indicates what operation of recovery is needed (openfiles, abort, forward roll
+or backward roll).
+<p><dt>info<dd>An opaque value passed to your function during system recovery.
+</dl>
+<p>When you abort a transaction, <a href="../../api_c/txn_abort.html">txn_abort</a> will read the last log
+record written for the aborting transaction and will then call your
+dispatch function.  It will continue looping, calling the dispatch
+function on the record whose LSN appears in the lsn parameter of the
+dispatch call (until a NULL LSN is placed in that field).  The dispatch
+function will be called with the op set to DB_TXN_ABORT.
+<p>Your dispatch function can do any processing necessary.  See the code
+in db/db_dispatch.c for an example dispatch function (that is based on
+the assumption that the transaction ID, previous LSN, and record type
+appear in every log record written).
+<p>If you do not use the default recovery system, you will need to construct
+your own recovery process based on the recovery program provided in
+db_recover/db_recover.c.  Note that your recovery functions will need to
+correctly process the log records produced by calls to <a href="../../api_c/txn_begin.html">txn_begin</a>
+and <a href="../../api_c/txn_commit.html">txn_commit</a>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/recimp.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/runtime.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!--$Id: lock_class.so,v 10.13 1999/12/20 08:52:33 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbLock</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbLock</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public class DbLock extends Object { ... }
+</pre></h3>
+<h1>Description</h1>
+<p>The <a href="../api_java/dbenv_class.html">DbEnv</a> lock methods and the DbLock class are used
+to provide general-purpose locking.  While designed to work with the
+other Db classes, they are also useful for more general locking
+purposes.  Locks can be shared between processes.
+<p>In most cases, when multiple threads or processes are using locking, the
+deadlock detector, <a href="../utility/db_deadlock.html">db_deadlock</a> should be run.
+<h3>Classes</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>, <a href="../api_java/lock_class.html">DbLock</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_lk_conflicts.html">DbEnv.set_lk_conflicts</a>,
+<a href="../api_java/env_set_lk_detect.html">DbEnv.set_lk_detect</a>,
+<a href="../api_java/env_set_lk_max_locks.html">DbEnv.set_lk_max_locks</a>,
+<a href="../api_java/env_set_lk_max_lockers.html">DbEnv.set_lk_max_lockers</a>,
+<a href="../api_java/env_set_lk_max_objects.html">DbEnv.set_lk_max_objects</a>,
+<a href="../api_java/env_set_lk_max.html">DbEnv.set_lk_max</a>,
+<a href="../api_java/lock_detect.html">DbEnv.lock_detect</a>,
+<a href="../api_java/lock_get.html">DbEnv.lock_get</a>,
+<a href="../api_java/lock_id.html">DbEnv.lock_id</a>,
+<a href="../api_java/lock_put.html">DbLock.put</a>
+and
+<a href="../api_java/lock_stat.html">DbEnv.lock_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

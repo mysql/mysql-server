@@ -1,0 +1,47 @@
+<!--$Id: deadlock_class.so,v 10.6 2000/09/21 19:58:54 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbDeadlockException</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbDeadlockException</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public class DbDeadlockException extends DbException { ... }
+</pre></h3>
+<h1>Description</h1> 
+<p>This manual page describes the DbDeadlockException class and
+how it is used by the various Db* classes.
+<p>A DbDeadlockException is thrown when multiple threads competing
+for a lock are deadlocked.  One of the threads' transactions is selected
+for termination, and a DbDeadlockException is thrown to that thread.
+<p>See <a href="../api_java/env_set_lk_detect.html">DbEnv.set_lk_detect</a> for more information.
+<h3>Class</h3>
+<a href="../api_java/except_class.html">DbException</a>
+<h1>See Also</h1>
+<a href="../api_java/get_errno.html">DbException.get_errno</a>,
+<a href="../api_java/deadlock_class.html">DbDeadlockException</a>,
+<a href="../api_java/mem_class.html">DbMemoryException</a>
+and
+<a href="../api_java/runrec_class.html">DbRunRecoveryException</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

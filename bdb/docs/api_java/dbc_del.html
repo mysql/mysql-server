@@ -1,0 +1,71 @@
+<!--$Id: dbc_del.so,v 10.23 2000/05/22 20:51:46 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Dbc.del</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Dbc.del</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public int del(int flags)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>The Dbc.del method deletes the key/data pair currently referenced by
+the cursor.
+<p>The <b>flags</b> parameter is currently unused, and must be set to 0.
+<p>The cursor position is unchanged after a delete, and subsequent calls to
+cursor functions expecting the cursor to reference an existing key will
+fail.
+<p>If the element has already been deleted, Dbc.del will return
+<a href="../ref/program/errorret.html#DB_KEYEMPTY">Db.DB_KEYEMPTY</a>.
+<p>If the cursor is not yet initialized, the Dbc.del method throws an exception that encapsulates EINVAL.
+<p>Otherwise, the Dbc.del method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p>The Dbc.del method may fail and throw an exception encapsulating a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<p><dl compact>
+<p><dt>EPERM  <dd>Write attempted on read-only cursor when the <a href="../api_java/env_open.html#DB_INIT_CDB">Db.DB_INIT_CDB</a> flag was
+specified to <a href="../api_java/env_open.html">DbEnv.open</a>.
+</dl>
+<p>If the operation was selected to resolve a deadlock, the
+Dbc.del method will fail and
+throw a <a href="../api_java/deadlock_class.html">DbDeadlockException</a> exception.
+<p>The Dbc.del method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the Dbc.del method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Class</h3>
+<a href="../api_java/dbc_class.html">Dbc</a>
+<h1>See Also</h1>
+<a href="../api_java/dbc_close.html">Dbc.close</a>,
+<a href="../api_java/dbc_count.html">Dbc.count</a>,
+<a href="../api_java/dbc_del.html">Dbc.del</a>,
+<a href="../api_java/dbc_dup.html">Dbc.dup</a>,
+<a href="../api_java/dbc_get.html">Dbc.get</a>
+and
+<a href="../api_java/dbc_put.html">Dbc.put</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

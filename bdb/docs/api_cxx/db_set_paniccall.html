@@ -1,0 +1,76 @@
+<!--$Id: db_set_paniccall.so,v 10.11 2000/07/09 19:12:16 bostic Exp $-->
+<!--$Id: m4.errset,v 10.8 2000/02/19 20:57:57 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Db::set_paniccall</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Db::set_paniccall</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+Db::set_paniccall(
+    void (*db_paniccall_fcn)(DbEnv *dbenv, int errval));
+</pre></h3>
+<h1>Description</h1>
+<p>Errors can occur in the Berkeley DB library where the only solution is to shut
+down the application and run recovery.  (For example, if Berkeley DB is unable
+to write log records to disk because there is insufficient disk space.)
+In these cases, when the C++ error model has been configured so that the
+individual Berkeley DB methods return error codes (see <a href="../api_cxx/except_class.html">DbException</a> for
+more information), the value <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> is returned by Berkeley DB
+methods.
+<p>In these cases, it is also often simpler to shut down the application when
+such errors occur rather than attempting to gracefully return up the stack.
+The Db::set_paniccall method is used to specify a method to be called when
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> is about to be returned from a Berkeley DB method.  When
+called, the <b>dbenv</b> argument will be a reference to the current
+environment, and the <b>errval</b> argument is the error value that would
+have been returned to the calling method.
+<p>For <a href="../api_cxx/db_class.html">Db</a> handles opened inside of Berkeley DB environments, calling the
+Db::set_paniccall method affects the entire environment and is equivalent to calling
+the <a href="../api_cxx/env_set_paniccall.html">DbEnv::set_paniccall</a> method.
+<p>The Db::set_paniccall interface may be used to configure Berkeley DB at any time
+during the life of the application.
+<p>The Db::set_paniccall method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_close.html">DbEnv::close</a>,
+<a href="../api_cxx/env_open.html">DbEnv::open</a>,
+<a href="../api_cxx/env_remove.html">DbEnv::remove</a>,
+<a href="../api_cxx/db_err.html">DbEnv::err</a>,
+<a href="../api_cxx/env_strerror.html">DbEnv::strerror</a>,
+<a href="../api_cxx/env_version.html">DbEnv::version</a>,
+<a href="../api_cxx/env_set_cachesize.html">DbEnv::set_cachesize</a>,
+<a href="../api_cxx/env_set_errcall.html">DbEnv::set_errcall</a>,
+<a href="../api_cxx/env_set_errfile.html">DbEnv::set_errfile</a>,
+<a href="../api_cxx/env_set_error_stream.html">DbEnv::set_error_stream</a>,
+<a href="../api_cxx/env_set_errpfx.html">DbEnv::set_errpfx</a>,
+<a href="../api_cxx/env_set_flags.html">DbEnv::set_flags</a>,
+<a href="../api_cxx/env_set_mutexlocks.html">DbEnv::set_mutexlocks</a>,
+<a href="../api_cxx/env_set_paniccall.html">DbEnv::set_paniccall</a>,
+and
+<a href="../api_cxx/env_set_verbose.html">DbEnv::set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

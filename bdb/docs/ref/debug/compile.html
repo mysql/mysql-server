@@ -1,0 +1,43 @@
+<!--$Id: compile.so,v 10.10 2000/12/01 20:15:25 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Compile-time configuration</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Debugging</dl></h3></td>
+<td width="1%"><a href="../../ref/debug/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/debug/runtime.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Compile-time configuration</h1>
+<p>There are two compile-time configuration options that assist in debugging
+Berkeley DB and Berkeley DB applications.
+<p><dl compact>
+<p><dt>--enable-debug<dd>If you want to build Berkeley DB with <b>-g</b> as the C and C++ compiler
+flag, enter --enable-debug as an argument to configure. This will create
+Berkeley DB with debugging symbols, as well as load various Berkeley DB routines
+that can be called directly from a debugger to display database page
+content, cursor queues and so forth.  (Note that the <b>-O</b>
+optimization flag will still be specified.  To compile with only the
+<b>-g</b>, explicitly set the <b>CFLAGS</b> environment variable
+before configuring.)
+<p><dt>--enable-diagnostic<dd>If you want to build Berkeley DB with debugging run-time sanity checks and with
+DIAGNOSTIC #defined during compilation, enter --enable-diagnostic as an
+argument to configure. This will cause a number of special checks to be
+performed when Berkeley DB is running. This flag should not be defined when
+configuring to build production binaries, as it degrades performance.
+<p>In addition, when compiling Berkeley DB for use in run-time memory consistency
+checkers, in particular, programs that look for reads and writes of
+uninitialized memory, use --enable-diagnostic as an argument to configure.
+This guarantees that Berkeley DB will completely initialize allocated pages
+rather than only initializing the minimum necessary amount.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/debug/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/debug/runtime.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

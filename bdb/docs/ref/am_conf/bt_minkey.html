@@ -1,0 +1,53 @@
+<!--$Id: bt_minkey.so,v 10.14 2000/03/18 21:43:08 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Minimum keys per page</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/bt_prefix.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/bt_recnum.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Minimum keys per page</h1>
+<p>The number of keys stored on each page affects the size of a Btree and
+how it is maintained.  Therefore, it also affects the retrieval and search
+performance of the tree.  For each Btree, Berkeley DB computes a maximum key
+and data size.  This size is a function of the page size and the fact that
+at least two key/data pairs must fit on any Btree page.  Whenever key or
+data items exceed the calculated size, they are stored on overflow pages
+instead of in the standard Btree leaf pages.
+<p>Applications may use the <a href="../../api_c/db_set_bt_minkey.html">DB-&gt;set_bt_minkey</a> function to change the minimum
+number of keys that must fit on a Btree page from two to another value.
+Altering this value in turn alters the on-page maximum size, and can be
+used to force key and data items which would normally be stored in the
+Btree leaf pages onto overflow pages.
+<p>Some data sets can benefit from this tuning.  For example, consider an
+application using large page sizes, with a data set almost entirely
+consisting of small key and data items, but with a few large items.  By
+setting the minimum number of keys that must fit on a page, the
+application can force the outsized items to be stored on overflow pages.
+That in turn can potentially keep the tree more compact, that is, with
+fewer internal levels to traverse during searches.
+<p>The following calculation is similar to the one performed by the Btree
+implementation.  (The <b>minimum_keys</b> value is multiplied by 2
+because each key/data pair requires 2 slots on a Btree page.)
+<p><blockquote><pre>maximum_size = page_size / (minimum_keys * 2)</pre></blockquote>
+<p>Using this calculation, if the page size is 8KB and the default
+<b>minimum_keys</b> value of 2 is used, then any key or data items
+larger than 2KB will be forced to an overflow page.  If an application
+were to specify a <b>minimum_key</b> value of 100, then any key or data
+items larger than roughly 40 bytes would be forced to overflow pages.
+<p>It is important to remember that accesses to overflow pages do not perform
+as well as accesses to the standard Btree leaf pages, and so setting the
+value incorrectly can result in overusing overflow pages and decreasing
+the application's overall performance.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/bt_prefix.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/bt_recnum.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

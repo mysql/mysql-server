@@ -1,0 +1,42 @@
+<!--$Id: env_close.so,v 11.10 1999/12/20 08:52:35 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: env close</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>env</i> <b>close</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>env close
+</pre></h3>
+<h1>Description</h1>
+<p>Close the Berkeley DB environment, freeing any allocated resources and closing
+any underlying subsystems.
+<p>This does not imply closing any databases that were opened in the
+environment.
+<p>Where the environment was initialized with the <b>-lock</b> option,
+calling <i>env</i> <b>close</b> does not release any locks still held by the
+closing process, providing functionality for long-lived locks.
+<p>Once <i>env</i> <b>close</b> has been called the <b>env</b> handle may not be
+accessed again.
+<p>The <i>env</i> <b>close</b> command returns 0 on success, and in the case of error, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

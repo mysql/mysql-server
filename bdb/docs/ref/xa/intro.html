@@ -1,0 +1,61 @@
+<!--$Id: intro.so,v 10.19 2000/12/04 18:05:45 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Introduction</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>XA Resource Manager</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/throughput.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/xa/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Introduction</h1>
+<p>Berkeley DB can be used as an XA-compliant resource manager.  The XA
+implementation is known to work with the Tuxedo(tm) transaction
+manager.
+<p>The XA support is encapsulated in the resource manager switch
+db_xa_switch, which defines the following functions:
+<p><blockquote><pre>__db_xa_close     Close the resource manager.
+__db_xa_commit    Commit the specified transaction.
+__db_xa_complete  Wait for asynchronous operations to
+                  complete.
+__db_xa_end       Disassociate the application from a
+                  transaction.
+__db_xa_forget    Forget about a transaction that was heuristically
+                  completed. (Berkeley DB does not support heuristic
+                  completion.)
+__db_xa_open      Open the resource manager.
+__db_xa_prepare   Prepare the specified transaction.
+__db_xa_recover   Return a list of prepared, but not yet
+                  committed transactions.
+__db_xa_rollback  Abort the specified transaction.
+__db_xa_start     Associate the application with a
+                  transaction.
+</pre></blockquote>
+<p>The Berkeley DB resource manager does not support the following optional
+XA features:
+<ul type=disc>
+<li>Asynchronous operations.
+<li>Transaction migration.
+</ul>
+<p>The Tuxedo System is available from <a href="http://www.beasys.com">BEA Systems, Inc.</a>
+<p>For additional information on Tuxedo, see:
+<p><blockquote><i>Building Client/Server Applications Using Tuxedo</i>,
+by Hall, John Wiley & Sons, Inc. Publishers.</blockquote>
+<p>For additional information on XA Resource Managers, see:
+<p><blockquote>X/Open CAE Specification
+<i>Distributed Transaction Processing: The XA Specification</i>,
+X/Open Document Number: XO/CAE/91/300.</blockquote>
+<p>For additional information on The Tuxedo System, see:
+<p><blockquote><i>The Tuxedo System</i>,
+by Andrade, Carges, Dwyer and Felts, Addison Wesley Longman Publishers.</blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/throughput.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/xa/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

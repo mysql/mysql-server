@@ -1,0 +1,55 @@
+<!--$Id: faq.so,v 10.11 2000/03/18 21:43:21 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Frequently Asked Questions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>XA Resource Manager</dl></h3></td>
+<td width="1%"><a href="../../ref/xa/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/appsignals.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Frequently Asked Questions</h1>
+<p><ol>
+<p><li><b>Does converting an application to run within XA change any of
+the already existing C/C++ API calls it does?</b>
+<p>When converting an application to run under XA, the application's Berkeley DB
+calls are unchanged, with two exceptions:
+<p><ol>
+<p><li>The application must use specify the <a href="../../api_c/db_create.html#DB_XA_CREATE">DB_XA_CREATE</a> flag
+to the <a href="../../api_c/db_create.html">db_create</a> interface.
+<p><li>The application should never explicitly call <a href="../../api_c/txn_commit.html">txn_commit</a>,
+<a href="../../api_c/txn_abort.html">txn_abort</a> or <a href="../../api_c/txn_begin.html">txn_begin</a>, as those calls are replaced by
+calls into the Tuxedo transaction manager.  For the same reason, the
+application will always specify a transaction argument of NULL to the
+Berkeley DB functions that take transaction arguments (e.g., <a href="../../api_c/db_put.html">DB-&gt;put</a> or
+<a href="../../api_c/db_cursor.html">DB-&gt;cursor</a>).
+</ol>
+<p>Otherwise, your application should be unchanged.
+<hr size=1 noshade>
+<p><li><b>Is it possible to mix XA and non-XA transactions?</b>
+<p>Yes.  It is also possible for XA and non-XA transactions to co-exist in
+the same Berkeley DB environment.  To do this, specify the same environment to
+the non-XA <a href="../../api_c/env_open.html">DBENV-&gt;open</a> calls as was specified in the Tuxedo
+configuration file.
+<hr size=1 noshade>
+<p><li><b>How does Berkeley DB recovery interact with recovery by the transaction
+manager?</b>
+<p>When the Tuxedo recovery calls the Berkeley DB recovery functions, the standard
+Berkeley DB recovery procedures occur, for all operations that are represented
+in the Berkeley DB log files.  This includes any non-XA transactions that were
+performed in the environment.  Of course, this means that you can't use
+the standard Berkeley DB utilities (e.g., <a href="../../utility/db_recover.html">db_recover</a>) to perform
+recovery.
+<p>Also, standard log file archival and catastrophic recovery procedures
+should occur independently of XA operation.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/xa/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/appsignals.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!--$Id: pagesize.so,v 10.20 2000/03/18 21:43:09 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Selecting a page size</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/logrec.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/cachesize.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Selecting a page size</h1>
+<p>The size of the pages used in the underlying database can be specified by
+calling the <a href="../../api_c/db_set_pagesize.html">DB-&gt;set_pagesize</a> function.  The minimum page size is 512 bytes
+and the maximum page size is 64K bytes, and must be a power of two.  If
+no page size is specified by the application, a page size is selected
+based on the underlying filesystem I/O block size.  (A page size selected
+in this way has a lower limit of 512 bytes and an upper limit of 16K
+bytes.)
+<p>There are four issues to consider when selecting a pagesize: overflow
+record sizes, locking, I/O efficiency, and recoverability.
+<p>First, the page size implicitly sets the size of an overflow record.
+Overflow records are key or data items that are too large to fit on a
+normal database page because of their size, and are therefore stored in
+overflow pages.  Overflow pages are pages that exist outside of the normal
+database structure.  For this reason, there is often a significant
+performance penalty associated with retrieving or modifying overflow
+records.  Selecting a page size that is too small, and which forces the
+creation of large numbers of overflow pages, can seriously impact the
+performance of an application.
+<p>Second, in the Btree, Hash and Recno Access Methods, the finest-grained
+lock that Berkeley DB acquires is for a page.  (The Queue Access Method
+generally acquires record-level locks rather than page-level locks.)
+Selecting a page size that is too large, and which causes threads or
+processes to wait because other threads of control are accessing or
+modifying records on the same page, can impact the performance of your
+application.
+<p>Third, the page size specifies the granularity of I/O from the database
+to the operating system.  Berkeley DB will give a page-sized unit of bytes to
+the operating system to be scheduled for writing to the disk.  For many
+operating systems, there is an internal <b>block size</b> which is used
+as the granularity of I/O from the operating system to the disk.  If the
+page size is smaller than the block size, the operating system may be
+forced to read a block from the disk, copy the page into the buffer it
+read, and then write out the block to disk.  Obviously, it will be much
+more efficient for Berkeley DB to write filesystem-sized blocks to the operating
+system and for the operating system to write those same blocks to the
+disk.  Selecting a page size that is too small, and which causes the
+operating system to coalesce or otherwise manipulate Berkeley DB pages, can
+impact the performance of your application.  Alternatively, selecting a
+page size that is too large may cause Berkeley DB and the operating system to
+write more data than is strictly necessary.
+<p>Fourth, when using the Berkeley DB Transactional Data Store product, the page size may affect the errors
+from which your database can recover  See
+<a href="../../ref/transapp/reclimit.html">Berkeley DB Recoverability</a> for more
+information.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/logrec.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/cachesize.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!--$Id: db_dump.so,v 1.3 2000/11/28 21:27:49 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.2: db_dump</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.2/notfound.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/disk.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.2: db_dump</h1>
+<p>In previous releases of Berkeley DB, the <a href="../../utility/db_dump.html">db_dump</a> utility dumped Recno
+access method database keys as numeric strings.  For consistency, the
+<a href="../../utility/db_dump.html">db_dump</a> utility has been changed in the 3.2 release to dump
+record numbers as hex pairs when the data items are being dumped as hex
+pairs.  (See the <b>-k</b> and <b>-p</b> options to the
+<a href="../../utility/db_dump.html">db_dump</a> utility for more information.) Any applications or
+scripts post-processing the <a href="../../utility/db_dump.html">db_dump</a> output of Recno databases
+under these conditions may require modification.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.2/notfound.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/disk.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

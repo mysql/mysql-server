@@ -1,0 +1,34 @@
+<!--$Id: java.so,v 11.8 2000/12/01 18:33:56 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: additional Java changes</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/cxx.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/disk.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: additional Java changes</h1>
+<p>There are several additional types of exceptions thrown in the Berkeley DB 3.0
+Java API.
+<p>DbMemoryException and DbDeadlockException can be caught independently of
+DbException if you want to do special handling for these kinds of errors.
+Since they are subclassed from DbException, a try block that catches
+DbException will catch these also, so code is not required to change.
+The catch clause for these new exceptions should appear before the catch
+clause for DbException.
+<p>You will need to add a catch clause for java.io.FileNotFoundException,
+since that can be thrown by the <a href="../../api_java/db_open.html">Db.open</a> and <a href="../../api_java/env_open.html">DbEnv.open</a> functions.
+<p>There are a number of smaller changes to the API that bring the C, C++
+and Java APIs much closer in terms of functionality and usage.  Please
+refer to the pages for upgrading C applications for further details.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/cxx.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/disk.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

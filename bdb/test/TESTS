@@ -1,0 +1,448 @@
+# $Id: TESTS,v 11.34 2000/11/06 19:31:56 sue Exp $
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Access method tests
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+test001		Small keys/data
+			Put/get per key
+			Dump file
+			Close, reopen
+			Dump file
+
+test002		Small keys/medium data
+			Put/get per key
+			Dump file
+			Close, reopen
+			Dump file
+
+test003		Small keys/large data
+			Put/get per key
+			Dump file
+			Close, reopen
+			Dump file
+
+test004		Small keys/medium data
+			Put/get per key
+			Sequential (cursor) get/delete
+
+test005		Small keys/medium data
+			Put/get per key
+			Close, reopen
+			Sequential (cursor) get/delete
+
+test006		Small keys/medium data
+			Put/get per key
+			Keyed delete and verify
+
+test007		Small keys/medium data
+			Put/get per key
+			Close, reopen
+			Keyed delete
+
+test008		Small keys/large data
+			Put/get per key
+			Loop through keys by steps (which change)
+			    ... delete each key at step
+			    ... add each key back
+			    ... change step
+			Confirm that overflow pages are getting reused
+
+test009		Small keys/large data
+			Same as test008; close and reopen database
+
+test010		Duplicate test
+			Small key/data pairs.
+
+test011		Duplicate test
+			Small key/data pairs.
+			Test DB_KEYFIRST, DB_KEYLAST, DB_BEFORE and DB_AFTER.
+			To test off-page duplicates, run with small pagesize.
+
+test012		Large keys/small data
+			Same as test003 except use big keys (source files and
+			executables) and small data (the file/executable names).
+
+test013		Partial put test
+			Overwrite entire records using partial puts.  Make sure
+			that NOOVERWRITE flag works.
+
+test014		Exercise partial puts on short data
+			Run 5 combinations of numbers of characters to replace,
+			    and number of times to increase the size by.
+
+test015		Partial put test
+			Partial put test where the key does not initially exist.
+
+test016		Partial put test
+			Partial put where the datum gets shorter as a result of
+			the put.
+
+test017		Basic offpage duplicate test.
+
+test018		Offpage duplicate test
+			Key_{first,last,before,after} offpage duplicates.
+
+test019		Partial get test.
+
+test020		In-Memory database tests.
+
+test021		Btree range tests.
+
+test022		Test of DB->getbyteswapped().
+
+test023		Duplicate test
+			Exercise deletes and cursor operations within a
+			duplicate set.
+
+test024		Record number retrieval test.
+
+test025		DB_APPEND flag test.
+
+test026		Small keys/medium data w/duplicates
+			Put/get per key.
+			Loop through keys -- delete each key
+			    ... test that cursors delete duplicates correctly
+
+test027		Off-page duplicate test
+			Test026 with parameters to force off-page duplicates.
+
+test028		Cursor delete test
+			Test put operations after deleting through a cursor.
+
+test029		Record renumbering
+
+test030		DB_NEXT_DUP functionality
+
+test031		Duplicate sorting functionality
+		Make sure DB_NODUPDATA works.
+
+test032		DB_GET_BOTH
+
+test033		DB_GET_BOTH without comparison function
+
+test034		Test032 with off-page duplicates
+
+test035		Test033 with off-page duplicates
+
+test036		Test KEYFIRST and KEYLAST when the key doesn't exist
+
+test037		Test DB_RMW
+
+test038		DB_GET_BOTH on deleted items
+
+test039		DB_GET_BOTH  on deleted items without comparison function
+
+test040		Test038 with off-page duplicates
+
+test041		Test039 with off-page duplicates
+
+test042		Concurrent Data Store test
+
+test043		Recno renumbering and implicit creation test
+
+test044		Small system integration tests
+			Test proper functioning of the checkpoint daemon,
+			recovery, transactions, etc.
+
+test045		Small random tester
+			Runs a number of random add/delete/retrieve operations.
+			Tests both successful conditions and error conditions.
+
+test046		Overwrite test of small/big key/data with cursor checks.
+
+test047		Cursor get test with SET_RANGE option.
+
+test048		Cursor stability across Btree splits.
+
+test049		Cursor operations on unitialized cursors.
+
+test050		Cursor overwrite test for Recno.
+
+test051		Fixed-length record Recno test.
+
+test052		Renumbering record Recno test.
+
+test053		DB_REVSPLITOFF flag test
+
+test054		Cursor maintenance during key/data deletion.
+
+test054		Basic cursor operations.
+
+test055		Cursor maintenance during key deletes.
+
+test056		Cursor maintenance during deletes.
+
+test057		Cursor maintenance during key deletes.
+
+test058         Verify that deleting and reading duplicates results in
+		correct ordering.
+
+test059		Cursor ops work with a partial length of 0.
+
+test060		Test of the DB_EXCL flag to DB->open().
+
+test061		Test of txn abort and commit for in-memory databases.
+
+test062		Test of partial puts (using DB_CURRENT) onto duplicate pages.
+
+test063		Test of the DB_RDONLY flag to DB->open
+
+test064		Test of DB->get_type
+
+test065		Test of DB->stat(DB_RECORDCOUNT)
+
+test066		Test of cursor overwrites of DB_CURRENT w/ duplicates.
+
+test067		Test of DB_CURRENT partial puts onto almost empty duplicate
+		pages, with and without DB_DUP_SORT.
+
+test068		Test of DB_BEFORE and DB_AFTER with partial puts.
+
+test069		Test of DB_CURRENT partial puts without duplicates--
+		test067 w/ small ndups.
+
+test070		Test of DB_CONSUME (Four consumers, 1000 items.)
+
+test071		Test of DB_CONSUME (One consumer, 10000 items.)
+
+test072		Cursor stability test when dups are moved off-page
+
+test073		Test of cursor stability on duplicate pages.
+
+test074		Test of DB_NEXT_NODUP.
+
+test075		Test of DB->rename().
+		(formerly test of DB_TRUNCATE cached page invalidation [#1487])
+
+test076		Test creation of many small databases in a single environment.
+		[#1528].
+
+test077		Test of DB_GET_RECNO [#1206].
+
+test078		Test of DBC->c_count().
+
+test079		Test of deletes in large trees.  (test006 w/ sm. pagesize).
+
+test080		Test of DB->remove()
+
+test081		Test off-page duplicates and overflow pages together with
+		very large keys (key/data as file contents).
+
+test082		Test of DB_PREV_NODUP (uses test074).
+
+test083		Test of DB->key_range.
+
+test084		Sanity test of large (64K) pages.
+
+test085		Test of cursor behavior when a cursor is pointing to a deleted
+		btree key which then has duplicates added. [#2473]
+
+test086		Test of cursor stability across btree splits/rsplits with
+		subtransaction aborts (a variant of test048).  [#2373]
+
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Cursor Join.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+jointest	Test duplicate assisted joins.
+			Executes 1, 2, 3 and 4-way joins with differing
+			index orders and selectivity.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Deadlock detection.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+dead001         Use two different configurations to test deadlock
+		detection among a variable number of processes.  One
+		configuration has the processes deadlocked in a ring.
+		The other has the processes all deadlocked on a single
+		resource.
+
+dead002         Same test as dead001, but use "detect on every collision"
+		instead of separate deadlock detector.
+
+dead003         Same test as dead002, but explicitly specify oldest or
+		youngest.  Verify the correct lock was aborted/granted.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Lock tests
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+lock001		Basic lock test, gets/puts.  Contention without waiting.
+
+lock002		Multi-process lock tests.
+
+lock003		Multiprocess random lock test.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Logging test
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+log001		Read/write log records.
+
+log002          Tests multiple logs
+		Log truncation
+		lsn comparison and file functionality.
+
+log003		Verify that log_flush is flushing records correctly.
+
+log004		Prev on log when beginning of log has been truncated.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Mpool test
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+memp001		Randomly updates pages.
+
+memp002         Tests multiple processes accessing and modifying the same
+		files.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Recovery
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+recd001         Per-operation recovery tests for non-duplicate, non-split
+		messages.  Makes sure that we exercise redo, undo, and
+		do-nothing condition.  Any test that appears with the
+		message (change state) indicates that we've already run
+		the particular test, but we are running it again so that
+		we can change the state of the data base to prepare for
+		the next test (this applies to all other recovery tests
+		as well).
+
+recd002         Split recovery tests.  For every known split log message,
+		makes sure that we exercise redo, undo, and do-nothing
+		condition.
+
+recd003         Duplicate recovery tests.  For every known duplicate log
+		message, makes sure that we exercise redo, undo, and
+		do-nothing condition.
+
+recd004		Big key test where big key gets elevated to internal page.
+
+recd005		Verify reuse of file ids works on catastrophic recovery.
+
+recd006		Nested transactions.
+
+recd007		File create/delete tests.
+
+recd008		Test deeply nested transactions.
+
+recd009		Verify record numbering across split/reverse splits
+		and recovery.
+
+recd010		Verify duplicates across split/reverse splits
+		and recovery.
+
+recd011		Verify that recovery to a specific timestamp works.
+
+recd012		Test of log file ID management. [#2288]
+
+recd013		Test of cursor adjustment on child transaction aborts. [#2373]
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Subdatabase tests
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+subdb001	Tests mixing db and subdb operations
+			Create a db, add data, try to create a subdb.
+			Test naming db and subdb with a leading - for
+			    correct parsing
+			Existence check -- test use of -excl with subdbs
+
+subdb002	Tests basic subdb functionality
+			Small keys, small data
+			Put/get per key
+			Dump file
+			Close, reopen
+			Dump file
+
+subdb003	Tests many subdbs
+			Creates many subdbs and puts a small amount of
+			data in each (many defaults to 2000)
+
+subdb004	Tests large subdb names
+			subdb name = filecontents,
+			    key = filename, data = filecontents
+			Put/get per key
+			Dump file
+			Dump subdbs, verify data and subdb name match
+
+subdb005	Tests cursor operations in subdbs
+			Put/get per key
+			Verify cursor operations work within subdb
+			Verify cursor operations do not work across subdbs
+
+subdb006	Tests intra-subdb join
+
+subdb007	Tests page size differences between subdbs
+			Open several subdbs, each with a different pagesize
+			Small keys, small data
+			Put/get per key per subdb
+			Dump file, verify per subdb
+			Close, reopen per subdb
+			Dump file, verify per subdb
+
+subdb008	Tests lorder differences between subdbs
+			Open several subdbs, each with a different/random lorder
+			Small keys, small data
+			Put/get per key per subdb
+			Dump file, verify per subdb
+			Close, reopen per subdb
+			Dump file, verify per subdb
+
+subdb009	Test DB->rename() method for subdbs
+
+subdb010	Test DB->remove() method for subdbs
+
+subdbtest001 	Tests multiple access methods in one subdb
+			Open several subdbs, each with a different access method
+			Small keys, small data
+			Put/get per key per subdb
+			Dump file, verify per subdb
+			Close, reopen per subdb
+			Dump file, verify per subdb
+
+subdbtest002    Tests multiple access methods in one subdb access by
+		multiple processes
+			Open several subdbs, each with a different access method
+			Small keys, small data
+			Put/get per key per subdb
+			Fork off several child procs to each delete selected
+			    data from their subdb and then exit
+			Dump file, verify contents of each subdb is correct
+			Close, reopen per subdb
+			Dump file, verify per subdb
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Transaction tests
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+txn001		Begin, commit, abort testing.
+
+txn002		Verify that  read-only transactions do not write log records.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Environment tests
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+env001 		Test of env remove interface (formerly env_remove).
+
+env002		Test of DB_LOG_DIR and env name resolution.
+
+env003		Test of DB_TMP_DIR and env name resolution.
+
+env004		Multiple data directories test.
+
+env005		Test for using subsystems without initializing them correctly.
+
+env006		Smoke test that the utilities all run.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+RPC tests
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+[RPC tests also include running all Access Method tests for all methods
+via an RPC server]
+
+rpc001		Test RPC server timeouts for cursor, txn and env handles.
+
+rpc002		Test unsupported functions 
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Recno backing file tests
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+rsrc001		Basic backing file test (put/get)
+
+rsrc002		Test of set_re_delim

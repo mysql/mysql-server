@@ -1,0 +1,95 @@
+<!--$Id: mt.so,v 10.37 2000/12/04 18:05:42 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Building multi-threaded applications</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/environ.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/scope.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Building multi-threaded applications</h1>
+<p>The Berkeley DB library is not itself multi-threaded.  The library was
+deliberately architected to not use threads internally because of the
+portability problems that using threads within the library would
+introduce.
+<p>Berkeley DB supports multi-threaded applications with the caveat that it loads
+and calls functions that are commonly available in C language environments.
+Other than this usage, Berkeley DB has no static data and maintains no local
+context between calls to Berkeley DB functions.
+<p>Environment and database object handles returned from Berkeley DB library
+functions are free-threaded.  No other object handles returned from
+the Berkeley DB library are free-threaded.
+<p>The following rules should be observed when using threads to
+access the Berkeley DB library:
+<p><ol>
+<p><li>The <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flag must be specified to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a>
+and <a href="../../api_c/db_open.html">DB-&gt;open</a> functions if the Berkeley DB handles returned by those interfaces
+will be used in the context of more than one thread.  Setting the
+<a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flag inconsistently may result in database corruption.
+<p>Threading is assumed in the Java API, so no special flags are required,
+and Berkeley DB functions will always behave as if the <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flag
+was specified.
+<p>Only a single thread may call the <a href="../../api_c/env_close.html">DBENV-&gt;close</a> or <a href="../../api_c/db_close.html">DB-&gt;close</a> functions
+for a returned environment or database handle.
+<p>No other Berkeley DB handles are free-threaded, for example, cursors and
+transactions may not span threads as their returned handles are not
+free-threaded.
+<p><li>When using the non-cursor Berkeley DB calls to retrieve key/data items (e.g.,
+<a href="../../api_c/db_get.html">DB-&gt;get</a>), the memory referenced by the pointer stored into the
+Dbt is only valid until the next call to Berkeley DB using the DB handle
+returned by <a href="../../api_c/db_open.html">DB-&gt;open</a>.  This includes any use of the returned
+DB handle, including by another thread of control within the
+process.
+<p>For this reason, if the <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> handle was specified to the
+<a href="../../api_c/db_open.html">DB-&gt;open</a> function, either <a href="../../api_c/dbt.html#DB_DBT_MALLOC">DB_DBT_MALLOC</a>, <a href="../../api_c/dbt.html#DB_DBT_REALLOC">DB_DBT_REALLOC</a>
+or <a href="../../api_c/dbt.html#DB_DBT_USERMEM">DB_DBT_USERMEM</a> must be specified in the <a href="../../api_c/dbt.html">DBT</a> when
+performing any non-cursor key or data retrieval.
+<p><li>The <a href="../../api_c/dbc_get.html#DB_CURRENT">DB_CURRENT</a>, <a href="../../api_c/dbc_get.html#DB_NEXT">DB_NEXT</a> and <a href="../../api_c/dbc_get.html#DB_PREV">DB_PREV</a> flags to the
+<a href="../../api_c/log_get.html">log_get</a> function may not be used by a free-threaded handle.  If
+such calls are necessary, a thread should explicitly create a unique
+environment handle by separately calling <a href="../../api_c/env_open.html">DBENV-&gt;open</a> without
+specifying <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a>.
+<p><li>Each database operation (i.e., any call to a function underlying the
+handles returned by <a href="../../api_c/db_open.html">DB-&gt;open</a> and <a href="../../api_c/db_cursor.html">DB-&gt;cursor</a>) is normally
+performed on behalf of a unique locker.  If, within a single thread of
+control, multiple calls on behalf of the same locker are desired, then
+transactions must be used.  For example, consider the case where a
+cursor scan locates a record, and then based on that record, accesses
+some other item in the database.  If these operations are done using
+the default lockers for the handle, they may conflict.  If the
+application wishes to guarantee that the operations do not conflict,
+locks must be obtained on behalf of a transaction, instead of the
+default locker ID, and a transaction must be specified to subsequent
+<a href="../../api_c/db_cursor.html">DB-&gt;cursor</a> and other Berkeley DB calls.
+<p><li>Transactions may not span threads.  Each transaction must begin and end
+in the same thread, and each transaction may only be used by a single
+thread.
+<p>Cursors may not span transactions or threads.  Each cursor must be
+allocated and de-allocated within the same transaction and within
+the same thread.
+<p><li>User-level synchronization mutexes must have been implemented for the
+compiler/architecture combination.  Attempting to specify the DB_THREAD
+flag will fail if fast mutexes are not available.
+<p>If blocking mutexes are available, for example POSIX pthreads, they will
+be used.  Otherwise, the Berkeley DB library will make a system call to pause
+for some amount of time when it is necessary to wait on a lock.  This may
+not be optimal, especially in a thread-only environment where it will be
+more efficient to explicitly yield the processor to another thread.
+<p>It is possible to specify a yield function on an per-application basis.
+See <a href="../../api_c/set_func_yield.html">db_env_set_func_yield</a> for more information.
+<p>It is possible to specify the number of attempts that will be made to
+acquire the mutex before waiting.  Se <a href="../../api_c/env_set_tas_spins.html">db_env_set_tas_spins</a> for
+more information.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/environ.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/scope.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!--$Id: curput.so,v 10.12 2000/12/04 18:05:41 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Storing records with a cursor</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/curget.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/curdel.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Storing records with a cursor</h1>
+<p>The <a href="../../api_c/dbc_put.html">DBcursor-&gt;c_put</a> function is the standard interface for storing records into
+the database with a cursor.  In general, <a href="../../api_c/dbc_put.html">DBcursor-&gt;c_put</a> takes a key and
+inserts the associated data into the database, at a location controlled
+by a specified flag.
+<p>There are several flags that you can set to customize storage:
+<p><dl compact>
+<p><dt><a href="../../api_c/dbc_put.html#DB_AFTER">DB_AFTER</a><dd>Create a new record, immediately after the record currently referenced by
+the cursor.
+<p><dt><a href="../../api_c/dbc_put.html#DB_BEFORE">DB_BEFORE</a><dd>Create a new record, immediately before the record currently referenced by
+the cursor.
+<p><dt><a href="../../api_c/dbc_put.html#DB_CURRENT_PUT">DB_CURRENT</a><dd>Replace the data part of the record currently referenced by the cursor.
+<p><dt><a href="../../api_c/dbc_put.html#DB_KEYFIRST">DB_KEYFIRST</a><dd>Create a new record as the first of the duplicate records for the
+supplied key.
+<p><dt><a href="../../api_c/dbc_put.html#DB_KEYLAST">DB_KEYLAST</a><dd>Create a new record, as the last of the duplicate records for the supplied
+key.
+</dl>
+<p>In all cases, the cursor is repositioned by a <a href="../../api_c/dbc_put.html">DBcursor-&gt;c_put</a> operation
+to point to the newly inserted key/data pair in the database.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/curget.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/curdel.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

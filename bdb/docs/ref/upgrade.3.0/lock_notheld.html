@@ -1,0 +1,27 @@
+<!--$Id: lock_notheld.so,v 11.7 2000/12/01 17:58:21 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: DB_LOCK_NOTHELD</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/rmw.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/eagain.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: DB_LOCK_NOTHELD</h1>
+<p>Historically, the Berkeley DB <a href="../../api_c/lock_put.html">lock_put</a> and <a href="../../api_c/lock_vec.html">lock_vec</a> interfaces
+could return the DB_LOCK_NOTHELD error to indicate that a lock could
+not be released as it was held by another locker.  This error can no
+longer be returned under any circumstances.  The application should be
+searched for any occurrences of DB_LOCK_NOTHELD.  For each of these,
+the test and any error processing should be removed.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/rmw.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/eagain.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

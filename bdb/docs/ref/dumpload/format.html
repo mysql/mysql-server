@@ -1,0 +1,69 @@
+<!--$Id: format.so,v 10.14 2000/03/22 21:56:11 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Dump output formats</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Dumping and Reloading</dl></h3></td>
+<td width="1%"><a href="../../ref/dumpload/utility.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/dumpload/text.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Dump output formats</h1>
+<p>There are two output formats used by <a href="../../utility/db_dump.html">db_dump</a> and <a href="../../utility/db_dump.html">db_dump185</a>.
+<p>In both output formats, the first few lines of the output contain header
+information describing the underlying access method, filesystem page size
+and other bookkeeping information.
+<p>The header information starts with a single line VERSION=N, where N is
+the version number of the dump output format.
+<p>The header information is then output in name=value pairs, where name may
+be any of the keywords listed in the <a href="../../utility/db_load.html">db_load</a> manual page, and
+value will be its value.  While this header information can be manually
+edited before the database is reloaded, there is rarely any reason to do
+so, as all of this information can also be specified or overridden by
+command-line arguments to <a href="../../utility/db_load.html">db_load</a>.
+<p>The header information ends with single line HEADER=END.
+<p>Following the header information are the key/data pairs from the database.
+If the database being dumped is of type Btree or Hash, or if the
+<b>-k</b> option as been specified, the output will be paired lines of
+text, where the first line of the pair is the key item, and the second
+line of the pair is its corresponding data item.  If the database being
+dumped is of type Queue or Recno and the <b>-k</b> has not been
+specified, the output will be lines of text, where each line is the next
+data item for the database.  Each of these lines will be preceded by a
+single space.
+<p>If the <b>-p</b> option to <a href="../../utility/db_dump.html">db_dump</a> or <a href="../../utility/db_dump.html">db_dump185</a> was
+specified, the key/data lines will consist of single characters
+representing any characters from the database that are <i>printing
+characters</i> and backslash (<b>\</b>) escaped characters
+for any that were not.  Backslash characters appearing in the output mean
+one of two things: if the backslash character precedes another backslash
+character, it means that a literal backslash character occurred in the
+key or data item.  If the backslash character precedes any other
+character, the next two characters must be interpreted as hexadecimal
+specification of a single character, e.g., <b>\0a</b> is
+a newline character in the ASCII character set.
+<p>Although some care should be exercised, it is perfectly reasonable to use
+standard text editors and tools to edit databases dumped using the
+<b>-p</b> option before re-loading them using the <a href="../../utility/db_load.html">db_load</a>
+utility.
+<p>Note that the definition of a printing character may vary from system to
+system, and so database representations created using the <b>-p</b>
+option may be less portable than those created without it.
+<p>If the <b>-p</b> option to <a href="../../utility/db_dump.html">db_dump</a> or <a href="../../utility/db_dump.html">db_dump185</a> is
+not specified, each output line will consist of paired hexadecimal values,
+e.g., the line <b>726f6f74</b> is the string <b>root</b> in the ASCII
+character set.
+<p>In all output formats, the key and data items are ended by a single line
+DATA=END.
+<p>Where multiple databases have been dumped from a file, the overall output
+will repeat, i.e., a new set of headers and a new set of data items.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/dumpload/utility.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/dumpload/text.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

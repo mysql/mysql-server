@@ -1,0 +1,86 @@
+<!--$Id: intro.so,v 10.14 2000/03/18 21:43:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Berkeley DB and transactions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/mp/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/nested.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Berkeley DB and transactions</h1>
+<p>The transaction subsystem makes operations atomic, consistent, isolated,
+and durable in the face of system and application failures.  The subsystem
+requires that the data be properly logged and locked in order to attain
+these properties.  Berkeley DB contains all the components necessary to
+transaction-protect the Berkeley DB access methods and other forms of data may
+be protected if they are logged and locked appropriately.
+<p>The transaction subsystem is created, initialized, and opened by calls to
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> with the <a href="../../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a> flag specified.  Note that
+enabling transactions automatically enables logging, but does not enable
+locking, as a single thread of control that needed atomicity and
+recoverability would not require it.
+<p>The <a href="../../api_c/txn_begin.html">txn_begin</a> function starts a transaction, returning an opaque
+handle to a transaction.  If the parent parameter to <a href="../../api_c/txn_begin.html">txn_begin</a> is
+non-NULL, then the new transaction is a child of the designated parent
+transaction.
+<p>The <a href="../../api_c/txn_abort.html">txn_abort</a> function ends the designated transaction and causes
+all updates performed by the transaction to be undone.  The end result is
+that the database is left in a state identical to the state that existed
+prior to the <a href="../../api_c/txn_begin.html">txn_begin</a>.  If the aborting transaction has any child
+transactions associated with it (even ones that have already been
+committed), they are also aborted.  Any transactions that are unresolved
+(i.e., neither committed nor aborted) when the application or system fails
+are aborted during recovery.
+<p>The <a href="../../api_c/txn_commit.html">txn_commit</a> function ends the designated transaction and makes
+all the updates performed by the transaction permanent, even in the face
+of application or system failure.  If this is a parent transaction
+committing, then all child transactions that individually committed or
+had not been resolved are also committed.
+<p>Transactions are identified by 32-bit unsigned integers.  The ID
+associated with any transaction can be obtained using the <a href="../../api_c/txn_id.html">txn_id</a>
+function.  If an application is maintaining information outside of Berkeley DB
+that it wishes to transaction-protect, it should use this transaction ID
+as the locking ID.
+<p>The <a href="../../api_c/txn_checkpoint.html">txn_checkpoint</a> function causes a transaction checkpoint.  A
+checkpoint is performed relative to a specific log sequence number (LSN),
+referred to as the checkpoint LSN.  When a checkpoint completes
+successfully, it means that all data buffers whose updates are described
+by LSNs less than the checkpoint LSN have been written to disk.  This, in
+turn, means that the log records less than the checkpoint LSN are no
+longer necessary for normal recovery (although they would be required for
+catastrophic recovery should the database files be lost) and all log files
+containing only records prior to the checkpoint LSN may be safely archived
+and removed.
+<p>It is possible that in order to complete a transaction checkpoint, it will
+be necessary to write a buffer that is currently in use (i.e., is actively
+being read or written by some transaction).  In this case,
+<a href="../../api_c/txn_checkpoint.html">txn_checkpoint</a> will not be able to write the buffer, as doing so
+might cause an inconsistent version of the page to be written to disk,
+and instead of completing successfully will return with an error code of
+<a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a>.  In such cases, the checkpoint can simply be
+retried after a short delay.
+<p>The interval between successive checkpoints is directly proportional to
+the length of time required to run normal recovery.  If the interval
+between checkpoints is long, then a large number of updates that are
+recorded in the log may not yet be written to disk and recovery may take
+longer to run.  If the interval is short, then data is being written to
+disk more frequently, but the recovery time will be shorter.  Often, the
+checkpoint interval will be tuned for each specific application.
+<p>The <a href="../../api_c/txn_stat.html">txn_stat</a> function returns information about the status of
+the transaction subsystem.  It is the programmatic interface used by the
+<a href="../../utility/db_stat.html">db_stat</a> utility.
+<p>The transaction system is closed by a call to <a href="../../api_c/env_close.html">DBENV-&gt;close</a>.
+<p>Finally, the entire transaction system may be removed using the
+<a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> interface.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/mp/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/nested.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

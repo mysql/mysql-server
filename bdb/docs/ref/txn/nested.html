@@ -1,0 +1,66 @@
+<!--$Id: nested.so,v 10.17 2000/12/31 19:26:22 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Nested transactions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/txn/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/limits.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Nested transactions</h1>
+<p>Berkeley DB provides support for nested transactions.  Nested transactions
+allow an application to decompose a large or long-running transaction
+into smaller units that may be independently aborted.
+<p>Normally, when beginning a transaction, the application will pass a NULL
+value for the parent argument to <a href="../../api_c/txn_begin.html">txn_begin</a>.  If, however, the
+parent argument is a DB_TXN handle, then the newly created
+transaction will be treated as a nested transaction within the parent.
+Transactions may nest arbitrarily deeply.  For the purposes of this
+discussion, transactions created with a parent identifier will be called
+child transactions.
+<p>Once a transaction becomes a parent, as long as any of its child
+transactions are unresolved (i.e., they have neither committed nor
+aborted), the parent may not issue any Berkeley DB calls except to begin more
+child transactions or to commit or abort.  That is, it may not issue
+any access method or cursor calls.  Once all of a parent's children have
+committed or aborted, the parent may again request operations on its
+own behalf.
+<p>The semantics of nested transactions are as follows.  When a child
+transaction is begun, it inherits all the locks of its parent.  This
+means that the child will never block waiting on a lock held by its
+parent.  However, if a parent attempts to obtain locks after they have
+begun a child, the parental locks can conflict with those held by a
+child.  Furthermore, locks held by two different children will also
+conflict.  To make this concrete, consider the following set of
+transactions and lock acquisitions.
+<p>Transaction T1 is the parent transaction.  It acquires an exclusive lock
+on item A and then begins two child transactions, C1 and C2.  C1 also
+wishes to acquire a write lock on A; this succeeds.  Now, let's say that
+C1 acquires a write lock on B.  If C2 now attempts to obtain a lock on
+B, it will block.  However, let's now assume that C1 commits.  Its locks
+are anti-inherited, which means they are now given to T1.  At this
+point, either T1 or C2 is allowed to acquire a lock on B.  If, however,
+transaction T1 aborts, then its locks are released.  Future requests by
+T1 or C2 will also succeed, but they will be obtaining new locks as
+opposed to piggy-backing off a lock already held by T1.
+<p>Child transactions are entirely subservient to their parent transaction.
+They may abort, undoing their operations regardless of the eventual fate
+of the parent.  However, even if a child transaction commits, if its
+parent transaction is eventually aborted, the child's changes are undone
+and the child's transaction is effectively aborted.  Any child
+transactions that are not yet resolved when the parent commits or aborts
+are resolved based on the parent's resolution, committing if the parent
+commits and aborting if the parent aborts.  Any child transactions that
+are not yet resolved when the parent prepares are also prepared.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/txn/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/limits.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!--$Id: notxn.so,v 10.10 2000/03/18 21:43:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Locking without transactions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/stdmode.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/twopl.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Locking without transactions</h1>
+<p>If an application runs with locking specified, but not transactions (e.g.,
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> is called with <a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a> or
+<a href="../../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a> specified, but not <a href="../../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a>), locks are
+normally acquired during each Berkeley DB operation and released before the
+operation returns to the caller.  The only exception is in the case of
+cursor operations.  As cursors identify a particular position in a file,
+a cursor must retain a read-lock across cursor calls to make sure that
+that position is uniquely identifiable during the next cursor call,
+because an operation using <a href="../../api_c/dbc_get.html#DB_CURRENT">DB_CURRENT</a> must reference the same
+record as the previous cursor call.  Such cursor locks cannot be released
+until either the cursor is reset using the <a href="../../api_c/db_get.html#DB_GET_BOTH">DB_GET_BOTH</a>,
+<a href="../../api_c/dbc_get.html#DB_SET">DB_SET</a>, <a href="../../api_c/dbc_get.html#DB_SET_RANGE">DB_SET_RANGE</a>, <a href="../../api_c/dbc_put.html#DB_KEYFIRST">DB_KEYFIRST</a>, or
+<a href="../../api_c/dbc_put.html#DB_KEYLAST">DB_KEYLAST</a> functionality, in which case a new cursor lock is
+established, or the cursor is closed.  As a result, application designers
+are encouraged to close cursors as soon as possible.
+<p>It is important to realize that concurrent applications that use locking
+must ensure that two concurrent threads do not interfere with each other.
+However, as Btree and Hash access method page splits can occur at any
+time, there is virtually no way to guarantee that an application which
+writes the database cannot deadlock.  Applications running without the
+protection of transactions may deadlock, and when they do so, can leave
+the database in an inconsistent state.  Applications that need concurrent
+access, but not transactions, are more safely implemented using the Berkeley DB Concurrent Data Store
+Product.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/stdmode.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/twopl.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

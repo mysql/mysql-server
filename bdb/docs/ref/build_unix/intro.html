@@ -1,0 +1,60 @@
+<!--$Id: intro.so,v 10.18 2000/12/04 18:05:41 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Building for UNIX</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/debug/common.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/conf.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Building for UNIX</h1>
+<p>The Berkeley DB distribution builds up to four separate libraries: the base C
+API Berkeley DB library and the optional C++, Java and Tcl API libraries.  For
+portability reasons each library is standalone and contains the full Berkeley DB
+support necessary to build applications, that is, the C++ API Berkeley DB
+library does not require any other Berkeley DB libraries to build and run C++
+applications.
+<p>The Berkeley DB distribution uses the Free Software Foundation's
+<a href="http://sourceware.cygnus.com/autoconf">autoconf</a> and
+<a href="http://www.gnu.org/software/libtool/libtool.html">libtool</a>
+tools to build on UNIX platforms.  In general, the standard configuration
+and installation options for these tools apply to the Berkeley DB distribution.
+<p>To perform the default UNIX build of Berkeley DB, first change to the
+<b>build_unix</b> directory, and then enter the following two commands:
+<p><blockquote><pre>../dist/configure
+make</pre></blockquote>
+<p>This will build the Berkeley DB library.
+<p>To install the Berkeley DB library, enter:
+<p><blockquote><pre>make install</pre></blockquote>
+<p>To rebuild Berkeley DB, enter:
+<p><blockquote><pre>make clean
+make</pre></blockquote>
+<p>If you change your mind about how Berkeley DB is to be configured, you must start
+from scratch by entering:
+<p><blockquote><pre>make realclean
+../dist/configure
+make</pre></blockquote>
+<p>To build multiple UNIX versions of Berkeley DB in the same source tree, create a
+new directory at the same level as the build_unix directory, and then
+configure and build in that directory:
+<p><blockquote><pre>mkdir build_bsdos3.0
+cd build_bsdos3.0
+../dist/configure
+make</pre></blockquote>
+<p>If you have trouble with any of these commands, please send email to the
+addresses found in the Sleepycat Software contact information.  In that
+email, please provide a complete copy of the commands that you entered
+and any output, along with a copy of any <b>config.log</b> or
+<b>config.cache</b> files created during configuration.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/debug/common.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/conf.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

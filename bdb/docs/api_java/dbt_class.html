@@ -1,0 +1,227 @@
+<!--$Id: dbt_class.so,v 10.33 2000/12/18 21:05:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Dbt</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Dbt</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public class Dbt extends Object
+{
+	public Dbt(byte[] data);
+	public Dbt(byte[] data, int off, int len);
+<p>
+	public void set_data(byte[] data);
+	public byte[] get_data();
+<p>
+	public void set_offset(int off);
+	public int get_offset();
+<p>
+	public int get_size();
+	public void set_size(int size);
+<p>
+	public int get_ulen();
+	public void set_ulen(int ulen);
+<p>
+	public int get_dlen();
+	public void set_dlen(int dlen);
+<p>
+	public int get_doff();
+	public void set_doff(int doff);
+<p>
+	public int get_flags();
+	public void set_flags(int flags);
+<p>
+	public void set_recno_key_data(int recno);
+	public int get_recno_key_data();
+}
+</pre></h3>
+<h1>Description</h1>
+<p>This manual page describes the specific details of the Dbt class,
+used to encode keys and data items in a database.
+        <a name="3"><!--meow--></a>    
+<h3>Key/Data Pairs</h3>
+<p>Storage and retrieval for the Db access methods are based on
+key/data pairs.  Both key and data items are represented by Dbt
+objects.  Key and data byte strings may reference strings of zero length
+up to strings of essentially unlimited length.  See
+<a href="../ref/program/dbsizes.html">Database limits</a> for more
+information.
+<p>The Dbt class provides simple access to an underlying data structure,
+whose elements can be examined or changed using the <b>set_</b> or
+<b>get_</b> methods.  The remainder of the manual page sometimes refers
+to these accesses using the underlying name, e.g., simply <b>ulen</b>
+instead of Dbt.get_ulen and Dbt.set_ulen.
+Dbt can be subclassed, providing a way to associate
+with it additional data, or references to other structures.
+<p>The constructors set all elements of the underlying structure to zero.
+The constructor with one argument has the effect of setting all elements
+to zero except for the specified <b>data</b> and <b>size</b> elements.
+The constructor with three arguments has has the additional effect of
+only using the portion of the array specified by the size and offset.
+<p>In the case where the <b>flags</b> structure element is 0, when being
+provided a key or data item by the application, the Berkeley DB package expects
+the <b>data</b> object to be set to a byte array of <b>size</b> bytes.
+When returning a key/data item to the application, the Berkeley DB package will
+store into the <b>data</b> object a byte array of <b>size</b> bytes.
+During a get operation, one of the Db.DB_DBT_MALLOC,
+Db.DB_DBT_REALLOC or Db.DB_DBT_USERMEM flags must be
+specified.
+<p>The elements of the structure underlying the Dbt class are defined as follows:
+<p><dl compact>
+<p><dt>byte[] <a name="data">data</a>;<dd>A byte array containing the data.
+This element is accessed using Dbt.get_data and
+Dbt.set_data, and may be initialized using one
+of the constructors.
+Note that the array data is not copied immediately, but only when the
+Dbt is used.
+<p><dt>int offset;<dd>The number of bytes offset into the <b>data</b> array to determine the
+portion of the array actually used.
+This element is accessed using Dbt.get_offset and
+Dbt.set_offset.
+<p><dt>int size;<dd>The length of <b>data</b>, in bytes.
+This element is accessed using Dbt.get_size and
+Dbt.set_size, and may be initialized
+implicitly to the length of the data array with the constructor having
+one argument.
+<p><dt>int ulen;<dd>The size of the user's buffer (referenced by <b>data</b>), in bytes.
+This location is not written by the Db methods.
+<p>Note that applications can determine the length of a record by setting
+the <b>ulen</b> to 0 and checking the return value found in <b>size</b>.
+See the Db.DB_DBT_USERMEM flag for more information.
+<p>This element is accessed using
+Dbt.get_ulen and Dbt.set_ulen.
+<p><dt>int dlen;<dd>The length of the partial record being read or written by the application,
+in bytes.
+See the Db.DB_DBT_PARTIAL flag for more information.
+This element is accessed using
+Dbt.get_dlen, and Dbt.set_dlen.
+<p><dt>int doff;<dd>The offset of the partial record being read or written by the application,
+in bytes.
+See the Db.DB_DBT_PARTIAL flag for more information.
+This element is accessed using
+Dbt.get_doff and Dbt.set_doff.
+<p><dt>int flags;<dd>This element is accessed using Dbt.get_flags and
+Dbt.set_flags.
+<p>The <b>flags</b> value must be set by bitwise inclusively <b>OR</b>'ing together one or more of the
+following values.
+<p><dl compact>
+<p><dt><a name="Db.DB_DBT_MALLOC">Db.DB_DBT_MALLOC</a><dd>When this flag is set Berkeley DB will allocate memory for the returned key
+or data item
+and return a byte array containing the data in the <b>data</b> field of
+the key or data Dbt object.
+<p>If Db.DB_DBT_MALLOC is specified, Berkeley DB allocates a properly sized
+byte array to contain the data.  This can be convenient if you know little
+about the nature of the data, specifically the size of data in the
+database.  However, if your application makes repeated calls to retrieve
+keys or data, you may notice increased garbage collection due to this
+allocation.  If you know the maximum size of data you are retrieving, you
+might decrease the memory burden and speed your application by allocating
+your own byte array and using Db.DB_DBT_USERMEM.  Even if you don't
+know the maximum size, you can use this option and reallocate your array
+whenever your retrieval API call
+throws a <a href="../api_java/mem_class.html">DbMemoryException</a>.
+<p>It is an error to specify more than one of Db.DB_DBT_MALLOC,
+Db.DB_DBT_REALLOC and Db.DB_DBT_USERMEM.
+<p><dt><a name="Db.DB_DBT_REALLOC">Db.DB_DBT_REALLOC</a><dd>When this flag is set Berkeley DB
+will return the data in the <b>data</b> field of the key or data
+Dbt object, reusing the existing byte array if it is large
+enough, or allocating a new one of the appropriate size.
+<p>It is an error to specify more than one of Db.DB_DBT_MALLOC,
+Db.DB_DBT_REALLOC and Db.DB_DBT_USERMEM.
+<p><dt><a name="Db.DB_DBT_USERMEM">Db.DB_DBT_USERMEM</a><dd>The <b>data</b> field of the key or data object must reference memory
+that is at least <b>ulen</b> bytes in length.  If the length of the
+requested item is less than or equal to that number of bytes, the item
+is copied into the memory referenced by the <b>data</b> field.
+Otherwise, the <b>size</b> field is set to the length needed for the
+requested item, and the error ENOMEM is returned.
+<p>If Db.DB_DBT_USERMEM is specified, the data field of the Dbt
+must be set to an appropriately sized byte array.
+<p>It is an error to specify more than one of Db.DB_DBT_MALLOC,
+Db.DB_DBT_REALLOC and Db.DB_DBT_USERMEM.
+</dl>
+<p>If Db.DB_DBT_MALLOC or Db.DB_DBT_REALLOC is specified, Berkeley DB
+allocates a properly sized byte array to contain the data.  This can be
+convenient if you know little about the nature of the data, specifically
+the size of data in the database.  However, if your application makes
+repeated calls to retrieve keys or data, you may notice increased garbage
+collection due to this allocation.  If you know the maximum size of data
+you are retrieving, you might decrease the memory burden and speed your
+application by allocating your own byte array and using
+Db.DB_DBT_USERMEM.  Even if you don't know the maximum size, you can
+use this option and reallocate your array whenever your retrieval API call
+throws a <a href="../api_java/mem_class.html">DbMemoryException</a>.
+<p><dl compact>
+<p><dt><a name="Db.DB_DBT_PARTIAL">Db.DB_DBT_PARTIAL</a><dd>Do partial retrieval or storage of an item.  If the calling application
+is doing a get, the <b>dlen</b> bytes starting <b>doff</b> bytes from
+the beginning of the retrieved data record are returned as if they
+comprised the entire record.  If any or all of the specified bytes do
+not exist in the record, the get is successful and the existing bytes
+or nul bytes are returned.
+<p>For example, if the data portion of a retrieved record was 100 bytes,
+and a partial retrieval was done using a Dbt having a <b>dlen</b>
+field of 20 and a <b>doff</b> field of 85, the get call would succeed,
+the <b>data</b> field would reference the last 15 bytes of the record,
+and the <b>size</b> field would be set to 15.
+<p>If the calling application is doing a put, the <b>dlen</b> bytes starting
+<b>doff</b> bytes from the beginning of the specified key's data record
+are replaced by the data specified by the <b>data</b> and <b>size</b>
+objects.
+If <b>dlen</b> is smaller than <b>size</b>, the record will grow, and if
+<b>dlen</b> is larger than <b>size</b>, the record will shrink.
+If the specified bytes do not exist, the record will be extended using nul
+bytes as necessary, and the put call will succeed.
+<p>It is an error to attempt a partial put using the <a href="../api_java/db_put.html">Db.put</a>
+method in a database that supports duplicate records.
+Partial puts in databases supporting duplicate records must be done
+using a <a href="../api_java/dbc_class.html">Dbc</a> method.
+<p>It is an error to attempt a partial put with differing <b>dlen</b> and
+<b>size</b> values in Queue or Recno databases with fixed-length records.
+<p>For example, if the data portion of a retrieved record was 100 bytes,
+and a partial put was done using a Dbt having a <b>dlen</b>
+field of 20, a <b>doff</b> field of 85, and a <b>size</b> field of 30,
+the resulting record would be 115 bytes in length, where the last 30
+bytes would be those specified by the put call.
+</dl>
+</dl>
+<p>Although Java normally maintains proper alignment of byte arrays, the
+set_offset method can be used to specify unaligned addresses.  Unaligned
+address accesses that are not supported by the underlying hardware may be
+reported as an exception, or may stop the running Java program.
+        <a name="4"><!--meow--></a>    
+<h3>Logical Record Numbers</h3>
+<p>In all cases for the Queue and Recno access methods, and when calling the
+<a href="../api_java/db_get.html">Db.get</a> and <a href="../api_java/dbc_get.html">Dbc.get</a> functions with the
+<a href="../api_java/db_get.html#DB_SET_RECNO">Db.DB_SET_RECNO</a> flag specified, the <b>data</b>
+field of the key must be a four byte array, large enough to store an int.
+The Dbt.set_recno_key_data method can be used to set the value of
+the array.  An int is a 32-bit type,
+(which limits the number of logical records in a Queue or Recno database,
+and the maximum logical record which may be directly retrieved from a
+Btree database, to 4,294,967,296).  The <b>size</b> field of the key
+should be the size of that type, i.e.,
+4.
+<p>Logical record numbers are 1-based, not 0-based, i.e., the first record
+in the database is record number 1.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

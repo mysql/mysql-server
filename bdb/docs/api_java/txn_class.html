@@ -1,0 +1,58 @@
+<!--$Id: txn_class.so,v 10.13 2000/12/04 18:05:39 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbTxn</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbTxn</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public class DbTxn extends Object { ... }
+</pre></h3>
+<h1>Description</h1>
+<p>This manual page describes the specific details of the DbTxn class.
+<p>The <a href="../api_java/dbenv_class.html">DbEnv</a> transaction methods and the DbTxn class provide
+transaction semantics.  Full transaction support is provided by a
+collection of modules that provide interfaces to the services required
+for transaction processing.  These services are recovery, concurrency
+control and the management of shared data.
+<p>Transaction semantics can be applied to the access methods described in
+Db through method call parameters.
+<p>The model intended for transactional use (and the one that is used by
+the access methods) is write-ahead logging to record both before- and
+after-images.  Locking follows a two-phase protocol, with all locks being
+released at transaction commit.
+<h3>Classes</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>, <a href="../api_java/txn_class.html">DbTxn</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_tx_max.html">DbEnv.set_tx_max</a>,
+<a href="../api_java/env_set_tx_timestamp.html">DbEnv.set_tx_timestamp</a>,
+<a href="../api_java/txn_abort.html">DbTxn.abort</a>,
+<a href="../api_java/txn_begin.html">DbEnv.txn_begin</a>,
+<a href="../api_java/txn_checkpoint.html">DbEnv.txn_checkpoint</a>,
+<a href="../api_java/txn_commit.html">DbTxn.commit</a>,
+<a href="../api_java/txn_id.html">DbTxn.id</a>,
+<a href="../api_java/txn_prepare.html">DbTxn.prepare</a>
+and
+<a href="../api_java/txn_stat.html">DbEnv.txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

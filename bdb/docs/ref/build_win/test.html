@@ -1,0 +1,77 @@
+<!--$Id: test.so,v 10.29 2001/01/17 14:42:57 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Running the test suite under Windows</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for Windows systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_win/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_win/notes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Running the test suite under Windows</h1>
+<p>To build the test suite on Win32 platforms you will need to configure
+Tcl support.  You will also need sufficient main memory and disk.
+Something around 100MB of disk will be sufficient.  For memory, 32MB is
+too small, we recommend at least 64MB.
+<h3>Building the software needed by the tests</h3>
+<p>There exist bugs in some versions of Tcl that may cause the test suite
+to hang on Windows/NT 4.0.  Tcl version 8.4 (currently available as an
+alpha release) has fixed the problem, or there are patches available
+for Tcl 8.3.2 (see bug #119188 in the Tcl SourceForge database).  Note
+that if you want to run the test suite against a Debug version of Berkeley DB,
+you need to build a debug version of Tcl.  This involves building Tcl
+from its source.
+<p>To build, perform the following steps.  Note that steps #1, #4 and #5
+are part of the normal build process for building Berkeley DB; #2, #3 are part
+of including the Tcl API.
+<p><ol>
+<p><li>Open the <b>build_win32/Berkeley_DB.dsw</b> workspace.
+<p><li>Add the pathname for the Tcl include subdirectory to your
+include path.  To do this, under the "Tools" menu item, select "Options".
+In the dialog, select the "Directories" tab, and choose directories
+for "Include Files".  Add <b>d:/tcl/include</b> (or whatever directory
+contains <b>tcl.h</b> in your distribution) to the list.
+<p><li>Add the pathname for the Tcl library subdirectory to your
+library path.  To do this, under the "Tools" menu item, select "Options".
+In the dialog, select the "Directories" tab, and choose directories for
+"Library Files".  Add <b>d:/tcl/lib</b> (or whatever directory contains
+<b>tcl83d.lib</b> in your distribution) to the list.
+<p><li>Set the active configuration to db_test -- Debug.  To set an
+active configuration, under the "Build" menu item in the IDE, select "Set
+Active Configuration".  Then choose "db_test -- Debug".
+<p><li>Build.  The IDE menu for this is called "build dbkill.exe",
+even though dbkill is just one of the things that is built.
+This step builds the base Berkeley DB .dll, tcl support,
+and various tools that are needed by the test suite.
+</ol>
+<h3>Running the test suite under Windows</h3>
+<p>Before running the tests for the first time, you must edit the file
+<b>include.tcl</b> in your build directory and change the line
+that reads:
+<p><blockquote><pre>set tclsh_path SET_YOUR_TCLSH_PATH</pre></blockquote>
+<p>You will want to use the location of the <b>tclsh</b> program.  For
+example, if Tcl is installed as <b>d:/tcl</b>, this line should be:
+<p><blockquote><pre>set tclsh_path d:/tcl/bin/tclsh83d.exe</pre></blockquote>
+<p>Then, in a shell of your choice enter the following commands:
+<p><ol>
+<p><li>cd build_win32
+<p><li>run <b>d:/tcl/bin/tclsh83d.exe</b>, or the equivalent name of
+the Tcl shell for your distribution.
+<p>You should get a "%" prompt.
+<p><li>% source ../test/test.tcl.
+<p>You should get a "%" prompt with no errors.
+</ol>
+<p>You are now ready to run tests in the test suite, see
+<a href="../../ref/test/run.html">Running the test suite</a> for more
+information.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_win/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_win/notes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

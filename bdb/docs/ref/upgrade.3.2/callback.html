@@ -1,0 +1,39 @@
+<!--$Id: callback.so,v 1.5 2000/10/26 15:20:40 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.2: DB callback functions, app_private field</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.2/set_flags.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/renumber.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.2: DB callback functions, app_private field</h1>
+<p>In the Berkeley DB 3.2 release, four application callback functions (the
+callback functions set by <a href="../../api_c/db_set_bt_compare.html">DB-&gt;set_bt_compare</a>,
+<a href="../../api_c/db_set_bt_prefix.html">DB-&gt;set_bt_prefix</a>, <a href="../../api_c/db_set_dup_compare.html">DB-&gt;set_dup_compare</a> and
+<a href="../../api_c/db_set_h_hash.html">DB-&gt;set_h_hash</a>) were modified to take a reference to a
+DB object as their first argument.  This change allows the Berkeley DB
+Java API to reasonably support these interfaces.  There is currently no
+need for the callback functions to do anything with this additional
+argument.
+<p>C and C++ applications that specify their own Btree key comparison,
+Btree prefix comparison, duplicate data item comparison or Hash
+functions should modify these functions to take a reference to a
+DB structure as their first argument.  No further change is
+required.
+<p>The app_private field of the <a href="../../api_c/dbt.html">DBT</a> structure (accessible only from
+the Berkeley DB C API) has been removed in the 3.2 release.  It was replaced
+with app_private fields in the DB_ENV and DB handles.
+Applications using this field will have to convert to using one of the
+replacement fields.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.2/set_flags.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/renumber.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

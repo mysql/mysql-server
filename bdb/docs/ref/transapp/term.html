@@ -1,0 +1,60 @@
+<!--$Id: term.so,v 10.16 2000/08/16 17:50:40 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Terminology</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/why.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/app.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Terminology</h1>
+<p>Here are some definitions that will be helpful in understanding
+transactions:
+<p><dl compact>
+<p><dt>Thread of control<dd>Berkeley DB is indifferent to the type or style of threads being used by the
+application, or, for that matter, if threads are being used at all, as
+Berkeley DB supports multi-process access.  In the Berkeley DB documentation, any
+time we refer to a "thread of control", that can be read as a true
+thread (one of many in an application's address space), or, a process.
+<p><dt>Free-threaded<dd>A Berkeley DB handle that can be used by multiple threads simultaneously
+without any application-level synchronization is called free-threaded.
+<p><dt>Transaction<dd>A transaction is a one or more operations on one or more databases, that
+should be treated as a single unit of work.  For example, changes to a
+set of databases, where either all of the changes must be applied to
+the database(s) or none of them should.  Applications specify when each
+transaction starts, what database operations are included in it, and
+when it ends.
+<p><dt>Transaction abort/commit<dd>Every transaction ends by <i>committing</i> or <i>aborting</i>.
+If a transaction commits, then Berkeley DB guarantees that any database
+changes included in the transaction will never be lost, even after
+system or application failure.  If a transaction aborts, or is
+uncommitted when the system or application fails, then the changes
+involved will never appear in the database.
+<p><dt>System or application failure<dd>This is the phrase that we will use to describe when something bad
+happens near your data.  It can be an application dumping core, being
+interrupted by a signal, the disk filling up, or the entire system
+crashing.  In any case, for whatever reason, the application can no
+longer make forward progress, and its databases were left in an unknown
+state.
+<p><dt>Recovery<dd>Whenever system or application failure occurs, the application must run
+recovery.  Recovery is what makes the database consistent, that is, the
+recovery process includes review of log files and databases to ensure
+that the changes from each committed transaction appear in the database,
+and that no changes from an unfinished (or aborted) transaction do.
+<p><dt>Deadlock<dd>Deadlock, in its simplest form, happens when one thread of control owns
+resource A, but needs resource B, while another thread of control owns
+resource B, but needs resource A.  Neither thread of control can make
+progress, and so one has to give up and release all of its resources,
+at which time the remaining thread of control can make forward progress.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/why.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/app.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

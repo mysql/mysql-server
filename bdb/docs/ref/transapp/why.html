@@ -1,0 +1,49 @@
+<!--$Id: why.so,v 1.1 2000/07/25 17:56:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Why transactions?</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/term.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Why transactions?</h1>
+<p>Perhaps the first question to answer is "Why transactions?"  There are
+a number of reasons for including transactional support in your
+applications.  The most common ones are:
+<p><dl compact>
+<p><dt>Recoverability<dd>Applications often need to ensure that, no matter how the system or
+application fails, previously saved data is available the next time the
+application runs.
+<p><dt>Deadlock avoidance<dd>When multiple threads of control change the database at the same time,
+there is usually the possibility of deadlock, that is, where each of
+the threads of control owns a resource another thread wants, and so no
+thread is able to make forward progress, all waiting for a resource.
+Deadlocks are resolved by having one of the operations involved release
+the resources it controls so the other operations can proceed.  (The
+operation releasing its resources usually just tries again later.)
+Transactions are necessary so that any changes that were already made
+to the database can be undone as part of releasing the held resources.
+<p><dt>Atomicity<dd>Applications often need to make multiple changes to one or more
+databases, but want to ensure that either all of the changes happen, or
+none of them happen.  Transactions guarantee that a group of changes
+are atomic, that is, if the application or system fails, either all of
+the changes to the databases will appear when the application next runs,
+or none of them.
+<p><dt>Repeatable reads<dd>Applications sometimes need to ensure that, while doing a group of
+operations on a database, the value returned as a result of a database
+retrieval doesn't change, that is, if you retrieve the same key more
+than once, the data item will be the same each time.  Transactions
+guarantee this behavior.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/term.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!--$Id: env_set_lg_max.so,v 10.20 2000/05/20 16:29:12 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.set_lg_max</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.set_lg_max</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public void set_lg_max(int lg_max)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>Set the maximum size of a single file in the log, in bytes.  Because
+<a href="../api_java/lsn_class.html">DbLsn</a> file offsets are unsigned 4-byte values, the set value may
+not be larger than the maximum unsigned 4-byte value.  By default, or if
+the value is set to 0, a size of 10MB is used.
+<p>See <a href="../ref/log/limits.html">Log File Limits</a>
+for more information.
+<p>The DbEnv.set_lg_max interface may only be used to configure Berkeley DB before
+the <a href="../api_java/env_open.html">DbEnv.open</a> interface is called.
+<p>The DbEnv.set_lg_max method throws an exception that encapsulates a non-zero error value on
+failure.
+<p>The database environment's log file size may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_lg_max", one or more whitespace characters,
+and the size in bytes.  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_java/env_open.html">DbEnv.open</a> was called.
+<p>The specified log file size was too large.
+</dl>
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_lg_bsize.html">DbEnv.set_lg_bsize</a>,
+<a href="../api_java/env_set_lg_max.html">DbEnv.set_lg_max</a>,
+<a href="../api_java/log_archive.html">DbEnv.log_archive</a>,
+<a href="../api_java/log_compare.html">DbEnv.log_compare</a>,
+<a href="../api_java/log_file.html">DbEnv.log_file</a>,
+<a href="../api_java/log_flush.html">DbEnv.log_flush</a>,
+<a href="../api_java/log_get.html">DbEnv.log_get</a>,
+<a href="../api_java/log_put.html">DbEnv.log_put</a>,
+<a href="../api_java/log_register.html">DbEnv.log_register</a>,
+<a href="../api_java/log_stat.html">DbEnv.log_stat</a>
+and
+<a href="../api_java/log_unregister.html">DbEnv.log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

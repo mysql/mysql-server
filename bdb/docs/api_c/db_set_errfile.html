@@ -1,0 +1,73 @@
+<!--$Id: db_set_errfile.so,v 10.7 1999/12/20 08:52:28 bostic Exp $-->
+<!--$Id: m4.errset,v 10.8 2000/02/19 20:57:57 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DB-&gt;set_errfile</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DB-&gt;set_errfile</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+void
+DB-&gt;set_errfile(DB *db, FILE *errfile);
+</pre></h3>
+<h1>Description</h1>
+When an error occurs in the Berkeley DB library, a Berkeley DB error or an error
+return value is returned by the function.  In some cases, however,
+the <b>errno</b> value may be insufficient to completely describe
+the cause of the error especially during initial application debugging.
+<p>The DB-&gt;set_errfile function is used to enhance the mechanism for reporting error
+messages to the application by setting a C library FILE * to be used for
+displaying additional Berkeley DB error messages.  In some cases, when an error
+occurs, Berkeley DB will output an additional error message to the specified
+file reference.
+<p>The error message will consist of the prefix string and a colon
+("<b>:</b>") (if a prefix string was previously specified using
+<a href="../api_c/db_set_errpfx.html">DB-&gt;set_errpfx</a> or <a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a>), an error string, and
+a trailing &lt;newline&gt; character.
+<p>This error logging enhancement does not slow performance or significantly
+increase application size, and may be run during normal operation as well
+as during application debugging.
+<p>For DB handles opened inside of Berkeley DB environments, calling the
+DB-&gt;set_errfile function affects the entire environment and is equivalent to calling
+the <a href="../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a> function.
+<p>The DB-&gt;set_errfile interface may be used to configure Berkeley DB at any time
+during the life of the application.
+<h1>See Also</h1>
+<a href="../api_c/env_close.html">DBENV-&gt;close</a>,
+<a href="../api_c/env_create.html">db_env_create</a>,
+<a href="../api_c/env_open.html">DBENV-&gt;open</a>,
+<a href="../api_c/env_remove.html">DBENV-&gt;remove</a>,
+<a href="../api_c/db_err.html">DBENV-&gt;err</a>,
+<a href="../api_c/env_strerror.html">db_strerror</a>,
+<a href="../api_c/env_version.html">db_version</a>,
+<a href="../api_c/env_set_cachesize.html">DBENV-&gt;set_cachesize</a>,
+<a href="../api_c/env_set_errcall.html">DBENV-&gt;set_errcall</a>,
+<a href="../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a>,
+<a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a>,
+<a href="../api_c/env_set_flags.html">DBENV-&gt;set_flags</a>,
+<a href="../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a>,
+<a href="../api_c/env_set_paniccall.html">DBENV-&gt;set_paniccall</a>,
+and
+<a href="../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

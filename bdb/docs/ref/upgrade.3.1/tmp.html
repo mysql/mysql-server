@@ -1,0 +1,34 @@
+<!--$Id: tmp.so,v 1.7 2000/05/22 20:26:35 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.1: DB_TMP_DIR</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.1/tcl.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/logalloc.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.1: DB_TMP_DIR</h1>
+<p>This change only affects Win/32 applications that create in-memory
+databases.
+<p>On Win/32 platforms an additional test has been added when searching for
+the appropriate directory in which to create the temporary files that are
+used to back in-memory databases.  Berkeley DB now uses any return value from
+the GetTempPath interface as the temporary file directory name before
+resorting to the static list of compiled-in pathnames.
+<p>If the system registry does not return the same directory as Berkeley DB has
+been using previously, this change could cause temporary backing files to
+move to a new directory when applications are upgraded to the 3.1 release.
+In extreme cases, this could create (or fix) security problems if the file
+protection modes for the system registry directory are different from
+those on the directory previously used by Berkeley DB.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.1/tcl.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/logalloc.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

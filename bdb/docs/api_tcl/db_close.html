@@ -1,0 +1,59 @@
+<!--$Id: db_close.so,v 11.10 1999/12/20 08:52:33 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db close</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>db</i> <b>close</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db close
+	[-nosync]
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>db</i> <b>close</b> command flushes any cached database information to
+disk, closes any open cursors, frees any allocated resources, and closes
+any underlying files.  Since key/data pairs are cached in memory, failing
+to sync the file with the <i>db</i> <b>close</b> or <i>db</i> <b>sync</b> command may
+result in inconsistent or lost information.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-nosync<dd>Do not flush cached information to disk.
+<p>The -nosync flag is a dangerous option. It should only be set if the
+application is doing logging (with transactions) so that the database is
+recoverable after a system or application crash, or if the database is
+always generated from scratch after any system or application crash.
+<p>It is important to understand that flushing cached information to disk
+only minimizes the window of opportunity for corrupted data. While
+unlikely, it is possible for database corruption to happen if a system or
+application crash occurs while writing data to the database. To ensure
+that database corruption never occurs, applications must either: use
+transactions and logging with automatic recovery, use logging and
+application-specific recovery, or edit a copy of the database, and, once
+all applications using the database have successfully called
+<i>db</i> <b>close</b>, atomically replace the original database with the updated
+copy.
+</dl>
+<p>Once <i>db</i> <b>close</b> has been called, regardless of its return, the DB
+handle may not be accessed again.
+<p>The <i>db</i> <b>close</b> command returns 0 on success, and in the case of error, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

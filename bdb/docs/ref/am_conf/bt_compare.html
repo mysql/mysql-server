@@ -1,0 +1,85 @@
+<!--$Id: bt_compare.so,v 10.20 2000/09/10 13:42:12 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Btree comparison</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/malloc.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/bt_prefix.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Btree comparison</h1>
+<p>The Btree data structure is a sorted, balanced tree structure storing
+associated key/data pairs.  By default, the sort order is lexicographical,
+with shorter keys collating before longer keys.  The user can specify the
+sort order for the Btree by using the <a href="../../api_c/db_set_bt_compare.html">DB-&gt;set_bt_compare</a> function.
+<p>Sort routines are passed pointers to keys as arguments.  The keys are
+represented as <a href="../../api_c/dbt.html">DBT</a> structures.  The routine must return an integer
+less than, equal to, or greater than zero if the first argument is
+considered to be respectively less than, equal to, or greater than the
+second argument.  The only fields that the routines may examine in the
+<a href="../../api_c/dbt.html">DBT</a> structures are <b>data</b> and <b>size</b> fields.
+<p>An example routine that might be used to sort integer keys in the database
+is as follows:
+<p><blockquote><pre>int
+compare_int(dbp, a, b)
+	DB *dbp;
+	const DBT *a, *b;
+{
+	int ai, bi;
+<p>
+	/*
+	 * Returns:
+	 *	&lt; 0 if a &lt; b
+	 *	= 0 if a = b
+	 *	&gt; 0 if a &gt; b
+	 */
+	memcpy(&ai, a-&gt;data, sizeof(int));
+	memcpy(&bi, b-&gt;data, sizeof(int));
+	return (ai - bi);
+}
+</pre></blockquote>
+<p>Note that the data must first be copied into memory that is appropriately
+aligned, as Berkeley DB does not guarantee any kind of alignment of the
+underlying data, including for comparison routines.  When writing
+comparison routines, remember that databases created on machines of
+different architectures may have different integer byte orders, for which
+your code may need to compensate.
+<p>An example routine that might be used to sort keys based on the first
+five bytes of the key (ignoring any subsequent bytes) is as follows:
+<p><blockquote><pre>int
+compare_dbt(dbp, a, b)
+	DB *dbp;
+	const DBT *a, *b;
+{
+	u_char *p1, *p2;
+<p>
+	/*
+	 * Returns:
+	 *	&lt; 0 if a &lt; b
+	 *	= 0 if a = b
+	 *	&gt; 0 if a &gt; b
+	 */
+	for (p1 = a-&gt;data, p2 = b-&gt;data, len = 5; len--; ++p1, ++p2)
+		if (*p1 != *p2)
+			return ((long)*p1 - (long)*p2);
+	return (0);
+}</pre></blockquote>
+<p>All comparison functions must cause the keys in the database to be
+well-ordered. The most important implication of being well-ordered is
+that the key relations must be transitive, that is, if key A is less
+than key B, and key B is less than key C, then the comparison routine
+must also return that key A is less than key C. In addition, comparisons
+will only be able to return 0 when comparing full length keys; partial
+key comparisons must always return a result less than or greater than 0.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/malloc.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/bt_prefix.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!--$Id: runtime.so,v 10.16 2000/12/01 20:15:25 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Run-time error information</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Debugging</dl></h3></td>
+<td width="1%"><a href="../../ref/debug/compile.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/debug/printlog.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Run-time error information</h1>
+<p>Normally, when an error occurs in the Berkeley DB library, an integer value
+(either a Berkeley DB specific value, or a system <b>errno</b> value) is
+returned by the function.  In some cases, however, this value may be
+insufficient to completely describe the cause of the error, especially
+during initial application debugging.
+<p>There are four interfaces intended to provide applications with
+additional run-time error information.  They are
+<a href="../../api_c/env_set_errcall.html">DBENV-&gt;set_errcall</a>, <a href="../../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a>,
+<a href="../../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a> and <a href="../../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a>.
+<p>If the environment is configured with these interfaces, many Berkeley DB errors
+will result in additional information being written to a file or passed
+as an argument to an application function.
+<p>The Berkeley DB error reporting facilities do not slow performance or
+significantly increase application size, and may be run during normal
+operation as well as during debugging.  Where possible, we recommend that
+these options always be configured and the output saved in the filesystem.
+We have found that that this often saves time when debugging installation
+or other system integration problems.
+<p>In addition, there are three routines to assist applications in
+displaying their own error messages: <a href="../../api_c/env_strerror.html">db_strerror</a>,
+<a href="../../api_c/db_err.html">DBENV-&gt;err</a> and <a href="../../api_c/db_err.html">DBENV-&gt;errx</a>.  The first is a superset of
+the ANSI C strerror interface, and returns a descriptive string for
+any error return from the Berkeley DB library.  The <a href="../../api_c/db_err.html">DBENV-&gt;err</a> and
+<a href="../../api_c/db_err.html">DBENV-&gt;errx</a> functions use the error message configuration options
+described above to format and display error messages to appropriate
+output devices.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/debug/compile.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/debug/printlog.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

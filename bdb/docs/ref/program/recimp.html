@@ -1,0 +1,49 @@
+<!--$Id: recimp.so,v 11.2 2000/03/18 21:43:18 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Recovery implementation</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/filesys.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/reclimit.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Recovery implementation</h1>
+<p>The physical recovery process works as follows:
+<p>First, find the last checkpoint that completed.  Since the system may
+have crashed while writing a checkpoint, this implies finding the
+second-to-last checkpoint in the log files.  Read forward from this
+checkpoint, opening any database files for which modifications are found
+in the log.
+<p>Then, read backward from the end of the log.  For each commit record
+encountered, record its transaction ID.  For every other data update
+record, find the transaction ID of the record.  If that transaction ID
+appears in the list of committed transactions, do nothing; if it does not
+appear in the committed list, then call the appropriate recovery routine
+to undo the operation.
+<p>In the case of catastrophic recovery, this roll-backward pass continues
+through all the present log files.  In the case of normal recovery, this
+pass continues until we find a checkpoint written before the second-to-last
+checkpoint described above.
+<p>When the roll-backward pass is complete, the roll-forward pass begins at
+the point where the roll-backward pass ended.  Each record is read and if
+its transaction id is in the committed list, then the appropriate recovery
+routine is called to redo the operation if necessary.
+<p>In a distributed transaction environment, there may be transactions that
+are prepared, but not yet committed.  If these transactions are XA
+transactions, then they are rolled forward to their current state, and an
+active transaction corresponding to it is entered in the transaction table
+so that the XA transaction manager may call either transaction abort or
+commit, depending on the outcome of the overall transaction.  If the
+transaction is not an XA transaction, then it is aborted like any other
+transactions would be.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/filesys.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/reclimit.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

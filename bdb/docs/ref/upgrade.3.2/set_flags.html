@@ -1,0 +1,35 @@
+<!--$Id: set_flags.so,v 1.1 2000/10/03 17:17:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.2: DBENV-&gt;set_flags</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.2/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/callback.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.2: DBENV-&gt;set_flags</h1>
+<p>A new method has been added to the Berkeley DB environment handle,
+<a href="../../api_c/env_set_flags.html">DBENV-&gt;set_flags</a>.  This interface currently takes three flags:
+<a href="../../api_c/env_set_flags.html#DB_CDB_ALLDB">DB_CDB_ALLDB</a>, <a href="../../api_c/env_open.html#DB_NOMMAP">DB_NOMMAP</a> and <a href="../../api_c/env_open.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a>.  The
+first of these flags, <a href="../../api_c/env_set_flags.html#DB_CDB_ALLDB">DB_CDB_ALLDB</a>, provides new functionality,
+allowing Berkeley DB Concurrent Data Store applications to do locking across multiple databases.
+<p>The other two flags, <a href="../../api_c/env_open.html#DB_NOMMAP">DB_NOMMAP</a> and <a href="../../api_c/env_open.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a>, were
+specified to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> method in previous releases.  In
+the 3.2 release, they have been moved to the <a href="../../api_c/env_set_flags.html">DBENV-&gt;set_flags</a> function
+because this allows the database environment's value to be toggled
+during the life of the application as well as because it is a more
+appropriate place for them.  Applications specifying either the
+<a href="../../api_c/env_open.html#DB_NOMMAP">DB_NOMMAP</a> or <a href="../../api_c/env_open.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a> flags to the
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> function should replace those flags with calls to the
+<a href="../../api_c/env_set_flags.html">DBENV-&gt;set_flags</a> function.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.2/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.2/callback.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

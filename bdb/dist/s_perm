@@ -1,0 +1,37 @@
+#!/bin/sh -
+#	$Id: s_perm,v 1.9 2001/01/24 15:55:38 bostic Exp $
+
+echo 'Updating Berkeley DB source tree permissions...'
+
+run()
+{
+	echo "	$1 ($2)"
+	if [ -f "../$1" ]; then
+		chmod "$2" "../$1"
+	else
+		echo "$1: no such file or directory"
+		exit 1
+	fi
+}
+
+run dist/build/chk.def 0555
+run dist/build/chk.define 0555
+run dist/build/chk.offt 0555
+run dist/build/chk.srcfiles 0555
+run dist/build/chk.tags 0555
+run dist/config.guess 0555
+run dist/config.sub 0555
+run dist/configure 0555
+run dist/install-sh 0555
+run dist/s_config 0555
+run dist/s_include 0555
+run dist/s_java 0555
+run dist/s_perm 0555
+run dist/s_readme 0555
+run dist/s_recover 0555
+run dist/s_symlink 0555
+run dist/s_tags 0555
+run dist/s_tcl 0555
+run dist/s_win32 0555
+run perl.BerkeleyDB/dbinfo 0555
+run perl.BerkeleyDB/mkpod 0555

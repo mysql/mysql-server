@@ -1,0 +1,28 @@
+<!--$Id: join.so,v 11.9 2000/07/25 16:59:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: DB-&gt;join</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/dbinfo.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/stat.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: DB-&gt;join</h1>
+<p>Historically, the last two arguments to the Berkeley DB <a href="../../api_c/db_join.html">DB-&gt;join</a>
+interface were a flags value followed by a reference to a memory location
+to store the returned cursor object.  In the Berkeley DB 3.0 release, the
+order of those two arguments has been swapped for consistency with other
+Berkeley DB interfaces.
+<p>The application should be searched for any occurrences of <a href="../../api_c/db_join.html">DB-&gt;join</a>.
+For each of these, the order of the last two arguments should be swapped.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/dbinfo.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/stat.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!--$Id: put.so,v 1.3 2000/08/16 17:50:40 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Recoverability and deadlock avoidance</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/data_open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/inc.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Recoverability and deadlock avoidance</h1>
+<p>The first reason listed for using transactions was recoverability.  Any
+logical change to a database may require multiple changes to underlying
+data structures.  For example, modifying a record in a Btree may require
+leaf and internal pages to split, and so a single <a href="../../api_c/db_put.html">DB-&gt;put</a> method
+call can potentially require that multiple physical database pages be
+written.  If only some of those pages are written and then the system
+or application fails, the database is left inconsistent and cannot be
+used until it has been recovered, that is, until the partially completed
+changes have been undone.
+<p>Write-ahead-logging is the term that describes the underlying
+implementation that Berkeley DB uses to ensure recoverability.  What it means
+is that before any change is made to a database, information about the
+change is written to a database log.  During recovery, the log is read,
+and databases are checked to ensure that changes described in the log
+for committed transactions appear in the database.  Changes that appear
+in the database but are related to aborted or unfinished transactions
+in the log are undone from the database.
+<p>For recoverability after application or system failure, operations that
+modify the database must be protected by transactions.  More
+specifically, operations are not recoverable unless a transaction is
+begun and each operation is associated with the transaction via the
+Berkeley DB interfaces, and then the transaction successfully committed.  This
+is true even if logging is turned on in the database environment.
+<p>Here is an example function that updates a record in a database in a
+transactionally protected manner.  The function takes a key and data
+items as arguments, and then attempts to store them into the database.
+<p><blockquote><pre>int
+main(int argc, char *argv)
+{
+	extern char *optarg;
+	extern int optind;
+	DB *db_cats, *db_color, *db_fruit;
+	DB_ENV *dbenv;
+	pthread_t ptid;
+	int ch;
+<p>
+	while ((ch = getopt(argc, argv, "")) != EOF)
+		switch (ch) {
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+<p>
+	env_dir_create();
+	env_open(&dbenv);
+<p>
+	/* Open database: Key is fruit class; Data is specific type. */
+	db_open(dbenv, &db_fruit, "fruit", 0);
+<p>
+	/* Open database: Key is a color; Data is an integer. */
+	db_open(dbenv, &db_color, "color", 0);
+<p>
+	/*
+	 * Open database:
+	 *	Key is a name; Data is: company name, address, cat breeds.
+	 */
+	db_open(dbenv, &db_cats, "cats", 1);
+<p>
+<b>	add_fruit(dbenv, db_fruit, "apple", "yellow delicious");</b>
+<p>
+	return (0);
+}
+<p>
+<b>void
+add_fruit(DB_ENV *dbenv, DB *db, char *fruit, char *name)
+{
+	DBT key, data;
+	DB_TXN *tid;
+	int ret;
+<p>
+	/* Initialization. */
+	memset(&key, 0, sizeof(key));
+	memset(&data, 0, sizeof(data));
+	key.data = fruit;
+	key.size = strlen(fruit);
+	data.data = name;
+	data.size = strlen(name);
+<p>
+	for (;;) {
+		/* Begin the transaction. */
+		if ((ret = txn_begin(dbenv, NULL, &tid, 0)) != 0) {
+			dbenv-&gt;err(dbenv, ret, "txn_begin");
+			exit (1);
+		}
+<p>
+		/* Store the value. */
+		switch (ret = db-&gt;put(db, tid, &key, &data, 0)) {
+		case 0:
+			/* Success: commit the change. */
+			if ((ret = txn_commit(tid, 0)) != 0) {
+				dbenv-&gt;err(dbenv, ret, "txn_commit");
+				exit (1);
+			}
+			return;
+		case DB_LOCK_DEADLOCK:
+			/* Deadlock: retry the operation. */
+			if ((ret = txn_abort(tid)) != 0) {
+				dbenv-&gt;err(dbenv, ret, "txn_abort");
+				exit (1);
+			}
+			break;
+		default:
+			/* Error: run recovery. */
+			dbenv-&gt;err(dbenv, ret, "dbc-&gt;put: %s/%s", fruit, name);
+			exit (1);
+		}
+	}
+}</b></pre></blockquote>
+<p>The second reason listed for using transactions was deadlock avoidance.
+There is a new error return in this function that you may not have seen
+before.  In transactional (not Concurrent Data Store) applications
+supporting both readers and writers or just multiple writers, Berkeley DB
+functions have an additional possible error return:
+<a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a>.  This return means that our thread of control
+deadlocked with another thread of control, and our thread was selected
+to discard all of its Berkeley DB resources in order to resolve the problem.
+In the sample code, any time the <a href="../../api_c/db_put.html">DB-&gt;put</a> function returns
+<a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a>, the transaction is aborted (by calling
+<a href="../../api_c/txn_abort.html">txn_abort</a>, which releases the transaction's Berkeley DB resources and
+undoes any partial changes to the databases), and then the transaction
+is retried from the beginning.
+<p>There is no requirement that the transaction be attempted again, but
+that is a common course of action for applications.  Applications may
+want to set an upper boundary on the number of times an operation will
+be retried, as some operations on some data sets may simply be unable
+to succeed.  For example, updating all of the pages on a large web site
+during prime business hours may simply be impossible because of the high
+access rate to the database.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/data_open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/inc.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!--$Id: limits.so,v 10.29 2001/01/10 17:33:53 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Transaction limits</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/txn/nested.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Transaction limits</h1>
+<h3>Transaction IDs</h3>
+<p>Transactions are identified uniquely by 32-bit unsigned integers.  The
+high-order bit of the transaction ID is reserved (and defined to be 1)
+resulting in just over two billion unique transaction IDs.  Each time
+that recovery is run, the beginning transaction ID is reset with new
+transactions being numbered starting from 1.  This means that recovery
+must be run at least once every two billion transactions.
+<p>It is possible that some environments may need to be aware of this
+limitation.  Consider an application performing 600 transactions a second
+for 15 hours a day.  The transaction ID space will run out in roughly 66
+days:
+<p><blockquote><pre>2^31 / (600 * 15 * 60 * 60) = 66</pre></blockquote>
+<p>Doing only 100 transactions a second exhausts the transaction ID space
+in roughly one year.
+<p>The transaction ID name space is initialized each time
+a database environment is created or recovered.  If you
+reach the end of the transaction ID name space, it must
+be handled as if an application or system failure had
+occurred.  The most recently allocated transaction ID
+is the <b>st_last_txnid</b> value in the transaction
+statistics information, and is displayed by the
+<a href="../../utility/db_stat.html">db_stat</a> utility.
+<h3>Cursors</h3>
+<p>When using transactions, cursors are localized to a single transaction.
+That is, a cursor may not span transactions and must be opened and
+closed within a single transaction.  In addition, intermingling
+transaction-protected cursor operations and non-transaction-protected
+cursor operations on the same database in a single thread of control is
+practically guaranteed to deadlock as the locks obtained for transactions
+and non-transactions can conflict.
+<h3>Multiple Threads of Control</h3>
+<p>Since transactions must hold all their locks until commit, a single
+transaction may accumulate a large number of long-term locks during its
+lifetime.  As a result, when two concurrently running transactions access
+the same database, there is strong potential for conflict.  While Berkeley
+DB allows an application to have multiple outstanding transactions active
+within a single thread of control, great care must be taken to ensure that
+the transactions do not interfere with each other (e.g., attempt to obtain
+conflicting locks on the same data).  If two concurrently active
+transactions in the same thread of control do encounter a lock conflict,
+the thread of control will deadlock in such a manner that the deadlock
+detector will be unable to resolve the problem.  In this case, there is
+no true deadlock, but because the transaction on which a transaction is
+waiting is in the same thread of control, no forward progress can be made.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/txn/nested.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!--$Id: db_set_append_recno.so,v 1.3 2000/07/18 16:19:44 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Db::set_append_recno</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Db::set_append_recno</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+Db::set_append_recno(
+    int (*db_append_recno_fcn)(DB *dbp, Dbt *data, db_recno_t recno));
+</pre></h3>
+<h1>Description</h1>
+<p>When using the <a href="../api_cxx/db_put.html#DB_APPEND">DB_APPEND</a> option of the <a href="../api_cxx/db_put.html">Db::put</a> method,
+it may be useful to modify the stored data based on the generated key.
+If a callback method is specified using the
+Db::set_append_recno method, it will be called after the record number
+has been selected but before the data has been stored.
+The callback function must return 0 on success and <b>errno</b> or
+a value outside of the Berkeley DB error name space on failure.
+<p>The called function must take three arguments: a reference to the
+enclosing database handle, the data <a href="../api_cxx/dbt_class.html">Dbt</a> to be stored and the
+selected record number.  The called function may then modify the data
+<a href="../api_cxx/dbt_class.html">Dbt</a>.
+<p>The Db::set_append_recno interface may only be used to configure Berkeley DB before
+the <a href="../api_cxx/db_open.html">Db::open</a> interface is called.
+<p>The Db::set_append_recno method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_close.html">DbEnv::close</a>,
+<a href="../api_cxx/env_open.html">DbEnv::open</a>,
+<a href="../api_cxx/env_remove.html">DbEnv::remove</a>,
+<a href="../api_cxx/db_err.html">DbEnv::err</a>,
+<a href="../api_cxx/env_strerror.html">DbEnv::strerror</a>,
+<a href="../api_cxx/env_version.html">DbEnv::version</a>,
+<a href="../api_cxx/env_set_cachesize.html">DbEnv::set_cachesize</a>,
+<a href="../api_cxx/env_set_errcall.html">DbEnv::set_errcall</a>,
+<a href="../api_cxx/env_set_errfile.html">DbEnv::set_errfile</a>,
+<a href="../api_cxx/env_set_error_stream.html">DbEnv::set_error_stream</a>,
+<a href="../api_cxx/env_set_errpfx.html">DbEnv::set_errpfx</a>,
+<a href="../api_cxx/env_set_flags.html">DbEnv::set_flags</a>,
+<a href="../api_cxx/env_set_mutexlocks.html">DbEnv::set_mutexlocks</a>,
+<a href="../api_cxx/env_set_paniccall.html">DbEnv::set_paniccall</a>,
+and
+<a href="../api_cxx/env_set_verbose.html">DbEnv::set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

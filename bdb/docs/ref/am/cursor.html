@@ -1,0 +1,41 @@
+<!--$Id: cursor.so,v 10.15 2000/12/18 21:05:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Database cursors</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/close.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/curget.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Database cursors</h1>
+<p>A database cursor is a reference to a single key/data pair in the
+database.  It supports traversal of the database and is the only way to
+access individual duplicate data items.  Cursors are used for operating
+on collections of records, for iterating over a database, and for saving
+handles to individual records, so that they can be modified after they
+have been read.
+<p>The <a href="../../api_c/db_cursor.html">DB-&gt;cursor</a> function is the standard interface for opening a cursor
+into a database.  Upon return the cursor is uninitialized, positioning
+occurs as part of the first cursor operation.
+<p>Once a database cursor has been opened, there are a set of access method
+operations that can be performed.  Each of these operations is performed
+using a method referenced from the returned cursor handle.
+<p><dl compact>
+<dt><a href="../../api_c/dbc_close.html">DBcursor-&gt;c_close</a><dd>Close the cursor
+<dt><a href="../../api_c/dbc_del.html">DBcursor-&gt;c_del</a><dd>Delete a record
+<dt><a href="../../api_c/dbc_dup.html">DBcursor-&gt;c_dup</a><dd>Duplicate a cursor
+<dt><a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a><dd>Retrieve a record
+<dt><a href="../../api_c/dbc_put.html">DBcursor-&gt;c_put</a><dd>Store a record
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/close.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/curget.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

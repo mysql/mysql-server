@@ -1,0 +1,93 @@
+<!--$Id: del.so,v 10.20 2000/03/18 21:43:17 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Removing elements from a database</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Simple Tutorial</dl></h3></td>
+<td width="1%"><a href="../../ref/simple_tut/get.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/close.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Removing elements from a database</h1>
+<p>The simplest way to remove elements from a database is the <a href="../../api_c/db_del.html">DB-&gt;del</a>
+interface.
+<p>The <a href="../../api_c/db_del.html">DB-&gt;del</a> interface takes four of the same five arguments that
+the <a href="../../api_c/db_get.html">DB-&gt;get</a> and <a href="../../api_c/db_put.html">DB-&gt;put</a> interfaces take.  The difference
+is that there is no need to specify a data item, as the delete operation
+is only interested in the key that you want to remove.
+<p><dl compact>
+<p><dt>db<dd>The database handle returned by <a href="../../api_c/db_create.html">db_create</a>.
+<p><dt>txnid<dd>A transaction ID.
+In our simple case, we aren't expecting to recover the database after
+application or system crash, so we aren't using transactions, and will
+leave this argument unspecified.
+<p><dt>key<dd>The key item for the key/data pair that we want to delete from the
+database.
+<p><dt>flags<dd>Optional flags modifying the underlying behavior of the <a href="../../api_c/db_del.html">DB-&gt;del</a>
+interface.  There are currently no available flags for this interface,
+so the flags argument should always be set to 0.
+</dl>
+<p>Here's what the code to call <a href="../../api_c/db_del.html">DB-&gt;del</a> looks like:
+<p><blockquote><pre>#include &lt;sys/types.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;db.h&gt;
+<p>
+#define	DATABASE "access.db"
+<p>
+int
+main()
+{
+	DB *dbp;
+	DBT key, data;
+	int ret;
+<p>
+	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
+		exit (1);
+	}
+	if ((ret = dbp-&gt;open(
+	    dbp, DATABASE, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp-&gt;err(dbp, ret, "%s", DATABASE);
+		goto err;
+	}
+<p>
+	memset(&key, 0, sizeof(key));
+	memset(&data, 0, sizeof(data));
+	key.data = "fruit";
+	key.size = sizeof("fruit");
+	data.data = "apple";
+	data.size = sizeof("apple");
+<p>
+	if ((ret = dbp-&gt;put(dbp, NULL, &key, &data, 0)) == 0)
+		printf("db: %s: key stored.\n", (char *)key.data);
+	else {
+		dbp-&gt;err(dbp, ret, "DB-&gt;put");
+		goto err;
+	}
+<p>
+	if ((ret = dbp-&gt;get(dbp, NULL, &key, &data, 0)) == 0)
+		printf("db: %s: key retrieved: data was %s.\n",
+		    (char *)key.data, (char *)data.data);
+	else {
+		dbp-&gt;err(dbp, ret, "DB-&gt;get");
+		goto err;
+	}
+<p><b>	if ((ret = dbp-&gt;del(dbp, NULL, &key, 0)) == 0)
+		printf("db: %s: key was deleted.\n", (char *)key.data);
+	else {
+		dbp-&gt;err(dbp, ret, "DB-&gt;del");
+		goto err;
+	}
+</b></pre></blockquote>
+<p>After the <a href="../../api_c/db_del.html">DB-&gt;del</a> call returns, the entry referenced by the key
+fruit has been removed from the database.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/simple_tut/get.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/close.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

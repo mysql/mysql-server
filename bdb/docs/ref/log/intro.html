@@ -1,0 +1,58 @@
+<!--$Id: intro.so,v 10.16 2001/01/18 20:31:37 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Berkeley DB and logging</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Logging Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/nondb.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/log/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Berkeley DB and logging</h1>
+<p>The logging subsystem is the logging facility used by Berkeley DB.  It is
+largely Berkeley DB specific, although it is potentially useful outside of
+the Berkeley DB package for applications wanting write-ahead logging support.
+Applications wanting to use the log for purposes other than logging file
+modifications based on a set of open file descriptors will almost
+certainly need to make source code modifications to the Berkeley DB code
+base.
+<p>A log can be shared by any number of threads of control.  The
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> interface is used to open a log.  When the log is no
+longer in use, it should be closed, using the <a href="../../api_c/env_close.html">DBENV-&gt;close</a>
+interface.
+<p>Individual log entries are identified by log sequence numbers.  Log
+sequence numbers are stored in an opaque object, a <a href="../../api_c/db_lsn.html">DB_LSN</a>.
+<p>The <a href="../../api_c/log_put.html">log_put</a> interface is used to append new log records to the
+log.  Optionally, the <a href="../../api_c/log_put.html#DB_CHECKPOINT">DB_CHECKPOINT</a> flag can be used to output
+a checkpoint log record (indicating that the log is consistent to that
+point and recoverable after a system or application failure), as well
+as open-file information.  The <a href="../../api_c/log_get.html">log_get</a> interface is used to
+retrieve log records from the log.
+<p>There are additional interfaces for integrating the log subsystem with a
+transaction processing system:
+<p><dl compact>
+<p><dt><a href="../../api_c/log_register.html">log_register</a> and <a href="../../api_c/log_unregister.html">log_unregister</a><dd>These interfaces associate files with identification numbers.  These
+identification numbers are logged so that transactional recovery
+correctly associates log records with the appropriate files.
+<p><dt><a href="../../api_c/log_flush.html">log_flush</a><dd>Flushes the log up to a particular log sequence number.
+<p><dt><a href="../../api_c/log_compare.html">log_compare</a><dd>Allows applications to compare any two log sequence numbers.
+<p><dt><a href="../../api_c/log_file.html">log_file</a>   <dd>Maps a log sequence number to the specific log file which contains it.
+<p><dt><a href="../../api_c/log_archive.html">log_archive</a><dd>Returns various sets of log file names.  These interfaces are used for
+database administration, e.g., to determine if log files may safely be
+removed from the system.
+<p><dt><a href="../../api_c/log_stat.html">log_stat</a>   <dd>The display <a href="../../utility/db_stat.html">db_stat</a> utility uses the <a href="../../api_c/log_stat.html">log_stat</a> interface
+to display statistics about the log.
+<p><dt><a href="../../api_c/env_remove.html">DBENV-&gt;remove</a><dd>The log meta-information (but not the log files themselves) may be
+removed using the <a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> interface.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/nondb.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/log/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,18 @@
+#!/bin/sh -
+#	$Id: s_readme,v 1.2 2000/01/27 21:42:18 bostic Exp $
+#
+# Build the README.
+
+. RELEASE
+
+f=../README
+echo "Building $f"
+rm -f $f
+(echo "$DB_VERSION_STRING" &&
+ echo "" &&
+ echo -n "This is version " &&
+ echo -n "$DB_VERSION_MAJOR.$DB_VERSION_MINOR.$DB_VERSION_PATCH" &&
+ echo " of Berkeley DB from Sleepycat Software.  To view" &&
+ echo "the release and installation documentation, load the distribution file" &&
+ echo "docs/index.html into your web browser.") > $f
+chmod 444 $f

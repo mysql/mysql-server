@@ -1,0 +1,34 @@
+<!--$Id: bt_recnum.so,v 10.18 2000/12/04 18:05:41 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Retrieving Btree records by number</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/bt_minkey.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/h_ffactor.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Retrieving Btree records by number</h1>
+<p>The Btree access method optionally supports retrieval by logical record
+numbers).  To configure a Btree to support record numbers, call the
+<a href="../../api_c/db_set_flags.html">DB-&gt;set_flags</a> function with the <a href="../../api_c/db_set_flags.html#DB_RECNUM">DB_RECNUM</a> flag.
+<p>Configuring a Btree for record numbers should not be done lightly.
+While often useful, it requires that storing items into the database
+be single-threaded, which can severely impact application throughput.
+Generally it should be avoided in trees with a need for high write
+concurrency.
+<p>To determine a key's record number, use the <a href="../../api_c/dbc_get.html#DB_GET_RECNO">DB_GET_RECNO</a> flag
+to the <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> function.
+<p>To retrieve by record number, use the <a href="../../api_c/db_get.html#DB_SET_RECNO">DB_SET_RECNO</a> flag to the
+<a href="../../api_c/db_get.html">DB-&gt;get</a> and <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> functions.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/bt_minkey.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/h_ffactor.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

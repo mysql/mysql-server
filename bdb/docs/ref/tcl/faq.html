@@ -1,0 +1,60 @@
+<!--$Id: faq.so,v 11.2 2001/01/15 17:50:48 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Frequently Asked Questions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Tcl API</dl></h3></td>
+<td width="1%"><a href="../../ref/tcl/error.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/sendmail/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Frequently Asked Questions</h1>
+<p><ol>
+<p><li><b>I have several versions of Tcl installed. How do I configure
+Berkeley DB to use a particular version?</b>
+<p>To compile the Tcl interface with a particular version of Tcl, use the
+--with-tcl option to specify the Tcl installation directory that contains
+the tclConfig.sh file.
+<p>See <a href="../../ref/build_unix/flags.html">Changing compile or load options</a>
+for more information.
+<hr size=1 noshade>
+<p><li><b>Berkeley DB was configured using --enable-tcl or --with-tcl and fails
+to build.</b>
+<p>The Berkeley DB Tcl interface requires Tcl version 8.1 or greater.  You can
+download a copy of Tcl from the
+<a href="http://www.ajubasolutions.com/home.html">Ajuba Solutions</a>
+corporate web site.
+<hr size=1 noshade>
+<p><li><b>Berkeley DB was configured using --enable-tcl or --with-tcl and fails
+to build.</b>
+<p>If the Tcl installation was moved after it was configured and installed,
+try re-configuring and re-installing Tcl.
+<p>Also, some systems do not search for shared libraries by default, or do
+not search for shared libraries named the way the Tcl installation names
+them, or are searching for a different kind of library than those in
+your Tcl installation.  For example, Linux systems often require linking
+"libtcl.a" to "libtcl#.#.a", while AIX systems often require adding the
+"-brtl" flag to the linker.  A simpler solution that almost always works
+on all systems is to create a link from "libtcl.#.#.a" or "libtcl.so"
+(or whatever you happen to have) to "libtcl.a" and reconfigure.
+<hr size=1 noshade>
+<p><li><b>Loading the Berkeley DB library into Tcl on AIX causes a core dump.</b>
+<p>In some versions of Tcl, the "tclConfig.sh" autoconfiguration script
+created by the Tcl installation does not work properly under AIX.  To
+build a working Berkeley DB Tcl API when this happens, use the "--enable-tcl"
+flag to configure Berkeley DB (rather than "--with-tcl").  In addition, you
+will have to specify any necessary include and library paths and linker
+flags needed to build with Tcl by setting the CPPFLAGS, LIBS and LDFLAGS
+environment variables before running configure.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/tcl/error.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/sendmail/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

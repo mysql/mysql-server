@@ -1,0 +1,53 @@
+<!--$Id: using.so,v 11.6 2000/03/18 21:43:17 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Using Berkeley DB with Tcl</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Tcl</dl></h3></td>
+<td width="1%"><a href="../../ref/tcl/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/tcl/program.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Using Berkeley DB with Tcl</h1>
+<p>All commands in the Berkeley DB Tcl interface are of the form:
+<p><blockquote><pre>command_handle operation options</pre></blockquote>
+<p>The <i>command handle</i> is <b>berkdb</b> or one of the additional
+commands that may be created. The <i>operation</i> is what you want
+to do to that handle and the <i>options</i> apply to the operation.
+Commands that get created on behalf of the application have their own sets
+of operations.  Generally any calls in DB that result in new object
+handles will translate into a new command handle in Tcl. Then the user
+can access the operations of the handle via the new Tcl command handle.
+<p>Newly created commands are named with an abbreviated form of their objects
+followed by a number. Some created commands are subcommands of other
+created commands and will be the first command, followed by a period, '.'
+followed by the new subcommand. For example, suppose you have a database
+already existing called my_data.db. The following example shows the
+commands created when you open the database, and when you open a cursor:
+<p><blockquote><pre># First open the database and get a database command handle
+% berkdb open my_data.db
+db0
+#Get some data from that database
+% db0 get my_key
+{{my_key my_data0}{my_key my_data1}}
+#Open a cursor in this database, get a new cursor handle
+% db0 cursor
+db0.c0
+#Get the first data from the cursor
+% db0.c0 get -first
+{{first_key first_data}}</pre></blockquote>
+<p>All commands in the library support a special option <b>-?</b> that will
+list the correct operations for a command or the correct options.
+<p>A list of commands and operations can be found in the
+<a href="../../api_tcl/tcl_index.html">Tcl Interface</a> documentation.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/tcl/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/tcl/program.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.08 [en] (X11; I; FreeBSD 3.3-RELEASE i386) [Netscape]">
+</HEAD>
+<BODY>
+
+<H2>
+<A NAME="Database Commands"></A>Database Commands</H2>
+The database commands provide a conduit into the DB method functions.&nbsp;
+They are all fairly straightforward and I describe them in terms of their
+DB functions briefly here, with a link to the DB page where appropriate.&nbsp;
+The first set of commands are those I believe will be the primary functions
+used by most databases.&nbsp; Some are directly related to their DB counterparts,
+and some are higher level functions that are useful to provide the user.
+<P><B>> berkdb open [-env <I>env</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-btree|-hash|-recno|-queue|-unknown]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-create] [-excl] [-nommap] [-rdonly] [-truncate]
+[-mode
+<I>mode</I>] [-errfile <I>filename</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-dup] [-dupsort] [-recnum] [-renumber] [-revsplitoff]
+[-snapshot]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-extent <I>size</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-ffactor <I>density</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-nelem <I>size</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-lorder <I>order</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-delim <I>delim</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-len <I>len</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-pad <I>pad</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-source <I>file</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-minkey <I>minkey</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-cachesize {<I>gbytes bytes ncaches</I>}]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [-pagesize <I>pagesize</I>]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [--]</B>
+<BR><B>&nbsp;&nbsp;&nbsp; [<I>filename </I>[<I>subdbname</I>]]</B>
+<P>This command will invoke the <A HREF="../../docs/api_c/db_create.html">db_create</A>
+function.&nbsp; If the command is given the <B>-env</B> option, then we
+will accordingly creating the database within the context of that environment.&nbsp;
+After it successfully gets a handle to a database, we bind it to a new
+Tcl command of the form <B><I>dbX, </I></B>where X is an integer starting
+at 0 (e.g. <B>db0, db1, </B>etc).&nbsp; We use the <I>Tcl_CreateObjCommand()&nbsp;</I>
+to create the top level database function.&nbsp; It is through this handle
+that the user can access all of the commands described in the <A HREF="#Database Commands">Database
+Commands</A> section.&nbsp; Internally, the database handle is sent as
+the <I>ClientData</I> portion of the new command set so that all future
+database calls access the appropriate handle.
+<P>After parsing all of the optional arguments affecting the setup of the
+database and making the appropriate calls to DB to manipulate those values,
+we open the database for the user. It&nbsp; translates to the
+<A HREF="../../docs/api_c/db_open.html">DB->open</A>
+method call after parsing all of the various optional arguments.&nbsp;
+We automatically set the DB_THREAD flag.&nbsp; The arguments are:
+<UL>
+<LI>
+<B>-- </B>- Terminate the list of options and use remaining arguments as
+the file or subdb names (thus allowing the use of filenames beginning with
+a dash '-')</LI>
+
+<LI>
+<B>-btree</B> - DB_BTREE database</LI>
+
+<LI>
+<B>-hash</B> -&nbsp; DB_HASH database</LI>
+
+<LI>
+<B>-recno&nbsp;</B> - DB_RECNO database</LI>
+
+<LI>
+<B>-queue</B> - DB_QUEUE database</LI>
+
+<LI>
+<B>-create</B> selects the DB_CREATE flag&nbsp; to create underlying files</LI>
+
+<LI>
+<B>-excl</B> selects the DB_EXCL flag&nbsp; to exclusively create underlying
+files</LI>
+
+<LI>
+<B>-nommap</B> selects the DB_NOMMAP flag to forbid mmaping of files</LI>
+
+<LI>
+<B>-rdonly</B> selects the DB_RDONLY flag for opening in read-only mode</LI>
+
+<LI>
+<B>-truncate</B> selects the DB_TRUNCATE flag to truncate the database</LI>
+
+<LI>
+<B>-mode<I> mode</I></B> specifies the mode for created files</LI>
+
+<LI>
+<B>-errfile </B>specifies the error file to use for this environment to
+<B><I>filename</I></B>
+by calling <A HREF="../../docs/api_c/db_set_errfile.html">DB->set_errfile</A><B><I>.
+</I></B>If
+the file already exists then we will append to the end of the file</LI>
+
+<LI>
+<B>-dup </B>selects the DB_DUP flag to permit duplicates in the database</LI>
+
+<LI>
+<B>-dupsort</B> selects the DB_DUPSORT flag to support sorted duplicates</LI>
+
+<LI>
+<B>-recnum</B> selects the DB_RECNUM flag to support record numbers in
+btrees</LI>
+
+<LI>
+<B>-renumber </B>selects the DB_RENUMBER flag to support mutable record
+numbers</LI>
+
+<LI>
+<B>-revsplitoff </B>selects the DB_REVSPLITOFF flag to suppress reverse
+splitting of pages on deletion</LI>
+
+<LI>
+<B>-snapshot </B>selects the DB_SNAPSHOT flag to support database snapshots</LI>
+
+<LI>
+<B>-extent </B>sets the size of a Queue database extent to the given <B><I>size
+</I></B>using
+the <A HREF="../../docs/api_c/db_set_q_extentsize.html">DB->set_q_extentsize</A>
+method</LI>
+
+<LI>
+<B>-ffactor</B> sets the hash table key density to the given <B><I>density
+</I></B>using
+the <A HREF="../../docs/api_c/db_set_h_ffactor.html">DB->set_h_ffactor</A>
+method</LI>
+
+<LI>
+<B>-nelem </B>sets the hash table size estimate to the given <B><I>size
+</I></B>using
+the <A HREF="../../docs/api_c/db_set_h_nelem.html">DB->set_h_nelem</A>
+method</LI>
+
+<LI>
+<B>-lorder </B>sets the byte order for integers stored in the database
+meta-data to the given <B><I>order</I></B> using the <A HREF="../../docs/api_c/db_set_lorder.html">DB->set_lorder</A>
+method</LI>
+
+<LI>
+<B>-delim </B>sets the delimiting byte for variable length records to
+<B><I>delim</I></B>
+using the <A HREF="../../docs/api_c/db_set_re_delim.html">DB->set_re_delim</A>
+method</LI>
+
+<LI>
+<B>-len </B>sets the length of fixed-length records to <B><I>len</I></B>
+using the <A HREF="../../docs/api_c/db_set_re_len.html">DB->set_re_len</A>
+method</LI>
+
+<LI>
+<B>-pad </B>sets the pad character used for fixed length records to
+<B><I>pad</I></B>&nbsp;
+using the <A HREF="../../docs/db_set_re_pad.html">DB->set_re_pad</A> method</LI>
+
+<LI>
+<B>-source </B>sets the backing source file name to <B><I>file</I></B>
+using the <A HREF="../../docs/api_c/db_set_re_source.html">DB->set_re_source</A>
+method</LI>
+
+<LI>
+<B>-minkey </B>sets the minimum number of keys per Btree page to <B><I>minkey</I></B>
+using the <A HREF="../../docs/api_c/db_set_bt_minkey.html">DB->set_bt_minkey</A>
+method</LI>
+
+<LI>
+<B>-cachesize </B>sets the size of the database cache to the size&nbsp;
+specified by <B><I>gbytes </I></B>and <B><I>bytes, </I></B>broken up into
+<B><I>ncaches</I></B>
+number of caches using the <A HREF="../../docs/api_c/db_set_cachesize.html">DB->set_cachesize</A>
+method</LI>
+
+<LI>
+<B>-pagesize </B>sets the size of the database page to <B><I>pagesize </I></B>using
+the <A HREF="../../docs/api_c/db_set_pagesize.html">DB->set_pagesize</A>
+method</LI>
+
+<LI>
+<B><I>filename</I></B> indicates the name of the database</LI>
+
+<LI>
+<B><I>subdbname</I></B> indicate the name of the sub-database</LI>
+</UL>
+
+<HR WIDTH="100%">
+<BR><B>&nbsp;berkdb upgrade [-dupsort] [-env <I>env</I>] [--] [<I>filename</I>]</B>
+<P>This command will invoke the <A HREF="../../docs/api_c/db_upgrade.html">DB->upgrade</A>
+function.&nbsp; If the command is given the <B>-env</B> option, then we
+will accordingly upgrade the database filename within the context of that
+environment. The <B>-dupsort</B> option selects the DB_DUPSORT flag for
+upgrading. The use of --<B> </B>terminates the list of options, thus allowing
+filenames beginning with a dash.
+<P>
+<HR WIDTH="100%"><B>> berkdb verify [-env <I>env</I>] [--] [<I>filename</I>]</B>
+<P>This command will invoke the <A HREF="../../docs/api_c/db_verify.html">DB->verify</A>
+function.&nbsp; If the command is given the <B>-env</B> option, then we
+will accordingly verify the database filename within the context of that
+environment.&nbsp; The use of --<B> </B>terminates the list of options,
+thus allowing filenames beginning with a dash.
+<P>
+<HR WIDTH="100%"><B>> <I>db</I> join [-nosort] <I>db0.c0 db1.c0</I> ...</B>
+<P>This command will invoke the <A HREF="../../docs/api_c/db_join.html">db_join</A>
+function.&nbsp; After it successfully joins a database, we bind it to a
+new Tcl command of the form <B><I>dbN.cX, </I></B>where X is an integer
+starting at 0 (e.g. <B>db2.c0, db3.c0, </B>etc).&nbsp; We use the <I>Tcl_CreateObjCommand()&nbsp;</I>
+to create the top level database function.&nbsp; It is through this cursor
+handle that the user can access the joined data items.
+<P>The options are:
+<UL>
+<LI>
+<B>-nosort -</B> This flag causes DB not to sort the cursors based on the
+number of data items they reference.&nbsp; It results in the DB_JOIN_NOSORT
+flag being set.</LI>
+</UL>
+
+<HR WIDTH="100%"><B>> <I>db</I> get_join [-nosort] {db key} {db key} ...</B>
+<P>This command performs a join operation on the keys specified and returns
+a list of the joined {key data} pairs.
+<P>The options are:
+<UL>
+<LI>
+<B>-nosort</B> This flag causes DB not to sort the cursors based on the
+number of data items they reference.&nbsp; It results in the DB_JOIN_NOSORT
+flag being set.</LI>
+</UL>
+
+<HR WIDTH="100%"><B>> <I>db</I> keyrange [-txn <I>id</I>] key</B>
+<P>This command returns the range for the given <B>key</B>.&nbsp; It returns
+a list of 3 double elements of the form {<B><I>less equal greater</I></B>}
+where <B><I>less</I></B> is the percentage of keys less than the given
+key, <B><I>equal</I></B> is the percentage equal to the given key and <B><I>greater</I></B>
+is the percentage greater than the given key.&nbsp; If the -txn option
+is specified it performs this operation under transaction protection.
+<BR>
+<HR WIDTH="100%"><B>> <I>db</I> put</B>
+<P>The <B>undocumented</B> options are:
+<UL>
+<LI>
+<B>-nodupdata</B> This flag causes DB not to insert the key/data pair if
+it already exists, that is, both the key and data items are already in
+the database. The -nodupdata flag may only be specified if the underlying
+database has been configured to support sorted duplicates.</LI>
+</UL>
+
+<HR WIDTH="100%"><B>> <I>db</I> stat</B>
+<P>The <B>undocumented</B> options are:
+<UL>
+<LI>
+<B>-cachedcounts</B> This flag causes DB to return the cached key/record
+counts, similar to the DB_CACHED_COUNTS flags to DB->stat.</LI>
+</UL>
+
+<HR WIDTH="100%"><B>> <I>dbc</I> put</B>
+<P>The <B>undocumented</B> options are:
+<UL>
+<LI>
+<B>-nodupdata</B> This flag causes DB not to insert the key/data pair if
+it already exists, that is, both the key and data items are already in
+the database. The -nodupdata flag may only be specified if the underlying
+database has been configured to support sorted duplicates.</LI>
+</UL>
+
+</BODY>
+</HTML>

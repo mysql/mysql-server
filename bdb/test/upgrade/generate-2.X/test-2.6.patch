@@ -1,0 +1,379 @@
+diff -crN test.orig/test.tcl test/test.tcl
+*** test.orig/test.tcl	Fri Dec 11 14:56:26 1998
+--- test/test.tcl	Mon Oct  4 15:26:16 1999
+***************
+*** 8,13 ****
+--- 8,14 ----
+  source ./include.tcl
+  source ../test/testutils.tcl
+  source ../test/byteorder.tcl
++ source ../test/upgrade.tcl
+  
+  set testdir ./TESTDIR
+  if { [file exists $testdir] != 1 } {
+***************
+*** 114,119 ****
+--- 115,124 ----
+  	global debug_print
+  	global debug_on
+  	global runtests
++ 	
++ 	global __method
++ 	set __method $method
++ 
+  	if { $stop == 0 } {
+  		set stop $runtests
+  	}
+diff -crN test.orig/testutils.tcl test/testutils.tcl
+*** test.orig/testutils.tcl	Tue Dec 15 07:58:51 1998
+--- test/testutils.tcl	Wed Oct  6 17:40:45 1999
+***************
+*** 680,690 ****
+--- 680,698 ----
+  
+  proc cleanup { dir } {
+  source ./include.tcl
++ global __method
++ global errorInfo
+  	# Remove the database and environment.
+  	txn_unlink $dir 1
+  	memp_unlink $dir 1
+  	log_unlink $dir 1
+  	lock_unlink $dir 1
++ 
++ 	catch { exec mkdir -p /work/upgrade/2.6/$__method } res
++ 	puts $res
++ 	catch { exec sh -c "mv $dir/*.db /work/upgrade/2.6/$__method" } res
++ 	puts $res
++ 
+  	set ret [catch { glob $dir/* } result]
+  	if { $ret == 0 } {
+  		eval exec $RM -rf $result
+diff -crN test.orig/upgrade.tcl test/upgrade.tcl
+*** test.orig/upgrade.tcl	Wed Dec 31 19:00:00 1969
+--- test/upgrade.tcl	Mon Oct 18 21:22:39 1999
+***************
+*** 0 ****
+--- 1,322 ----
++ # See the file LICENSE for redistribution information.
++ #
++ # Copyright (c) 1999
++ #	Sleepycat Software.  All rights reserved.
++ #
++ #	@(#)upgrade.tcl	11.1 (Sleepycat) 8/23/99
++ #
++ source ./include.tcl
++ global gen_upgrade
++ set gen_upgrade 0
++ global upgrade_dir
++ set upgrade_dir "/work/upgrade/DOTEST"
++ global upgrade_be
++ global upgrade_method
++ 
++ proc upgrade { } {
++ 	source ./include.tcl
++ 	global upgrade_dir
++ 
++ 	foreach version [glob $upgrade_dir/*] {
++ 		regexp \[^\/\]*$ $version version
++ 		foreach method [glob $upgrade_dir/$version/*] {
++ 			regexp \[^\/\]*$ $method method
++ 			foreach file [glob $upgrade_dir/$version/$method/*] {
++ 				puts $file
++ 				regexp (\[^\/\]*)\.tar\.gz$ $file dummy name
++ 				foreach endianness {"le" "be"} {
++ 					puts "Update: $version $method $name $endianness"
++ 					set ret [catch {_upgrade $upgrade_dir $testdir $version $method $name $endianness 1 1} message]
++ 					if { $ret != 0 } {
++ 						puts $message
++ 					}
++ 				}
++ 			}
++ 		}
++ 	}
++ }
++ 
++ proc _upgrade { source_dir temp_dir version method file endianness do_db_load_test do_upgrade_test } {
++ 	source include.tcl
++ 	global errorInfo
++ 	
++ 	cleanup $temp_dir
++ 
++ 	exec tar zxf "$source_dir/$version/$method/$file.tar.gz" -C $temp_dir
++ 
++ 	if { $do_db_load_test } {
++ 		set ret [catch \
++ 		    {exec ./db_load -f "$temp_dir/$file.dump" \
++ 		    "$temp_dir/upgrade.db"} message]
++ 		error_check_good \
++ 		    "Update load: $version $method $file $message" $ret 0
++ 		
++ 		set ret [catch \
++ 		    {exec ./db_dump -f "$temp_dir/upgrade.dump" \
++ 		    "$temp_dir/upgrade.db"} message]
++ 		error_check_good \
++ 		    "Update dump: $version $method $file $message" $ret 0
++ 
++ 		error_check_good "Update diff.1.1: $version $method $file" \
++ 	        [catch { exec $CMP "$temp_dir/$file.dump" "$temp_dir/upgrade.dump" } ret] 0
++ 	    error_check_good "Update diff.1.2: $version $method $file" $ret ""
++ 	}
++ 
++ 	if { $do_upgrade_test } {
++ 		set ret [catch {berkdb open -upgrade "$temp_dir/$file-$endianness.db"} db]
++ 		if { $ret == 1 } {
++ 			if { ![is_substr $errorInfo "version upgrade"] } {
++ 				set fnl [string first "\n" $errorInfo]
++ 				set theError [string range $errorInfo 0 [expr $fnl - 1]]
++ 				error $theError
++ 			}
++ 		} else {
++ 		    error_check_good dbopen [is_valid_db $db] TRUE
++ 		    error_check_good dbclose [$db close] 0
++ 		    
++ 		    set ret [catch \
++ 			    {exec ./db_dump -f "$temp_dir/upgrade.dump" \
++ 			    "$temp_dir/$file-$endianness.db"} message]
++ 			error_check_good \
++ 			    "Update dump: $version $method $file $message" $ret 0
++ 
++ 			error_check_good "Update diff.2: $version $method $file" \
++ 			    [catch { exec $CMP "$temp_dir/$file.dump" "$temp_dir/upgrade.dump" } ret] 0
++ 	    	error_check_good "Update diff.2: $version $method $file" $ret ""
++ 		}
++ 	}
++ }
++ 
++ proc gen_upgrade { dir } {
++ 	global gen_upgrade
++ 	global upgrade_dir
++ 	global upgrade_be
++ 	global upgrade_method
++ 	global __method
++ 	global runtests
++ 	source ./include.tcl
++ 	set tclsh_path "/work/db/upgrade/db-2.6.6/build_unix/dbtest"
++ 
++ 	set gen_upgrade 1
++ 	set upgrade_dir $dir
++ 
++ 	foreach upgrade_be { 0 1 } {
++ 		foreach i "rrecno" {
++ 		# "hash btree rbtree hash recno rrecno" 
++ 			puts "Running $i tests"
++ 			set upgrade_method $i
++ 			for { set j 1 } { $j <= $runtests } {incr j} {
++ 				if [catch {exec $tclsh_path \
++ 				    << "source ../test/test.tcl; \
++ 				    run_method $i $j $j"} res] {
++ 					puts "FAIL: [format "test%03d" $j] $i"
++ 				}
++ 				puts $res
++ 				set __method $i
++ 				cleanup $testdir
++ 			}
++ 		}
++ 	}
++ 
++ 	set gen_upgrade 0
++ }
++ 
++ proc upgrade_dump { database file {with_binkey 0} } {
++ 	source ./include.tcl
++ 	global errorInfo
++ 
++ 	set is_recno 0
++ 	
++ 	set db [dbopen $database 0 0600 DB_UNKNOWN]
++ 	set dbc [$db cursor 0]
++ 
++ 	set f [open $file w+]
++ 	fconfigure $f -encoding binary -translation binary
++ 
++ 	#
++ 	# Get a sorted list of keys
++ 	#
++ 	set key_list ""
++ 	if { [catch {set pair [$dbc get "" $DB_FIRST]}] != 0 } {
++ 		set pair [$dbc get 0 $DB_FIRST]
++ 		set is_recno 1
++ 	}
++ 
++ 	while { 1 } {
++ 		if { [llength $pair] == 0 } {
++ 			break
++ 		}
++ 		lappend key_list [list [lindex $pair 0]]
++ 		set pair [$dbc get 0 $DB_NEXT]
++ 	}
++ 
++ 	
++ 	# Discard duplicated keys;  we now have a key for each
++ 	# duplicate, not each unique key, and we don't want to get each
++ 	# duplicate multiple times when we iterate over key_list. 
++ 	set uniq_keys {}
++ 	foreach key $key_list {
++ 		if { [info exists existence_list($key)] == 0 } {
++ 			lappend uniq_keys [list $key]
++ 		}
++ 		set existence_list($key) 1
++ 	}
++ 	set key_list $uniq_keys
++ 
++ 	set key_list [lsort -command _comp $key_list]
++ 	
++ 	#foreach llave $key_list {
++ 	#	puts $llave
++ 	#}
++ 
++ 	#
++ 	# Get the data for each key
++ 	#
++ 
++ 	for { set i 0 } { $i < [llength $key_list] } { incr i } {
++ 		set key [concat [lindex $key_list $i]]
++ 		# XXX Gross awful hack.  We want to DB_SET in the vast
++ 		# majority of cases, but DB_SET can't handle binary keys
++ 		# in the 2.X Tcl interface.  So we look manually and linearly
++ 		# for the key we want if with_binkey == 1.
++ 		if { $with_binkey != 1 } {
++ 			set pair [$dbc get $key $DB_SET]
++ 		} else {
++ 			set pair [_search_binkey $key $dbc]
++ 		}
++ 		if { $is_recno != 1 } {
++ 			set key [upgrade_convkey $key $dbc]
++ 		}
++ 		#puts "pair:$pair:[lindex $pair 1]"
++ 		set data [lindex $pair 1]
++ 		set data [upgrade_convdata $data $dbc]
++ 		set data_list [list $data]
++ 		catch { while { $is_recno == 0 } {
++ 			set pair [$dbc get 0 $DB_NEXT_DUP]
++ 			if { [llength $pair] == 0 } {
++ 				break
++ 			}
++ 			
++ 			set data [lindex $pair 1]
++ 			set data [upgrade_convdata $data $dbc]
++ 			lappend data_list [list $data]
++ 		} }
++ 		set data_list [lsort -command _comp $data_list]
++ 		puts -nonewline $f [binary format i [string length $key]]
++ 		puts -nonewline $f $key
++ 		puts -nonewline $f [binary format i [llength $data_list]]
++ 		for { set j 0 } { $j < [llength $data_list] } { incr j } {
++ 			puts -nonewline $f [binary format i [string length [concat [lindex $data_list $j]]]]
++ 			puts -nonewline $f [concat [lindex $data_list $j]]
++ 		}
++ 	}
++ 
++ 	close $f
++ }
++ 
++ proc _comp { a b } {
++ #	return expr [[concat $a] < [concat $b]]
++ 	return [string compare [concat $a] [concat $b]]
++ }
++ 
++ # Converts a key to the format of keys in the 3.X Tcl interface
++ proc upgrade_convkey { key dbc } {
++ 	source ./include.tcl
++ 
++ 	# Stick a null on the end.
++ 	set k "$key\0"
++ 
++ 	set tmp $testdir/gb0
++ 
++ 	# Attempt a dbc getbinkey to get any additional parts of the key.
++ 	set dbt [$dbc getbinkey $tmp 0 $DB_CURRENT]
++ 
++ 	set tmpid [open $tmp r]
++ 	fconfigure $tmpid -encoding binary -translation binary
++ 	set cont [read $tmpid]
++ 
++ 	set k $k$cont
++ 
++ 	close $tmpid
++ 
++ 	exec $RM -f $tmp
++ 
++ 	return $k
++ }
++ 
++ # Converts a datum to the format of data in the 3.X Tcl interface
++ proc upgrade_convdata { data dbc } {
++ 	source ./include.tcl
++ 	set is_partial 0
++ 
++ 	# Get the datum out of "data"
++ 	if { [llength $data] == 1 } {
++ 		set d [lindex $data 0]
++ 	} elseif { [llength $data] == 2 } {
++ 		# It was a partial return;  the first arg is the number of nuls
++ 		set d [lindex $data 1]
++ 		set numnul [lindex $data 0]
++ 		while { $numnul > 0 } {
++ 			set d "\0$d"
++ 			incr numnul -1
++ 		}
++ 
++ 		# The old Tcl getbin and the old Tcl partial put
++ 		# interface are incompatible;  we'll wind up returning
++ 		# the datum twice if we try a getbin now.  So
++ 		# set a flag to avoid it.
++ 		set is_partial 1
++ 
++ 	} else {
++ 		set d $data
++ 	}
++ 
++ 
++ 	if { $is_partial != 1 } {
++ 
++ 		# Stick a null on the end.
++ 		set d "$d\0"
++ 
++ 		set tmp $testdir/gb1
++ 
++ 		# Attempt a dbc getbin to get any additional parts of the datum
++ 		# the Tcl interface has neglected.
++ 		set dbt [$dbc getbin $tmp 0 $DB_CURRENT]
++ 
++ 		set tmpid [open $tmp r]
++ 		fconfigure $tmpid -encoding binary -translation binary
++ 		set cont [read $tmpid]
++ 
++ 		set d $d$cont
++ 
++ 		#puts "$data->$d"
++ 
++ 		close $tmpid
++ 	}
++ 
++ 	return [list $d]
++ }
++ 
++ # Implement the DB_SET functionality, stupidly, in terms of DB_NEXT and
++ # manual comparisons.  We have to use this instead of DB_SET with 
++ # binary keys, as the old Tcl interface can't handle binary keys but DB_SET
++ # requires them.  So instead, we page through using DB_NEXT, which returns 
++ # the binary keys only up to the first null, and compare to our specified
++ # key, which is similarly truncated.
++ #
++ # This is really slow, but is seldom used.
++ proc _search_binkey { key dbc } {
++ 	#puts "doing _search_binkey $key $dbc"
++ 	source ./include.tcl
++ 	set dbt [$dbc get 0 $DB_FIRST]
++ 	while { [llength $dbt] != 0 } {
++ 		set curkey [lindex $dbt 0]
++ 		if { [string compare $key $curkey] == 0 } { 
++ 			return $dbt 
++ 		}
++ 		set dbt [$dbc get 0 $DB_NEXT]
++ 	}
++ 
++ 	# We didn't find it.  Return an empty list.
++ 	return {}
++ }

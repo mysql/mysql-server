@@ -1,0 +1,36 @@
+<!--$Id: stat.so,v 10.17 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Database statistics</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/sync.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/close.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Database statistics</h1>
+<p>The <a href="../../api_c/db_stat.html">DB-&gt;stat</a> function is the standard interface for obtaining database
+statistics. Generally, <a href="../../api_c/db_stat.html">DB-&gt;stat</a> returns a set of statistics
+about the underlying database, e.g., the number of key/data pairs in
+the database, how the database was originally configured, and so on.
+<p>There are two flags that you can set to customize the returned statistics:
+<p><dl compact>
+<p><dt><a href="../../api_c/db_stat.html#DB_CACHED_COUNTS">DB_CACHED_COUNTS</a><dd>Request an approximate key and key/data pair count.  As obtaining an
+exact count can be very performance intensive for large databases,
+it is possible to request a previously cached count.  Obviously, the
+cached count is only an approximate count, and may be out-of-date.
+<p><dt><a href="../../api_c/db_stat.html#DB_RECORDCOUNT">DB_RECORDCOUNT</a><dd>If the database is a Queue or Recno database, or a Btree database that
+was configured so that it is possible to search it by logical record
+number, return only a count of the records in the database.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/sync.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/close.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

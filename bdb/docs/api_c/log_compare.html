@@ -1,0 +1,51 @@
+<!--$Id: log_compare.so,v 10.12 1999/12/20 08:52:30 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: log_compare</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>log_compare</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+log_compare(const DB_LSN *lsn0, const DB_LSN *lsn1);
+</pre></h3>
+<h1>Description</h1>
+<p>The log_compare function allows the caller to compare two
+DB_LSN structures,
+returning 0 if they are equal, 1 if <b>lsn0</b> is greater than
+<b>lsn1</b>, and -1 if <b>lsn0</b> is less than <b>lsn1</b>.
+<h1>See Also</h1>
+<a href="../api_c/env_set_lg_bsize.html">DBENV-&gt;set_lg_bsize</a>,
+<a href="../api_c/env_set_lg_max.html">DBENV-&gt;set_lg_max</a>,
+<a href="../api_c/log_archive.html">log_archive</a>,
+<a href="../api_c/log_compare.html">log_compare</a>,
+<a href="../api_c/log_file.html">log_file</a>,
+<a href="../api_c/log_flush.html">log_flush</a>,
+<a href="../api_c/log_get.html">log_get</a>,
+<a href="../api_c/log_put.html">log_put</a>,
+<a href="../api_c/log_register.html">log_register</a>,
+<a href="../api_c/log_stat.html">log_stat</a>
+and
+<a href="../api_c/log_unregister.html">log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

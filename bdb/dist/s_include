@@ -1,0 +1,33 @@
+#!/bin/sh -
+#	$Id: s_include,v 1.7 2000/07/13 18:38:46 bostic Exp $
+#
+# Build the automatically generated function prototype files.
+
+msgc="/* DO NOT EDIT: automatically built by dist/s_include. */"
+cxx_if="#if defined(__cplusplus)"
+cxx_head="extern \"C\" {"
+cxx_foot="}"
+cxx_endif="#endif"
+
+tmp=/tmp/__db_inc.$$
+trap 'rm -f $tmp ; exit 0' 0 1 2 3 13 15
+
+for i in db btree clib common env hash \
+    lock log mp mutex os qam rpc_client rpc_server tcl txn xa; do
+	f=../include/${i}_ext.h
+	(echo "$msgc" &&
+	    echo "#ifndef	_${i}_ext_h_" &&
+	    echo "#define	_${i}_ext_h_" &&
+	    echo "$cxx_if" &&
+	    echo "$cxx_head" &&
+	    echo "$cxx_endif" &&
+	    sed -n "s/^ \* PUBLIC:[	 ]\(.*\)/\1/p" ../$i/*.c;
+	    [ $i = os ] &&
+		sed -n "s/^ \* PUBLIC:[	 ]\(.*\)/\1/p" ../os_win32/*.c;
+	    echo "$cxx_if" &&
+	    echo "$cxx_foot" &&
+	    echo "$cxx_endif" &&
+	    echo "#endif /* _${i}_ext_h_ */") > $tmp
+	cmp $tmp $f > /dev/null 2>&1 ||
+	    (echo "Building $f" && rm -f $f && cp $tmp $f && chmod 444 $f)
+done

@@ -1,0 +1,599 @@
+#
+# $Id: rpc.src,v 1.30 2000/12/20 21:53:05 ubell Exp $
+# Syntax:
+# BEGIN	function_name  RPC #	{CODE | NOCLNTCODE | RETCODE | NOFUNC}
+#	CODE:	generate XDR and client code, return status
+#		Used for functions that just return a status and nothing else.
+#	RETCODE:generate XDR and client code, call return function
+#		(generate template return function)
+#		Used for functions that returns data.
+#	NOCLNTCODE:	generate only XDR and server functions
+#		Used for functions that are "different" on the client.
+#		Primarily used for envcreate (which is called from
+#		the dbenv->set_server method on the client side) and
+#		dbcreate, which is called from non-generated code.
+#	NOFUNC:	generate a client "unsupported function" with right args
+#		Used for unsupported functions.
+#
+# ARG	{IGNORE | STRING | INT | DBT | LIST | ID | CONST}  C-type varname
+#	IGNORE:	not passed to server
+#	STRING:	string passed to server
+#	DBT:	DBT arg passed to server
+#	LIST:	opaque list passed to server (NULL-terminated opaque list)
+#	INT:	integer passed to server
+#	ID:	cl_id from arg passed to server
+#	CONST:  do not generate COMPQUIET (for NOFUNC only)
+# FUNCPROT prototype
+# FUNCARG functiontype
+#	These two *MUST* go together and FUNCPROT *MUST* be first.  These
+#	are for the tricky user-supplied functions to some methods.  They
+#	are not supported in RPC, so will be ignored, but the complicated
+#	syntax of their argument requires we have a special flag for them
+#	that contains the verbatim text to use in the prototype and the
+#	c-type, respectively.  The FUNCARG must include the function, and
+#	must call it 'funcN', where N is the count of functions.  Almost
+#	always it must be func0.  A *very* few methods have more than one
+#	user-supplied functions, in those cases, it must be func0, func1, etc.
+#
+# All messages automatically return "status" and return that from
+# the call to the function.  RET's are additional things the server
+# may return.  RET is like ARG but does not need the IGNORE option.
+# RET	{STRING | INT | DBT | LIST | ID} varname [STRING | INT | ID]
+#	STRING:	string from server
+#	DBT:	DBT arg from server
+#	LIST:	opaque list from server (NULL-terminated opaque list)
+#	  Must have list type of STRING, ID or INT specified
+#	INT:	integer from server
+#	ID:	id from server stored in cl_id
+# END	function end.
+
+#
+# Environment functions
+#
+BEGIN	env_cachesize	1	CODE
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	gbytes
+ARG	INT	u_int32_t	bytes
+ARG	INT	int		ncache
+END
+BEGIN	env_close	1	RETCODE
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	flags
+END
+BEGIN	env_create	1	NOCLNTCODE
+ARG	INT	long		timeout
+RET	ID	long		env
+END
+BEGIN	set_data_dir	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	STRING	const char *	dir
+END
+BEGIN	env_set_feedback	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+FUNCPROT	void (*)(DB_ENV *, int, int)
+FUNCARG	void (*func0) __P((DB_ENV *, int, int))
+END
+BEGIN	env_flags	1	CODE
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	flags
+ARG	INT	int		onoff
+END
+BEGIN	set_lg_bsize	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	bsize
+END
+BEGIN	set_lg_dir	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	STRING	const char *	dir
+END
+BEGIN	set_lg_max	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	max
+END
+BEGIN	set_lk_conflict	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int8_t *	conflicts
+ARG	INT	int		modes
+END
+BEGIN	set_lk_detect	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	detect
+END
+BEGIN	set_lk_max	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	max
+END
+BEGIN	set_lk_max_locks	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	max
+END
+BEGIN	set_lk_max_lockers	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	max
+END
+BEGIN	set_lk_max_objects	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	max
+END
+BEGIN	set_mp_mmapsize	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	size_t		mmapsize
+END
+BEGIN	set_mutex_locks	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	int		do_lock
+END
+BEGIN	env_open	1	RETCODE
+ARG	ID	DB_ENV *	dbenv
+ARG	STRING	const char *	home
+ARG	INT	u_int32_t	flags
+ARG	INT	int		mode
+END
+BEGIN	env_paniccall	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+FUNCPROT	void (*)(DB_ENV *, int)
+FUNCARG	void (*func0) __P((DB_ENV *, int))
+END
+BEGIN	set_recovery_init	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+FUNCPROT	int (*)(DB_ENV *)
+FUNCARG	int (*func0) __P((DB_ENV *))
+END
+BEGIN	env_remove	1	RETCODE
+ARG	ID	DB_ENV *	dbenv
+ARG	STRING	const char *	home
+ARG	INT	u_int32_t	flags
+END
+BEGIN	set_shm_key	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	long		shm_key
+END
+BEGIN	set_tmp_dir	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	STRING	const char *	dir
+END
+BEGIN	set_tx_recover	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+FUNCPROT	int (*)(DB_ENV *, DBT *, DB_LSN *, db_recops)
+FUNCARG	int (*func0) __P((DB_ENV *, DBT *, DB_LSN *, db_recops))
+END
+BEGIN	set_tx_max	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	max
+END
+BEGIN	set_tx_timestamp	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	time_t *	max
+END
+BEGIN	set_verbose	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	which
+ARG	INT	int		onoff
+END
+#
+# Transaction functions
+#
+BEGIN	txn_abort	1	RETCODE
+ARG	ID	DB_TXN *	txnp
+END
+BEGIN	txn_begin	1	RETCODE
+ARG	ID	DB_ENV *	envp
+ARG	ID	DB_TXN *	parent
+ARG	IGNORE	DB_TXN **	txnpp
+ARG	INT	u_int32_t	flags
+RET	ID	long		txnid
+END
+BEGIN	txn_checkpoint	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	kbyte
+ARG	INT	u_int32_t	min
+END
+BEGIN	txn_commit	1	RETCODE
+ARG	ID	DB_TXN *	txnp
+ARG	INT	u_int32_t	flags
+END
+BEGIN	txn_prepare	1	NOFUNC
+ARG	ID	DB_TXN *	txnp
+END
+BEGIN	txn_stat	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	DB_TXN_STAT **	statp
+FUNCPROT	void *(*)(size_t)
+FUNCARG	void *(*func0) __P((size_t))
+END
+
+#
+# Database functions
+#
+BEGIN	db_bt_compare	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	int (*)(DB *, const DBT *, const DBT *)
+FUNCARG	int (*func0) __P((DB *, const DBT *, const DBT *))
+END
+BEGIN	db_bt_maxkey	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	maxkey
+END
+BEGIN	db_bt_minkey	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	minkey
+END
+BEGIN	db_bt_prefix	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	size_t(*)(DB *, const DBT *, const DBT *)
+FUNCARG	size_t (*func0) __P((DB *, const DBT *, const DBT *))
+END
+BEGIN	db_set_append_recno	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	int (*)(DB *, DBT *, db_recno_t)
+FUNCARG	int (*func0) __P((DB *, DBT *, db_recno_t))
+END
+BEGIN	db_cachesize	1	NOFUNC
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	gbytes
+ARG	INT	u_int32_t	bytes
+ARG	INT	int		ncache
+END
+BEGIN	db_close	1	RETCODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	flags
+END
+BEGIN	db_create	1	NOCLNTCODE
+ARG	INT	u_int32_t	flags
+ARG	ID	DB_ENV *	envp
+RET	ID	long		dbp
+END
+BEGIN	db_del	1		CODE
+ARG	ID	DB *		dbp
+ARG	ID	DB_TXN *	txnp
+ARG	DBT	DBT *		key
+ARG	INT	u_int32_t	flags
+END
+BEGIN	db_extentsize	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	extentsize
+END
+BEGIN	db_fd		1	NOFUNC
+ARG	ID	DB *		dbp
+ARG	IGNORE	int *		fdp
+END
+BEGIN	db_feedback	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	void (*)(DB *, int, int)
+FUNCARG	void (*func0) __P((DB *, int, int))
+END
+BEGIN	db_flags	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	flags
+END
+BEGIN	db_get	1		RETCODE
+ARG	ID	DB *		dbp
+ARG	ID	DB_TXN *	txnp
+ARG	DBT	DBT *		key
+ARG	DBT	DBT *		data
+ARG	INT	u_int32_t	flags
+RET	DBT	DBT *		key
+RET	DBT	DBT *		data
+END
+BEGIN	db_h_ffactor	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	ffactor
+END
+BEGIN	db_h_hash	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	u_int32_t(*)(DB *, const void *, u_int32_t)
+FUNCARG	u_int32_t (*func0) __P((DB *, const void *, u_int32_t))
+END
+BEGIN	db_h_nelem	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	nelem
+END
+BEGIN	db_key_range	1	RETCODE
+ARG	ID	DB *		dbp
+ARG	ID	DB_TXN *	txnp
+ARG	DBT	DBT *		key
+ARG	IGNORE	DB_KEY_RANGE *	range
+ARG	INT	u_int32_t	flags
+RET	DBL	double		less
+RET	DBL	double		equal
+RET	DBL	double		greater
+END
+BEGIN	db_lorder	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	int		lorder
+END
+BEGIN	db_malloc	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	void *(*)(size_t)
+FUNCARG	void *(*func0) __P((size_t))
+END
+# XXX
+# The line:
+# RET	INT	u_int32_t	dbflags
+# should go away when a get_flags method exists.  It is
+# needed now because Tcl looks at dbp->flags.
+#
+BEGIN	db_open	1		RETCODE
+ARG	ID	DB *		dbp
+ARG	STRING	const char *	name
+ARG	STRING	const char *	subdb
+ARG	INT	DBTYPE		type
+ARG	INT	u_int32_t	flags
+ARG	INT	int		mode
+RET	INT	DBTYPE		type
+RET	INT	u_int32_t	dbflags
+END
+BEGIN	db_pagesize	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	pagesize
+END
+BEGIN	db_panic	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	void (*)(DB_ENV *, int)
+FUNCARG	void (*func0) __P((DB_ENV *, int))
+END
+BEGIN	db_put	1		RETCODE
+ARG	ID	DB *		dbp
+ARG	ID	DB_TXN *	txnp
+ARG	DBT	DBT *		key
+ARG	DBT	DBT *		data
+ARG	INT	u_int32_t	flags
+RET	DBT	DBT *		key
+END
+BEGIN	db_realloc	1	NOFUNC
+ARG	ID	DB *		dbp
+FUNCPROT	void *(*)(void *, size_t)
+FUNCARG	void *(*func0) __P((void *, size_t))
+END
+BEGIN	db_re_delim	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	int		delim
+END
+BEGIN	db_re_len	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	len
+END
+BEGIN	db_re_pad	1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	int		pad
+END
+BEGIN	db_re_source	1	NOFUNC
+ARG	ID	DB *		dbp
+ARG	STRING	const char *	re_source
+END
+BEGIN	db_remove	1	RETCODE
+ARG	ID	DB *		dbp
+ARG	STRING	const char *	name
+ARG	STRING	const char *	subdb
+ARG	INT	u_int32_t	flags
+END
+BEGIN	db_rename	1	RETCODE
+ARG	ID	DB *		dbp
+ARG	STRING	const char *	name
+ARG	STRING	const char *	subdb
+ARG	STRING	const char *	newname
+ARG	INT	u_int32_t	flags
+END
+BEGIN	db_stat	1		RETCODE
+ARG	ID	DB *		dbp
+ARG	IGNORE	void *		sp
+FUNCPROT	void *(*)(size_t)
+FUNCARG	void *(*func0) __P((size_t))
+ARG	INT	u_int32_t	flags
+RET	LIST	u_int32_t *	stats	INT
+END
+BEGIN	db_swapped	1	CODE
+ARG	ID	DB *		dbp
+END
+BEGIN	db_sync		1	CODE
+ARG	ID	DB *		dbp
+ARG	INT	u_int32_t	flags
+END
+BEGIN	db_upgrade	1	NOFUNC
+ARG	ID	DB *		dbp
+ARG	STRING	const char *	fname
+ARG	INT	u_int32_t	flags
+END
+#
+# Cursor functions
+#
+BEGIN	db_cursor	1	RETCODE
+ARG	ID	DB *		dbp
+ARG	ID	DB_TXN *	txnp
+ARG	IGNORE	DBC **		dbcpp
+ARG	INT	u_int32_t	flags
+RET	ID	long		dbcid
+END
+BEGIN	db_join		1	RETCODE
+ARG	ID	DB *		dbp
+ARG	LIST	DBC **		curs	ID
+ARG	IGNORE	DBC **		dbcp
+ARG	INT	u_int32_t	flags
+RET	ID	long		dbcid
+END
+BEGIN	dbc_close	1	RETCODE
+ARG	ID	DBC *		dbc
+END
+BEGIN	dbc_count	1	RETCODE
+ARG	ID	DBC *		dbc
+ARG	IGNORE	db_recno_t *	countp
+ARG	INT	u_int32_t	flags
+RET	INT	db_recno_t	dupcount
+END
+BEGIN	dbc_del		1	CODE
+ARG	ID	DBC *		dbc
+ARG	INT	u_int32_t	flags
+END
+BEGIN	dbc_dup		1	RETCODE
+ARG	ID	DBC *		dbc
+ARG	IGNORE	DBC **		dbcp
+ARG	INT	u_int32_t	flags
+RET	ID	long		dbcid
+END
+BEGIN	dbc_get		1	RETCODE
+ARG	ID	DBC *		dbc
+ARG	DBT	DBT *		key
+ARG	DBT	DBT *		data
+ARG	INT	u_int32_t	flags
+RET	DBT	DBT *		key
+RET	DBT	DBT *		data
+END
+BEGIN	dbc_put		1	RETCODE
+ARG	ID	DBC *		dbc
+ARG	DBT	DBT *		key
+ARG	DBT	DBT *		data
+ARG	INT	u_int32_t	flags
+RET	DBT	DBT *		key
+END
+
+#
+# Unsupported environment subsystems
+#
+#
+# Locking subsystem
+#
+BEGIN	lock_detect	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	flags
+ARG	INT	u_int32_t	atype
+ARG	IGNORE	int *		aborted
+END
+BEGIN	lock_get	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	locker
+ARG	INT	u_int32_t	flags
+ARG	CONST	const DBT *	obj
+ARG	INT	db_lockmode_t	mode
+ARG	IGNORE	DB_LOCK *	lock
+END
+BEGIN	lock_id		1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t *	idp
+END
+BEGIN	lock_put	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	ID	DB_LOCK *	lock
+END
+BEGIN	lock_stat	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	DB_LOCK_STAT **	statp
+FUNCPROT	void *(*)(size_t)
+FUNCARG	void *(*func0) __P((size_t))
+END
+BEGIN	lock_vec	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	locker
+ARG	INT	u_int32_t	flags
+ARG	IGNORE	DB_LOCKREQ *	list
+ARG	INT	int		nlist
+ARG	IGNORE	DB_LOCKREQ **	elistp
+END
+#
+# Logging subsystem
+#
+BEGIN	log_archive	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	char ***	listp
+ARG	INT	u_int32_t	flags
+FUNCPROT	void *(*)(size_t)
+FUNCARG	void *(*func0) __P((size_t))
+END
+#
+# Don't do log_compare.  It doesn't have an env we can get at,
+# and it doesn't manipulate DB internal information.
+#
+BEGIN	log_file	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	CONST	const DB_LSN *	lsn
+ARG	STRING	char *		namep
+ARG	INT	size_t		len
+END
+BEGIN	log_flush	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	CONST	const DB_LSN *	lsn
+END
+BEGIN	log_get		1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	DB_LSN *	lsn
+ARG	DBT	DBT *		data
+ARG	INT	u_int32_t	flags
+END
+BEGIN	log_put		1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	DB_LSN *	lsn
+ARG	CONST	const DBT *	data
+ARG	INT	u_int32_t	flags
+END
+BEGIN	log_register	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	ID	DB *		dbp
+ARG	CONST	const char *	namep
+END
+BEGIN	log_stat	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	DB_LOG_STAT **	statp
+FUNCPROT	void *(*)(size_t)
+FUNCARG	void *(*func0) __P((size_t))
+END
+BEGIN	log_unregister	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	ID	DB *		dbp
+END
+#
+# Mpool Subsystem
+#
+BEGIN	memp_fclose	1	NOFUNC
+ARG	ID	DB_MPOOLFILE *	mpf
+END
+BEGIN	memp_fget	1	NOFUNC
+ARG	ID	DB_MPOOLFILE *	mpf
+ARG	IGNORE	db_pgno_t *	pgno
+ARG	INT	u_int32_t	flags
+ARG	IGNORE	void **		pagep
+END
+BEGIN	memp_fopen	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	CONST	const char *	file
+ARG	INT	u_int32_t	flags
+ARG	INT	int		mode
+ARG	INT	size_t		pagesize
+ARG	IGNORE	DB_MPOOL_FINFO *	finfop
+ARG	IGNORE	DB_MPOOLFILE **	mpf
+END
+BEGIN	memp_fput	1	NOFUNC
+ARG	ID	DB_MPOOLFILE *	mpf
+ARG	IGNORE	void *		pgaddr
+ARG	INT	u_int32_t	flags
+END
+BEGIN	memp_fset	1	NOFUNC
+ARG	ID	DB_MPOOLFILE *	mpf
+ARG	IGNORE	void *		pgaddr
+ARG	INT	u_int32_t	flags
+END
+BEGIN	memp_fsync	1	NOFUNC
+ARG	ID	DB_MPOOLFILE *	mpf
+END
+BEGIN	memp_register	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	int		ftype
+FUNCPROT	int (*)(DB_ENV *, db_pgno_t, void *, DBT *)
+FUNCARG	int (*func0) __P((DB_ENV *, db_pgno_t, void *, DBT *))
+FUNCPROT	int (*)(DB_ENV *, db_pgno_t, void *, DBT *)
+FUNCARG	int (*func1) __P((DB_ENV *, db_pgno_t, void *, DBT *))
+END
+BEGIN	memp_stat	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	DB_MPOOL_STAT **	gstatp
+ARG	IGNORE	DB_MPOOL_FSTAT ***	fstatp
+FUNCPROT	void *(*)(size_t)
+FUNCARG	void *(*func0) __P((size_t))
+END
+BEGIN	memp_sync	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	DB_LSN *	lsn
+END
+BEGIN	memp_trickle	1	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	int		pct
+ARG	IGNORE	int *		nwrotep
+END

@@ -1,0 +1,117 @@
+<!--$Id: app.so,v 10.4 2000/07/25 16:31:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Application structure</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/term.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/env_open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Application structure</h1>
+<p>When building transactionally protected applications, there are some
+special issues that must be considered.  The most important one is that,
+if any thread of control exits for any reason while holding Berkeley DB
+resources, recovery must be performed to:
+<ul type=disc>
+<li>recover the Berkeley DB resources,
+<li>release any locks or mutexes that may have been held to avoid starvation
+as the remaining threads of control convoy behind the failed thread's
+locks, and
+<li>clean up any partially completed operations that may have left a
+database in an inconsistent or corrupted state.
+</ul>
+<p>Complicating this problem is the fact that the Berkeley DB library itself
+cannot determine if recovery is required, the application itself
+<b>must</b> make that decision.  A further complication is that
+recovery must be single-threaded, that is, one thread of control or
+process must perform recovery before any other thread of control or
+processes attempts to create or join the Berkeley DB environment.
+<p>There are two approaches to handling this problem:
+<p><dl compact>
+<p><dt>The hard way:<dd>An application can track its own state carefully enough that it knows
+when recovery needs to be performed.  Specifically, the rule to use is
+that recovery must be performed before using a Berkeley DB environment any
+time the threads of control previously using the Berkeley DB environment did
+not shut the environment down cleanly before exiting the environment
+for any reason (including application or system failure).
+<p>Requirements for shutting down the environment cleanly differ depending
+on the type of environment created.  If the environment is public and
+persistent (i.e., the <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flag was not specified to the
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> function), recovery must be performed if any transaction was
+not committed or aborted, or <a href="../../api_c/env_close.html">DBENV-&gt;close</a> function was not called for
+any open DB_ENV handle.
+<p>If the environment is private and temporary (i.e., the <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a>
+flag was specified to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function), recovery must be performed
+if any transaction was not committed or aborted, or <a href="../../api_c/env_close.html">DBENV-&gt;close</a> function
+was not called for any open DB_ENV handle.  In addition, at least
+one transaction checkpoint must be performed after all existing
+transactions have been committed or aborted.
+<p><dt>The easy way:<dd>It greatly simplifies matters that recovery may be performed regardless
+of whether recovery strictly needs to be performed, that is, it is not
+an error to run recovery on a database where no recovery is necessary.
+Because of this fact, it is almost invariably simpler to ignore the
+above rules about shutting an application down cleanly, and simply run
+recovery each time a thread of control accessing a database environment
+fails for any reason, as well as before accessing any database
+environment after system reboot.
+</dl>
+<p>There are two common ways to build transactionally protected Berkeley DB
+applications.  The most common way is as a single, usually
+multi-threaded, process.  This architecture is simplest because it
+requires no monitoring of other threads of control.  When the
+application starts, it opens and potentially creates the environment,
+runs recovery (whether it was needed or not), and then opens its
+databases.  From then on, the application can create new threads of
+control as it chooses.  All threads of control share the open Berkeley DB
+DB_ENV and DB handles.  In this model, databases are
+rarely opened or closed when more than a single thread of control is
+running, that is, they are opened when only a single thread is running,
+and closed after all threads but one have exited.  The last thread of
+control to exit closes the databases and the environment.
+<p>An alternative way to build Berkeley DB applications is as a set of
+cooperating processes, which may or may not be multi-threaded.  This
+architecture is more complicated.
+<p>First, this architecture requires that the order in which threads of
+control are created and subsequently access the Berkeley DB environment be
+controlled, because recovery must be single-threaded.  The first thread
+of control to access the environment must run recovery, and no other
+thread should attempt to access the environment until recovery is
+complete.  (Note that this ordering requirement does not apply to
+environment creation without recovery.  If multiple threads attempt to
+create a Berkeley DB environment, only one will perform the creation and the
+others will join the already existing environment.)
+<p>Second, this architecture requires that threads of control be monitored.
+If any thread of control that owns Berkeley DB resources exits, without first
+cleanly discarding those resources, recovery is usually necessary.
+Before running recovery, all threads using the Berkeley DB environment must
+relinquish all of their Berkeley DB resources (it does not matter if they do
+so gracefully or because they are forced to exit).  Then recovery can
+be run and the threads of control continued or re-started.
+<p>We have found that the safest way to structure groups of cooperating
+processes is to first create a single process (often a shell script)
+that opens/creates the Berkeley DB environment and runs recovery, and which
+then creates the processes or threads that will actually perform work.
+The initial thread has no further responsibilities other than to monitor
+the threads of control it has created, to ensure that none of them
+unexpectedly exits.  If one exits, the initial process then forces all
+of the threads of control using the Berkeley DB environment to exit, runs
+recovery, and restarts the working threads of control.
+<p>If it is not practical to have a single parent for the processes sharing
+a Berkeley DB environment, each process sharing the environment should log
+their connection to and exit from the environment in some fashion that
+permits a monitoring process to detect if a thread of control may have
+potentially acquired Berkeley DB resources and never released them.
+<p>Obviously, it is important that the monitoring process in either case
+be as simple and well-tested as possible as there is no recourse should
+it fail.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/term.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/env_open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

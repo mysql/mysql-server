@@ -1,0 +1,85 @@
+<!--$Id: db_archive.so,v 10.19 2000/04/03 20:10:39 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_archive</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_archive</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_archive [<b>-alsVv</b>] [<b>-h home</b>]</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>    
+<p>The db_archive utility writes the pathnames of log files that are
+no longer in use (e.g., no longer involved in active transactions), to
+the standard output, one pathname per line.  These log files should be
+written to backup media to provide for recovery in the case of
+catastrophic failure (which also requires a snapshot of the database
+files), but they may then be deleted from the system to reclaim disk
+space.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-a</b><dd>Write all pathnames as absolute pathnames,
+instead of relative to the database home directories.
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment; by
+default, the current working directory is used.
+<p><dt><b>-l</b><dd>Write out the pathnames of all of the database log files,
+whether or not they are involved in active transactions.
+<p><dt><b>-s</b><dd>Write the pathnames of all of the database files that need to be archived
+in order to recover the database from catastrophic failure.
+If any of the database files have not been accessed during the lifetime of
+the current log files, db_archive will
+not include them in this
+output.
+<p>It is possible that some of the files referenced in the log have since
+been deleted from the system.
+In this case, db_archive will ignore them.
+When <a href="../utility/db_recover.html">db_recover</a> is run, any files referenced in the log that
+are not present during recovery are assumed to have been deleted and will
+not be recovered.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+<p><dt><b>-v</b><dd>Run in verbose mode, listing the checkpoints in the log files as they
+are reviewed.
+</dl>
+<p>The db_archive utility uses a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_archive should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_archive to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The db_archive utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+db_archive,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../utility/db_dump.html">db_dump</a>,
+<a href="../utility/db_load.html">db_load</a>,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

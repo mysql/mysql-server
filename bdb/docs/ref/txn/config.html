@@ -1,0 +1,37 @@
+<!--$Id: config.so,v 10.14 2000/10/03 17:17:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Configuring transactions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/txn/limits.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/other.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Configuring transactions</h1>
+<p>There is only a single parameter used in configuring transactions, the
+<a href="../../api_c/env_open.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a> flag.  Setting the <a href="../../api_c/env_open.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a> flag to
+<a href="../../api_c/env_set_flags.html">DBENV-&gt;set_flags</a> when opening a transaction region changes the
+behavior of transactions not to synchronously flush the log during
+transaction commit.
+<p>This change will significantly increase application transactional
+throughput.  However, it means that while transactions will continue to
+exhibit the ACI (atomicity, consistency and isolation) properties, they
+will not have D (durability).  Database integrity will be maintained but
+it is possible that some number of the most recently committed
+transactions may be undone during recovery instead of being redone.
+<p>The application may also limit the number of simultaneous outstanding
+transactions supported by the environment by calling the
+<a href="../../api_c/env_set_tx_max.html">DBENV-&gt;set_tx_max</a> function.  When this number is met, additional calls to
+<a href="../../api_c/txn_begin.html">txn_begin</a> will fail until some active transactions complete.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/txn/limits.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/other.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

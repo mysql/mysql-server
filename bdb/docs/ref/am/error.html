@@ -1,0 +1,61 @@
+<!--$Id: error.so,v 10.14 2000/12/18 21:05:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Error support</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/verify.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/arch/bigpic.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Error support</h1>
+<p>Berkeley DB offers programmatic support for displaying error return values.
+<p>The <a href="../../api_c/env_strerror.html">db_strerror</a> interface returns a pointer to the error
+message corresponding to any Berkeley DB error return, similar to the ANSI C
+strerror interface, but is able to handle both system error returns and
+Berkeley DB specific return values.
+<p>For example:
+<p><blockquote><pre>int ret;
+if ((ret = dbp-&gt;put(dbp, NULL, &key, &data, 0)) != 0) {
+	fprintf(stderr, "put failed: %s\n", db_strerror(ret));
+	return (1);
+}
+</pre></blockquote>
+<p>There are also two additional error interfaces, <a href="../../api_c/db_err.html">DB-&gt;err</a> and
+<a href="../../api_c/db_err.html">DB-&gt;errx</a>.  These interfaces work like the ANSI C X3.159-1989 (ANSI C) printf
+interface, taking a printf-style format string and argument list, and
+writing a message constructed from the format string and arguments.
+<p>The <a href="../../api_c/db_err.html">DB-&gt;err</a> function appends the standard error string to the constructed
+message, the <a href="../../api_c/db_err.html">DB-&gt;errx</a> function does not.  These interfaces provide simpler
+ways of displaying Berkeley DB error messages.  For example, if your application
+tracks session IDs in a variable called session_id, it can include that
+information in its error messages:
+<p>Error messages can additionally be configured to always include a prefix
+(e.g., the program name) using the <a href="../../api_c/db_set_errpfx.html">DB-&gt;set_errpfx</a> interface.
+<p><blockquote><pre>#define DATABASE "access.db"
+int ret;
+dbp-&gt;errpfx(dbp, argv0);
+if ((ret =
+	dbp-&gt;open(dbp, DATABASE, DB_BTREE, DB_CREATE, 0664)) != 0) {
+	dbp-&gt;err(dbp, ret, "%s", DATABASE);
+	dbp-&gt;errx(dbp,
+		"contact your system administrator: session ID was %d",
+    		session_id);
+	return (1);
+}
+</pre></blockquote>
+<p>For example, if the program was called my_app, and the open call returned
+an EACCESS system error, the error messages shown would appear as follows:
+<p><blockquote><pre>my_app: access.db: Permission denied.
+my_app: contact your system administrator: session ID was 14</pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/verify.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/arch/bigpic.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

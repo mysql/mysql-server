@@ -1,0 +1,45 @@
+<!--$Id: intro.so,v 10.22 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: What are the available access methods?</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/simple_tut/close.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/select.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>What are the available access methods?</h1>
+<p>Berkeley DB currently offers four access methods: Btree, Hash, Queue and Recno.
+<h3>Btree</h3>
+<p>The Btree access method is an implementation of a sorted, balanced tree
+structure.  Searches, insertions, and deletions in the tree all take O(log
+base_b N) time, where base_b is the average number of keys per page, and
+N is the total number of keys stored.  Often, inserting ordered data into
+Btree implementations results in pages that are only half-full.  Berkeley DB
+makes ordered (or inverse ordered) insertion the best case, resulting in
+nearly full-page space utilization.
+<h3>Hash</h3>
+<p>The Hash access method data structure is an implementation of Extended
+Linear Hashing, as described in "Linear Hashing: A New Tool for File and
+Table Addressing", Witold Litwin, <i>Proceedings of the 6th
+International Conference on Very Large Databases (VLDB)</i>, 1980.
+<h3>Queue</h3>
+<p>The Queue access method stores fixed-length records with logical record
+numbers as keys.  It is designed for fast inserts at the tail and has a
+special cursor consume operation that deletes and returns a record from
+the head of the queue.  The Queue access method uses record level locking.
+<h3>Recno</h3>
+<p>The Recno access method stores both fixed and variable-length records with
+logical record numbers as keys, optionally backed by a flat text (byte
+stream) file.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/simple_tut/close.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/select.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

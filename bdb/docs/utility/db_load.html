@@ -1,0 +1,151 @@
+<!--$Id: db_load.so,v 10.29 2000/12/04 18:05:45 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_load</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_load</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_load [<b>-nTV</b>] [<b>-c name=value</b>] [<b>-f file</b>]
+    [<b>-h home</b>] [<b>-t btree | hash | queue | recno</b>] file</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>    
+<p>The db_load utility reads from the standard input and loads it
+into the database <b>file</b>.  The database <b>file</b> is created if
+it does not already exist.
+<p>The input to db_load must be in the output format specified by the
+<a href="../utility/db_dump.html">db_dump</a> utility, utilities, or as specified for the <b>-T</b>
+below.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-c</b><dd>Specify configuration options ignoring any value they may have based on
+the input.  The command-line format is <b>name=value</b>.  See
+<a href="db_load.html#Supported Keywords">Supported Keywords</a> for a
+list of supported words for the <b>-c</b> option.
+<p><dt><b>-f</b><dd>Read from the specified <b>input</b> file instead of from the standard
+input.
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment.
+<p>If a home directory is specified, the database environment is opened using
+the <a href="../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a>, <a href="../api_c/env_open.html#DB_INIT_LOG">DB_INIT_LOG</a>, <a href="../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a>,
+<a href="../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a> and <a href="../api_c/env_open.html#DB_USE_ENVIRON">DB_USE_ENVIRON</a> flags to
+<a href="../api_c/env_open.html">DBENV-&gt;open</a>.  (This means that db_load can be used to load
+data into databases while they are in use by other processes.) If the
+<a href="../api_c/env_open.html">DBENV-&gt;open</a> call fails, or if no home directory is specified, the
+database is still updated, but the environment is ignored, e.g., no
+locking is done.
+<p><dt><b>-n</b><dd>Do not overwrite existing keys in the database when loading into an
+already existing database.  If a key/data pair cannot be loaded into the
+database for this reason, a warning message is displayed on the standard
+error output and the key/data pair are skipped.
+<p><dt><b>-T</b><dd>The <b>-T</b> option allows non-Berkeley DB applications to easily load text
+files into databases.
+<p>If the database to be created is of type Btree or Hash, or the keyword
+<b>keys</b> is specified as set, the input must be paired lines of text,
+where the first line of the pair is the key item, and the second line of
+the pair is its corresponding data item.  If the database to be created
+is of type Queue or Recno and the keywork <b>keys</b> is not set, the
+input must be lines of text, where each line is a new data item for the
+database.
+<p>A simple escape mechanism, where newline and backslash (\)
+characters are special, is applied to the text input.  Newline characters
+are interpreted as record separators.  Backslash characters in the text
+will be interpreted in one of two ways:  if the backslash character
+precedes another backslash character, the pair will be interpreted as a
+literal backslash.  If the backslash character precedes any other
+character, the two characters following the backslash will be interpreted
+as hexadecimal specification of a single character, e.g., \0a
+is a newline character in the ASCII character set.
+<p>For this reason, any backslash or newline characters that naturally
+occur in the text input must be escaped to avoid misinterpretation by
+db_load.
+<p>If the <b>-T</b> option is specified, the underlying access method type
+must be specified using the <b>-t</b> option.
+<p><dt><b>-t</b><dd>Specify the underlying access method.  If no <b>-t</b> option is
+specified, the database will be loaded into a database of the same type
+as was dumped, e.g., a Hash database will be created if a Hash database
+was dumped.
+<p>Btree and Hash databases may be converted from one to the other.  Queue
+and Recno databases may be converted from one to the other.  If the
+<b>-k</b> option was specified on the call to <a href="../utility/db_dump.html">db_dump</a> then Queue
+and Recno databases may be converted to Btree or Hash, with the key being
+the integer record number.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+</dl>
+<p>The db_load utility may be used with a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_load should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_load to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The db_load utility exits 0 on success, 1 if one or more key/data
+pairs were not loaded into the database because the key already existed,
+and &gt;1 if an error occurs.
+<h3>Examples</h3>
+<p>The db_load utility can be used to load text files into databases.
+For example, the following command loads the standard UNIX
+<i>/etc/passwd</i> file into a database, with the login name as the
+key item and the entire password entry as the data item:
+<p><blockquote><pre>awk -F: '{print $1; print $0}' &lt; /etc/passwd |
+    sed 's/\\/\\\\/g' | db_load -T -t hash passwd.db</pre></blockquote>
+<p>Note that backslash characters naturally occurring in the text are escaped
+to avoid interpretation as escape characters by db_load.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h3>Supported Keywords</h3>
+The following keywords are supported for the <b>-c</b> command-line
+option to the db_load utility.  See <a href="../api_c/db_open.html">DB-&gt;open</a> for further
+discussion of these keywords and what values should be specified.
+<p>The parenthetical listing specifies how the value part of the
+<b>name=value</b> pair is interpreted.  Items listed as (boolean) expect
+value to be <b>1</b> (set) or <b>0</b> (unset).  Items listed as
+(number) convert value to a number.  Items listed as (string) use the
+string value without modification.
+<p><dl compact>
+<dt>bt_minkey (number)<dd>The minimum number of keys per page.
+<dt>database (string)<dd>The database to load.
+<dt>db_lorder (number)<dd>The byte order for integers in the stored database metadata.
+<dt>db_pagesize (number)<dd>The size of pages used for nodes in the tree, in bytes.
+<dt>duplicates (boolean)<dd>The value of the <a href="../api_c/db_set_flags.html#DB_DUP">DB_DUP</a> flag.
+<dt>dupsort (boolean)<dd>The value of the <a href="../api_c/db_set_flags.html#DB_DUPSORT">DB_DUPSORT</a> flag.
+<dt>h_ffactor (number)<dd>The density within the Hash database.
+<dt>h_nelem (number)<dd>The size of the Hash database.
+<dt>keys (boolean)<dd>Specify if keys are present for Queue or Recno databases.
+<dt>re_len (number)<dd>Specify fixed-length records of the specified length.
+<dt>re_pad (string)<dd>Specify the fixed-length record pad character.
+<dt>recnum (boolean)<dd>The value of the <a href="../api_c/db_set_flags.html#DB_RECNUM">DB_RECNUM</a> flag.
+<dt>renumber (boolean)<dd>The value of the <a href="../api_c/db_set_flags.html#DB_RENUMBER">DB_RENUMBER</a> flag.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../utility/db_dump.html">db_dump</a>,
+db_load,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

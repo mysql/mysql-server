@@ -1,0 +1,45 @@
+<!--$Id: utility.so,v 10.15 2000/12/04 20:49:18 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: The db_dump and db_load utilities</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Dumping and Reloading</dl></h3></td>
+<td width="1%"><a href="../../ref/sendmail/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/dumpload/format.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>The db_dump and db_load utilities</h1>
+<p>There are three utilities used for dumping and loading Berkeley DB
+databases: <a href="../../utility/db_dump.html">db_dump</a>, <a href="../../utility/db_dump.html">db_dump185</a> and <a href="../../utility/db_load.html">db_load</a>.
+<p>The <a href="../../utility/db_dump.html">db_dump</a> and <a href="../../utility/db_dump.html">db_dump185</a> utilities dump Berkeley DB
+databases into a flat-text representation of the data that can
+be read by <a href="../../utility/db_load.html">db_load</a>.  The only difference between them
+is that <a href="../../utility/db_dump.html">db_dump</a> reads Berkeley DB version 2 and greater
+database formats, while <a href="../../utility/db_dump.html">db_dump185</a> reads Berkeley DB version
+1.85 and 1.86 database formats.
+<p>The <a href="../../utility/db_load.html">db_load</a> utility reads either the output format used
+by the dump utilities or, optionally, a flat-text representation
+created using other tools, and stores it into a Berkeley DB database.
+<p>Dumping and reloading Hash databases that use user-defined hash functions
+will result in new databases that use the default hash function. While
+using the default hash function may not be optimal for the new database,
+it will continue to work correctly.
+<p>Dumping and reloading Btree databases that use user-defined prefix or
+comparison functions will result in new databases that use the default
+prefix and comparison functions. In which case it is quite likely that
+applications will be unable to retrieve records, and possible that the
+load process itself will fail.
+<p>The only available workaround for either Hash or Btree databases is to
+modify the sources for the <a href="../../utility/db_load.html">db_load</a> utility to load the database
+using the correct hash, prefix and comparison functions.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/sendmail/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/dumpload/format.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

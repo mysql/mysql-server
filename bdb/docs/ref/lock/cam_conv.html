@@ -1,0 +1,53 @@
+<!--$Id: cam_conv.so,v 10.10 2000/03/18 21:43:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Berkeley DB Concurrent Data Store locking conventions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/am_conv.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/dead.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Berkeley DB Concurrent Data Store locking conventions</h1>
+<p>The Berkeley DB Concurrent Data Store product has a different set of conventions for locking.  It
+provides multiple reader/single writer semantics, but not per-page locking
+or transaction recoverability.  As such, it does its locking entirely at
+the interface to the access methods.
+<p>The object it locks is the file, identified by its unique file number.
+The locking matrix is not one of the two standard lock modes, instead,
+we use a four-lock set, consisting of:
+<p><dl compact>
+<p><dt>DB_LOCK_NG<dd>not granted (always 0)
+<dt>DB_LOCK_READ<dd>read (shared)
+<dt>DB_LOCK_WRITE<dd>write (exclusive)
+<dt>DB_LOCK_IWRITE<dd>intention-to-write (shared with NG and READ, but conflicts with WRITE and IWRITE)
+</dl>
+<p>The IWRITE lock is used for cursors that will be used for updating (IWRITE
+locks are implicitly obtained for write operations through the Berkeley DB
+handles, e.g., <a href="../../api_c/db_put.html">DB-&gt;put</a>, <a href="../../api_c/db_del.html">DB-&gt;del</a>).  While the cursor is
+reading, the IWRITE lock is held, but as soon as the cursor is about to
+modify the database, the IWRITE is upgraded to a WRITE lock.  This upgrade
+blocks until all readers have exited the database.  Because only one
+IWRITE lock is allowed at any one time, no two cursors can ever try to
+upgrade to a WRITE lock at the same time, and therefore deadlocks are
+prevented, which is essential as Berkeley DB Concurrent Data Store does not include deadlock
+detection and recovery.
+<p>Applications that need to lock compatibly with Berkeley DB Concurrent Data Store must obey the
+following rules:
+<p><ol>
+<p><li>Use only lock modes DB_LOCK_NG, DB_LOCK_READ, DB_LOCK_WRITE,
+DB_LOCK_IWRITE.
+<p><li>Never attempt to acquire a WRITE lock on an object that is
+already locked with a READ lock.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/am_conv.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/dead.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

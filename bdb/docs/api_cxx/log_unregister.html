@@ -1,0 +1,63 @@
+<!--$Id: log_unregister.so,v 10.21 2000/05/03 22:39:10 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::log_unregister</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::log_unregister</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbEnv::log_unregister(int32_t DB *dbp);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::log_unregister method function unregisters the file represented by
+the <b>dbp</b> parameter from the Berkeley DB environment's log manager.
+<p>The DbEnv::log_unregister method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::log_unregister method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<p>The DbEnv::log_unregister method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::log_unregister method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_lg_bsize.html">DbEnv::set_lg_bsize</a>,
+<a href="../api_cxx/env_set_lg_max.html">DbEnv::set_lg_max</a>,
+<a href="../api_cxx/log_archive.html">DbEnv::log_archive</a>,
+<a href="../api_cxx/log_compare.html">DbEnv::log_compare</a>,
+<a href="../api_cxx/log_file.html">DbEnv::log_file</a>,
+<a href="../api_cxx/log_flush.html">DbEnv::log_flush</a>,
+<a href="../api_cxx/log_get.html">DbEnv::log_get</a>,
+<a href="../api_cxx/log_put.html">DbEnv::log_put</a>,
+<a href="../api_cxx/log_register.html">DbEnv::log_register</a>,
+<a href="../api_cxx/log_stat.html">DbEnv::log_stat</a>
+and
+<a href="../api_cxx/log_unregister.html">DbEnv::log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!--$Id: env_set_paniccall.so,v 10.14 2000/07/09 19:12:56 bostic Exp $-->
+<!--$Id: m4.errset,v 10.8 2000/02/19 20:57:57 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_paniccall</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_paniccall</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_paniccall(DB_ENV *dbenv,
+    void (*paniccall)(DB_ENV *, int errval));
+</pre></h3>
+<h1>Description</h1>
+<p>Errors can occur in the Berkeley DB library where the only solution is to shut
+down the application and run recovery.  (For example, if Berkeley DB is unable
+to write log records to disk because there is insufficient disk space.)
+In these cases, the value <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> is returned by Berkeley DB.
+<p>In these cases, it is also often simpler to shut down the application when
+such errors occur rather than attempting to gracefully return up the stack.
+The DBENV-&gt;set_paniccall function is used to specify a function to be called when
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> is about to be returned from a Berkeley DB method.  When
+called, the <b>dbenv</b> argument will be a reference to the current
+environment, and the <b>errval</b> argument is the error value that would
+have been returned to the calling function.
+<p>The DBENV-&gt;set_paniccall interface may be used to configure Berkeley DB at any time
+during the life of the application.
+<p>The DBENV-&gt;set_paniccall function returns a non-zero error value on failure and 0 on success.
+<h1>See Also</h1>
+<a href="../api_c/env_close.html">DBENV-&gt;close</a>,
+<a href="../api_c/env_create.html">db_env_create</a>,
+<a href="../api_c/env_open.html">DBENV-&gt;open</a>,
+<a href="../api_c/env_remove.html">DBENV-&gt;remove</a>,
+<a href="../api_c/db_err.html">DBENV-&gt;err</a>,
+<a href="../api_c/env_strerror.html">db_strerror</a>,
+<a href="../api_c/env_version.html">db_version</a>,
+<a href="../api_c/env_set_cachesize.html">DBENV-&gt;set_cachesize</a>,
+<a href="../api_c/env_set_errcall.html">DBENV-&gt;set_errcall</a>,
+<a href="../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a>,
+<a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a>,
+<a href="../api_c/env_set_flags.html">DBENV-&gt;set_flags</a>,
+<a href="../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a>,
+<a href="../api_c/env_set_paniccall.html">DBENV-&gt;set_paniccall</a>,
+and
+<a href="../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,37 @@
+#!/bin/sh -
+#	$Id: s_config,v 1.3 2000/07/13 18:38:46 bostic Exp $
+#
+# Build the autoconfiguration files.
+
+msgm4="dnl DO NOT EDIT: automatically built by dist/s_config."
+
+. ./RELEASE
+
+echo "Building aclocal.m4"
+rm -f aclocal.m4
+(echo "$msgm4" &&
+ echo "AC_DEFUN(AM_VERSION_SET, [" &&
+ echo "AC_SUBST(DB_VERSION_MAJOR)" &&
+ echo "DB_VERSION_MAJOR=$DB_VERSION_MAJOR" &&
+ echo "AC_SUBST(DB_VERSION_MINOR)" &&
+ echo "DB_VERSION_MINOR=$DB_VERSION_MINOR" &&
+ echo "AC_SUBST(DB_VERSION_PATCH)" &&
+ echo "DB_VERSION_PATCH=$DB_VERSION_PATCH" &&
+ echo "AC_SUBST(DB_VERSION_STRING)" &&
+ echo "DB_VERSION_STRING=\"\\\"$DB_VERSION_STRING\\\"\"" &&
+ echo "])dnl" &&
+ cat aclocal/*.m4) > aclocal.m4
+chmod 444 aclocal.m4
+
+rm -f config.hin
+echo "Building config.hin (autoheader)"
+(autoheader configure.in > config.hin) 2>&1 | \
+    sed '/warning: AC_TRY_RUN called without default/d'
+chmod 444 config.hin
+
+rm -f configure
+echo "Building configure (autoconf)"
+autoconf 2>&1 | sed '/warning: AC_TRY_RUN called without default/d'
+
+chmod 555 configure config.guess config.sub install-sh
+rm -f aclocal.m4

@@ -1,0 +1,98 @@
+<!--$Id: db_get.so,v 11.13 2000/11/28 20:12:30 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db get</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>db</i> <b>get</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db get
+	[-consume]
+	[-consume_wait]
+	[-glob]
+	[-partial {doff dlen}]
+	[-recno]
+	[-rmw]
+	[-txn txnid]
+	key
+db get
+	-get_both
+	[-partial {doff dlen}]
+	[-rmw]
+	[-txn txnid]
+	key data
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>db</i> <b>get</b> command returns key/data pairs from the database.
+<p>In the presence of duplicate key values, <i>db</i> <b>get</b> will return all
+duplicate items.  Duplicates are sorted by insert order except where this
+order has been overridden by cursor operations.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-consume<dd>Return the record number and data from the available record closest to
+the head of the queue and delete the record. The cursor will be
+positioned on the deleted record.  A record is available if it is not
+deleted and is not currently locked.  The underlying database must be
+of type Queue for <b>-consume</b> to be specified.
+<p><dt>-consume_wait<dd>The same as the <b>-consume</b> flag except that if the Queue database
+is empty, the thread of control will wait until there is data in the
+queue before returning.  The underlying database must be of type Queue
+for <b>-consume_wait</b> to be specified.
+<p><dt>-get_both key data<dd>Retrieve the key/data pair only if both the key and data match the
+arguments.
+<p><dt>-glob<dd>Return all keys matching the given key, where the key is a simple wildcard
+pattern.  Where it is used, it replaces the use of the key with the given
+pattern of a set of keys.  Any characters after the wildcard character
+are ignored.  For example, in a database of last names, the
+command "db0 get Jones" will return all of the "Jones" in the database,
+and the command "db0 get -glob Jo*" will return both "Jones" and "Johnson"
+from the database.  The command "db0 get -glob *" will return all of the
+key/data pairs in the database.
+<p><dt>-partial {doff dlen}<dd>The <b>dlen</b> bytes starting <b>doff</b> bytes from the beginning of
+the retrieved data record are returned as if they comprised the entire
+record. If any or all of the specified bytes do not exist in the record,
+the command is successful and the existing bytes or 0 bytes are
+returned.
+<p><dt>-recno<dd>Retrieve the specified numbered key/data pair from a database.  For
+<b>-recno</b> to be specified, the specified key must be a record number
+and the underlying database must be of type Recno or Queue, or of type
+Btree that was created with the <b>-recnum</b> option.
+<p><dt>-rmw<dd>Acquire write locks instead of read locks when doing the retrieval.
+Setting this flag may decrease the likelihood of deadlock during a
+read-modify-write cycle by immediately acquiring the write lock during
+the read part of the cycle so that another thread of control acquiring a
+read lock for the same item, in its own read-modify-write cycle, will not
+result in deadlock.
+<p>As the <i>db</i> <b>get</b> command will not hold locks across Berkeley DB interface
+calls in non-transactional environments, the <b>-rmw</b> argument to the
+<i>db</i> <b>get</b> call is only meaningful in the presence of transactions.
+<p><dt>-txn txnid<dd>If the file is being accessed under transaction protection, the
+<b>txnid</b> parameter is a transaction handle returned from <i>env</i> <b>txn</b>.
+</dl>
+<p>If the underlying database is a Queue or Recno database, then the given
+key will be interpreted by Tcl as an integer.  For all other database
+types, the key is interpreted by Tcl as a byte array unless indicated
+by a given option.
+<p>A list of key/data pairs is returned.  In the error case that no matching
+key exists, an empty list is returned.  In all other cases, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

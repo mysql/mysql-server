@@ -1,0 +1,30 @@
+<!--$Id: open.so,v 10.14 2000/03/18 21:43:12 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Opening databases within the environment</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Environment</dl></h3></td>
+<td width="1%"><a href="../../ref/env/remote.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/error.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Opening databases within the environment</h1>
+<p>Once the environment has been created, database handles may be created
+and then opened within the environment.  This is done by calling the
+<a href="../../api_c/db_create.html">db_create</a> interface and specifying the appropriate environment
+as an argument.
+<p>File naming, database operations and error handling will all be done as
+specified for the environment, e.g., if the <a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a> or
+<a href="../../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a> flags were specified when the environment was created
+or joined, database operations will automatically perform all necessary
+locking operations for the application.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/env/remote.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/error.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

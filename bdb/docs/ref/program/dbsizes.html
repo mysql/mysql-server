@@ -1,0 +1,45 @@
+<!--$Id: dbsizes.so,v 10.22 2000/03/18 21:43:16 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Database limits</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/version.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/byteorder.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Database limits</h1>
+<p>The largest database file that Berkeley DB can handle depends on the page size
+selected by the application.  Berkeley DB stores database file page numbers as
+unsigned 32-bit numbers and database file page sizes as unsigned 16-bit
+numbers.  Using the maximum database page size of 65536, this results in
+a maximum database file size of 2<sup>48</sup> (256 terabytes).  The
+minimum database page size is 512 bytes, which results in a minimum
+maximum database size of 2<sup>41</sup> (2 terabytes).
+<p>The largest database file Berkeley DB can support is potentially further limited
+if the host system does not have filesystem support for files larger than
+2<sup>32</sup>, including the ability to seek to absolute offsets within
+those files.
+<p>The largest key or data item that Berkeley DB can support is largely limited
+by available memory.  Specifically, while key and data byte strings may
+be of essentially unlimited length, any one of them must fit into
+available memory so that it can be returned to the application.  As some
+of the Berkeley DB interfaces return both key and data items to the application,
+those interfaces will require that any key/data pair fit simultaneously
+into memory.  Further, as the access methods may need to compare key and
+data items with other key and data items, it may be a requirement that
+any two key or two data items fit into available memory.  Finally, when
+writing applications supporting transactions, it may be necessary to have
+an additional copy of any data item in memory for logging purposes.
+<p>The maximum Btree depth is 255.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/version.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/byteorder.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

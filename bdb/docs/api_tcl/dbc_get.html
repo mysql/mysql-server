@@ -1,0 +1,168 @@
+<!--$Id: dbc_get.so,v 11.16 2000/11/28 20:12:30 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db get</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>dbc</i> <b>get</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>dbc get
+	[-current]
+	[-first]
+	[-get_recno]
+	[-join_item]
+	[-last]
+	[-next]
+	[-nextdup]
+	[-nextnodup]
+	[-partial {offset length}]
+	[-prev]
+	[-prevnodup]
+	[-rmw]
+dbc get
+	[-partial {offset length}]
+	[-rmw]
+	[-set]
+	[-set_range]
+	[-set_recno]
+	key
+dbc get
+	-get_both
+	[-partial {offset length}]
+	[-rmw]
+	key data
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>dbc</i> <b>get</b> command returns a list of {key value} pairs, except in
+the case of the <b>-get_recno</b> and <b>-join_item</b> options.  In
+the case of the <b>-get_recno</b> option, <i>dbc</i> <b>get</b> returns a list
+of the record number.  In the case of the <b>-join_item</b> option,
+<i>dbc</i> <b>get</b> returns a list containing the joined key.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-current<dd>Return the key/data pair currently referenced by the cursor.
+<p>If the cursor key/data pair was deleted, <i>dbc</i> <b>get</b> will return an
+empty list.
+<p><dt>-first<dd>The cursor is set to reference the first key/data pair of the database, and
+that pair is returned. In the presence of duplicate key values, the first
+data item in the set of duplicates is returned.
+<p>If the database is a Queue or Recno database, <i>dbc</i> <b>get</b> using the
+<b>-first</b> option will skip any keys that exist but were never
+explicitly created by the application or were created and later deleted.
+<p>If the database is empty, <i>dbc</i> <b>get</b> will return an empty list.
+<p><dt>-last<dd>The cursor is set to reference the last key/data pair of the database, and
+that pair is returned. In the presence of duplicate key values, the last
+data item in the set of duplicates is returned.
+<p>If the database is a Queue or Recno database, <i>dbc</i> <b>get</b> using the
+<b>-last</b> option will skip any keys that exist but were never
+explicitly created by the application or were created and later deleted.
+<p>If the database is empty, <i>dbc</i> <b>get</b> will return an empty list.
+<p><dt>-next<dd>If the cursor is not yet initialized, the <b>-next</b> option is
+identical to <b>-first</b>.
+<p>Otherwise, the cursor is moved to the next key/data pair of the database,
+and that pair is returned. In the presence of duplicate key values, the
+value of the key may not change. 
+<p>If the database is a Queue or Recno database, <i>dbc</i> <b>get</b> using the
+<b>-next</b> option will skip any keys that exist but were never
+explicitly created by the application or were created and later deleted.
+<p>If the cursor is already on the last record in the database, <i>dbc</i> <b>get</b>
+will return an empty list.
+<p><dt>-nextdup<dd>If the next key/data pair of the database is a duplicate record for the
+current key/data pair, the cursor is moved to the next key/data pair of the
+database, and that pair is returned. Otherwise, <i>dbc</i> <b>get</b> will return
+an empty list.
+<p><dt>-nextnodup<dd>If the cursor is not yet initialized, the <b>-nextnodup</b> option is
+identical to <b>-first</b>.
+<p>Otherwise, the cursor is moved to the next non-duplicate
+key/data pair of the database, and that pair is returned.
+<p>If no non-duplicate key/data pairs occur after the cursor
+position in the database, <i>dbc</i> <b>get</b> will return an empty list.
+<p><dt>-prev<dd>If the cursor is not yet initialized, <b>-prev</b> is identical to
+<b>-last</b>.
+<p>Otherwise, the cursor is moved to the previous key/data pair of the
+database, and that pair is returned. In the presence of duplicate key
+values, the value of the key may not change.
+<p>If the database is a Queue or Recno database, <i>dbc</i> <b>get</b> using the
+<b>-prev</b> flag will skip any keys that exist but were never explicitly
+created by the application or were created and later deleted.
+<p>If the cursor is already on the first record in the database,
+<i>dbc</i> <b>get</b> will return an empty list.
+<p><dt>-prevnodup<dd>If the cursor is not yet initialized, the <b>-prevnodup</b> option is
+identical to <b>-last</b>.
+<p>Otherwise, the cursor is moved to the previous non-duplicate
+key/data pair of the database, and that pair is returned.
+<p>If no non-duplicate key/data pairs occur before the cursor
+position in the database, <i>dbc</i> <b>get</b> will return an empty list.
+<p><dt>-set<dd>Move the cursor to the specified key/data pair of the database, and return
+the datum associated with the given key.
+<p>In the presence of duplicate key values, <i>dbc</i> <b>get</b> will return the
+first data item for the given key. 
+<p>If the database is a Queue or Recno database and the requested key exists,
+but was never explicitly created by the application or was later deleted,
+<i>dbc</i> <b>get</b> will return an empty list.
+<p>If no matching keys are found, <i>dbc</i> <b>get</b> will return an empty list.
+<p><dt>-set_range<dd>The <b>-set_range</b> option is identical to the <b>-set</b> option,
+except that the key is returned as well as the data item, and, in the case
+of the Btree access method, the returned key/data pair is the smallest
+key greater than or equal to the specified key (as determined by the
+comparison function), permitting partial key matches and range searches.
+<p><dt>-get_both<dd>The <b>-get_both</b> option is identical to the <b>-set</b> option,
+except that both the key and the data arguments must be matched by the
+key and data item in the database.
+<p>For <b>-get_both</b> to be specified, the underlying database must be of
+type Btree or Hash.
+<p><dt>-set_recno<dd>Move the cursor to the specific numbered record of the database, and
+return the associated key/data pair. The key
+must be a record number.
+<p>For the <b>-set_recno</b> option to be specified, the underlying database
+must be of type Btree and it must have been created with the <b>-recnum</b>
+option.
+<p><dt>-get_recno<dd>Return a list of the record number associated with the current cursor
+position.  No key argument should be specified.
+<p>For <b>-get_recno</b> to be specified, the underlying database must be
+of type Btree and it must have been created with the <b>-recnum</b>
+option.
+<p><dt>-join_item<dd>Do not use the data value found in all of the cursors as a lookup key for
+the primary database, but simply return it in the key parameter instead.
+The data parameter is left unchanged.
+<p>For <b>-join_item</b> to be specified, the cursor must have been created
+by the <i>db</i> <b>join</b> command.
+<p><dt>-partial {offset length}<dd>The <b>dlen</b> bytes starting <b>doff</b> bytes from the beginning of
+the retrieved data record are returned as if they comprised the entire
+record. If any or all of the specified bytes do not exist in the record,
+the command is successful and the existing bytes or 0 bytes are
+returned.
+<p><dt>-rmw<dd>Acquire write locks instead of read locks when doing the retrieval. Setting
+this flag may decrease the likelihood of deadlock during a read-modify-write
+cycle by immediately acquiring the write lock during the read part of the
+cycle so that another thread of control acquiring a read lock for the same
+item, in its own read-modify-write cycle, will not result in deadlock.
+</dl>
+<p>If a key is specified, and
+if the underlying database is a Queue or Recno database, then the given
+key will be interpreted by Tcl as an integer.  For all other database
+types, the key is interpreted by Tcl as a byte array unless indicated
+by a given option.
+<p>In the normal error case of attempting to retrieve a key that does not
+exist an empty list is returned.
+<p>In the case of error, a Tcl error is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

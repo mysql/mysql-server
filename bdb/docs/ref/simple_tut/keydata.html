@@ -1,0 +1,48 @@
+<!--$Id: keydata.so,v 10.19 2000/12/14 21:42:18 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Key/data pairs</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Simple Tutorial</dl></h3></td>
+<td width="1%"><a href="../../ref/simple_tut/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/handles.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Key/data pairs</h1>
+<p>Berkeley DB uses key/data pairs to identify elements in the database.
+That is, in the general case, whenever you call a Berkeley DB interface,
+you present a key to identify the key/data pair on which you intend
+to operate.
+<p>For example, you might store some key/data pairs as follows:
+<p><table border=1>
+<tr><th>Key:</th><th>Data:</th></tr>
+<tr><td>fruit</td><td>apple</td></tr>
+<tr><td>sport</td><td>cricket</td></tr>
+<tr><td>drink</td><td>water</td></tr>
+</table>
+<p>In each case, the first element of the pair is the key, and the second is
+the data.  To store the first of these key/data pairs into the database,
+you would call the Berkeley DB interface to store items, with <b>fruit</b> as
+the key, and <b>apple</b> as the data.  At some future time, you could
+then retrieve the data item associated with <b>fruit</b>, and the Berkeley DB
+retrieval interface would return <b>apple</b> to you.  While there are
+many variations and some subtleties, all accesses to data in Berkeley DB come
+down to key/data pairs.
+<p>Both key and data items are stored in simple structures (called
+<a href="../../api_c/dbt.html">DBT</a>s) that contain a reference to memory and a length, counted
+in bytes.  (The name <a href="../../api_c/dbt.html">DBT</a> is an acronym for <i>database
+thang</i>, chosen because nobody could think of a sensible name that wasn't
+already in use somewhere else.)  Key and data items can be arbitrary
+binary data of practically any length, including 0 bytes.  There is a
+single data item for each key item, by default, but databases can be
+configured to support multiple data items for each key item.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/simple_tut/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/handles.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>
