@@ -959,7 +959,6 @@ double Item_func_round::val()
   return tmp2;
 }
 
-
 void Item_func_rand::fix_length_and_dec()
 {
   decimals=NOT_FIXED_DEC; 
@@ -988,6 +987,12 @@ void Item_func_rand::fix_length_and_dec()
     thd->rand_saved_seed2=thd->rand.seed2;
     rand= &thd->rand;
   }
+}
+
+void Item_func_rand::update_used_tables()
+{
+  Item_real_func::update_used_tables();
+  used_tables_cache|= RAND_TABLE_BIT;
 }
 
 
