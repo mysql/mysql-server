@@ -46929,6 +46929,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
 @item
+Fixed unlikely core dump with @code{SELECT ... ORDER BY ... LIMIT}.
+@item
 Changed @code{AND/OR} to report that they can return NULL. This fixes a
 bug in @code{GROUP BY} on @code{AND/OR} expression that return
 @code{NULL}.
