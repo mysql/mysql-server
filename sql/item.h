@@ -852,6 +852,7 @@ public:
   Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
     :Item_ident(NullS, table_name_par, field_name_par), ref(item)
   {
+    DBUG_ASSERT(item);
     if (*item)
       set_properties();
   }
