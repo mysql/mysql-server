@@ -454,4 +454,6 @@ select ROW(1, 1, 'a') IN (select b,a,c from t where a is not null);
 select ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a');
 select ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a');
 select ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a');
+-- error 1235
+select ROW(1, 1, 'a') IN (select b,a,c from t limit 2);
 drop table if exists t;
