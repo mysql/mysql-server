@@ -308,7 +308,5 @@ character-set=latin2
 "Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
 "Invalid ON UPDATE clause for '%-.64s' field",
 "This command is not supported in the prepared statement protocol yet",
-"Got NDB error %d '%-.100s'",
-"Got temporary NDB error %d '%-.100s'",
 "Got error %d '%-.100s' from %s",
 "Got temporary error %d '%-.100s' from %s",

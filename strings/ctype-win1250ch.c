@@ -605,6 +605,7 @@ my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_czech_ci_handler =
 {
+  NULL,				/* init */
   my_strnncoll_win1250ch,
   my_strnncollsp_win1250ch,
   my_strnxfrm_win1250ch,
@@ -631,7 +632,8 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   NULL,				/* sort_order_big*/
   tab_cp1250_uni,		/* tab_to_uni   */
   idx_uni_cp1250,		/* tab_from_uni */
-  "","",
+  NULL,				/* state_map    */
+  NULL,				/* ident_map    */
   2,				/* strxfrm_multiply */
   1,				/* mbminlen  */
   1,				/* mbmaxlen  */

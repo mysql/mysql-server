@@ -18,7 +18,6 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
-#include <assert.h>
 
 /*
   Limited snprintf() implementations

@@ -18,7 +18,6 @@
 #include <m_string.h>
 #include <stdlib.h>
 #include <my_getopt.h>
-#include <assert.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 
