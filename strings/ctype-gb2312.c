@@ -5712,6 +5712,8 @@ CHARSET_INFO my_charset_gb2312 =
     ismbchar_gb2312,
     ismbhead_gb2312,
     mbcharlen_gb2312,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_gb2312,	/* mb_wc      */
     my_wc_mb_gb2312,	/* wc_mb      */
     my_caseup_str_mb,

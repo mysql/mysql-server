@@ -6254,6 +6254,8 @@ CHARSET_INFO my_charset_big5 =
     ismbchar_big5,
     ismbhead_big5,
     mbcharlen_big5,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_big5,	/* mb_wc       */
     my_wc_mb_big5,	/* wc_mb       */
     my_caseup_str_mb,

@@ -4496,6 +4496,8 @@ CHARSET_INFO my_charset_sjis =
     ismbchar_sjis,
     ismbhead_sjis,
     mbcharlen_sjis,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_sjis,	/* mb_wc */
     my_wc_mb_sjis,	/* wc_mb */
     my_caseup_str_8bit,
