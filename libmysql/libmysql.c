@@ -5418,9 +5418,71 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   DBUG_RETURN(0); /* Data buffered, must be fetched with mysql_fetch() */
 }
 
+/*
+  Seek to desired row in the statement result set
+*/
+
+MYSQL_ROW_OFFSET STDCALL
+mysql_stmt_row_seek(MYSQL_STMT *stmt, MYSQL_ROW_OFFSET row)
+{
+  MYSQL_RES *result;
+  DBUG_ENTER("mysql_stmt_row_seek");
+  
+  if ((result= stmt->result))
+  {
+    MYSQL_ROW_OFFSET return_value= result->data_cursor;
+    result->current_row= 0;
+    result->data_cursor= row;
+    DBUG_RETURN(return_value);
+  }
+  
+  DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
+  DBUG_RETURN(0);
+}
+
+/*
+  Return the current statement row cursor position
+*/
+
+MYSQL_ROW_OFFSET STDCALL 
+mysql_stmt_row_tell(MYSQL_STMT *stmt)
+{
+  DBUG_ENTER("mysql_stmt_row_tell");
+  
+  if (stmt->result)
+    DBUG_RETURN(stmt->result->data_cursor);
+  
+  DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
+  DBUG_RETURN(0);
+}
+
+/*
+  Move the stmt result set data cursor to specified row
+*/
+
+void STDCALL
+mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
+{
+  MYSQL_RES   *result;
+  DBUG_ENTER("mysql_stmt_data_seek");
+  DBUG_PRINT("enter",("row id to seek: %ld",(long) row));
+  
+  if (!(result= stmt->result))
+  {
+    DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
+  }
+  else
+  {
+    MYSQL_ROWS	*tmp= 0;
+    if (result->data)
+      for (tmp=result->data->data; row-- && tmp ; tmp = tmp->next) ;
+    result->current_row= 0;
+    result->data_cursor= tmp;
+  }
+}
 
 /********************************************************************
- Misc function implementations
+ statement error handling and close
 *********************************************************************/
 
 /*
@@ -5505,6 +5567,10 @@ const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt)
   DBUG_RETURN(stmt->last_error);
 }
 
+/********************************************************************
+ Transactional APIs
+*********************************************************************/
+
 /*
   Commit the current transaction
 */
@@ -5542,7 +5608,7 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
 
 
 /********************************************************************
- Multi query execution related implementations
+ Multi query execution + SPs APIs
 *********************************************************************/
 
 /*
@@ -5552,9 +5618,14 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
 
 my_bool STDCALL mysql_more_results(MYSQL *mysql)
 {
-  if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
-    return 1;
-  return 0;
+  my_bool result;
+  DBUG_ENTER("mysql_more_results");
+  
+  result= (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS) ? 
+          1: 0;
+  
+  DBUG_PRINT("exit",("More results exists ? %d", result)); 
+  DBUG_RETURN(result);
 }
 
 /*
@@ -5563,12 +5634,14 @@ my_bool STDCALL mysql_more_results(MYSQL *mysql)
 
 my_bool STDCALL mysql_next_result(MYSQL *mysql)
 {
+  DBUG_ENTER("mysql_next_result");
   
-  mysql->net.last_error[0]=0;
-  mysql->net.last_errno=0;
+  mysql->net.last_error[0]= 0;
+  mysql->net.last_errno= 0;
   mysql->affected_rows= ~(my_ulonglong) 0;
 
   if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
-    return mysql_read_query_result(mysql);
-  return 0;
+    DBUG_RETURN(mysql_read_query_result(mysql));
+  
+  DBUG_RETURN(0);
 }
