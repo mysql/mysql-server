@@ -117,7 +117,7 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 			 char **arg_unix_socket)
 {
   HANDLE hPipe=INVALID_HANDLE_VALUE;
-  char szPipeName [512];
+  char pipe_name[512];
   DWORD dwMode;
   int i;
   my_bool testing_named_pipes=0;
@@ -126,14 +126,15 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
   if (!host || !strcmp(host,LOCAL_HOST))
     host=LOCAL_HOST_NAMEDPIPE;
 
-  strxnmov(szPipeName, sizeof(szPipeName), "\\\\", host, "\\pipe\\",
-                                           unix_socket, NullS);
+  pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
+  strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\", host, "\\pipe\\",
+	   unix_socket, NullS);
   DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s",
 		     host, unix_socket));
 
   for (i=0 ; i < 100 ; i++)			/* Don't retry forever */
   {
-    if ((hPipe = CreateFile(szPipeName,
+    if ((hPipe = CreateFile(pipe_name,
 			    GENERIC_READ | GENERIC_WRITE,
 			    0,
 			    NULL,
@@ -149,7 +150,7 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
       return INVALID_HANDLE_VALUE;
     }
     /* wait for for an other instance */
-    if (! WaitNamedPipe(szPipeName, connect_timeout*1000) )
+    if (! WaitNamedPipe(pipe_name, connect_timeout*1000) )
     {
       net->last_errno=CR_NAMEDPIPEWAIT_ERROR;
       sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
