@@ -30,8 +30,8 @@
 #include <thr_alarm.h>
 #include <mysql_embed.h>
 #include <mysql_com.h>
-#include <violite.h>
 #include <my_sys.h>
+#include <violite.h>
 #include <mysys_err.h>
 #include <m_string.h>
 #include <m_ctype.h>
