@@ -240,9 +240,18 @@ To make maintaining easier please:
   <alias>BalticRim</alias>
   <alias>iso-8859-13</alias>
   <alias>l7</alias>
-  <collation name="estonia"	id="20"	order="Estonian"	flag="primary"/>
-  <collation name="latvian"	id="41"	order="Latvian"/>
-  <collation name="latvian1"	id="42"	order="Latvian"/>
+  <collation name="latin7_estonian_ci_as"	id="20">
+    <order>Estonian</order>
+    <flag>primary</flag>
+  </collation>
+  <collation name="latin7_ci_as"		id="41">
+    <order>Latvian</order>
+    <order>Lithuanian</order>
+  </collation>
+  <collation name="latin7_cs_as"		id="42">
+    <order>Latvian</order>
+    <order>Lithuanian</order>
+  </collation>
   <collation name="latin7_bin"	id="79"	order="Binary"	flag="binary"/>
 </charset>
 

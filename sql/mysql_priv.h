@@ -528,6 +528,7 @@ int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type);
 int mysqld_show_charsets(THD *thd,const char *wild);
+int mysqld_show_collations(THD *thd,const char *wild);
 int mysqld_show_table_types(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
