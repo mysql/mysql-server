@@ -646,6 +646,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_collate
 	charset_name
 	charset_name_or_default
+	old_or_new_charset_name
+	old_or_new_charset_name_or_default
 	collation_name
 	collation_name_or_default
 
@@ -1354,6 +1356,24 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+
+old_or_new_charset_name:
+	ident_or_text
+	{
+	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))) &&
+	      !($$=get_old_charset_by_name($1.str)))
+	  {
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    YYABORT;
+	  }
+	}
+	| BINARY { $$= &my_charset_bin; }
+	;
+
+old_or_new_charset_name_or_default:
+	old_or_new_charset_name { $$=$1;   }
+	| DEFAULT    { $$=NULL; } ;
+
 collation_name:
 	ident_or_text
 	{
@@ -1366,7 +1386,7 @@ collation_name:
 
 opt_collate:
 	/* empty */	{ $$=NULL; }
-	| COLLATE_SYM collation_name { $$=$2; }
+	| COLLATE_SYM collation_name_or_default { $$=$2; }
 	;
 
 collation_name_or_default:
@@ -4383,56 +4403,15 @@ option_value:
 						find_sys_var("tx_isolation"),
 						new Item_int((int32) $4)));
 	  }
-	| charset set_expr_or_default
+	| charset old_or_new_charset_name_or_default
 	{
-	  THD *thd= YYTHD;
-	  LEX *lex= &thd->lex;
-	  if (!$2)
-	  {
-	    CHARSET_INFO *cl= thd->db_charset;
-	    $2= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
-	  }
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_collation"),
-					      $2));
+	  LEX *lex= Lex;
+	  lex->var_list.push_back(new set_var_client_collation($2,NULL,1));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
-	  THD* thd= YYTHD;
-	  LEX *lex= &thd->lex;
-	  CHARSET_INFO *cs= $2 ? $2 : thd->db_charset;
-	  CHARSET_INFO *cl= $3 ? $3 : cs;
-
-	  if (!my_charset_same(cs,cl))
-	  {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
-		         cl->name,cs->csname);
-	      YYABORT;
-	  }
-	  lex->var_list.push_back(new set_var_client_collation(cl,1));
-	}
-	| COLLATION_SYM collation_name_or_default
-	{
-	  THD* thd= YYTHD;
-	  LEX *lex= &thd->lex;
-	  CHARSET_INFO *cs= thd->variables.thd_charset;
-	  CHARSET_INFO *cl= $2;
-
-	  if (!cl)
-	  {
-	    if (!(cl=get_charset_by_csname(cs->csname,MY_CS_PRIMARY,MYF(0))))
-	    {
-	      net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"DEFAULT");
-	      YYABORT;
-	    }
-	  }
-	  else if (!my_charset_same(cs,cl))
-	  {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
-		         cl->name,cs->csname);
-	      YYABORT;
-	  }
-	  lex->var_list.push_back(new set_var_client_collation(cl,1));
+	  LEX *lex= Lex;
+	  lex->var_list.push_back(new set_var_client_collation($2,$3,1));
 	}
 	| PASSWORD equal text_or_password
 	  {
