@@ -37,9 +37,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names};
 #endif
 
-static int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                            const char *path, const char *wild, bool dir);
-
 static int
 store_create_info(THD *thd, TABLE *table, String *packet);
 
@@ -361,7 +358,7 @@ int mysqld_show_column_types(THD *thd)
 }
 
 
-static int
+int
 mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
                  const char *wild, bool dir)
 {
@@ -701,8 +698,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         byte *pos;
         uint flags=field->flags;
         String type(tmp,sizeof(tmp), system_charset_info);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
         uint col_access;
-
+#endif
 	protocol->prepare_for_resend();
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
@@ -995,7 +993,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       str=(key_part->field ? key_part->field->field_name :
 	   "?unknown field?");
       protocol->store(str, system_charset_info);
-      if (table->file->index_flags(i,j) & HA_READ_ORDER)
+      if (table->file->index_flags(i, j, 0) & HA_READ_ORDER)
         protocol->store(((key_part->key_part_flag & HA_REVERSE_SORT) ?
 			 "D" : "A"), 1, system_charset_info);
       else

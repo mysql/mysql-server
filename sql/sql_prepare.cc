@@ -1706,6 +1706,7 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
       unit->reinit_exec_mechanism();
     }
   }
+  stmt->lex->current_select= &stmt->lex->select_lex;
 }
 
 

@@ -96,7 +96,7 @@ $SI_PARAMS= <$SUPFILEDIR/StartupParameters.plist>;
 $SI_POST= <$SUPFILEDIR/StartupItem.postinstall>;
 $SI_NAME= "MySQLStartupItem";
 $SI_DIR_NAME= "MySQLCOM";
-$SI_SCRIPT= <$SUPFILEDIR/MySQL>;
+$SI_SCRIPT= <$SUPFILEDIR/MySQLCOM>;
 @RESOURCES= qw/ ReadMe.txt postinstall preinstall /;
 @LICENSES= ("$SRCBASEDIR/COPYING","$SRCBASEDIR/MySQLEULA.txt");
 
