@@ -4139,7 +4139,8 @@ fil_flush_file_spaces(
 	space = UT_LIST_GET_FIRST(system->space_list);
 
 	while (space) {
-		if (space->purpose == purpose) {
+		if (space->purpose == purpose && !space->is_being_deleted) {
+
 			space->n_pending_flushes++; /* prevent dropping of the
 						    space while we are
 						    flushing */
