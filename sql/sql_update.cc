@@ -70,7 +70,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   table->quick_keys=0;
   want_privilege=table->grant.want_privilege;
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (setup_tables(table_list) || setup_conds(thd,table_list,&conds))
+  if (setup_tables(table_list) || setup_conds(thd,table_list,&conds)
+                               || setup_ftfuncs(thd))
     DBUG_RETURN(-1);				/* purecov: inspected */
   old_used_keys=table->used_keys;		// Keys used in WHERE
 
@@ -134,6 +135,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       DBUG_RETURN(1);
     }
   }
+  init_ftfuncs(thd,1);
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
     used_key_is_modified= (!select->quick->unique_key_range() &&

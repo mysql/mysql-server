@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -51,8 +51,7 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
     pthread_mutex_unlock(&LOCK_open);
   }
 
-  
-    /* If it is a temporary table, close and regenerate it */
+  /* If it is a temporary table, close and regenerate it */
   if ((table_ptr=find_temporary_table(thd,table_list->db,
 				      table_list->real_name)))
   {
@@ -126,7 +125,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
-  bool 		using_limit=limit != HA_POS_ERROR;
+  bool		using_limit=limit != HA_POS_ERROR;
   bool	        use_generate_table,using_transactions;
   DBUG_ENTER("mysql_delete");
 
@@ -163,7 +162,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   if (use_generate_table)
     DBUG_RETURN(generate_table(thd,table_list,table));
   table->map=1;
-  if (setup_conds(thd,table_list,&conds))
+  if (setup_conds(thd,table_list,&conds) || setup_ftfuncs(thd))
     DBUG_RETURN(-1);
 
   table->used_keys=table->quick_keys=0;		// Can't use 'only index'
@@ -171,7 +170,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   if (error)
     DBUG_RETURN(-1);
   if ((select && select->check_quick(test(thd->options & SQL_SAFE_UPDATES),
-				     limit)) || 
+				     limit)) ||
       !limit)
   {
     delete select;
@@ -192,9 +191,10 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   }
   (void) table->file->extra(HA_EXTRA_NO_READCHECK);
   if (options & OPTION_QUICK)
-    (void) table->file->extra(HA_EXTRA_QUICK);    
+    (void) table->file->extra(HA_EXTRA_QUICK);
   init_read_record(&info,thd,table,select,-1,1);
   ulong deleted=0L;
+  init_ftfuncs(thd,1);
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
@@ -223,7 +223,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   end_read_record(&info);
   (void) table->file->extra(HA_EXTRA_READCHECK);
   if (options & OPTION_QUICK)
-    (void) table->file->extra(HA_EXTRA_NORMAL);    
+    (void) table->file->extra(HA_EXTRA_NORMAL);
   using_transactions=table->file->has_transactions();
   if (deleted && (error <= 0 || !using_transactions))
   {
@@ -254,5 +254,4 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   }
   DBUG_RETURN(0);
 }
-
 

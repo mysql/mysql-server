@@ -6,6 +6,10 @@ Full-text indexes	are called collections
 a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
+a	b
+Only MyISAM tables	support collections
+Function MATCH ... AGAINST()	is used to do a search
+some test foobar	implements vector space model
 id
 id
 id
