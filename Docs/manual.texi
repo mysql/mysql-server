@@ -38148,7 +38148,7 @@ then you can give absolute paths to your data files in
 @code{innodb_data_file_path}.
 In MySQL-4.0 you do not need to specify even
 @code{innodb_data_file_path}: the default for it is to create
-an auto-extending 16 MB file @file{ibdata1} to the @code{datadir}
+an auto-extending 10 MB file @file{ibdata1} to the @code{datadir}
 of MySQL. (In MySQL-4.0.0 and 4.0.1 the datafile is 64 MB and not
 auto-extending.)
 
