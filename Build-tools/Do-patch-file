@@ -40,5 +40,5 @@ chmod a+r,o-w $RESULT binary/*
 mv $RESULT $PATCH_DIR
 cp binary/mysqlcom-* binary/mysql*win* /net/web/home/production/data/nweb/customer/Downloads
 rm binary/mysqlcom-*
-mv binary/*Max* $RESULT_DIR_MAX
+mv binary/*Max* mv binary/*-max* $RESULT_DIR_MAX
 cp binary/* $RESULT_DIR
