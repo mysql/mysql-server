@@ -2596,16 +2596,16 @@ String *Item_func_quote::val_str(String *str)
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the
-    old result in str
+    old result in arg
   */
-  if (str->realloc(new_length))
+  if (arg->realloc(new_length))
     goto null;
 
   /*
     As 'arg' and 'str' may be the same string, we must replace characters
     from the end to the beginning
   */
-  to= (char*) str->ptr() + new_length - 1;
+  to= (char*) arg->ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2633,10 +2633,10 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  str->length(new_length);
+  arg->length(new_length);
   str->set_charset(collation.collation);
   null_value= 0;
-  return str;
+  return arg;
 
 null:
   null_value= 1;
