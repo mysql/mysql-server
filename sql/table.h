@@ -281,7 +281,7 @@ typedef struct st_table_list
   struct st_table_list *next_local;
   /* link in a global list of all queries tables */
   struct st_table_list *next_global, **prev_global;
-  char		*db, *alias, *real_name;
+  char		*db, *alias, *real_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
   COND_EQUAL    *cond_equal;            /* Used with outer join */

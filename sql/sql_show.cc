@@ -597,7 +597,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   else
   {
     if (table_list->schema_table)
-      protocol->store(table_list->alias, system_charset_info);
+      protocol->store(table_list->schema_table_name, system_charset_info);
     else
       protocol->store(table->table_name, system_charset_info);
     if (store_create_info(thd, table_list, &buffer))
@@ -938,7 +938,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   else
     packet->append("CREATE TABLE ", 13);
   if (table_list->schema_table)
-    alias= table_list->alias;
+    alias= table_list->schema_table_name;
   else
     alias= (lower_case_table_names == 2 ? table->table_name :
             table->real_name);
@@ -2193,7 +2193,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     tmp_buff= (show_table->table_charset ? show_table->
                table_charset->name : "default");
     table->field[17]->store(tmp_buff, strlen(tmp_buff), cs);
-    if (file->table_flags() & HA_HAS_CHECKSUM)
+    if (file->table_flags() & (ulong) HA_HAS_CHECKSUM)
     {
       table->field[18]->store((longlong) file->checksum());
       table->field[18]->set_notnull();
@@ -2282,7 +2282,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
       uint tmp_length;
-      char *tmp_buff;
+      const char *tmp_buff;
       byte *pos;
       uint flags=field->flags;
       char tmp[MAX_FIELD_WIDTH];
@@ -2298,7 +2298,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[4]->store((longlong) count);
       field->sql_type(type);
       table->field[14]->store(type.ptr(), type.length(), cs);		
-      tmp_buff= strchr(type.ptr(),'(');
+      tmp_buff= strchr(type.ptr(), '(');
       table->field[7]->store(type.ptr(),
                              (tmp_buff ? tmp_buff - type.ptr() :
                               type.length()), cs);
@@ -3137,6 +3137,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   }
   table->tmp_table= TMP_TABLE;
   table->grant.privilege= SELECT_ACL;
+  table_list->schema_table_name= table_list->real_name;
   table_list->real_name= table->real_name;
   table_list->table= table;
   table->next= thd->derived_tables;
@@ -3291,14 +3292,14 @@ ST_FIELD_INFO columns_fields_info[]=
   {"ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Default"},
   {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
-  {"DATA_TYPE", 40, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DATA_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"CHARACTER_SET_NAME", 40, MYSQL_TYPE_STRING, 0, 1, 0},
   {"COLLATION_NAME", 40, MYSQL_TYPE_STRING, 0, 1, "Collation"},
-  {"COLUMN_TYPE", 40, MYSQL_TYPE_STRING, 0, 0, "Type"},
+  {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"COLUMN_KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key"},
   {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, "Extra"},
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges"},
@@ -3356,7 +3357,7 @@ ST_FIELD_INFO proc_fields_info[]=
   {"SECURITY_TYPE", 7, MYSQL_TYPE_STRING, 0, 0, "Security_type"},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Created"},
   {"LAST_ALTERED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Modified"},
-  {"SQL_MODE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_COMMENT", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Comment"},
   {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
