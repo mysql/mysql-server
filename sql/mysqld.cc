@@ -4043,7 +4043,7 @@ this value; if zero (the default): when the size exceeds max_binlog_size. \
    "Use compression on master/slave protocol",
    (gptr*) &opt_slave_compressed_protocol,
    (gptr*) &opt_slave_compressed_protocol,
-   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"slave_net_timeout", OPT_SLAVE_NET_TIMEOUT,
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
