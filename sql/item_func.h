@@ -889,6 +889,11 @@ class Item_func_set_user_var :public Item_func
   LEX_STRING name;
   user_var_entry *entry;
 
+  double native_val();
+  longlong native_val_int();
+  String *native_val_str(String *str);
+  String *native_val_str();
+
 public:
   Item_func_set_user_var(LEX_STRING a,Item *b): Item_func(b), name(a) {}
   double val();

@@ -1899,35 +1899,46 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
   return;
 }
 
+double Item_func_set_user_var::native_val()
+{
+  double value=args[0]->val();
+  update_hash((void*) &value,sizeof(value), REAL_RESULT);
+  return value;
+}
+
+longlong Item_func_set_user_var::native_val_int()
+{
+  longlong value=args[0]->val_int();
+  update_hash((void*) &value,sizeof(longlong),INT_RESULT);
+  return value;
+}
+
+String *Item_func_set_user_var::native_val_str(String *str)
+{
+  char buffer[MAX_FIELD_WIDTH];
+  String *res=args[0]->val_str(str);
+  if (!res)					// Null value
+    update_hash((void*) 0,0,STRING_RESULT);
+  else
+    update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
+  return res;
+}
+
+String *Item_func_set_user_var::native_val_str()
+{
+  char buffer[MAX_FIELD_WIDTH];
+  String tmp(buffer,sizeof(buffer));
+  return native_val_str(&tmp);
+}
 
 bool
 Item_func_set_user_var::update()
 {
   DBUG_ENTER("Item_func_set_user_var::update");
   switch (cached_result_type) {
-  case REAL_RESULT:
-  {
-    double value=args[0]->val();
-    update_hash((void*) &value,sizeof(value), REAL_RESULT);
-    break;
-  }
-  case INT_RESULT:
-  {
-    longlong value=args[0]->val_int();
-    update_hash((void*) &value,sizeof(longlong),INT_RESULT);
-    break;
-  }
-  case STRING_RESULT:
-  {
-    char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
-    String *res=args[0]->val_str(&tmp);
-    if (!res)					// Null value
-      update_hash((void*) 0,0,STRING_RESULT);
-    else
-      update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
-    break;
-  }
+  case REAL_RESULT:   (void)native_val();     break;
+  case INT_RESULT:    (void)native_val_int(); break;
+  case STRING_RESULT: (void)native_val_str(); break;
   }
   DBUG_RETURN(current_thd->fatal_error);
 }
@@ -1938,28 +1949,12 @@ Item_func_set_user_var::val()
 {
   DBUG_ENTER("Item_func_set_user_var::val");
   switch (cached_result_type) {
-  case REAL_RESULT:
-  {
-    double value=args[0]->val();
-    update_hash((void*) &value,sizeof(value), REAL_RESULT);
-    return value;
-  }
-  case INT_RESULT:
-  {
-    longlong value=args[0]->val_int();
-    update_hash((void*) &value,sizeof(longlong),INT_RESULT);
-    return value;
-  }
+  case REAL_RESULT: return native_val(); break;
+  case INT_RESULT:  return native_val_int(); break;
   case STRING_RESULT:
   {
-    char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
-    String *res=args[0]->val_str(&tmp);
-    if (!res)					// Null value
-      update_hash((void*) 0,0,STRING_RESULT);
-    else
-      update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
-    return atof(res->c_ptr());
+    String *res= native_val_str(); 
+    return !res ? 0 : atof(res->c_ptr());
   }
   }
   DBUG_RETURN(args[0]->val());
@@ -1970,28 +1965,12 @@ Item_func_set_user_var::val_int()
 {
   DBUG_ENTER("Item_func_set_user_var::val_int");
   switch (cached_result_type) {
-  case REAL_RESULT:
-  {
-    double value=args[0]->val();
-    update_hash((void*) &value,sizeof(value), REAL_RESULT);
-    return (longlong)value;
-  }
-  case INT_RESULT:
-  {
-    longlong value=args[0]->val_int();
-    update_hash((void*) &value,sizeof(longlong),INT_RESULT);
-    return value;
-  }
+  case REAL_RESULT: return (longlong)native_val(); break;
+  case INT_RESULT:  return native_val_int(); break;
   case STRING_RESULT:
   {
-    char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
-    String *res=args[0]->val_str(&tmp);
-    if (!res)					// Null value
-      update_hash((void*) 0,0,STRING_RESULT);
-    else
-      update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
-    return strtoull(res->c_ptr(),NULL,10);
+    String *res= native_val_str(); 
+    return !res ? 0 : strtoull(res->c_ptr(),NULL,10);
   }
   }
   DBUG_RETURN(args[0]->val_int());
@@ -2002,33 +1981,11 @@ Item_func_set_user_var::val_str(String *str)
 {
   DBUG_ENTER("Item_func_set_user_var::val_str");
   switch (cached_result_type) {
-  case REAL_RESULT:
-  {
-    double value=args[0]->val();
-    update_hash((void*) &value,sizeof(value), REAL_RESULT);
-    str->set(value,decimals);
-    return str;
+  case REAL_RESULT:   str->set(native_val(),decimals); break;
+  case INT_RESULT:    str->set(native_val_int(),decimals); break;
+  case STRING_RESULT: str= native_val_str(str); break;
   }
-  case INT_RESULT:
-  {
-    longlong value=args[0]->val_int();
-    update_hash((void*) &value,sizeof(longlong),INT_RESULT);
-    str->set(value,decimals);
-    return str;
-  }
-  case STRING_RESULT:
-  {
-    char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
-    String *res=args[0]->val_str(&tmp);
-    if (!res)					// Null value
-      update_hash((void*) 0,0,STRING_RESULT);
-    else
-      update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
-    return res;
-  }
-  }
-  DBUG_RETURN(args[0]->val_str(str));
+  DBUG_RETURN(str);
 }
 
 
