@@ -89,8 +89,8 @@ struct fil_node_struct {
 	char*		name;	/* the file name or path */
 	ibool		open;	/* TRUE if file open */
 	os_file_t	handle;	/* OS handle to the file, if file open */
-	ulint		size;	/* size of the file in database blocks
-				(where the possible last incomplete block
+	ulint		size;	/* size of the file in database pages
+				(where the possible last incomplete megabyte
 				is ignored) */
 	ulint		n_pending;
 				/* count of pending i/o-ops on this file */
@@ -945,6 +945,76 @@ fil_node_complete_io(
 	}
 }
 		
+/**************************************************************************
+Tries to extend a data file by the number of pages given. Any fractions of a
+megabyte are ignored. */
+
+ibool
+fil_extend_last_data_file(
+/*======================*/
+				/* out: TRUE if success, also if we run
+				out of disk space we may return TRUE */
+	ulint*	actual_increase,/* out: number of pages we were able to
+				extend, here the orginal size of the file and
+				the resulting size of the file are rounded
+				downwards to a full megabyte, and the
+				difference expressed in pages is returned */
+	ulint	size_increase)	/* in: try to extend this many pages */
+{
+	fil_node_t*	node;
+	fil_space_t*	space;
+	fil_system_t*	system		= fil_system;
+	byte*		buf;
+	ibool		success;
+	ulint		i;
+
+	mutex_enter(&(system->mutex));
+
+	HASH_SEARCH(hash, system->spaces, 0, space, space->id == 0);
+
+	ut_a(space);
+	
+	node = UT_LIST_GET_LAST(space->chain);
+
+	fil_node_prepare_for_io(node, system, space);
+
+	buf = mem_alloc(1024 * 1024);
+
+	memset(buf, '\0', 1024 * 1024);
+
+	for (i = 0; i < size_increase / ((1024 * 1024) / UNIV_PAGE_SIZE); i++) {
+
+		success = os_file_write(node->name, node->handle, buf,
+			(node->size << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFF,
+			node->size >> (32 - UNIV_PAGE_SIZE_SHIFT),
+			1024 * 1024);
+
+		if (!success) {
+
+			break;
+		}
+
+		node->size += ((1024 * 1024) / UNIV_PAGE_SIZE);
+		space->size += ((1024 * 1024) / UNIV_PAGE_SIZE);
+
+		os_has_said_disk_full = FALSE;
+	}
+
+	mem_free(buf);
+
+	fil_node_complete_io(node, system, OS_FILE_WRITE);
+
+	mutex_exit(&(system->mutex));	
+
+	*actual_increase = i * ((1024 * 1024) / UNIV_PAGE_SIZE);
+
+	fil_flush(0);
+
+	srv_data_file_sizes[srv_n_data_files - 1] += *actual_increase;
+
+	return(TRUE);
+}
+
 /************************************************************************
 Reads or writes data. This operation is asynchronous (aio). */
 
@@ -966,9 +1036,9 @@ fil_io(
 	ulint	byte_offset,	/* in: remainder of offset in bytes; in
 				aio this must be divisible by the OS block
 				size */
-	ulint	len,		/* in: how many bytes to read; this must
-				not cross a file boundary; in aio this must
-				be a block size multiple */
+	ulint	len,		/* in: how many bytes to read or write; this
+				must not cross a file boundary; in aio this
+				must be a block size multiple */
 	void*	buf,		/* in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */

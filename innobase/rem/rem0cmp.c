@@ -55,7 +55,8 @@ cmp_debug_dtuple_rec_with_match(
 				contains the value for current comparison */
 /*****************************************************************
 This function is used to compare two data fields for which the data type
-is such that we must use MySQL code to compare them. */
+is such that we must use MySQL code to compare them. The prototype here
+must be a copy of the the one in ha_innobase.cc! */
 
 int
 innobase_mysql_cmp(

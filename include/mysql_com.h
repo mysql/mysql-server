@@ -67,7 +67,7 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define REFRESH_TABLES		4	/* close all tables */
 #define REFRESH_HOSTS		8	/* Flush host cache */
 #define REFRESH_STATUS		16	/* Flush status variables */
-#define REFRESH_THREADS		32	/* Flush status variables */
+#define REFRESH_THREADS		32	/* Flush thread cache */
 #define REFRESH_SLAVE           64      /* Reset master info and restart slave
 					   thread */
 #define REFRESH_MASTER          128     /* Remove all bin logs in the index
@@ -108,8 +108,8 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
-#define MAX_CHAR_WIDTH		255	// Max length for a CHAR colum
-#define MAX_BLOB_WIDTH		8192	// Default width for blob
+#define MAX_CHAR_WIDTH		255	/* Max length for a CHAR colum */
+#define MAX_BLOB_WIDTH		8192	/* Default width for blob */
 
 typedef struct st_net {
   Vio* vio;

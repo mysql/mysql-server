@@ -1713,6 +1713,11 @@ void Field_float::store(double nr)
   float j;
   if (dec < NOT_FIXED_DEC)
     nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
+  if (unsigned_flag && nr < 0)
+  {
+    current_thd->cuted_fields++;
+    nr=0;
+  }
   if (nr < -FLT_MAX)
   {
     j= -FLT_MAX;
@@ -1739,6 +1744,11 @@ void Field_float::store(double nr)
 void Field_float::store(longlong nr)
 {
   float j= (float) nr;
+  if (unsigned_flag && j < 0)
+  {
+    current_thd->cuted_fields++;
+    j=0;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -1945,6 +1955,11 @@ void Field_double::store(const char *from,uint len)
   double j= atof(tmp_str.c_ptr());
   if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
     current_thd->cuted_fields++;
+  if (unsigned_flag && j < 0)
+  {
+    current_thd->cuted_fields++;
+    j=0;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -1960,6 +1975,11 @@ void Field_double::store(double nr)
 {
   if (dec < NOT_FIXED_DEC)
     nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
+  if (unsigned_flag && nr < 0)
+  {
+    current_thd->cuted_fields++;
+    nr=0;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -1974,6 +1994,11 @@ void Field_double::store(double nr)
 void Field_double::store(longlong nr)
 {
   double j= (double) nr;
+  if (unsigned_flag && j < 0)
+  {
+    current_thd->cuted_fields++;
+    j=0;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {

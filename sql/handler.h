@@ -308,7 +308,9 @@ public:
   virtual char *update_table_comment(const char * comment)
   { return (char*) comment;}
   virtual void append_create_info(String *packet) {}
-
+  virtual char* get_foreign_key_create_info()
+  { return(NULL);}  /* gets foreign key create string from InnoDB */
+  virtual void free_foreign_key_create_info(char* str) {} 
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
