@@ -1851,7 +1851,8 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
 # isinf() could be a function or a macro (HPUX)
 AC_MSG_CHECKING(for isinf with <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; isinf(f)],
- AC_MSG_RESULT(yes) AC_DEFINE(HAVE_ISINF,,[isinf() macro or function]),
+ AC_MSG_RESULT(yes)
+ AC_DEFINE(HAVE_ISINF,,[isinf() macro or function]),
  AC_MSG_RESULT(no))
  
 CFLAGS="$ORG_CFLAGS"
@@ -2228,7 +2229,6 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
     # For NetWare, do not need readline
     echo "Skipping readline"
 else
-mkdir include/readline
 
 if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
 then
@@ -2236,7 +2236,7 @@ then
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
-    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/libedit/readline/*.h readline/"
+    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE)
 elif test "$with_readline" = "yes"
@@ -2245,7 +2245,7 @@ then
     readline_basedir="readline"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/readline/*.h readline/"
+    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/readline readline"
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE)
 else
@@ -2759,6 +2759,7 @@ EOF
     no) flag="-R" ;;
     *)  flag="-D" ;;
     esac
+    flag="$flag --VERSION=$VERSION --PACKAGE=$PACKAGE"
     (cd ndb && ./configure $flag) \
     || AC_MSG_ERROR([could not configure NDB Cluster])
     echo "END OF NDB CLUSTER CONFIGURATION"

@@ -754,11 +754,12 @@ void mysql_print_status(THD *thd);
 int find_ref_key(TABLE *form,Field *field, uint *offset);
 void key_copy(byte *key,TABLE *form,uint index,uint key_length);
 void key_restore(TABLE *form,byte *key,uint index,uint key_length);
-int key_cmp(TABLE *form,const byte *key,uint index,uint key_length);
+bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
-bool init_errmessage(void);
+int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 
+bool init_errmessage(void);
 void sql_perror(const char *message);
 void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
@@ -837,7 +838,7 @@ extern ulong server_id, concurrency;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
 extern ulong ha_read_key_count, ha_read_next_count, ha_read_prev_count;
 extern ulong ha_read_first_count, ha_read_last_count;
-extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
+extern ulong ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
 extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout;
@@ -891,6 +892,7 @@ extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_innodb;
 extern SHOW_COMP_OPTION have_berkeley_db;
+extern SHOW_COMP_OPTION have_ndbcluster;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
@@ -961,6 +963,10 @@ int format_number(uint inputflag,uint max_length,my_string pos,uint length,
 		  my_string *errpos);
 int openfrm(const char *name,const char *alias,uint filestat,uint prgflag,
 	    uint ha_open_flags, TABLE *outparam);
+int readfrm(const char *name, const void** data, uint* length);
+int writefrm(const char* name, const void* data, uint len);
+int create_table_from_handler(const char *db, const char *name,
+			      bool create_if_found);
 int closefrm(TABLE *table);
 db_type get_table_type(const char *name);
 int read_string(File file, gptr *to, uint length);
@@ -1038,8 +1044,7 @@ void reset_host_errors(struct in_addr *in);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);
-bool get_interval_info(const char *str,uint length,uint count,
-		       long *values);
+
 /* sql_cache.cc */
 extern bool sql_cache_init();
 extern void sql_cache_free();
