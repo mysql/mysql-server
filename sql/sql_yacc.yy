@@ -664,7 +664,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <ha_rkey_mode> handler_rkey_mode
 
-%type <cast_type> cast_type cast_type_finalize
+%type <cast_type> cast_type
 
 %type <udf_type> udf_func_type
 
@@ -3082,11 +3082,7 @@ in_sum_expr:
 	  $$= $3;
 	};
 
-cast_type_init:
-	{ Lex->charset= NULL; Lex->length= (char*)0; }
-	;
-
-cast_type_finalize:
+cast_type:
 	BINARY			{ $$=ITEM_CAST_BINARY; }
 	| CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; }
 	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
@@ -3097,10 +3093,6 @@ cast_type_finalize:
 	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
 	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
 	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
-	;
-
-cast_type:
-	cast_type_init cast_type_finalize { $$= $2; }
 	;
 
 expr_list:
