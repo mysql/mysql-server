@@ -318,32 +318,29 @@
    scan only a subset of a table using @ref NdbIndexScanOperation::setBound().
    In addition, result sets can be sorted in either ascending or descending order, using
    @ref NdbIndexScanOperation::readTuples(). Note that rows are returned unordered 
-   by default, that is, unless <code>sorted</code> is set to <var>true</var>.
-   IN addition, when using NdbIndexScanOperation::BoundEQ on a partition key, 
-   only fragments containing rows will actually be scanned.
+   by default, that is, unless <var>sorted</var> is set to <b>true</b>.
+   It is also important to note that, when using NdbIndexScanOperation::BoundEQ 
+   on a partition key, only fragments containing rows will actually be scanned.
    
-   @comment STOP POINT 20050108 13.35 GMT JS
-
-   @note When performing sorted scan, parameter parallelism to 
+   @note When performing a sorted scan, parameter parallelism to 
    NdbIndexScanOperation::readTuples() will
    be ignored and max parallelism will be used instead. 
 
    @subsection secScanLocks Lock handling with scans
 
-   When scanning a table or an index potentially 
-   a lot of records will be returned.
-
-   But Ndb will only lock a batch of rows per fragment at a time.
+   Performing scans on either a tables or an index has the potential 
+   return a great many records; however, Ndb will lock only a predetermined 
+   number of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
-   batch parameter to NdbScanOperation::readTuples().
+   <var>batch</var> parameter passed to NdbScanOperation::readTuples().
 
-   To let the application handle how locks are released 
-   NdbScanOperation::nextResult() have a parameter fetch_allow.
-   If NdbScanOperation::nextResult() is called with fetch_allow = false, no
-   locks may be released as result of the function call. Otherwise the locks
-   for the current batch may be released.
+   In order to allow the application to handle how locks are released, 
+   NdbScanOperation::nextResult() has a Boolean parameter <var>fetch_allow</var>.
+   If NdbScanOperation::nextResult() is called with <var>fetch_allow</var> equal to 
+   <b>false</b>, then no locks may be released as result of the function call. 
+   Otherwise the locks for the current batch may be released.
 
-   This example shows scan delete, handling locks in an efficient manner.
+   This next example shows a scan delete that handle locks in an efficient manner.
    For the sake of brevity, we omit error-handling.
    @code
      int check;
@@ -355,40 +352,31 @@
        {
          // Inner loop for each row within batch
          MyScanOperation->deleteCurrentTuple();
-       } while((check = MyScanOperation->nextResult(false) == 0));
+       } while((check = MyScanOperation->nextResult(false)) == 0);
 
        // When no more rows in batch, exeute all defined deletes       
        MyTransaction->execute(NoCommit);
      }
    @endcode
 
-   See @ref ndbapi_scan.cpp for full example of scan.
+   See @ref ndbapi_scan.cpp for a more complete example of a scan.
 
    @section secError                    Error Handling
 
-   Errors can occur when
-   -# operations are being defined, or when the
-   -# transaction is being executed.
+   Errors can occur either when operations making up a transaction are being 
+   defined, or when the transaction is actually being executed. Catching and 
+   handling either sort of error requires testing the value returned by 
+   NdbTransaction::execute(), and then, if an error is indicated (that is, 
+   if this value is equal to -1), using the following two methods in order to 
+   identify the error's type and location:
 
-   One recommended way to handle a transaction failure 
-   (i.e. an error is reported) is to:
-   -# Rollback transaction (NdbTransaction::execute() with a special parameter)
-   -# Close transaction
-   -# Restart transaction (if the error was temporary)
-
-   @note Transactions are not automatically closed when an error occur. Call
-   Ndb::closeTransaction() to close.
-
-   Several errors can occur when a transaction holds multiple 
-   operations which are simultaneously executed.
-   In this case the application has to go through the operation
-   objects and query for their NdbError objects to find out what really
-   happened.
-
-   NdbTransaction::getNdbErrorOperation() returns a reference to the 
-   operation causing the latest error.
-   NdbTransaction::getNdbErrorLine() delivers the method number of the 
-   erroneous method in the operation.
+   - NdbTransaction::getNdbErrorOperation() returns a reference to the 
+     operation causing the most recent error.
+   - NdbTransaction::getNdbErrorLine() yields the method number of the 
+     erroneous method in the operation.
+   
+   This short example illustrates how to detect an error and to use these 
+   two methods to identify it:
 
    @code
      theTransaction = theNdb->startTransaction();
@@ -396,26 +384,43 @@
      if (theOperation == NULL) goto error;
      theOperation->readTuple(NdbOperation::LM_Read);
      theOperation->setValue("ATTR_1", at1);
-     theOperation->setValue("ATTR_2", at1); //Here an error occurs
+     theOperation->setValue("ATTR_2", at1);  //  Error occurs here
      theOperation->setValue("ATTR_3", at1);
      theOperation->setValue("ATTR_4", at1);
     
      if (theTransaction->execute(Commit) == -1) {
        errorLine = theTransaction->getNdbErrorLine();
        errorOperation = theTransaction->getNdbErrorOperation();
+     }
    @endcode
 
-   Here errorLine will be 3 as the error occurred in the third method 
-   on the operation object.
-   Getting errorLine == 0 means that the error occurred when executing the 
-   operations.
-   Here errorOperation will be a pointer to the theOperation object.
-   NdbTransaction::getNdbError() will return the NdbError object 
-   including holding information about the error.
+   Here <code>errorLine</code> will be 3 as the error occurred in the 
+   third method called on the NdbOperation object (in this case, 
+   <code>theOperation</code>); if the result of 
+   NdbTransaction::getNdbErrorLine() is 0, this means that the error 
+   occurred when the operations were executed. In this example, 
+   <code>errorOperation</code> will be a pointer to the <code>theOperation</code> 
+   object. The NdbTransaction::getNdbError() method returns an NdbError 
+   object providing information about the error.
 
-   Since errors could have occurred even when a commit was reported,
-   there is also a special method, NdbTransaction::commitStatus(),
-   to check the commit status of the transaction.
+   @note Transactions are <b>not</b> automatically closed when an error occurs. Call
+   Ndb::closeTransaction() to close the transaction.
+
+   One recommended way to handle a transaction failure 
+   (i.e. an error is reported) is to:
+   -# Rollback transaction (call NdbTransaction::execute() with a special parameter)
+   -# Close transaction (call NdbTransaction::closeTransaction())
+   -# If the error was temporary, attempt to restart the transaction
+
+   Several errors can occur when a transaction contains multiple 
+   operations which are simultaneously executed.
+   In this case the application has to go through all operations
+   and query their NdbError objects to find out what really happened.
+
+   It is also important to note that errors can occur even when a commit is 
+   reported as successful. In order to handle such situations, the NDB API 
+   provides an additional NdbTransaction::commitStatus() method to check the 
+   transactions's commit status.
 
 ******************************************************************************/
 
