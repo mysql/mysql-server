@@ -770,7 +770,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
     flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			     1 : 0);
-    flags.charset_num= thd->charset()->number;
+    flags.character_set_client_num= thd->variables.character_set_client->number;
+    flags.character_set_results_num= thd->variables.character_set_results->number;
+    flags.collation_connection_num= thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
     STRUCT_LOCK(&structure_guard_mutex);
 
@@ -950,7 +952,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
   flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			   1 : 0);
-  flags.charset_num= thd->charset()->number;
+  flags.character_set_client_num= thd->variables.character_set_client->number;
+  flags.character_set_results_num= thd->variables.character_set_results->number;
+  flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
  	 &flags, QUERY_CACHE_FLAGS_SIZE);
@@ -3105,7 +3109,7 @@ void Query_cache::queries_dump()
       str[len]= 0; // make zero ending DB name
       DBUG_PRINT("qcache", ("F:%u C:%u L:%lu (%u) '%s' '%s'",
 			    flags.client_long_flag,
-			    flags.charset_num, (ulong)flags.limit,
+			    flags.character_set_client_num, (ulong)flags.limit,
 			    len, str, strend(str)+1));
       DBUG_PRINT("qcache", ("-b- 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", (ulong) block,
 			    (ulong) block->next, (ulong) block->prev,

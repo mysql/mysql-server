@@ -8,6 +8,9 @@ set @a := foo;
 set @a := connection_id() + 3;
 select @a - connection_id();
 
+set @b := 1;
+select @b;
+
 # Check using and setting variables with SELECT DISTINCT
 
 CREATE TABLE t1 ( i int not null, v int not null,index (i));

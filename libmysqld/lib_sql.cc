@@ -75,7 +75,10 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
      client). So we have to call free_old_query here
   */
   free_old_query(mysql);
-  if (!arg)
+
+  thd->extra_length= arg_length;
+  thd->extra_data= (char *)arg;
+  if (header)
   {
     arg= header;
     arg_length= header_length;
@@ -92,7 +95,10 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
   }
   else
+  {
     net->last_error[0]= 0;
+    strmov(net->sqlstate, not_error_sqlstate);
+  }
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
@@ -128,6 +134,8 @@ static MYSQL_FIELD * STDCALL emb_list_fields(MYSQL *mysql)
 static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   THD *thd= (THD*)mysql->thd;
+  if (mysql->net.last_errno)
+    return 1;
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= mysql->field_count;
@@ -176,6 +184,11 @@ static int STDCALL emb_stmt_execute(MYSQL_STMT *stmt)
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
+  if (thd->data)
+  {
+    free_rows(thd->data);
+    thd->data= 0;
+  }
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
 			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),1)
       || emb_mysql_read_query_result(stmt->mysql))
@@ -217,7 +230,14 @@ static void STDCALL emb_free_embedded_thd(MYSQL *mysql)
   THD *thd= (THD*)mysql->thd;
   if (thd->data)
     free_rows(thd->data);
+  thread_count--;
   delete thd;
+}
+
+static const char * STDCALL emb_read_statistic(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  return thd->net.last_error;
 }
 
 MYSQL_METHODS embedded_methods= 
@@ -232,7 +252,8 @@ MYSQL_METHODS embedded_methods=
   emb_stmt_execute,
   emb_read_binary_rows,
   emb_unbuffered_fetch,
-  emb_free_embedded_thd
+  emb_free_embedded_thd,
+  emb_read_statistic
 };
 
 C_MODE_END
@@ -431,6 +452,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
 {
   THD *thd = (THD *)mysql->thd;
   thd->mysql= mysql;
+  mysql->server_version= server_version;
 }
 
 void *create_embedded_thd(int client_flag, char *db)
@@ -465,6 +487,7 @@ void *create_embedded_thd(int client_flag, char *db)
 
   thd->data= 0;
 
+  thread_count++;
   return thd;
 }
 

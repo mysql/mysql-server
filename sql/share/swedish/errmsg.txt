@@ -243,7 +243,7 @@ character-set=latin1
 "Slav SQL tråden ignorerade frågan pga en replicate-*-table regel",
 "Felaktig FOREIGN KEY-definition för '%-.64s': %s",
 "Nyckelreferensen och tabellreferensen stämmer inte överens",
-"Kardinalitetsfel (fler/färre än %d kolumner)",
+"Operand should contain %d column(s)",
 "Subquery returnerade mer än 1 rad",
 "Okänd PREPARED STATEMENT id (%ld) var given till %s",
 "Hjälpdatabasen finns inte eller är skadad",
