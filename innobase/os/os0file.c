@@ -1586,8 +1586,7 @@ os_aio_init(
 	os_io_init_simple();
 
 	for (i = 0; i < n_segments; i++) {
-		ut_a(i < SRV_MAX_N_IO_THREADS);
-	        srv_io_thread_op_info[i] = (char*)"not started yet";
+	        srv_set_io_thread_op_info(i, "not started yet");
 	}
 
 	n_per_seg = n / n_segments;
@@ -1598,24 +1597,24 @@ os_aio_init(
 
 	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
 
-	srv_io_thread_function[0] = (char*)"insert buffer thread";
+	srv_io_thread_function[0] = "insert buffer thread";
 
 	os_aio_log_array = os_aio_array_create(n_per_seg, 1);
 
-	srv_io_thread_function[1] = (char*)"log thread";
+	srv_io_thread_function[1] = "log thread";
 
 	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
 							n_read_segs);
 	for (i = 2; i < 2 + n_read_segs; i++) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
-	        srv_io_thread_function[i] = (char*)"read thread";
+	        srv_io_thread_function[i] = "read thread";
 	}
 
 	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
 							n_write_segs);
 	for (i = 2 + n_read_segs; i < n_segments; i++) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
-	        srv_io_thread_function[i] = (char*)"write thread";
+	        srv_io_thread_function[i] = "write thread";
 	}
 
 	os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
@@ -2330,9 +2329,7 @@ os_aio_windows_handle(
 		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
 		i = pos;
 	} else {
-		ut_a(orig_seg < SRV_MAX_N_IO_THREADS);
-		srv_io_thread_op_info[orig_seg] =
-						"wait Windows aio";
+		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
 		i = os_event_wait_multiple(n,
 				(array->native_events) + segment * n);
 	}
@@ -2344,9 +2341,8 @@ os_aio_windows_handle(
 	ut_a(slot->reserved);
 
 	if (orig_seg != ULINT_UNDEFINED) {
-		ut_a(orig_seg < SRV_MAX_N_IO_THREADS);
-		srv_io_thread_op_info[orig_seg] =
-					"get windows aio return value";
+		srv_set_io_thread_op_info(orig_seg,
+					"get windows aio return value");
 	}
 
 	ret = GetOverlappedResult(slot->file, &(slot->control), &len, TRUE);
@@ -2671,8 +2667,7 @@ consecutive_loop:
 		}
 	}
 	
-	ut_a(global_segment < SRV_MAX_N_IO_THREADS);
-	srv_io_thread_op_info[global_segment] = (char*) "doing file i/o";
+	srv_set_io_thread_op_info(global_segment, "doing file i/o");
 
 	if (os_aio_print_debug) {
 		fprintf(stderr,
@@ -2722,8 +2717,7 @@ consecutive_loop:
 	}
 
 	ut_a(ret);
-	ut_a(global_segment < SRV_MAX_N_IO_THREADS);
-	srv_io_thread_op_info[global_segment] = (char*) "file i/o done";
+	srv_set_io_thread_op_info(global_segment, "file i/o done");
 
 /* printf("aio: %lu consecutive %lu:th segment, first offs %lu blocks\n",
 			n_consecutive, global_segment, slot->offset
@@ -2781,9 +2775,7 @@ wait_for_io:
 	os_mutex_exit(array->mutex);
 
 recommended_sleep:
-	ut_a(global_segment < SRV_MAX_N_IO_THREADS);
-	srv_io_thread_op_info[global_segment] =
-				(char*)"waiting for i/o request";
+	srv_set_io_thread_op_info(global_segment, "waiting for i/o request");
 
 	os_event_wait(os_aio_segment_wait_events[global_segment]);
 
