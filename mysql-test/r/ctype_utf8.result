@@ -167,3 +167,5 @@ select hex(s1) from t1;
 hex(s1)
 41
 drop table t1;
+create table t1 (a char(160) character set utf8, primary key(a));
+ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the storage engine doesn't support unique sub keys
