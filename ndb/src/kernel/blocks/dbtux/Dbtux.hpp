@@ -446,6 +446,7 @@ private:
     Uint32 m_descPage;          // descriptor page
     Uint16 m_descOff;           // offset within the page
     Uint16 m_numAttrs;
+    bool m_storeNullKey;
     union {
     Uint32 nextPool;
     };
@@ -469,6 +470,7 @@ private:
     Uint32 m_descPage;          // copy from index level
     Uint16 m_descOff;
     Uint16 m_numAttrs;
+    bool m_storeNullKey;
     TreeHead m_tree;
     TupLoc m_freeLoc;           // one node pre-allocated for insert
     DLList<ScanOp> m_scanList;  // current scans on this fragment
@@ -993,7 +995,8 @@ Dbtux::Index::Index() :
   m_numFrags(0),
   m_descPage(RNIL),
   m_descOff(0),
-  m_numAttrs(0)
+  m_numAttrs(0),
+  m_storeNullKey(false)
 {
   for (unsigned i = 0; i < MaxIndexFragments; i++) {
     m_fragId[i] = ZNIL;
@@ -1012,6 +1015,7 @@ Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_descPage(RNIL),
   m_descOff(0),
   m_numAttrs(ZNIL),
+  m_storeNullKey(false),
   m_tree(),
   m_freeLoc(),
   m_scanList(scanOpPool),

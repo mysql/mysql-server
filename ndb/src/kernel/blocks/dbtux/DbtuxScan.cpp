@@ -137,7 +137,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
   unsigned offset = 5;
   // walk through entries
-  while (offset + 2 < req->boundAiLength) {
+  while (offset + 2 <= req->boundAiLength) {
     jam();
     const unsigned type = data[offset];
     if (type > 4) {

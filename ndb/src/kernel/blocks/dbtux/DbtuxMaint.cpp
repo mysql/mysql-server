@@ -82,8 +82,8 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   ent.m_fragBit = fragBit;
   // read search key
   readKeyAttrs(frag, ent, 0, c_searchKey);
-  // check if all keys are null
-  {
+  if (! frag.m_storeNullKey) {
+    // check if all keys are null
     const unsigned numAttrs = frag.m_numAttrs;
     bool allNull = true;
     for (unsigned i = 0; i < numAttrs; i++) {
