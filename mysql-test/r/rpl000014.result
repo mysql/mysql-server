@@ -1,13 +1,13 @@
 File	Position	Binlog_do_db	Binlog_ignore_db
 master-bin.001	73		
-Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
-127.0.0.1	root	9306	1	master-bin.001	73	Yes		
-Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
-127.0.0.1	root	9306	1	master-bin.001	73	No		
-Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
-127.0.0.1	root	9306	1	master-bin.001	73	Yes		
-Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
-127.0.0.1	root	9306	1	master-bin.001	173	Yes		
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
+127.0.0.1	root	9306	1	master-bin.001	73	Yes			0		0
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
+127.0.0.1	root	9306	1	master-bin.001	73	No			0		0
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
+127.0.0.1	root	9306	1	master-bin.001	73	Yes			0		0
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
+127.0.0.1	root	9306	1	master-bin.001	173	Yes			0		0
 File	Position	Binlog_do_db	Binlog_ignore_db
 master-bin.001	73		
 n
