@@ -16,14 +16,14 @@
 
 # Process this file with automake to create Makefile.in
 
-noinst_LIBRARIES=libz.a
+noinst_LTLIBRARIES=libz.la
 
 noinst_HEADERS= crc32.h deflate.h inffast.h inffixed.h inflate.h \
-                inftrees.h trees.h zconf.h zlib.h zutil.h
+		inftrees.h trees.h zconf.h zlib.h zutil.h
 
-libz_a_SOURCES= adler32.c compress.c crc32.c deflate.c gzio.c \
-                infback.c inffast.c inflate.c inftrees.c trees.c \
-		uncompr.c zutil.c
+libz_la_SOURCES= adler32.c compress.c crc32.c deflate.c gzio.c \
+		 infback.c inffast.c inflate.c inftrees.c trees.c \
+		 uncompr.c zutil.c
 
 EXTRA_DIST= README FAQ INDEX ChangeLog algorithm.txt zlib.3 
 

@@ -17,7 +17,7 @@
 
 INCLUDES=@MT_INCLUDES@ -I$(top_srcdir)/include $(openssl_includes)
 LDADD=  @CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ @ZLIB_LIBS@ \
-	$(top_builddir)/libmysql_r/libmysqlclient_r.la \
+	$(top_builddir)/libmysql_r/libmysqlclient_r.la
 bin_PROGRAMS=		mysqlmanager
 mysqlmanager_SOURCES=	mysqlmanager.c
 mysqlmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
