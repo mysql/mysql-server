@@ -119,8 +119,8 @@ static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
 static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 {
   /* ORDER BY word DESC, ndepth DESC */
-  int i= mi_compare_text(cs, (*b)->word+1,(*b)->len-1,
-                             (*a)->word+1,(*a)->len-1,0);
+  int i= mi_compare_text(cs, (uchar*) (*b)->word+1,(*b)->len-1,
+                             (uchar*) (*a)->word+1,(*a)->len-1,0);
   if (!i)
     i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
   return i;
@@ -255,7 +255,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
       r= mi_compare_text(ftb->charset,
                          info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
-                         ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
+                         (uchar*) ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                          0);
     }
@@ -348,9 +348,9 @@ static int _ftb_strstr(const byte *s0, const byte *e0,
     if (s0 >= e0)
       return 0;
     p=s1+1;
-    while (s0 < e0 && p < e1 && cs->to_upper[(uint) (uchar) *s0++] ==
-	   cs->to_upper[(uint) (uchar) *p++])
-      /* no-op */;
+    while (s0 < e0 && p < e1 && cs->to_upper[(uint) (uchar) *s0] ==
+	   cs->to_upper[(uint) (uchar) *p])
+      s0++, p++;
     if (p >= e1)
       return 1;
   }
@@ -473,7 +473,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
         r= mi_compare_text(ftb->charset,
                            info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
-                           ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
+                           (uchar*) ftbw->word + (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                            0);
       }
@@ -578,7 +578,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)
       {
         ftbw=ftb->list[c];
-        if (mi_compare_text(ftb->charset, word.pos, word.len,
+        if (mi_compare_text(ftb->charset, (uchar*) word.pos, word.len,
                             (uchar*) ftbw->word+1, ftbw->len-1,
                             (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)) >0)
           b=c;
@@ -588,7 +588,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (; c>=0; c--)
       {
         ftbw=ftb->list[c];
-        if (mi_compare_text(ftb->charset, word.pos,word.len,
+        if (mi_compare_text(ftb->charset, (uchar*) word.pos, word.len,
                             (uchar*) ftbw->word+1,ftbw->len-1,
                             (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)))
           break;

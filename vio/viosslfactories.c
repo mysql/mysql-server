@@ -93,7 +93,10 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
     {
       DBUG_PRINT("error",("unable to get certificate from '%s'\n",cert_file));
       /* FIX stderr */
+      fprintf(stderr,"Error when connection to server using SSL:");
       ERR_print_errors_fp(stderr);
+      fprintf(stderr,"Unable to get certificate from '%s'\n", cert_file);
+      fflush(stderr);
       DBUG_RETURN(0);
     }
     if (key_file == NULL)
@@ -103,7 +106,10 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
     {
       DBUG_PRINT("error", ("unable to get private key from '%s'\n",key_file));
       /* FIX stderr */
+      fprintf(stderr,"Error when connection to server using SSL:");
       ERR_print_errors_fp(stderr);
+      fprintf(stderr,"Unable to get private key from '%s'\n", cert_file);
+      fflush(stderr);      
       DBUG_RETURN(0);
     }
 

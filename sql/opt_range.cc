@@ -2463,9 +2463,9 @@ int QUICK_SELECT::get_next()
 
     if (range->flag & NO_MIN_RANGE)		// Read first record
     {
-      int error;
-      if ((error=file->index_first(record)))
-	DBUG_RETURN(error);			// Empty table
+      int local_error;
+      if ((local_error=file->index_first(record)))
+	DBUG_RETURN(local_error);		// Empty table
       if (cmp_next(range) == 0)
 	DBUG_RETURN(0);
       range=0;			// No matching records; go to next range
@@ -2499,13 +2499,13 @@ int QUICK_SELECT::get_next()
 	/* compare if found key is over max-value */
 	/* Returns 0 if key <= range->max_key */
 
-int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
+int QUICK_SELECT::cmp_next(QUICK_RANGE *range_arg)
 {
-  if (range->flag & NO_MAX_RANGE)
-    return (0);					/* key can't be to large */
+  if (range_arg->flag & NO_MAX_RANGE)
+    return 0;					/* key can't be to large */
 
   KEY_PART *key_part=key_parts;
-  for (char *key=range->max_key, *end=key+range->max_length;
+  for (char *key=range_arg->max_key, *end=key+range_arg->max_length;
        key < end;
        key+= key_part++->part_length)
   {
@@ -2526,7 +2526,7 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
     if (cmp > 0)
       return 1;
   }
-  return (range->flag & NEAR_MAX) ? 1 : 0;		// Exact match
+  return (range_arg->flag & NEAR_MAX) ? 1 : 0;		// Exact match
 }
 
 
@@ -2610,9 +2610,9 @@ int QUICK_SELECT_DESC::get_next()
 
     if (range->flag & NO_MAX_RANGE)		// Read last record
     {
-      int error;
-      if ((error=file->index_last(record)))
-	DBUG_RETURN(error);			// Empty table
+      int local_error;
+      if ((local_error=file->index_last(record)))
+	DBUG_RETURN(local_error);		// Empty table
       if (cmp_prev(range) == 0)
 	DBUG_RETURN(0);
       range=0;			// No matching records; go to next range
@@ -2666,16 +2666,18 @@ int QUICK_SELECT_DESC::get_next()
   }
 }
 
+
 /*
- * Returns 0 if found key is inside range (found key >= range->min_key).
- */
-int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
+  Returns 0 if found key is inside range (found key >= range->min_key).
+*/
+
+int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range_arg)
 {
-  if (range->flag & NO_MIN_RANGE)
-    return (0);					/* key can't be to small */
+  if (range_arg->flag & NO_MIN_RANGE)
+    return 0;					/* key can't be to small */
 
   KEY_PART *key_part = key_parts;
-  for (char *key = range->min_key, *end = key + range->min_length;
+  for (char *key = range_arg->min_key, *end = key + range_arg->min_length;
        key < end;
        key += key_part++->part_length)
   {
@@ -2699,42 +2701,45 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
     if (cmp < 0)
       return 1;
   }
-  return (range->flag & NEAR_MIN) ? 1 : 0;		// Exact match
+  return (range_arg->flag & NEAR_MIN) ? 1 : 0;		// Exact match
 }
+
 
 /*
  * True if this range will require using HA_READ_AFTER_KEY
    See comment in get_next() about this
  */
 
-bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range)
+bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg)
 {
-  return ((range->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
-	  !(range->flag & EQ_RANGE) ||
-	  head->key_info[index].key_length != range->max_length) ? 1 : 0;
+  return ((range_arg->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
+	  !(range_arg->flag & EQ_RANGE) ||
+	  head->key_info[index].key_length != range_arg->max_length) ? 1 : 0;
 }
+
 
 /* True if we are reading over a key that may have a NULL value */
 
-bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
+bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
 					   uint used_key_parts)
 {
   uint offset,end;
   KEY_PART *key_part = key_parts,
            *key_part_end= key_part+used_key_parts;
 
-  for (offset= 0,  end = min(range->min_length, range->max_length) ;
+  for (offset= 0,  end = min(range_arg->min_length, range_arg->max_length) ;
        offset < end && key_part != key_part_end ;
        offset += key_part++->part_length)
   {
     uint null_length=test(key_part->null_bit);
-    if (!memcmp((char*) range->min_key+offset, (char*) range->max_key+offset,
+    if (!memcmp((char*) range_arg->min_key+offset,
+		(char*) range_arg->max_key+offset,
 		key_part->part_length + null_length))
     {
       offset+=null_length;
       continue;
     }
-    if (null_length && range->min_key[offset])
+    if (null_length && range_arg->min_key[offset])
       return 1;				// min_key is null and max_key isn't
     // Range doesn't cover NULL. This is ok if there is no more null parts
     break;
@@ -2747,7 +2752,7 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
   */
   if (key_part != key_part_end && key_part->null_bit)
   {
-    if (offset >= range->min_length || range->min_key[offset])
+    if (offset >= range_arg->min_length || range_arg->min_key[offset])
       return 1;					// Could be null
     key_part++;
   }

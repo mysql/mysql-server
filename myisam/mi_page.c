@@ -66,7 +66,9 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       page+keyinfo->block_length > info->state->key_file_length ||
       (page & (MI_MIN_KEY_BLOCK_LENGTH-1)))
   {
-    DBUG_PRINT("error",("Trying to write inside key status region: %lu",
+    DBUG_PRINT("error",("Trying to write inside key status region: key_start: %lu  length: %lu  page: %lu",
+			(long) info->s->base.keystart,
+			(long) info->state->key_file_length,
 			(long) page));
     my_errno=EINVAL;
     return(-1);

@@ -24,6 +24,7 @@ Created 1/8/1997 Heikki Tuuri
 #include "row0row.h"
 #include "row0uins.h"
 #include "row0umod.h"
+#include "row0mysql.h"
 #include "srv0srv.h"
 
 /* How to undo row operations?
@@ -204,6 +205,7 @@ row_undo(
 	ulint	err;
 	trx_t*	trx;
 	dulint	roll_ptr;
+	ibool	froze_data_dict	= FALSE;
 	
 	ut_ad(node && thr);
 	
@@ -211,7 +213,6 @@ row_undo(
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
-		/* The call below also starts &mtr */
 		node->undo_rec = trx_roll_pop_top_rec_of_trx(trx,
 							trx->roll_limit,
 							&roll_ptr,
@@ -254,6 +255,18 @@ row_undo(
 		}
 	}
 
+	/* Prevent DROP TABLE etc. while we are rolling back this row.
+        If we are doing a TABLE CREATE or some other dictionary operation,
+        then we already have dict_operation_lock locked in x-mode. Do not
+        try to lock again in s-mode, because that would cause a hang. */
+
+	if (trx->dict_operation_lock_mode == 0) {
+        
+	        row_mysql_freeze_data_dictionary(trx);
+
+	        froze_data_dict = TRUE;
+	}
+
 	if (node->state == UNDO_NODE_INSERT) {
 
 		err = row_undo_ins(node, thr);
@@ -262,6 +275,11 @@ row_undo(
 	} else {
 		ut_ad(node->state == UNDO_NODE_MODIFY);
 		err = row_undo_mod(node, thr);
+	}
+
+	if (froze_data_dict) {
+
+	        row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	/* Do some cleanup */

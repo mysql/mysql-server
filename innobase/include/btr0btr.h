@@ -399,6 +399,19 @@ btr_print_tree(
 	dict_tree_t*	tree,	/* in: tree */
 	ulint		width);	/* in: print this many entries from start
 				and end */
+/****************************************************************
+Checks the size and number of fields in a record based on the definition of
+the index. */
+
+ibool
+btr_index_rec_validate(
+/*====================*/
+					/* out: TRUE if ok */
+	rec_t*		rec,		/* in: index record */
+	dict_index_t*	index,		/* in: index */
+	ibool		dump_on_error);	/* in: TRUE if the function
+					should print hex dump of record
+					and page on error */
 /******************************************************************
 Checks the consistency of an index tree. */
 

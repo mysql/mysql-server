@@ -23,7 +23,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "thr0loc.h"
 #include "btr0sea.h"
-
+#include "os0proc.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
 copy MUST be equal to the one in mysql/sql/ha_innobase.cc ! */
@@ -85,12 +85,14 @@ trx_create(
 	trx->conc_state = TRX_NOT_STARTED;
 	trx->start_time = time(NULL);
 
+	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 
 	trx->dict_operation = FALSE;
 
 	trx->mysql_thd = NULL;
+	trx->mysql_query_str = NULL;
 
 	trx->n_mysql_tables_in_use = 0;
 	trx->mysql_n_tables_locked = 0;
@@ -127,12 +129,13 @@ trx_create(
 	trx->graph = NULL;
 
 	trx->wait_lock = NULL;
+	trx->was_chosen_as_deadlock_victim = FALSE;
 	UT_LIST_INIT(trx->wait_thrs);
 
 	trx->lock_heap = mem_heap_create_in_buffer(256);
 	UT_LIST_INIT(trx->trx_locks);
 
-	trx->has_dict_foreign_key_check_lock = FALSE;
+	trx->dict_operation_lock_mode = 0;
 	trx->has_search_latch = FALSE;
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
@@ -175,6 +178,8 @@ trx_allocate_for_mysql(void)
 	mutex_exit(&kernel_mutex);
 
 	trx->mysql_thread_id = os_thread_get_curr_id();
+
+	trx->mysql_process_no = os_proc_get_number();
 	
 	return(trx);
 }
@@ -256,6 +261,8 @@ trx_free(
 
 	ut_a(!trx->has_search_latch);
 	ut_a(!trx->auto_inc_lock);
+
+	ut_a(trx->dict_operation_lock_mode == 0);
 
 	if (trx->lock_heap) {
 		mem_heap_free(trx->lock_heap);
@@ -1497,9 +1504,12 @@ trx_print(
   		default: buf += sprintf(buf, " state %lu", trx->conc_state);
   	}
 
+#ifdef UNIV_LINUX
+        buf += sprintf(buf, ", process no %lu", trx->mysql_process_no);
+#else
         buf += sprintf(buf, ", OS thread id %lu",
 		       os_thread_pf(trx->mysql_thread_id));
-
+#endif
 	if (ut_strlen(trx->op_info) > 0) {
 		buf += sprintf(buf, " %s", trx->op_info);
 	}

@@ -320,6 +320,9 @@ insert into t1 select * from t2;
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	4
+show status like "Qcache_lowmem_prunes";
+Variable_name	Value
+Qcache_lowmem_prunes	0
 select a as a1, a as a2 from t1;
 select a as a2, a as a3 from t1;
 select a as a3, a as a4 from t1;
@@ -330,6 +333,9 @@ Qcache_hits	4
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
+show status like "Qcache_lowmem_prunes";
+Variable_name	Value
+Qcache_lowmem_prunes	2
 reset query cache;
 insert into t2 select * from t1;
 insert into t1 select * from t2;

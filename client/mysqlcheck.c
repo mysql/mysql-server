@@ -34,7 +34,7 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_compress = 0, opt_databases = 0, opt_fast = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
-               tty_password = 0;
+               tty_password = 0, opt_frm = 0;
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, *default_charset = 0,
@@ -139,13 +139,17 @@ static struct my_option my_long_options[] =
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
    (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"use-frm", OPT_FRM,
+   "When used with REPAIR, get table structure from .frm file, so the table can be repaired even if .MYI header is corrupted.",
+   (gptr*) &opt_frm, (gptr*) &opt_frm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
   {"verbose", 'v', "Print info about the various stages.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-  
+
 static const char *load_default_groups[] = { "mysqlcheck", "client", 0 };
 
 
@@ -234,7 +238,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_password = my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
-	start[1] = 0;	         		/* Cut length of argument */
+	start[1] = 0;                             /* Cut length of argument */
     }
     else
       tty_password = 1;
@@ -368,21 +372,25 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     return 1;
   if (opt_all_in_1)
   {
+    /* 
+      We need table list in form `a`, `b`, `c`
+      that's why we need 4 more chars added to to each table name
+      space is for more readable output in logs and in case of error
+    */	  
     char *table_names_comma_sep, *end;
     int i, tot_length = 0;
 
     for (i = 0; i < tables; i++)
-      tot_length += strlen(*(table_names + i)) + 1;
+      tot_length += strlen(*(table_names + i)) + 4;
 
     if (!(table_names_comma_sep = (char *)
-	  my_malloc((sizeof(char) * tot_length) + 1, MYF(MY_WME))))
+	  my_malloc((sizeof(char) * tot_length) + 4, MYF(MY_WME))))
       return 1;
 
     for (end = table_names_comma_sep + 1; tables > 0;
 	 tables--, table_names++)
     {
-      end = strmov(end, *table_names);
-      *end++= ',';
+      end = strxmov(end, " `", *table_names, "`,", NullS);
     }
     *--end = 0;
     handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1);
@@ -409,22 +417,27 @@ static int process_all_tables_in_db(char *database)
 
   if (opt_all_in_1)
   {
+    /* 
+      We need table list in form `a`, `b`, `c`
+      that's why we need 4 more chars added to to each table name
+      space is for more readable output in logs and in case of error
+     */
+	  
     char *tables, *end;
     uint tot_length = 0;
 
     while ((row = mysql_fetch_row(res)))
-      tot_length += strlen(row[0]) + 1;
+      tot_length += strlen(row[0]) + 4;
     mysql_data_seek(res, 0);
 
-    if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+1, MYF(MY_WME))))
+    if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
     {
       mysql_free_result(res);
       return 1;
     }
     for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
     {
-      end = strmov(end, row[0]);
-      *end++= ',';
+      end = strxmov(end, " `", row[0], "`,", NullS);	    
     }
     *--end = 0;
     if (tot_length)
@@ -472,6 +485,7 @@ static int handle_request_for_tables(char *tables, uint length)
     op = "REPAIR";
     if (opt_quick)              end = strmov(end, " QUICK");
     if (opt_extended)           end = strmov(end, " EXTENDED");
+    if (opt_frm)                end = strmov(end, " USE_FRM");
     break;
   case DO_ANALYZE:
     op = "ANALYZE";
@@ -483,10 +497,14 @@ static int handle_request_for_tables(char *tables, uint length)
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
-  sprintf(query, "%s TABLE %s %s", op, tables, options);
+  if (opt_all_in_1)
+    /* No backticks here as we added them before */
+    sprintf(query, "%s TABLE %s %s", op, tables, options);
+  else
+    sprintf(query, "%s TABLE `%s` %s", op, tables, options);
   if (mysql_query(sock, query))
   {
-    sprintf(message, "when executing '%s TABLE `%s` %s", op, tables,options);
+    sprintf(message, "when executing '%s TABLE ... %s'", op, options);
     DBerror(sock, message);
     return 1;
   }

@@ -18,7 +18,7 @@ INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include -I..
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
 bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
-resolve_stack_dump mysql_install
+			resolve_stack_dump mysql_install
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

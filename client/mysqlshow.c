@@ -56,6 +56,7 @@ static my_string opt_mysql_unix_port=0;
 int main(int argc, char **argv)
 {
   int error;
+  my_bool first_argument_uses_wildcards=0;
   char *wild;
   MYSQL mysql;
   MY_INIT(argv[0]);
@@ -63,21 +64,37 @@ int main(int argc, char **argv)
   get_options(&argc,&argv);
 
   wild=0;
-  if (argc && strcont(argv[argc-1],"*?%_"))
+  if (argc)
   {
-    char *pos;
-
-    wild=argv[--argc];
-    for (pos=wild ; *pos ; pos++)
-    {					/* Unix wildcards to sql  */
-      if (*pos == '*')
-	*pos='%';
-      else if (*pos == '?')
-	*pos='_';
-    }
+    char *pos= argv[argc-1], *to;
+    for (to= pos ; *pos ; pos++, to++)
+    {
+      switch (*pos)
+      {
+      case '*':
+	*pos= '%';
+	first_argument_uses_wildcards= 1;
+	break;
+      case '?':
+	*pos= '_';
+	first_argument_uses_wildcards= 1;
+	break;
+      case '%':
+      case '_':
+	first_argument_uses_wildcards= 1;
+	break;
+      case '\\':
+	pos++;
+      default: break;
+      }
+      *to= *pos;
+    }    
+    *to= *pos; // just to copy a '\0'  if '\\' was used
   }
+  if (first_argument_uses_wildcards)
+    wild= argv[--argc];
   else if (argc == 3)			/* We only want one field */
-    wild=argv[--argc];
+    wild= argv[--argc];
 
   if (argc > 2)
   {
@@ -99,7 +116,7 @@ int main(int argc, char **argv)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
-			   argv[0],opt_mysql_port,opt_mysql_unix_port,
+			   (first_argument_uses_wildcards) ? "" : argv[0],opt_mysql_port,opt_mysql_unix_port,
 			   0)))
   {
     fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));

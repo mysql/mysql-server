@@ -285,7 +285,7 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define T_VERBOSE               (1L << 28)
 #define T_VERY_SILENT           (1L << 29)
 #define T_WAIT_FOREVER          (1L << 30)
-#define T_WRITE_LOOP            (1L << 31)
+#define T_WRITE_LOOP            ((ulong) 1L << 31)
 
 #define T_REP_ANY               (T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
 

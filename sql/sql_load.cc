@@ -90,7 +90,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
   LOAD_FILE_INFO lf_info;
   char * db = table_list->db ? table_list->db : thd->db;
-  bool using_transactions;
+  bool transactional_table, log_delayed;
   DBUG_ENTER("mysql_load");
 
 #ifdef EMBEDDED_LIBRARY
@@ -105,6 +105,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (!(table = open_ltable(thd,table_list,lock_type)))
     DBUG_RETURN(-1);
+  transactional_table= table->file->has_transactions();
+  log_delayed= (transactional_table || table->tmp_table);
+
   if (!fields.elements)
   {
     Field **field;
@@ -224,6 +227,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.handle_dup = handle_duplicates;
     lf_info.wrote_create_file = 0;
     lf_info.last_pos_in_file = HA_POS_ERROR;
+    lf_info.log_delayed= log_delayed;
     read_info.set_io_cache_arg((void*) &lf_info);
   }
   restore_record(table,2);
@@ -275,16 +279,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
-  using_transactions = table->file->has_transactions();
+
   if (error)
   {
-    if (using_transactions)
+    if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
     if (!opt_old_rpl_compat && mysql_bin_log.is_open())
     {
       if (lf_info.wrote_create_file)
       {
-        Delete_file_log_event d(thd);
+        Delete_file_log_event d(thd, log_delayed);
         mysql_bin_log.write(&d);
       }
     }
@@ -297,27 +301,30 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (!thd->slave_thread)
     mysql_update_log.write(thd,thd->query,thd->query_length);
 
-  if (!using_transactions)
+  if (!log_delayed)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   if (mysql_bin_log.is_open())
   {
-    if (opt_old_rpl_compat && !read_file_from_client)
+    if (opt_old_rpl_compat)
     {
-      Load_log_event qinfo(thd, ex, db, table->table_name, fields, 
-			 handle_duplicates);
-      mysql_bin_log.write(&qinfo);
+      if (!read_file_from_client)
+      {
+	Load_log_event qinfo(thd, ex, db, table->table_name, fields, 
+			     handle_duplicates, log_delayed);
+	mysql_bin_log.write(&qinfo);
+      }
     }
-    if (!opt_old_rpl_compat)
+    else
     {
       read_info.end_io_cache(); // make sure last block gets logged
       if (lf_info.wrote_create_file)
       {
-        Execute_load_log_event e(thd);
+        Execute_load_log_event e(thd, log_delayed);
         mysql_bin_log.write(&e);
       }
     }
   }
-  if (using_transactions)
+  if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
   DBUG_RETURN(error);
 }

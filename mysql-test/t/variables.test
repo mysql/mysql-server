@@ -66,7 +66,6 @@ set table_type=MYISAM, table_type="HEAP", global table_type="INNODB";
 show local variables like 'table_type';
 show global variables like 'table_type';
 set GLOBAL query_cache_size=100000;
-set GLOBAL safe_show_database=0;
 
 set myisam_max_sort_file_size=10000, GLOBAL myisam_max_sort_file_size=20000;
 show variables like 'myisam_max_sort_file_size';
@@ -94,6 +93,10 @@ show variables like "convert_character_set";
 set global character set default, session character set default;
 show variables like "convert_character_set";
 select @@timestamp>0;
+
+set @@rand_seed1=10000000,@@rand_seed2=1000000;
+select ROUND(RAND(),5);
+
 
 # The following should give errors
 
@@ -189,7 +192,6 @@ set global query_cache_type=demand;
 set read_buffer_size=100;
 set read_rnd_buffer_size=100;
 set global rpl_recovery_rank=100;
-set global safe_show_database=1;
 set global server_id=100;
 set global slave_net_timeout=100;
 set global slow_launch_time=100;

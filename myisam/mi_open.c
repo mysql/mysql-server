@@ -583,7 +583,8 @@ byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
 
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
     if (length == (ulong) -1)
-      length= max(info->s->base.pack_reclength,info->s->base.max_key_length);
+      length= max(info->s->base.pack_reclength+info->s->base.pack_bits,
+                  info->s->base.max_key_length);
 
     extra= ((info->s->options & HA_OPTION_PACK_RECORD) ?
 	    ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+

@@ -1041,7 +1041,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	que_t*		graph;
 	ulint		error;
 	trx_t*		trx;
-	char*		str;
+	char*		str;	
 
 	mutex_enter(&(dict_sys->mutex));
 
@@ -1060,20 +1060,24 @@ dict_create_or_check_foreign_constraint_tables(void)
             	return(DB_SUCCESS);
         }
 
+	mutex_exit(&(dict_sys->mutex));
+
 	trx = trx_allocate_for_mysql();
 	
 	trx->op_info = (char *) "creating foreign key sys tables";
 
+	row_mysql_lock_data_dictionary(trx);
+
 	if (table1) {
 		fprintf(stderr,
 		"InnoDB: dropping incompletely created SYS_FOREIGN table\n");
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx, TRUE);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx);
 	}
 
 	if (table2) {
 		fprintf(stderr,
 	"InnoDB: dropping incompletely created SYS_FOREIGN_COLS table\n");
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS",trx,TRUE);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS", trx);
 	}
 
 	fprintf(stderr,
@@ -1122,8 +1126,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 		fprintf(stderr,
 		"InnoDB: dropping incompletely created SYS_FOREIGN tables\n");
 
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx, TRUE);
-		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS",trx,TRUE);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS", trx);
 
 		error = DB_MUST_GET_MORE_FILE_SPACE;
 	}
@@ -1132,14 +1136,14 @@ dict_create_or_check_foreign_constraint_tables(void)
 	
 	trx->op_info = (char *) "";
 
+	row_mysql_unlock_data_dictionary(trx);
+
   	trx_free_for_mysql(trx);
 
   	if (error == DB_SUCCESS) {
 		fprintf(stderr,
 		"InnoDB: Foreign key constraint system tables created\n");
 	}
-
-	mutex_exit(&(dict_sys->mutex));
 
 	return(error);
 }

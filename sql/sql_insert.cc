@@ -25,7 +25,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup,
 			 char *query, uint query_length, bool log_on);
 static void end_delayed_insert(THD *thd);
-static pthread_handler_decl(handle_delayed_insert,arg);
+extern "C" pthread_handler_decl(handle_delayed_insert,arg);
 static void unlink_blobs(register TABLE *table);
 
 /* Define to force use of my_malloc() if the allocated memory block is big */
@@ -98,13 +98,12 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 
 
 int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
-		 List<List_item> &values_list,enum_duplicates duplic,
-		 thr_lock_type lock_type)
+		 List<List_item> &values_list,enum_duplicates duplic)
 {
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
 		!(thd->master_access & SUPER_ACL));
-  bool using_transactions, bulk_insert=0;
+  bool transactional_table, log_delayed, bulk_insert=0;
   uint value_count;
   uint save_time_stamp;
   ulong counter = 1;
@@ -114,6 +113,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   char *query=thd->query;
+  thr_lock_type lock_type = table_list->lock_type;
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -194,14 +194,19 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   thd->proc_info="update";
   if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if ((bulk_insert= (values_list.elements > 1 &&
+  if ((bulk_insert= (values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT &&
 		     lock_type != TL_WRITE_DELAYED &&
 		     !(specialflag & SPECIAL_SAFE_MODE))))
   {
     table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
-			   thd->variables.read_buff_size);
-    table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			   thd->variables.bulk_insert_buff_size);
+			   min(thd->variables.read_buff_size,
+			       table->avg_row_length*values_list.elements));
+    if (thd->variables.bulk_insert_buff_size)
+      table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
+			     min(thd->variables.bulk_insert_buff_size,
+				 (table->total_key_length +
+				  table->keys * TREE_ELEMENT_EXTRA_SIZE)*
+				 values_list.elements));
     table->bulk_insert= 1;
   }
 
@@ -266,10 +271,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       info.copied=values_list.elements;
       end_delayed_insert(thd);
     }
-    if (info.copied || info.deleted)
-    {
-      query_cache_invalidate3(thd, table_list, 1);
-    }
+    query_cache_invalidate3(thd, table_list, 1);
   }
   else
   {
@@ -297,23 +299,33 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       thd->insert_id(id);			// For update log
     else if (table->next_number_field)
       id=table->next_number_field->val_int();	// Return auto_increment value
-    using_transactions=table->file->has_transactions();
-    if ((info.copied || info.deleted) && (error <= 0 || !using_transactions))
+    
+    transactional_table= table->file->has_transactions();
+    log_delayed= (transactional_table || table->tmp_table);
+    if ((info.copied || info.deleted) && (error <= 0 || !transactional_table))
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      using_transactions);
-	if (mysql_bin_log.write(&qinfo) && using_transactions)
+			      log_delayed);
+	if (mysql_bin_log.write(&qinfo) && transactional_table)
 	  error=1;
       }
-      if (!using_transactions)
+      if (!log_delayed)
 	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
-    if (using_transactions)
+    if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
-    if (info.copied || info.deleted)
+
+    /*
+      Only invalidate the query cache if something changed or if we
+      didn't commit the transacion (query cache is automaticly
+      invalidated on commit)
+    */
+    if ((info.copied || info.deleted) &&
+	(!transactional_table ||
+	 thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
     {
       query_cache_invalidate3(thd, table_list, 1);
     }
@@ -913,7 +925,7 @@ void kill_delayed_threads(void)
  * Create a new delayed insert thread
 */
 
-static pthread_handler_decl(handle_delayed_insert,arg)
+extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 {
   delayed_insert *di=(delayed_insert*) arg;
   THD *thd= &di->thd;
@@ -1197,7 +1209,7 @@ bool delayed_insert::handle_inserts(void)
       mysql_update_log.write(&thd,row->query, row->query_length);
       if (using_bin_log)
       {
-	Query_log_event qinfo(&thd, row->query, row->query_length);
+	Query_log_event qinfo(&thd, row->query, row->query_length,0);
 	mysql_bin_log.write(&qinfo);
       }
     }

@@ -919,7 +919,7 @@ public:
 class Item_func_get_user_var :public Item_func
 {
   LEX_STRING name;
-  user_var_entry *entry;
+  user_var_entry *var_entry;
   bool const_var_flag;
 
 public:
