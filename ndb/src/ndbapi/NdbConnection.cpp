@@ -145,27 +145,29 @@ NdbConnection::init()
 }//NdbConnection::init()
 
 /*****************************************************************************
-setOperationErrorCode(int anErrorCode);
+setOperationErrorCode(int error);
 
 Remark:        Sets an error code on the connection object from an 
                operation object. 
 *****************************************************************************/
 void
-NdbConnection::setOperationErrorCode(int anErrorCode)
+NdbConnection::setOperationErrorCode(int error)
 {
-  if (theError.code == 0)
-    theError.code = anErrorCode;
-}//NdbConnection::setOperationErrorCode()
+  DBUG_ENTER("NdbConnection::setOperationErrorCode");
+  setErrorCode(error);
+  DBUG_VOID_RETURN;
+}
 
 /*****************************************************************************
-setOperationErrorCodeAbort(int anErrorCode);
+setOperationErrorCodeAbort(int error);
 
 Remark:        Sets an error code on the connection object from an 
                operation object. 
 *****************************************************************************/
 void
-NdbConnection::setOperationErrorCodeAbort(int anErrorCode)
+NdbConnection::setOperationErrorCodeAbort(int error)
 {
+  DBUG_ENTER("NdbConnection::setOperationErrorCodeAbort");
   if (theTransactionIsStarted == false) {
     theCommitStatus = Aborted;
   } else if ((m_abortOption == AbortOnError) && 
@@ -173,9 +175,9 @@ NdbConnection::setOperationErrorCodeAbort(int anErrorCode)
              (theCommitStatus != Aborted)) {
     theCommitStatus = NeedAbort;
   }//if
-  if (theError.code == 0)
-    theError.code = anErrorCode;
-}//NdbConnection::setOperationErrorCodeAbort()
+  setErrorCode(error);
+  DBUG_VOID_RETURN;
+}
 
 /*****************************************************************************
 setErrorCode(int anErrorCode);
@@ -183,10 +185,15 @@ setErrorCode(int anErrorCode);
 Remark:        Sets an error indication on the connection object. 
 *****************************************************************************/
 void
-NdbConnection::setErrorCode(int anErrorCode)
+NdbConnection::setErrorCode(int error)
 {
+  DBUG_ENTER("NdbConnection::setErrorCode");
+  DBUG_PRINT("enter", ("error: %d, theError.code: %d", error, theError.code));
+
   if (theError.code == 0)
-    theError.code = anErrorCode;
+    theError.code = error;
+
+  DBUG_VOID_RETURN;
 }//NdbConnection::setErrorCode()
 
 int
@@ -262,8 +269,12 @@ NdbConnection::execute(ExecType aTypeOfExec,
 		       AbortOption abortOption,
 		       int forceSend)
 {
+  DBUG_ENTER("NdbConnection::execute");
+  DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
+		       aTypeOfExec, abortOption));
+
   if (! theBlobFlag)
-    return executeNoBlobs(aTypeOfExec, abortOption, forceSend);
+    DBUG_RETURN(executeNoBlobs(aTypeOfExec, abortOption, forceSend));
 
   /*
    * execute prepared ops in batches, as requested by blobs
@@ -346,7 +357,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
     }
   } while (theFirstOpInList != NULL || tExecType != aTypeOfExec);
 
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int 
@@ -354,6 +365,10 @@ NdbConnection::executeNoBlobs(ExecType aTypeOfExec,
                               AbortOption abortOption,
                               int forceSend)
 {
+  DBUG_ENTER("NdbConnection::executeNoBlobs");
+  DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
+		       aTypeOfExec, abortOption));
+
 //------------------------------------------------------------------------
 // We will start by preparing all operations in the transaction defined
 // since last execute or since beginning. If this works ok we will continue
@@ -376,7 +391,7 @@ NdbConnection::executeNoBlobs(ExecType aTypeOfExec,
          */
         ndbout << "This timeout should never occur, execute(..)" << endl;
         setOperationErrorCodeAbort(4012);  // Error code for "Cluster Failure"
-        return -1;
+        DBUG_RETURN(-1);
       }//if
 
       /*
@@ -400,13 +415,13 @@ NdbConnection::executeNoBlobs(ExecType aTypeOfExec,
       }
 #endif
       if (theReturnStatus == ReturnFailure) {
-        return -1;
+        DBUG_RETURN(-1);
       }//if
       break;
     }
   }
   thePendingBlobOps = 0;
-  return 0;
+  DBUG_RETURN(0);
 }//NdbConnection::execute()
 
 /*****************************************************************************
@@ -430,9 +445,15 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
                                      void*              anyObject,
                                      AbortOption abortOption)
 {
+  DBUG_ENTER("NdbConnection::executeAsynchPrepare");
+  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: %x, anyObject: %x", 
+		       aTypeOfExec, aCallback, anyObject));
+
   /**
    * Reset error.code on execute
    */
+  if (theError.code != 0)
+    DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
   theError.code = 0;
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
@@ -441,7 +462,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
       int tReturnCode;
       tReturnCode = tcOp->executeCursor(theDBnode);
       if (tReturnCode == -1) {
-        return;
+        DBUG_VOID_RETURN;
       }//if
       tcOp = (NdbScanOperation*)tcOp->next();
     } // while
@@ -463,17 +484,6 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
   theCallbackFunction = aCallback;
   theCallbackObject   = anyObject;
   m_abortOption   = abortOption;
-  //  SendStatusType tSendStatus = theSendStatus;
-  
-//  if (tSendStatus != InitState) {
-/****************************************************************************
- * The application is obviously doing strange things. We should probably
- * report to the application the problem in some manner. Since we don't have
- * a good way of handling the problem we avoid discovering the problem.
- * Should be handled at some point in time.
- ****************************************************************************/
-//    return;
-//  }
   m_waitForReply = true;
   tNdb->thePreparedTransactionsArray[tnoOfPreparedTransactions] = this;
   theTransArrayIndex = tnoOfPreparedTransactions;
@@ -502,7 +512,11 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
     } else {
       theSendStatus = sendABORTfail;
     }//if
-    return;
+    if (theCommitStatus == Aborted){
+      DBUG_PRINT("exit", ("theCommitStatus: Aborted"));
+      setErrorCode(4350);
+    }
+    DBUG_VOID_RETURN;
   }//if
   if (tTransactionIsStarted == true) {
     if (tLastOp != NULL) {
@@ -520,7 +534,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
 	 *   We will use the commit method.
 	 *********************************************************************/
         theSendStatus = sendCOMMITstate;
-        return;
+	DBUG_VOID_RETURN;
       } else {
 	/**********************************************************************
 	 * We need to put it into the array of completed transactions to 
@@ -532,7 +546,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
 	 * put it into the completed array.
 	 **********************************************************************/
         theSendStatus = sendCompleted;
-	return;		// No Commit with no operations is OK
+	DBUG_VOID_RETURN; // No Commit with no operations is OK
       }//if
     }//if
   } else if (tTransactionIsStarted == false) {
@@ -560,7 +574,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
        * will put it into the completed array.
        ***********************************************************************/
       theSendStatus = sendCompleted;
-      return;
+      DBUG_VOID_RETURN;
     }//if
   }
 
@@ -573,7 +587,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
     tReturnCode = tOp->prepareSend(theTCConPtr, theTransactionId);
     if (tReturnCode == -1) {
       theSendStatus = sendABORTfail;
-      return;
+      DBUG_VOID_RETURN;
     }//if
 
     /*************************************************************************
@@ -596,7 +610,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
   theNoOfOpSent		= 0;
   theNoOfOpCompleted	= 0;
   theSendStatus = sendOperations;
-  return;
+  DBUG_VOID_RETURN;
 }//NdbConnection::executeAsynchPrepare()
 
 void NdbConnection::close()
@@ -665,6 +679,8 @@ Remark:        Send all operations belonging to this connection.
 int
 NdbConnection::doSend()
 {
+  DBUG_ENTER("NdbConnection::doSend");
+
   /*
   This method assumes that at least one operation have been defined. This
   is ensured by the caller of this routine (=execute).
@@ -687,7 +703,7 @@ NdbConnection::doSend()
     theSendStatus = sendTC_OP;
     theTransactionIsStarted = true;
     tNdb->insert_sent_list(this);
-    return 0;
+    DBUG_RETURN(0);
   }//case
   case sendABORT:
   case sendABORTfail:{
@@ -699,18 +715,18 @@ NdbConnection::doSend()
       theReturnStatus = ReturnFailure;
     }//if
     if (sendROLLBACK() == 0) {
-      return 0;
+      DBUG_RETURN(0);
     }//if
     break;
   }//case
   case sendCOMMITstate:
     if (sendCOMMIT() == 0) {
-      return 0;
+      DBUG_RETURN(0);
     }//if
     break;
   case sendCompleted:
     theNdb->insert_completed_list(this); 
-    return 0;
+    DBUG_RETURN(0);
   default:
     ndbout << "Inconsistent theSendStatus = " << theSendStatus << endl;
     abort();
@@ -720,7 +736,7 @@ NdbConnection::doSend()
   theReleaseOnClose = true;
   theTransactionIsStarted = false;
   theCommitStatus = Aborted;
-  return -1;
+  DBUG_RETURN(-1);
 }//NdbConnection::doSend()
 
 /**************************************************************************
