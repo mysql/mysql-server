@@ -7030,8 +7030,12 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
                        cur_group_key_parts, tree, cur_index_tree,
                        cur_quick_prefix_records, have_min, have_max,
                        &cur_read_cost, &cur_records);
-
-    if (cur_read_cost < best_read_cost)
+    /*
+      If cur_read_cost is lower than best_read_cost use cur_index.
+      Do not compare doubles directly because they may have different
+      representations (64 vs. 80 bits).
+    */
+    if (cur_read_cost < best_read_cost - (DBL_EPSILON * cur_read_cost))
     {
       index_info= cur_index_info;
       index= cur_index;
@@ -7463,7 +7467,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   double quick_prefix_selectivity;
   double io_cost;
   double cpu_cost= 0; /* TODO: CPU cost of index_read calls? */
-  DBUG_ENTER("TRP_GROUP_MIN_MAX::cost");
+  DBUG_ENTER("cost_group_min_max");
 
   table_records= table->file->records;
   keys_per_block= (table->file->block_size / 2 /
@@ -7967,7 +7971,15 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 {
   int min_res= 0;
   int max_res= 0;
+#ifdef HPUX11
+  /*
+    volatile is required by a bug in the HP compiler due to which the
+    last test of result fails.
+  */
+  volatile int result;
+#else
   int result;
+#endif
   int is_last_prefix;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");

@@ -16,6 +16,7 @@ insert into t1 values(null, "f");
 
 --- Local --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -38,9 +39,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=1;
 use test;
@@ -61,9 +65,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 SET INSERT_ID=4;
 use test;
 SET TIMESTAMP=1579609946;
@@ -74,9 +81,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -93,9 +103,12 @@ insert into t1 values(null, "b");
 SET INSERT_ID=3;
 SET TIMESTAMP=1579609944;
 insert into t1 values(null, "c");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=3;
 use test;
@@ -110,9 +123,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -126,9 +142,12 @@ insert into t1 values(null, "a");
 SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Local with 2 binlogs on command line --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -158,9 +177,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=1;
 use test;
@@ -188,9 +210,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 SET INSERT_ID=4;
 use test;
 SET TIMESTAMP=1579609946;
@@ -208,9 +233,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -234,9 +262,12 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 SET INSERT_ID=6;
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=3;
 use test;
@@ -258,9 +289,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -274,9 +308,12 @@ insert into t1 values(null, "a");
 SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Remote --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -299,9 +336,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=1;
 use test;
@@ -322,9 +362,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 SET INSERT_ID=4;
 use test;
 SET TIMESTAMP=1579609946;
@@ -335,9 +378,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -354,9 +400,12 @@ insert into t1 values(null, "b");
 SET INSERT_ID=3;
 SET TIMESTAMP=1579609944;
 insert into t1 values(null, "c");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=3;
 use test;
@@ -371,9 +420,12 @@ insert into t1 values(null, "d");
 SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -387,9 +439,12 @@ insert into t1 values(null, "a");
 SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Remote with 2 binlogs on command line --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -419,9 +474,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=1;
 use test;
@@ -449,9 +507,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 SET INSERT_ID=4;
 use test;
 SET TIMESTAMP=1579609946;
@@ -469,9 +530,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -495,9 +559,12 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 SET INSERT_ID=6;
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 SET INSERT_ID=3;
 use test;
@@ -519,9 +586,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -535,9 +605,12 @@ insert into t1 values(null, "a");
 SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- to-last-log --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
@@ -563,6 +636,8 @@ insert into t1 values(null, "e");
 SET INSERT_ID=6;
 SET TIMESTAMP=1579609943;
 insert into t1 values(null, "f");
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- end of test --
 drop table t1;

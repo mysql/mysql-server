@@ -2457,8 +2457,8 @@ void sql_print_information(const char *format, ...)
 static const char tc_log_magic[]={254, 0x23, 0x05, 0x74};
 
 uint opt_tc_log_size=TC_LOG_MIN_SIZE;
-uint tc_log_max_pages_used=0, tc_log_page_size=0,
-     tc_log_page_waits=0, tc_log_cur_pages_used=0;
+ulong tc_log_max_pages_used=0, tc_log_page_size=0,
+      tc_log_page_waits=0, tc_log_cur_pages_used=0;
 
 int TC_LOG_MMAP::open(const char *opt_name)
 {

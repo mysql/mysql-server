@@ -730,7 +730,7 @@ static void print_lock_error(int error, const char *table)
     least the first step above)
   global_read_lock_blocks_commit
     count of threads which have the global read lock and block
-    commits (i.e. have completed the second step above)
+    commits (i.e. are in or have completed the second step above)
   waiting_for_read_lock
     count of threads which want to take a global read lock but cannot
   protect_against_global_read_lock
@@ -902,7 +902,8 @@ void start_waiting_global_read_lock(THD *thd)
   if (unlikely(thd->global_read_lock))
     DBUG_VOID_RETURN;
   (void) pthread_mutex_lock(&LOCK_open);
-  tmp= (!--protect_against_global_read_lock && waiting_for_read_lock);
+  tmp= (!--protect_against_global_read_lock &&
+        (waiting_for_read_lock || global_read_lock_blocks_commit));
   (void) pthread_mutex_unlock(&LOCK_open);
   if (tmp)
     pthread_cond_broadcast(&COND_refresh);

@@ -494,8 +494,8 @@ select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables 
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
-SCHEMATA	TEMPORARY	MyISAM
-TABLES	TEMPORARY	MyISAM
+SCHEMATA	TEMPORARY	MEMORY
+TABLES	TEMPORARY	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
@@ -610,3 +610,24 @@ create view v1 as select * from t1, t2;
 set @got_val= (select count(*) from information_schema.columns);
 drop view v1;
 drop table t1, t2;
+CREATE TABLE t_crashme ( f1 BIGINT);
+CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
+CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
+drop view a2, a1;
+drop table t_crashme;
+select table_schema,table_name, column_name from
+information_schema.columns 
+where data_type = 'longtext';
+table_schema	table_name	column_name
+information_schema	COLUMNS	COLUMN_TYPE
+information_schema	ROUTINES	ROUTINE_DEFINITION
+information_schema	ROUTINES	SQL_MODE
+information_schema	VIEWS	VIEW_DEFINITION
+select table_name, column_name, data_type from information_schema.columns
+where data_type = 'datetime';
+table_name	column_name	data_type
+TABLES	CREATE_TIME	datetime
+TABLES	UPDATE_TIME	datetime
+TABLES	CHECK_TIME	datetime
+ROUTINES	CREATED	datetime
+ROUTINES	LAST_ALTERED	datetime
