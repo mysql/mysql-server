@@ -114,6 +114,8 @@
   data - The data is stored in a "row +blobs" format.
 */
 
+/* If the archive storage engine has been inited */
+static bool archive_inited= 0;
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
@@ -157,6 +159,7 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
 
 bool archive_db_init()
 {
+  archive_inited= 1;
   VOID(pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST));
   return (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
                     (hash_get_key) archive_get_key, 0, 0));
@@ -176,8 +179,12 @@ bool archive_db_init()
 
 bool archive_db_end()
 {
-  hash_free(&archive_open_tables);
-  VOID(pthread_mutex_destroy(&archive_mutex));
+  if (archive_inited)
+  {
+    hash_free(&archive_open_tables);
+    VOID(pthread_mutex_destroy(&archive_mutex));
+  }
+  archive_inited= 0;
   return FALSE;
 }
 

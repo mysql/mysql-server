@@ -2389,7 +2389,10 @@ select:
 select_init:
 	SELECT_SYM select_init2
 	|
-	'(' SELECT_SYM select_part2 ')'
+	'(' select_paren ')' union_opt;
+
+select_paren:
+	SELECT_SYM select_part2
 	  {
 	    LEX *lex= Lex;
             SELECT_LEX * sel= lex->current_select;
@@ -2408,7 +2411,8 @@ select_init:
 	    if (sel->master_unit()->fake_select_lex)
               sel->master_unit()->global_parameters=
                  sel->master_unit()->fake_select_lex;
-          } union_opt;
+          }
+	| '(' select_paren ')';
 
 select_init2:
 	select_part2
@@ -3404,8 +3408,7 @@ when_list2:
 	  };
 
 join_table_list:
-	'(' join_table_list ')'	{ $$=$2; }
-	| join_table		{ $$=$1; }
+	join_table		{ $$=$1; }
 	| join_table_list ',' join_table_list { $$=$3; }
 	| join_table_list normal_join join_table_list { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table_list
@@ -3482,7 +3485,7 @@ join_table:
 	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
-        | '(' SELECT_SYM select_derived ')' opt_table_alias
+        | '(' select_derived union_opt ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
@@ -3493,9 +3496,27 @@ join_table:
 	                          (List<String> *)0)))
 
 	    YYABORT;
-	};
+	}
+	| '(' join_table_list ')'	{ $$=$2; };
 
 select_derived:
+	SELECT_SYM select_derived2
+	| '(' select_derived ')'
+	  {
+	    LEX *lex= Lex;
+            SELECT_LEX * sel= lex->current_select;
+	    if (sel->set_braces(1))
+	    {
+	      yyerror(ER(ER_SYNTAX_ERROR));
+	      YYABORT;
+	    }
+            /* select in braces, can't contain global parameters */
+	    if (sel->master_unit()->fake_select_lex)
+              sel->master_unit()->global_parameters=
+                 sel->master_unit()->fake_select_lex;
+	  };
+
+select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables= 1;
@@ -3517,7 +3538,7 @@ select_derived:
 	{
 	  Select->parsing_place= NO_MATTER;
 	}
-	opt_select_from union_opt
+	opt_select_from
         ;
 
 opt_outer:
