@@ -25,21 +25,22 @@
 void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 		     uint pre_alloc_size __attribute__((unused)))
 {
-  mem_root->free=mem_root->used=0;
-  mem_root->min_malloc=32;
-  mem_root->block_size=block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
-  mem_root->error_handler=0;
+  mem_root->free= mem_root->used= 0;
+  mem_root->min_malloc= 32;
+  mem_root->block_size= block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
+  mem_root->error_handler= 0;
   mem_root->block_num= 0;
+  mem_root->first_block_usage= 0;
 #if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
   if (pre_alloc_size)
   {
-    if ((mem_root->free = mem_root->pre_alloc=
+    if ((mem_root->free= mem_root->pre_alloc=
 	 (USED_MEM*) my_malloc(pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM)),
 			       MYF(0))))
     {
-      mem_root->free->size=pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM));
-      mem_root->free->left=pre_alloc_size;
-      mem_root->free->next=0;
+      mem_root->free->size= pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM));
+      mem_root->free->left= pre_alloc_size;
+      mem_root->free->next= 0;
     }
   }
 #endif
@@ -57,20 +58,31 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
       (*mem_root->error_handler)();
     return((gptr) 0);				/* purecov: inspected */
   }
-  next->next=mem_root->used;
+  next->next= mem_root->used;
   next->size= Size;
-  mem_root->used=next;
+  mem_root->used= next;
   return (gptr) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM)));
 #else
   uint get_size, block_size;
   gptr point;
-  reg1 USED_MEM *next;
+  reg1 USED_MEM *next= 0;
   reg2 USED_MEM **prev;
 
   Size= ALIGN_SIZE(Size);
-  prev= &mem_root->free;
-  for (next= *prev ; next && next->left < Size ; next= next->next)
-    prev= &next->next;
+  if ( (*(prev= &mem_root->free)) != NULL )
+  {
+    if( (*prev)->left < Size &&
+	mem_root->first_block_usage++ >= MAX_BLOCK_USAGE_BEFORE_DROP )
+    {
+      next= *prev;
+      *prev= next->next;			/* Remove block from list */
+      next->next= mem_root->used;
+      mem_root->used= next;
+      mem_root->first_block_usage= 0;
+    }
+    for (next= *prev ; next && next->left < Size ; next= next->next)
+      prev= &next->next;
+  }
   if (! next)
   {						/* Time to alloc new block */
     block_size= mem_root->block_size*((mem_root->block_num>>2)+1);
@@ -89,12 +101,15 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     next->left= get_size-ALIGN_SIZE(sizeof(USED_MEM));
     *prev=next;
   }
+    
   point= (gptr) ((char*) next+ (next->size-next->left));
+  /*TODO: next part may be unneded due to mem_root->first_block_usage counter*/
   if ((next->left-= Size) < mem_root->min_malloc)
   {						/* Full block */
-    *prev=next->next;				/* Remove block from list */
-    next->next=mem_root->used;
-    mem_root->used=next;
+    *prev= next->next;				/* Remove block from list */
+    next->next= mem_root->used;
+    mem_root->used= next;
+    mem_root->first_block_usage= 0;
   }
   return(point);
 #endif
@@ -166,6 +181,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   }
   else
     root->block_num= 0;
+  root->first_block_usage= 0;
   DBUG_VOID_RETURN;
 }
 
