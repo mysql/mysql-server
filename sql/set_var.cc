@@ -340,7 +340,7 @@ static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 /* Global read-only variable describing server license */
-sys_var_const_str		sys_license("license", LICENSE);
+sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
 
 /*

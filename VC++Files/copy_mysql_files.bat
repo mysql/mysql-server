@@ -2,12 +2,8 @@ REM stop any conflicting service
 
 net stop mysql
 
-REM Our build system uses M:\mysql-version for the build root dir
-
-M:
-cd \mysql-4.0
-
-REM Copy binaries
+REM Copy binaries to c:\mysql
+REM (We assume we are in build root when executing this script)
 
 copy lib_debug\libmysql.* c:\mysql\lib\debug
 copy lib_debug\zlib.* c:\mysql\lib\debug
