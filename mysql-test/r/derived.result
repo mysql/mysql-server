@@ -192,3 +192,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m2	index	NULL	PRIMARY	3	NULL	9	Using index
+drop table t1,t2;
+SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
+x
+1
