@@ -48,6 +48,8 @@ void catchsigs(bool ignore); // for process signal handling
 extern "C" void handler_shutdown(int signum);  // for process signal handling
 extern "C" void handler_error(int signum);  // for process signal handling
 
+extern int g_shm_pid;
+
 // Shows system information
 void systemInfo(const Configuration & conf,
 		const LogLevel & ll); 
@@ -137,6 +139,7 @@ int main(int argc, char** argv)
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+  g_shm_pid = getpid();
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
