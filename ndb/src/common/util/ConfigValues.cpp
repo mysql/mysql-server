@@ -193,7 +193,7 @@ ConfigValues::Iterator::set(Uint32 key, const char * value){
 
   char * & str = m_cfg.getString(m_cfg.m_values[pos+1]);
   free(str);
-  str = strdup(value);
+  str = strdup(value ? value : "");
   return true;
 }
 
@@ -457,7 +457,7 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
   case ConfigValues::StringType:{
     Uint32 index = m_cfg->m_stringCount++;
     m_cfg->m_values[pos+1] = index;
-    m_cfg->getString(index) = strdup(entry.m_string);
+    m_cfg->getString(index) = strdup(entry.m_string ? entry.m_string : "");
     m_freeKeys--;
     m_freeData -= sizeof(char *);
     DEBUG printf("Putting at: %d(%d) (loop = %d) key: %d value(%d): %s\n", 
