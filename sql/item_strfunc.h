@@ -577,7 +577,6 @@ class Item_func_conv_charset :public Item_str_func
 public:
   Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
   { conv_charset=cs; }
-  bool fix_fields(THD *thd,struct st_table_list *tables,Item **ref);
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "conv_charset"; }
@@ -588,9 +587,7 @@ class Item_func_set_collation :public Item_str_func
 public:
   Item_func_set_collation(Item *a, Item *b) :Item_str_func(a,b) {};
   String *val_str(String *);
-  bool fix_fields(THD *thd,struct st_table_list *tables, Item **ref);
-  void fix_length_and_dec() 
-  { max_length = args[0]->max_length; }
+  void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "set_collation"; }
 };

@@ -515,6 +515,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
+	      field->type() == FIELD_TYPE_GEOMETRY ||
 	      field->real_type() == FIELD_TYPE_VAR_STRING)
 	  {
 	    if (field->type() == FIELD_TYPE_BLOB)
@@ -531,7 +532,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (i == 0)
 	    field->key_start|= ((key_map) 1 << key);
 	  if (field->key_length() == key_part->length &&
-	      field->type() != FIELD_TYPE_BLOB)
+	      !(field->flags & BLOB_FLAG))
 	  {
 	    if ((index_flags & HA_KEY_READ_ONLY) &&
 		(field->key_type() != HA_KEYTYPE_TEXT ||
@@ -560,7 +561,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (field->key_length() != key_part->length)
 	  {
 	    key_part->key_part_flag|= HA_PART_KEY;
-	    if (field->type() != FIELD_TYPE_BLOB)
+	    if (!(field->flags & BLOB_FLAG))
 	    {					// Create a new field
 	      field=key_part->field=field->new_field(&outparam->mem_root,
 						     outparam);

@@ -1134,10 +1134,10 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| nchar '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_STRING; 
-					  Lex->charset=&my_charset_utf8; }
+					  Lex->charset=national_charset_info; }
 	| nchar				{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; 
-					  Lex->charset=&my_charset_utf8; }
+					  Lex->charset=national_charset_info; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
@@ -1145,7 +1145,7 @@ type:
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING;
-					  Lex->charset= &my_charset_utf8; }
+					  Lex->charset=national_charset_info; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
@@ -2023,11 +2023,6 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$3,$4,0); }
 	| expr '-' interval_expr interval
 	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| expr COLLATE_SYM ident_or_text
-	  { 
-	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
-					    YYTHD->variables.thd_charset));
-	  }
 	;
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
@@ -2137,6 +2132,11 @@ interval_expr:
 
 simple_expr:
 	simple_ident
+ 	| simple_expr COLLATE_SYM ident_or_text %prec NEG
+	  { 
+	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
+					    YYTHD->variables.thd_charset));
+	  }
 	| literal
 	| param_marker
 	| '@' ident_or_text SET_VAR expr
@@ -3865,9 +3865,9 @@ text_literal:
 	  $$ = new Item_string($1.str,$1.length,cs);
 	}
 	| NCHAR_STRING
-	{ $$=  new Item_string($1.str,$1.length,&my_charset_utf8); }
+	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
 	| UNDERSCORE_CHARSET TEXT_STRING
-	  { $$ = new Item_string($2.str,$2.length,Lex->charset,Item::COER_IMPLICIT); }
+	  { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING_db
 	  { ((Item_string*) $1)->append($2.str,$2.length); }
 	;
@@ -3913,9 +3913,8 @@ literal:
 	  { 
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
 	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
-	    $$ = new Item_string(str ? str->ptr() : "",
-				       str ? str->length() : 0,
-				       Lex->charset,Item::COER_IMPLICIT);
+	    $$ = new Item_string(str ? str->ptr() : "", str ? str->length() : 0, 
+				 Lex->charset);
 	  }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
@@ -4340,18 +4339,18 @@ option_value:
 						find_sys_var("tx_isolation"),
 						new Item_int((int32) $4)));
 	  }
-	| charset opt_equal set_expr_or_default
+	| charset set_expr_or_default
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  if (!$3)
+	  if (!$2)
 	  {
 	    CHARSET_INFO *cl= thd->db_charset;
-	    $3= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
+	    $2= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
 	  }
 	  lex->var_list.push_back(new set_var(lex->option_type,
 					      find_sys_var("client_collation"),
-					      $3));
+					      $2));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{

@@ -1049,7 +1049,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 			&recinfo,(table_arg->fields*2+2)*sizeof(MI_COLUMNDEF),
 			&keydef, table_arg->keys*sizeof(MI_KEYDEF),
 			&keyseg,
-			((table_arg->key_parts + table_arg->keys) * sizeof(HA_KEYSEG)),
+			((table_arg->key_parts + table_arg->keys) *
+			 sizeof(HA_KEYSEG)),
 			0)))
     DBUG_RETURN(1);
 
@@ -1107,7 +1108,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	keydef[i].seg[j].null_bit=0;
 	keydef[i].seg[j].null_pos=0;
       }
-      if ((field->type() == FIELD_TYPE_BLOB) || (field->type() == FIELD_TYPE_GEOMETRY))
+      if (field->type() == FIELD_TYPE_BLOB ||
+	  field->type() == FIELD_TYPE_GEOMETRY)
       {
 	keydef[i].seg[j].flag|=HA_BLOB_PART;
 	/* save number of bytes used to pack length */

@@ -111,7 +111,21 @@ bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
     if (cs1 == cs2)
       cmp_charset= cs1;
     else
-      return 1;
+    {
+      if (co1 == COER_COERCIBLE)
+      {
+        CHARSET_INFO *c= get_charset_by_csname(cs1->csname,MY_CS_PRIMARY,MYF(0));
+	if (c)
+	{
+	  cmp_charset= c;
+	  return 0;
+	}
+	else
+	  return 1;
+      }
+       else
+	return 1;
+    }
   }
   return 0;
 }
@@ -636,6 +650,9 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
+  if (set_charset(args[0]->charset(),args[0]->coercibility,
+		  args[1]->charset(),args[1]->coercibility))
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
 }
 
 
@@ -676,11 +693,13 @@ Item_func_ifnull::val_str(String *str)
   if (!args[0]->null_value)
   {
     null_value=0;
+    res->set_charset(charset());
     return res;
   }
   res=args[1]->val_str(str);
   if ((null_value=args[1]->null_value))
     return 0;
+  res->set_charset(charset());
   return res;
 }
 
@@ -709,8 +728,12 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    set_charset((args[1]->binary() || args[2]->binary()) ? 
-		&my_charset_bin : args[1]->charset());
+    if (set_charset(args[1]->charset(), args[1]->coercibility,
+		args[2]->charset(), args[2]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      return;
+    }
   }
   else
   {
@@ -746,6 +769,7 @@ Item_func_if::val_str(String *str)
 {
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   String *res=arg->val_str(str);
+  res->set_charset(charset());
   null_value=arg->null_value;
   return res;
 }

@@ -203,7 +203,6 @@ extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 
 /* charsets */
 extern CHARSET_INFO *default_charset_info;
-extern CHARSET_INFO *system_charset_info;
 extern CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 

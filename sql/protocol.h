@@ -30,6 +30,7 @@ class Protocol
 protected:
   THD	 *thd;
   String *packet;
+  String convert;
   uint field_pos;
 #ifndef DEBUG_OFF
   enum enum_field_types *field_types;
@@ -44,6 +45,7 @@ protected:
 public:
   Protocol() {}
   Protocol(THD *thd) { init(thd); }
+  virtual ~Protocol() {}
   void init(THD* thd);
   bool send_fields(List<Item> *list, uint flag);
   bool send_records_num(List<Item> *list, ulonglong records);
