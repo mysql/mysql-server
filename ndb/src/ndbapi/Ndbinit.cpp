@@ -43,7 +43,7 @@ static int theNoOfNdbObjects = 0;
 
 static char *ndbConnectString = 0;
 
-#ifdef NDB_WIN32
+#if defined NDB_WIN32 || defined SCO
 static NdbMutex & createNdbMutex = * NdbMutex_Create();
 #else
 static NdbMutex createNdbMutex = NDB_MUTEX_INITIALIZER;

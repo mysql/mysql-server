@@ -32,20 +32,16 @@
 
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
-  int save_errno,errpos;
-  uint files,i,dir_length,length,key_parts;
+  int save_errno,errpos=0;
+  uint files=0,i,dir_length,length,key_parts;
   ulonglong file_offset;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
-  MYRG_INFO *m_info;
+  MYRG_INFO *m_info=0;
   File fd;
   IO_CACHE file;
-  MI_INFO *isam;
+  MI_INFO *isam=0;
   DBUG_ENTER("myrg_open");
 
-  LINT_INIT(m_info);
-  m_info=0;
-  isam=0;
-  errpos=files=0;
   bzero((char*) &file,sizeof(file));
   if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,4),
 		  O_RDONLY | O_SHARE,MYF(0))) < 0)

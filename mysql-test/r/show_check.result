@@ -401,10 +401,3 @@ where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 delete from mysql.db   
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
-set names latin1;
-create database `ä`;
-create table `ä`.`ä` (a int) engine=heap;
-show table status from `ä` LIKE 'ä';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-ä	HEAP	9	Fixed	0	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-drop database `ä`;
