@@ -3238,6 +3238,7 @@ keyword:
 	| BOOLEAN_SYM		{}
 	| CACHE_SYM		{}
 	| CHANGED		{}
+	| CHARSET		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
 	| CIPHER_SYM		{}
