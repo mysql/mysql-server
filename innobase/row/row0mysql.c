@@ -28,6 +28,9 @@ Created 9/17/2000 Heikki Tuuri
 #include "rem0cmp.h"
 #include "log0log.h"
 
+/* A dummy variable used to fool the compiler */
+ibool	row_mysql_identically_false	= FALSE;
+
 /* List of tables we should drop in background. ALTER TABLE in MySQL requires
 that the table handler can drop the table in background when there are no
 queries to it any more. Protected by the kernel mutex. */
@@ -67,10 +70,33 @@ row_mysql_store_blob_ref(
 	byte*	data,		/* in: BLOB data */
 	ulint	len)		/* in: BLOB length */
 {
+	ulint	sum	= 0;
+	ulint	i;
+
 	/* In dest there are 1 - 4 bytes reserved for the BLOB length,
 	and after that 8 bytes reserved for the pointer to the data.
 	In 32-bit architectures we only use the first 4 bytes of the pointer
 	slot. */
+
+	ut_a(col_len - 8 > 1 || len < 256);
+	ut_a(col_len - 8 > 2 || len < 256 * 256);
+	ut_a(col_len - 8 > 3 || len < 256 * 256 * 256);
+
+	/* We try to track an elusive bug which probably was fixed
+	May 9, 2002, but better be sure: we probe the data buffer
+	to make sure it is in valid allocated memory */
+
+	for (i = 0; i < len; i++) {
+
+		sum += (ulint)(data + i);
+	}
+
+	/* The variable below is identically false, we just fool the
+	compiler to not optimize away our loop */
+	if (row_mysql_identically_false) {
+
+		printf("Sum %lu\n", sum);
+	}
 
 	mach_write_to_n_little_endian(dest, col_len - 8, len);
 
