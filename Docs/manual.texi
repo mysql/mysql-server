@@ -24953,10 +24953,12 @@ summary of commands:
  @tab Stops the slave thread. (Slave)
 
 @item @code{SET SQL_LOG_BIN=0}
- @tab Disables update logging (Master)
+ @tab Disables update logging if the user has process privilege.
+ Ignored otherwise (Master)
 
 @item @code{SET SQL_LOG_BIN=1}
- @tab Re-enable update logging (Master)
+ @tab Re-enable update logging if the user has process privilege.
+ Ignored otherwise (Master)
 
 @item @code{RESET MASTER}
  @tab Deletes all binary logs listed in the index file, resetting the binlog
