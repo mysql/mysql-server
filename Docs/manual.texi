@@ -50801,6 +50801,9 @@ each individual 4.0.x release.
 Updated source tree to be built using @code{automake 1.5} and 
 @code{libtool 1.4}.
 @item
+Fixed bug that made @code{REPAIR TABLE} and @code{myisamchk}
+to corrupt @code{FULLTEXT} indexes.
+@item
 Fixed bug with caching system database ('mysql'). Now query to system 
 database is not cached by query cache.
 @item
