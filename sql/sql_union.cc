@@ -100,6 +100,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   else
   {
     Item *item;
+    ORDER *orr;
     List_iterator<Item> it(lex->select_lex.item_list);
     TABLE_LIST *first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
 
@@ -110,6 +111,15 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     if (setup_tables(first_table) ||
 	setup_fields(thd,first_table,item_list,0,0,1))
       DBUG_RETURN(-1);
+    for (orr=order;orr;orr=orr->next)
+    {
+      item=*orr->item;
+      if (((item->type() == Item::FIELD_ITEM) && ((class Item_field*)item)->table_name))
+      {
+	my_error(ER_BAD_FIELD_ERROR,MYF(0),item->full_name(),"ORDER BY");
+	DBUG_RETURN(-1);
+      }
+    }
   }
 
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
