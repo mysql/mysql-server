@@ -158,6 +158,53 @@ manual_letter.de.ps:	manual.de.texi include.texi
 
 
 #
+# Internals Manual
+#
+
+# GNU Info
+internals.info:	internals.texi include.texi
+	cd $(srcdir) && $(MAKEINFO) --no-split -I $(srcdir) $<
+
+# Plain Text
+internals.txt:	internals.texi include.texi
+	cd $(srcdir) && \
+	$(MAKEINFO) -I $(srcdir) --no-headers --no-split --output $@ $<
+
+# HTML, all in one file
+internals.html:	internals.texi include.texi $(srcdir)/Support/texi2html
+	cd $(srcdir) && @PERL@ $(srcdir)/Support/texi2html $(TEXI2HTML_FLAGS) $<
+internals_toc.html: internals.html
+
+# PDF, Portable Document Format
+internals.pdf: internals.texi
+	sed -e 's|@image{[^}]*} *||g' <$< >internals-tmp.texi
+	pdftex --interaction=nonstopmode internals-tmp.texi
+	texindex internals-tmp.??
+	pdftex --interaction=nonstopmode internals-tmp.texi
+	texindex internals-tmp.??
+	pdftex --interaction=nonstopmode internals-tmp.texi
+	mv internals-tmp.pdf $@
+	rm -f internals-tmp.*
+	touch $@
+
+# Postscript, A4 Paper
+internals_a4.ps:	internals.texi include.texi
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
+	    $(TEXI2DVI) --batch --texinfo --quiet '@afourpaper' $<
+	$(DVIPS) -t a4 internals.dvi -o $@
+	touch $@
+
+# Postscript, US Letter Paper
+internals_letter.ps:	internals.texi include.texi
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
+	    $(TEXI2DVI) --batch $<
+	$(DVIPS) -t letter internals.dvi -o $@
+	touch $@
+
+
+#
 # Miscellaneous
 #
 
