@@ -87,7 +87,7 @@ Ndb::init(int aMaxNoOfTransactions)
   }//if
   
   theNdbBlockNumber = tBlockNo;
-  
+
   theFacade->unlock_mutex();
   
   theDictionary->setTransporter(this, theFacade);
@@ -185,10 +185,12 @@ Ndb::executeMessage(void* NdbObject,
 void Ndb::connected(Uint32 ref)
 {
   theMyRef= ref;
-  theNode= refToNode(theMyRef);
-  if (theNdbBlockNumber >= 0)
+  theNode= refToNode(ref);
+  Uint64 tBlockNo= refToBlock(ref);
+  if (theNdbBlockNumber >= 0){
     assert(theMyRef == numberToRef(theNdbBlockNumber, theNode));
-
+  }
+  
   TransporterFacade * theFacade =  TransporterFacade::instance();
   int i;
   theNoOfDBnodes= 0;
@@ -198,11 +200,11 @@ void Ndb::connected(Uint32 ref)
       theNoOfDBnodes++;
     }
   }
-  theFirstTransId = ((Uint64)theNdbBlockNumber << 52)+
+  theFirstTransId = ((Uint64)tBlockNo << 52)+
     ((Uint64)theNode << 40);
   theFirstTransId += theFacade->m_max_trans_id;
   //      assert(0);
-  DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%d",
+  DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%lx",
 		     theMyRef,
 		     theNode,
 		     theNoOfDBnodes,
