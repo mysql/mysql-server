@@ -1671,7 +1671,8 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   */
   ulong log_name_extension;
   char log_name_tmp[FN_REFLEN]; //make a char[] from String
-  char *end= strmake(log_name_tmp, log_name->ptr(), min(log_name->length(), FN_REFLEN-1));
+  char *end= strmake(log_name_tmp, log_name->ptr(), min(log_name->length(),
+							FN_REFLEN-1));
   char *p= fn_ext(log_name_tmp);
   char *p_end;
   if (!*p || log_pos<0)   
@@ -1756,15 +1757,14 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
       error= -1;
       break;
     }
-    else
-      error=0;
+    error=0;
     event_count++;
   }
 
 err:
   pthread_mutex_unlock(&data_lock);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
-improper_arguments: %d timed_out: %d",
+improper_arguments: %d  timed_out: %d",
                      (int) thd->killed,
                      (int) (init_abort_pos_wait != abort_pos_wait),
                      (int) mi->slave_running,
