@@ -312,4 +312,7 @@ character-set=koi8r
 "Undeclared variable: %s"
 "Wrong number of FETCH variables"
 "No data to FETCH"
-"Duplicate %s: %s"
+"Duplicate parameter: %s"
+"Duplicate variable: %s"
+"Duplicate condition: %s"
+"Duplicate cursor: %s"
