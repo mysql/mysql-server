@@ -1161,6 +1161,12 @@ static uint getTableStructure(char *table, char* db)
       sprintf(buff,"show keys from %s", result_table);
       if (mysql_query(sock, buff))
       {
+        if (mysql_errno(sock) == ER_WRONG_OBJECT)
+        {
+          /* it is VIEW */
+          fputs("\t\t<options Comment=\"view\" />\n", sql_file);
+          goto continue_xml;
+        }
         fprintf(stderr, "%s: Can't get keys for table %s (%s)\n",
 		my_progname, result_table, mysql_error(sock));
         if (path)
@@ -1268,6 +1274,7 @@ static uint getTableStructure(char *table, char* db)
         }
         mysql_free_result(tableRes);		/* Is always safe to free */
       }
+continue_xml:
       if (!opt_xml)
 	fputs(";\n", sql_file);
       else
@@ -2134,9 +2141,14 @@ static const char *check_if_ignore_table(const char *table_name)
       mysql_free_result(res);
     return 0;					/* assume table is ok */
   }
-  if (strcmp(row[1], (result= "MRG_MyISAM")) &&
-      strcmp(row[1], (result= "MRG_ISAM")))
-    result= 0;
+  if (!(row[1]))
+      result= "VIEW";
+  else
+  {
+    if (strcmp(row[1], (result= "MRG_MyISAM")) &&
+        strcmp(row[1], (result= "MRG_ISAM")))
+      result= 0;
+  }
   mysql_free_result(res);  
   return result;
 }
