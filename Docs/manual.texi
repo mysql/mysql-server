@@ -290,9 +290,9 @@ The copyright (2002) to this manual is owned by the Swedish company
 @node Manual conventions,  , Manual-info, Manual-info
 @subsection Conventions Used in This Manual
 
-This manual uses British English spelling.
+@c We use British English. But let's not publicise that here yet ;-)
 
-Certain typographical conventions are followed:
+This manual uses certain typographical conventions:
 
 @cindex manual, typographical conventions
 @cindex typographical conventions
