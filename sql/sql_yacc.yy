@@ -1668,12 +1668,17 @@ select_init:
 	'(' SELECT_SYM select_part2 ')'
 	  {
 	    LEX *lex= Lex;
-            SELECT_LEX_NODE * sel= lex->current_select;
+            SELECT_LEX * sel= lex->current_select->select_lex();
 	    if (sel->set_braces(1))
 	    {
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
 	      YYABORT;
 	    }
+	  if (sel->linkage == UNION_TYPE && !sel->master_unit()->first_select()->braces)
+	  {
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
             /* select in braces, can't contain global parameters */
             sel->master_unit()->global_parameters=
                sel->master_unit();
@@ -1683,7 +1688,13 @@ select_init2:
 	select_part2
         {
 	  LEX *lex= Lex;
+          SELECT_LEX * sel= lex->current_select->select_lex();
           if (lex->current_select->set_braces(0))
+	  {
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
+	  if (sel->linkage == UNION_TYPE && sel->master_unit()->first_select()->braces)
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
@@ -1695,6 +1706,7 @@ select_init2:
 select_part2:
 	{
 	  LEX *lex=Lex;
+	  SELECT_LEX * sel= lex->current_select->select_lex();
 	  if (lex->current_select == &lex->select_lex)
 	    lex->lock_option= TL_READ; /* Only for global SELECT */
 	  mysql_init_select(lex);
@@ -2509,7 +2521,9 @@ join_table:
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
                 add_table_to_list(lex->thd, new Table_ident(unit), $5, 0,
-				  lex->lock_option)))
+				  lex->lock_option,(List<String> *)0,
+	                          (List<String> *)0)))
+
 	    YYABORT;
 	};
 
@@ -3187,16 +3201,16 @@ table_wild_list:
 	  | table_wild_list ',' table_wild_one {};
 
 table_wild_one:
-	ident opt_wild
+	ident opt_wild opt_table_alias
 	{
-	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), NULL, 1,
+	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), $3, 1,
 	      Lex->lock_option))
 	    YYABORT;
         }
-	| ident '.' ident opt_wild
+	| ident '.' ident opt_wild opt_table_alias
 	  {
 	    if (!Select->add_table_to_list(YYTHD, new Table_ident($1, $3, 0),
-					   NULL, 1, Lex->lock_option))
+					   $5, 1, Lex->lock_option))
 	      YYABORT;
 	  }
 	;

@@ -3001,6 +3001,7 @@ mysql_init_query(THD *thd)
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
+  lex->lock_option=TL_UNLOCK;
   thd->check_loops_counter= thd->select_number=
     lex->select_lex.select_number= 1;
   thd->free_list= 0;

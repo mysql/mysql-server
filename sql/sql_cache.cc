@@ -1062,6 +1062,8 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
       for (; tables_used; tables_used=tables_used->next)
       {
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
+	if (tables_used->derived)
+	  continue;
 	if (using_transactions && 
 	   tables_used->table->file->has_transactions())
 	  /* 

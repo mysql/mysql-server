@@ -1469,7 +1469,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	end= int10_to_str((long) thd->query_id, buff, 10);
         break;
       case SHOW_RPL_STATUS:
-	end= int10_to_str((long) rpl_status_type[(int)rpl_status], buff, 10);
+	end= strmov(buff, rpl_status_type[(int)rpl_status]);
 	break;
       case SHOW_SLAVE_RUNNING:
       {
