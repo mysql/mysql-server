@@ -79,9 +79,9 @@ be less than 256 */
 				string, this is ORed to the precise type:
 				this only holds for tables created with
 				>= MySQL-4.0.14 */
-#define	DATA_NONLATIN1 2048	/* if the data type is a character string
-				of a non-latin1 type, this is ORed to the
-				precise type: this only holds for tables
+#define	DATA_NONLATIN1 2048	/* if the data type is a DATA_BLOB (actually
+				TEXT) of a non-latin1 type, this is ORed to
+				the precise type: this only holds for tables
 				created with >= MySQL-4.0.14 */
 /*-------------------------------------------*/
 

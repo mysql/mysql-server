@@ -3188,7 +3188,8 @@ create_table_def(
 			unsigned_type = 0;
 		}
 
-		if (strcmp(default_charset_info->name, "latin1") != 0) {
+		if (col_type == DATA_BLOB
+		    && strcmp(default_charset_info->name, "latin1") != 0) {
 			nonlatin1_type = DATA_NONLATIN1;
 		} else {
 		        nonlatin1_type = 0;
