@@ -20,6 +20,7 @@
 /* TODO list for the InnoDB handler:
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in 4.1 yes.
+
 */
 
 #ifdef __GNUC__
