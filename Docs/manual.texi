@@ -33861,18 +33861,18 @@ to the word, not prepended.
 And here are some examples:
 
 @table @code
-@item ``apple banana''
+@item apple banana
 find rows that contain at least one of these words.
-@item ``+apple +juice''
+@item +apple +juice
 ... both words
-@item ``+apple macintosh''
+@item +apple macintosh
 ... word ``apple'', but rank it higher if it also contain ``macintosh''
-@item ``+apple -macintosh''
+@item +apple -macintosh
 ... word ``apple'' but not ``macintosh''
-@item ``+gates +(>hell <bill)''
+@item +gates +(>hell <bill)
 ... ``hell'' and ``gates'', or ``bill'' and ``gates'' (in any
 order), but rank ``gates to hell'' higher than ``bill gates''.
-@item ``apple*''
+@item apple*
 ... ``apple'', ``apples'', ``applesause'', and ``applet''
 @end table
 
@@ -33881,7 +33881,6 @@ order), but rank ``gates to hell'' higher than ``bill gates''.
 * Fulltext Fine-tuning::        Fine-tuning MySQL Full-text Search
 * Fulltext TODO::               Full-text Search TODO
 @end menu
-
 
 @node Fulltext Restrictions, Fulltext Fine-tuning, Fulltext Search, Fulltext Search
 @subsection Fulltext Restrictions
@@ -45844,12 +45843,18 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added @file{myisam/ft_dump} utility for low-level inspection
+of @code{FULLTEXT} indexes.
+@item
 Fixed bug in @code{DELETE ... WHERE ... MATCH ...}
 @item
 Added support for @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
+@strong{Note: you have to rebuild your tables with
+@code{ALTER TABLE tablename TYPE=MyISAM} to be
+able to use boolean fulltext search}.
 @item
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
-argument is a binary string.  binary strings.
+argument is a binary string.
 @item
 Fixed core dump bug in @code{UPDATE ... ORDER BY }.
 @item
