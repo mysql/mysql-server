@@ -816,8 +816,8 @@ typedef struct st_lex
     hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
     hash_init(&spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
   }
-  
-  ~st_lex()
+
+  virtual ~st_lex()
   {
     hash_free(&spfuns);
     hash_free(&spprocs);
