@@ -49804,11 +49804,6 @@ By Thomas Thaele @email{tthaele@@papenmeier.de}
 
 @itemize @bullet
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mod_mysql_include_1.0.tar.gz}
-Apache module to include HTML from MySQL queries into your pages,
-and run update queries.  Originally written to implement a simple fast
-low-overhead banner-rotation system.  By Sasha Pachev.
-
 @item @uref{http://htcheck.sourceforge.net/}
 htCheck is a URL checker with
 MySQL backend. Spidered URLs can later be queried using SQL to retrieve
@@ -50096,63 +50091,6 @@ Wrapper for mysqldump to backup all databases. By Marc Swanson.
 Prints the storage usage of a MySQL database.
 @end itemize
 
-@cindex RPMs, for common tools
-@cindex tools, RPMs for
-@appendixsec RPMs for Common Tools (Most Are for RedHat 6.1)
-
-@itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Contrib/perl-Data-ShowTable-3.3-2.i386.rpm}
-@item @uref{http://www.mysql.com/Downloads/Contrib/perl-Msql-Mysql-modules-1.2210-2.i386.rpm}
-@item @uref{http://www.mysql.com/Downloads/Contrib/php-pg-3.0.13-1.i386.rpm}
-@item @uref{http://www.mysql.com/Downloads/Contrib/php-pg-manual-3.0.13-1.i386.rpm}
-@item @uref{http://www.mysql.com/Downloads/Contrib/php-pg-mysql-3.0.13-1.i386.rpm}
-@item @uref{http://www.mysql.com/Downloads/Contrib/phpMyAdmin-2.0.5-1.noarch.rpm}
-@end itemize
-
-@cindex functions, useful
-@appendixsec Useful Functions
-@itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysnprintf.c}
-sprintf() function for SQL queries that can escape blobs. By Chunhua Liu.
-@end itemize
-
-@appendixsec Windows Programs
-@itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Contrib/LaunchMySQL.zip}
-The program launches the MySQL server, shuts it down, and
-display status information. By Bill Thompson
-@end itemize
-
-@appendixsec Uncategorised
-
-@itemize @bullet
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/findres.pl}
-Find reserved words in tables. By Nem W Schlecht.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/handicap.tar.gz}
-Performance handicapping system for yachts. Uses PHP. By
-@email{rhill@@stobyn.ml.org}.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/hylalog-1.0.tar.gz}
-Store @code{hylafax} outgoing faxes in a MySQL database. By Sinisa
-Milivojevic, @email{sinisa@@mysql.com}.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/mrtg-mysql-1.0.tar.gz}
-MySQL status plotting with MRTG, by Luuk de Boer, @email{luuk@@wxs.nl}.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/wuftpd-2.4.2.18-mysql_support.2.tar.gz}
-Patches to add logging to MySQL for WU-ftpd. By Zeev Suraski,
-@email{bourbon@@netvision.net.il}.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/wu-ftpd-2.6.0-mysql.4.tar.gz}
-Patches to add logging to MySQL for WU-ftpd 2.6.0. By
-@email{takeshi@@SoftAgency.co.jp}, based on Zeev Suraski wuftpd patches.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/Old-Versions}
-Previous versions of things found here that you probably won't be
-interested in.
-@end itemize
 @page
 
 
