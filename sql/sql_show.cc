@@ -537,7 +537,6 @@ mysqld_show_logs(THD *thd)
   DBUG_ENTER("mysqld_show_logs");
 
   List<Item> field_list;
-  Item *item;
   field_list.push_back(new Item_empty_string("File",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Status",10));
