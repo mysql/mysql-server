@@ -63,7 +63,7 @@ dtype_print(
 	} else if (mtype == DATA_SYS) {
 		printf("DATA_SYS");
 	} else {
-		printf("type %lu", mtype);
+		printf("type %lu", (ulong) mtype);
 	}
 
 	len = type->len;
@@ -86,9 +86,9 @@ dtype_print(
 		} else if (prtype == DATA_ENGLISH) {
 			printf("DATA_ENGLISH");
 		} else {
-			printf("prtype %lu", mtype);
+			printf("prtype %lu", (ulong) mtype);
 		}
 	}
 
-	printf(" len %lu prec %lu", len, type->prec);
+	printf(" len %lu prec %lu", (ulong) len, (ulong) type->prec);
 }

@@ -2344,13 +2344,13 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
       float8get(real_val, val);
       it= new Item_real(real_val);
       val= (char*) &real_val;		// Pointer to value in native format
-      val_len= sizeof(real_val);
+      val_len= 8;
       break;
     case INT_RESULT:
       int_val= (longlong) uint8korr(val);
       it= new Item_int(int_val);
       val= (char*) &int_val;		// Pointer to value in native format
-      val_len= sizeof(int_val);
+      val_len= 8;
       break;
     case STRING_RESULT:
       it= new Item_string(val, val_len, charset);

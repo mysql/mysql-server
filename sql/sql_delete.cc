@@ -131,6 +131,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
       if (thd->lex->select_lex.setup_ref_array(thd, order->elements) ||
+	  setup_order(thd, thd->lex->select_lex.ref_pointer_array, &tables,
 		      fields, all_fields, (ORDER*) order->first) ||
 	  !(sortorder=make_unireg_sortorder((ORDER*) order->first, &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,

@@ -2217,7 +2217,8 @@ btr_print_recursive(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	printf("NODE ON LEVEL %lu page number %lu\n",
-		btr_page_get_level(page, mtr), buf_frame_get_page_no(page));
+	       (ulong) btr_page_get_level(page, mtr),
+	       (ulong) buf_frame_get_page_no(page));
 	
 	page_print(page, width, width);
 	
@@ -2513,8 +2514,8 @@ loop:
 	if (!page_validate(page, index)) {
 		fprintf(stderr,
 "InnoDB: Error in page %lu in index %s table %s, index tree level %lu\n",
-			buf_frame_get_page_no(page), index->name,
-			index->table_name, level);
+			(ulong) buf_frame_get_page_no(page), index->name,
+			index->table_name, (ulong) level);
 
 		ret = FALSE;
 	} else if (level == 0) {
@@ -2546,8 +2547,8 @@ loop:
 
  			fprintf(stderr,
 		"InnoDB: Error on pages %lu and %lu in index %s table %s\n",
-				buf_frame_get_page_no(page),
-				(unsigned long) right_page_no,
+				(ulong) buf_frame_get_page_no(page),
+				(ulong) right_page_no,
 				index->name, index->table_name);
 
 			fprintf(stderr,
@@ -2630,7 +2631,7 @@ loop:
 
 	 			fprintf(stderr,
 			"InnoDB: Error on page %lu in index %s table %s\n",
-					buf_frame_get_page_no(page),
+					(ulong) buf_frame_get_page_no(page),
 					index->name, index->table_name);
 
 				buf_page_print(father_page);

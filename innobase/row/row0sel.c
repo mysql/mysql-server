@@ -1754,7 +1754,7 @@ row_sel_step(
 		return(NULL);
 	} else {
 		/* SQL error detected */
-		printf("SQL error %lu\n", err);
+		printf("SQL error %lu\n", (ulong) err);
 
 		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
 
@@ -1804,7 +1804,7 @@ fetch_step(
 	
 	if (sel_node->state == SEL_NODE_CLOSED) {
 		/* SQL error detected */
-		printf("SQL error %lu\n", (ulint)DB_ERROR);
+		printf("SQL error %lu\n", (ulong) DB_ERROR);
 
 		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
 
@@ -2029,8 +2029,8 @@ row_sel_convert_mysql_key_to_innobase(
   "InnoDB: Table name %s, index name %s. Last data field length %lu bytes,\n"
   "InnoDB: key ptr now exceeds key end by %lu bytes.\n"
   "InnoDB: Key value in the MySQL format:\n", index->table_name, index->name,
-					  data_field_len,
-					  (ulint)(key_ptr - key_end));
+					  (ulong) data_field_len,
+					  (ulong) (key_ptr - key_end));
 			fflush(stderr);
 			ut_print_buf(original_key_ptr, key_len);
 			fflush(stdout);
@@ -2077,8 +2077,8 @@ row_sel_store_row_id_to_prebuilt(
 	        fprintf(stderr,
 "InnoDB: Error: Row id field is wrong length %lu in table %s index %s\n"
 "InnoDB: Field number %lu, record:\n%s\n",
-		      len, index->table_name, index->name,
-		      dict_index_get_sys_col_pos(index, DATA_ROW_ID),
+		      (ulong) len, index->table_name, index->name,
+		      (ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID),
 		      err_buf);
 		ut_a(0);
 	}
@@ -2233,7 +2233,7 @@ row_sel_store_mysql_rec(
 					ut_print_timestamp(stderr);
 					fprintf(stderr,
 "  InnoDB: Warning: could not allocate %lu + 1000000 bytes to retrieve\n"
-"InnoDB: a big column. Table name %s\n", len, prebuilt->table->name);
+"InnoDB: a big column. Table name %s\n", (ulong) len, prebuilt->table->name);
 
 					if (extern_field_heap) {
 						mem_heap_free(
@@ -2766,7 +2766,7 @@ row_search_for_mysql(
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name %s\n",
-		prebuilt->magic_n, prebuilt->table->name);
+		(ulong) prebuilt->magic_n, prebuilt->table->name);
 
 		mem_analyze_corruption((byte*)prebuilt);
 
@@ -3147,8 +3147,9 @@ rec_loop:
 "  InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
 "InnoDB: index %s, table %s. Run CHECK TABLE to table. You may need to\n"
 "InnoDB: restore from a backup, or dump + drop + reimport the table.\n",
-			   (ulint)(rec - buf_frame_align(rec)), next_offs,
-			   buf_frame_get_page_no(rec), index->name,
+			   (ulong) (rec - buf_frame_align(rec)),
+			   (ulong) next_offs,
+			   (ulong) buf_frame_get_page_no(rec), index->name,
 			   index->table_name);
 		
 			err = DB_CORRUPTION;
@@ -3161,8 +3162,9 @@ rec_loop:
 			fprintf(stderr,
 "InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
 "InnoDB: index %s, table %s. We try to skip the rest of the page.\n",
-			   (ulint)(rec - buf_frame_align(rec)), next_offs,
-			   buf_frame_get_page_no(rec), index->name,
+			   (ulong) (rec - buf_frame_align(rec)),
+			   (ulong) next_offs,
+			   (ulong) buf_frame_get_page_no(rec), index->name,
 			   index->table_name);
 
 			btr_pcur_move_to_last_on_page(pcur, &mtr);
@@ -3177,8 +3179,9 @@ rec_loop:
 			fprintf(stderr,
 "InnoDB: Index record corruption: rec offs %lu next offs %lu, page no %lu,\n"
 "InnoDB: index %s, table %s. We try to skip the record.\n",
-			   (ulint)(rec - buf_frame_align(rec)), next_offs,
-			   buf_frame_get_page_no(rec), index->name,
+			   (ulong) (rec - buf_frame_align(rec)),
+			   (ulong) next_offs,
+			   (ulong) buf_frame_get_page_no(rec), index->name,
 			   index->table_name);
 
 			goto next_rec;
