@@ -4512,6 +4512,13 @@ int Field_timestamp::store(longlong nr)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          WARN_DATA_TRUNCATED,
                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
+  if (!error && timestamp == 0 &&
+      (table->in_use->variables.sql_mode & MODE_NO_ZERO_DATE))
+  {
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+                         WARN_DATA_TRUNCATED,
+                         nr, MYSQL_TIMESTAMP_DATETIME, 1);
+  }
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -5137,6 +5144,12 @@ int Field_date::store(double nr)
   }
   else
     tmp=(long) rint(nr);
+
+  /*
+    We don't need to check for zero dates here as this date type is only
+    used in .frm tables from very old MySQL versions
+  */
+
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -5165,6 +5178,7 @@ int Field_date::store(longlong nr)
   }
   else
     tmp=(long) nr;
+
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -5277,6 +5291,7 @@ void Field_date::sql_type(String &res) const
   res.set_ascii("date", 4);
 }
 
+
 /****************************************************************************
 ** The new date type
 ** This is identical to the old date type, but stored on 3 bytes instead of 4
@@ -5309,17 +5324,17 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   return error;
 }
 
+
 int Field_newdate::store(double nr)
 {
   if (nr < 0.0 || nr > 99991231235959.0)
   {
-    (void) Field_newdate::store((longlong) -1);
+    int3store(ptr,(int32) 0);
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          WARN_DATA_TRUNCATED, nr, MYSQL_TIMESTAMP_DATE);
     return 1;
   }
-  else
-    return Field_newdate::store((longlong) rint(nr));
+  return Field_newdate::store((longlong) rint(nr));
 }
 
 
@@ -5339,6 +5354,8 @@ int Field_newdate::store(longlong nr)
   }
   else
   {
+    uint month, day;
+
     tmp=(int32) nr;
     if (tmp)
     {
@@ -5346,23 +5363,32 @@ int Field_newdate::store(longlong nr)
 	tmp+= (uint32) 20000000L;
       else if (tmp < 999999L)
 	tmp+= (uint32) 19000000L;
+
+      month= (uint) ((tmp/100) % 100);
+      day=   (uint) (tmp%100);
+      if (month > 12 || day > 31)
+      {
+        tmp=0L;					// Don't allow date to change
+        set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+                             ER_WARN_DATA_OUT_OF_RANGE, nr,
+                             MYSQL_TIMESTAMP_DATE, 1);
+        error= 1;
+      }
+      else
+        tmp= day + month*32 + (tmp/10000)*16*32;
     }
-    uint month= (uint) ((tmp/100) % 100);
-    uint day=   (uint) (tmp%100);
-    if (month > 12 || day > 31)
+    else if (table->in_use->variables.sql_mode & MODE_NO_ZERO_DATE)
     {
-      tmp=0L;					// Don't allow date to change
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                           ER_WARN_DATA_OUT_OF_RANGE, nr,
-                           MYSQL_TIMESTAMP_DATE, 1);
+                           ER_WARN_DATA_OUT_OF_RANGE, 
+                           0, MYSQL_TIMESTAMP_DATE);
       error= 1;
     }
-    else
-      tmp= day + month*32 + (tmp/10000)*16*32;
   }
-  int3store(ptr,(int32) tmp);
+  int3store(ptr, tmp);
   return error;
 }
+
 
 int Field_newdate::store_time(TIME *ltime,timestamp_type type)
 {
@@ -5380,6 +5406,7 @@ int Field_newdate::store_time(TIME *ltime,timestamp_type type)
   return error;
 }
 
+
 bool Field_newdate::send_binary(Protocol *protocol)
 {
   TIME tm;
@@ -5387,10 +5414,12 @@ bool Field_newdate::send_binary(Protocol *protocol)
   return protocol->store_date(&tm);
 }
 
+
 double Field_newdate::val_real(void)
 {
   return (double) Field_newdate::val_int();
 }
+
 
 longlong Field_newdate::val_int(void)
 {
@@ -5398,6 +5427,7 @@ longlong Field_newdate::val_int(void)
   j= (j % 32L)+(j / 32L % 16L)*100L + (j/(16L*32L))*10000L;
   return (longlong) j;
 }
+
 
 String *Field_newdate::val_str(String *val_buffer,
 			       String *val_ptr __attribute__((unused)))
@@ -5426,6 +5456,7 @@ String *Field_newdate::val_str(String *val_buffer,
   return val_buffer;
 }
 
+
 bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
 {
   uint32 tmp=(uint32) uint3korr(ptr);
@@ -5438,10 +5469,12 @@ bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
           1 : 0);
 }
 
+
 bool Field_newdate::get_time(TIME *ltime)
 {
   return Field_newdate::get_date(ltime,0);
 }
+
 
 int Field_newdate::cmp(const char *a_ptr, const char *b_ptr)
 {
@@ -5451,12 +5484,14 @@ int Field_newdate::cmp(const char *a_ptr, const char *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
+
 void Field_newdate::sort_string(char *to,uint length __attribute__((unused)))
 {
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
 }
+
 
 void Field_newdate::sql_type(String &res) const
 {
@@ -5514,10 +5549,10 @@ int Field_datetime::store(double nr)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATETIME);
-    nr=0.0;
+    nr= 0.0;
     error= 1;
   }
-  error |= Field_datetime::store((longlong) rint(nr));
+  error|= Field_datetime::store((longlong) rint(nr));
   return error;
 }
 
@@ -5534,6 +5569,13 @@ int Field_datetime::store(longlong nr)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          WARN_DATA_TRUNCATED, initial_nr, 
                          MYSQL_TIMESTAMP_DATETIME, 1);
+  else if (nr == 0 && table->in_use->variables.sql_mode & MODE_NO_ZERO_DATE)
+  {
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+                         ER_WARN_DATA_OUT_OF_RANGE, 
+                         initial_nr, MYSQL_TIMESTAMP_DATE);
+    error= 1;
+  }
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -8285,7 +8327,37 @@ create_field::create_field(Field *old_field,Field *orig_field)
 }
 
 
-/* Warning handling */
+/*
+  maximum possible display length for blob
+
+  SYNOPSIS
+    Field_blob::max_length()
+
+  RETURN
+    length
+*/
+uint32 Field_blob::max_length()
+{
+  switch (packlength)
+  {
+  case 1:
+    return 255;
+  case 2:
+    return 65535;
+  case 3:
+    return 16777215;
+  case 4:
+    return (uint32) 4294967295U;
+  default:
+    DBUG_ASSERT(0); // we should never go here
+    return 0;
+  }
+}
+
+
+/*****************************************************************************
+ Warning handling
+*****************************************************************************/
 
 /*
   Produce warning or note about data saved into field
@@ -8301,18 +8373,20 @@ create_field::create_field(Field *old_field,Field *orig_field)
     if count_cuted_fields == FIELD_CHECK_IGNORE for current thread.
 
   RETURN VALUE
-    true  - if count_cuted_fields == FIELD_CHECK_IGNORE
-    false - otherwise
+    1 if count_cuted_fields == FIELD_CHECK_IGNORE
+    0 otherwise
 */
+
 bool 
-Field::set_warning(uint level, uint code, int cuted_increment)
+Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
+                   int cuted_increment)
 {
   THD *thd= table->in_use;
   if (thd->count_cuted_fields)
   {
     thd->cuted_fields+= cuted_increment;
-    push_warning_printf(thd, (MYSQL_ERROR::enum_warning_level) level,
-                        code, ER(code), field_name, thd->row_count);
+    push_warning_printf(thd, level, code, ER(code), field_name,
+                        thd->row_count);
     return 0;
   }
   return 1;
@@ -8336,8 +8410,9 @@ Field::set_warning(uint level, uint code, int cuted_increment)
     fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current 
     thread.
 */
+
 void 
-Field::set_datetime_warning(const uint level, const uint code, 
+Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code, 
                             const char *str, uint str_length, 
                             timestamp_type ts_type, int cuted_increment)
 {
@@ -8364,8 +8439,9 @@ Field::set_datetime_warning(const uint level, const uint code,
     fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current 
     thread.
 */
+
 void 
-Field::set_datetime_warning(const uint level, const uint code, 
+Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code, 
                             longlong nr, timestamp_type ts_type,
                             int cuted_increment)
 {
@@ -8395,8 +8471,9 @@ Field::set_datetime_warning(const uint level, const uint code,
     fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current 
     thread.
 */
+
 void 
-Field::set_datetime_warning(const uint level, const uint code, 
+Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code, 
                             double nr, timestamp_type ts_type)
 {
   if (table->in_use->really_abort_on_warning() ||
@@ -8407,32 +8484,5 @@ Field::set_datetime_warning(const uint level, const uint code,
     uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
     make_truncated_value_warning(table->in_use, str_nr, str_len, ts_type,
                                  field_name);
-  }
-}
-
-/*
-  maximum possible display length for blob
-
-  SYNOPSIS
-    Field_blob::max_length()
-
-  RETURN
-    length
-*/
-uint32 Field_blob::max_length()
-{
-  switch (packlength)
-  {
-  case 1:
-    return 255;
-  case 2:
-    return 65535;
-  case 3:
-    return 16777215;
-  case 4:
-    return (uint32) 4294967295U;
-  default:
-    DBUG_ASSERT(0); // we should never go here
-    return 0;
   }
 }

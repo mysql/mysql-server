@@ -1098,21 +1098,8 @@ public:
     fixed= 1;
   }
   enum Type type() const { return STRING_ITEM; }
-  double val_real()
-  {
-    DBUG_ASSERT(fixed == 1);
-    int err_not_used;
-    char *end_not_used;
-    return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		      str_value.length(), &end_not_used, &err_not_used);
-  }
-  longlong val_int()
-  {
-    DBUG_ASSERT(fixed == 1);
-    int err;
-    return my_strntoll(str_value.charset(), str_value.ptr(),
-		       str_value.length(), 10, (char**) 0, &err);
-  }
+  double val_real();
+  longlong val_int();
   String *val_str(String*)
   {
     DBUG_ASSERT(fixed == 1);

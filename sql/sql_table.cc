@@ -633,11 +633,12 @@ int prepare_create_field(create_field *sql_field,
     -1	error
 */
 
-int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
-			List<create_field> &fields,
-			List<Key> &keys, bool tmp_table, uint &db_options,
-			handler *file, KEY *&key_info_buffer,
-			uint *key_count, int select_field_count)
+static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
+                               List<create_field> *fields,
+                               List<Key> *keys, bool tmp_table,
+                               uint *db_options,
+                               handler *file, KEY **key_info_buffer,
+                               uint *key_count, int select_field_count)
 {
   const char	*key_name;
   create_field	*sql_field,*dup_field;
@@ -649,11 +650,11 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   int		timestamps= 0, timestamps_with_niladic= 0;
   int		field_no,dup_no;
   int		select_field_pos,auto_increment=0;
-  List_iterator<create_field> it(fields),it2(fields);
+  List_iterator<create_field> it(*fields),it2(*fields);
   uint total_uneven_bit_length= 0;
   DBUG_ENTER("mysql_prepare_table");
 
-  select_field_pos=fields.elements - select_field_count;
+  select_field_pos= fields->elements - select_field_count;
   null_fields=blob_columns=0;
   create_info->varchar= 0;
 
@@ -858,11 +859,11 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     if ((sql_field->flags & BLOB_FLAG) ||
 	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED)
-      db_options|= HA_OPTION_PACK_RECORD;
+      (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
   /* If fixed row records, we need one bit to check for deleted rows */
-  if (!(db_options & HA_OPTION_PACK_RECORD))
+  if (!((*db_options) & HA_OPTION_PACK_RECORD))
     null_fields++;
   pos= (null_fields + total_uneven_bit_length + 7) / 8;
 
@@ -910,7 +911,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
   /* Create keys */
 
-  List_iterator<Key> key_iterator(keys), key_iterator2(keys);
+  List_iterator<Key> key_iterator(*keys), key_iterator2(*keys);
   uint key_parts=0, fk_key_count=0;
   bool primary_key=0,unique_key=0;
   Key *key, *key2;
@@ -997,9 +998,9 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
 
-  key_info_buffer=key_info=(KEY*) sql_calloc(sizeof(KEY)* *key_count);
+  (*key_info_buffer) = key_info= (KEY*) sql_calloc(sizeof(KEY)* *key_count);
   key_part_info=(KEY_PART_INFO*) sql_calloc(sizeof(KEY_PART_INFO)*key_parts);
-  if (!key_info_buffer || ! key_part_info)
+  if (!*key_info_buffer || ! key_part_info)
     DBUG_RETURN(-1);				// Out of memory
 
   key_iterator.rewind();
@@ -1273,7 +1274,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
-      if (!(db_options & HA_OPTION_NO_PACK_KEYS) &&
+      if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
@@ -1304,8 +1305,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
 	else if (!(key_name = key->name))
 	  key_name=make_unique_key_name(sql_field->field_name,
-					key_info_buffer,key_info);
-	if (check_if_keyname_exists(key_name,key_info_buffer,key_info))
+					*key_info_buffer, key_info);
+	if (check_if_keyname_exists(key_name, *key_info_buffer, key_info))
 	{
 	  my_error(ER_DUP_KEYNAME, MYF(0), key_name);
 	  DBUG_RETURN(-1);
@@ -1340,7 +1341,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
   /* Sort keys in optimized order */
-  qsort((gptr) key_info_buffer, *key_count, sizeof(KEY),
+  qsort((gptr) *key_info_buffer, *key_count, sizeof(KEY),
 	(qsort_cmp) sort_keys);
 
   DBUG_RETURN(0);
@@ -1406,7 +1407,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
 			ha_get_storage_engine(new_db_type),
 			table_name);
   }
-  db_options=create_info->table_options;
+  db_options= create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
@@ -1445,9 +1446,9 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->default_table_charset= db_info.default_table_charset;
   }
 
-  if (mysql_prepare_table(thd, create_info, fields,
-			  keys, internal_tmp_table, db_options, file,
-			  key_info_buffer, &key_count,
+  if (mysql_prepare_table(thd, create_info, &fields,
+			  &keys, internal_tmp_table, &db_options, file,
+			  &key_info_buffer, &key_count,
 			  select_field_count))
     DBUG_RETURN(TRUE);
 
@@ -2719,9 +2720,9 @@ int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.default_table_charset= thd->variables.collation_database;
   db_options= 0;
-  if (mysql_prepare_table(thd, &create_info, fields,
-			  keys, /*tmp_table*/ 0, db_options, table->file,
-			  key_info_buffer, key_count,
+  if (mysql_prepare_table(thd, &create_info, &fields,
+			  &keys, /*tmp_table*/ 0, &db_options, table->file,
+			  &key_info_buffer, key_count,
 			  /*select_field_count*/ 0))
     DBUG_RETURN(-1);
 
@@ -2852,9 +2853,9 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
   {
     db_options= 0;
     if (table->file->drop_index(table, key_numbers, key_count)||
-	mysql_prepare_table(thd, &create_info, fields,
-			    keys, /*tmp_table*/ 0, db_options, table->file,
-			    key_info_buffer, key_count,
+	mysql_prepare_table(thd, &create_info, &fields,
+			    &keys, /*tmp_table*/ 0, &db_options, table->file,
+			    &key_info_buffer, key_count,
 			    /*select_field_count*/ 0)||
 	(snprintf(path, sizeof(path), "%s/%s/%s%s", mysql_data_home,
 		  table_list->db, (lower_case_table_names == 2)?
@@ -3679,6 +3680,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (to->file->external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
+
+  /* We can abort alter table for any table type */
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= !ignore && test(thd->variables.sql_mode &
+                                         (MODE_STRICT_TRANS_TABLES |
+                                          MODE_STRICT_ALL_TABLES));
+
   from->file->info(HA_STATUS_VARIABLE);
   to->file->start_bulk_insert(from->file->records);
 
@@ -3758,6 +3766,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       else
         to->next_number_field->reset();
     }
+    
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
     {
       copy_ptr->do_copy(copy_ptr);
@@ -3802,6 +3811,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
  err:
   thd->variables.sql_mode= save_sql_mode;
+  thd->abort_on_warning= 0;
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
