@@ -2833,7 +2833,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
-		       char *change, TYPELIB *interval)
+		       char *change, TYPELIB *interval, CHARSET_INFO *cs)
 {
   register create_field *new_field;
   THD	*thd=current_thd;
@@ -2886,7 +2886,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
-  new_field->charset=0;				// QQ: To be fixed
+  new_field->charset=cs;
 
   if (!comment)
   {

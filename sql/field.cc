@@ -3471,6 +3471,11 @@ void Field_string::sql_type(String &res) const
   res.length((uint) strlen(res.ptr()));
   if (binary_flag)
     res.append(" binary");
+  else
+  {
+    res.append(" character set ");
+    res.append(field_charset->name);
+  }
 }
 
 
@@ -3667,6 +3672,11 @@ void Field_varstring::sql_type(String &res) const
   res.length((uint) strlen(res.ptr()));
   if (binary_flag)
     res.append(" binary");
+  else
+  {
+    res.append(" character set ");
+    res.append(field_charset->name);
+  }
 }
 
 char *Field_varstring::pack(char *to, const char *from, uint max_length)
@@ -4154,6 +4164,11 @@ void Field_blob::sql_type(String &res) const
   }
   res.set(str,(uint) strlen(str),default_charset_info);
   res.append(binary_flag ? "blob" : "text");
+  if (!binary_flag)
+  {
+    res.append(" character set ");
+    res.append(field_charset->name);
+  }
 }
 
 

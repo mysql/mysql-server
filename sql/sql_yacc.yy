@@ -959,6 +959,7 @@ field_spec:
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
 	   lex->default_value=lex->comment=0;
+	   lex->charset=default_charset_info;
 	 }
 	type opt_attribute
 	{
@@ -967,7 +968,7 @@ field_spec:
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->comment,
-				lex->change,lex->interval))
+				lex->change,lex->interval,lex->charset))
 	    YYABORT;
 	};
 
@@ -1010,11 +1011,11 @@ type:
 					  $$=FIELD_TYPE_LONG_BLOB; }
 	| LONG_SYM VARBINARY		{ Lex->type|=BINARY_FLAG;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONG_SYM varchar		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| TINYTEXT			{ $$=FIELD_TYPE_TINY_BLOB; }
-	| TEXT_SYM			{ $$=FIELD_TYPE_BLOB; }
-	| MEDIUMTEXT			{ $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONGTEXT			{ $$=FIELD_TYPE_LONG_BLOB; }
+	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
+	| TEXT_SYM opt_binary		{ $$=FIELD_TYPE_BLOB; }
+	| MEDIUMTEXT opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| LONGTEXT opt_binary		{ $$=FIELD_TYPE_LONG_BLOB; }
 	| DECIMAL_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| NUMERIC_SYM float_options field_options
@@ -1288,7 +1289,7 @@ alter_list_item:
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->comment,
-				  $3.str, lex->interval))
+				  $3.str, lex->interval, lex->charset))
 	       YYABORT;
           }
           opt_place
