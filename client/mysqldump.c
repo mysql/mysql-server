@@ -86,9 +86,10 @@ static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
-             *where=0, *default_charset= (char *) "binary",
+             *where=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
+static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
 static my_string opt_mysql_unix_port=0;

@@ -852,4 +852,26 @@ insert into t1 values (0,100),(1,2), (1,3), (2,2), (2,7), (2,-1), (3,10);
 insert into t2 values (0,0), (1,1), (2,1), (3,1), (4,1);
 insert into t3 values (3,3), (2,2), (1,1); 
 select a,(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 and t1.a <= t3.b group by t1.a order by sum limit 1) from t3;
-drop table t1,t2,t3;s
+drop table t1,t2,t3;
+
+#
+# aggregate functions in HAVING test
+#
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
+drop table t1,t2;
+#
+# update subquery with wrong field (to force name resolving
+# in UPDATE name space)
+#
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+-- error 1109
+update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
+DROP TABLE t1, t2;
+
