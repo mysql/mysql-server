@@ -1319,10 +1319,12 @@ static void fix_thd_mem_root(THD *thd, enum_var_type type)
 
 static void fix_trans_mem_root(THD *thd, enum_var_type type)
 {
+#ifdef USING_TRANSACTIONS
   if (type != OPT_GLOBAL)
     reset_root_defaults(&thd->transaction.mem_root,
                         thd->variables.trans_alloc_block_size,
                         thd->variables.trans_prealloc_size);
+#endif
 }
 
 
