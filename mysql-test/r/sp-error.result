@@ -97,13 +97,13 @@ insert into test.t1 values (x)|
 create function f(x int) returns int
 return x+42|
 call p()|
-ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 0
+ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 0
 call p(1, 2)|
-ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 2
+ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 2
 select f()|
-ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 0
+ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 0
 select f(1, 2)|
-ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 2
+ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 2
 drop procedure p|
 drop function f|
 create procedure p(val int, out res int)
@@ -219,7 +219,7 @@ fetch c into x;
 close c;
 end|
 call p()|
-ERROR HY000: Wrong number of FETCH variables
+ERROR HY000: Incorrect number of FETCH variables
 drop procedure p|
 create procedure p()
 begin
@@ -232,7 +232,7 @@ fetch c into x, y, z;
 close c;
 end|
 call p()|
-ERROR HY000: Wrong number of FETCH variables
+ERROR HY000: Incorrect number of FETCH variables
 drop procedure p|
 create procedure p(in x int, x char(10))
 begin
