@@ -4460,7 +4460,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
   DBUG_ENTER("handle_grant_struct");
   LINT_INIT(acl_user);
   LINT_INIT(acl_db);
-  LINT_INIT(grant_table);
+  LINT_INIT(grant_name);
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
 
