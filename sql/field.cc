@@ -4122,7 +4122,7 @@ ulonglong Field_blob::get_id(const char *from)
   ulonglong id = 0;
   ulong length=get_length(from);
   if (length)
-    uint8korr(id, from+packlength);
+    id=uint8korr(from+packlength);
   return id;
 }
 
