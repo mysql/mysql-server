@@ -1421,7 +1421,7 @@ not always make sense; please check the manual before using it).";
     We don't test equality of global collation_database either as it's is
     going to be deprecated (made read-only) in 4.1 very soon.
     The test is only relevant if master < 5.0.3 (we'll test only if it's older
-    than the 5 branch; < 5.0.3 was alpha...), as >= 5.0.3 master stores
+    than the 5 branch; < 5.0.4 were alpha...), as >= 5.0.4 master stores
     charset info in each binlog event.
     We don't do it for 3.23 because masters <3.23.50 hang on
     SELECT @@unknown_var (BUG#7965 - see changelog of 3.23.50). So finally we
@@ -1456,11 +1456,10 @@ be equal for replication to work";
     such check will broke everything for them. (And now everything will 
     work for them because by default both their master and slave will have 
     'SYSTEM' time zone).
-
-    TODO: when the new replication of timezones is sorted out with Dmitri,
-    change >= '4' to == '4'.
+    This check is only necessary for 4.x masters (and < 5.0.4 masters but
+    those were alpha).
   */
-  if ((*mysql->server_version >= '4') &&
+  if ((*mysql->server_version == '4') &&
       !mysql_real_query(mysql, "SELECT @@GLOBAL.TIME_ZONE", 25) &&
       (master_res= mysql_store_result(mysql)))
   {
@@ -2768,6 +2767,18 @@ void set_slave_thread_options(THD* thd)
   thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
     OPTION_AUTO_IS_NULL;
   thd->variables.completion_type= 0;
+}
+
+void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli)
+{
+  thd->variables.character_set_client=
+    global_system_variables.character_set_client;
+  thd->variables.collation_connection=
+    global_system_variables.collation_connection;
+  thd->variables.collation_server=
+    global_system_variables.collation_server;
+  thd->update_charset();
+  rli->cached_charset_invalidate();
 }
 
 /*

@@ -2178,7 +2178,7 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
   DBUG_PRINT("enter", ("time zone name='%s'",
                       name ? ((String *)name)->c_ptr() : "NULL"));
 
-  DBUG_ASSERT(!time_zone_tables_exist || tz_tables);
+  DBUG_ASSERT(!time_zone_tables_exist || tz_tables || current_thd->slave_thread);
 
   if (!name)
     DBUG_RETURN(0);
@@ -2210,13 +2210,65 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
                                                    (const byte *)name->ptr(),
                                                    name->length())))
       result_tz= tmp_tzname->tz;
-    else if (time_zone_tables_exist)
+    else if (time_zone_tables_exist && tz_tables)
       result_tz= tz_load_from_open_tables(name, tz_tables);
   }
 
   VOID(pthread_mutex_unlock(&tz_LOCK));
 
   DBUG_RETURN(result_tz);
+}
+
+
+/*
+  A more standalone version of my_tz_find(): will open tz tables if needed.
+  This is so far only used by replication, where time zone setting does not
+  happen in the usual query context.
+
+  SYNOPSIS
+    my_tz_find_with_opening_tz_tables()
+      thd  - pointer to thread's THD structure
+      name - time zone specification
+
+  DESCRIPTION
+    This function tries to find a time zone which matches the named passed in
+    argument. If it fails, it will open time zone tables and re-try the
+    search.
+    This function is needed for the slave SQL thread, which does not do the
+    addition of time zone tables which is usually done during query parsing
+    (as time zone setting by slave does not happen in mysql_parse() but
+    before). So it needs to open tz tables by itself if needed.
+    See notes of my_tz_find() as they also apply here.
+
+  RETURN VALUE
+    Pointer to corresponding Time_zone object. 0 - in case of bad time zone
+    specification or other error.
+
+*/
+Time_zone *my_tz_find_with_opening_tz_tables(THD *thd, const String *name)
+{
+  Time_zone *tz;
+  DBUG_ENTER("my_tz_find_with_opening_tables");
+  DBUG_ASSERT(thd);
+  DBUG_ASSERT(thd->slave_thread); // intended for use with slave thread only
+  if (!(tz= my_tz_find(name, 0)) && time_zone_tables_exist)
+  {
+    /*
+      Probably we have not loaded this time zone yet so let us look it up in
+      our time zone tables. Note that if we don't have tz tables on this
+      slave, we don't even try.
+    */
+    TABLE_LIST tables[4];
+    TABLE_LIST *dummy;
+    TABLE_LIST **dummyp= &dummy;
+    tz_init_table_list(tables, &dummyp);
+    if (simple_open_n_lock_tables(thd, tables))
+      DBUG_RETURN(0);
+    tz= my_tz_find(name, tables);
+    /* We need to close tables _now_ to not pollute coming query */
+    close_thread_tables(thd);
+  }
+  DBUG_RETURN(tz);
 }
 
 #endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */
