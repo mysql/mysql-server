@@ -6,7 +6,9 @@
 drop table if exists t1;
 --enable_warnings
 
+--replace_result e-0 e- e+0 e+
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
+--replace_result e-00 e-0 
 SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
 SELECT 1e1,1.e1,1.0e1,1e+1,1.e+1,1.0e+1,1e-1,1.e-1,1.0e-1;
 
@@ -14,6 +16,7 @@ create table t1 (f1 float(24),f2 float(52));
 show full columns from t1;
 insert into t1 values(10,10),(1e+5,1e+5),(1234567890,1234567890),(1e+10,1e+10),(1e+15,1e+15),(1e+20,1e+20),(1e+50,1e+50),(1e+150,1e+150);
 insert into t1 values(-10,-10),(1e-5,1e-5),(1e-10,1e-10),(1e-15,1e-15),(1e-20,1e-20),(1e-50,1e-50),(1e-150,1e-150);
+--replace_result e-0 e- e+0 e+
 select * from t1;
 drop table t1;
 
