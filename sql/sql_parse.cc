@@ -2491,7 +2491,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_MUTEX_STATUS:
     {
       if (check_global_access(thd, SUPER_ACL))
-	goto error;
+        goto error;
       res = innodb_mutex_show_status(thd);
       break;
     }

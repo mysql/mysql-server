@@ -197,8 +197,8 @@ mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint		cline,		/* in: file line where created */
-  const char*	cmutex_name)	/* in: mutex name */
+  ulint cline,  /* in: file line where created */
+  const char* cmutex_name)  /* in: mutex name */
 {
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
 	mutex_reset_lock_word(mutex);
@@ -361,10 +361,10 @@ for the mutex before suspending the thread. */
 void
 mutex_spin_wait(
 /*============*/
-  mutex_t*	   mutex,     	/* in: pointer to mutex */
-  const char*	   file_name, 	/* in: file name where
-  				                    mutex requested */
-  ulint		   line)	/* in: line where requested */
+  mutex_t*  mutex,      /* in: pointer to mutex */
+  const char*    file_name,   /* in: file name where
+                             mutex requested */
+  ulint line) /* in: line where requested */
 {
   ulint    index; /* index of the reserved wait cell */
   ulint    i;     /* spin round count */
