@@ -212,7 +212,7 @@ cleanup:
   delete select;
   free_underlaid_joins(thd, &thd->lex.select_lex);
   if (error >= 0 || thd->net.report_error)
-    send_error(thd,thd->killed);
+    send_error(thd,thd->killed_errno());
   else
   {
     send_ok(thd,deleted);

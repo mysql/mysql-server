@@ -527,6 +527,14 @@ public:
 
   enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
   killed_state volatile killed;
+  inline int killed_errno() const
+  {
+    return killed;
+  }
+  inline void send_kill_message() const
+  {
+    my_error(killed_errno(), MYF(0));
+  }
 
   bool       prepare_command;
   bool	     tmp_table_used;

@@ -674,7 +674,7 @@ static bool send_prepare_results(PREP_STMT *stmt)
   DBUG_RETURN(0);
 
 abort:
-  send_error(thd,thd->killed);
+  send_error(thd,thd->killed_errno());
   DBUG_RETURN(1);
 }
 

@@ -1644,9 +1644,9 @@ err:
   DBUG_RETURN(1);
 } /* sort_record_index */
 
-bool killed_ptr(void *thd)
+int *killed_ptr(void *thd)
 {
-  return (bool)thd; /* always NULL */
+  return (int *)thd; /* always NULL */
 }
 
 	/* print warnings and errors */

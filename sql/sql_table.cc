@@ -2381,7 +2381,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   {
     if (thd->killed)
     {
-      my_error(thd->killed,MYF(0));
+      thd->send_kill_message();
       error= 1;
       break;
     }

@@ -154,7 +154,7 @@ retry:
   thd->proc_info=0;
   if (thd->killed)
   {
-    my_error(thd->killed, MYF(0));
+    thd->send_kill_message();
     if (sql_lock)
     {
       mysql_unlock_tables(thd,sql_lock);
