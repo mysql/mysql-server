@@ -1792,10 +1792,15 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 
   /*
     InnoDB internally stores the master log position it has processed so far;
-    position to store is really pos + pending + event_len
-    since we must store the pos of the END of the current log event
+    position to store is of the END of the current log event.
   */
-  rli->event_len= get_event_len();
+#if MYSQL_VERSION_ID < 40100
+  rli->future_master_log_pos= log_pos + get_event_len();
+#elif MYSQL_VERSION_ID < 50000
+  rli->future_group_master_log_pos= log_pos + get_event_len();
+#else
+  rli->future_group_master_log_pos= log_pos;
+#endif
   thd->query_error= 0;			// clear error
   thd->clear_error();
 
@@ -1934,6 +1939,17 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->query = 0;				// Should not be needed
   thd->query_error = 0;
   thd->clear_error();
+
+  if (!use_rli_only_for_errors)
+  {
+#if MYSQL_VERSION_ID < 40100
+    rli->future_master_log_pos= log_pos + get_event_len();
+#elif MYSQL_VERSION_ID < 50000
+    rli->future_group_master_log_pos= log_pos + get_event_len();
+#else
+    rli->future_group_master_log_pos= log_pos;
+#endif
+  }
 
   /*
     We test replicate_*_db rules. Note that we have already prepared the file to
@@ -2392,6 +2408,14 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
     lev->exec_event is the place where the table is loaded (it calls
     mysql_load()).
   */
+
+#if MYSQL_VERSION_ID < 40100
+    rli->future_master_log_pos= log_pos + get_event_len();
+#elif MYSQL_VERSION_ID < 50000
+    rli->future_group_master_log_pos= log_pos + get_event_len();
+#else
+    rli->future_group_master_log_pos= log_pos;
+#endif
   if (lev->exec_event(0,rli,1)) 
   {
     /*
