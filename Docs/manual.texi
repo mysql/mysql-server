@@ -45712,6 +45712,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Changed WEEK(#,0) to match the calender in the USA.
+@item
 Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
 @item
 Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimization.
