@@ -64,7 +64,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     ci=&tmp_create_info;
   }
 
-  if (keys + uniques > MI_MAX_KEY)
+  if (keys + uniques > MI_MAX_KEY || columns == 0)
   {
     DBUG_RETURN(my_errno=HA_WRONG_CREATE_OPTION);
   }
