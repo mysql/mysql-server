@@ -510,7 +510,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     // The remainder are allowed for use by the scan processes.
     /*-----------------------------------------------------------------------*/
     cfg.put(CFG_ACC_OP_RECS,
-	    noOfReplicas*((16 * noOfOperations) / 10 + 50) + 
+	    ((11 * noOfOperations) / 10 + 50) + 
 	    (noOfLocalScanRecords * MAX_PARALLEL_SCANS_PER_FRAG) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
@@ -535,18 +535,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      */
     cfg.put(CFG_DICT_ATTRIBUTE, 
 	    noOfAttributes);
-    
-    cfg.put(CFG_DICT_CONNECT, 
-	    noOfOperations + 32);   
-    
-    cfg.put(CFG_DICT_FRAG_CONNECT, 
-	    NO_OF_FRAG_PER_NODE * noOfDBNodes * noOfReplicas);
 
     cfg.put(CFG_DICT_TABLE, 
 	    noOfTables);
-    
-    cfg.put(CFG_DICT_TC_CONNECT, 
-	    2* noOfOperations);
   }
   
   {
@@ -587,18 +578,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_LQH_FRAG, 
 	    NO_OF_FRAG_PER_NODE * noOfTables * noOfReplicas);
     
-    cfg.put(CFG_LQH_CONNECT, 
-	    noOfReplicas*((11 * noOfOperations) / 10 + 50));
-    
     cfg.put(CFG_LQH_TABLE, 
 	    noOfTables);
 
     cfg.put(CFG_LQH_TC_CONNECT, 
-	    noOfReplicas*((16 * noOfOperations) / 10 + 50));
+	    (11 * noOfOperations) / 10 + 50);
     
-    cfg.put(CFG_LQH_REPLICAS, 
-	    noOfReplicas);
-
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
   }
@@ -611,7 +596,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    3 * noOfTransactions);
     
     cfg.put(CFG_TC_TC_CONNECT, 
-	    noOfOperations + 16 + noOfTransactions);
+	    (2 * noOfOperations) + 16 + noOfTransactions);
     
     cfg.put(CFG_TC_TABLE, 
 	    noOfTables);
@@ -631,7 +616,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
     
     cfg.put(CFG_TUP_OP_RECS, 
-	    noOfReplicas*((16 * noOfOperations) / 10 + 50));
+	    (11 * noOfOperations) / 10 + 50);
     
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);
