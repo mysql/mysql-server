@@ -539,8 +539,6 @@ extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];
 extern enum db_type default_table_type;
 
-extern uchar global_state_map[256];
-
 #ifndef __WIN__
 extern pthread_t signal_thread;
 #endif

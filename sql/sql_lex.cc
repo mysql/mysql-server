@@ -75,7 +75,7 @@ inline int lex_casecmp(const char *s, const char *t, uint len)
 
 #include "lex_hash.h"
 
-uchar global_state_map[256];
+static uchar state_map[256];
 
 
 void lex_init(void)
@@ -89,49 +89,42 @@ void lex_init(void)
 
   VOID(pthread_key_create(&THR_LEX,NULL));
 
-  /* Fill global_state_map with states to get a faster parser */
+  /* Fill state_map with states to get a faster parser */
   for (i=0; i < 256 ; i++)
   {
     if (isalpha(i))
-      global_state_map[i]=(uchar) STATE_IDENT;
+      state_map[i]=(uchar) STATE_IDENT;
     else if (isdigit(i))
-      global_state_map[i]=(uchar) STATE_NUMBER_IDENT;
+      state_map[i]=(uchar) STATE_NUMBER_IDENT;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
     else if (use_mb(default_charset_info) && my_ismbhead(default_charset_info, i))
-      global_state_map[i]=(uchar) STATE_IDENT;
+      state_map[i]=(uchar) STATE_IDENT;
 #endif
     else if (!isgraph(i))
-      global_state_map[i]=(uchar) STATE_SKIP;      
+      state_map[i]=(uchar) STATE_SKIP;      
     else
-      global_state_map[i]=(uchar) STATE_CHAR;
+      state_map[i]=(uchar) STATE_CHAR;
   }
-  global_state_map[(uchar)'_']=
-    global_state_map[(uchar)'$']=(uchar) STATE_IDENT;
-  global_state_map[(uchar)'\'']=
-    global_state_map[(uchar)'"']=(uchar) STATE_STRING;
-  global_state_map[(uchar)'-']=
-    global_state_map[(uchar)'+']=(uchar) STATE_SIGNED_NUMBER;
-  global_state_map[(uchar)'.']=(uchar) STATE_REAL_OR_POINT;
-  global_state_map[(uchar)'>']=
-    global_state_map[(uchar)'=']=
-    global_state_map[(uchar)'!']= (uchar) STATE_CMP_OP;
-  global_state_map[(uchar)'<']= (uchar) STATE_LONG_CMP_OP;
-  global_state_map[(uchar)'&']=global_state_map[(uchar)'|']=(uchar) STATE_BOOL;
-  global_state_map[(uchar)'#']=(uchar) STATE_COMMENT;
-  global_state_map[(uchar)';']=(uchar) STATE_COLON;
-  global_state_map[(uchar)':']=(uchar) STATE_SET_VAR;
-  global_state_map[0]=(uchar) STATE_EOL;
-  global_state_map[(uchar)'\\']= (uchar) STATE_ESCAPE;
-  global_state_map[(uchar)'/']= (uchar) STATE_LONG_COMMENT;
-  global_state_map[(uchar)'*']= (uchar) STATE_END_LONG_COMMENT;
-  global_state_map[(uchar)'@']= (uchar) STATE_USER_END;
-  global_state_map[(uchar) '`']= (uchar) STATE_USER_VARIABLE_DELIMITER;
-
+  state_map[(uchar)'_']=state_map[(uchar)'$']=(uchar) STATE_IDENT;
+  state_map[(uchar)'\'']=state_map[(uchar)'"']=(uchar) STATE_STRING;
+  state_map[(uchar)'-']=state_map[(uchar)'+']=(uchar) STATE_SIGNED_NUMBER;
+  state_map[(uchar)'.']=(uchar) STATE_REAL_OR_POINT;
+  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= (uchar) STATE_CMP_OP;
+  state_map[(uchar)'<']= (uchar) STATE_LONG_CMP_OP;
+  state_map[(uchar)'&']=state_map[(uchar)'|']=(uchar) STATE_BOOL;
+  state_map[(uchar)'#']=(uchar) STATE_COMMENT;
+  state_map[(uchar)';']=(uchar) STATE_COLON;
+  state_map[(uchar)':']=(uchar) STATE_SET_VAR;
+  state_map[0]=(uchar) STATE_EOL;
+  state_map[(uchar)'\\']= (uchar) STATE_ESCAPE;
+  state_map[(uchar)'/']= (uchar) STATE_LONG_COMMENT;
+  state_map[(uchar)'*']= (uchar) STATE_END_LONG_COMMENT;
+  state_map[(uchar)'@']= (uchar) STATE_USER_END;
+  state_map[(uchar) '`']= (uchar) STATE_USER_VARIABLE_DELIMITER;
   if (thd_startup_options & OPTION_ANSI_MODE)
   {
-    global_state_map[(uchar) '"'] = STATE_USER_VARIABLE_DELIMITER;
+    state_map[(uchar) '"'] = STATE_USER_VARIABLE_DELIMITER;
   }
-
   DBUG_VOID_RETURN;
 }
 
@@ -425,7 +418,6 @@ int yylex(void *arg)
   uint length;
   enum lex_states state,prev_state;
   LEX	*lex=current_lex;
-  uchar *state_map = lex->thd->state_map;
   YYSTYPE *yylval=(YYSTYPE*) arg;
 
   lex->yylval=yylval;			// The global state
