@@ -160,10 +160,14 @@ class Item_func_not_all :public Item_func_not
 {
   bool abort_on_null;
 public:
-  Item_func_not_all(Item *a) :Item_func_not(a), abort_on_null(0) {}
+  bool show;
+
+  Item_func_not_all(Item *a) :Item_func_not(a), abort_on_null(0), show(0) {}
   virtual void top_level_item() { abort_on_null= 1; }
   bool top_level() { return abort_on_null; }
   longlong val_int();
+  const char *func_name() const { return "<not>"; }
+  void print(String *str);
 };
 
 class Item_func_eq :public Item_bool_rowready_func2

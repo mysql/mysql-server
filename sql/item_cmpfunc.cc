@@ -112,6 +112,14 @@ longlong Item_func_not_all::val_int()
   return (!null_value && value == 0) ? 1 : 0;
 }
 
+void Item_func_not_all::print(String *str)
+{
+  if (show)
+    Item_func::print(str);
+  else
+    args[0]->print(str);
+}
+
 /*
   Convert a constant expression or string to an integer.
   This is done when comparing DATE's of different formats and

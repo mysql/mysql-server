@@ -222,10 +222,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  else
 	    unit->exclude_level();
 	  org_table_list->db= (char *)"";
-#ifndef DBUG_OFF
-	  /* Try to catch errors if this is accessed */
-	  org_table_list->derived=(SELECT_LEX_UNIT *) 1;
-#endif
 	  // Force read of table stats in the optimizer
 	  table->file->info(HA_STATUS_VARIABLE);
 	}
