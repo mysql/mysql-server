@@ -414,8 +414,10 @@ io_handler_thread(
 	
 	segment = *((ulint*)arg);
 
-/*	printf("Io handler thread %lu starts\n", segment); */
-
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	printf("Io handler thread %lu starts\n", segment);
+	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+#endif
 	for (i = 0;; i++) {
 		fil_aio_wait(segment);
 
@@ -423,6 +425,13 @@ io_handler_thread(
 		ios++;
 		mutex_exit(&ios_mutex);
 	}
+
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit.
+	The thread actually never comes here because it is exited in an
+	os_event_wait(). */
+
+	os_thread_exit(NULL);
 
 #ifndef __WIN__
 	return(NULL);
@@ -1546,20 +1555,31 @@ innobase_shutdown_for_mysql(void)
 		      os_thread_count);
 	}
 
-	/* 3. Free all InnoDB's own mutexes */
+	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
+	them */
 
 	sync_close();
 
-	/* 4. Free all OS synchronization primitives (in Windows currently
-	events are not freed) */
+	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
 
 	srv_free();
 	os_sync_free();
 
-	/* 5. Free all allocated memory (and the os_fast_mutex created in
+	/* 5. Free all allocated memory and the os_fast_mutex created in
 	ut0mem.c */
 
         ut_free_all_mem();
+
+	if (os_thread_count != 0
+	    || os_event_count != 0
+	    || os_mutex_count != 0
+	    || os_fast_mutex_count != 0) {
+	        fprintf(stderr,
+"InnoDB: Warning: some resources were not cleaned up in shutdown:\n"
+"InnoDB: threads %lu, events %lu, os_mutexes %lu, os_fast_mutexes %lu\n",
+		      os_thread_count, os_event_count, os_mutex_count,
+		      os_fast_mutex_count);
+	}
 
 	if (srv_print_verbose_log) {
 	        ut_print_timestamp(stderr);
