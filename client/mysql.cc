@@ -2406,7 +2406,7 @@ com_shell(String *buffer, char *line __attribute__((unused)))
   char *shell_cmd;
 
   /* Skip space from line begin */
-  while (isspace(*line))
+  while (my_isspace(charset_info, *line))
     line++;
   if (!(shell_cmd = strchr(line, ' ')))
   {
