@@ -113,7 +113,7 @@ static int block_stack[BLOCK_STACK_DEPTH];
 
 
 static int block_ok_stack[BLOCK_STACK_DEPTH];
-static uint global_expected_errno[MAX_EXPECTED_ERRORS];
+static uint global_expected_errno[MAX_EXPECTED_ERRORS], global_expected_errors;
 
 DYNAMIC_ARRAY q_lines;
 
@@ -194,6 +194,7 @@ struct st_query
   int first_word_len;
   my_bool abort_on_error, require_file;
   uint expected_errno[MAX_EXPECTED_ERRORS];
+  uint expected_errors;
   char record_file[FN_REFLEN];
   enum enum_commands type;
 };
@@ -1011,10 +1012,11 @@ static void get_file_name(char *filename, struct st_query* q)
 }
 
 
-static void get_ints(uint *to,struct st_query* q)
+static uint get_ints(uint *to,struct st_query* q)
 {
   char* p=q->first_argument;
   long val;
+  uint count=0;
   DBUG_ENTER("get_ints");
 
   if (!*p)
@@ -1022,12 +1024,13 @@ static void get_ints(uint *to,struct st_query* q)
 
   for (; (p=str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val)) ; p++)
   {
+    count++;
     *to++= (uint) val;
     if (*p != ',')
       break;
   }
   *to++=0;					/* End of data */
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(count);
 }
 
 /*
@@ -1583,8 +1586,11 @@ int read_query(struct st_query** q_ptr)
   q->first_word_len = 0;
   memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
 	 sizeof(global_expected_errno));
+  q->expected_errors=global_expected_errors;
   q->abort_on_error = global_expected_errno[0] == 0;
   bzero((gptr) global_expected_errno,sizeof(global_expected_errno));
+  global_expected_errors=0;
+
   q->type = Q_UNKNOWN;
   q->query_buf=q->query=0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
@@ -1613,6 +1619,7 @@ int read_query(struct st_query** q_ptr)
 	  expected_errno = expected_errno * 10 + *p - '0';
 	q->expected_errno[0] = expected_errno;
 	q->expected_errno[1] = 0;
+	q->expected_errors=1;
       }
     }
 
@@ -1962,28 +1969,33 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  mysql_errno(mysql), mysql_error(mysql));
     else
     {
-      for (i=0 ; q->expected_errno[i] ; i++)
+      for (i=0 ; (uint) i < q->expected_errors ; i++)
       {
 	if ((q->expected_errno[i] == mysql_errno(mysql)))
 	{
-	  if (i == 0 && q->expected_errno[1] == 0)
+	  if (i == 0 && q->expected_errors == 1)
 	  {
 	    /* Only log error if there is one possible error */
 	    dynstr_append(ds,mysql_error(mysql));
 	    dynstr_append_mem(ds,"\n",1);
 	  }
-	  else
+	  /* Don't log error if we may not get an error */
+	  else if (q->expected_errno[0] != 0)
 	    dynstr_append(ds,"Got one of the listed errors\n");
 	  goto end;				/* Ok */
 	}
       }
       if (i)
       {
+	dynstr_append(ds,mysql_error(mysql));
+	dynstr_append_mem(ds,"\n",1);
 	verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
 		    q->query, mysql_errno(mysql), q->expected_errno[0]);
 	error=1;
 	goto end;
       }
+      dynstr_append(ds,mysql_error(mysql));
+      dynstr_append_mem(ds,"\n",1);
       verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
       /* 
@@ -2262,7 +2274,7 @@ int main(int argc, char** argv)
       case Q_EVAL_RESULT: eval_result = 1; break;	
       case Q_EVAL:
         if (q->query == q->query_buf)
-	  q->query += q->first_word_len;
+	  q->query= q->first_argument;
         /* fall through */
       case Q_QUERY:
       case Q_REAP:	
@@ -2308,7 +2320,7 @@ int main(int argc, char** argv)
 	require_file=0;
 	break;
       case Q_ERROR:
-	get_ints(global_expected_errno,q);
+	global_expected_errors=get_ints(global_expected_errno,q);
 	break;
       case Q_REQUIRE:
 	get_file_name(save_file,q);

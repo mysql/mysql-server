@@ -220,7 +220,7 @@
 "Користувачу %-.32s@%-.64s не дозволено створювати нових користувач╕в",
 "Incorrect table definition; All MERGE tables must be in the same database",
 "Deadlock found when trying to get lock; Try restarting transaction",
-"The used table type doesn't support FULLTEXT indexes",
+"Використаний тип таблиц╕ не п╕дтриму╓ FULLTEXT ╕ндекс╕в",
 "Cannot add foreign key constraint",
 "Cannot add a child row: a foreign key constraint fails",
 "Cannot delete a parent row: a foreign key constraint fails",
@@ -232,4 +232,3 @@
 "Can't execute the query because you have a conflicting read lock",
 "Mixing of transactional and non-transactional tables is disabled",
 "Option '%s' used twice in statement",
-"Використаний тип таблиц╕ не п╕дтриму╓ FULLTEXT ╕ндекс╕в",

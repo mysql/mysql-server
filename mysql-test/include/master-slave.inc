@@ -3,6 +3,7 @@ connect (master1,localhost,root,,test,0,master.sock);
 connect (slave,localhost,root,,test,0,slave.sock);
 connect (slave1,localhost,root,,test,0,slave.sock);
 connection slave;
+--error 0,1199
 !slave stop;
 @r/slave-stopped.result show status like 'Slave_running';
 connection master;

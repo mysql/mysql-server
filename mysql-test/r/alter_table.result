@@ -92,16 +92,16 @@ key (n2, n3, n4, n1),
 key (n3, n4, n1, n2),
 key (n4, n1, n2, n3) );
 alter table t1 disable keys;
- insert into t1 values(10,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(9,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(8,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(7,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(6,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(5,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(4,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(3,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(2,RAND()*1000,RAND()*1000,RAND());
- insert into t1 values(1,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(10,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(9,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(8,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(7,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(6,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(5,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(4,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(3,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(2,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(1,RAND()*1000,RAND()*1000,RAND());
 alter table t1 enable keys;
 drop table t1;
 create table t1 (i int unsigned not null auto_increment primary key);
