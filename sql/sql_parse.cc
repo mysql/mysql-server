@@ -660,6 +660,8 @@ static int check_connection(THD *thd)
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
 
+  vio_in_addr(net->vio,&thd->remote.sin_addr);
+
   if (!thd->host)                           // If TCP/IP connection
   {
     char ip[30];
@@ -704,7 +706,6 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info",("Host: %s",thd->host));
     thd->host_or_ip= thd->host;
     thd->ip= 0;
-    bzero((char*) &thd->remote, sizeof(struct sockaddr));
   }
   vio_keepalive(net->vio, TRUE);
   ulong pkt_len= 0;
