@@ -246,7 +246,9 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (!mi_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
-	!share->state.changed && share->state.open_count == 0) ||
+	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
+				 STATE_CRASHED_ON_REPAIR)) &&
+	share->state.open_count == 0) ||
        ((param.testflag & T_FAST) && share->state.open_count == 0)))
     return HA_CHECK_ALREADY_CHECKED;
 
@@ -269,14 +271,18 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   }
   if (!error)
   {
-    if (share->state.changed || (param.testflag & T_STATISTICS))
+    if ((share->state.changed & (STATE_CHANGED |
+				 STATE_CRASHED_ON_REPAIR |
+				 STATE_CRASHED | STATE_NOT_ANALYZED)) ||
+	(param.testflag & T_STATISTICS))
     {
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       pthread_mutex_lock(&share->intern_lock);
 #ifndef HAVE_PREAD
       pthread_mutex_lock(&THR_LOCK_keycache);	// QQ; Has to be removed!
 #endif
-      share->state.changed=0;
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+			       STATE_CRASHED_ON_REPAIR);
       if (!(table->db_stat & HA_READ_ONLY))
 	error=update_state_info(&param,file,UPDATE_TIME | UPDATE_OPEN_COUNT |
 				UPDATE_STAT);
@@ -306,7 +312,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 
 int ha_myisam::analyze(THD *thd)
 {
-  int error;
+  int error=0;
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
 
@@ -318,21 +324,24 @@ int ha_myisam::analyze(THD *thd)
 		  T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
 
-  error = chk_key(&param, file);
-  if (!error)
+  if (share->state.changed & STATE_NOT_ANALYZED)
   {
-    pthread_mutex_lock(&share->intern_lock);
+    error = chk_key(&param, file);
+    if (!error)
+    {
+      pthread_mutex_lock(&share->intern_lock);
 #ifndef HAVE_PREAD
-    pthread_mutex_lock(&THR_LOCK_keycache);	// QQ; Has to be removed!
+      pthread_mutex_lock(&THR_LOCK_keycache);	// QQ; Has to be removed!
 #endif
-    error=update_state_info(&param,file,UPDATE_STAT);
+      error=update_state_info(&param,file,UPDATE_STAT);
 #ifndef HAVE_PREAD
-    pthread_mutex_unlock(&THR_LOCK_keycache);// QQ; Has to be removed!
+      pthread_mutex_unlock(&THR_LOCK_keycache);// QQ; Has to be removed!
 #endif
-    pthread_mutex_unlock(&share->intern_lock);
+      pthread_mutex_unlock(&share->intern_lock);
+    }
+    else if (!mi_is_crashed(file))
+      mi_mark_crashed(file);
   }
-  else if (!mi_is_crashed(file))
-    mi_mark_crashed(file);
   return error ? HA_CHECK_CORRUPT : HA_CHECK_OK;
 }
 
@@ -373,9 +382,10 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
     error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
   if (!error)
   {
-    if (share->state.changed)
+    if (share->state.changed & STATE_CHANGED)
     {
-      share->state.changed = 0;
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+			       STATE_CRASHED_ON_REPAIR);
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
     file->save_state=file->s->state.state;

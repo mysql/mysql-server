@@ -1,3 +1,8 @@
+2000-08-17  Michael Widenius  <monty@mysql.com>
+
+* Add a new flag in share.staus so that we can quickly check if a table
+  is analyzed or not!
+
 2000-07-02  Michael Widenius  <monty@mysql.com>
 
 * Added safety margin to guard against full index file.

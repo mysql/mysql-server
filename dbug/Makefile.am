@@ -60,3 +60,6 @@ output4.r:	$(PROGRAM)
 
 output5.r:	$(PROGRAM)
 		factorial -\#d:f,factorial:F:L:o 3 | cat >$@
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

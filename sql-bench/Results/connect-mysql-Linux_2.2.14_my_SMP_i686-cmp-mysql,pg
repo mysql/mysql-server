@@ -1,0 +1,30 @@
+Testing server 'MySQL 3.23.22 beta' at 2000-08-17 17:52:30
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 10 wallclock secs ( 6.60 usr  1.51 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test connect/simple select/disconnect
+Time for connect+select_simple (10000): 13 wallclock secs ( 7.36 usr  2.24 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test simple select
+Time for select_simple (10000):  2 wallclock secs ( 0.52 usr  0.49 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select_1_row (10000): 13 wallclock secs ( 7.08 usr  2.47 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 1 row from table
+Time to select_1_row (10000):  3 wallclock secs ( 0.74 usr  0.62 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 2 rows from table
+Time to select_2_rows (10000):  3 wallclock secs ( 0.45 usr  0.58 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test select with aritmetic (+)
+Time for select_column+column (10000):  3 wallclock secs ( 0.52 usr  0.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing retrieval of big records (7000 bytes)
+Time to select_big (10000):  6 wallclock secs ( 2.98 usr  1.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 53 wallclock secs (26.25 usr  9.76 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

@@ -91,3 +91,6 @@ test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
 
 test_hash: test_hash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

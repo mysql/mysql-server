@@ -2367,7 +2367,6 @@ keyword:
 	| LOCAL_SYM		{}
 	| LOGS_SYM		{}
 	| MAX_ROWS		{}
-	| MAX_SYM		{}
 	| MASTER_SYM		{}
 	| MASTER_HOST_SYM	{}
 	| MASTER_PORT_SYM	{}
