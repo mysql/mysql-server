@@ -382,8 +382,11 @@ libmysqld/examples/link_sources
 libmysqld/examples/my_readline.h
 libmysqld/examples/mysql
 libmysqld/examples/mysql.cc
+libmysqld/examples/mysql_client_test.c
+libmysqld/examples/mysql_client_test_embedded
 libmysqld/examples/mysqltest
 libmysqld/examples/mysqltest.c
+libmysqld/examples/mysqltest_embedded
 libmysqld/examples/readline.cc
 libmysqld/examples/sql_string.cc
 libmysqld/examples/sql_string.h
