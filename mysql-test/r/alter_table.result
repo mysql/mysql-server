@@ -493,3 +493,7 @@ select hex(a) from t1;
 hex(a)
 F2E5F1F2
 drop table t1;
+create table t1 ( a timestamp );
+alter table t1 add unique ( a(1) );
+ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
+drop table t1;
