@@ -44819,6 +44819,17 @@ data either by clicking on the table folder or by composing their own SQL
 statements with our built-in SQL editor. The tool has been tested with
 Oracle 8 and @strong{MySQL} as the back-end databases. It requires JDK 1.3 from
 JavaSoft.
+@item @uref{http://www.jetools.com/products/databrowser/, DataBrowser}
+The DataBrowser is a cross-database, cross-platform data access tool. It is more
+user friendly than tools like SQL Plus, psql (command line based tools). It is more
+flexible than TOAD, ISQL, PGAccess which are GUI's that are limitied to a single
+platform or database.
+@item @uref{http://www.intrex.net/amit/software/, SQLC}
+The SQL Console is a standalone java application that allows you to connect to a
+ SQL database system and issue SQL queries and updates. It has an easy-to use
+graphical user interface. The SQL Console uses JDBC to connect to the database
+systems and, therefore, with proper JDBC drivers, you can use this utility to
+connect to some of the most popular database systems. 
 @end itemize
 
 @cindex Web clients
