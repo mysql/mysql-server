@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.9"
+#define ADMIN_VERSION "8.11"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -137,7 +137,7 @@ int main(int argc,char *argv[])
 {
   int	c, error = 0,option_index=0;
   MYSQL mysql;
-  char	*host = NULL,*password=0,*user=0,**commands;
+  char	*host = NULL,*opt_password=0,*user=0,**commands;
   my_bool tty_password=0;
   MY_INIT(argv[0]);
   mysql_init(&mysql);
@@ -160,9 +160,12 @@ int main(int argc,char *argv[])
     case 'p':
       if (optarg)
       {
-	my_free(password,MYF(MY_ALLOW_ZERO_PTR));
-	password=my_strdup(optarg,MYF(MY_FAE));
+	char *start=optarg;
+	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+	opt_password=my_strdup(optarg,MYF(MY_FAE));
 	while (*optarg) *optarg++= 'x';		/* Destroy argument */
+	if (*start)
+	  start[1]=0;				/* Cut length of argument */
       }
       else
 	tty_password=1;
@@ -243,12 +246,11 @@ int main(int argc,char *argv[])
     exit(1);
   }
   if (tty_password)
-    password = get_tty_password(NullS);
+    opt_password = get_tty_password(NullS);
 
   VOID(signal(SIGINT,endprog));			/* Here if abort */
   VOID(signal(SIGTERM,endprog));		/* Here if abort */
 
-  mysql_init(&mysql);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL
@@ -256,7 +258,7 @@ int main(int argc,char *argv[])
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath);
 #endif /* HAVE_OPENSSL */
-  if (sql_connect(&mysql,host,user,password,option_wait))
+  if (sql_connect(&mysql,host,user,opt_password,option_wait))
     error = 1;
   else
   {
@@ -269,7 +271,7 @@ int main(int argc,char *argv[])
 	if (option_wait && !interrupted)
 	{
 	  mysql_close(&mysql);
-	  if (!sql_connect(&mysql,host,user,password,option_wait))
+	  if (!sql_connect(&mysql,host,user,opt_password,option_wait))
 	    continue;				/* Retry */
 	}
 	error=1;
@@ -286,7 +288,7 @@ int main(int argc,char *argv[])
     }
     mysql_close(&mysql);
   }
-  my_free(password,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(user,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(argv);
   my_end(0);

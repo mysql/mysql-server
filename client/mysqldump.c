@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.10"
+#define DUMP_VERSION "8.11"
 
 #include <global.h>
 #include <my_sys.h>
@@ -75,7 +75,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
                 opt_alldbs=0,opt_create_db=0,opt_first_slave=0;
 static MYSQL  mysql_connection,*sock=0;
-static char  insert_pat[12 * 1024],*password=0,*current_user=0,
+static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
              *where=0, *default_charset;
@@ -333,9 +333,12 @@ static int get_options(int *argc,char ***argv)
     case 'p':
       if (optarg)
       {
-	my_free(password,MYF(MY_ALLOW_ZERO_PTR));
-	password=my_strdup(optarg,MYF(MY_FAE));
-	while (*optarg) *optarg++= 'x';    /* Destroy argument */
+	char *start=optarg;
+	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+	opt_password=my_strdup(optarg,MYF(MY_FAE));
+	while (*optarg) *optarg++= 'x';		/* Destroy argument */
+	if (*start)
+	  start[1]=0;				/* Cut length of argument */
       }
       else
 	tty_password=1;
@@ -459,7 +462,7 @@ static int get_options(int *argc,char ***argv)
     return 1;
   }
   if (tty_password)
-    password=get_tty_password(NullS);
+    opt_password=get_tty_password(NullS);
   return(0);
 } /* get_options */
 
@@ -1236,7 +1239,7 @@ int main(int argc, char **argv)
     my_end(0);
     exit(EX_USAGE);
   }
-  if (dbConnect(current_host, current_user, password))
+  if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
   if (!path)
     write_heder(stdout, *argv);
@@ -1276,7 +1279,7 @@ int main(int argc, char **argv)
   }
   dbDisconnect(current_host);
   puts("");
-  my_free(password, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
   if (extended_insert)
     dynstr_free(&extended_row);
   my_end(0);

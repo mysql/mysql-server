@@ -64,6 +64,12 @@ my_string	mysql_unix_port=0;
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES | CLIENT_TRANSACTIONS)
 
+#ifdef __WIN__
+#define CONNECT_TIMEOUT 20
+#else
+#define CONNECT_TIMEOUT 0
+#endif
+
 #if defined(MSDOS) || defined(__WIN__)
 #define ERRNO WSAGetLastError()
 #define perror(A)
@@ -113,7 +119,7 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 *****************************************************************************/
 
 static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
-		    uint to)
+		    uint timeout)
 {
 #if defined(__WIN__)
   return connect(s, (struct sockaddr*) name, namelen);
@@ -128,7 +134,7 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
    * exactly like the normal connect() call does.
    */
 
-  if (to == 0)
+  if (timeout == 0)
     return connect(s, (struct sockaddr*) name, namelen);
 
   flags = fcntl(s, F_GETFL, 0);		  /* Set socket to not block */
@@ -175,13 +181,13 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
   start_time = time(NULL);
   for (;;)
   {
-    tv.tv_sec = (long) to;
+    tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
     if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
       break;
     now_time=time(NULL);
-    to-= (uint) (now_time - start_time);
-    if (errno != EINTR || (int) to <= 0)
+    timeout-= (uint) (now_time - start_time);
+    if (errno != EINTR || (int) timeout <= 0)
       return -1;
   }
 
@@ -195,7 +201,7 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
     return(-1);
 
   if (s_err)
-  {						/* getsockopt() could suceed */
+  {						/* getsockopt could succeed */
     errno = s_err;
     return(-1);					/* but return an error... */
   }
@@ -1001,9 +1007,7 @@ mysql_init(MYSQL *mysql)
   }
   else
     bzero((char*) (mysql),sizeof(*(mysql)));
-#ifdef __WIN__
-  mysql->options.connect_timeout=20;
-#endif
+  mysql->options.connect_timeout=CONNECT_TIMEOUT;
 #if defined(SIGPIPE) && defined(THREAD)
   if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
     (void) signal(SIGPIPE,pipe_sig_handler);
@@ -1140,7 +1144,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,uint client_flag)
 {
-  char		buff[100],charset_name_buff[16],*end,*host_info, *charset_name;
+  char		buff[NAME_LEN+100],charset_name_buff[16],*end,*host_info,
+		*charset_name;
   my_socket	sock;
   uint32	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1341,6 +1346,13 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   /* Get version info */
   mysql->protocol_version= PROTOCOL_VERSION;	/* Assume this */
+  if (mysql->options.connect_timeout &&
+      vio_poll_read(net->vio, mysql->options.connect_timeout))
+  {
+    net->last_errno= CR_SERVER_LOST;
+    strmov(net->last_error,ER(net->last_errno));    
+    goto error;
+  }
   if ((pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
 
@@ -1496,7 +1508,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   int3store(buff+2,max_allowed_packet);
   if (user && user[0])
-    strmake(buff+5,user,32);
+    strmake(buff+5,user,32);			/* Max user name */
   else
     read_user_name((char*) buff+5);
 #ifdef _CUSTOMCONFIG_
@@ -1507,7 +1519,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 	       (my_bool) (mysql->protocol_version == 9));
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end=strmov(end+1,db);
+    end=strmake(end+1,db,NAME_LEN);
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }

@@ -31,12 +31,12 @@ strstr:
 !    if (*str++ == *search) {
 !      i=(char*) str; j=(char*) search+1;
 
-	ldsb	[%o1],%g6		! g6= First char of search
+	ldsb	[%o1],%o2		! o2= First char of search
 .top:
 	ldsb	[%o0],%g3		! g3= First char of rest of str
 	cmp	%g3,0
 	be	.abort			! Found end null		; 
-	cmp	%g3,%g6
+	cmp	%g3,%o2
 	bne	.top
 	add	%o0,1,%o0
 

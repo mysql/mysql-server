@@ -85,7 +85,7 @@ class MYSQL_LOG {
  public:
  private:
   pthread_mutex_t LOCK_log, LOCK_index;
-  FILE *file, *index_file;
+  File file, index_file;
   time_t last_time,query_start;
   char *name;
   enum_log_type log_type;

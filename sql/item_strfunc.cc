@@ -1586,7 +1586,7 @@ String *Item_load_file::val_str(String *str)
 
   if (!(file_name= args[0]->val_str(str)) ||
       !(current_thd->master_access & FILE_ACL) ||
-      !my_stat(file_name->c_ptr(), &stat_info, MYF(MY_FAE)))
+      !my_stat(file_name->c_ptr(), &stat_info, MYF(MY_WME)))
     goto err;
   if (!(stat_info.st_mode & S_IROTH))
   {

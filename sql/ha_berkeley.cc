@@ -60,6 +60,7 @@
 
 #define HA_BERKELEY_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_BERKELEY_RANGE_COUNT	  100
+#define HA_BERKELEY_MAX_ROWS	  10000000 /* Max rows in table */
 
 const char *ha_berkeley_ext=".db";
 bool berkeley_skip=0;
@@ -1615,12 +1616,13 @@ void ha_berkeley::update_auto_primary_key()
 ha_rows ha_berkeley::estimate_number_of_rows()
 {
   ulonglong max_ident;
+  ulonglong max_rows=table->max_rows ? table->max_rows : HA_BERKELEY_MAX_ROWS;
   if (!hidden_primary_key)
-    return INT_MAX32;
+    return (ha_rows) max_rows;
   pthread_mutex_lock(&share->mutex);
   max_ident=share->auto_ident+EXTRA_RECORDS;
   pthread_mutex_unlock(&share->mutex);
-  return (ha_rows) min(max_ident,(ulonglong) INT_MAX32);
+  return (ha_rows) min(max_ident,max_rows);
 }
 
 #endif /* HAVE_BERKELEY_DB */

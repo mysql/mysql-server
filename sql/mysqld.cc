@@ -130,7 +130,7 @@ extern "C" int gethostname(char *name, int namelen);
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
-						"d:t:i:o,/tmp/mysqld.trace");
+					      "d:t:i:o,/tmp/mysqld.trace");
 #endif
 
 #ifdef __NT__
@@ -156,7 +156,7 @@ static pthread_t select_thread;
 static pthread_t flush_thread;			// Used when debugging
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
             opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-	    opt_ansi_mode=0,opt_myisam_log=0;
+	    opt_ansi_mode=0,opt_myisam_log=0, opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
 
 // if sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync, and are
@@ -576,8 +576,8 @@ void unireg_abort(int exit_code)
 {
   if (exit_code)
     sql_print_error("Aborting\n");
-  (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
   clean_up(); /* purecov: inspected */
+  (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -2421,20 +2421,21 @@ struct show_var_st init_vars[]= {
 #endif
   {"character_set",           default_charset,                      SHOW_CHAR},
   {"character_sets",          (char*) &charsets_list,               SHOW_CHAR_PTR},
-  {"connect_timeout",         (char*) &connect_timeout,             SHOW_LONG},
   {"concurrent_insert",       (char*) &myisam_concurrent_insert,    SHOW_MY_BOOL},
+  {"connect_timeout",         (char*) &connect_timeout,             SHOW_LONG},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {"delay_key_write",         (char*) &myisam_delay_key_write,      SHOW_MY_BOOL},
   {"delayed_insert_limit",    (char*) &delayed_insert_limit,        SHOW_LONG},
   {"delayed_insert_timeout",  (char*) &delayed_insert_timeout,      SHOW_LONG},
   {"delayed_queue_size",      (char*) &delayed_queue_size,          SHOW_LONG},
-  {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
   {"flush",                   (char*) &myisam_flush,                SHOW_MY_BOOL},
   {"flush_time",              (char*) &flush_time,                  SHOW_LONG},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
+  {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
   {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG},
   {"language",                language,                             SHOW_CHAR},
+  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
 #endif
@@ -2457,12 +2458,15 @@ struct show_var_st init_vars[]= {
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {"myisam_sort_buffer_size", (char*) &myisam_sort_buffer_size,     SHOW_LONG},
   {"net_buffer_length",       (char*) &net_buffer_length,           SHOW_LONG},
+  {"net_read_timeout",        (char*) &net_read_timeout,	    SHOW_LONG},
   {"net_retry_count",         (char*) &mysqld_net_retry_count,      SHOW_LONG},
+  {"net_write_timeout",       (char*) &net_write_timeout,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
-  {"server_id",           (char*) &server_id, SHOW_LONG},
+  {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
+  {"server_id",               (char*) &server_id,		    SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
@@ -2471,11 +2475,11 @@ struct show_var_st init_vars[]= {
   {"sort_buffer",             (char*) &sortbuff_size,               SHOW_LONG},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {"table_type",              (char*) &default_table_type_name,     SHOW_CHAR_PTR},
+  {"thread_cache_size",       (char*) &thread_cache_size,           SHOW_LONG},
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
-  {"thread_cache_size",       (char*) &thread_cache_size,           SHOW_LONG},
 #ifdef HAVE_TZNAME
   {"timezone",                time_zone,                            SHOW_CHAR},
 #endif
@@ -3394,7 +3398,7 @@ static int get_service_parameters()
     else if ( lstrcmp(szKeyValueName, TEXT("ShowDatabase")) == 0 )
     {
       CHECK_KEY_TYPE( REG_DWORD, szKeyValueName );
-      opt_disable_networking = !(*lpdwValue);
+      opt_skip_show_db = !(*lpdwValue);
     }
     else if ( lstrcmp(szKeyValueName, TEXT("HostnameCaching")) == 0 )
     {
