@@ -356,6 +356,8 @@ public:
   void clear();
   bool add();
   double val_real();
+  // In SPs we might force the "wrong" type with select into a declare variable
+  longlong val_int() { return (longlong)val_real(); }
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String *str);
   void reset_field();
