@@ -611,6 +611,7 @@ public:
 
 class Item_func_in :public Item_int_func
 {
+  Item_result cmp_type;
   in_vector *array;
   cmp_item *in_item;
   bool have_null;

@@ -24,6 +24,32 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
+static Item_result item_store_type(Item_result a,Item_result b)
+{
+  if (a == STRING_RESULT || b == STRING_RESULT)
+    return STRING_RESULT;
+  else if (a == REAL_RESULT || b == REAL_RESULT)
+    return REAL_RESULT;
+  else
+    return INT_RESULT;
+}
+
+static void agg_result_type(Item_result *type, Item **items, uint nitems)
+{
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_store_type(type[0], items[i]->result_type());
+}
+
+static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
+{
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_cmp_type(type[0], items[i]->result_type());
+}
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
@@ -223,7 +249,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       We must set cmp_charset here as we may be called from for an automatic
       generated item, like in natural join
     */
-    if (cmp_collation.set((*a)->collation, (*b)->collation))
+    if (cmp_collation.set((*a)->collation, (*b)->collation) || 
+	cmp_collation.derivation == DERIVATION_NONE)
     {
       my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
       return 1;
@@ -556,10 +583,7 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  cmp_type=item_cmp_type(args[0]->result_type(),
-           item_cmp_type(args[1]->result_type(),
-                         args[2]->result_type()));
-
+  agg_cmp_type(&cmp_type, args, 3);
   if (cmp_type == STRING_RESULT &&
       agg_arg_collations_for_comparison(cmp_collation, args, 3))
     return;
@@ -650,28 +674,17 @@ longlong Item_func_between::val_int()
   return 0;
 }
 
-static Item_result item_store_type(Item_result a,Item_result b)
-{
-  if (a == STRING_RESULT || b == STRING_RESULT)
-    return STRING_RESULT;
-  else if (a == REAL_RESULT || b == REAL_RESULT)
-    return REAL_RESULT;
-  else
-    return INT_RESULT;
-}
-
 void
 Item_func_ifnull::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null;
   max_length=max(args[0]->max_length,args[1]->max_length);
   decimals=max(args[0]->decimals,args[1]->decimals);
-  if ((cached_result_type=item_store_type(args[0]->result_type(),
-					  args[1]->result_type())) !=
-      REAL_RESULT)
-    decimals= 0;
+  agg_result_type(&cached_result_type, args, 2);
   if (cached_result_type == STRING_RESULT)
     agg_arg_collations(collation, args, arg_count);
+  else if (cached_result_type != REAL_RESULT)
+    decimals= 0;
 }
 
 
@@ -744,19 +757,18 @@ Item_func_if::fix_length_and_dec()
     cached_result_type= arg1_type;
     set_charset(args[1]->charset());
   }
-  else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
-  {
-    cached_result_type = STRING_RESULT;
-    if (agg_arg_collations(collation, args+1, 2))
-      return;
-  }
   else
   {
-    set_charset(&my_charset_bin);	// Number
-    if (arg1_type == REAL_RESULT || arg2_type == REAL_RESULT)
-      cached_result_type = REAL_RESULT;
+    agg_result_type(&cached_result_type, args+1, 2);
+    if (cached_result_type == STRING_RESULT)
+    {
+      if (agg_arg_collations(collation, args+1, 2))
+      return;
+    }
     else
-      cached_result_type=arg1_type;		// Should be INT_RESULT
+    {
+      set_charset(&my_charset_bin);	// Number
+    }
   }
 }
 
@@ -800,7 +812,7 @@ Item_func_nullif::fix_length_and_dec()
   {
     max_length=args[0]->max_length;
     decimals=args[0]->decimals;
-    cached_result_type=args[0]->result_type();
+    agg_result_type(&cached_result_type, args, 2);
   }
 }
 
@@ -863,58 +875,60 @@ Item *Item_func_case::find_item(String *str)
   String *first_expr_str,*tmp;
   longlong first_expr_int;
   double   first_expr_real;
-  bool int_used, real_used,str_used;
-  int_used=real_used=str_used=0;
-
+  
   /* These will be initialized later */
   LINT_INIT(first_expr_str);
   LINT_INIT(first_expr_int);
   LINT_INIT(first_expr_real);
+
+  if (first_expr_num != -1)
+  {
+    switch (cmp_type)
+    {
+      case STRING_RESULT:
+      	// We can't use 'str' here as this may be overwritten
+	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
+        break;
+      case INT_RESULT:
+	first_expr_int= args[first_expr_num]->val_int();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
+	break;
+      case REAL_RESULT:
+	first_expr_real= args[first_expr_num]->val();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
+	break;
+      case ROW_RESULT:
+      default:
+	// This case should never be choosen
+	DBUG_ASSERT(0);
+	break;
+    }
+  }
 
   // Compare every WHEN argument with it and return the first match
   for (uint i=0 ; i < ncases ; i+=2)
   {
     if (first_expr_num == -1)
     {
-      // No expression between CASE and first WHEN
+      // No expression between CASE and the first WHEN
       if (args[i]->val_int())
 	return args[i+1];
       continue;
     }
-    switch (args[i]->result_type()) {
+    switch (cmp_type) {
     case STRING_RESULT:
-      if (!str_used)
-      {
-	str_used=1;
-	// We can't use 'str' here as this may be overwritten
-	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
-      }
       if ((tmp=args[i]->val_str(str)))		// If not null
-      {
-	if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
+	if (sortcmp(tmp,first_expr_str,cmp_collation.collation)==0)
 	  return args[i+1];
-      }
       break;
     case INT_RESULT:
-      if (!int_used)
-      {
-	int_used=1;
-	first_expr_int= args[first_expr_num]->val_int();
-	if (args[first_expr_num]->null_value)
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;
-      }
       if (args[i]->val_int()==first_expr_int && !args[i]->null_value) 
         return args[i+1];
       break;
     case REAL_RESULT: 
-      if (!real_used)
-      {
-	real_used=1;
-	first_expr_real= args[first_expr_num]->val();
-	if (args[first_expr_num]->null_value)
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;
-      }
       if (args[i]->val()==first_expr_real && !args[i]->null_value) 
         return args[i+1];
       break;
@@ -982,22 +996,6 @@ double Item_func_case::val()
   return res;
 }
 
-static void agg_result_type(Item_result *type, Item **items, uint nitems)
-{
-  uint i;
-  type[0]= items[0]->result_type();
-  for (i=1 ; i < nitems ; i++)
-    type[0]= item_store_type(type[0], items[i]->result_type());
-}
-
-static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
-{
-  uint i;
-  type[0]= items[0]->result_type();
-  for (i=1 ; i < nitems ; i++)
-    type[0]= item_cmp_type(type[0], items[i]->result_type());
-}
-
 void Item_func_case::fix_length_and_dec()
 {
   Item **agg;
@@ -1027,7 +1025,7 @@ void Item_func_case::fix_length_and_dec()
   {
     agg[0]= args[first_expr_num];
     for (nagg= 0; nagg < ncases/2 ; nagg++)
-      agg[nagg+1]= args[nagg];
+      agg[nagg+1]= args[nagg*2];
     nagg++;
     agg_cmp_type(&cmp_type, agg, nagg);
     if ((cmp_type == STRING_RESULT) &&
@@ -1040,7 +1038,6 @@ void Item_func_case::fix_length_and_dec()
   
   max_length=0;
   decimals=0;
-  cached_result_type = args[1]->result_type();
   for (uint i=0 ; i < ncases ; i+=2)
   {
     set_if_bigger(max_length,args[i+1]->max_length);
@@ -1108,13 +1105,11 @@ void Item_func_coalesce::fix_length_and_dec()
 {
   max_length= 0;
   decimals= 0;
-  cached_result_type = args[0]->result_type();
+  agg_result_type(&cached_result_type, args, arg_count);
   for (uint i=0 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
-    cached_result_type=item_store_type(cached_result_type,
-				       args[i]->result_type());
   }
   if (cached_result_type == STRING_RESULT)
     agg_arg_collations(collation, args, arg_count);
@@ -1404,7 +1399,8 @@ void Item_func_in::fix_length_and_dec()
   Item **arg, **arg_end;
   uint const_itm= 1;
   
-  if ((args[0]->result_type() == STRING_RESULT) &&
+  agg_cmp_type(&cmp_type, args, arg_count);
+  if ((cmp_type == STRING_RESULT) &&
       (agg_arg_collations_for_comparison(cmp_collation, args, arg_count)))
     return;
   
@@ -1417,7 +1413,7 @@ void Item_func_in::fix_length_and_dec()
   */
   if (const_itm && !nulls_in_row())
   {
-    switch (args[0]->result_type()) {
+    switch (cmp_type) {
     case STRING_RESULT:
       uint i;
       array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
@@ -1451,7 +1447,7 @@ void Item_func_in::fix_length_and_dec()
   else
   {
     in_item= cmp_item::get_comparator(args[0]);
-    if (args[0]->result_type() == STRING_RESULT)
+    if (cmp_type  == STRING_RESULT)
       in_item->cmp_charset= cmp_collation.collation;
   }
   maybe_null= args[0]->maybe_null;

@@ -102,8 +102,8 @@ struct hash_lex_struct
   };
   int ithis;
 };
-				
-hash_lex_struct *get_hash_struct_by_len(hash_lex_struct **root_by_len, 
+
+hash_lex_struct *get_hash_struct_by_len(hash_lex_struct **root_by_len,
 					    int len, int *max_len)
 {
   if (*max_len<len){

@@ -14,11 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+extern uint		mysql_port;
+extern my_string	mysql_unix_port;
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
                              CLIENT_LOCAL_FILES | CLIENT_TRANSACTIONS |   \
 			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
-
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
@@ -39,3 +40,4 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
 #endif
+

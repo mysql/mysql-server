@@ -116,6 +116,7 @@ struct st_table {
   my_bool crashed;
   my_bool is_view;
   my_bool no_keyread;
+  my_bool auto_increment_field_not_null;     
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;

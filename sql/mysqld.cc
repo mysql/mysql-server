@@ -212,7 +212,7 @@ const char *sql_mode_names[] =
   "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
-  NullS
+  "NO_AUTO_VALUE_ON_ZERO", NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names };
@@ -225,6 +225,13 @@ const char *localhost= "localhost", *delayed_user= "DELAYED";
 #endif
 
 bool opt_large_files= sizeof(my_off_t) > 4;
+
+/*
+  Used with --help for detailed option
+*/
+bool opt_help= 0;
+bool opt_verbose= 0;
+
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 {{&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
@@ -3636,8 +3643,12 @@ Disable with --skip-bdb (will save memory).",
    "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
-  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-   0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.", 
+   (gptr*) &opt_help, (gptr*) &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"verbose", 'v', "Used with --help option for detailed help",
+   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   {"init-file", OPT_INIT_FILE, "Read SQL commands from this file at startup.",
    (gptr*) &opt_init_file, (gptr*) &opt_init_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -3973,8 +3984,6 @@ replicating a LOAD DATA INFILE command.",
    0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'v', "Synonym for option -V.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-   0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file.",
    (gptr*) &global_system_variables.log_warnings,
    (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -4573,6 +4582,10 @@ and you are welcome to modify and redistribute it under the GPL license\n\
 Starts the MySQL server\n");
 
   printf("Usage: %s [OPTIONS]\n", my_progname);
+  if (!opt_verbose)
+    puts("\nFor more help options (several pages), use mysqld --verbose --help\n");
+  else
+  {
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
   --install                     Install the default service (NT)\n\
@@ -4596,7 +4609,8 @@ Starts the MySQL server\n");
 
   puts("\n\
 To see what values a running MySQL server is using, type\n\
-'mysqladmin variables' instead of 'mysqld --help'.");
+'mysqladmin variables' instead of 'mysqld --verbose --help'.\n");
+  }
 }
 
 
@@ -4870,13 +4884,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif
 #include <sslopt-case.h>
-  case 'v':
   case 'V':
     print_version();
-    exit(0);
-  case 'I':
-  case '?':
-    usage();
     exit(0);
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
@@ -5351,6 +5360,11 @@ static void get_options(int argc,char **argv)
     exit(ho_error);
   }
 
+  if (opt_help)
+  {
+    usage();
+    exit(0);
+  }
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
   my_disable_symlinks=1;
