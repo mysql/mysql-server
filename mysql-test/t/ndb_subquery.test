@@ -1,0 +1,38 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+drop table if exists t2;
+--enable_warnings
+
+##########
+# bug#5367
+create table t1 (p int not null primary key, u int not null, o int not null,
+unique (u), key(o)) engine=ndb;
+
+create table t2 (p int not null primary key, u int not null, o int not null,
+unique (u), key(o)) engine=ndb;
+
+insert into t1 values (1,1,1),(2,2,2),(3,3,3);
+insert into t2 values (1,1,1),(2,2,2),(3,3,3), (4,4,4), (5,5,5);
+
+# Use pk
+explain select * from t2 where p NOT IN (select p from t1);
+select * from t2 where p NOT IN (select p from t1);
+
+# Use unique index
+explain select * from t2 where p NOT IN (select u from t1);
+select * from t2 where p NOT IN (select u from t1);
+
+# Use ordered index
+explain select * from t2 where p NOT IN (select o from t1);
+select * from t2 where p NOT IN (select o from t1);
+
+# Use scan
+explain select * from t2 where p NOT IN (select p+0 from t1);
+select * from t2 where p NOT IN (select p+0 from t1);
+
+drop table t1;
+drop table t2;
+# bug#5367
+##########
