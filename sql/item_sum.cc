@@ -532,7 +532,7 @@ bool Item_sum_sum_distinct::setup(THD *thd)
 void Item_sum_sum_distinct::clear()
 {
   DBUG_ENTER("Item_sum_sum_distinct::clear");
-  DBUG_ASSERT(tree);                            /* we always have a tree */
+  DBUG_ASSERT(tree != 0);                        /* we always have a tree */
   null_value= 1; 
   tree->reset();
   DBUG_VOID_RETURN;
@@ -554,7 +554,7 @@ bool Item_sum_sum_distinct::add()
     my_decimal value, *val= args[0]->val_decimal(&value);
     if (!args[0]->null_value)
     {
-      DBUG_ASSERT(tree);
+      DBUG_ASSERT(tree != 0);
       null_value= 0;
       my_decimal2binary(E_DEC_FATAL_ERROR, val, (char *) dec_bin_buff,
                         args[0]->max_length, args[0]->decimals);
@@ -567,7 +567,7 @@ bool Item_sum_sum_distinct::add()
     double val= args[0]->val_real();
     if (!args[0]->null_value)
     {
-      DBUG_ASSERT(tree);
+      DBUG_ASSERT(tree != 0);
       null_value= 0;
       DBUG_PRINT("info", ("real: %lg, tree 0x%lx", val, (ulong)tree));
       if (val)
@@ -1179,7 +1179,6 @@ double Item_sum_hybrid::val_real()
     DBUG_ASSERT(0);
     return 0;
   }
-  return 0;					// Keep compiler happy
 }
 
 longlong Item_sum_hybrid::val_int()
