@@ -47,7 +47,8 @@ lock_sec_rec_some_has_impl_off_kernel(
 				/* out: transaction which has the x-lock, or
 				NULL */
 	rec_t*		rec,	/* in: user record */
-	dict_index_t*	index);	/* in: secondary index */
+	dict_index_t*	index,	/* in: secondary index */
+	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*************************************************************************
 Checks if some transaction has an implicit x-lock on a record in a clustered
 index. */
@@ -58,7 +59,8 @@ lock_clust_rec_some_has_impl(
 				/* out: transaction which has the x-lock, or
 				NULL */
 	rec_t*		rec,	/* in: user record */
-	dict_index_t*	index);	/* in: clustered index */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*****************************************************************
 Resets the lock bits for a single record. Releases transactions
 waiting for lock requests here. */
@@ -275,6 +277,7 @@ lock_clust_rec_modify_check_and_lock(
 				does nothing */
 	rec_t*		rec,	/* in: record which should be modified */
 	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
 Checks if locks of other transactions prevent an immediate modify
@@ -308,6 +311,7 @@ lock_sec_rec_read_check_and_lock(
 				which should be read or passed over by a read
 				cursor */
 	dict_index_t*	index,	/* in: secondary index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ulint		mode,	/* in: mode of the lock which the read cursor
 				should set on records: LOCK_S or LOCK_X; the
 				latter is possible in SELECT FOR UPDATE */
@@ -333,6 +337,7 @@ lock_clust_rec_read_check_and_lock(
 				which should be read or passed over by a read
 				cursor */
 	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ulint		mode,	/* in: mode of the lock which the read cursor
 				should set on records: LOCK_S or LOCK_X; the
 				latter is possible in SELECT FOR UPDATE */
@@ -350,6 +355,7 @@ lock_clust_rec_cons_read_sees(
 	rec_t*		rec,	/* in: user record which should be read or
 				passed over by a read cursor */
 	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	read_view_t*	view);	/* in: consistent read view */
 /*************************************************************************
 Checks that a non-clustered index record is seen in a consistent read. */
@@ -499,6 +505,7 @@ lock_check_trx_id_sanity(
 	dulint		trx_id,		/* in: trx id */
 	rec_t*		rec,		/* in: user record */
 	dict_index_t*	index,		/* in: clustered index */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	ibool		has_kernel_mutex);/* in: TRUE if the caller owns the
 					kernel mutex */
 /*************************************************************************
@@ -509,7 +516,8 @@ lock_rec_queue_validate(
 /*====================*/
 				/* out: TRUE if ok */
 	rec_t*		rec,	/* in: record to look at */
-	dict_index_t*	index);	/* in: index, or NULL if not known */
+	dict_index_t*	index,	/* in: index, or NULL if not known */
+	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*************************************************************************
 Prints info of a table lock. */
 

@@ -538,6 +538,10 @@ struct srv_sys_struct{
 	srv_table_t*	threads;	/* server thread table */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;		/* task queue */
+	dict_index_t*	dummy_ind1;	/* dummy index for old-style
+					supremum and infimum records */
+	dict_index_t*	dummy_ind2;	/* dummy index for new-style
+					supremum and infimum records */
 };
 
 extern ulint	srv_n_threads_active[];

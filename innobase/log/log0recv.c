@@ -756,81 +756,124 @@ recv_parse_or_apply_log_rec_body(
 	mtr_t*	mtr)	/* in: mtr or NULL; should be non-NULL if and only if
 			page is non-NULL */
 {
-	byte*	new_ptr;
+	dict_index_t*	index = NULL;
 
-	if (type <= MLOG_8BYTES) {
-		new_ptr = mlog_parse_nbytes(type, ptr, end_ptr, page);
-
-	} else if (type == MLOG_REC_INSERT) {
-		new_ptr = page_cur_parse_insert_rec(FALSE, ptr, end_ptr, page,
-									mtr);
-	} else if (type == MLOG_REC_CLUST_DELETE_MARK) {
-		new_ptr = btr_cur_parse_del_mark_set_clust_rec(ptr, end_ptr,
-									page);
-	} else if (type == MLOG_REC_SEC_DELETE_MARK) {
-		new_ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr,
-									page);
-	} else if (type == MLOG_REC_UPDATE_IN_PLACE) {
-		new_ptr = btr_cur_parse_update_in_place(ptr, end_ptr, page);
-
-	} else if ((type == MLOG_LIST_END_DELETE)
-		   || (type == MLOG_LIST_START_DELETE)) {
-		new_ptr = page_parse_delete_rec_list(type, ptr, end_ptr, page,
-									mtr);
-	} else if (type == MLOG_LIST_END_COPY_CREATED) {
-		new_ptr = page_parse_copy_rec_list_to_created_page(ptr,
-							end_ptr, page, mtr);
-	} else if (type == MLOG_PAGE_REORGANIZE) {
-		new_ptr = btr_parse_page_reorganize(ptr, end_ptr, page, mtr);
-
-	} else if (type == MLOG_PAGE_CREATE) {
-		new_ptr = page_parse_create(ptr, end_ptr, page, mtr);
-
-	} else if (type == MLOG_UNDO_INSERT) {
-		new_ptr = trx_undo_parse_add_undo_rec(ptr, end_ptr, page);
-
-	} else if (type == MLOG_UNDO_ERASE_END) {
-		new_ptr = trx_undo_parse_erase_page_end(ptr, end_ptr, page,
-									mtr);
-	} else if (type == MLOG_UNDO_INIT) {
-		new_ptr = trx_undo_parse_page_init(ptr, end_ptr, page, mtr);
-
-	} else if (type == MLOG_UNDO_HDR_DISCARD) {
-		new_ptr = trx_undo_parse_discard_latest(ptr, end_ptr, page,
-									mtr);
-	} else if ((type == MLOG_UNDO_HDR_CREATE)
-		   || (type == MLOG_UNDO_HDR_REUSE)) {
-		new_ptr = trx_undo_parse_page_header(type, ptr, end_ptr, page,
-									mtr);
-	} else if (type == MLOG_REC_MIN_MARK) {
-		new_ptr = btr_parse_set_min_rec_mark(ptr, end_ptr, page, mtr);
-	
-	} else if (type == MLOG_REC_DELETE) {
-		new_ptr = page_cur_parse_delete_rec(ptr, end_ptr, page, mtr);
-
-	} else if (type == MLOG_IBUF_BITMAP_INIT) {
-		new_ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page, mtr);
-
-	} else if (type == MLOG_INIT_FILE_PAGE) {
-		new_ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
-
-	} else if (type == MLOG_WRITE_STRING) {
-		new_ptr = mlog_parse_string(ptr, end_ptr, page);
-
-	} else if (type == MLOG_FILE_CREATE
-		   || type == MLOG_FILE_RENAME
-		   || type == MLOG_FILE_DELETE) {
-		new_ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, FALSE,
+	switch (type) {
+	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
+		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page);
+		break;
+	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+				type == MLOG_COMP_REC_INSERT, &index))) {
+			ptr = page_cur_parse_insert_rec(FALSE, ptr, end_ptr,
+							index, page, mtr);
+		}
+		break;
+	case MLOG_REC_CLUST_DELETE_MARK: case MLOG_COMP_REC_CLUST_DELETE_MARK:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+			type == MLOG_COMP_REC_CLUST_DELETE_MARK, &index))) {
+			ptr = btr_cur_parse_del_mark_set_clust_rec(ptr,
+						end_ptr, index, page);
+		}
+		break;
+	case MLOG_REC_SEC_DELETE_MARK: case MLOG_COMP_REC_SEC_DELETE_MARK:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+			type == MLOG_COMP_REC_SEC_DELETE_MARK, &index))) {
+			ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr,
+								index, page);
+		}
+		break;
+	case MLOG_REC_UPDATE_IN_PLACE: case MLOG_COMP_REC_UPDATE_IN_PLACE:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+			type == MLOG_COMP_REC_UPDATE_IN_PLACE, &index))) {
+			ptr = btr_cur_parse_update_in_place(ptr, end_ptr,
+							page, index);
+		}
+		break;
+	case MLOG_LIST_END_DELETE: case MLOG_COMP_LIST_END_DELETE:
+	case MLOG_LIST_START_DELETE: case MLOG_COMP_LIST_START_DELETE:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+			type == MLOG_COMP_LIST_END_DELETE
+			|| type == MLOG_COMP_LIST_START_DELETE, &index))) {
+			ptr = page_parse_delete_rec_list(type, ptr, end_ptr,
+							index, page, mtr);
+		}
+		break;
+	case MLOG_LIST_END_COPY_CREATED: case MLOG_COMP_LIST_END_COPY_CREATED:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+			type == MLOG_COMP_LIST_END_COPY_CREATED, &index))) {
+			ptr = page_parse_copy_rec_list_to_created_page(ptr,
+						end_ptr, index, page, mtr);
+		}
+		break;
+	case MLOG_PAGE_REORGANIZE: case MLOG_COMP_PAGE_REORGANIZE:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+				type == MLOG_COMP_PAGE_REORGANIZE, &index))) {
+			ptr = btr_parse_page_reorganize(ptr, end_ptr, index,
+								page, mtr);
+		}
+		break;
+	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
+		ptr = page_parse_create(ptr, end_ptr,
+				type == MLOG_COMP_PAGE_CREATE, page, mtr);
+		break;
+	case MLOG_UNDO_INSERT:
+		ptr = trx_undo_parse_add_undo_rec(ptr, end_ptr, page);
+		break;
+	case MLOG_UNDO_ERASE_END:
+		ptr = trx_undo_parse_erase_page_end(ptr, end_ptr, page, mtr);
+		break;
+	case MLOG_UNDO_INIT:
+		ptr = trx_undo_parse_page_init(ptr, end_ptr, page, mtr);
+		break;
+	case MLOG_UNDO_HDR_DISCARD:
+		ptr = trx_undo_parse_discard_latest(ptr, end_ptr, page, mtr);
+		break;
+	case MLOG_UNDO_HDR_CREATE:
+	case MLOG_UNDO_HDR_REUSE:
+		ptr = trx_undo_parse_page_header(type, ptr, end_ptr,
+								page, mtr);
+		break;
+	case MLOG_REC_MIN_MARK: case MLOG_COMP_REC_MIN_MARK:
+		ptr = btr_parse_set_min_rec_mark(ptr, end_ptr,
+				type == MLOG_COMP_REC_MIN_MARK, page, mtr);
+		break;
+	case MLOG_REC_DELETE: case MLOG_COMP_REC_DELETE:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
+				type == MLOG_COMP_REC_DELETE, &index))) {
+			ptr = page_cur_parse_delete_rec(ptr, end_ptr,
+							index, page, mtr);
+		}
+		break;
+	case MLOG_IBUF_BITMAP_INIT:
+		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page, mtr);
+		break;
+	case MLOG_INIT_FILE_PAGE:
+		ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
+		break;
+	case MLOG_WRITE_STRING:
+		ptr = mlog_parse_string(ptr, end_ptr, page);
+		break;
+	case MLOG_FILE_CREATE:
+	case MLOG_FILE_RENAME:
+	case MLOG_FILE_DELETE:
+		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, FALSE,
 							ULINT_UNDEFINED);
-	} else {
-		new_ptr = NULL;
-		 
+		break;
+	default:
+		ptr = NULL;
 		recv_sys->found_corrupt_log = TRUE;
 	}
 
-	ut_ad(!page || new_ptr);
+	ut_ad(!page || ptr);
+	if (index) {
+		dict_table_t*	table = index->table;
+		mem_heap_free(index->heap);
+		mutex_free(&(table->autoinc_mutex));
+		mem_heap_free(table->heap);
+	}
 	
-	return(new_ptr);
+	return(ptr);
 }
 
 /*************************************************************************

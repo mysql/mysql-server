@@ -168,7 +168,7 @@ dict_table_get_sys_col(
 	col = dict_table_get_nth_col(table, table->n_cols 
 					   - DATA_N_SYS_COLS + sys);
 	ut_ad(col->type.mtype == DATA_SYS);
-	ut_ad(col->type.prtype == sys);
+	ut_ad(col->type.prtype == (sys | DATA_NOT_NULL));
 
 	return(col);
 }
@@ -322,6 +322,7 @@ dict_index_rec_get_sys_col(
 /*=======================*/
 				/* out: system column value */
 	dict_index_t*	index,	/* in: clustered index describing the record */
+	const ulint*	offsets,/* in: offsets returned by rec_get_offsets() */
 	ulint		type,	/* in: column type: DATA_ROLL_PTR, ... */
 	rec_t*		rec)	/* in: record */
 {
@@ -331,12 +332,13 @@ dict_index_rec_get_sys_col(
 	
 	ut_ad(index);
 	ut_ad(index->type & DICT_CLUSTERED);
-	
+	ut_ad(rec_offs_validate(rec, index, offsets));
+
 	pos = dict_index_get_sys_col_pos(index, type);
 
 	ut_ad(pos != ULINT_UNDEFINED);	
 	
-	field = rec_get_nth_field(rec, pos, &len);
+	field = rec_get_nth_field(rec, offsets, pos, &len);
 
 	if (type == DATA_ROLL_PTR) {
 		ut_ad(len == 7);
@@ -677,7 +679,10 @@ dict_is_mixed_table_rec(
 	byte*	mix_id_field;
 	ulint	len;
 
-	mix_id_field = rec_get_nth_field(rec, table->mix_len, &len);
+	ut_ad(!table->comp);
+
+	mix_id_field = rec_get_nth_field_old(rec,
+					table->mix_len, &len);
 
 	if ((len != table->mix_id_len)
 	    || (0 != ut_memcmp(table->mix_id_buf, mix_id_field, len))) {

@@ -57,10 +57,14 @@ cmp_rec_rec(
 				first fields are compared */
 	rec_t*		rec1,	/* in: physical record */
 	rec_t*		rec2,	/* in: physical record */
+	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
+	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
+	ulint		n,	/* in: number of fields to compare */
 	dict_index_t*	index)	/* in: data dictionary index */
 {
 	ulint	match_f		= 0;
 	ulint	match_b		= 0;
 	
-	return(cmp_rec_rec_with_match(rec1, rec2, index, &match_f, &match_b));
+	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index, n,
+					&match_f, &match_b));
 }

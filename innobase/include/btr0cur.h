@@ -34,7 +34,7 @@ page_cur_t*
 btr_cur_get_page_cur(
 /*=================*/
 				/* out: pointer to page cursor component */
-	btr_cur_t*	cursor);	/* in: tree cursor */
+	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
 Returns the record pointer of a tree cursor. */
 UNIV_INLINE
@@ -42,14 +42,14 @@ rec_t*
 btr_cur_get_rec(
 /*============*/
 				/* out: pointer to record */
-	btr_cur_t*	cursor);	/* in: tree cursor */
+	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
 Invalidates a tree cursor by setting record pointer to NULL. */
 UNIV_INLINE
 void
 btr_cur_invalidate(
 /*===============*/
-	btr_cur_t*	cursor);	/* in: tree cursor */
+	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
 Returns the page of a tree cursor. */
 UNIV_INLINE
@@ -57,7 +57,7 @@ page_t*
 btr_cur_get_page(
 /*=============*/
 				/* out: pointer to page */
-	btr_cur_t*	cursor);	/* in: tree cursor */
+	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
 Returns the tree of a cursor. */
 UNIV_INLINE
@@ -65,7 +65,7 @@ dict_tree_t*
 btr_cur_get_tree(
 /*=============*/
 				/* out: tree */
-	btr_cur_t*	cursor);	/* in: tree cursor */
+	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
 Positions a tree cursor at a given record. */
 UNIV_INLINE
@@ -283,8 +283,9 @@ only used by the insert buffer insert merge mechanism. */
 void
 btr_cur_del_unmark_for_ibuf(
 /*========================*/
-	rec_t*	rec,	/* in: record to delete unmark */
-	mtr_t*	mtr);	/* in: mtr */
+	rec_t*		rec,	/* in: record to delete unmark */
+	dict_index_t*	index,	/* in: record descriptor */
+	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Tries to compress a page of the tree on the leaf level. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
@@ -361,10 +362,11 @@ Parses a redo log record of updating a record in-place. */
 byte*
 btr_cur_parse_update_in_place(
 /*==========================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page);	/* in: page or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	page_t*		page,	/* in: page or NULL */
+	dict_index_t*	index);	/* in: index corresponding to page */
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a clustered
 index record. */
@@ -372,10 +374,11 @@ index record. */
 byte*
 btr_cur_parse_del_mark_set_clust_rec(
 /*=================================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page);	/* in: page or NULL */	
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	dict_index_t*	index,	/* in: index corresponding to page */
+	page_t*		page);	/* in: page or NULL */
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a secondary
 index record. */
@@ -383,10 +386,11 @@ index record. */
 byte*
 btr_cur_parse_del_mark_set_sec_rec(
 /*===============================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page);	/* in: page or NULL */	
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	dict_index_t*	index,	/* in: index corresponding to page */
+	page_t*		page);	/* in: page or NULL */
 /***********************************************************************
 Estimates the number of rows in a given index range. */
 
@@ -417,9 +421,10 @@ to free the field. */
 void
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
-	rec_t*	rec,	/* in: record in a clustered index */
-	upd_t*	update,	/* in: update vector */
-	mtr_t*	mtr);	/* in: mtr */
+	rec_t*		rec,	/* in: record in a clustered index */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	upd_t*		update,	/* in: update vector */
+	mtr_t*		mtr);	/* in: mtr */
 /***********************************************************************
 The complement of the previous function: in an update entry may inherit
 some externally stored fields from a record. We must mark them as inherited
@@ -456,6 +461,7 @@ btr_store_big_rec_extern_fields(
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
 	rec_t*		rec,		/* in: record */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
 	mtr_t*		local_mtr);	/* in: mtr containing the latch to
@@ -496,6 +502,7 @@ btr_rec_free_externally_stored_fields(
 	dict_index_t*	index,	/* in: index of the data, the index
 				tree MUST be X-latched */
 	rec_t*		rec,	/* in: record */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 				rollback and we do not want to free
 				inherited fields */
@@ -510,6 +517,7 @@ btr_rec_copy_externally_stored_field(
 /*=================================*/
 				/* out: the field copied to heap */
 	rec_t*		rec,	/* in: record */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		no,	/* in: field number */
 	ulint*		len,	/* out: length of the field */
 	mem_heap_t*	heap);	/* in: mem heap */
@@ -540,10 +548,10 @@ ulint
 btr_push_update_extern_fields(
 /*==========================*/
 				/* out: number of values stored in ext_vect */
-	ulint*	ext_vect,	/* in: array of ulints, must be preallocated
-				to have place for all fields in rec */
-	rec_t*	rec,		/* in: record */
-	upd_t*	update);	/* in: update vector */
+	ulint*		ext_vect,/* in: array of ulints, must be preallocated
+				to have space for all fields in rec */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	upd_t*		update);/* in: update vector or NULL */
 	
 
 /*######################################################################*/

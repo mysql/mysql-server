@@ -195,7 +195,7 @@ dtype_validate(
 	ut_a((type->mtype >= DATA_VARCHAR) && (type->mtype <= DATA_MYSQL));
 	
 	if (type->mtype == DATA_SYS) {
-		ut_a(type->prtype <= DATA_MIX_ID);
+		ut_a((type->prtype & DATA_MYSQL_TYPE_MASK) < DATA_N_SYS_COLS);
 	}
 
 	return(TRUE);

@@ -128,7 +128,8 @@ page_cur_tuple_insert(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
-	dtuple_t*      	tuple,  /* in: pointer to a data tuple */
+	dtuple_t*	tuple,	/* in: pointer to a data tuple */
+	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
@@ -142,6 +143,7 @@ page_cur_rec_insert(
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
 	rec_t*		rec,	/* in: record to insert */
+	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
@@ -155,9 +157,9 @@ page_cur_insert_rec_low(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
-	dtuple_t*      	tuple,  /* in: pointer to a data tuple or NULL */
-	ulint		data_size,/* in: data size of tuple */
-	rec_t*      	rec,  	/* in: pointer to a physical record or NULL */
+	dtuple_t*	tuple,	/* in: pointer to a data tuple or NULL */
+	dict_index_t*	index,	/* in: record descriptor */
+	rec_t*		rec,	/* in: pointer to a physical record or NULL */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
 /*****************************************************************
 Copies records from page to a newly created page, from a given record onward,
@@ -166,10 +168,11 @@ including that record. Infimum and supremum records are not copied. */
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
-	page_t*	new_page,	/* in: index page to copy to */
-	page_t*	page,		/* in: index page */
-	rec_t*	rec,		/* in: first record to copy */
-	mtr_t*	mtr);		/* in: mtr */
+	page_t*		new_page,	/* in: index page to copy to */
+	page_t*		page,		/* in: index page */
+	rec_t*		rec,		/* in: first record to copy */
+	dict_index_t*	index,		/* in: record descriptor */
+	mtr_t*		mtr);		/* in: mtr */
 /***************************************************************
 Deletes a record at the page cursor. The cursor is moved to the 
 next record after the deleted one. */
@@ -178,6 +181,7 @@ void
 page_cur_delete_rec(
 /*================*/
 	page_cur_t*  	cursor,		/* in: a page cursor */
+	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr);		/* in: mini-transaction handle */
 /********************************************************************
 Searches the right position for a page cursor. */
@@ -187,6 +191,7 @@ page_cur_search(
 /*============*/
 				/* out: number of matched fields on the left */
 	page_t*		page,	/* in: index page */
+	dict_index_t*	index,	/* in: record descriptor */
 	dtuple_t*	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
 				or PAGE_CUR_GE */
@@ -198,6 +203,7 @@ void
 page_cur_search_with_match(
 /*=======================*/
 	page_t*		page,	/* in: index page */
+	dict_index_t*	index,	/* in: record descriptor */
 	dtuple_t*	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
 				or PAGE_CUR_GE */
@@ -229,34 +235,37 @@ Parses a log record of a record insert on a page. */
 byte*
 page_cur_parse_insert_rec(
 /*======================*/
-			/* out: end of log record or NULL */
-	ibool	is_short,/* in: TRUE if short inserts */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
+				/* out: end of log record or NULL */
+	ibool		is_short,/* in: TRUE if short inserts */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	dict_index_t*	index,	/* in: record descriptor */
+	page_t*		page,	/* in: page or NULL */
+	mtr_t*		mtr);	/* in: mtr or NULL */
 /**************************************************************
 Parses a log record of copying a record list end to a new created page. */
 
 byte*
 page_parse_copy_rec_list_to_created_page(
 /*=====================================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	dict_index_t*	index,	/* in: record descriptor */
+	page_t*		page,	/* in: page or NULL */
+	mtr_t*		mtr);	/* in: mtr or NULL */
 /***************************************************************
 Parses log record of a record delete on a page. */
 
 byte*
 page_cur_parse_delete_rec(
 /*======================*/
-			/* out: pointer to record end or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
+				/* out: pointer to record end or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	dict_index_t*	index,	/* in: record descriptor */
+	page_t*		page,	/* in: page or NULL */
+	mtr_t*		mtr);	/* in: mtr or NULL */
 
 /* Index page cursor */
 

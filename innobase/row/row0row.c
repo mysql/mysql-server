@@ -37,17 +37,18 @@ row_get_rec_sys_field(
 				/* out: value of the field */
 	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
 	rec_t*		rec,	/* in: record */
-	dict_index_t*	index)	/* in: clustered index */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
-	ulint	pos;
-	byte*	field;
-	ulint	len;
+	ulint		pos;
+	byte*		field;
+	ulint		len;
 
 	ut_ad(index->type & DICT_CLUSTERED);
 
 	pos = dict_index_get_sys_col_pos(index, type);
 
-	field = rec_get_nth_field(rec, pos, &len);
+	field = rec_get_nth_field(rec, offsets, pos, &len);
 
 	if (type == DATA_TRX_ID) {
 
@@ -70,6 +71,7 @@ row_set_rec_sys_field(
 	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		val)	/* in: value to set */
 {
 	ulint	pos;
@@ -77,10 +79,11 @@ row_set_rec_sys_field(
 	ulint	len;
 
 	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	pos = dict_index_get_sys_col_pos(index, type);
 
-	field = rec_get_nth_field(rec, pos, &len);
+	field = rec_get_nth_field(rec, offsets, pos, &len);
 
 	if (type == DATA_TRX_ID) {
 
@@ -182,6 +185,9 @@ row_build(
 				the buffer page of this record must be
 				at least s-latched and the latch held
 				as long as the row dtuple is used! */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index)
+				or NULL, in which case this function
+				will invoke rec_get_offsets() */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
@@ -196,14 +202,26 @@ row_build(
 	ulint		row_len;
 	byte*		buf; 
 	ulint		i;
-	
+	mem_heap_t*	tmp_heap;
+
 	ut_ad(index && rec && heap);
 	ut_ad(index->type & DICT_CLUSTERED);
 
+	if (!offsets) {
+		tmp_heap = mem_heap_create(100);
+		offsets = rec_get_offsets(rec, index,
+					ULINT_UNDEFINED, tmp_heap);
+	} else {
+		tmp_heap = NULL;
+		ut_ad(rec_offs_validate(rec, index, offsets));
+	}
+
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
-		buf = mem_heap_alloc(heap, rec_get_size(rec));
-		rec = rec_copy(buf, rec);
+		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
+		rec = rec_copy(buf, rec, offsets);
+		/* Avoid a debug assertion in rec_offs_validate(). */
+		rec_offs_make_valid(rec, index, (ulint*) offsets);
 	}
 
 	table = index->table;
@@ -211,11 +229,9 @@ row_build(
 
 	row = dtuple_create(heap, row_len);
 
-	dtuple_set_info_bits(row, rec_get_info_bits(rec));
-	
-	n_fields = dict_index_get_n_fields(index);
+	dtuple_set_info_bits(row, rec_get_info_bits(rec, table->comp));
 
-	ut_ad(n_fields == rec_get_n_fields(rec));
+	n_fields = rec_offs_n_fields(offsets);
 
 	dict_table_copy_types(row, table);
 
@@ -227,13 +243,13 @@ row_build(
 		        col = dict_field_get_col(ind_field);
 			dfield = dtuple_get_nth_field(row,
 						dict_col_get_no(col));
-			field = rec_get_nth_field(rec, i, &len);
+			field = rec_get_nth_field(rec, offsets, i, &len);
 
 			if (type == ROW_COPY_ALSO_EXTERNALS
-			    && rec_get_nth_field_extern_bit(rec, i)) {
+			    && rec_offs_nth_extern(offsets, i)) {
 
 			        field = btr_rec_copy_externally_stored_field(
-							rec, i, &len, heap);
+						rec, offsets, i, &len, heap);
 			}
 
 			dfield_set_data(dfield, field, len);
@@ -241,6 +257,10 @@ row_build(
 	}
 
 	ut_ad(dtuple_check_typed(row));
+
+	if (tmp_heap) {
+		mem_heap_free(tmp_heap);
+	}
 
 	return(row);
 }
@@ -276,16 +296,23 @@ row_rec_to_index_entry(
 	ulint		len;
 	ulint		rec_len;
 	byte*		buf;
-	
+	mem_heap_t*	tmp_heap;
+	ulint*		offsets;
+
 	ut_ad(rec && heap && index);
 	
+	tmp_heap = mem_heap_create(100);
+	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, tmp_heap);
+
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
-		buf = mem_heap_alloc(heap, rec_get_size(rec));
-		rec = rec_copy(buf, rec);
+		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
+		rec = rec_copy(buf, rec, offsets);
+		/* Avoid a debug assertion in rec_offs_validate(). */
+		rec_offs_make_valid(rec, index, offsets);
 	}
 
-	rec_len = rec_get_n_fields(rec);
+	rec_len = rec_offs_n_fields(offsets);
 	
 	entry = dtuple_create(heap, rec_len);
 
@@ -295,17 +322,19 @@ row_rec_to_index_entry(
 
 	dict_index_copy_types(entry, index, rec_len);
 
-	dtuple_set_info_bits(entry, rec_get_info_bits(rec));
+	dtuple_set_info_bits(entry,
+			rec_get_info_bits(rec, rec_offs_comp(offsets)));
 
 	for (i = 0; i < rec_len; i++) {
 
 		dfield = dtuple_get_nth_field(entry, i);
-		field = rec_get_nth_field(rec, i, &len);
+		field = rec_get_nth_field(rec, offsets, i, &len);
 
 		dfield_set_data(dfield, field, len);
 	}
 
 	ut_ad(dtuple_check_typed(entry));
+	mem_heap_free(tmp_heap);
 
 	return(entry);
 }
@@ -345,15 +374,22 @@ row_build_row_ref(
 	byte*		buf;
 	ulint		clust_col_prefix_len;
 	ulint		i;
+	mem_heap_t*	tmp_heap;
+	ulint*		offsets;
 	
 	ut_ad(index && rec && heap);
-	
+
+	tmp_heap = mem_heap_create(100);
+	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, tmp_heap);
+
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
 
-		buf = mem_heap_alloc(heap, rec_get_size(rec));
+		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
 
-		rec = rec_copy(buf, rec);
+		rec = rec_copy(buf, rec, offsets);
+		/* Avoid a debug assertion in rec_offs_validate(). */
+		rec_offs_make_valid(rec, index, offsets);
 	}
 
 	table = index->table;
@@ -373,7 +409,7 @@ row_build_row_ref(
 
 		ut_a(pos != ULINT_UNDEFINED);
 	
-		field = rec_get_nth_field(rec, pos, &len);
+		field = rec_get_nth_field(rec, offsets, pos, &len);
 
 		dfield_set_data(dfield, field, len);
 
@@ -397,6 +433,7 @@ row_build_row_ref(
 	}
 
 	ut_ad(dtuple_check_typed(ref));
+	mem_heap_free(tmp_heap);
 
 	return(ref);
 }
@@ -427,7 +464,9 @@ row_build_row_ref_in_tuple(
 	ulint		pos;
 	ulint		clust_col_prefix_len;
 	ulint		i;
-	
+	mem_heap_t*	heap;
+	ulint*		offsets;
+
 	ut_a(ref && index && rec);
 	
 	if (!index->table) {
@@ -446,7 +485,10 @@ row_build_row_ref_in_tuple(
 		fputs("InnoDB: clust index for table ", stderr);
 		goto notfound;
 	}
-	
+
+	heap = mem_heap_create(100);
+	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+
 	ref_len = dict_index_get_n_unique(clust_index);
 
 	ut_ad(ref_len == dtuple_get_n_fields(ref));
@@ -459,8 +501,8 @@ row_build_row_ref_in_tuple(
 		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
 		ut_a(pos != ULINT_UNDEFINED);
-			
-		field = rec_get_nth_field(rec, pos, &len);
+
+		field = rec_get_nth_field(rec, offsets, pos, &len);
 
 		dfield_set_data(dfield, field, len);
 
@@ -484,6 +526,7 @@ row_build_row_ref_in_tuple(
 	}
 
 	ut_ad(dtuple_check_typed(ref));
+	mem_heap_free(heap);
 }
 
 /***********************************************************************

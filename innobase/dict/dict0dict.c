@@ -814,23 +814,22 @@ dict_table_add_to_cache(
 	system columns. */
 
 	dict_mem_table_add_col(table, "DB_ROW_ID", DATA_SYS,
-			       DATA_ROW_ID, 0, 0);
+			DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN, 0);
 #if DATA_ROW_ID != 0
 #error "DATA_ROW_ID != 0"
 #endif
 	dict_mem_table_add_col(table, "DB_TRX_ID", DATA_SYS,
-			       DATA_TRX_ID, 0, 0);
+			DATA_TRX_ID | DATA_NOT_NULL, DATA_TRX_ID_LEN, 0);
 #if DATA_TRX_ID != 1
 #error "DATA_TRX_ID != 1"
 #endif
 	dict_mem_table_add_col(table, "DB_ROLL_PTR", DATA_SYS,
-			       DATA_ROLL_PTR, 0, 0);
+			DATA_ROLL_PTR | DATA_NOT_NULL, DATA_ROLL_PTR_LEN, 0);
 #if DATA_ROLL_PTR != 2
 #error "DATA_ROLL_PTR != 2"
 #endif
-
 	dict_mem_table_add_col(table, "DB_MIX_ID", DATA_SYS,
-			       DATA_MIX_ID, 0, 0);
+			DATA_MIX_ID | DATA_NOT_NULL, DATA_MIX_ID_LEN, 0);
 #if DATA_MIX_ID != 3
 #error "DATA_MIX_ID != 3"
 #endif
@@ -1588,7 +1587,7 @@ dict_index_find_cols(
 	
 /***********************************************************************
 Adds a column to index. */
-UNIV_INLINE
+
 void
 dict_index_add_col(
 /*===============*/
@@ -1604,6 +1603,34 @@ dict_index_add_col(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->col = col;
+	field->fixed_len = dtype_get_fixed_size(&col->type);
+
+	if (prefix_len && field->fixed_len > prefix_len) {
+		field->fixed_len = prefix_len;
+	}
+
+	/* Long fixed-length fields that need external storage are treated as
+	variable-length fields, so that the extern flag can be embedded in
+	the length word. */
+
+	if (field->fixed_len > DICT_MAX_COL_PREFIX_LEN) {
+		field->fixed_len = 0;
+	}
+
+	if (!(dtype_get_prtype(&col->type) & DATA_NOT_NULL)) {
+		index->n_nullable++;
+	}
+
+	if (index->n_def > 1) {
+		const dict_field_t*	field2 =
+			dict_index_get_nth_field(index, index->n_def - 2);
+		field->fixed_offs = (!field2->fixed_len ||
+					field2->fixed_offs == ULINT_UNDEFINED)
+				? ULINT_UNDEFINED
+				: field2->fixed_len + field2->fixed_offs;
+	} else {
+		field->fixed_offs = 0;
+	}
 }
 
 /***********************************************************************
@@ -3580,9 +3607,10 @@ dict_tree_find_index_low(
 				&& (table->type != DICT_TABLE_ORDINARY)) {
 
 		/* Get the mix id of the record */
+		ut_a(!table->comp);
 
 		mix_id = mach_dulint_read_compressed(
-				rec_get_nth_field(rec, table->mix_len, &len));
+			rec_get_nth_field_old(rec, table->mix_len, &len));
 
 		while (ut_dulint_cmp(table->mix_id, mix_id) != 0) {
 
@@ -3715,7 +3743,8 @@ dict_tree_build_node_ptr(
 		on non-leaf levels we remove the last field, which
 		contains the page number of the child page */
 
-		n_unique = rec_get_n_fields(rec);
+		ut_a(!ind->table->comp);
+		n_unique = rec_get_n_fields_old(rec);
 
 		if (level > 0) {
 		        ut_a(n_unique > 1);
@@ -3744,9 +3773,11 @@ dict_tree_build_node_ptr(
 	field = dtuple_get_nth_field(tuple, n_unique);
 	dfield_set_data(field, buf, 4);
 
-	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, 0, 0, 0);
+	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, DATA_NOT_NULL, 4, 0);
 
-	rec_copy_prefix_to_dtuple(tuple, rec, n_unique, heap);
+	rec_copy_prefix_to_dtuple(tuple, rec, ind, n_unique, heap);
+	dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple) |
+					REC_STATUS_NODE_PTR);
 
 	ut_ad(dtuple_check_typed(tuple));
 
@@ -3763,27 +3794,26 @@ dict_tree_copy_rec_order_prefix(
 				/* out: pointer to the prefix record */
 	dict_tree_t*	tree,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to copy prefix */
+	ulint*		n_fields,/* out: number of fields copied */
 	byte**		buf,	/* in/out: memory buffer for the copied prefix,
 				or NULL */
 	ulint*		buf_size)/* in/out: buffer size */
 {
-	dict_index_t*	ind;
-	rec_t*		order_rec;
-	ulint		n_fields;
-	
-	ind = dict_tree_find_index_low(tree, rec);
+	dict_index_t*	index;
+	ulint		n;
 
-	n_fields = dict_index_get_n_unique_in_tree(ind);
-	
+	index = dict_tree_find_index_low(tree, rec);
+
 	if (tree->type & DICT_UNIVERSAL) {
-
-		n_fields = rec_get_n_fields(rec);
+		ut_a(!index->table->comp);
+		n = rec_get_n_fields_old(rec);
+	} else {
+		n = dict_index_get_n_unique_in_tree(index);
 	}
 
-	order_rec = rec_copy_prefix_to_buf(rec, n_fields, buf, buf_size);
-
-	return(order_rec);
-}	
+	*n_fields = n;
+	return(rec_copy_prefix_to_buf(rec, index, n, buf, buf_size));
+}
 
 /**************************************************************************
 Builds a typed data tuple out of a physical record. */
@@ -3794,21 +3824,21 @@ dict_tree_build_data_tuple(
 				/* out, own: data tuple */
 	dict_tree_t*	tree,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to build data tuple */
+	ulint		n_fields,/* in: number of data fields */
 	mem_heap_t*	heap)	/* in: memory heap where tuple created */
 {
 	dtuple_t*	tuple;
 	dict_index_t*	ind;
-	ulint		n_fields;
 
 	ind = dict_tree_find_index_low(tree, rec);
 
-	n_fields = rec_get_n_fields(rec);
+	ut_ad(ind->table->comp || n_fields <= rec_get_n_fields_old(rec));
 	
 	tuple = dtuple_create(heap, n_fields); 
 
 	dict_index_copy_types(tuple, ind, n_fields);
 
-	rec_copy_prefix_to_dtuple(tuple, rec, n_fields, heap);
+	rec_copy_prefix_to_dtuple(tuple, rec, ind, n_fields, heap);
 
 	ut_ad(dtuple_check_typed(tuple));
 
@@ -3826,6 +3856,27 @@ dict_index_calc_min_rec_len(
 	ulint	sum	= 0;
 	ulint	i;
 
+	if (index->table->comp) {
+		ulint nullable = 0;
+		sum = REC_N_NEW_EXTRA_BYTES;
+		for (i = 0; i < dict_index_get_n_fields(index); i++) {
+			dtype_t*t = dict_index_get_nth_type(index, i);
+			ulint	size = dtype_get_fixed_size(t);
+			sum += size;
+			if (!size) {
+				size = dtype_get_len(t);
+				sum += size < 128 ? 1 : 2;
+			}
+			if (!(dtype_get_prtype(t) & DATA_NOT_NULL))
+				nullable++;
+		}
+
+		/* round the NULL flags up to full bytes */
+		sum += (nullable + 7) / 8;
+
+		return(sum);
+	}
+
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
 		sum += dtype_get_fixed_size(dict_index_get_nth_type(index, i));
 	}
@@ -3836,7 +3887,7 @@ dict_index_calc_min_rec_len(
 		sum += dict_index_get_n_fields(index);
 	}
 
-	sum += REC_N_EXTRA_BYTES;
+	sum += REC_N_OLD_EXTRA_BYTES;
 
 	return(sum);
 }

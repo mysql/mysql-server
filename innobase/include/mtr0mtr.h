@@ -102,7 +102,31 @@ flag value must give the length also! */
 						file rename */
 #define MLOG_FILE_DELETE	((byte)35)	/* log record about an .ibd
 						file deletion */
-#define MLOG_BIGGEST_TYPE	((byte)35) 	/* biggest value (used in
+#define MLOG_COMP_REC_MIN_MARK	((byte)36)	/* mark a compact index record
+						as the predefined minimum
+						record */
+#define MLOG_COMP_PAGE_CREATE	((byte)37)	/* create a compact
+						index page */
+#define MLOG_COMP_REC_INSERT	((byte)38)	/* compact record insert */
+#define MLOG_COMP_REC_CLUST_DELETE_MARK ((byte)39)
+						/* mark compact clustered index
+						record deleted */
+#define MLOG_COMP_REC_SEC_DELETE_MARK ((byte)40)/* mark compact secondary index
+						record deleted */
+#define MLOG_COMP_REC_UPDATE_IN_PLACE ((byte)41)/* update of a compact record,
+						preserves record field sizes */
+#define MLOG_COMP_REC_DELETE	((byte)42)	/* delete a compact record
+						from a page */
+#define MLOG_COMP_LIST_END_DELETE ((byte)43)	/* delete compact record list
+						end on index page */
+#define MLOG_COMP_LIST_START_DELETE ((byte)44)	/* delete compact record list
+						start on index page */
+#define MLOG_COMP_LIST_END_COPY_CREATED ((byte)45)
+						/* copy compact record list end
+						to a new created index page */
+#define MLOG_COMP_PAGE_REORGANIZE ((byte)46)	/* reorganize an index page */
+
+#define MLOG_BIGGEST_TYPE	((byte)46)	/* biggest value (used in
 						asserts) */
 					
 /*******************************************************************

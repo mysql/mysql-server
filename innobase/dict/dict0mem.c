@@ -35,7 +35,8 @@ dict_mem_table_create(
 				the table is placed; this parameter is
 				ignored if the table is made a member of
 				a cluster */
-	ulint		n_cols)	/* in: number of columns */
+	ulint		n_cols,	/* in: number of columns */
+	ibool		comp)	/* in: TRUE=compact page format */
 {
 	dict_table_t*	table;
 	mem_heap_t*	heap;
@@ -54,6 +55,7 @@ dict_mem_table_create(
 	table->space = space;
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
+	table->comp = comp;
 	table->n_def = 0;
 	table->n_cols = n_cols + DATA_N_SYS_COLS;
 	table->mem_fix = 0;
@@ -110,7 +112,8 @@ dict_mem_cluster_create(
 {
 	dict_table_t*		cluster;
 
-	cluster = dict_mem_table_create(name, space, n_cols);
+	/* Clustered tables cannot work with the compact record format. */
+	cluster = dict_mem_table_create(name, space, n_cols, FALSE);
 
 	cluster->type = DICT_TABLE_CLUSTER;
 	cluster->mix_len = mix_len;
@@ -197,7 +200,7 @@ dict_mem_index_create(
 	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;
 	index->table = NULL;
-	index->n_def = 0;
+	index->n_def = index->n_nullable = 0;
 	index->n_fields = n_fields;
 	index->fields = mem_heap_alloc(heap, 1 + n_fields
 						* sizeof(dict_field_t));
