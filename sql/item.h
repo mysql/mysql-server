@@ -669,6 +669,17 @@ public:
 };
 
 
+class Item_static_int_func :public Item_int
+{
+  const char *func_name;
+public:
+  Item_static_int_func(const char *str_arg, longlong i, uint length)
+    :Item_int(NullS, i, length), func_name(str_arg)
+  {}
+  void print(String *str) { str->append(func_name); }
+};
+
+
 class Item_uint :public Item_int
 {
 public:
@@ -721,6 +732,18 @@ public:
   void cleanup() {}
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
   Item_num *neg() { value= -value; return this; }
+};
+
+
+class Item_static_real_func :public Item_real
+{
+  const char *func_name;
+public:
+  Item_static_real_func(const char *str, double val_arg, uint decimal_par,
+                        uint length)
+    :Item_real(NullS, val_arg, decimal_par, length), func_name(str)
+  {}
+  void print(String *str) { str->append(func_name); }
 };
 
 
@@ -802,6 +825,20 @@ public:
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
 };
+
+
+class Item_static_string_func :public Item_string
+{
+  const char *func_name;
+public:
+  Item_static_string_func(const char *name_par, const char *str, uint length,
+                          CHARSET_INFO *cs,
+                          Derivation dv= DERIVATION_COERCIBLE)
+    :Item_string(NullS, str, length, cs, dv), func_name(name_par)
+  {}
+  void print(String *str) { str->append(func_name); }
+};
+
 
 /* for show tables */
 
