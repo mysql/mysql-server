@@ -105,13 +105,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_SEEK_CUR	1
 #define MY_SEEK_END	2
 
-        /* My charsets_list flags */
-#define MY_NO_SETS       0
-#define MY_COMPILED_SETS 1      /* show compiled-in sets */
-#define MY_CONFIG_SETS   2      /* sets that have a *.conf file */
-#define MY_INDEX_SETS    4      /* all sets listed in the Index file */
-#define MY_LOADED_SETS    8      /* the sets that are currently loaded */
-
 	/* Some constants */
 #define MY_WAIT_FOR_USER_TO_FIX_PANIC	60	/* in seconds */
 #define MY_WAIT_GIVE_USER_A_MESSAGE	10	/* Every 10 times of prev */

@@ -2805,8 +2805,10 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_latin1
   {
-    8,    /* number */
-    "latin1",     /* name */
+    8,			/* number     */
+    MY_CS_COMPILED,	/* state      */
+    "latin1",		/* name       */
+    "",			/* comment    */
     ctype_latin1,
     to_lower_latin1,
     to_upper_latin1,
@@ -2838,7 +2840,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_big5
   {
     1,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "big5",		/* name */
+    "",			/* comment    */
     ctype_big5,
     to_lower_big5,
     to_upper_big5,
@@ -2870,7 +2874,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_cp1251
   {
     14,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "cp1251",		/* name */
+    "",			/* comment    */
     ctype_cp1251,
     to_lower_cp1251,
     to_upper_cp1251,
@@ -2902,7 +2908,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_cp1257
   {
     29,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "cp1257",		/* name */
+    "",			/* comment    */
     ctype_cp1257,
     to_lower_cp1257,
     to_upper_cp1257,
@@ -2934,7 +2942,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_croat
   {
     27,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "croat",		/* name */
+    "",			/* comment    */
     ctype_croat,
     to_lower_croat,
     to_upper_croat,
@@ -2966,7 +2976,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_czech
   {
     2,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "czech",		/* name */
+    "",			/* comment    */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,
@@ -2998,7 +3010,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_danish
   {
     15,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "danish",		/* name */
+    "",			/* comment    */
     ctype_danish,
     to_lower_danish,
     to_upper_danish,
@@ -3030,7 +3044,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_dec8
   {
     3,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "dec8",		/* name */
+    "",			/* comment    */
     ctype_dec8,
     to_lower_dec8,
     to_upper_dec8,
@@ -3062,7 +3078,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_dos
   {
     4,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "dos",		/* name */
+    "",			/* comment    */
     ctype_dos,
     to_lower_dos,
     to_upper_dos,
@@ -3094,7 +3112,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_estonia
   {
     20,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "estonia",		/* name */
+    "",			/* comment    */
     ctype_estonia,
     to_lower_estonia,
     to_upper_estonia,
@@ -3126,7 +3146,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_euc_kr
   {
     19,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "euc_kr",		/* name */
+    "",			/* comment    */
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
@@ -3158,7 +3180,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_gb2312
   {
     24,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "gb2312",		/* name */
+    "",			/* comment    */
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,
@@ -3190,7 +3214,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_gbk
   {
     28,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "gbk",		/* name */
+    "",			/* comment    */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,
@@ -3222,7 +3248,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_german1
   {
     5,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "german1",		/* name */
+    "",			/* comment    */
     ctype_german1,
     to_lower_german1,
     to_upper_german1,
@@ -3254,7 +3282,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_greek
   {
     25,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "greek",		/* name */
+    "",			/* comment    */
     ctype_greek,
     to_lower_greek,
     to_upper_greek,
@@ -3286,7 +3316,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_hebrew
   {
     16,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "hebrew",		/* name */
+    "",			/* comment    */
     ctype_hebrew,
     to_lower_hebrew,
     to_upper_hebrew,
@@ -3318,7 +3350,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_hp8
   {
     6,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "hp8",		/* name */
+    "",			/* comment    */
     ctype_hp8,
     to_lower_hp8,
     to_upper_hp8,
@@ -3350,7 +3384,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_hungarian
   {
     21,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "hungarian",	/* name */
+    "",			/* comment    */
     ctype_hungarian,
     to_lower_hungarian,
     to_upper_hungarian,
@@ -3382,7 +3418,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_koi8_ru
   {
     7,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "koi8_ru",		/* name */
+    "",			/* comment    */
     ctype_koi8_ru,
     to_lower_koi8_ru,
     to_upper_koi8_ru,
@@ -3414,7 +3452,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_koi8_ukr
   {
     22,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "koi8_ukr",		/* name */
+    "",			/* comment    */
     ctype_koi8_ukr,
     to_lower_koi8_ukr,
     to_upper_koi8_ukr,
@@ -3446,7 +3486,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_latin1_de
   {
     31,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "latin1_de",	/* name */
+    "",			/* comment    */
     ctype_latin1_de,
     to_lower_latin1_de,
     to_upper_latin1_de,
@@ -3478,7 +3520,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_latin2
   {
     9,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "latin2",		/* name */
+    "",			/* comment    */
     ctype_latin2,
     to_lower_latin2,
     to_upper_latin2,
@@ -3510,7 +3554,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_latin5
   {
     30,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "latin5",		/* name */
+    "",			/* comment    */
     ctype_latin5,
     to_lower_latin5,
     to_upper_latin5,
@@ -3542,7 +3588,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_sjis
   {
     13,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "sjis",		/* name */
+    "",			/* comment    */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
@@ -3574,7 +3622,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_swe7
   {
     10,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "swe7",		/* name */
+    "",			/* comment    */
     ctype_swe7,
     to_lower_swe7,
     to_upper_swe7,
@@ -3606,7 +3656,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_tis620
   {
     18,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "tis620",		/* name */
+    "",			/* comment    */
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,
@@ -3638,7 +3690,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_ucs2
   {
     35,			/* number       */
+    MY_CS_COMPILED,	/* state      */
     "ucs2",		/* name         */
+    "",			/* comment    */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
@@ -3671,7 +3725,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_ujis
   {
     12,			/* number       */
+    MY_CS_COMPILED,	/* state      */
     "ujis",		/* name         */
+    "",			/* comment    */
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,
@@ -3703,7 +3759,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_utf8
   {
     33,			/* number       */
+    MY_CS_COMPILED,	/* state      */
     "utf8",		/* name         */
+    "",			/* comment    */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
@@ -3735,7 +3793,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_usa7
   {
     11,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "usa7",		/* name */
+    "",			/* comment    */
     ctype_usa7,
     to_lower_usa7,
     to_upper_usa7,
@@ -3767,7 +3827,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_win1250
   {
     26,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "win1250",		/* name */
+    "",			/* comment    */
     ctype_win1250,
     to_lower_win1250,
     to_upper_win1250,
@@ -3799,7 +3861,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_win1251ukr
   {
     23,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "win1251ukr",	/* name */
+    "",			/* comment    */
     ctype_win1251ukr,
     to_lower_win1251ukr,
     to_upper_win1251ukr,
@@ -3831,7 +3895,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_armscii8
   {
     32,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "armscii8",		/* name */
+    "",			/* comment    */
     ctype_armscii8,
     to_lower_armscii8,
     to_upper_armscii8,
@@ -3863,7 +3929,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_win1251
   {
     17,			/* number */
+    MY_CS_COMPILED,	/* state      */
     "win1251",		/* name */
+    "",			/* comment    */
     ctype_win1251,
     to_lower_win1251,
     to_upper_win1251,
@@ -3895,7 +3963,9 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_win1250ch
   {
     34,				/* number */
+    MY_CS_COMPILED,	/* state      */
     "win1250ch",		/* name */
+    "",			/* comment    */
     ctype_win1250ch,
     to_lower_win1250ch,
     to_upper_win1250ch,
@@ -3926,7 +3996,9 @@ CHARSET_INFO compiled_charsets[] = {
 
   {
     0,			/* end-of-list marker */
-    NullS,
+    0,			/* state      */
+    NullS,		/* name       */
+    NullS,		/* comment    */
     NULL,
     NULL,
     NULL,

@@ -1381,8 +1381,10 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
 
-  for (cs=compiled_charsets ; cs->name ; cs++ )
+  for (cs=all_charsets ; cs < all_charsets+255 ; cs++ )
   {
+    if (!cs->name)
+      continue;
     if (!(wild && wild[0] && wild_case_compare(system_charset_info,cs->name,wild)))
     {
       packet2.length(0);
