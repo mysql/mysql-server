@@ -414,8 +414,6 @@ const char *		STDCALL mysql_get_host_info(MYSQL *mysql);
 unsigned int	STDCALL mysql_get_proto_info(MYSQL *mysql);
 MYSQL_RES *	STDCALL mysql_list_dbs(MYSQL *mysql,const char *wild);
 MYSQL_RES *	STDCALL mysql_list_tables(MYSQL *mysql,const char *wild);
-MYSQL_RES *	STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
-					 const char *wild);
 MYSQL_RES *	STDCALL mysql_list_processes(MYSQL *mysql);
 int		STDCALL mysql_options(MYSQL *mysql,enum mysql_option option,
 				      const char *arg);
@@ -540,6 +538,7 @@ typedef struct st_mysql_stmt
 #define mysql_read_query_result(mysql) (*(mysql)->methods->read_query_result)(mysql)
 #define mysql_store_result(mysql) (*(mysql)->methods->store_result)(mysql)
 #define mysql_use_result(mysql) (*(mysql)->methods->use_result)(mysql)
+#define mysql_list_fields(mysql, table, wild) (*(mysql)->methods->list_fields)(mysql, table, wild)
 
 typedef struct st_mysql_methods
 {
@@ -549,10 +548,14 @@ typedef struct st_mysql_methods
 				      const char *header,
 				      unsigned long header_length,
 				      const char *arg,
-				      unsigned long arg_length, my_bool skip_check);
+				      unsigned long arg_length,
+				      my_bool skip_check);
   MYSQL_RES * (STDCALL *store_result)(MYSQL *mysql);
   MYSQL_RES * (STDCALL *use_result)(MYSQL *mysql);
-  void (STDCALL *fetch_lengths)(unsigned long *to, MYSQL_ROW column, uint field_count);
+  void (STDCALL *fetch_lengths)(unsigned long *to, 
+				MYSQL_ROW column, uint field_count);
+  MYSQL_RES * (STDCALL *list_fields)(MYSQL *mysql, const char *table,
+				       const char *wild);
 } MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,

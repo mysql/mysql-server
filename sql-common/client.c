@@ -1406,7 +1406,8 @@ static MYSQL_METHODS client_methods=
   cli_advanced_command,
   cli_mysql_store_result,
   cli_mysql_use_result,
-  cli_fetch_lengths
+  cli_fetch_lengths,
+  cli_list_fields
 };
 
 MYSQL * STDCALL 
@@ -1432,6 +1433,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
+
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
   LINT_INIT(host_info);
