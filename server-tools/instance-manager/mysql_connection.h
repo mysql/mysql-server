@@ -48,13 +48,7 @@ struct Mysql_connection_thread_args
                                Thread_registry &thread_registry_arg,
                                const User_map &user_map_arg,
                                ulong connection_id_arg,
-                               Instance_map &instance_map_arg) :
-    vio(vio_arg)
-    ,thread_registry(thread_registry_arg)
-    ,user_map(user_map_arg)
-    ,connection_id(connection_id_arg)
-    ,instance_map(instance_map_arg)
-  {}
+                               Instance_map &instance_map_arg);
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_CONNECTION_H
