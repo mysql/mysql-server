@@ -111,7 +111,6 @@ const char **ha_myisam::bas_ext() const
 
 int ha_myisam::net_read_dump(NET* net)
 {
-  MYISAM_SHARE* share = file->s;
   int data_fd = file->dfile;
   int error = 0;
 
