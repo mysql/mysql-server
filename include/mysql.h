@@ -224,7 +224,7 @@ typedef struct st_mysql_res {
 /* Set up and bring down the server; to ensure that applications will
  * work when linked against either the standard client library or the
  * embedded server library, these functions should be called. */
-void mysql_server_init(int argc, char **argv, const char **groups);
+void mysql_server_init(int argc, const char **argv, const char **groups);
 void mysql_server_end();
 
 /* Set up and bring down a thread; these function should be called

@@ -35,7 +35,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   TMP_TABLE_PARAM tmp_table_param;
   select_union *union_result;
   int res;
-  uint elements;
   DBUG_ENTER("mysql_union");
 
   /* Fix tables--to-be-unioned-from list to point at opened tables */
@@ -48,17 +47,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   }
 
   /* Find last select part as it's here ORDER BY and GROUP BY is stored */
-  elements= lex->select_lex.item_list.elements;
   for (last_sl= &lex->select_lex;
        last_sl->next;
-       last_sl=last_sl->next)
-  {
-    if (elements != last_sl->next->item_list.elements)
-    {
-      my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,MYF(0));
-      return -1;
-    }
-  }
+       last_sl=last_sl->next) ;
 
   if (lex->select_lex.options & SELECT_DESCRIBE)
   {
@@ -78,7 +69,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		       result);
     }
     DBUG_RETURN(0);
-  } 
+  }
 
   order = (ORDER *) last_sl->order_list.first;
   {
@@ -93,8 +84,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     if (setup_fields(thd,first_table,item_list,0,0,1))
       DBUG_RETURN(-1);
   }
+
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
-  tmp_table_param.field_count=elements;
+  tmp_table_param.field_count=item_list.elements;
   if (!(table=create_tmp_table(thd, &tmp_table_param, item_list,
 			       (ORDER*) 0, !lex->union_option,
 			       1, 0,
@@ -188,8 +180,15 @@ select_union::~select_union()
 {
 }
 
+
 int select_union::prepare(List<Item> &list)
 {
+  if (list.elements != table->fields)
+  {
+    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
+	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
+    return -1;
+  }
   return 0;
 }
 
