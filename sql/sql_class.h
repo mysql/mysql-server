@@ -399,6 +399,7 @@ struct system_variables
   my_bool log_warnings;
   my_bool low_priority_updates;
   my_bool new_mode;
+  my_bool old_passwords;
   
   CHARSET_INFO	*character_set_server;
   CHARSET_INFO	*character_set_database;
@@ -556,10 +557,10 @@ public:
   enum_tx_isolation session_tx_isolation;
   /* for user variables replication*/
   DYNAMIC_ARRAY user_var_events;
-             // extend scramble to handle new auth
-  char	     scramble[SCRAMBLE41_LENGTH+1];
-             // old scramble is needed to handle old clients
-  char       old_scramble[SCRAMBLE_LENGTH+1];
+
+  /* scramble - random string sent to client on handshake */
+  char	     scramble[SCRAMBLE_LENGTH+1];
+
   uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;

@@ -294,6 +294,7 @@ static SYMBOL symbols[] = {
   { "NULL",		SYM(NULL_SYM),0,0},
   { "NUMERIC",		SYM(NUMERIC_SYM),0,0},
   { "OFFSET",		SYM(OFFSET_SYM),0,0},
+  { "OLD_PASSWORD",	SYM(OLD_PASSWORD),0,0},
   { "ON",		SYM(ON),0,0},
   { "OPEN",		SYM(OPEN_SYM),0,0},
   { "OPTIMIZE",		SYM(OPTIMIZE),0,0},
@@ -479,9 +480,7 @@ static SYMBOL sql_functions[] = {
   { "COUNT",		SYM(COUNT_SYM),0,0},
   { "COS",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_cos)},
   { "COT",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_cot)},
-#ifdef HAVE_COMPRESS
   { "CRC32",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_crc32)},
-#endif
   { "CROSSES",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_crosses)},
   { "CURDATE",		SYM(CURDATE),0,0},
   { "CURTIME",		SYM(CURTIME),0,0},
@@ -596,7 +595,6 @@ static SYMBOL sql_functions[] = {
   { "NUMPOINTS",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_numpoints)},
   { "OCTET_LENGTH",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_length)},
   { "OCT",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_oct)},
-  { "OLD_PASSWORD",     SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_old_password)},
   { "ORD",              SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ord)},
   { "OVERLAPS",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_overlaps)},
   { "PERIOD_ADD",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_period_add)},

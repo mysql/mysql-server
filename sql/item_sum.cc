@@ -1460,7 +1460,7 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
   for (uint i= 0; i < item->arg_count_field; i++)
   {
     Item *field_item= item->args[i];
-    Field *field= field_item->get_tmp_table_field();
+    Field *field= field_item->real_item()->get_tmp_table_field();
     if (field)
     {
       uint offset= field->abs_offset;
@@ -1491,7 +1491,7 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
   {
     ORDER *order_item= item->order[i];
     Item *item= *order_item->item;
-    Field *field= item->get_tmp_table_field();
+    Field *field= item->real_item()->get_tmp_table_field();
     if (field)
     {
       uint offset= field->abs_offset;
@@ -1542,7 +1542,7 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
     Item *show_item= group_concat_item->args[i];
     if (!show_item->const_item())
     {
-      Field *f= show_item->get_tmp_table_field();
+      Field *f= show_item->real_item()->get_tmp_table_field();
       char *sv= f->ptr;
       f->ptr= (char *)key + f->abs_offset;
       String *res= f->val_str(&tmp,&tmp2);
@@ -1709,7 +1709,7 @@ bool Item_func_group_concat::add()
     Item *show_item= args[i];
     if (!show_item->const_item())
     {
-      Field *f= show_item->get_tmp_table_field();
+      Field *f= show_item->real_item()->get_tmp_table_field();
       if (!f->is_null())
       {
         record_is_null= FALSE;      
