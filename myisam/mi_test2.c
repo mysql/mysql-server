@@ -148,15 +148,15 @@ int main(int argc, char *argv[])
   keyinfo[5].keysegs=1;
   keyinfo[5].flag = pack_type;
 
-  recinfo[0].type=pack_fields ? FIELD_SKIPP_PRESPACE : 0;
+  recinfo[0].type=pack_fields ? FIELD_SKIP_PRESPACE : 0;
   recinfo[0].length=7;
   recinfo[0].null_bit=0;
   recinfo[0].null_pos=0;
-  recinfo[1].type=pack_fields ? FIELD_SKIPP_PRESPACE : 0;
+  recinfo[1].type=pack_fields ? FIELD_SKIP_PRESPACE : 0;
   recinfo[1].length=5;
   recinfo[1].null_bit=0;
   recinfo[1].null_pos=0;
-  recinfo[2].type=pack_fields ? FIELD_SKIPP_PRESPACE : 0;
+  recinfo[2].type=pack_fields ? FIELD_SKIP_PRESPACE : 0;
   recinfo[2].length=9;
   recinfo[2].null_bit=0;
   recinfo[2].null_pos=0;
@@ -164,11 +164,11 @@ int main(int argc, char *argv[])
   recinfo[3].length=STANDARD_LENGTH-7-5-9-4;
   recinfo[3].null_bit=0;
   recinfo[3].null_pos=0;
-  recinfo[4].type=pack_fields ? FIELD_SKIPP_ZERO : 0;
+  recinfo[4].type=pack_fields ? FIELD_SKIP_ZERO : 0;
   recinfo[4].length=4;
   recinfo[4].null_bit=0;
   recinfo[4].null_pos=0;
-  recinfo[5].type=pack_fields ? FIELD_SKIPP_ENDSPACE : 0;
+  recinfo[5].type=pack_fields ? FIELD_SKIP_ENDSPACE : 0;
   recinfo[5].length=60;
   recinfo[5].null_bit=0;
   recinfo[5].null_pos=0;

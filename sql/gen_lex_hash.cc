@@ -20,7 +20,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__				// Skipp warnings in getopt.h
+#define __GNU_LIBRARY__				// Skip warnings in getopt.h
 #endif
 #include <getopt.h>
 #include "mysql_version.h"

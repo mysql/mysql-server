@@ -96,7 +96,7 @@ void key_copy(byte *key,TABLE *table,uint idx,uint key_length)
       length=min(key_length,key_part->length);
       set_if_smaller(blob_length,length);
       int2store(key,(uint) blob_length);
-      key+=2;					// Skipp length info
+      key+=2;					// Skip length info
       memcpy(key,pos,blob_length);
     }
     else

@@ -231,7 +231,7 @@ String *Item_func_concat_ws::val_str(String *str)
   for (i++; i < arg_count ; i++)
   {
     if (!(res2= args[i]->val_str(use_as_buff)) || !res2->length())
-      continue;					// Skipp NULL and empty string
+      continue;					// Skip NULL and empty string
 
     if (res->length() + sep_str->length() + res2->length() >
 	max_allowed_packet)
@@ -520,7 +520,7 @@ String *Item_func_insert::val_str(String *str)
   }
 #endif
   if (start > res->length()+1)
-    return res;					// Wrong param; skipp insert
+    return res;					// Wrong param; skip insert
   if (length > res->length()-start)
     length=res->length()-start;
   if (res->length() - length + res2->length() > max_allowed_packet)
@@ -1097,7 +1097,7 @@ void Item_func_soundex::fix_length_and_dec()
 
   /*
     If alpha, map input letter to soundex code.
-    If not alpha and remove_garbage is set then skipp to next char
+    If not alpha and remove_garbage is set then skip to next char
     else return 0
     */
 
@@ -1129,7 +1129,7 @@ String *Item_func_soundex::val_str(String *str)
   char *to= (char *) str_value.ptr();
   char *from= (char *) res->ptr(), *end=from+res->length();
 
-  while (from != end && isspace(*from)) // Skipp pre-space
+  while (from != end && isspace(*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &empty_string;		// No alpha characters.
@@ -1304,7 +1304,7 @@ String *Item_func_make_set::val_str(String *str)
     if (bits & 1)
     {
       String *res= (*ptr)->val_str(str);
-      if (res)					// Skipp nulls
+      if (res)					// Skip nulls
       {
 	if (!first_found)
 	{					// First argument

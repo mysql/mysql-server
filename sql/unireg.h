@@ -85,7 +85,7 @@
 #define MYF_RW MYF(MY_WME+MY_NABP)		/* Vid my_read & my_write */
 
 #define SPECIAL_USE_LOCKS	1		/* Lock used databases */
-#define SPECIAL_NO_NEW_FUNC	2		/* Skipp new functions */
+#define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
 #define SPECIAL_NEW_FUNC	4		/* New nonstandard functions */
 #define SPECIAL_WAIT_IF_LOCKED	8		/* Wait if locked database */
 #define SPECIAL_SAME_DB_NAME   16		/* form name = file name */

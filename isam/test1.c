@@ -19,7 +19,7 @@
 static void get_options(int argc, char *argv[]);
 
 static int rec_pointer_size=0,verbose=0,remove_ant=0,pack_keys=1,flags[50],
-  packed_field=FIELD_SKIPP_PRESPACE;
+  packed_field=FIELD_SKIP_PRESPACE;
 
 int main(int argc, char *argv[])
 {

@@ -781,7 +781,7 @@ int wild_case_compare(const char *str,const char *wildstr)
     if (! *wildstr ) DBUG_RETURN (*str != 0);
     if (*wildstr++ == wild_one)
     {
-      if (! *str++) DBUG_RETURN (1);	/* One char; skipp */
+      if (! *str++) DBUG_RETURN (1);	/* One char; skip */
     }
     else
     {						/* Found '*' */

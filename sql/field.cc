@@ -63,7 +63,7 @@ const char field_separator=',';
 *****************************************************************************/
 
 	/*
-	** Calculate length of number and it's parts
+	** Calculate length of number and its parts
 	** Increment cuted_fields if wrong number
 	*/
 
@@ -215,7 +215,7 @@ static bool test_if_real(const char *str,int length)
 
 /****************************************************************************
 ** Functions for the base classes
-** This is a unpacked number.
+** This is an unpacked number.
 ****************************************************************************/
 
 Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
@@ -368,7 +368,7 @@ bool Field::optimize_range()
 
 /****************************************************************************
 ** Functions for the Field_decimal class
-** This is a unpacked number.
+** This is an unpacked number.
 ****************************************************************************/
 
 void
@@ -410,7 +410,7 @@ void Field_decimal::store(const char *from,uint len)
   {
     fyllchar = '0';
     if (from != end)
-      while (*from == '0' && from != end-1)	// Skipp prezero
+      while (*from == '0' && from != end-1)	// Skip prezero
 	from++;
   }
   else
@@ -464,7 +464,7 @@ void Field_decimal::store(const char *from,uint len)
   if (tmp_dec--)
   {
     *to++ ='.';
-    if (decstr.nr_dec) from++;			// Skipp '.'
+    if (decstr.nr_dec) from++;			// Skip '.'
     for (i=(int) min(decstr.nr_dec,tmp_dec) ; i-- > 0 ; ) *to++ = *from++;
     for (i=(int) (tmp_dec-min(decstr.nr_dec,tmp_dec)) ; i-- > 0 ; ) *to++ = '0';
   }

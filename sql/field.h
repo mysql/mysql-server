@@ -31,7 +31,7 @@ struct st_cache_field;
 void field_conv(Field *to,Field *from);
 
 class Field {
-  Field(const Item &);				/* Prevent use of theese */
+  Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }

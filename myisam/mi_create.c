@@ -119,8 +119,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	    pack_reclength+=(1 << ((rec->length-mi_portable_sizeof_char_ptr)*8)); /* Max blob length */
 	}
       }
-      else if (type == FIELD_SKIPP_PRESPACE ||
-	       type == FIELD_SKIPP_ENDSPACE)
+      else if (type == FIELD_SKIP_PRESPACE ||
+	       type == FIELD_SKIP_ENDSPACE)
       {
 	if (pack_reclength != INT_MAX32)
 	  pack_reclength+= rec->length > 255 ? 2 : 1;
@@ -138,7 +138,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	  pack_reclength+=2;
 	}
       }
-      else if (type != FIELD_SKIPP_ZERO)
+      else if (type != FIELD_SKIP_ZERO)
       {
 	min_pack_length+=rec->length;
 	packed--;				/* Not a pack record type */
@@ -152,7 +152,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     while (rec != recinfo)
     {
       rec--;
-      if (rec->type == (int) FIELD_SKIPP_ZERO && rec->length == 1)
+      if (rec->type == (int) FIELD_SKIP_ZERO && rec->length == 1)
       {
 	rec->type=(int) FIELD_NORMAL;
 	packed--;

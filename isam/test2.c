@@ -115,17 +115,17 @@ int main(int argc, char *argv[])
   keyinfo[5].seg[1].base.type=0;
   keyinfo[5].base.flag = (uint8) (pack_type ? HA_PACK_KEY : 0);
 
-  recinfo[0].base.type=pack_fields ? FIELD_SKIPP_PRESPACE : 0;
+  recinfo[0].base.type=pack_fields ? FIELD_SKIP_PRESPACE : 0;
   recinfo[0].base.length=7;
-  recinfo[1].base.type=pack_fields ? FIELD_SKIPP_PRESPACE : 0;
+  recinfo[1].base.type=pack_fields ? FIELD_SKIP_PRESPACE : 0;
   recinfo[1].base.length=5;
-  recinfo[2].base.type=pack_fields ? FIELD_SKIPP_PRESPACE : 0;
+  recinfo[2].base.type=pack_fields ? FIELD_SKIP_PRESPACE : 0;
   recinfo[2].base.length=9;
   recinfo[3].base.type=FIELD_NORMAL;
   recinfo[3].base.length=STANDAR_LENGTH-7-5-9-4;
-  recinfo[4].base.type=pack_fields ? FIELD_SKIPP_ZERO : 0;
+  recinfo[4].base.type=pack_fields ? FIELD_SKIP_ZERO : 0;
   recinfo[4].base.length=4;
-  recinfo[5].base.type=pack_fields ? FIELD_SKIPP_ENDSPACE : 0;
+  recinfo[5].base.type=pack_fields ? FIELD_SKIP_ENDSPACE : 0;
   recinfo[5].base.length=60;
   if (use_blob)
   {

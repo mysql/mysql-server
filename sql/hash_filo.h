@@ -24,7 +24,7 @@
 #define  HASH_FILO_H
 
 #ifdef __GNUC__
-#pragma interface			/* gcc class implementation */
+#pragma interface			/* gcc class interface */
 #endif
 
 class hash_filo_element

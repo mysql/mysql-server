@@ -291,7 +291,7 @@ bool part_of_cond(COND *cond,Field *field)
 static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
 {
   if (!(field->flags & PART_KEY_FLAG))
-    return 0;				// Not part of a key. Skipp it
+    return 0;				// Not part of a key. Skip it
 
   TABLE *table=field->table;
   if (table->file->option_flag() & HA_WRONG_ASCII_ORDER)

@@ -774,7 +774,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_REGISTER_SLAVE:
   {
-    if(register_slave(thd, (uchar*)packet, packet_length))
+    if (register_slave(thd, (uchar*)packet, packet_length))
       send_error(&thd->net);
     else
       send_ok(&thd->net);
@@ -791,7 +791,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       *tbl_name++ = 0;
       memcpy(tbl_name, packet + db_len + 2, tbl_len);
       tbl_name[tbl_len] = 0;
-      if(mysql_table_dump(thd, db, tbl_name, -1))
+      if (mysql_table_dump(thd, db, tbl_name, -1))
 	send_error(&thd->net); // dump to NET
 
       break;
@@ -928,7 +928,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_BINLOG_DUMP:
     {
       slow_command = TRUE;
-      if(check_access(thd, FILE_ACL, any_db))
+      if (check_access(thd, FILE_ACL, any_db))
 	break;
       mysql_log.write(thd,command, 0);
 
@@ -1177,21 +1177,21 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_NEW_MASTER:
   {
-    if(check_access(thd, FILE_ACL, any_db))
+    if (check_access(thd, FILE_ACL, any_db))
       goto error;
     res = show_new_master(thd);
     break;
   }
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
-    if(check_access(thd, FILE_ACL, any_db))
+    if (check_access(thd, FILE_ACL, any_db))
       goto error;
     res = show_slave_hosts(thd);
     break;
   }
   case SQLCOM_SHOW_BINLOG_EVENTS:
   {
-    if(check_access(thd, FILE_ACL, any_db))
+    if (check_access(thd, FILE_ACL, any_db))
       goto error;
     res = show_binlog_events(thd);
     break;
@@ -1217,7 +1217,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_CHANGE_MASTER:
   {
-    if(check_access(thd, PROCESS_ACL, any_db))
+    if (check_access(thd, PROCESS_ACL, any_db))
       goto error;
     res = change_master(thd);
     break;
@@ -1238,7 +1238,7 @@ mysql_execute_command(void)
   }
     
   case SQLCOM_LOAD_MASTER_DATA: // sync with master
-    if(check_process_priv(thd))
+    if (check_process_priv(thd))
       goto error;
     res = load_master_data(thd);
     break;
@@ -2052,9 +2052,9 @@ mysql_execute_command(void)
 				       GRANT_ACL),
 				      tables))
 	goto error;
-      res = mysql_table_grant(thd,tables,lex->users_list, lex->columns,
-			      lex->grant, lex->sql_command == SQLCOM_REVOKE);
-      if (!res)
+      if (!(res = mysql_table_grant(thd,tables,lex->users_list, lex->columns,
+				    lex->grant,
+				    lex->sql_command == SQLCOM_REVOKE)))
       {
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
@@ -2783,7 +2783,7 @@ static void remove_escape(char *name)
     }
 #endif
     if (*name == '\\' && name[1])
-      name++;					// Skipp '\\'
+      name++;					// Skip '\\'
     *to++= *name;
   }
   *to=0;

@@ -112,14 +112,18 @@ void get_pass(char* pw, int len)
     fclose(fp);
     while (pw<pw_end)
     {
-      *pw++='a'+((uint)*pw % 26);
+      char tmp= 'a'+((uint)*pw % 26);
+      *pw++= tmp;
     }
   }
   else
   {
     srand(time(NULL));
     while (pw<pw_end)
-      *pw++='a'+((uint)rand() % 26);
+    {
+      char tmp= 'a'+((uint)*pw % 26);
+      *pw++= tmp;
+    }
   }
   *pw_end=0;
 }

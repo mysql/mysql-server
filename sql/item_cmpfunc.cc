@@ -955,7 +955,7 @@ void Item_func_in::fix_length_and_dec()
     for (uint i=0 ; i < arg_count ; i++)
     {
       array->set(j,args[i]);
-      if (!args[i]->null_value)			// Skipp NULL values
+      if (!args[i]->null_value)			// Skip NULL values
 	j++;
     }
     if ((array->used_count=j))

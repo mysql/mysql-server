@@ -316,7 +316,7 @@ int ha_isam::create(const char *name, register TABLE *form,
       {
 	/* skip null fields */
 	if (!(temp_length= (*field)->pack_length()))
-	  continue;				/* Skipp null-fields */
+	  continue;				/* Skip null-fields */
 	if (! found || fieldpos < minpos ||
 	    (fieldpos == minpos && temp_length < length))
 	{
@@ -344,15 +344,15 @@ int ha_isam::create(const char *name, register TABLE *form,
     else if (!(options & HA_OPTION_PACK_RECORD))
       recinfo_pos->base.type= (int) FIELD_NORMAL;
     else if (found->zero_pack())
-      recinfo_pos->base.type= (int) FIELD_SKIPP_ZERO;
+      recinfo_pos->base.type= (int) FIELD_SKIP_ZERO;
     else
       recinfo_pos->base.type= (int) ((length <= 3 ||
 				      (found->flags & ZEROFILL_FLAG)) ?
 				     FIELD_NORMAL :
 				     found->type() == FIELD_TYPE_STRING ||
 				     found->type() == FIELD_TYPE_VAR_STRING ?
-				     FIELD_SKIPP_ENDSPACE :
-				     FIELD_SKIPP_PRESPACE);
+				     FIELD_SKIP_ENDSPACE :
+				     FIELD_SKIP_PRESPACE);
     recinfo_pos++ ->base.length=(uint16) length;
     recpos=minpos+length;
     DBUG_PRINT("loop",("length: %d  type: %d",

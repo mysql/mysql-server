@@ -432,7 +432,7 @@ uint _nisam_rec_pack(N_INFO *info, register byte *to, register const byte *from)
 	blob++;
 	from+=sizeof(char*);			/* Skipp blob-pointer */
       }
-      else if (type == FIELD_SKIPP_ZERO)
+      else if (type == FIELD_SKIP_ZERO)
       {
 	if (memcmp((byte*) from,zero_string,length) == 0)
 	  flag|=bit;
@@ -441,11 +441,11 @@ uint _nisam_rec_pack(N_INFO *info, register byte *to, register const byte *from)
 	  memcpy((byte*) to,from,(size_t) length); to+=length;
 	}
       }
-      else if (type == FIELD_SKIPP_ENDSPACE ||
-	       type == FIELD_SKIPP_PRESPACE)
+      else if (type == FIELD_SKIP_ENDSPACE ||
+	       type == FIELD_SKIP_PRESPACE)
       {
 	pos= (byte*) from; end= (byte*) from + length;
-	if (type == FIELD_SKIPP_ENDSPACE)
+	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > from && *(end-1) == ' ')
 	    end--;
@@ -532,7 +532,7 @@ my_bool _nisam_rec_check(N_INFO *info,const char *from)
 	  to+=length+ blob_length;
 	from+=sizeof(char*);
       }
-      else if (type == FIELD_SKIPP_ZERO)
+      else if (type == FIELD_SKIP_ZERO)
       {
 	if (memcmp((byte*) from,zero_string,length) == 0)
 	{
@@ -542,11 +542,11 @@ my_bool _nisam_rec_check(N_INFO *info,const char *from)
 	else
 	  to+=length;
       }
-      else if (type == FIELD_SKIPP_ENDSPACE ||
-	       type == FIELD_SKIPP_PRESPACE)
+      else if (type == FIELD_SKIP_ENDSPACE ||
+	       type == FIELD_SKIP_PRESPACE)
       {
 	pos= (byte*) from; end= (byte*) from + length;
-	if (type == FIELD_SKIPP_ENDSPACE)
+	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > from && *(end-1) == ' ')
 	    end--;
@@ -641,10 +641,10 @@ uint _nisam_rec_unpack(register N_INFO *info, register byte *to, byte *from,
 	  bzero((byte*) to,rec_length+sizeof(char*));
 	  to+=sizeof(char*);
 	}
-	else if (type == FIELD_SKIPP_ZERO)
+	else if (type == FIELD_SKIP_ZERO)
 	  bzero((byte*) to,rec_length);
-	else if (type == FIELD_SKIPP_ENDSPACE ||
-		 type == FIELD_SKIPP_PRESPACE)
+	else if (type == FIELD_SKIP_ENDSPACE ||
+		 type == FIELD_SKIP_PRESPACE)
 	{
 	  if (rec->base.length > 255 && *from & 128)
 	  {
@@ -662,7 +662,7 @@ uint _nisam_rec_unpack(register N_INFO *info, register byte *to, byte *from,
 	  if (length >= rec_length ||
 	      min_pack_length + length > (uint) (from_end - from))
 	    goto err;
-	  if (type == FIELD_SKIPP_ENDSPACE)
+	  if (type == FIELD_SKIP_ENDSPACE)
 	  {
 	    memcpy(to,(byte*) from,(size_t) length);
 	    bfill((byte*) to+length,rec_length-length,' ');
@@ -690,7 +690,7 @@ uint _nisam_rec_unpack(register N_INFO *info, register byte *to, byte *from,
       }
       else
       {
-	if (type == FIELD_SKIPP_ENDSPACE || type == FIELD_SKIPP_PRESPACE)
+	if (type == FIELD_SKIP_ENDSPACE || type == FIELD_SKIP_PRESPACE)
 	  min_pack_length--;
 	if (min_pack_length + rec_length > (uint) (from_end - from))
 	  goto err;

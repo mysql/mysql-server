@@ -3988,7 +3988,7 @@ static void get_options(int argc,char **argv)
       exit(1);
     }
   }
-  // Skipp empty arguments (from shell)
+  // Skip empty arguments (from shell)
   while (argc != optind && !argv[optind][0])
     optind++;
   if (argc != optind)
@@ -4589,7 +4589,7 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
     if (!*(end=strcend(pos,',')))		/* Let end point at fieldend */
     {
       while (end > pos && end[-1] == ' ')
-	end--;					/* Skipp end-space */
+	end--;					/* Skip end-space */
       found_end=1;
     }
     found_int=0; found_count=0;

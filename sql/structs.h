@@ -170,7 +170,7 @@ typedef struct	st_lex_user {
 #define REG_MAY_BE_UPDATED	64
 #define REG_AUTO_UPDATE		64	/* Used in D-forms for scroll-tables */
 #define REG_OVERWRITE		128
-#define REG_SKIPP_DUPP		256
+#define REG_SKIP_DUP		256
 
 	/* Bits in form->status */
 #define STATUS_NO_RECORD	(1+2)	/* Record isn't usably */

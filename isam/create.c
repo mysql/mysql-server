@@ -96,8 +96,8 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
 	    pack_reclength+=sizeof(char*)+(1 << (rec->base.length*8));
 	}
       }
-      else if (type == FIELD_SKIPP_PRESPACE ||
-	       type == FIELD_SKIPP_ENDSPACE)
+      else if (type == FIELD_SKIP_PRESPACE ||
+	       type == FIELD_SKIP_ENDSPACE)
       {
 	if (pack_reclength != NI_POS_ERROR)
 	  pack_reclength+= rec->base.length > 255 ? 2 : 1;
@@ -105,7 +105,7 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
       }
       else if (type == FIELD_ZERO)
 	packed--;
-      else if (type != FIELD_SKIPP_ZERO)
+      else if (type != FIELD_SKIP_ZERO)
       {
 	min_pack_length+=rec->base.length;
 	packed--;				/* Not a pack record type */
@@ -119,7 +119,7 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
     while (rec != recinfo)
     {
       rec--;
-      if (rec->base.type == (int) FIELD_SKIPP_ZERO && rec->base.length == 1)
+      if (rec->base.type == (int) FIELD_SKIP_ZERO && rec->base.length == 1)
       {
 	rec->base.type=(int) FIELD_NORMAL;
 	packed--;

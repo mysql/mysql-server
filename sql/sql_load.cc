@@ -375,7 +375,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
       DBUG_RETURN(1);
     if (table->next_number_field)
       table->next_number_field->reset();	// Clear for next record
-    if (read_info.next_line())			// Skipp to next line
+    if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)
       thd->cuted_fields++;			/* To long row */
@@ -451,7 +451,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       DBUG_RETURN(1);
     if (table->next_number_field)
       table->next_number_field->reset();	// Clear for next record
-    if (read_info.next_line())			// Skipp to next line
+    if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)
       thd->cuted_fields++;			/* To long row */
@@ -602,10 +602,10 @@ int READ_INFO::read_field()
   if (found_end_of_line)
     return 1;					// One have to call next_line
 
-  /* Skipp until we find 'line_start' */
+  /* Skip until we find 'line_start' */
 
   if (start_of_line)
-  {						// Skipp until line_start
+  {						// Skip until line_start
     start_of_line=0;
     if (find_start_of_fields())
       return 1;
@@ -757,7 +757,7 @@ int READ_INFO::read_fixed_length()
     return 1;					// One have to call next_line
 
   if (start_of_line)
-  {						// Skipp until line_start
+  {						// Skip until line_start
     start_of_line=0;
     if (find_start_of_fields())
       return 1;
