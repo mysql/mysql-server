@@ -317,6 +317,7 @@ NDBCLUSTER	YES/NO	Clustered, fault-tolerant, memory-based tables
 NDB	YES/NO	Alias for NDBCLUSTER
 EXAMPLE	YES/NO	Example storage engine
 ARCHIVE	YES/NO	Archive storage engine
+CSV	YES/NO	CSV storage engine
 drop table if exists tx;
 prepare stmt1 from ' drop table if exists tx ' ;
 execute stmt1 ;
