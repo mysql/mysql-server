@@ -2145,7 +2145,7 @@ int Field_longlong::store(double nr)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr >= (double) LONGLONG_MAX)
+    else if (nr >= (double) (ulonglong) LONGLONG_MAX)
     {
       res=(longlong) LONGLONG_MAX;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);

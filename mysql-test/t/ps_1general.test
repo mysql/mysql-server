@@ -289,13 +289,13 @@ prepare stmt4 from ' show index from t2 from test ';
 execute stmt4;
 prepare stmt4 from ' show table status from test like ''t2%'' ';
 # egalize date and time values
---replace_column 12 # 13 # 14 #
+--replace_column  7 # 8 # 9 # 12 # 13 # 14 #
 # Bug#4288 : prepared statement 'show table status ..', wrong output on execute
 execute stmt4;
 # try the same with the big table
 prepare stmt4 from ' show table status from test like ''t9%'' ';
 # egalize date and time values
---replace_column 12 # 13 # 14 #
+--replace_column  7 # 8 # 9 # 12 # 13 # 14 #
 # Bug#4288
 execute stmt4;
 prepare stmt4 from ' show status like ''Threads_running'' ';
