@@ -814,14 +814,14 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(6));
 INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello ');
 INSERT INTO t1 (col1) VALUES ('hellobob');
-ERROR 01000: Data truncated for column 'col1' at row 1
+ERROR 22001: Data too long for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES ('hellobob');
 ERROR 01000: Data truncated for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES ('hello  ');
 Warnings:
 Note	1265	Data truncated for column 'col2' at row 1
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
-ERROR 01000: Data truncated for column 'col1' at row 2
+ERROR 22001: Data too long for column 'col1' at row 2
 UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';
 ERROR 01000: Data truncated for column 'col2' at row 2
 INSERT IGNORE INTO t1 VALUES ('hellobob', 'hellobob');
