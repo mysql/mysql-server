@@ -116,7 +116,7 @@ public:
   }
 
   virtual bool evaluate(SimpleCpcClient* c,const SimpleCpcClient::Process & p){
-    return p.m_id == id && c == host;
+    return p.m_id == (int)id && c == host;
   }
 };
 

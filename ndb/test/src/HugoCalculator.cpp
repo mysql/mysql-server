@@ -157,7 +157,7 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 		   << ", NdbDict::Column::getLength(): " << attr->getLength()
 		   << endl;
 	    const char* buf2 = pRow->attributeStore(i)->aRef();
-	    for (int j = 0; j < pRow->attributeStore(i)->arraySize(); j++)
+	    for (Uint32 j = 0; j < pRow->attributeStore(i)->arraySize(); j++)
 	    {
 	      g_err << j << ":" << buf[j] << "[" << buf2[j] << "]";
 	      if (buf[j] != buf2[j])

@@ -16,8 +16,8 @@
 
 
 
+#include <ndb_global.h>
 #include "TimeModule.hpp"
-#include <time.h>
 
 static const char* cMonth[]  = { "x", "January", "February", "Mars", "April", "May", "June",
 				 "July", "August", "September", "October", "November", "December"};

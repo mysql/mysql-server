@@ -66,7 +66,6 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
   /**
    * Fetch configuration from management server
    */
-  char buf[255];
   ConfigRetriever cr;
 
 
