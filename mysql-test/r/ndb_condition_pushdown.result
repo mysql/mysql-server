@@ -29,19 +29,19 @@ time_stamp timestamp,
 PRIMARY KEY (auto)
 ) engine=ndb;
 insert into t1 values 
-(NULL,"aaaa","aaaa","aaaa","aaaa",-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
+(NULL,"aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
 b'001','one','one',
 '1901-01-01','1901', 
 '01:01:01','1901-01-01 01:01:01',NULL),
-(NULL,"bbbb","bbbb","bbbb","bbbb",-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
+(NULL,"bbbb","bbbb",0xBBBB,0xBBBB,-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
 b'010','two','one,two',
 '1902-02-02','1902', 
 '02:02:02','1902-02-02 02:02:02',NULL),
-(NULL,"cccc","cccc","cccc","cccc",-3,-3,-3,-3,-3,3.3,3.3,3.3,3,3,3,3,3,
+(NULL,"cccc","cccc",0xCCCC,0xCCCC,-3,-3,-3,-3,-3,3.3,3.3,3.3,3,3,3,3,3,
 b'011','three','one,two,three',
 '1903-03-03','1903', 
 '03:03:03','1903-03-03 03:03:03',NULL),
-(NULL,"dddd","dddd","dddd","dddd",-4,-4,-4,-4,-4,4.4,4.4,4.4,4,4,4,4,4,
+(NULL,"dddd","dddd",0xDDDD,0xDDDD,-4,-4,-4,-4,-4,4.4,4.4,4.4,4,4,4,4,4,
 b'100','four','one,two,three,four',
 '1904-04-04','1904', 
 '04:04:04','1904-04-04 04:04:04',NULL);
@@ -56,8 +56,8 @@ set engine_condition_pushdown = off;
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
-bin = "aaaa" and 
-vbin = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and 
 tiny = -1 and 
 short = -1 and 
 medium = -1 and 
@@ -84,8 +84,8 @@ auto
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
-bin != "aaaa" and 
-vbin != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and 
 tiny != -1 and 
 short != -1 and 
 medium != -1 and 
@@ -114,8 +114,8 @@ auto
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
-bin > "aaaa" and 
-vbin > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and 
 tiny < -1 and 
 short < -1 and 
 medium < -1 and 
@@ -144,8 +144,8 @@ auto
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
-bin >= "aaaa" and 
-vbin >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and 
 tiny <= -1 and 
 short <= -1 and 
 medium <= -1 and 
@@ -175,8 +175,8 @@ auto
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
-bin < "dddd" and 
-vbin < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and 
 tiny > -4 and 
 short > -4 and 
 medium > -4 and 
@@ -205,8 +205,8 @@ auto
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
-bin <= "dddd" and 
-vbin <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and 
 tiny >= -4 and 
 short >= -4 and 
 medium >= -4 and 
@@ -235,17 +235,13 @@ auto
 4
 select auto from t1 where 
 string like "b%" and
-vstring like "b%" and
-bin like "b%" and
-vbin like "b%"
+vstring like "b%"
 order by auto;
 auto
 2
 select auto from t1 where 
 string not like "b%" and
-vstring not like "b%" and
-bin not like "b%" and
-vbin not like "b%"
+vstring not like "b%"
 order by auto;
 auto
 1
@@ -281,8 +277,8 @@ set engine_condition_pushdown = on;
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
-/* bin = "aaaa" and 
-vbin = "aaaa" and */
+bin = 0xAAAA and 
+vbin = 0xAAAA and
 tiny = -1 and 
 short = -1 and 
 medium = -1 and 
@@ -309,8 +305,8 @@ auto
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
-/* bin != "aaaa" and 
-vbin != "aaaa" and */
+bin != 0xAAAA and 
+vbin != 0xAAAA and
 tiny != -1 and 
 short != -1 and 
 medium != -1 and 
@@ -339,8 +335,8 @@ auto
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
-/* bin > "aaaa" and 
-vbin > "aaaa" and */
+bin > 0xAAAA and 
+vbin > 0xAAAA and
 tiny < -1 and 
 short < -1 and 
 medium < -1 and 
@@ -369,8 +365,8 @@ auto
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
-/* bin >= "aaaa" and 
-vbin >= "aaaa" and */
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
 tiny <= -1 and 
 short <= -1 and 
 medium <= -1 and 
@@ -400,8 +396,8 @@ auto
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
-/* bin < "dddd" and 
-vbin < "dddd" and */
+bin < 0xDDDD and 
+vbin < 0xDDDD and
 tiny > -4 and 
 short > -4 and 
 medium > -4 and 
@@ -430,8 +426,8 @@ auto
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
-/* bin <= "dddd" and 
-vbin <= "dddd" and */
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
 tiny >= -4 and 
 short >= -4 and 
 medium >= -4 and 
@@ -462,8 +458,8 @@ create index medium_index on t1(medium);
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
-/* bin = "aaaa" and 
-vbin = "aaaa" and */
+bin = 0xAAAA and 
+vbin = 0xAAAA and
 tiny = -1 and 
 short = -1 and 
 medium = -1 and 
@@ -490,8 +486,8 @@ auto
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
-/* bin != "aaaa" and 
-vbin != "aaaa" and */
+bin != 0xAAAA and 
+vbin != 0xAAAA and
 tiny != -1 and 
 short != -1 and 
 medium != -1 and 
@@ -520,8 +516,8 @@ auto
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
-/* bin > "aaaa" and 
-vbin > "aaaa" and */
+bin > 0xAAAA and 
+vbin > 0xAAAA and
 tiny < -1 and 
 short < -1 and 
 medium < -1 and 
@@ -550,8 +546,8 @@ auto
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
-/* bin >= "aaaa" and 
-vbin >= "aaaa" and */
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
 tiny <= -1 and 
 short <= -1 and 
 medium <= -1 and 
@@ -581,8 +577,8 @@ auto
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
-/* bin < "dddd" and 
-vbin < "dddd" and */
+bin < 0xDDDD and 
+vbin < 0xDDDD and
 tiny > -4 and 
 short > -4 and 
 medium > -4 and 
@@ -611,8 +607,8 @@ auto
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
-/* bin <= "dddd" and 
-vbin <= "dddd" and */
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
 tiny >= -4 and 
 short >= -4 and 
 medium >= -4 and 
@@ -641,17 +637,13 @@ auto
 4
 select auto from t1 where 
 string like "b%" and
-vstring like "b%" /* and
-bin like "b%" and
-vbin like "b%" */
+vstring like "b%"
 order by auto;
 auto
 2
 select auto from t1 where 
 string not like "b%" and
-vstring not like "b%"/* and
-bin not like "b%" and
-vbin not like "b%" */
+vstring not like "b%"
 order by auto;
 auto
 1
