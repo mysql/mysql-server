@@ -237,6 +237,13 @@ insert into t2 values ("a", 1, 1.1), ("b", 2, 1.2), ("c", 3, 1.3)|
 drop procedure if exists sub1|
 create procedure sub1(id char(16), x int)
 insert into test.t1 values (id, x)|
+drop procedure if exists sub2|
+create procedure sub2(id char(16))
+begin
+declare x int;
+set x = (select sum(t.i) from test.t2 t);
+insert into test.t1 values (id, x);
+end|
 drop procedure if exists sub3|
 create function sub3(i int) returns int
 return i+1|
@@ -244,16 +251,19 @@ call sub1("sub1a", (select 7))|
 call sub1("sub1b", (select max(i) from t2))|
 call sub1("sub1c", (select i,d from t2 limit 1))|
 call sub1("sub1d", (select 1 from (select 1) a))|
+call sub2("sub2");
 select * from t1|
 id	data
 sub1a	7
 sub1b	3
 sub1c	1
 sub1d	1
+sub2	6
 select sub3((select max(i) from t2))|
 sub3((select max(i) from t2))
 4
 drop procedure sub1|
+drop procedure sub2|
 drop function sub3|
 delete from t2|
 drop procedure if exists a0|
@@ -269,6 +279,7 @@ sub1a	7
 sub1b	3
 sub1c	1
 sub1d	1
+sub2	6
 a0	2
 a0	1
 a0	0
@@ -1045,6 +1056,493 @@ select row_count()|
 row_count()
 -1
 drop procedure rc|
+drop function if exists f0|
+drop function if exists f1|
+drop function if exists f2|
+drop function if exists f3|
+drop function if exists f4|
+drop function if exists f5|
+drop function if exists f6|
+drop function if exists f7|
+drop function if exists f8|
+drop view if exists v0|
+drop view if exists v1|
+drop view if exists v2|
+delete from t1|
+delete from t2|
+insert into t1 values ("a", 1), ("b", 2) |
+insert into t2 values ("a", 1, 1.0), ("b", 2, 2.0), ("c", 3, 3.0) |
+create function f1() returns int
+return (select sum(data) from t1)|
+select f1()|
+f1()
+3
+select id, f1() from t1|
+id	f1()
+a	3
+b	3
+create function f2() returns int
+return (select data from t1 where data <= (select sum(data) from t1) limit 1)|
+select f2()|
+f2()
+1
+select id, f2() from t1|
+id	f2()
+a	1
+b	1
+create function f3() returns int
+begin
+declare n int;
+declare m int;
+set n:= (select min(data) from t1);
+set m:= (select max(data) from t1);
+return n < m;
+end|
+select f3()|
+f3()
+1
+select id, f3() from t1|
+id	f3()
+a	1
+b	1
+select f1(), f3()|
+f1()	f3()
+3	1
+select id, f1(), f3() from t1|
+id	f1()	f3()
+a	3	1
+b	3	1
+create function f4() returns double 
+return (select d from t1, t2 where t1.data = t2.i and t1.id= "b")|
+select f4()|
+f4()
+2
+select s, f4() from t2|
+s	f4()
+a	2
+b	2
+c	2
+create function f5(i int) returns int
+begin
+if i <= 0 then
+return 0;
+elseif i = 1  then
+return (select count(*) from t1 where data = i);
+else
+return (select count(*) + f5( i - 1) from t1 where data = i);
+end if;
+end|
+select f5(1)|
+f5(1)
+1
+select f5(2)|
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+create function f6() returns int
+begin
+declare n int;
+set n:= f1();
+return (select count(*) from t1 where data <= f7() and data <= n);
+end|
+create function f7() returns int
+return (select sum(data) from t1 where data <= f1())|
+select f6()|
+f6()
+2
+select id, f6() from t1|
+id	f6()
+a	2
+b	2
+create view v1 (a) as select f1()|
+select * from v1|
+a
+3
+select id, a from t1, v1|
+id	a
+a	3
+b	3
+select * from v1, v1 as v|
+a	a
+3	3
+create view v2 (a) as select a*10 from v1|
+select * from v2|
+a
+30
+select id, a from t1, v2|
+id	a
+a	30
+b	30
+select * from v1, v2|
+a	a
+3	30
+create function f8 () returns int
+return (select count(*) from v2)|
+select *, f8() from v1|
+a	f8()
+3	1
+drop function f1|
+select * from v1|
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+create function f1() returns int
+return (select sum(data) from t1) + (select sum(data) from v1)|
+drop function f1|
+create function f1() returns int
+return (select sum(data) from t1)|
+create function f0() returns int
+return (select * from (select 100) as r)|
+select f0()|
+f0()
+100
+select *, f0() from (select 1) as t|
+1	f0()
+1	100
+create view v0 as select f0()|
+select * from v0|
+f0()
+100
+select *, f0() from v0|
+f0()	f0()
+100	100
+lock tables t1 read, t1 as t11 read, mysql.proc read|
+select f3()|
+f3()
+1
+select id, f3() from t1 as t11|
+id	f3()
+a	1
+b	1
+select f0()|
+f0()
+100
+select * from v0|
+f0()
+100
+select *, f0() from v0, (select 123) as d1|
+f0()	123	f0()
+100	123	100
+select id, f3() from t1|
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+select f4()|
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables|
+lock tables v2 read, mysql.proc read|
+select * from v2|
+a
+30
+select * from v1|
+a
+3
+select * from v1, v2|
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+select f4()|
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables|
+drop function f0|
+drop function f1|
+drop function f2|
+drop function f3|
+drop function f4|
+drop function f5|
+drop function f6|
+drop function f7|
+drop function f8|
+drop view v0|
+drop view v1|
+drop view v2|
+delete from t1 |
+delete from t2 |
+drop table if exists fac|
+create table fac (n int unsigned not null primary key, f bigint unsigned)|
+drop procedure if exists ifac|
+create procedure ifac(n int unsigned)
+begin
+declare i int unsigned default 1;
+if n > 20 then
+set n = 20;		# bigint overflow otherwise
+end if;
+while i <= n do
+begin
+insert into test.fac values (i, fac(i));
+set i = i + 1;
+end;
+end while;
+end|
+call ifac(20)|
+select * from fac|
+n	f
+1	1
+2	2
+3	6
+4	24
+5	120
+6	720
+7	5040
+8	40320
+9	362880
+10	3628800
+11	39916800
+12	479001600
+13	6227020800
+14	87178291200
+15	1307674368000
+16	20922789888000
+17	355687428096000
+18	6402373705728000
+19	121645100408832000
+20	2432902008176640000
+drop table fac|
+show function status like '%f%'|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+drop procedure ifac|
+drop function fac|
+show function status like '%f%'|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+drop table if exists primes|
+create table primes (
+i int unsigned not null primary key,
+p bigint unsigned not null
+)|
+insert into primes values
+( 0,   3), ( 1,   5), ( 2,   7), ( 3,  11), ( 4,  13),
+( 5,  17), ( 6,  19), ( 7,  23), ( 8,  29), ( 9,  31),
+(10,  37), (11,  41), (12,  43), (13,  47), (14,  53),
+(15,  59), (16,  61), (17,  67), (18,  71), (19,  73),
+(20,  79), (21,  83), (22,  89), (23,  97), (24, 101),
+(25, 103), (26, 107), (27, 109), (28, 113), (29, 127),
+(30, 131), (31, 137), (32, 139), (33, 149), (34, 151),
+(35, 157), (36, 163), (37, 167), (38, 173), (39, 179),
+(40, 181), (41, 191), (42, 193), (43, 197), (44, 199)|
+drop procedure if exists opp|
+create procedure opp(n bigint unsigned, out pp bool)
+begin
+declare r double;
+declare b, s bigint unsigned default 0;
+set r = sqrt(n);
+again:
+loop
+if s = 45 then
+set b = b+200, s = 0;
+else
+begin
+declare p bigint unsigned;
+select t.p into p from test.primes t where t.i = s;
+if b+p > r then
+set pp = 1;
+leave again;
+end if;
+if mod(n, b+p) = 0 then
+set pp = 0;
+leave again;
+end if;
+set s = s+1;
+end;
+end if;
+end loop;
+end|
+drop procedure if exists ip|
+create procedure ip(m int unsigned)
+begin
+declare p bigint unsigned;
+declare i int unsigned;
+set i=45, p=201;
+while i < m do
+begin
+declare pp bool default 0;
+call opp(p, pp);
+if pp then
+insert into test.primes values (i, p);
+set i = i+1;
+end if;
+set p = p+2;
+end;
+end while;
+end|
+show create procedure opp|
+Procedure	sql_mode	Create Procedure
+opp		CREATE PROCEDURE `test`.`opp`(n bigint unsigned, out pp bool)
+begin
+declare r double;
+declare b, s bigint unsigned default 0;
+set r = sqrt(n);
+again:
+loop
+if s = 45 then
+set b = b+200, s = 0;
+else
+begin
+declare p bigint unsigned;
+select t.p into p from test.primes t where t.i = s;
+if b+p > r then
+set pp = 1;
+leave again;
+end if;
+if mod(n, b+p) = 0 then
+set pp = 0;
+leave again;
+end if;
+set s = s+1;
+end;
+end if;
+end loop;
+end
+show procedure status like '%p%'|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call ip(200)|
+select * from primes where i=45 or i=100 or i=199|
+i	p
+45	211
+100	557
+199	1229
+drop table primes|
+drop procedure opp|
+drop procedure ip|
+show procedure status like '%p%'|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+drop table if exists fib|
+create table fib ( f bigint unsigned not null )|
+insert into fib values (1), (1)|
+drop procedure if exists fib|
+create procedure fib(n int unsigned)
+begin
+if n > 0 then
+begin
+declare x, y bigint unsigned;
+declare c cursor for select f from fib order by f desc limit 2;
+open c;
+fetch c into y;
+fetch c into x;
+close c;
+insert into fib values (x+y);
+call fib(n-1);
+end;
+end if;
+end|
+call fib(20)|
+select * from fib order by f asc|
+f
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+144
+233
+377
+610
+987
+1597
+2584
+4181
+6765
+10946
+17711
+drop table fib|
+drop procedure fib|
+drop procedure if exists bar|
+create procedure bar(x char(16), y int)
+comment "111111111111" sql security invoker
+insert into test.t1 values (x, y)|
+show procedure status like 'bar'|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
+alter procedure bar comment "2222222222" sql security definer|
+alter procedure bar comment "3333333333"|
+alter procedure bar|
+show create procedure bar|
+Procedure	sql_mode	Create Procedure
+bar		CREATE PROCEDURE `test`.`bar`(x char(16), y int)
+    COMMENT '3333333333'
+insert into test.t1 values (x, y)
+show procedure status like 'bar'|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
+drop procedure bar|
+drop procedure if exists p1|
+create procedure p1 ()
+select (select s1 from t3) from t3|
+create table t3 (s1 int)|
+call p1()|
+(select s1 from t3)
+insert into t3 values (1)|
+call p1()|
+(select s1 from t3)
+1
+drop procedure p1|
+drop table t3|
+drop function if exists foo|
+create function `foo` () returns int
+return 5|
+select `foo` ()|
+`foo` ()
+5
+drop function `foo`|
+drop function if exists t1max|
+Warnings:
+Note	1305	FUNCTION t1max does not exist
+create function t1max() returns int
+begin
+declare x int;
+select max(data) into x from t1;
+return x;
+end|
+insert into t1 values ("foo", 3), ("bar", 2), ("zip", 5), ("zap", 1)|
+select t1max()|
+t1max()
+5
+drop function t1max|
+drop table if exists t3|
+create table t3 (
+v char(16) not null primary key,
+c int unsigned not null
+)|
+create function getcount(s char(16)) returns int
+begin
+declare x int;
+select count(*) into x from t3 where v = s;
+if x = 0 then
+insert into t3 values (s, 1);
+else
+update t3 set c = c+1 where v = s;
+end if;
+return x;
+end|
+select * from t1 where data = getcount("bar")|
+id	data
+zap	1
+select * from t3|
+v	c
+bar	4
+select getcount("zip")|
+getcount("zip")
+0
+select getcount("zip")|
+getcount("zip")
+1
+select * from t3|
+v	c
+bar	4
+zip	2
+select getcount(id) from t1 where data = 3|
+getcount(id)
+0
+select getcount(id) from t1 where data = 5|
+getcount(id)
+1
+select * from t3|
+v	c
+bar	4
+zip	3
+foo	1
+drop table t3|
+drop function getcount|
 drop procedure if exists bug822|
 create procedure bug822(a_id char(16), a_data int)
 begin
@@ -1054,6 +1552,7 @@ if n = 0 then
 insert into t1 (id, data) values (a_id, a_data);
 end if;
 end|
+delete from t1|
 call bug822('foo', 42)|
 call bug822('foo', 42)|
 call bug822('bar', 666)|
@@ -1177,56 +1676,6 @@ select @x2|
 @x2
 2
 drop procedure bug2260|
-drop procedure if exists bug2267_1|
-create procedure bug2267_1()
-begin
-show procedure status;
-end|
-drop procedure if exists bug2267_2|
-create procedure bug2267_2()
-begin
-show function status;
-end|
-drop procedure if exists bug2267_3|
-create procedure bug2267_3()
-begin
-show create procedure bug2267_1;
-end|
-drop procedure if exists bug2267_4|
-create procedure bug2267_4()
-begin
-show create function fac;
-end|
-call bug2267_1()|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-call bug2267_2()|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-call bug2267_3()|
-Procedure	sql_mode	Create Procedure
-bug2267_1		CREATE PROCEDURE `test`.`bug2267_1`()
-begin
-show procedure status;
-end
-call bug2267_4()|
-Function	sql_mode	Create Function
-fac		CREATE FUNCTION `test`.`fac`(n int unsigned) RETURNS bigint unsigned
-begin
-declare f bigint unsigned default 1;
-while n > 1 do
-set f = f * n;
-set n = n - 1;
-end while;
-return f;
-end
-drop procedure bug2267_1|
-drop procedure bug2267_2|
-drop procedure bug2267_3|
-drop procedure bug2267_4|
 drop procedure if exists bug2227|
 create procedure bug2227(x int)
 begin
@@ -1331,7 +1780,7 @@ declare t2 int;
 declare t3 int;
 declare rc int default 0;
 declare continue handler for 1065 set rc = 1;
-drop table if exists temp_t1;
+drop temporary table if exists temp_t1;
 create temporary table temp_t1 (
 f1 int auto_increment, f2 varchar(20), primary key (f1)
 );
@@ -1349,6 +1798,7 @@ f1	rc	t3
 2	0	NULL
 2	0	NULL
 drop procedure bug1863|
+drop temporary table temp_t1;
 drop table t3, t4|
 drop table if exists t3, t4|
 create table t3 ( 
@@ -2208,299 +2658,6 @@ drop procedure if exists bug8762|
 drop procedure if exists bug8762; create procedure bug8762() begin end|
 drop procedure if exists bug8762; create procedure bug8762() begin end|
 drop procedure bug8762|
-drop table if exists fac|
-create table fac (n int unsigned not null primary key, f bigint unsigned)|
-drop procedure if exists ifac|
-create procedure ifac(n int unsigned)
-begin
-declare i int unsigned default 1;
-if n > 20 then
-set n = 20;		# bigint overflow otherwise
-end if;
-while i <= n do
-begin
-insert into test.fac values (i, fac(i));
-set i = i + 1;
-end;
-end while;
-end|
-call ifac(20)|
-select * from fac|
-n	f
-1	1
-2	2
-3	6
-4	24
-5	120
-6	720
-7	5040
-8	40320
-9	362880
-10	3628800
-11	39916800
-12	479001600
-13	6227020800
-14	87178291200
-15	1307674368000
-16	20922789888000
-17	355687428096000
-18	6402373705728000
-19	121645100408832000
-20	2432902008176640000
-drop table fac|
-show function status like '%f%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-drop procedure ifac|
-drop function fac|
-show function status like '%f%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-drop table if exists primes|
-create table primes (
-i int unsigned not null primary key,
-p bigint unsigned not null
-)|
-insert into primes values
-( 0,   3), ( 1,   5), ( 2,   7), ( 3,  11), ( 4,  13),
-( 5,  17), ( 6,  19), ( 7,  23), ( 8,  29), ( 9,  31),
-(10,  37), (11,  41), (12,  43), (13,  47), (14,  53),
-(15,  59), (16,  61), (17,  67), (18,  71), (19,  73),
-(20,  79), (21,  83), (22,  89), (23,  97), (24, 101),
-(25, 103), (26, 107), (27, 109), (28, 113), (29, 127),
-(30, 131), (31, 137), (32, 139), (33, 149), (34, 151),
-(35, 157), (36, 163), (37, 167), (38, 173), (39, 179),
-(40, 181), (41, 191), (42, 193), (43, 197), (44, 199)|
-drop procedure if exists opp|
-create procedure opp(n bigint unsigned, out pp bool)
-begin
-declare r double;
-declare b, s bigint unsigned default 0;
-set r = sqrt(n);
-again:
-loop
-if s = 45 then
-set b = b+200, s = 0;
-else
-begin
-declare p bigint unsigned;
-select t.p into p from test.primes t where t.i = s;
-if b+p > r then
-set pp = 1;
-leave again;
-end if;
-if mod(n, b+p) = 0 then
-set pp = 0;
-leave again;
-end if;
-set s = s+1;
-end;
-end if;
-end loop;
-end|
-drop procedure if exists ip|
-create procedure ip(m int unsigned)
-begin
-declare p bigint unsigned;
-declare i int unsigned;
-set i=45, p=201;
-while i < m do
-begin
-declare pp bool default 0;
-call opp(p, pp);
-if pp then
-insert into test.primes values (i, p);
-set i = i+1;
-end if;
-set p = p+2;
-end;
-end while;
-end|
-show create procedure opp|
-Procedure	sql_mode	Create Procedure
-opp		CREATE PROCEDURE `test`.`opp`(n bigint unsigned, out pp bool)
-begin
-declare r double;
-declare b, s bigint unsigned default 0;
-set r = sqrt(n);
-again:
-loop
-if s = 45 then
-set b = b+200, s = 0;
-else
-begin
-declare p bigint unsigned;
-select t.p into p from test.primes t where t.i = s;
-if b+p > r then
-set pp = 1;
-leave again;
-end if;
-if mod(n, b+p) = 0 then
-set pp = 0;
-leave again;
-end if;
-set s = s+1;
-end;
-end if;
-end loop;
-end
-show procedure status like '%p%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-call ip(200)|
-select * from primes where i=45 or i=100 or i=199|
-i	p
-45	211
-100	557
-199	1229
-drop table primes|
-drop procedure opp|
-drop procedure ip|
-show procedure status like '%p%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-drop table if exists fib|
-create table fib ( f bigint unsigned not null )|
-insert into fib values (1), (1)|
-drop procedure if exists fib|
-create procedure fib(n int unsigned)
-begin
-if n > 0 then
-begin
-declare x, y bigint unsigned;
-declare c cursor for select f from fib order by f desc limit 2;
-open c;
-fetch c into y;
-fetch c into x;
-close c;
-insert into fib values (x+y);
-call fib(n-1);
-end;
-end if;
-end|
-call fib(20)|
-select * from fib order by f asc|
-f
-1
-1
-2
-3
-5
-8
-13
-21
-34
-55
-89
-144
-233
-377
-610
-987
-1597
-2584
-4181
-6765
-10946
-17711
-drop table fib|
-drop procedure fib|
-drop procedure if exists bar|
-create procedure bar(x char(16), y int)
-comment "111111111111" sql security invoker
-insert into test.t1 values (x, y)|
-show procedure status like 'bar'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
-alter procedure bar comment "2222222222" sql security definer|
-alter procedure bar comment "3333333333"|
-alter procedure bar|
-show create procedure bar|
-Procedure	sql_mode	Create Procedure
-bar		CREATE PROCEDURE `test`.`bar`(x char(16), y int)
-    COMMENT '3333333333'
-insert into test.t1 values (x, y)
-show procedure status like 'bar'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
-drop procedure bar|
-drop procedure if exists p1|
-create procedure p1 ()
-select (select s1 from t3) from t3|
-create table t3 (s1 int)|
-call p1()|
-(select s1 from t3)
-insert into t3 values (1)|
-call p1()|
-(select s1 from t3)
-1
-drop procedure p1|
-drop table t3|
-drop function if exists foo|
-create function `foo` () returns int
-return 5|
-select `foo` ()|
-`foo` ()
-5
-drop function `foo`|
-drop function if exists t1max|
-Warnings:
-Note	1305	FUNCTION t1max does not exist
-create function t1max() returns int
-begin
-declare x int;
-select max(data) into x from t1;
-return x;
-end|
-insert into t1 values ("foo", 3), ("bar", 2), ("zip", 5), ("zap", 1)|
-select t1max()|
-t1max()
-5
-drop function t1max|
-drop table if exists t3|
-create table t3 (
-v char(16) not null primary key,
-c int unsigned not null
-)|
-create function getcount(s char(16)) returns int
-begin
-declare x int;
-select count(*) into x from t3 where v = s;
-if x = 0 then
-insert into t3 values (s, 1);
-else
-update t3 set c = c+1 where v = s;
-end if;
-return x;
-end|
-select * from t1 where data = getcount("bar")|
-id	data
-zap	1
-select * from t3|
-v	c
-bar	4
-select getcount("zip")|
-getcount("zip")
-0
-select getcount("zip")|
-getcount("zip")
-1
-select * from t3|
-v	c
-bar	4
-zip	2
-select getcount(id) from t1 where data = 3|
-getcount(id)
-0
-select getcount(id) from t1 where data = 5|
-getcount(id)
-1
-select * from t3|
-v	c
-bar	4
-zip	3
-foo	1
-drop table t3|
-drop function getcount|
 drop function if exists bug5240|
 create function bug5240 () returns int
 begin
@@ -2515,7 +2672,7 @@ delete from t1|
 insert into t1 values ("answer", 42)|
 select id, bug5240() from t1|
 id	bug5240()
-42	42
+answer	42
 drop function bug5240|
 drop function if exists bug5278|
 create function bug5278 () returns char
@@ -2540,43 +2697,62 @@ call bug7992()|
 call bug7992()|
 drop procedure bug7992|
 drop table t3|
-drop table t1;
-drop table t2;
-CREATE TABLE t1 (
-lpitnumber int(11) default NULL,
-lrecordtype int(11) default NULL
-);
-CREATE TABLE t2 (
-lbsiid int(11) NOT NULL default '0',
-ltradingmodeid int(11) NOT NULL default '0',
-ltradingareaid int(11) NOT NULL default '0',
-csellingprice decimal(19,4) default NULL,
-PRIMARY KEY  (lbsiid,ltradingmodeid,ltradingareaid)
-);
-CREATE TABLE t3 (
-lbsiid int(11) NOT NULL default '0',
-ltradingareaid int(11) NOT NULL default '0',
-PRIMARY KEY  (lbsiid,ltradingareaid)
-);
-CREATE PROCEDURE bug8849()
+create table t3 (
+lpitnumber int(11) default null,
+lrecordtype int(11) default null
+)|
+create table t4 (
+lbsiid int(11) not null default '0',
+ltradingmodeid int(11) not null default '0',
+ltradingareaid int(11) not null default '0',
+csellingprice decimal(19,4) default null,
+primary key  (lbsiid,ltradingmodeid,ltradingareaid)
+)|
+create table t5 (
+lbsiid int(11) not null default '0',
+ltradingareaid int(11) not null default '0',
+primary key  (lbsiid,ltradingareaid)
+)|
+drop procedure if exists bug8849|
+create procedure bug8849()
 begin
-insert into t3
+insert into t5
 (
-t3.lbsiid,
-t3.ltradingareaid
+t5.lbsiid,
+t5.ltradingareaid
 )
-select distinct t1.lpitnumber, t2.ltradingareaid
+select distinct t3.lpitnumber, t4.ltradingareaid
 from
-t2 join t1 on
-t1.lpitnumber = t2.lbsiid
-and t1.lrecordtype = 1
-left join t2 as price01 on
-price01.lbsiid = t2.lbsiid and
+t4 join t3 on
+t3.lpitnumber = t4.lbsiid
+and t3.lrecordtype = 1
+left join t4 as price01 on
+price01.lbsiid = t4.lbsiid and
 price01.ltradingmodeid = 1 and
-t2.ltradingareaid = price01.ltradingareaid;
+t4.ltradingareaid = price01.ltradingareaid;
 end|
-call bug8849();
-call bug8849();
-call bug8849();
-drop procedure bug8849;
-drop tables t1,t2,t3;
+call bug8849()|
+call bug8849()|
+call bug8849()|
+drop procedure bug8849|
+drop tables t3,t4,t5|
+drop procedure if exists bug8937|
+create procedure bug8937()
+begin
+declare s,x,y,z int;
+declare a float;
+select sum(data),avg(data),min(data),max(data) into s,x,y,z from t1;
+select s,x,y,z;
+select avg(data) into a from t1;
+select a;
+end|
+delete from t1|
+insert into t1 (data) values (1), (2), (3), (4), (6)|
+call bug8937()|
+s	x	y	z
+16	3	1	6
+a
+3.2000
+drop procedure bug8937|
+delete from t1|
+drop table t1,t2;

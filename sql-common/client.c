@@ -1681,7 +1681,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                   ER(net->last_errno),socket_errno);
       goto error;
     }
-    net->vio = vio_new(sock, VIO_TYPE_SOCKET, TRUE);
+    net->vio= vio_new(sock, VIO_TYPE_SOCKET,
+                      VIO_LOCALHOST | VIO_BUFFERED_READ);
     bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
@@ -1756,7 +1757,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                   ER(net->last_errno),socket_errno);
       goto error;
     }
-    net->vio = vio_new(sock,VIO_TYPE_TCPIP,FALSE);
+    net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
     bzero((char*) &sock_addr,sizeof(sock_addr));
     sock_addr.sin_family = AF_INET;
 
