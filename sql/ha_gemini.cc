@@ -19,12 +19,10 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include <string.h>
-
 #include "mysql_priv.h"
-#include "my_pthread.h"
-
 #ifdef HAVE_GEMINI_DB
+
+#include "my_pthread.h"
 #include "dbconfig.h"
 #include "dsmpub.h"
 #include "recpub.h"

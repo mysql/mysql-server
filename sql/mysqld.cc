@@ -2112,7 +2112,7 @@ static void create_new_thread(THD *thd)
       (void) pthread_mutex_unlock(&LOCK_thread_count);
     }
   }
-  DBUG_PRINT("info",(("Thread %d created"), thd->thread_id));
+  DBUG_PRINT("info",("Thread created"));
   DBUG_VOID_RETURN;
 }
 

@@ -42425,8 +42425,8 @@ of connections in a short time).
 Don't free the key cache on @code{FLUSH TABLES} as this will cause problems
 with temporary tables.
 @item
-Fixed problem in Innobase with with other character sets than latin1 and
-alarms on Solaris.
+Fixed problem in Innobase with with other character sets than latin1,
+alarms on Solaris and many columns.
 @item
 Fixed a core-dump bug when using very complex query involving
 @code{DISTINCT} and summary functions.
