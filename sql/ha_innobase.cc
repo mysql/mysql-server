@@ -587,6 +587,16 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
+	if (current_thd->slave_thread) {
+
+		/* Update the replication position info inside InnoDB */
+	
+		trx->mysql_master_log_file_name = glob_mi.log_file_name;
+		trx->mysql_master_log_pos = (ib_longlong)
+					(glob_mi.pos + glob_mi.event_len
+					+ glob_mi.pending);
+	}
+
 	trx_commit_for_mysql(trx);
 }
 
@@ -612,20 +622,6 @@ innobase_commit(
 	trx = check_trx_exists(thd);
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
-		if (thd->slave_thread) {
-
-			/* Update the replication position info inside
-			InnoDB. Note that we cannot presently do this for
-			CREATE TABLE etc. because MySQL does not tell us the
-			thd associated with those operations! */
-	
-			trx->mysql_master_log_file_name =
-						glob_mi.log_file_name;
-			trx->mysql_master_log_pos = (ib_longlong)
-					(glob_mi.pos + glob_mi.event_len
-					+ glob_mi.pending);
-		}
-
 		innobase_commit_low(trx);
 	}
 
