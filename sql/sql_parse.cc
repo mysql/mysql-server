@@ -584,6 +584,11 @@ check_connections(THD *thd)
   if (thd->client_capabilities & CLIENT_SSL)
   {
     /* Do the SSL layering. */
+    if (!ssl_acceptor_fd)
+    {
+      inc_host_errors(&thd->remote.sin_addr);
+      return(ER_HANDSHAKE_ERROR);
+    }
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
     {

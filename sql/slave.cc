@@ -134,7 +134,7 @@ int init_slave()
     goto err;
   }
     
-  if(init_master_info(active_mi,master_info_file,relay_log_info_file,
+  if (init_master_info(active_mi,master_info_file,relay_log_info_file,
 		       !master_host))
   {
     sql_print_error("Failed to initialize the master info structure");
@@ -1644,6 +1644,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 
   if (mi->host[0])
   {
+    DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
     packet->length(0);
   
@@ -1776,18 +1777,17 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
 
   pthread_mutex_lock(&data_lock);
   /* 
-     This function will abort when it notices that
-     some CHANGE MASTER or RESET MASTER has changed
-     the master info. To catch this, these commands
-     modify abort_pos_wait ; we just monitor abort_pos_wait
-     and see if it has changed.
-     Why do we have this mechanism instead of simply monitoring slave_running in
-     the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that the
-     SQL thread be stopped? This is in case 
+     This function will abort when it notices that some CHANGE MASTER or
+     RESET MASTER has changed the master info.
+     To catch this, these commands modify abort_pos_wait ; We just monitor
+     abort_pos_wait and see if it has changed.
+     Why do we have this mechanism instead of simply monitoring slave_running
+     in the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that
+     the SQL thread be stopped?
+     This is becasue if someones does:
      STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
-     happens very quickly between the moment pthread_cond_wait() wakes up and
-     the while() is evaluated: in that case slave_running is again 1 when the
-     while() is evaluated.
+     the change may happen very quickly and we may not notice that
+     slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait= abort_pos_wait;
 
@@ -1808,7 +1808,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     error= -2; //means improper arguments
     goto err;
   }
-  //p points to '.'
+  /* p points to '.' */
   log_name_extension= strtoul(++p, &p_end, 10);
   /*
     p_end points to the first invalid character.
@@ -1821,14 +1821,9 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     goto err;
   }    
 
-  //"compare and wait" main loop
+  /* The "compare and wait" main loop */
   while (!thd->killed &&
          init_abort_pos_wait == abort_pos_wait &&
-         /* 
-            formerly we tested mi->slave_running, but what we care about is
-            rli->slave_running (because this concerns the SQL thread, while
-            mi->slave_running concerns the I/O thread). 
-         */
          slave_running)
   {
     bool pos_reached;

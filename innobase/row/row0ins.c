@@ -791,27 +791,30 @@ row_ins_foreign_check_on_constraint(
 		mem_heap_free(tmp_heap);
 
 		clust_rec = btr_pcur_get_rec(cascade->pcur);
-	}
 
-	if (!page_rec_is_user_rec(clust_rec)) {
-	  	fprintf(stderr,
+		if (!page_rec_is_user_rec(clust_rec)
+		    || btr_pcur_get_low_match(cascade->pcur)
+		       < dict_index_get_n_unique(clust_index)) {
+
+		        fprintf(stderr,
 			"InnoDB: error in cascade of a foreign key op\n"
 		  	"InnoDB: index %s table %s\n", index->name,
 		  	index->table->name);
 
-	  	rec_sprintf(err_buf, 900, rec);
-	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
+			rec_sprintf(err_buf, 900, rec);
+			fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
-	  	rec_sprintf(err_buf, 900, clust_rec);
-	  	fprintf(stderr, "InnoDB: clustered record %s\n", err_buf);
-
-	  	fprintf(stderr,
+			rec_sprintf(err_buf, 900, clust_rec);
+			fprintf(stderr, "InnoDB: clustered record %s\n",
+							   err_buf);
+			fprintf(stderr,
 			"InnoDB: Make a detailed bug report and send it\n");
-	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+			fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
-		err = DB_SUCCESS;
+			err = DB_SUCCESS;
 
-		goto nonstandard_exit_func;
+			goto nonstandard_exit_func;
+		}
 	}
 
 	/* Set an X-lock on the row to delete or update in the child table */

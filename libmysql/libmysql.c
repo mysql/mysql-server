@@ -40,14 +40,17 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #ifdef HAVE_SELECT_H
-#  include <select.h>
+#include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
+#ifdef HAVE_POLL
+#include <sys/poll.h>
 #endif
+#endif /* !defined(MSDOS) && !defined(__WIN__) */
 #ifdef HAVE_SYS_UN_H
-#  include <sys/un.h>
+#include <sys/un.h>
 #endif
 #if defined(THREAD) && !defined(__WIN__)
 #include <my_pthread.h>				/* because of signal()	*/
@@ -148,9 +151,12 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 const char* user,
 			 const char* passwd);
 
+#if !(defined(__WIN__) || defined(OS2) || defined(__NETWARE__))
+static int wait_for_data(my_socket fd, uint timeout);
+#endif
 
 /****************************************************************************
-  A modified version of connect().  connect2() allows you to specify
+  A modified version of connect().  my_connect() allows you to specify
   a timeout value, in seconds, that we should wait until we
   derermine we can't connect to a particular host.  If timeout is 0,
   my_connect() will behave exactly like connect().
@@ -158,17 +164,13 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
   Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
+int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
 #if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
-  return connect(s, (struct sockaddr*) name, namelen);
+  return connect(fd, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
-  SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
-  fd_set sfds;
-  struct timeval tv;
-  time_t start_time, now_time;
 
   /*
     If they passed us a timeout of zero, we should behave
@@ -176,30 +178,68 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   */
 
   if (timeout == 0)
-    return connect(s, (struct sockaddr*) name, namelen);
+    return connect(fd, (struct sockaddr*) name, namelen);
 
-  flags = fcntl(s, F_GETFL, 0);		  /* Set socket to not block */
+  flags = fcntl(fd, F_GETFL, 0);	  /* Set socket to not block */
 #ifdef O_NONBLOCK
-  fcntl(s, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
+  fcntl(fd, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
 #endif
 
-  res = connect(s, (struct sockaddr*) name, namelen);
-  s_err = errno;			/* Save the error... */
-  fcntl(s, F_SETFL, flags);
+  res= connect(fd, (struct sockaddr*) name, namelen);
+  s_err= errno;			/* Save the error... */
+  fcntl(fd, F_SETFL, flags);
   if ((res != 0) && (s_err != EINPROGRESS))
   {
-    errno = s_err;			/* Restore it */
+    errno= s_err;			/* Restore it */
     return(-1);
   }
   if (res == 0)				/* Connected quickly! */
     return(0);
+  return wait_for_data(fd, timeout);
+#endif
+}
+
+
+/*
+  Wait up to timeout seconds for a connection to be established.
+
+  We prefer to do this with poll() as there is no limitations with this.
+  If not, we will use select()
+*/
+
+#if !(defined(__WIN__) || defined(OS2) || defined(__NETWARE__))
+
+static int wait_for_data(my_socket fd, uint timeout)
+{
+#ifdef HAVE_POLL
+  struct pollfd ufds;
+  int res;
+
+  ufds.fd= fd;
+  ufds.events= POLLIN | POLLPRI;
+  if (!(res= poll(&ufds, 1, (int) timeout*1000)))
+  {
+    errno= EINTR;
+    return -1;
+  }
+  if (res < 0 || !(ufds.revents & (POLLIN | POLLPRI)))
+    return -1;
+  return 0;
+#else
+  SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
+  fd_set sfds;
+  struct timeval tv;
+  time_t start_time, now_time;
+  int res, s_err;
+
+  if (fd >= FD_SETSIZE)				/* Check if wrong error */
+    return 0;					/* Can't use timeout */
 
   /*
-    Otherwise, our connection is "in progress."  We can use
-    the select() call to wait up to a specified period of time
-    for the connection to suceed.  If select() returns 0
-    (after waiting howevermany seconds), our socket never became
-    writable (host is probably unreachable.)  Otherwise, if
+    Our connection is "in progress."  We can use the select() call to wait
+    up to a specified period of time for the connection to suceed.
+    If select() returns 0 (after waiting howevermany seconds), our socket
+    never became writable (host is probably unreachable.)  Otherwise, if
     select() returns 1, then one of two conditions exist:
    
     1. An error occured.  We use getsockopt() to check for this.
@@ -212,7 +252,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   */
 
   FD_ZERO(&sfds);
-  FD_SET(s, &sfds);
+  FD_SET(fd, &sfds);
   /*
     select could be interrupted by a signal, and if it is, 
     the timeout should be adjusted and the select restarted
@@ -226,10 +266,10 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
 #if defined(HPUX10) && defined(THREAD)
-    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
+    if ((res = select(fd+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
       break;
 #else
-    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) > 0)
+    if ((res = select(fd+1, NULL, &sfds, NULL, &tv)) > 0)
       break;
 #endif
     if (res == 0)					/* timeout */
@@ -247,7 +287,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   */
 
   s_err=0;
-  if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
     return(-1);
 
   if (s_err)
@@ -256,9 +296,9 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
     return(-1);					/* but return an error... */
   }
   return (0);					/* ok */
-
-#endif
+#endif /* HAVE_POLL */
 }
+#endif /* defined(__WIN__) || defined(OS2) || defined(__NETWARE__) */
 
 /*
   Create a named pipe connection

@@ -1,3 +1,7 @@
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 #
 # Test that SSL options works properly
 #
@@ -39,6 +43,32 @@ show grants for mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
-grant usage on test.* to user@localhost with grant option;
-show grants for user@localhost;
+grant usage on test.* to mysqltest_1@localhost with grant option;
+show grants for mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+delete from mysql.db where user='mysqltest_1';
+delete from mysql.tables_priv where user='mysqltest_1';
+delete from mysql.columns_priv where user='mysqltest_1';
+flush privileges;
 
+#
+# Test what happens when you have same table and colum level grants
+#
+
+create table t1 (a int);
+GRANT select,update,insert on t1 to mysqltest_1@localhost;
+GRANT select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+REVOKE select (a), update on t1 from mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+REVOKE insert,insert (a) on t1 from mysqltest_1@localhost;
+GRANT references on t1 to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+delete from mysql.user where user='mysqltest_1';
+delete from mysql.db where user='mysqltest_1';
+delete from mysql.tables_priv where user='mysqltest_1';
+delete from mysql.columns_priv where user='mysqltest_1';
+flush privileges;
+drop table t1;

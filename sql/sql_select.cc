@@ -453,6 +453,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     goto err;
 
   thd->proc_info="preparing";
+
+  select_distinct= select_distinct && (join.const_tables != join.tables);
+
   if (result->initialize_tables(&join))
     goto err;
   if (join.const_table_map != join.found_const_table_map &&
@@ -1634,6 +1637,9 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
     key_field->field->table->reginfo.not_exists_optimize=1;
 }
 
+
+#define FT_KEYPART   (MAX_REF_PARTS+10)
+
 static void
 add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
             JOIN_TAB *stat,COND *cond,table_map usable_tables)
@@ -1692,22 +1698,19 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     }
   }
 
-  if (!cond_func || cond_func->key == NO_SUCH_KEY)
-    return;
-
-  if (!(usable_tables & cond_func->table->map))
+  if ((!cond_func || cond_func->key == NO_SUCH_KEY) ||
+      (!(usable_tables & cond_func->table->map)))
     return;
 
   KEYUSE keyuse;
-
   keyuse.table= cond_func->table;
   keyuse.val =  cond_func;
   keyuse.key =  cond_func->key;
-#define FT_KEYPART   (MAX_REF_PARTS+10)
-  keyuse.keypart=FT_KEYPART;
+  keyuse.keypart= FT_KEYPART;
   keyuse.used_tables=cond_func->key_item()->used_tables();
   VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 }
+
 
 static int
 sort_keyuse(KEYUSE *a,KEYUSE *b)
