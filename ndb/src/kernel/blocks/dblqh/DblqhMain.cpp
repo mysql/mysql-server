@@ -8569,7 +8569,8 @@ void Dblqh::sendKeyinfo20(Signal* signal,
       return;
     }
     
-    EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal, 3 + keyLen);
+    EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal, 
+		   KeyInfo20::HeaderLength + keyLen);
     jamEntry();
     return;
   }
