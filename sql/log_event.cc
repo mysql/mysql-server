@@ -1543,7 +1543,7 @@ end:
     updating query.
   */
   return (thd->query_error ? thd->query_error : 
-          (thd->one_shot_set ? (rli->inc_event_relay_log_pos(get_event_len()),0) :
+          (thd->one_shot_set ? (rli->inc_event_relay_log_pos(),0) :
            Log_event::exec_event(rli))); 
 }
 #endif

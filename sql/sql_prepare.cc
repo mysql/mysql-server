@@ -156,6 +156,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
   NET *net= &stmt->thd->net;
   char buff[9];
+  DBUG_ENTER("send_prep_stmt");
+
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
   int2store(buff+5, columns);
@@ -164,13 +166,12 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
     Send types and names of placeholders to the client
     XXX: fix this nasty upcast from List<Item_param> to List<Item>
   */
-  return my_net_write(net, buff, sizeof(buff)) || 
-         (stmt->param_count &&
-          stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                 &stmt->lex->param_list,
-                                                 Protocol::SEND_EOF)) ||
-         net_flush(net);
-  return 0;
+  DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) || 
+              (stmt->param_count &&
+               stmt->thd->protocol_simple.send_fields((List<Item> *)
+                                                      &stmt->lex->param_list,
+                                                      Protocol::SEND_EOF)) ||
+              net_flush(net));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -1114,8 +1115,7 @@ static int mysql_test_select(Prepared_statement *stmt,
         prepared in unit->prepare call above.
       */
       if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
-          thd->protocol_simple.send_fields(fields,
-                                           Protocol::SEND_EOF)
+          lex->result->send_fields(fields, Protocol::SEND_EOF)
 #ifndef EMBEDDED_LIBRARY
           || net_flush(&thd->net)
 #endif
@@ -1682,11 +1682,13 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   DBUG_RETURN(!stmt);
 }
 
+
 /* Reinit statement before execution */
 
 void reset_stmt_for_execute(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
+  DBUG_ENTER("reset_stmt_for_execute");
 
   if (lex->empty_field_list_on_rset)
   {
@@ -1749,6 +1751,8 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
   lex->current_select= &lex->select_lex;
   if (lex->result)
     lex->result->cleanup();
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1814,8 +1818,9 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   mysql_reset_thd_for_next_command(thd);
   if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
   {
-    if (stmt->lex->result)
+    if (!stmt->lex->result || !stmt->lex->result->simple_select())
     {
+      DBUG_PRINT("info",("Cursor asked for not SELECT stmt"));
       /*
         If lex->result is set in the parser, this is not a SELECT
         statement: we can't open a cursor for it.
@@ -1824,6 +1829,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     }
     else
     {
+      DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!stmt->cursor &&
           !(stmt->cursor= new (&stmt->mem_root) Cursor()))
       {
@@ -1885,6 +1891,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     cleanup_items(stmt->free_list);
     reset_stmt_params(stmt);
     close_thread_tables(thd);                   /* to close derived tables */
+    thd->rollback_item_tree_changes();
     thd->cleanup_after_query();
   }
 

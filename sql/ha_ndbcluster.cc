@@ -4015,6 +4015,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       (void)mysql_rm_table_part2(thd, &table_list, 
 				 /* if_exists */ TRUE, 
 				 /* drop_temporary */ FALSE, 
+				 /* drop_view */ FALSE,
 				 /* dont_log_query*/ TRUE);
     }
   }

@@ -45,11 +45,11 @@ void item_init(void)
 }
 
 Item::Item():
-  name_length(0), fixed(0)
+  name_length(0), fixed(0),
+  collation(default_charset(), DERIVATION_COERCIBLE)
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  collation.set(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
 
@@ -1576,6 +1576,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
                            (char*) cached_table->alias, (char*) field_name);
 	  if (!rf)
 	    return 1;
+          thd->change_item_tree(ref, rf);
 	  /*
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
@@ -1654,6 +1655,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1698,7 +1700,8 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
 
 /*
-  Set a pointer to the multiple equality the field reference belongs to (if any)
+  Set a pointer to the multiple equality the field reference belongs to
+  (if any)
    
   SYNOPSIS
     equal_fields_propagator()
@@ -1737,7 +1740,21 @@ Item *Item_field::equal_fields_propagator(byte *arg)
 
 
 /*
-  Set a pointer to the multiple equality the field reference belongs to (if any)
+  Mark the item to not be part of substitution if it's not a binary item
+  See comments in Arg_comparator::set_compare_func() for details
+*/
+
+Item *Item_field::set_no_const_sub(byte *arg)
+{
+  if (field->charset() != &my_charset_bin)
+    no_const_subst=1;
+  return this;
+}
+
+
+/*
+  Set a pointer to the multiple equality the field reference belongs to
+  (if any)
    
   SYNOPSIS
     replace_equal_field_processor()
@@ -1772,6 +1789,7 @@ bool Item_field::replace_equal_field_processor(byte *arg)
   }
   return 0;
 }
+
 
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)

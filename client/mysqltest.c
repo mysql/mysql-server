@@ -275,6 +275,7 @@ Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
+Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
 Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
 Q_EXIT,
@@ -366,7 +367,7 @@ const char *command_names[]=
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
-			  command_names};
+			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
 static void die(const char *fmt, ...);

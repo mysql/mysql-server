@@ -1427,7 +1427,7 @@ int ha_create_table_from_engine(THD* thd,
     if ((error = writefrm(path, frmblob, frmlen)))
       goto err_end;
 
-    if (openfrm(path,"",0,(uint) READ_ALL, 0, &table))
+    if (openfrm(thd, path,"",0,(uint) READ_ALL, 0, &table))
       DBUG_RETURN(1);
 
     update_create_info_from_table(&create_info, &table);
