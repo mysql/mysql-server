@@ -10251,7 +10251,7 @@ static void test_bug5194()
   /* Number of columns per row */
   const int COLUMN_COUNT= sizeof(float_array)/sizeof(*float_array);
   /* Number of rows per bulk insert to start with */
-  const int MIN_ROWS_PER_INSERT= 260;
+  const int MIN_ROWS_PER_INSERT= 262;
   /* Max number of rows per bulk insert to end with */
   const int MAX_ROWS_PER_INSERT= 300;
   const int MAX_PARAM_COUNT= COLUMN_COUNT*MAX_ROWS_PER_INSERT;

@@ -4281,8 +4281,9 @@ int Field_str::store(double nr)
   uint length;
   bool use_scientific_notation= TRUE;
   use_scientific_notation= TRUE;
-if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
+  if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
     use_scientific_notation= FALSE;
+
   length= (uint) my_sprintf(buff, (buff, "%-.*g",
                                    (use_scientific_notation ?
                                     max(0, (int)field_length-5) :
