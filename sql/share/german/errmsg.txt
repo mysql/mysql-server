@@ -297,7 +297,7 @@ character-set=latin1
 "Daten abgeschnitten für Spalte '%s' in Zeile %ld",
 "Für Tabelle '%s' wird Speicher-Engine %s benutzt",
 "Unerlaubte Vermischung der Kollationen (%s,%s) und (%s,%s) für die Operation '%s'",
-"Kann einen oder mehrere der angegebenen Benutzer nicht löschen",
+"Das Kommando %s scheiterte für %d von den betroffenen Benutzern",
 "Kann nicht alle Berechtigungen widerrufen, grant for one or more of the requested users",
 "Unerlaubte Vermischung der Kollationen (%s,%s), (%s,%s), (%s,%s) für die Operation '%s'",
 "Unerlaubte Vermischung der Kollationen für die Operation '%s'",
