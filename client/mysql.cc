@@ -1786,7 +1786,7 @@ print_table_data(MYSQL_RES *result)
   separator.copy("+",1,system_charset_info);
   while ((field = mysql_fetch_field(result)))
   {
-    uint length= column_names ? (uint) strlen(field->name) : 0;
+    uint length= column_names ? field->name_length : 0;
     if (quick)
       length=max(length,field->length);
     else
@@ -1928,7 +1928,7 @@ print_table_data_vertically(MYSQL_RES *result)
 
   while ((field = mysql_fetch_field(result)))
   {
-    uint length=(uint) strlen(field->name);
+    uint length= field->name_length;
     if (length > max_length)
       max_length= length;
     field->max_length=length;
