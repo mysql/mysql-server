@@ -732,15 +732,14 @@ bool lock_global_read_lock(THD *thd)
     while (protect_against_global_read_lock && !thd->killed)
       pthread_cond_wait(&COND_refresh, &LOCK_open);
     waiting_for_read_lock--;
-    thd->exit_cond(old_message);
     if (thd->killed)
     {
-      (void) pthread_mutex_unlock(&LOCK_open);
+      thd->exit_cond(old_message);
       DBUG_RETURN(1);
     }
     thd->global_read_lock=1;
     global_read_lock++;
-    (void) pthread_mutex_unlock(&LOCK_open);
+    thd->exit_cond(old_message);
   }
   DBUG_RETURN(0);
 }
@@ -761,11 +760,12 @@ void unlock_global_read_lock(THD *thd)
 bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh)
 {
   const char *old_message;
-  bool result=0;
+  bool result= 0, need_exit_cond;
   DBUG_ENTER("wait_if_global_read_lock");
 
+  LINT_INIT(old_message);
   (void) pthread_mutex_lock(&LOCK_open);
-  if (global_read_lock)
+  if (need_exit_cond= (bool)global_read_lock)
   {
     if (thd->global_read_lock)		// This thread had the read locks
     {
@@ -780,11 +780,13 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh)
       (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
     if (thd->killed)
       result=1;
-    thd->exit_cond(old_message);
   }
   if (!abort_on_refresh && !result)
     protect_against_global_read_lock++;
-  pthread_mutex_unlock(&LOCK_open);
+  if (unlikely(need_exit_cond)) // global read locks are rare
+    thd->exit_cond(old_message);
+  else
+    pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(result);
 }
 

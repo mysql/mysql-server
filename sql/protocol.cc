@@ -201,7 +201,9 @@ net_printf(THD *thd, uint errcode, ...)
 #ifndef EMBEDDED_LIBRARY
   text_pos=(char*) net->buff + head_length + offset + 1;
 #endif
-  (void) vsprintf(my_const_cast(char*) (text_pos),format,args);
+  (void) my_vsnprintf(my_const_cast(char*) (text_pos),
+                      (char*)net->buff_end-text_pos,
+                      format,args);
   length=(uint) strlen((char*) text_pos);
   if (length >= sizeof(net->last_error))
     length=sizeof(net->last_error)-1;		/* purecov: inspected */

@@ -87,7 +87,7 @@ character-set=latin2
 "Blob pole '%-.64s' nemô¾e by» pou¾ité ako kµúè",
 "Príli¹ veµká då¾ka pre pole '%-.64s' (maximum = %d). Pou¾ite BLOB",
 "Mô¾ete ma» iba jedno AUTO pole a to musí by» definované ako kµúè",
-"%s: pripravený na spojenie\n",
+"%s: pripravený na spojenie",
 "%s: normálne ukonèenie\n",
 "%s: prijatý signál %d, ukonèenie (Abort)!\n",
 "%s: práca ukonèená\n",
