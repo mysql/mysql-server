@@ -245,6 +245,7 @@ libmysqld/get_password.c
 libmysqld/ha_berkeley.cc
 libmysqld/ha_heap.cc
 libmysqld/ha_innobase.cc
+libmysqld/ha_innodb.cc
 libmysqld/ha_isam.cc
 libmysqld/ha_isammrg.cc
 libmysqld/ha_myisam.cc
@@ -344,7 +345,13 @@ mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
 mysql-test/r/*.reject
+mysql-test/r/rpl000002.eval
+mysql-test/r/rpl000014.eval
+mysql-test/r/rpl000015.eval
+mysql-test/r/rpl000016.eval
 mysql-test/r/rpl_log.eval
+mysql-test/r/slave-running.eval
+mysql-test/r/slave-stopped.eval
 mysql-test/share/mysql
 mysql-test/var/*
 mysql.kdevprj
@@ -451,4 +458,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-libmysqld/ha_innodb.cc

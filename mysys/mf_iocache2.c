@@ -31,12 +31,26 @@
 
 void my_b_seek(IO_CACHE *info,my_off_t pos)
 {
-  my_off_t offset = (pos - info->pos_in_file);
+  my_off_t offset;  
   DBUG_ENTER("my_b_seek");
   DBUG_PRINT("enter",("pos: %lu", (ulong) pos));
 
-  if (info->type == READ_CACHE)
+  /*
+    TODO: verify that it is OK to do seek in the non-append
+    area in SEQ_READ_APPEND cache
+  */
+  /* TODO:
+     a) see if this always works
+     b) see if there is a better way to make it work
+  */
+  if (info->type == SEQ_READ_APPEND)
+    flush_io_cache(info);
+  
+  offset=(pos - info->pos_in_file);
+  
+  if (info->type == READ_CACHE || info->type == SEQ_READ_APPEND)
   {
+    /* TODO: explain why this works if pos < info->pos_in_file */
     if ((ulonglong) offset < (ulonglong) (info->read_end - info->buffer))
     {
       /* The read is in the current buffer; Reuse it */

@@ -1,0 +1,9 @@
+#! /bin/sh
+
+rm -f TAGS
+filter='\.cc$\|\.c$\|\.h$\|\.yy$'
+files=`bk -r sfiles -gU | grep $filter `
+for f in $files ;
+do
+	 etags -o TAGS --append $f
+done

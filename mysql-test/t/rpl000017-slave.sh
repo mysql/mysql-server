@@ -1,3 +1,4 @@
+rm -f $MYSQL_TEST_DIR/var/slave-data/*relay*
 cat > $MYSQL_TEST_DIR/var/slave-data/master.info <<EOF
 master-bin.001
 4

@@ -95,7 +95,6 @@ typedef struct st_lex_master_info
 {
   char* host, *user, *password,*log_file_name;
   uint port, connect_retry;
-  ulong last_log_seq;
   ulonglong pos;
   ulong server_id;
 } LEX_MASTER_INFO;
