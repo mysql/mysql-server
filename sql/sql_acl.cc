@@ -348,7 +348,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
             user.user_resource.conn_per_hour)
           mqh_used=1;
 
-        if (table->fields >= 34) 
+        if (table->fields >= 36)
         {
           /* Starting from 5.0.3 we have max_user_connections field */
           ptr= get_field(&mem, table->field[next_field++]);
@@ -1702,7 +1702,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       table->field[29]->store((longlong) mqh.updates);
     if (mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
       table->field[30]->store((longlong) mqh.conn_per_hour);
-    if (table->fields >= 34 &&
+    if (table->fields >= 36 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
       table->field[33]->store((longlong) mqh.user_conn);
     mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
