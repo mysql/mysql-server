@@ -279,6 +279,8 @@ class ha_ndbcluster: public handler
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 };
 
+extern struct show_var_st ndb_status_variables[];
+
 bool ndbcluster_init(void);
 bool ndbcluster_end(void);
 
