@@ -4895,6 +4895,28 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       COND *const_cond=
 	make_cond_for_table(cond,join->const_table_map,(table_map) 0);
       DBUG_EXECUTE("where",print_where(const_cond,"constants"););
+      for (JOIN_TAB *tab= join->join_tab+join->const_tables;
+           tab < join->join_tab+join->tables ; tab++)
+      {
+        if (tab->on_expr)
+        {
+          JOIN_TAB *cond_tab= tab->first_inner;
+          COND *tmp= make_cond_for_table(tab->on_expr,
+                                         join->const_table_map,
+                                         (table_map) 0);
+          if (!tmp)
+            continue;
+          tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
+          if (!tmp)
+            DBUG_RETURN(1);
+          tmp->quick_fix_field();
+          cond_tab->select_cond= !cond_tab->select_cond ? tmp :
+	                          new Item_cond_and(cond_tab->select_cond,tmp);
+          if (!cond_tab->select_cond)
+	    DBUG_RETURN(1);
+          cond_tab->select_cond->quick_fix_field();
+        }       
+      }
       if (const_cond && !const_cond->val_int())
       {
 	DBUG_PRINT("info",("Found impossible WHERE condition"));
