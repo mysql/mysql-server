@@ -1490,8 +1490,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	}
         /*
           Here, a subset of actions performed by Item_ref::set_properties
-          is not enough. So we pass ptr to NULL into Item_[direct]_ref ctor,
-          so no initialization is performed, and call fix_fields() below.
+          is not enough. So we pass ptr to NULL into Item_[direct]_ref
+          constructor, so no initialization is performed, and call 
+          fix_fields() below.
         */
         Item *save= last->ref_pointer_array[counter];
         last->ref_pointer_array[counter]= NULL;
@@ -2291,7 +2292,7 @@ bool Item_default_value::fix_fields(THD *thd,
     fixed= 1;
     return 0;
   }
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
   
   if (arg->type() == REF_ITEM)
@@ -2338,7 +2339,7 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
 
   if (arg->type() == REF_ITEM)

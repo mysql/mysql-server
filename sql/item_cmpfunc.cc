@@ -2374,8 +2374,10 @@ bool
 Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
-      args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
+  if ((!args[0]->fixed &&
+       args[0]->fix_fields(thd, tables, args)) || args[0]->check_cols(1) ||
+      (!args[1]->fixed && 
+       args[1]->fix_fields(thd,tables, args + 1)) || args[1]->check_cols(1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;

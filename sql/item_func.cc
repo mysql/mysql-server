@@ -351,7 +351,6 @@ void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
       uint el= fields.elements;
       ref_pointer_array[el]= item;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
-      new_item->collation.set(item->collation);
       fields.push_front(item);
       ref_pointer_array[el]= item;
       thd->change_item_tree(arg, new_item);
@@ -1664,7 +1663,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg))
+      if (!(*arg)->fixed && 
+          (*arg)->fix_fields(thd, tables, arg))
 	DBUG_RETURN(1);
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
