@@ -252,7 +252,7 @@ sub create
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ decimal/ double(10,2)/i;
+#    $field =~ s/ decimal/ double(10,2)/i;
     $field =~ s/ big_decimal/ double(10,2)/i;
     $query.= $field . ',';
   }
