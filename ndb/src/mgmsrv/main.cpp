@@ -61,6 +61,7 @@ struct MgmGlobals {
   /** Command line arguments  */
   int daemon;   // NOT bool, bool need not be int
   int non_interactive;
+  int interactive;
   const char * config_filename;
   const char * local_config_filename;
   
@@ -112,10 +113,12 @@ struct getargs args[] = {
     "Specify debug options e.g. d:t:i:o,out.trace", "options" },
 #endif
   { "daemon", 'd', arg_flag, &glob.daemon,
-    "Run ndb_mgmd in daemon mode" },
+    "Run ndb_mgmd in daemon mode (default)" },
   { NULL, 'l', arg_string, &glob.local_config_filename,
     "Specify configuration file connect string (will default use Ndb.cfg if available)",
     "filename" },
+  { "interactive", 0, arg_flag, &glob.interactive,
+    "Run interactive. Not supported but provided for testing purposes", "" },
   { "nodaemon", 'n', arg_flag, &glob.non_interactive,
     "Don't run as daemon, but don't read from stdin", "non-interactive" }
 };
@@ -143,6 +146,11 @@ NDB_MAIN(mgmsrv){
     exit(1);
   }
 
+  if (glob.interactive ||
+      glob.non_interactive) {
+    glob.daemon= 0;
+  }
+
 #ifndef DBUG_OFF
   my_init();
   if (debug_option)
@@ -155,8 +163,7 @@ NDB_MAIN(mgmsrv){
   }
 
   if(glob.config_filename == NULL) {
-    fprintf(stderr, "No configuration file specified\n");
-    exit(1);
+    glob.config_filename= "config.ini";
   }
   glob.socketServer = new SocketServer();
 
@@ -177,6 +184,8 @@ NDB_MAIN(mgmsrv){
 				BaseString(glob.local_config_filename == 0 ?
 					   "" : glob.local_config_filename),
 				glob.cluster_config);
+
+  chdir(NdbConfig_get_path(0));
 
   glob.cluster_config = 0;
   glob.localNodeId= glob.mgmObject->getOwnNodeId();
@@ -269,7 +278,7 @@ NDB_MAIN(mgmsrv){
   glob.socketServer->startServer();
 
 #if ! defined NDB_OSE && ! defined NDB_SOFTOSE
-  if(!glob.daemon && !glob.non_interactive){
+  if(glob.interactive) {
     CommandInterpreter com(* glob.mgmObject);
     while(com.readAndExecute());
   } else 
@@ -296,8 +305,9 @@ MgmGlobals::MgmGlobals(){
   local_config_filename = NULL;
   interface_name = 0;
   cluster_config = 0;
-  daemon = false;
+  daemon = 1;
   non_interactive = 0;
+  interactive = 0;
   socketServer = 0;
   mgmObject = 0;
 }
