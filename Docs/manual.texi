@@ -4896,7 +4896,7 @@ Table locking, as used by the non-transactional @code{MyISAM} tables, is
 in many cases faster than page locks, row locks or versioning.  The
 drawback however is that if one doesn't take into account how table
 locks work, a single long-running query can block a table for updates
-for a long time. This can usable be avoided when designing the
+for a long time. This can usually be avoided when designing the
 application.  If not, one can always switch the trouble table to use one
 of the transactional table types. @xref{Table locking}.
 
@@ -4930,7 +4930,7 @@ don't know the PostgreSQL roadmap.
 @item Unions                               @tab 4.0
 @item Full join                            @tab 4.0 or 4.1
 @item Triggers                             @tab 4.1
-@item Constrainst                          @tab 4.1
+@item Constraints                          @tab 4.1
 @item Cursors                              @tab 4.1 or 4.2
 @item Extensible index types like R-trees  @tab R-trees are planned for 4.2
 @item Inherited tables                     @tab Not planned
