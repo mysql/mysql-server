@@ -4,6 +4,8 @@ create table t1(n int);
 insert into t1 values(get_lock("lock",2));
 dirty_close master;
 connection master1;
+select get_lock("lock",2);
+select release_lock("lock");
 save_master_pos;
 connection slave;
 sync_with_master;

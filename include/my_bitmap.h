@@ -25,6 +25,12 @@ typedef struct st_bitmap
 {
   uchar *bitmap;
   uint bitmap_size;
+  my_bool thread_safe; /* set if several threads access the bitmap */
+  /*
+     mutex will be acquired for the duration of each bitmap operation if
+     thread_safe flag is set. Otherwise, we optimize by not acquiring the
+     mutex
+   */
 #ifdef THREAD
   pthread_mutex_t mutex;
 #endif
@@ -33,10 +39,14 @@ typedef struct st_bitmap
 #ifdef	__cplusplus
 extern "C" {
 #endif
-  extern my_bool bitmap_init(MY_BITMAP *bitmap, uint bitmap_size);
+  extern my_bool bitmap_init(MY_BITMAP *bitmap, uint bitmap_size,
+			     my_bool thread_safe);
   extern void bitmap_free(MY_BITMAP *bitmap);
   extern void bitmap_set_bit(MY_BITMAP *bitmap, uint bitmap_bit);
   extern uint bitmap_set_next(MY_BITMAP *bitmap);
+  extern void bitmap_set_all(MY_BITMAP* bitmap);
+  extern my_bool bitmap_is_set(MY_BITMAP* bitmap, uint bitmap_bit);
+  extern void bitmap_clear_all(MY_BITMAP* bitmap);
   extern void bitmap_clear_bit(MY_BITMAP *bitmap, uint bitmap_bit);
 #ifdef	__cplusplus
 }
