@@ -20,10 +20,11 @@
 
 #include "thread_registry.h"
 
+#include "log.h"
+
 #include <assert.h>
 #include <signal.h>
 #include <thr_alarm.h>
-#include "log.h"
 
 
 /* Kick-off signal handler */

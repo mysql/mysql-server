@@ -19,8 +19,10 @@
 #endif
 
 #include "instance_options.h"
+
 #include "parse_output.h"
 #include "buffer.h"
+
 #include <my_sys.h>
 #include <mysql.h>
 #include <signal.h>
