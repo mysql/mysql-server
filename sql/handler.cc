@@ -385,17 +385,25 @@ int ha_report_binlog_offset_and_commit(THD *thd,
 #ifdef HAVE_INNOBASE_DB
   THD_TRANS *trans;
   trans = &thd->transaction.all;
-  if (trans->innobase_tid)
+  if (trans->innodb_active_trans)
   {
+    /*
+      If we updated some InnoDB tables (innodb_active_trans is true), the
+      binlog coords will be reported into InnoDB during the InnoDB commit
+      (innobase_report_binlog_offset_and_commit). But if we updated only
+      non-InnoDB tables, we need an explicit call to report it.
+    */
     if ((error=innobase_report_binlog_offset_and_commit(thd,
-							trans->innobase_tid,
-							log_file_name,
-							end_offset)))
+                                                        trans->innobase_tid,
+                                                        log_file_name,
+                                                        end_offset)))
     {
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
   }
+  else if (opt_innodb_safe_binlog) // Don't report if not useful
+    innobase_store_binlog_offset_and_flush_log(log_file_name, end_offset);
 #endif
   return error;
 }

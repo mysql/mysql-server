@@ -292,7 +292,7 @@ install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql
 
 # Save manual to avoid rebuilding
 mv Docs/manual.ps Docs/manual.ps.save
-make distclean
+make clean
 mv Docs/manual.ps.save Docs/manual.ps
 
 # RPM:s destroys Makefile.in files, so we generate them here
@@ -482,6 +482,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
+%attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -578,6 +579,11 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Thu Jun 24 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added mysql_tzinfo_to_sql to the server subpackage
+- run "make clean" instead of "make distclean"
+
 * Mon Apr 05 2004 Lenz Grimmer <lenz@mysql.com>
 
 - added ncurses-devel to the build prerequisites (BUG 3377)
