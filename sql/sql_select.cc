@@ -3554,9 +3554,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   param->recinfo=recinfo;
   store_record(table,2);			// Make empty default record
 
-  table->max_rows=(((table->db_type == DB_TYPE_HEAP) ?
-		    min(tmp_table_size, max_heap_table_size) : tmp_table_size)/
-		   table->reclength);
+  if (tmp_table_size == ~(ulong) 0)		// No limit
+    table->max_rows= ~(ha_rows) 0;
+  else
+    table->max_rows=(((table->db_type == DB_TYPE_HEAP) ?
+		      min(tmp_table_size, max_heap_table_size) :
+		      tmp_table_size)/ table->reclength);
   set_if_bigger(table->max_rows,1);		// For dummy start options
   keyinfo=param->keyinfo;
 
