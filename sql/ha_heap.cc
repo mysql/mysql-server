@@ -375,7 +375,7 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
       min_key->length != key->key_length ||
       min_key->flag != HA_READ_KEY_EXACT ||
       max_key->flag != HA_READ_AFTER_KEY)
-    return HA_POS_ERROR;			// Can't only use exact keys
+    return HA_POS_ERROR;			// Can only use exact keys
   return 10;					// Good guess
 }
 
