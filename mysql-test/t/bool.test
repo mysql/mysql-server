@@ -26,3 +26,26 @@ SELECT * FROM t1 WHERE a=2 OR (NULL AND (@a:=@a+1));
 SELECT * FROM t1 WHERE NOT(a=2 OR (NULL AND (@b:=@b+1)));
 SELECT @a, @b;
 DROP TABLE t1;
+
+
+# Test boolean operators in select part
+# NULLs are represented as N for readability
+# Read nA as !A, AB as A && B, AoB as A || B
+# Result table makes ANSI happy
+
+drop table if exists t;
+create table t(a int, b int);
+insert into t values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);
+
+# Below test is valid untill we have True/False implemented as 1/0
+# To comply to all rules it must show that:  n(AB) = nAonB,  n(AoB) = nAnB 
+
+select ifnull(A, 'N') as A, ifnull(B, 'N') as B, ifnull(not A, 'N') as nA, ifnull(not B, 'N') as nB, ifnull(A and B, 'N') as AB, ifnull(not (A and B), 'N') as `n(AB)`, ifnull((not A or not B), 'N') as nAonB, ifnull(A or B, 'N') as AoB, ifnull(not(A or B), 'N') as `n(AoB)`, ifnull(not A and not B, 'N') as nAnB from t;
+
+# This should work with any internal representation of True/False
+# Result must be same as above
+
+select ifnull(A=1, 'N') as A, ifnull(B=1, 'N') as B, ifnull(not (A=1), 'N') as nA, ifnull(not (B=1), 'N') as nB, ifnull((A=1) and (B=1), 'N') as AB, ifnull(not ((A=1) and (B=1)), 'N') as `n(AB)`, ifnull((not (A=1) or not (B=1)), 'N') as nAonB, ifnull((A=1) or (B=1), 'N') as AoB, ifnull(not((A=1) or (B=1)), 'N') as `n(AoB)`, ifnull(not (A=1) and not (B=1), 'N') as nAnB from t;
+
+
+drop table t; 
