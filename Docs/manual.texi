@@ -21610,6 +21610,15 @@ mysql> select * from bar;
 For each row in table @code{foo}, a row is inserted in @code{bar} with
 the values from @code{foo} and default values for the new columns.
 
+@code{CREATE TABLE ... SELECT} will not automaticly create any indexes
+for you.  This is done intentionally to make the command as flexible as
+possible.  If you want to have indexes in the created table, you should
+specify these before the @code{SELECT} statement:
+
+@example
+mysql> create table bar (unique (n)) select n from foo;
+@end example
+
 If any errors occur while copying the data to the table, it will 
 automatically be deleted. 
 
@@ -29928,12 +29937,23 @@ the Internet with a search engine.  It is with this reasoning that such rows
 have been assigned a low semantical value in @strong{this particular dataset}.
 
 @menu
+* Fulltext restrictions::       
 * Fulltext Fine-tuning::        
 * Fulltext Features to Appear in MySQL 4.0::  
 * Fulltext TODO::               
 @end menu
 
-@node Fulltext Fine-tuning, Fulltext Features to Appear in MySQL 4.0, Fulltext Search, Fulltext Search
+@node Fulltext restrictions, Fulltext Fine-tuning, Fulltext Search, Fulltext Search
+@section Fulltext restrictions
+@itemize @bullet
+@item
+All parameters to the @code{MATCH} function must be columns from the
+same table that is part of the same fulltext index.
+@item
+The argument to @code{AGAINST} must be a constant string.
+@end itemize
+
+@node Fulltext Fine-tuning, Fulltext Features to Appear in MySQL 4.0, Fulltext restrictions, Fulltext Search
 @section Fine-tuning MySQL Full-text Search
 
 Unfortunately, full-text search has no user-tunable parameters yet,
@@ -29990,7 +30010,7 @@ implemented in the 4.0 tree. It explains
 @code{OPTIMIZE TABLE} with @code{FULLTEXT} indexes are now
 up to 100 times faster.
 
-@item @code{MATCH ... AGAINST} now supports the following 
+@item @code{MATCH ... AGAINST} is going to support the following 
 @strong{boolean operators}:
 
 @itemize @bullet

@@ -227,6 +227,7 @@ void hash_password(unsigned long *result, const char *password);
 void my_init(void);
 void load_defaults(const char *conf_file, const char **groups,
 		   int *argc, char ***argv);
+void my_thread_end(void);
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 
