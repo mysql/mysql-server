@@ -37,6 +37,7 @@ class NdbScanOperation;
 class NdbIndexScanOperation; 
 class NdbBlob;
 
+
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
@@ -46,6 +47,12 @@ typedef enum ndb_index_type {
   ORDERED_INDEX = 5
 } NDB_INDEX_TYPE;
 
+typedef struct ndb_index_data {
+  NDB_INDEX_TYPE type;
+  void *index;
+  const char * unique_name;
+  void *unique_index;
+} NDB_INDEX_DATA;
 
 typedef struct st_ndbcluster_share {
   THR_LOCK lock;
@@ -149,6 +156,8 @@ class ha_ndbcluster: public handler
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);
   int initialize_autoincrement(const void* table);
+  int build_index_list0();
+  int build_index_list1();
   int build_index_list();
   int get_metadata(const char* path);
   void release_metadata();
@@ -211,8 +220,7 @@ class ha_ndbcluster: public handler
   ulong m_table_flags;
   THR_LOCK_DATA m_lock;
   NDB_SHARE *m_share;
-  NDB_INDEX_TYPE  m_indextype[MAX_KEY];
-  const char*  m_unique_index_name[MAX_KEY];
+  NDB_INDEX_DATA  m_index[MAX_KEY];
   // NdbRecAttr has no reference to blob
   typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
