@@ -2091,7 +2091,6 @@ static void create_new_thread(THD *thd)
       threads.append(thd);
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
-      (void) pthread_mutex_unlock(&LOCK_thread_count);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
 				handle_one_connection,
 				(void*) thd)))
@@ -2099,7 +2098,6 @@ static void create_new_thread(THD *thd)
 	DBUG_PRINT("error",
 		   ("Can't create thread to handle request (error %d)",
 		    error));
-	(void) pthread_mutex_lock(&LOCK_thread_count);
 	thread_count--;
 	thd->killed=1;				// Safety
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
@@ -2110,6 +2108,8 @@ static void create_new_thread(THD *thd)
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	DBUG_VOID_RETURN;
       }
+      
+      (void) pthread_mutex_unlock(&LOCK_thread_count);
     }
   }
   DBUG_PRINT("info",(("Thread %d created"), thd->thread_id));
