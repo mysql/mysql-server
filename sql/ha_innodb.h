@@ -150,6 +150,7 @@ class ha_innobase: public handler
 	int discard_or_import_tablespace(my_bool discard);
   	int extra(enum ha_extra_function operation);
   	int external_lock(THD *thd, int lock_type);
+	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd);
 
   	void position(byte *record);

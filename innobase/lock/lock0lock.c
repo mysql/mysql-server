@@ -2207,7 +2207,8 @@ lock_grant(
                 release it at the end of the SQL statement */
 
                 lock->trx->auto_inc_lock = lock;
-        } else if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+        } else if (lock_get_type(lock) == LOCK_TABLE_EXP ||
+			lock_get_type(lock) == LOCK_TABLE_TRANSACTIONAL) {
 		ut_a(lock_get_mode(lock) == LOCK_S
 			|| lock_get_mode(lock) == LOCK_X);
 	}
@@ -3421,6 +3422,10 @@ lock_table_create(
 		lock->trx->n_lock_table_exp++;
 	}
 
+	if (lock_get_type(lock) == LOCK_TABLE_TRANSACTIONAL) {
+		lock->trx->n_lock_table_transactional++;
+	}
+
 	lock->un_member.tab_lock.table = table;
 
 	UT_LIST_ADD_LAST(un_member.tab_lock.locks, table->locks, lock);
@@ -3458,7 +3463,11 @@ lock_table_remove_low(
 	}
 
 	if (lock_get_type(lock) == LOCK_TABLE_EXP) {
-		lock->trx->n_lock_table_exp--;
+		trx->n_lock_table_exp--;
+	}
+
+        if (lock_get_type(lock) == LOCK_TABLE_TRANSACTIONAL) {
+		trx->n_lock_table_transactional--;
 	}
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
@@ -3592,7 +3601,8 @@ lock_table(
 				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing;
-				if LOCK_TABLE_EXP bits are set,
+				if LOCK_TABLE_EXP|LOCK_TABLE_TRANSACTIONAL
+				bits are set,
 				creates an explicit table lock */
 	dict_table_t*	table,	/* in: database table in dictionary cache */
 	ulint		mode,	/* in: lock mode */
@@ -3608,7 +3618,8 @@ lock_table(
 		return(DB_SUCCESS);
 	}
 
-	ut_a(flags == 0 || flags == LOCK_TABLE_EXP);
+	ut_a(flags == 0 || flags == LOCK_TABLE_EXP || 
+					flags == LOCK_TABLE_TRANSACTIONAL);
 
 	trx = thr_get_trx(thr);
 
@@ -3631,7 +3642,7 @@ lock_table(
 		/* Another trx has a request on the table in an incompatible
 		mode: this trx may have to wait */
 
-		err = lock_table_enqueue_waiting(mode, table, thr);
+		err = lock_table_enqueue_waiting(mode | flags, table, thr);
 			
 		lock_mutex_exit_kernel();
 
@@ -3722,7 +3733,8 @@ lock_table_dequeue(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(lock_get_type(in_lock) == LOCK_TABLE ||
-		lock_get_type(in_lock) == LOCK_TABLE_EXP);
+		lock_get_type(in_lock) == LOCK_TABLE_EXP ||
+		lock_get_type(in_lock) == LOCK_TABLE_TRANSACTIONAL);
 
 	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
 
@@ -3826,7 +3838,9 @@ lock_release_off_kernel(
 			}
 
 			lock_table_dequeue(lock);
-			if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+
+			if (lock_get_type(lock) == LOCK_TABLE_EXP ||
+			    lock_get_type(lock) == LOCK_TABLE_TRANSACTIONAL) {
 				ut_a(lock_get_mode(lock) == LOCK_S
 					|| lock_get_mode(lock) == LOCK_X);
 			}
@@ -3850,6 +3864,7 @@ lock_release_off_kernel(
 
 	ut_a(trx->auto_inc_lock == NULL);
 	ut_a(trx->n_lock_table_exp == 0);
+	ut_a(trx->n_lock_table_transactional == 0);
 }
 
 /*************************************************************************
@@ -3915,6 +3930,7 @@ lock_release_tables_off_kernel(
 	}
 
 	ut_a(trx->n_lock_table_exp == 0);
+	ut_a(trx->n_lock_table_transactional == 0);
 }
 
 /*************************************************************************
@@ -4028,11 +4044,15 @@ lock_table_print(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(lock_get_type(lock) == LOCK_TABLE ||
-		lock_get_type(lock) == LOCK_TABLE_EXP);
+		lock_get_type(lock) == LOCK_TABLE_EXP ||
+		lock_get_type(lock) == LOCK_TABLE_TRANSACTIONAL);
 
 	if (lock_get_type(lock) == LOCK_TABLE_EXP) {
 		fputs("EXPLICIT ", file);
+	} else if (lock_get_type(lock) == LOCK_TABLE_TRANSACTIONAL) {
+		fputs("TRANSACTIONAL ", file);
 	}
+
 	fputs("TABLE LOCK table ", file);
 	ut_print_name(file, lock->trx, lock->un_member.tab_lock.table->name);
 	fprintf(file, " trx id %lu %lu",
@@ -4418,6 +4438,7 @@ lock_table_queue_validate(
 
 	while (lock) {
 		ut_a(((lock->trx)->conc_state == TRX_ACTIVE)
+		     || ((lock->trx)->conc_state == TRX_PREPARED)
 		     || ((lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY));
 	
 		if (!lock_get_wait(lock)) {
@@ -4465,6 +4486,7 @@ lock_rec_queue_validate(
 
 		while (lock) {
 			ut_a(lock->trx->conc_state == TRX_ACTIVE
+			     || lock->trx->conc_state == TRX_PREPARED
 		     	     || lock->trx->conc_state
 						== TRX_COMMITTED_IN_MEMORY);
 	
@@ -4519,6 +4541,7 @@ lock_rec_queue_validate(
 
 	while (lock) {
 		ut_a(lock->trx->conc_state == TRX_ACTIVE
+		     || lock->trx->conc_state == TRX_PREPARED
 		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 		ut_a(trx_in_trx_list(lock->trx));
 	
@@ -4601,6 +4624,7 @@ loop:
 
 	ut_a(trx_in_trx_list(lock->trx));
 	ut_a(lock->trx->conc_state == TRX_ACTIVE
+		     || lock->trx->conc_state == TRX_PREPARED
 		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 	
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
