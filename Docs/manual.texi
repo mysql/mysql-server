@@ -45475,7 +45475,7 @@ Active mailing list member.
 Ported (and extended) the benchmark suite to @code{DBI}/@code{DBD}. Have
 been of great help with @code{crash-me} and running benchmarks. Some new
 date functions. The mysql_setpermissions script.
-@item Jay Flaherty @email{fty@@utk.edu}
+@item Jay Flaherty @email{fty@@mediapulse.com}
 Big parts of the Perl @code{DBI}/@code{DBD} section in the manual.
 @item Paul Southworth @email{pauls@@etext.org}, Ray Loyzaga @email{yar@@cs.su.oz.au}
 Proof-reading of the Reference Manual.
