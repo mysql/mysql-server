@@ -13,6 +13,9 @@
 #undef NDB_WIN32
 #endif
 
+#ifdef _AIX
+#undef _H_STRINGS
+#endif
 #include <m_string.h>
 #include <m_ctype.h>
 #include <ndb_types.h>

@@ -4618,6 +4618,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     /*       BUT NOT YET COMPLETED.                     */
     /*--------------------------------------------------*/
     ndbrequire(false);
+    gcpState= MasterGCPConf::GCP_READY; // remove warning
     break;
   default:
     /*------------------------------------------------*/
@@ -4627,6 +4628,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     /*       NODE WHICH WAS NOT A MASTER NODE.        */
     /*------------------------------------------------*/
     ndbrequire(false);
+    gcpState= MasterGCPConf::GCP_READY; // remove warning
     break;
   }//switch
   MasterGCPConf * const masterGCPConf = (MasterGCPConf *)&signal->theData[0];  
@@ -5535,6 +5537,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
      *   it not allowed
      */
     ndbrequire(false);
+    lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
     break;
   case LCP_COPY_GCI:
   case LCP_INIT_TABLES:
@@ -5543,6 +5546,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
      * These two states are handled by if statements above
      */
     ndbrequire(false);
+    lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
     break;
   }//switch
   ndbrequire(ok);
@@ -12738,6 +12742,7 @@ void Dbdih::setNodeRestartInfoBits()
       break;
     default:
       ndbrequire(false);
+      tsnrNodeActiveStatus = Sysfile::NS_NotDefined; // remove warning
       break;
     }//switch
     Sysfile::setNodeStatus(nodePtr.i, SYSFILE->nodeStatus, 
