@@ -81,6 +81,10 @@ enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 
 class JOIN;
 
+typedef int (*Next_select_func)(JOIN *,struct st_join_table *,bool);
+typedef int (*Read_record_func)(struct st_join_table *tab);
+
+
 typedef struct st_join_table {
   TABLE		*table;
   KEYUSE	*keyuse;			/* pointer to first used key */
@@ -95,8 +99,8 @@ typedef struct st_join_table {
   st_join_table *first_upper;  /* first inner table for embedding outer join */
   st_join_table *first_unmatched; /* used for optimization purposes only     */
   const char	*info;
-  int		(*read_first_record)(struct st_join_table *tab);
-  int		(*next_select)(JOIN *,struct st_join_table *,bool);
+  Read_record_func read_first_record;
+  Next_select_func next_select;
   READ_RECORD	read_record;
   double	worst_seeks;
   key_map	const_keys;			/* Keys with constant part */
@@ -149,6 +153,16 @@ class JOIN :public Sql_alloc
   bool	   do_send_rows;
   table_map const_table_map,found_const_table_map,outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
+  /*
+    Used to fetch no more than given amount of rows per one 
+    fetch operation of server side cursor.
+    The value is checked in end_send and end_send_group in fashion, similar
+    to offset_limit_cnt:
+      - fetch_limit= HA_POS_ERROR if there is no cursor.
+      - when we open a cursor, we set fetch_limit to 0,
+      - on each fetch iteration we add num_rows to fetch to fetch_limit
+  */
+  ha_rows  fetch_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;
   List<Item> *fields;
@@ -239,6 +253,7 @@ class JOIN :public Sql_alloc
     do_send_rows= 1;
     send_records= 0;
     found_records= 0;
+    fetch_limit= HA_POS_ERROR;
     examined_rows= 0;
     exec_tmp_table1= 0;
     exec_tmp_table2= 0;
@@ -316,6 +331,44 @@ class JOIN :public Sql_alloc
 	    !group_list);
   }
   int change_result(select_result *result);
+};
+
+
+/*
+  Server-side cursor (now stands only for basic read-only cursor)
+  See class implementation in sql_select.cc
+*/
+
+class Cursor: public Sql_alloc, public Item_arena
+{
+  JOIN *join;
+  SELECT_LEX_UNIT *unit;
+
+  TABLE *open_tables;
+  MYSQL_LOCK *lock;
+  TABLE *derived_tables;
+  /* List of items created during execution */
+  ulong query_id;
+public:
+  select_send result;
+
+  /* Temporary implementation as now we replace THD state by value */
+  /* Save THD state into cursor */
+  void init_from_thd(THD *thd);
+  /* Restore THD from cursor to continue cursor execution */
+  void init_thd(THD *thd);
+  /* bzero cursor state in THD */
+  void reset_thd(THD *thd);
+
+  int open(JOIN *join);
+  int fetch(ulong num_rows);
+  void reset() { join= 0; }
+  bool is_open() const { return join != 0; }
+  void close();
+
+  void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
+  Cursor() :join(0), unit(0) {}
+  ~Cursor();
 };
 
 

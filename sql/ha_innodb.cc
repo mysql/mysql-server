@@ -4891,7 +4891,8 @@ innodb_show_status(
 
 	field_list.push_back(new Item_empty_string("Status", flen));
 
-	if (protocol->send_fields(&field_list, 1)) {
+	if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                               Protocol::SEND_EOF)) {
 
 		my_free(str, MYF(0));
 
