@@ -8168,6 +8168,9 @@ Renamed mysqld startup options @code{--skip-locking} to
 @code{--skip-external-locking} and @code{--enable-locking} to
 @code{--external-locking}.
 @item
+mysqld now has the option @code{--temp-pool} enabled by default as this
+gives better performance with some OS.
+@item
 @code{DOUBLE} and @code{FLOAT} columns now honour the
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
 these columns).
@@ -50131,6 +50134,10 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.3
 
 @itemize @bullet
+@item
+mysqld now has the option @code{--temp-pool} enabled by default as this
+gives better performance with some OS.
+@item
 @item
 Fixed bug in @code{REVOKE} that caused user resources to be randomly set.
 @item
