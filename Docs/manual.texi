@@ -15157,40 +15157,40 @@ With this option, the
 @node LOAD DATA LOCAL, What Privileges, Privileges options, Privilege system
 @subsection Security issues with LOAD DATA LOCAL
 
-In MySQL 3.23.49 and MySQL 4.0.2 we added some new options to deal with
+In MySQL 3.23.49 and MySQL 4.0.2, we added some new options to deal with
 possible security issues when it comes to @code{LOAD DATA LOCAL}.
 
 There are two possible problems with supporting this command:
 
 As the reading of the file is initiated from the server, one could
-theoretically create a patched MySQL server that could read any file one
-the client machine, for which the current user have read privilege, when
+theoretically create a patched MySQL server that could read any file on
+the client machine that the current user has read access to, when
 the client issues a query against the table.
 
-In a web environment where the clients are connection from a web
-server, a user could use @code{LOAD DATA LOCAL} to read any files for
-which the web server process have read access to (assuming a user could
+In a web environment where the clients are connecting from a web
+server, a user could use @code{LOAD DATA LOCAL} to read any files
+that the web server process has read access to (assuming a user could
 run any command against the SQL server).
 
-There are two separte fixes for this:
+There are two separate fixes for this:
 
-If one doesn't configure with @code{--enable-local-infile} then
+If you don't configure MySQL with @code{--enable-local-infile}, then
 @code{LOAD DATA LOCAL} will be disabled by all clients, unless one
 calls @code{mysql_options(... MYSQL_OPT_LOCAL_INFILE, 0)} in the client.
 @xref{mysql_options, , @code{mysql_options()}}.
 
-One can enable this command in the @code{mysql} command line client by
-specify the option @code{--local-infile[=1]} and disable it with
-@code{--local-infile=0}.
+For the @code{mysql} command line client, @code{LOAD DATA LOCAL} can be
+enabled by specifying the option @code{--local-infile[=1]}, or disabled
+with @code{--local-infile=0}.
 
-By default all MySQL clients and libraries are compiled with
+By default, all MySQL clients and libraries are compiled with
 @code{--enable-local-infile}, to be compatible with MySQL 3.23.48 and
 before.
 
 One can disable all @code{LOAD DATA LOCAL} commands in the MySQL server
 by starting @code{mysqld} with @code{--local-infile=0}.
 
-In the case of that @code{LOAD DATA INFILE} is disabled in the server or
+In the case that @code{LOAD DATA INFILE} is disabled in the server or
 the client, you will get the error message (1148):
 
 @example
@@ -28685,9 +28685,9 @@ This is a synonym for @code{CHAR(1)}.
 
 A variable-length string.  @strong{Note:} Trailing spaces are removed when
 the value is stored (this differs from the ANSI SQL specification). The range
-of @code{M} is 1 to 255 characters. @code{VARCHAR} values are sorted and
-compared in case-insensitive fashion unless the @code{BINARY} keyword is
-given. @xref{Silent column changes}.
+of @code{M} is 0 to 255 characters (1 to 255 prior to MySQL Version 4.0.2).
+@code{VARCHAR} values are sorted and compared in case-insensitive fashion
+unless the @code{BINARY} keyword is given. @xref{Silent column changes}.
 
 @code{VARCHAR} is a shorthand for @code{CHARACTER VARYING}.
 @xref{CHAR}.
@@ -33544,7 +33544,7 @@ Only the last @code{SELECT} command can have @code{INTO OUTFILE}.
 @end itemize
 
 If you don't use the keyword @code{ALL} for the @code{UNION}, all
-returned rows will be unique, like if you had done a @code{DISTINCT} for
+returned rows will be unique, as if if you had done a @code{DISTINCT} for
 the total result set.  If you specify @code{ALL}, then you will get all
 matching rows from all the used @code{SELECT} statements.
 
