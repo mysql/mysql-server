@@ -15,7 +15,7 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#ifdef OPEN_SSL
+#ifdef HAVE_OPENSSL
    puts("\
    --ssl                Use SSL for connection (automatically set with other flags\n\
    --ssl-key            X509 key in PEM format (implies --ssl)\n\
