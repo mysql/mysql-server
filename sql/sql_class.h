@@ -461,6 +461,8 @@ public:
 
   inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  inline bool is_conventional_execution() const
+  { return state == CONVENTIONAL_EXECUTION; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
@@ -641,6 +643,17 @@ private:
 
 
 /*
+  A registry for item tree transformations performed during
+  query optimization. We register only those changes which require
+  a rollback to re-execute a prepared statement or stored procedure
+  yet another time.
+*/
+
+struct Item_change_record;
+typedef I_List<Item_change_record> Item_change_list;
+
+
+/*
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
@@ -808,6 +821,14 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
 #endif
+  /*
+    This is to track items changed during execution of a prepared
+    statement/stored procedure. It's created by
+    register_item_tree_change() in memory root of THD, and freed in
+    rollback_item_tree_changes(). For conventional execution it's always 0.
+  */
+  Item_change_list change_list;
+
   /*
     Current prepared Item_arena if there one, or 0
   */
@@ -1032,6 +1053,16 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
+
+  void register_item_tree_change(Item **place, Item *old_value,
+                                 MEM_ROOT *runtime_memroot)
+  {
+    if (!current_arena->is_conventional_execution())
+      nocheck_register_item_tree_change(place, old_value, runtime_memroot);
+  }
+  void nocheck_register_item_tree_change(Item **place, Item *old_value,
+                                             MEM_ROOT *runtime_memroot);
+  void rollback_item_tree_changes();
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
