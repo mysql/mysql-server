@@ -1643,8 +1643,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
       packet[0].
     */
-    enum enum_shutdown_level level=
-      (enum enum_shutdown_level) (uchar) packet[0];
+    enum mysql_enum_shutdown_level level=
+      (enum mysql_enum_shutdown_level) (uchar) packet[0];
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
@@ -4319,8 +4319,12 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_TIMESTAMP:
     if (!length)
       new_field->length= 14;			// Full date YYYYMMDDHHMMSS
-    else
+    else if (new_field->length != 19)
     {
+      /*
+        We support only even TIMESTAMP lengths less or equal than 14
+        and 19 as length of 4.1 compatible representation.
+      */
       new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }

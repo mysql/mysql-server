@@ -81,7 +81,7 @@ character-set=latin2
 "Blob objektum '%-.64s' nem hasznalhato kulcskent",
 "A(z) '%-.64s' oszlop tul hosszu. (maximum = %d). Hasznaljon BLOB tipust inkabb.",
 "Csak egy auto mezo lehetseges, es azt kulcskent kell definialni.",
-"%s: kapcsolatra kesz\n",
+"%s: kapcsolatra kesz",
 "%s: Normal leallitas\n",
 "%s: %d jelzes. Megszakitva!\n",
 "%s: A leallitas kesz\n",

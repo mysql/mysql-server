@@ -1590,6 +1590,8 @@ static void registerwithneb()
 ulong neb_event_callback(struct EventBlock *eblock)
 {
   EventChangeVolStateEnter_s *voldata;
+  extern bool nw_panic;
+
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
@@ -1602,6 +1604,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
     if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      nw_panic = TRUE;
       kill_server(0);
     }
   }
@@ -1879,9 +1882,11 @@ static void init_signals(void)
   sigaddset(&set,SIGPIPE);
 #endif
   sigaddset(&set,SIGINT);
+#ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
-  sigaddset(&set,SIGTERM);
   sigaddset(&set,SIGHUP);
+#endif
+  sigaddset(&set,SIGTERM);
 
   /* Fix signals if blocked by parents (can happen on Mac OS X) */
   sigemptyset(&sa.sa_mask);
@@ -1965,11 +1970,13 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);	// For alarms
 #endif
+#ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
-  (void) sigaddset(&set,SIGTERM);
 #if THR_CLIENT_ALARM != SIGHUP
   (void) sigaddset(&set,SIGHUP);
 #endif
+#endif
+  (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
 
   /* Save pid to this process (or thread on Linux) */
@@ -2925,6 +2932,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   printf(ER(ER_READY),my_progname,server_version,
 	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysqld_unix_port),
 	 mysqld_port);
+  if (MYSQL_COMPILATION_COMMENT[0] != '\0')
+    fputs("  " MYSQL_COMPILATION_COMMENT, stdout);
+  putchar('\n');
   fflush(stdout);
 
 #if defined(__NT__) || defined(HAVE_SMEM)
@@ -3942,6 +3952,7 @@ enum options_mysqld
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
+  OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
   OPT_INNODB_OPEN_FILES,
   OPT_BDB_CACHE_SIZE,
@@ -4171,6 +4182,10 @@ Disable with --skip-innodb (will save memory).",
   {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
    "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
+  {"innodb_status_file", OPT_INNODB_STATUS_FILE,
+   "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
+   (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Enable ISAM (if this version of MySQL supports it). \
 Disable with --skip-isam.",
