@@ -299,7 +299,8 @@ Return Value:   Returns a pointer to a connection object.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
 NdbTransaction* 
-Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
+Ndb::startTransaction(const NdbDictionary::Table *table,
+		      const char * keyData, Uint32 keyLen)
 {
   DBUG_ENTER("Ndb::startTransaction");
 
@@ -319,7 +320,7 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
       nodeId = 0;
     }//if
     {
-      NdbTransaction *trans= startTransactionLocal(aPriority, nodeId);
+      NdbTransaction *trans= startTransactionLocal(0, nodeId);
       DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
 			 trans, trans ? trans->getTransactionId() : 0));
       DBUG_RETURN(trans);
