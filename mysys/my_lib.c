@@ -112,6 +112,10 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   dirp = opendir(directory_file_name(tmp_path,(my_string) path));
   size = STARTSIZE;
+#if defined(__amiga__)
+  if ((dirp->dd_fd) < 0)			/* Directory doesn't exists */
+    goto error;
+#endif
   if (dirp == NULL || ! (buffer = (char *) my_malloc(size, MyFlags)))
     goto error;
 
