@@ -750,7 +750,7 @@ int load_master_data(THD* thd)
     We do not want anyone messing with the slave at all for the entire
     duration of the data load.
   */
-  LOCK_ACTIVE_MI;
+  pthread_mutex_lock(&LOCK_active_mi);
   lock_slave_threads(active_mi);
   init_thread_mask(&restart_thread_mask,active_mi,0 /*not inverse*/);
   if (restart_thread_mask &&
@@ -759,7 +759,7 @@ int load_master_data(THD* thd)
   {
     send_error(&thd->net,error);
     unlock_slave_threads(active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     return 1;
   }
   
@@ -913,7 +913,7 @@ int load_master_data(THD* thd)
   {
     send_error(&thd->net, 0, "Failed purging old relay logs");
     unlock_slave_threads(active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     return 1;
   }
   pthread_mutex_lock(&active_mi->rli.data_lock);
@@ -934,7 +934,7 @@ int load_master_data(THD* thd)
 
 err:
   unlock_slave_threads(active_mi);
-  UNLOCK_ACTIVE_MI;
+  pthread_mutex_unlock(&LOCK_active_mi);
   thd->proc_info = 0;
 
   mc_mysql_close(&mysql); // safe to call since we always do mc_mysql_init()

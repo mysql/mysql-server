@@ -1271,7 +1271,7 @@ byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type)
 bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 {
   int result= 0;
-  LOCK_ACTIVE_MI;
+  pthread_mutex_lock(&LOCK_active_mi);
   pthread_mutex_lock(&active_mi->rli.run_lock);
   if (active_mi->rli.slave_running)
   {
@@ -1279,14 +1279,14 @@ bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
     result=1;
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
-  UNLOCK_ACTIVE_MI;
+  pthread_mutex_unlock(&LOCK_active_mi);
   return result;
 }
 
 
 bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 {
-  LOCK_ACTIVE_MI;
+  pthread_mutex_lock(&LOCK_active_mi);
   pthread_mutex_lock(&active_mi->rli.run_lock);
   /*
     The following test should normally never be true as we test this
@@ -1300,7 +1300,7 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
     pthread_mutex_unlock(&active_mi->rli.data_lock);
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
-  UNLOCK_ACTIVE_MI;
+  pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
 

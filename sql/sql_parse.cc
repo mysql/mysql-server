@@ -1519,9 +1519,9 @@ mysql_execute_command(void)
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     res = change_master(thd,active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
   case SQLCOM_SHOW_SLAVE_STAT:
@@ -1529,9 +1529,9 @@ mysql_execute_command(void)
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     res = show_master_info(thd,active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
@@ -1581,7 +1581,7 @@ mysql_execute_command(void)
       if (error)
 	goto error;
     }
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     /*
       fetch_master_table will send the error to the client on failure.
       Give error if the table already exists.
@@ -1591,7 +1591,7 @@ mysql_execute_command(void)
     {
       send_ok(&thd->net);
     }
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
 #endif /* HAVE_REPLICATION */
@@ -1702,9 +1702,9 @@ mysql_execute_command(void)
 #ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     start_slave(thd,active_mi,1 /* net report*/);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
   case SQLCOM_SLAVE_STOP:
@@ -1727,9 +1727,9 @@ mysql_execute_command(void)
     break;
   }
   {
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     stop_slave(thd,active_mi,1/* net report*/);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
 #endif /* HAVE_REPLICATION */
@@ -3638,9 +3638,9 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
     mysql_slow_log.new_file(1);
-    LOCK_ACTIVE_MI;
+    pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
 
     if (ha_flush_logs())
       result=1;
@@ -3685,7 +3685,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
 #endif
  if (options & REFRESH_SLAVE)
  {
-   LOCK_ACTIVE_MI;
+   pthread_mutex_lock(&LOCK_active_mi);
    if (reset_slave(thd, active_mi))
    {
      result=1;
@@ -3697,7 +3697,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
      */
      error_already_sent=1;
    }
-   UNLOCK_ACTIVE_MI;
+   pthread_mutex_unlock(&LOCK_active_mi);
  }
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
