@@ -56,7 +56,6 @@ ndb_thread_wrapper(void* _ss){
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
       ret= (* ss->func)(ss->object);
-      my_thread_end();
       NdbThread_Exit(ret);
     }
   /* will never be reached */
@@ -140,6 +139,7 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
 
 void NdbThread_Exit(void *status)
 {
+  my_thread_end();
   pthread_exit(status);
 }
 
