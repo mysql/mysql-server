@@ -3955,6 +3955,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_select();
   if (move_down)
   {
+    lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
     SELECT_LEX_UNIT *unit;
     if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))

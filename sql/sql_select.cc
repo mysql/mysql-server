@@ -936,7 +936,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex->uncacheable)
+    if (thd->lex->subqueries)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
@@ -3834,6 +3834,7 @@ JOIN::join_free(bool full)
   DBUG_ENTER("JOIN::join_free");
 
   full= full || (!select_lex->uncacheable &&
+                 !thd->lex->subqueries &&
                  !thd->lex->describe); // do not cleanup too early on EXPLAIN
 
   if (table)
