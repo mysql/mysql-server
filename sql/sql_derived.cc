@@ -168,14 +168,9 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	      tables->table_list->table=tables->table; // to fix a problem in EXPLAIN
 	  }
 	  else
-	  {
-	    if (is_union)
-	      unit->exclude();
-	    else
-	      sl->exclude();
-	  }
+	    unit->exclude();
 	  t->db=(char *)"";
-	  t->derived=(SELECT_LEX *)0; // just in case ...
+	  t->derived=(SELECT_LEX *)1; // just in case ...
 	  table->file->info(HA_STATUS_VARIABLE);
 	}
       }

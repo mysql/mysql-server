@@ -235,4 +235,19 @@ select * from t2;
 n	d
 1	30
 1	30
+UPDATE t1 a ,t2 b SET t1.d=t2.d,t2.d=30 WHERE a.n=b.n;
+select * from t1;
+n	d
+1	30
+3	2
+select * from t2;
+n	d
+1	30
+1	30
+DELETE t1, t2  FROM t1 a,t2 b where a.n=b.n;
+select * from t1;
+n	d
+3	2
+select * from t2;
+n	d
 drop table t1,t2;
