@@ -70,22 +70,32 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
       {
 	longlong i= it->val_int();
 
-	DBUG_PRINT("info", ("INT_RESULT: %d", i));
 	if (it->null_value)
+	{
+	  DBUG_PRINT("info", ("INT_RESULT: null"));
 	  it= new Item_null();
+	}
 	else
+	{
+	  DBUG_PRINT("info", ("INT_RESULT: %d", i));
 	  it= new Item_int(it->val_int());
+	}
 	break;
       }
     case REAL_RESULT:
       {
 	double d= it->val();
 
-	DBUG_PRINT("info", ("REAL_RESULT: %g", d));
 	if (it->null_value)
+	{
+	  DBUG_PRINT("info", ("REAL_RESULT: null"));
 	  it= new Item_null();
+	}
 	else
+	{
+	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
 	  it= new Item_real(it->val());
+	}
 	break;
       }
     default:
@@ -94,12 +104,17 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	String tmp(buffer, sizeof(buffer), it->collation.collation);
 	String *s= it->val_str(&tmp);
 
-	DBUG_PRINT("info",("default result: %*s",s->length(),s->c_ptr_quick()));
 	if (it->null_value)
+	{
+	  DBUG_PRINT("info", ("default result: null"));
 	  it= new Item_null();
+	}
 	else
+	{
+	  DBUG_PRINT("info",("default result: %*s",s->length(),s->c_ptr_quick()));
 	  it= new Item_string(thd->strmake(s->c_ptr_quick(), s->length()),
 			      s->length(), it->collation.collation);
+	}
 	break;
       }
     }
