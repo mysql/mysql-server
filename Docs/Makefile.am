@@ -179,12 +179,9 @@ nusphere.pdf: manual.texi
 # Include images for the manual in the distribution
 dist-hook:
 	BD=`cd $(top_srcdir); pwd`; \
-	if test ! -d $(distdir)/Flags; then mkdir -p $(distdir)/Flags; fi; \
-	$(INSTALL_DATA) $(srcdir)/Flags/*.gif $(srcdir)/Flags/*.eps \
-		$(srcdir)/Flags/*.txt $(distdir)/Flags;
 	echo "PostScript and PDF versions suitable for printing" \
 		> $(distdir)/manual.ps
-	echo "are available from http://www.mysql.com/Manual/" \
+	echo "are available from http://dev.mysql.com/doc/" \
 		>> $(distdir)/manual.ps
 	echo "or any mirror site" \
 		>> $(distdir)/manual.ps

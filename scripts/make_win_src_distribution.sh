@@ -306,8 +306,7 @@ done
 # Raw dirs from source tree
 #
 
-for i in Docs/Flags scripts sql-bench SSL \
-         tests
+for i in scripts sql-bench SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]
