@@ -222,12 +222,11 @@ struct st_myisam_info {
   MI_BLOB     *blobs;			/* Pointer to blobs */
   MI_BIT_BUFF  bit_buff;
   /* accumulate indexfile changes between write's */
-  TREE	      *bulk_insert;   
+  TREE	      *bulk_insert;
   char *filename;			/* parameter to open filename */
   uchar *buff,				/* Temp area for key */
 	*lastkey,*lastkey2;		/* Last used search key */
-  byte	*rec_buff,			/* Tempbuff for recordpack */
-	*rec_alloc;			/* Malloced area for record */
+  byte	*rec_buff;			/* Tempbuff for recordpack */
   uchar *int_keypos,			/* Save position for next/previous */
         *int_maxpos;			/*  -""-  */
   int (*read_record)(struct st_myisam_info*, my_off_t, byte*);
@@ -249,7 +248,7 @@ struct st_myisam_info {
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
   uint	alloced_rec_buff_length;	/* Max recordlength malloced */
-  uint   int_nod_flag;			/*  -""-  */
+  uint  int_nod_flag;			/*  -""-  */
   int	lastinx;			/* Last used index */
   uint	lastkey_length;			/* Length of key in lastkey */
   uint	last_rkey_length;		/* Last length in mi_rkey() */
@@ -360,6 +359,7 @@ struct st_myisam_info {
 #define MI_DYN_ALIGN_SIZE	4	/* Align blocks on this */
 #define MI_MAX_DYN_HEADER_BYTE	13	/* max header byte for dynamic rows */
 #define MI_MAX_BLOCK_LENGTH	((((ulong) 1 << 24)-1) & (~ (ulong) (MI_DYN_ALIGN_SIZE-1)))
+#define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER)
 
 #define MEMMAP_EXTRA_MARGIN	7	/* Write this as a suffix for file */
 
@@ -523,7 +523,11 @@ extern int _mi_read_key_record(MI_INFO *info,my_off_t filepos,byte *buf);
 extern int _mi_read_cache(IO_CACHE *info,byte *buff,my_off_t pos,
 			  uint length,int re_read_if_possibly);
 extern void update_auto_increment(MI_INFO *info,const byte *record);
-extern byte *mi_fix_rec_buff_for_blob(MI_INFO *info,ulong blob_length);
+extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**, uint*);
+extern gptr mi_get_rec_buff_ptr(MI_INFO *, byte *);
+#define mi_fix_rec_buff_for_blob(INFO,LENGTH)  \
+            mi_alloc_rec_buff((INFO),(LENGTH), \
+              &((INFO)->rec_buff), &((INFO)->alloced_rec_buff_length))
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
 extern my_bool _mi_rec_check(MI_INFO *info,const char *from);

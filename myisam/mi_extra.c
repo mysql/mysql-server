@@ -328,11 +328,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
       }
     }
     if (share->base.blobs)
-    {
-      my_free(info->rec_alloc,MYF(MY_ALLOW_ZERO_PTR));
-      info->rec_alloc=info->rec_buff=0;
-      mi_fix_rec_buff_for_blob(info, 0);
-    }
+      mi_fix_rec_buff_for_blob(info, -1);
     break;
   case HA_EXTRA_NORMAL:				/* Theese isn't in use */
     info->quick_mode=0;
