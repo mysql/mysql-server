@@ -1415,8 +1415,34 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
+			if (foreign->referenced_table) {
+				mutex_enter(&(dict_sys->mutex));
+
+				(foreign->referenced_table
+					->n_foreign_key_checks_running)++;
+
+				mutex_exit(&(dict_sys->mutex));
+			}
+
+			/* NOTE that if the thread ends up waiting for a lock
+			we will release dict_operation_lock temporarily!
+			But the counter on the table protects the referenced
+			table from being dropped while the check is running. */
+
 			err = row_ins_check_foreign_constraint(TRUE, foreign,
 						table, entry, thr);
+
+			if (foreign->referenced_table) {
+				mutex_enter(&(dict_sys->mutex));
+
+				ut_a(foreign->referenced_table
+					->n_foreign_key_checks_running > 0);
+				(foreign->referenced_table
+					->n_foreign_key_checks_running)--;
+
+				mutex_exit(&(dict_sys->mutex));
+			}
+
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);
 			}
