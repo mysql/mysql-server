@@ -2389,7 +2389,7 @@ simple_expr:
 	| DAY_SYM '(' expr ')'
 	  { $$= new Item_func_dayofmonth($3); }
 	| ELT_FUNC '(' expr ',' expr_list ')'
-	  { $$= new Item_func_elt($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_elt(*$5); }
 	| MAKE_SET_SYM '(' expr ',' expr_list ')'
 	  { $$= new Item_func_make_set($3, *$5); }
 	| ENCRYPT '(' expr ')'
@@ -2427,7 +2427,7 @@ simple_expr:
 	    $$= new Item_func_date_format (new Item_func_from_unixtime($3),$5,0);
 	  }
 	| FIELD_FUNC '(' expr ',' expr_list ')'
-	  { $$= new Item_func_field($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_field(*$5); }
 	| GEOMFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| GEOMFROMTEXT '(' expr ',' expr ')'
