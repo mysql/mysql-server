@@ -56,7 +56,7 @@
 #ifndef __STDC_EXT__
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
 #endif
-#if defined(THREAD) && defined(HAVE_LINUXTHREADS) && defined(HAVE_PTHREAD_RWLOCK_RDLOCK)
+#if defined(HAVE_LINUXTHREADS)
 #define _GNU_SOURCE 1
 #endif
 

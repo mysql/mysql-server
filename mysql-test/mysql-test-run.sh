@@ -157,7 +157,7 @@ then
   shift 1
 fi  
 
-if [ "$1" = "-gdb" ];
+if [ "$1" = "--gdb" ];
 then
 # if the user really wanted to run binary dist in a debugger, he can
 # but we should warn him
