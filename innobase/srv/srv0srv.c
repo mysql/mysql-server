@@ -1655,6 +1655,11 @@ loop:
 	    mutex_enter(&srv_monitor_file_mutex);
 	    rewind(srv_monitor_file);
 	    srv_printf_innodb_monitor(srv_monitor_file);
+#ifdef __WIN__
+	    chsize(fileno(srv_monitor_file), ftell(srv_monitor_file));
+#else /* __WIN__ */
+	    ftruncate(fileno(srv_monitor_file), ftell(srv_monitor_file));
+#endif /* __WIN__ */
 	    mutex_exit(&srv_monitor_file_mutex);
 
 	    if (srv_print_innodb_tablespace_monitor

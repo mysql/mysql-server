@@ -218,7 +218,7 @@ void
 mutex_get_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char**		file_name,	/* out: file where requested */
+	const char**	file_name,	/* out: file where requested */
 	ulint*		line,		/* out: line where requested */
 	os_thread_id_t* thread_id);	/* out: id of the thread which owns
 					the mutex */

@@ -84,9 +84,9 @@ bbbb	bb	bbbbbbbb	aaaa	bbbb
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
 replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL')
 this is a REAL test
-select soundex(''),soundex('he'),soundex('hello all folks');
-soundex('')	soundex('he')	soundex('hello all folks')
-	H000	H4142
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
+soundex('')	soundex('he')	soundex('hello all folks')	soundex('#3556 in bugdb')
+	H000	H4142	I51231
 select 'mood' sounds like 'mud';
 'mood' sounds like 'mud'
 1

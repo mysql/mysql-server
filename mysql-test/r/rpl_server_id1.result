@@ -1,0 +1,23 @@
+slave stop;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+drop table if exists t1;
+create table t1 (n int);
+reset master;
+stop slave;
+change master to master_port=SLAVE_PORT;
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	SLAVE_PORT	1		4	slave-relay-bin.001	4		No	No			0		0	0	#
+start slave;
+insert into t1 values (1);
+show status like "slave_running";
+Variable_name	Value
+Slave_running	ON
+select * from t1;
+n
+1
+drop table t1;

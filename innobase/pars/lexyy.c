@@ -4,6 +4,9 @@
  * $Header: /home/heikki/cvsroot/ib/pars/lexyy.c,v 1.2 2003/10/30 20:27:19 heikki Exp $
  */
 
+/* This include MUST be first to keep things portable ! */
+#include "univ.i"
+
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
