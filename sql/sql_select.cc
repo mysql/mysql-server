@@ -5289,6 +5289,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->key_length=(uint16) reclength;
     keyinfo->name=(char*) "tmp";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+    keyinfo->rec_per_key=0;
     if (null_pack_length)
     {
       key_part_info->null_bit=0;
