@@ -278,7 +278,7 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 
 static int add_collation(CHARSET_INFO *cs)
 {
-  if (cs->name && (cs->number || (cs->number=get_charset_number(cs->name))))
+  if (cs->name && (cs->number || (cs->number=get_collation_number(cs->name))))
   {
     if (!all_charsets[cs->number])
     {
@@ -513,7 +513,7 @@ void free_charsets(void)
 }
 
 
-uint get_charset_number(const char *charset_name)
+uint get_collation_number(const char *name)
 {
   CHARSET_INFO **cs;
   if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
@@ -522,10 +522,25 @@ uint get_charset_number(const char *charset_name)
   for (cs= all_charsets; cs < all_charsets+255; ++cs)
   {
     if ( cs[0] && cs[0]->name && 
-         !my_strcasecmp(&my_charset_latin1, cs[0]->name, charset_name))
+         !my_strcasecmp(&my_charset_latin1, cs[0]->name, name))
       return cs[0]->number;
   }  
   return 0;   /* this mimics find_type() */
+}
+
+uint get_charset_number(const char *charset_name, uint cs_flags)
+{
+  CHARSET_INFO **cs;
+  if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
+    return 0;
+  
+  for (cs= all_charsets; cs < all_charsets+255; ++cs)
+  {
+    if ( cs[0] && cs[0]->csname && (cs[0]->state & cs_flags) &&
+         !my_strcasecmp(&my_charset_latin1, cs[0]->csname, charset_name))
+      return cs[0]->number;
+  }  
+  return 0;
 }
 
 
@@ -593,7 +608,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   CHARSET_INFO *cs;
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
 
-  cs_number=get_charset_number(cs_name);
+  cs_number=get_collation_number(cs_name);
   cs= cs_number ? get_internal_charset(cs_number,flags) : NULL;
 
   if (!cs && (flags & MY_WME))
@@ -611,23 +626,15 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 				    uint cs_flags,
 				    myf flags)
 {
-  CHARSET_INFO *cs=NULL;
-  CHARSET_INFO **css;
+  uint cs_number;
+  CHARSET_INFO *cs;
   DBUG_ENTER("get_charset_by_csname");
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
   
-  for (css= all_charsets; css < all_charsets+255; ++css)
-  {
-    if ( css[0] && (css[0]->state & cs_flags) && 
-         css[0]->csname && !my_strcasecmp(&my_charset_latin1, 
-         				  css[0]->csname, cs_name))
-    {
-      cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
-      break;
-    }
-  }
+  cs_number= get_charset_number(cs_name, cs_flags);
+  cs= cs_number ? get_internal_charset(cs_number, flags) : NULL;
   
   if (!cs && (flags & MY_WME))
   {
