@@ -18,7 +18,7 @@ Icon:		mysql.gif
 URL:		http://www.mysql.com/
 Packager:	David Axmark <david@mysql.com>
 Vendor:		MySQL AB
-Provides:	msqlormysql MySQL-server
+Provides:	msqlormysql MySQL-server mysql
 Obsoletes:	mysql
 
 # Think about what you use here since the first step is to

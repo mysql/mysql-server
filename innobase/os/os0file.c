@@ -120,6 +120,12 @@ os_file_get_last_error(void)
 
 	err = (ulint) GetLastError();
 
+	if (err != ERROR_FILE_EXISTS) {
+	         fprintf(stderr,
+	 "InnoDB: operating system error number %li in a file operation.\n",
+		(long) err);
+	}
+
 	if (err == ERROR_FILE_NOT_FOUND) {
 		return(OS_FILE_NOT_FOUND);
 	} else if (err == ERROR_DISK_FULL) {
@@ -131,6 +137,12 @@ os_file_get_last_error(void)
 	}
 #else
 	err = (ulint) errno;
+
+	if (err != EEXIST) {
+	        fprintf(stderr,
+	 "InnoDB: operating system error number %i in a file operation.\n",
+		errno);
+	}
 
 	if (err == ENOSPC ) {
 		return(OS_FILE_DISK_FULL);
@@ -173,7 +185,7 @@ os_file_handle_error(
 			"InnoDB: Encountered a problem with file %s.\n",
 									name);
 		}
-		fprintf(stderr,
+	   fprintf(stderr,
 	   "InnoDB: Cannot continue operation.\n"
 	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
 	   "InnoDB: Delete possible created file and restart.\n");
@@ -184,7 +196,9 @@ os_file_handle_error(
 
 		return(TRUE);
 	} else {
-		ut_error;
+		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
+
+		exit(1);
 	}
 
 	return(FALSE);	
@@ -298,6 +312,12 @@ try_again:
 	}
 
 	UT_NOT_USED(purpose);
+
+	/* On Linux opening a file in the O_SYNC mode seems to be much
+        more efficient for small writes than calling an explicit fsync or
+	fdatasync after each write, but on Solaris O_SYNC and O_DSYNC is
+	extremely slow in large block writes to a big file. Therefore we
+	do not use these options, but use explicit fdatasync. */
 
 	if (create_mode == OS_FILE_CREATE) {
 	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
@@ -418,10 +438,13 @@ os_file_set_size(
 	byte*   buf;
 
 try_again:
-	buf = ut_malloc(UNIV_PAGE_SIZE * 64);
+	/* We use a very big 16 MB buffer in writing because Linux is
+	extremely slow in fdatasync on 1 MB writes */
+
+	buf = ut_malloc(UNIV_PAGE_SIZE * 1024);
 
 	/* Write buffer full of zeros */
-	for (i = 0; i < UNIV_PAGE_SIZE * 64; i++) {
+	for (i = 0; i < UNIV_PAGE_SIZE * 1024; i++) {
 	        buf[i] = '\0';
 	}
 
@@ -433,10 +456,10 @@ try_again:
 	UT_NOT_USED(size_high);
 #endif
 	while (offset < low) {
-	        if (low - offset < UNIV_PAGE_SIZE * 64) {
+	        if (low - offset < UNIV_PAGE_SIZE * 1024) {
 	                 n_bytes = low - offset;
 	        } else {
-	                 n_bytes = UNIV_PAGE_SIZE * 64;
+	                 n_bytes = UNIV_PAGE_SIZE * 1024;
 	        }
 	  
 	        ret = os_file_write(name, file, buf, offset, 0, n_bytes);
@@ -451,6 +474,8 @@ try_again:
 	ut_free(buf);
 
 	ret = os_file_flush(file);
+
+	fsync(file);
 
 	if (ret) {
 	        return(TRUE);
@@ -492,8 +517,11 @@ os_file_flush(
 #else
 	int	ret;
 	
+#ifdef HAVE_FDATASYNC
+	ret = fdatasync(file);
+#else
 	ret = fsync(file);
-
+#endif
 	if (ret == 0) {
 		return(TRUE);
 	}

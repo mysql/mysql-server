@@ -127,3 +127,6 @@ t3	CREATE TABLE `t3` (
   `othr` int(11) NOT NULL default '0'
 ) TYPE=MRG_MyISAM UNION=(t1,t2)
 a
+a	b
+1	1
+1	2

@@ -88,7 +88,7 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
   isam_info->update&= HA_STATE_CHANGED;
   DBUG_RETURN((*isam_info->s->read_rnd)
               (isam_info, (byte*) buf,
-	      (ha_rows) (filepos - info->current_table->file_offset),
+	      (my_off_t) (filepos - info->current_table->file_offset),
 	      0));
 }
 
