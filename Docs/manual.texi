@@ -17080,11 +17080,11 @@ MySQL web site (@uref{http://www.mysql.com/Downloads/Contrib/}).
 
 Starting from MySQL 4.0.2 one can limit certain resources per user.
 
-So far, the only available method of limiting user usage of MySQL
+So far, the only available method of limiting usage of MySQL
 server resources has been setting the @code{max_user_connections}
 startup variable to a non-zero value. But this method is strictly
 global and does not allow for management of individual users, which
-could be of paricular interest to Internet Service Providers.
+could be of particular interest to Internet Service Providers.
 
 Therefore, management of three resources is introduced on the
 individual user level:
