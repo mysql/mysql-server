@@ -3449,7 +3449,7 @@ revoke:
 	  lex->columns.empty();
 	  lex->grant= lex->grant_tot_col=0;
 	  lex->select->db=0;
-	  bzero(&(lex->mqh),sizeof(lex->mqh));
+	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table FROM user_list;
 

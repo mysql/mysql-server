@@ -622,7 +622,7 @@ extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
 extern ulong ha_read_key_count, ha_read_next_count, ha_read_prev_count;
 extern ulong ha_read_first_count, ha_read_last_count;
 extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
-extern ulong ha_commit_count, ha_rollback_count, mysqld_net_retry_count;
+extern ulong ha_commit_count, ha_rollback_count;
 extern ulong keybuff_size,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong max_insert_delayed_threads, max_user_connections;

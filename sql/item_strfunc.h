@@ -35,16 +35,6 @@ public:
   double val();
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    if (!t_arg)
-      return result_field;
-    return ((max_length > 255) ?
-	    (Field *) new Field_blob(max_length, maybe_null, name, t_arg,
-				     binary) :
-	    (Field *) new Field_string(max_length, maybe_null, name, t_arg,
-				       binary));
-  }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -59,6 +49,7 @@ public:
   const char *func_name() const { return "md5"; }
   unsigned int size_of() { return sizeof(*this);}  
 };
+
 
 class Item_func_sha :public Item_str_func
 {

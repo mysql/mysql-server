@@ -8220,7 +8220,9 @@ In 3.23, @code{INSERT INTO ... SELECT} always had @code{IGNORE} enabled.
 In 4.0.1, MySQL will stop (and possibly roll back) in case of an error if you
 don't specify @code{IGNORE}.
 @item
-@file{safe_mysqld} is renamed to @file{mysqld_safe}.
+@file{safe_mysqld} is renamed to @file{mysqld_safe}.  For some time we
+will in our binary distributions include @code{safe_mysqld} as a symlink to
+@code{mysqld_safe}.
 @item
 The old C API functions @code{mysql_drop_db}, @code{mysql_create_db}, and
 @code{mysql_connect} are not supported anymore, unless you compile
@@ -28663,6 +28665,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item myisam_sort_buffer_size @tab num @tab GLOBAL | SESSION
 @item net_buffer_length @tab num @tab GLOBAL | SESSION
 @item net_read_timeout @tab num @tab GLOBAL | SESSION
+@item net_retry_count @tab num @tab GLOBAL | SESSION
 @item net_write_timeout @tab num @tab GLOBAL | SESSION
 @item query_cache_limit @tab num @tab GLOBAL
 @item query_cache_size @tab num @tab GLOBAL
@@ -50221,6 +50224,8 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.3 (Aug 2002: Beta)
 
 @itemize @bullet
+@item
+Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
 @item
 mysqld now has the option @code{--temp-pool} enabled by default as this
 gives better performance with some OS.
