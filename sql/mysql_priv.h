@@ -531,7 +531,8 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Key> &keys,
 		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-		      ALTER_INFO *alter_info);
+		      ALTER_INFO *alter_info, bool do_send_ok=1);
+int mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,
                             Table_ident *src_table);
