@@ -2137,6 +2137,30 @@ buf_print(void)
 }	
 
 /*************************************************************************
+Returns the number of latched pages in the buffer pool. */
+
+ulint
+buf_get_latched_pages_number(void)
+{
+        buf_block_t* block;
+        ulint i;
+        ulint fixed_pages_number = 0;
+
+        mutex_enter(&(buf_pool->mutex));
+
+        for (i = 0; i < buf_pool->curr_size; i++) {
+
+               block = buf_pool_get_nth_block(buf_pool, i);
+
+               if ((block->buf_fix_count != 0) || (block->io_fix != 0))
+                       fixed_pages_number++;
+        }
+
+        mutex_exit(&(buf_pool->mutex));
+        return fixed_pages_number;
+}
+
+/*************************************************************************
 Returns the number of pending buf pool ios. */
 
 ulint

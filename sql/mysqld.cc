@@ -5402,6 +5402,9 @@ struct show_var_st status_vars[]= {
    SHOW_LONG_STATUS},
   {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count),
    SHOW_LONG_STATUS},
+#ifdef HAVE_INNOBASE_DB
+  {"Innodb_",                  (char*) &innodb_status_variables, SHOW_VARS},
+#endif /*HAVE_INNOBASE_DB*/
   {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
    SHOW_KEY_CACHE_LONG},
   {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused,
