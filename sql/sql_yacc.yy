@@ -210,6 +210,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CONCURRENT
 %token	CONSTRAINT
 %token	CONVERT_SYM
+%token  CURRENT_USER
 %token	DATABASES
 %token	DATA_SYM
 %token	DEFAULT
@@ -721,7 +722,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	union_clause union_list
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
-	opt_extended_describe
+	opt_extended_describe curr_user
 END_OF_INPUT
 
 %type <NONE>
@@ -2684,6 +2685,8 @@ simple_expr:
 	    $$= new Item_func_curtime_local($3);
 	    Lex->safe_to_cache_query=0;
 	  }
+	| curr_user
+          { $$= create_func_current_user(); }
 	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
 	  { $$= new Item_date_add_interval($3,$5,$6,0); }
 	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
@@ -4170,6 +4173,29 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS"); }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS"); }
+	| GRANTS
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_GRANTS;
+	    THD *thd= lex->thd;
+	    LEX_USER *curr_user;
+            if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+              YYABORT;
+            curr_user->user.str= thd->priv_user;
+            curr_user->user.length= strlen(thd->priv_user);
+            if (*thd->priv_host != 0)
+            {
+              curr_user->host.str= thd->priv_host;
+              curr_user->host.length= strlen(thd->priv_host);
+            }
+            else
+            {
+              curr_user->host.str= (char *) "%";
+              curr_user->host.length= 1;
+            }
+            curr_user->password.str=NullS;
+	    lex->grant_user= curr_user;
+	  }
 	| GRANTS FOR_SYM user
 	  {
 	    LEX *lex=Lex;
@@ -4744,6 +4770,11 @@ ident_or_text:
 	| TEXT_STRING_sys	{ $$=$1;}
 	| LEX_HOSTNAME		{ $$=$1;};
 
+curr_user: 
+        CURRENT_USER		{;}
+        | CURRENT_USER '(' ')'	{;}
+        ;
+
 user:
 	ident_or_text
 	{
@@ -4760,7 +4791,25 @@ user:
 	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
-	  };
+	  }
+	| curr_user
+	{
+          THD *thd= YYTHD;
+          if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+            YYABORT;
+          $$->user.str= thd->priv_user;
+          $$->user.length= strlen(thd->priv_user);
+          if (*thd->priv_host != 0)
+          {
+            $$->host.str= thd->priv_host;
+            $$->host.length= strlen(thd->priv_host);
+          }
+          else
+          {
+            $$->host.str= (char *) "%";
+            $$->host.length= 1;
+          }
+	};
 
 /* Keyword that we allow for identifiers */
 
@@ -4798,6 +4847,7 @@ keyword:
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CUBE_SYM		{}
+	| CURRENT_USER		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}
