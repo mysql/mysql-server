@@ -85,8 +85,13 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   doc_cnt=0;
 
-  r=_mi_search(aio->info, aio->keyinfo, aio->keybuff, keylen,
-	       SEARCH_FIND | SEARCH_PREFIX, aio->key_root);
+  for (
+      r=_mi_search(aio->info, aio->keyinfo, aio->keybuff, keylen,
+                   SEARCH_FIND | SEARCH_PREFIX, aio->key_root) ;
+       !r && aio->info->lastpos >= aio->info->state->data_file_length ;
+       r=_mi_search_next(aio->info, aio->keyinfo, aio->info->lastkey,
+                         aio->info->lastkey_length, SEARCH_BIGGER, aio->key_root)
+      );
   aio->info->update|= HA_STATE_AKTIV;  /* for _mi_test_if_changed() */
 
   while (!r && gweight)
@@ -129,6 +134,11 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 			  aio->info->lastkey_length, SEARCH_BIGGER,
 			  aio->key_root);
     else
+	r=_mi_search(aio->info, aio->keyinfo, aio->info->lastkey,
+		     aio->info->lastkey_length, SEARCH_BIGGER,
+		     aio->key_root);
+
+    while (!r && aio->info->lastpos >= aio->info->state->data_file_length)
 	r=_mi_search(aio->info, aio->keyinfo, aio->info->lastkey,
 		     aio->info->lastkey_length, SEARCH_BIGGER,
 		     aio->key_root);
