@@ -173,11 +173,11 @@ typedef struct st_table_list
 {
   struct	st_table_list *next;
   char		*db, *alias, *real_name;
-  char          *option;                /* Used by cache index  */ 
+  char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
   struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */
-  List<String>	*use_index, *ignore_index; 
+  List<String>	*use_index, *ignore_index;
   TABLE          *table;      /* opened table */
   st_table_list  *table_list; /* pointer to node of list of all tables */
   class st_select_lex_unit *derived;	/* SELECT_LEX_UNIT of derived table */
@@ -191,24 +191,26 @@ typedef struct st_table_list
   bool		force_index;		/* prefer index over table scan */
   bool          ignore_leaves;          /* preload only non-leaf nodes */
   table_map     dep_tables;             /* tables the table depends on      */
-  table_map     on_expr_dep_tables;     /* tables on expression depends on  */ 
+  table_map     on_expr_dep_tables;     /* tables on expression depends on  */
   struct st_nested_join *nested_join;   /* if the element is a nested join  */
   st_table_list *embedding;             /* nested join containing the table */
-  List<struct st_table_list> *join_list;/* join list the table belongs to   */ 
+  List<struct st_table_list> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
   /* used in multi-upd privelege check */
   bool		table_in_update_from_clause;
+
+  void print(THD *thd, String *str);
 } TABLE_LIST;
 
 typedef struct st_nested_join
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
   table_map         used_tables;     /* bitmap of tables in the nested join */
-  table_map         not_null_tables; /* tables that rejects nulls           */ 
+  table_map         not_null_tables; /* tables that rejects nulls           */
   struct st_join_table *first_nested;/* the first nested table in the plan  */
   uint              counter;         /* to count tables in the nested join  */
 } NESTED_JOIN;
-  
+
 typedef struct st_changed_table_list
 {
   struct	st_changed_table_list *next;
