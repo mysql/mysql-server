@@ -122,13 +122,13 @@ void hash_free(HASH *hash)
   Delete all elements from the hash (the hash itself is to be reused).
 
   SYNOPSIS
-    hash_reset()
+    my_hash_reset()
     hash   the hash to delete elements of
 */
 
-void hash_reset(HASH *hash)
+void my_hash_reset(HASH *hash)
 {
-  DBUG_ENTER("hash_reset");
+  DBUG_ENTER("my_hash_reset");
   DBUG_PRINT("enter",("hash: 0x%lxd",hash));
 
   hash_free_elements(hash);
