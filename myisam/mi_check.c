@@ -1202,8 +1202,12 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   del=info->state->del;
   info->state->records=info->state->del=share->state.split=0;
   info->state->empty=0;
+  param->glob_crc=0;
+  if (param->testflag & T_CALC_CHECKSUM)
+    param->calc_checksum=1;
   if (!rep_quick)
     share->state.checksum=0;
+
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   for (i=0 ; i < info->s->base.keys ; i++)
     share->state.key_root[i]= HA_OFFSET_ERROR;
@@ -1295,7 +1299,14 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     share->state.version=(ulong) time((time_t*) 0);	/* Force reopen */
   }
   else
+  {
     info->state->data_file_length=sort_info->max_pos;
+    if (param->testflag & T_CALC_CHECKSUM)
+    {
+      DBUG_PRINT("QQ",("set_checksum"));
+      share->state.checksum=param->glob_crc;
+    }
+  }
 
   if (!(param->testflag & T_SILENT))
   {
@@ -1875,6 +1886,9 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_param.sort_info=sort_info;
 
   del=info->state->del;
+  param->glob_crc=0;
+  if (param->testflag & T_CALC_CHECKSUM)
+    param->calc_checksum=1;
   if (! rep_quick)
     share->state.checksum=0;
 
@@ -1931,6 +1945,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       param->retry_repair=1;
       goto err;
     }
+    param->calc_checksum=0;			/* No need to calc glob_crc */
 
     /* Set for next loop */
     sort_param.max_records=sort_info->max_records=
@@ -2006,6 +2021,9 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 			       "Can't change size of datafile,  error: %d",
 			       my_errno);
   }
+  else if (param->testflag & T_CALC_CHECKSUM)
+    share->state.checksum=param->glob_crc;
+
   if (my_chsize(share->kfile,info->state->key_file_length,MYF(0)))
     mi_check_print_warning(param,
 			   "Can't change size of indexfile, error: %d",
@@ -2178,7 +2196,14 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       sort_info->max_pos=(sort_info->pos+=share->base.pack_reclength);
       share->state.split++;
       if (*sort_info->record)
+      {
+	if (param->calc_checksum)
+	{
+	  DBUG_PRINT("QQ",("calc_checksum"));
+	  param->glob_crc+= mi_static_checksum(info,sort_info->record);
+	}
 	DBUG_RETURN(0);
+      }
       if (!sort_info->fix_datafile)
       {
 	info->state->del++;
@@ -2410,10 +2435,10 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       {
 	if (param->read_cache.error < 0)
 	  DBUG_RETURN(1);
+	if (info->s->calc_checksum)
+	  info->checksum=mi_checksum(info,sort_info->record);
 	if ((param->testflag & (T_EXTEND | T_REP)) || searching)
 	{
-	  if (info->s->calc_checksum)
-	    info->checksum=mi_checksum(info,sort_info->record);
 	  if (_mi_rec_check(info, sort_info->record))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
@@ -2421,6 +2446,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	    goto try_next;
 	  }
 	}
+	if (param->calc_checksum)
+	  param->glob_crc+= info->checksum;
 	DBUG_RETURN(0);
       }
       if (!searching)
@@ -2483,6 +2510,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 			 block_info.rec_len);
       share->state.split++;
       info->packed_length=block_info.rec_len;
+      if (param->calc_checksum)
+	param->glob_crc+= info->checksum;
       DBUG_RETURN(0);
     }
   }

@@ -73,7 +73,7 @@ create table t1 (n int);
 insert into t1 values(3456);
 use mysql;
 insert into user (Host, User, Password)
- VALUES ("10.10.10.%", "blafasel2", "blafasel2");
+ VALUES ("10.10.10.%", "blafasel2", password("blafasel2"));
 select select_priv,user from mysql.user where user = 'blafasel2';
 update user set Select_priv = "Y" where User="blafasel2";
 select select_priv,user from mysql.user where user = 'blafasel2';

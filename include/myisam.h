@@ -277,6 +277,7 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define T_SAFE_REPAIR		T_CREATE_MISSING_KEYS*2
 #define T_AUTO_REPAIR   	T_SAFE_REPAIR*2
 #define T_BACKUP_DATA		T_AUTO_REPAIR*2
+#define T_CALC_CHECKSUM		T_BACKUP_DATA*2
 
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
 #define O_NEW_DATA	2
@@ -327,7 +328,7 @@ typedef struct st_mi_check_param
   uint testflag;
   uint8 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
-  my_bool retry_repair,retry_without_quick, force_sort;
+  my_bool retry_repair,retry_without_quick, force_sort, calc_checksum;
   char temp_filename[FN_REFLEN],*isam_file_name,*tmpdir;
   int tmpfile_createflag;
   myf myf_rw;
