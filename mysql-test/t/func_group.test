@@ -360,3 +360,12 @@ create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');
 select coercibility(max(a)) from t1;
 drop table t1;
+
+#
+# aggregate functions on static tables
+#
+create table t1 (a int);
+insert into t1 values (1);
+select max(a) as b from t1 having b=1;
+select a from t1 having a=1;
+drop table t1;
