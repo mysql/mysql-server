@@ -84,6 +84,9 @@ public:
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
   enum enum_field_types m_returns; // For FUNCTIONs only
   CHARSET_INFO *m_returns_cs;	// For FUNCTIONs only
+  TYPELIB *m_returns_typelib;	// For FUNCTIONs only
+  uint m_returns_len;		// For FUNCTIONs only
+  uint m_returns_pack;		// For FUNCTIONs only
   my_bool m_has_return;		// For FUNCTIONs only
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
   my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
@@ -96,7 +99,6 @@ public:
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
-  LEX_STRING m_retstr;		// For FUNCTIONs only
   LEX_STRING m_body;
   LEX_STRING m_defstr;
   LEX_STRING m_definer_user;
@@ -112,8 +114,7 @@ public:
   */
   HASH m_spfuns, m_spprocs;
   // Pointers set during parsing
-  uchar *m_param_begin, *m_param_end, *m_returns_begin, *m_returns_end,
-    *m_body_begin;
+  uchar *m_param_begin, *m_param_end, *m_body_begin;
 
   static void *
   operator new(size_t size);
@@ -130,6 +131,9 @@ public:
   // Initialize strings after parsing header
   void
   init_strings(THD *thd, LEX *lex, sp_name *name);
+
+  TYPELIB *
+  create_typelib(List<String> *src);
 
   int
   create(THD *thd);
@@ -204,10 +208,7 @@ public:
 
   char *create_string(THD *thd, ulong *lenp);
 
-  inline Item_result result()
-  {
-    return sp_map_result_type(m_returns);
-  }
+  Field *make_field(uint max_length, const char *name, TABLE *dummy);
 
   void set_info(char *definer, uint definerlen,
 		longlong created, longlong modified,
