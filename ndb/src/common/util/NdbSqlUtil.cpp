@@ -176,6 +176,25 @@ NdbSqlUtil::getType(Uint32 typeId)
   return m_typeList[Type::Undefined];
 }
 
+const NdbSqlUtil::Type&
+NdbSqlUtil::getTypeBinary(Uint32 typeId)
+{
+  switch (typeId) {
+  case Type::Char:
+    typeId = Type::Binary;
+    break;
+  case Type::Varchar:
+    typeId = Type::Varbinary; 
+    break;
+  case Type::Text:
+    typeId = Type::Blob;
+    break;
+  default:
+    break;
+  }
+  return getType(typeId);
+}
+
 // compare
 
 int

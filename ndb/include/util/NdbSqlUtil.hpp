@@ -91,6 +91,11 @@ public:
   static const Type& getType(Uint32 typeId);
 
   /**
+   * Get type by id but replace char type by corresponding binary type.
+   */
+  static const Type& getTypeBinary(Uint32 typeId);
+
+  /**
    * Check character set.
    */
   static bool usable_in_pk(Uint32 typeId, const void* cs);

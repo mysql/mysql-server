@@ -502,6 +502,7 @@ struct Fragoperrec {
   Uint32 attributeCount;
   Uint32 freeNullBit;
   Uint32 noOfNewAttrCount;
+  Uint32 charsetIndex;
   BlockReference lqhBlockrefFrag;
 };
 typedef Ptr<Fragoperrec> FragoperrecPtr;
@@ -785,6 +786,7 @@ struct Tablerec {
 
   ReadFunction* readFunctionArray;
   UpdateFunction* updateFunctionArray;
+  CHARSET_INFO** charsetArray;
 
   Uint32 readKeyArray;
   Uint32 tabDescriptor;
@@ -796,6 +798,7 @@ struct Tablerec {
   Uint16 tupheadsize;
   Uint16 noOfAttr;
   Uint16 noOfKeyAttr;
+  Uint16 noOfCharsets;
   Uint16 noOfNewAttr;
   Uint16 noOfNullAttr;
   Uint16 noOfAttributeGroups;
@@ -1909,7 +1912,8 @@ private:
   void updatePackedList(Signal* signal, Uint16 ahostIndex);
 
   void setUpDescriptorReferences(Uint32 descriptorReference,
-                                 Tablerec* const regTabPtr);
+                                 Tablerec* const regTabPtr,
+                                 const Uint32* offset);
   void setUpKeyArray(Tablerec* const regTabPtr);
   bool addfragtotab(Tablerec* const regTabPtr, Uint32 fragId, Uint32 fragIndex);
   void deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId);
@@ -2098,7 +2102,8 @@ private:
 //-----------------------------------------------------------------------------
 
 // Public methods
-  Uint32 allocTabDescr(Uint32 noOfAttributes, Uint32 noOfKeyAttr, Uint32 noOfAttributeGroups);
+  Uint32 getTabDescrOffsets(const Tablerec* regTabPtr, Uint32* offset);
+  Uint32 allocTabDescr(const Tablerec* regTabPtr, Uint32* offset);
   void freeTabDescr(Uint32 retRef, Uint32 retNo);
   Uint32 getTabDescrWord(Uint32 index);
   void setTabDescrWord(Uint32 index, Uint32 word);
