@@ -10,6 +10,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (gesuchnr,benutzer_id)
 ) type=ISAM;
 
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 alter table t1 type=myisam;
