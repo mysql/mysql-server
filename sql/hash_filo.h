@@ -70,7 +70,7 @@ public:
     if (!init)
     {
       init=1;
-      (void) pthread_mutex_init(&lock,NULL);
+      (void) pthread_mutex_init(&lock,MY_MUTEX_INIT_FAST);
     }
     if (!locked)
       (void) pthread_mutex_lock(&lock);

@@ -141,8 +141,8 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   if (!inited)
   {
     inited=1;
-    (void) pthread_mutex_init(&LOCK_log,NULL);
-    (void) pthread_mutex_init(&LOCK_index, NULL);
+    (void) pthread_mutex_init(&LOCK_log,MY_MUTEX_INIT_SLOW);
+    (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
     if (log_type_arg == LOG_BIN && *fn_ext(log_name))
       no_rotate = 1;
   }

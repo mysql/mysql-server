@@ -45,7 +45,7 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   pthread_mutex_t lock;
-  st_log_info():fatal(0) { pthread_mutex_init(&lock, NULL);}
+  st_log_info():fatal(0) { pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);}
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 

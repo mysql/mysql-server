@@ -110,7 +110,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
-  pthread_mutex_init(&active_vio_lock, NULL);
+  pthread_mutex_init(&active_vio_lock, MY_MUTEX_INIT_FAST);
 #endif  
 
   /* Variables with default values */

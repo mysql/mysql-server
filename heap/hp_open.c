@@ -88,7 +88,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
     }
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,NULL));
+    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
 #endif
     share->open_list.data=(void*) share;
     heap_share_list=list_add(heap_share_list,&share->open_list);

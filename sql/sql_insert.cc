@@ -498,7 +498,7 @@ public:
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
     thd.system_thread=1;
     bzero((char*) &info,sizeof(info));
-    pthread_mutex_init(&mutex,NULL);
+    pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
     pthread_cond_init(&cond,NULL);
     pthread_cond_init(&cond_client,NULL);
     VOID(pthread_mutex_lock(&LOCK_thread_count));

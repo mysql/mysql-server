@@ -270,7 +270,7 @@ N_INFO *nisam_open(const char *name, int mode, uint handle_locking)
     setup_functions(share);
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,NULL));
+    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
 #endif
   }
   else
