@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e -x
+set -x
 p=`pwd`
 cd $MYSQL_BASE_DIR/mysql-test 
 ./mysql-test-run --with-ndbcluster --ndbconnectstring=$NDB_CONNECTSTRING $* | tee $p/output.txt
