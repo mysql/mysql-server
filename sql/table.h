@@ -65,7 +65,8 @@ struct st_table {
   handler *file;
   Field **field;			/* Pointer to fields */
   Field_blob **blob_field;		/* Pointer to blob fields */
-  HASH	name_hash;			/* hash of field names */
+  /* hash of field names (contains pointers to elements of field array) */
+  HASH	name_hash;
   byte *record[2];			/* Pointer to records */
   byte *default_values;          	/* Default values for INSERT */
   byte *insert_values;                  /* used by INSERT ... UPDATE */

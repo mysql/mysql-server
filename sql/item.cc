@@ -103,9 +103,12 @@ void Item::print_item_w_name(String *str)
 
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
-  :changed_during_fix_field(0), db_name(db_name_par),
-   table_name(table_name_par), field_name(field_name_par),
-   depended_from(0)
+  :
+   orig_db_name(db_name_par), orig_table_name(table_name_par), 
+   orig_field_name(field_name_par), changed_during_fix_field(0), 
+   db_name(db_name_par), table_name(table_name_par), 
+   field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
+   cached_table(0), depended_from(0)
 {
   name = (char*) field_name_par;
 }
@@ -113,10 +116,15 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 // Constructor used by Item_field & Item_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident *item)
   :Item(thd, item),
+   orig_db_name(item->orig_db_name),
+   orig_table_name(item->orig_table_name), 
+   orig_field_name(item->orig_field_name),
    changed_during_fix_field(0),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
+   cached_field_index(item->cached_field_index),
+   cached_table(item->cached_table),
    depended_from(item->depended_from)
 {}
 
@@ -128,6 +136,9 @@ void Item_ident::cleanup()
     *changed_during_fix_field= this;
     changed_during_fix_field= 0;
   }
+  db_name= orig_db_name; 
+  table_name= orig_table_name;
+  field_name= orig_field_name;
 }
 
 bool Item_ident::remove_dependence_processor(byte * arg)
@@ -303,6 +314,15 @@ bool DTCollation::aggregate(DTCollation &dt)
 
 Item_field::Item_field(Field *f)
   :Item_ident(NullS, f->table_name, f->field_name)
+{
+  set_field(f);
+  collation.set(DERIVATION_IMPLICIT);
+  fixed= 1;
+}
+
+Item_field::Item_field(THD *thd, Field *f)
+  :Item_ident(NullS, thd->strdup(f->table_name), 
+              thd->strdup(f->field_name))
 {
   set_field(f);
   collation.set(DERIVATION_IMPLICIT);
