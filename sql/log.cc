@@ -83,7 +83,7 @@ static int find_uniq_filename(char *name)
 MYSQL_LOG::MYSQL_LOG()
   :bytes_written(0), last_time(0), query_start(0), name(0),
    file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0),
-   no_rotate(0), need_start_event(1)
+   need_start_event(1)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -721,7 +721,6 @@ err:
 
   RETURN VALUES
     0				ok
-    LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
     LOG_INFO_EOF		to_log not found
 */
 
@@ -730,9 +729,6 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
   int error;
   LOG_INFO log_info;
   DBUG_ENTER("purge_logs");
-
-  if (no_rotate)
-    DBUG_RETURN(LOG_INFO_PURGE_NO_ROTATE);
 
   pthread_mutex_lock(&LOCK_index);
   if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/)))
@@ -840,49 +836,42 @@ void MYSQL_LOG::new_file(bool need_lock)
   new_name_ptr= name;
 
   /*
-    Only rotate open logs that are marked non-rotatable
-    (binlog with constant name are non-rotatable)
+    If user hasn't specified an extension, generate a new log name
+    We have to do this here and not in open as we want to store the
+    new file name in the current binary log file.
   */
-  if (!no_rotate)
+  if (generate_new_name(new_name, name))
+    goto end;
+  new_name_ptr=new_name;
+  
+  if (log_type == LOG_BIN)
   {
-    /*
-      If user hasn't specified an extension, generate a new log name
-      We have to do this here and not in open as we want to store the
-      new file name in the current binary log file.
-    */
-    if (generate_new_name(new_name, name))
-      goto end;
-    new_name_ptr=new_name;
-
-    if (log_type == LOG_BIN)
+    if (!no_auto_events)
     {
-      if (!no_auto_events)
-      {
-	/*
-	  We log the whole file name for log file as the user may decide
-	  to change base names at some point.
-	*/
-	THD* thd = current_thd;
-	Rotate_log_event r(thd,new_name+dirname_length(new_name));
-	r.set_log_pos(this);
-
-	/*
-	  Because this log rotation could have been initiated by a master of
-	  the slave running with log-bin, we set the flag on rotate
-	  event to prevent infinite log rotation loop
-	*/
-	if (thd->slave_thread)
-	  r.flags|= LOG_EVENT_FORCED_ROTATE_F;
-	r.write(&log_file);
-	bytes_written += r.get_event_len();
-      }
       /*
-	Update needs to be signalled even if there is no rotate event
-	log rotation should give the waiting thread a signal to
-	discover EOF and move on to the next log.
+        We log the whole file name for log file as the user may decide
+        to change base names at some point.
       */
-      signal_update(); 
+      THD* thd = current_thd;
+      Rotate_log_event r(thd,new_name+dirname_length(new_name));
+      r.set_log_pos(this);
+      
+      /*
+        Because this log rotation could have been initiated by a master of
+        the slave running with log-bin, we set the flag on rotate
+        event to prevent infinite log rotation loop
+      */
+      if (thd->slave_thread)
+        r.flags|= LOG_EVENT_FORCED_ROTATE_F;
+      r.write(&log_file);
+      bytes_written += r.get_event_len();
     }
+    /*
+      Update needs to be signalled even if there is no rotate event
+      log rotation should give the waiting thread a signal to
+      discover EOF and move on to the next log.
+    */
+    signal_update(); 
   }
   old_name=name;
   save_log_type=log_type;
