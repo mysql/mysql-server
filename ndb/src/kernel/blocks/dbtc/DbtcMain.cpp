@@ -2736,8 +2736,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZUPDATE:
       jam();
       if (Tattrlength == 0) {
-        TCKEY_abort(signal, 5);
-        return;
+        //TCKEY_abort(signal, 5);
+        //return;
       }//if
       /*---------------------------------------------------------------------*/
       // The missing break is intentional since we also want to set the opLock 
@@ -5950,62 +5950,70 @@ void Dbtc::checkStartFragTimeout(Signal* signal)
 /*       BEEN DELAYED FOR SO LONG THAT WE ARE FORCED TO PERFORM     */
 /*       SOME ACTION, EITHER ABORT OR RESEND OR REMOVE A NODE FROM  */
 /*       THE WAITING PART OF A PROTOCOL.                            */
+/*
+The algorithm used here is to check 1024 transactions at a time before
+doing a real-time break.
+To avoid aborting both transactions in a deadlock detected by time-out
+we insert a random extra time-out of upto 630 ms by using the lowest
+six bits of the api connect reference.
+We spread it out from 0 to 630 ms if base time-out is larger than 3 sec,
+we spread it out from 0 to 70 ms if base time-out is smaller than 300 msec,
+and otherwise we spread it out 310 ms.
+*/
 /*------------------------------------------------------------------*/
-void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 TapiConPtr) 
+void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr) 
 {
-  UintR texpiredTime[8];
-  UintR TloopCount = 0;
+  Uint32 end_ptr, time_passed, time_out_value, mask_value;
+  const Uint32 api_con_sz= capiConnectFilesize;
+  const Uint32 tc_timer= ctcTimer;
+  const Uint32 time_out_param= ctimeOutValue;
 
-  ctimeOutCheckHeartbeat = ctcTimer;
+  ctimeOutCheckHeartbeat = tc_timer;
 
-  const Uint32 TapiConSz = capiConnectFilesize;
-  const Uint32 TtcTimer = ctcTimer;
-  const Uint32 TtimeOutValue = ctimeOutValue;
-  
-  while ((TapiConPtr + 8) < TapiConSz) {
+  if (api_con_ptr + 1024 < api_con_sz) {
     jam();
-    texpiredTime[0] = TtcTimer - getApiConTimer(TapiConPtr + 0);
-    texpiredTime[1] = TtcTimer - getApiConTimer(TapiConPtr + 1);
-    texpiredTime[2] = TtcTimer - getApiConTimer(TapiConPtr + 2);
-    texpiredTime[3] = TtcTimer - getApiConTimer(TapiConPtr + 3);
-    texpiredTime[4] = TtcTimer - getApiConTimer(TapiConPtr + 4);
-    texpiredTime[5] = TtcTimer - getApiConTimer(TapiConPtr + 5);
-    texpiredTime[6] = TtcTimer - getApiConTimer(TapiConPtr + 6);
-    texpiredTime[7] = TtcTimer - getApiConTimer(TapiConPtr + 7);
-    for (Uint32 Ti = 0; Ti < 8; Ti++) {
-      if (getApiConTimer(TapiConPtr + Ti) != 0) {
-        if (texpiredTime[Ti] > TtimeOutValue) {
-	  jam();
-          timeOutFoundLab(signal, TapiConPtr + Ti);
-          return;
-        }//if
-      }//if
-    }//for
-    TapiConPtr += 8;
-    if (TloopCount++ > 128) {
-      jam();
-      sendContinueTimeOutControl(signal, TapiConPtr);
-      return;
-    }//if
-  }//while
-  for ( ; TapiConPtr < TapiConSz; TapiConPtr++) {
+    end_ptr= api_con_ptr + 1024;
+  } else {
     jam();
-    if (getApiConTimer(TapiConPtr) != 0) {
-      texpiredTime[0] = TtcTimer - getApiConTimer(TapiConPtr);
-      if (texpiredTime[0] > TtimeOutValue) {
+    end_ptr= api_con_sz;
+  }
+  if (time_out_param > 300) {
+    jam();
+    mask_value= 63;
+  } else if (time_out_param < 30) {
+    jam();
+    mask_value= 7;
+  } else {
+    jam();
+    mask_value= 31;
+  }
+  for ( ; api_con_ptr < end_ptr; api_con_ptr++) {
+    Uint32 api_timer= getApiConTimer(api_con_ptr);
+    jam();
+    if (api_timer != 0) {
+      time_out_value= time_out_param + (api_con_ptr & mask_value);
+      time_passed= tc_timer - api_timer;
+      if (time_passed > time_out_value) {
         jam();
-        timeOutFoundLab(signal, TapiConPtr);
+        timeOutFoundLab(signal, api_con_ptr);
         return;
-      }//if
-    }//if
-  }//for
-  /*------------------------------------------------------------------*/
-  /*                                                                  */
-  /*       WE HAVE NOW CHECKED ALL TRANSACTIONS FOR TIME-OUT AND ALSO */
-  /*       STARTED TIME-OUT HANDLING OF THOSE WE FOUND. WE ARE NOW    */
-  /*       READY AND CAN WAIT FOR THE NEXT TIME-OUT CHECK.            */
-  /*------------------------------------------------------------------*/
-  ctimeOutCheckActive = TOCS_FALSE;
+      }
+    }
+  }
+  if (api_con_ptr == api_con_sz) {
+    jam();
+    /*------------------------------------------------------------------*/
+    /*                                                                  */
+    /*       WE HAVE NOW CHECKED ALL TRANSACTIONS FOR TIME-OUT AND ALSO */
+    /*       STARTED TIME-OUT HANDLING OF THOSE WE FOUND. WE ARE NOW    */
+    /*       READY AND CAN WAIT FOR THE NEXT TIME-OUT CHECK.            */
+    /*------------------------------------------------------------------*/
+    ctimeOutCheckActive = TOCS_FALSE;
+  } else {
+    jam();
+    sendContinueTimeOutControl(signal, api_con_ptr);
+  }
+  return;
 }//Dbtc::timeOutLoopStartLab()
 
 void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr) 

@@ -74,6 +74,7 @@ public:
 	Date = SQL_DATE,
 	Datetime = SQL_TYPE_TIMESTAMP,
 	Blob = SQL_BLOB,
+	Clob = SQL_CLOB,
 	Null = NullDataType,		// not an ODBC SQL type
 	Unbound = UnboundDataType	// special for placeholders
     };

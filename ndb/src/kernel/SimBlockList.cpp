@@ -72,14 +72,15 @@ SimBlockList::load(const Configuration & conf){
 
   SimulatedBlock * fs = 0;
   {
-    char buf[100];
-    if(NdbEnv_GetEnv("NDB_NOFS", buf, 100) == 0){
-      fs = new (A_VALUE) Ndbfs(conf);
-    } else { 
+    Uint32 dl;
+    const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+    if(p && !ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl){
       fs = new (A_VALUE) VoidFs(conf);
+    } else { 
+      fs = new (A_VALUE) Ndbfs(conf);
     }
   }
-
+  
   theList[0]  = new (A_VALUE) Dbacc(conf);
   theList[1]  = new (A_VALUE) Cmvmi(conf);
   theList[2]  = fs;
