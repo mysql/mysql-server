@@ -956,8 +956,8 @@ static void set_ports()
   {					// Get port if not from commandline
     struct  servent *serv_ptr;
     mysql_port = MYSQL_PORT;
-//    if ((serv_ptr = getservbyname("mysql", "tcp")))
-//      mysql_port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+    if ((serv_ptr = getservbyname("mysql", "tcp")))
+      mysql_port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
     if ((env = getenv("MYSQL_TCP_PORT")))
       mysql_port = (uint) atoi(env);		/* purecov: inspected */
   }
