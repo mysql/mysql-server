@@ -2244,6 +2244,11 @@ void ha_ndbcluster::print_results()
       fprintf(DBUG_FILE, "Var\t'%.*s'", field->pack_length(), value);
       break;
     }
+    case NdbDictionary::Column::Bit: {
+      const char *value= (char *) field->ptr;
+      fprintf(DBUG_FILE, "Bit\t'%.*s'", field->pack_length(), value);
+      break;
+    }
     case NdbDictionary::Column::Datetime: {
       Uint64 value= (Uint64) *field->ptr;
       fprintf(DBUG_FILE, "Datetime\t%llu", value);
