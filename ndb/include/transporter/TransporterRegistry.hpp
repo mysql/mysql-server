@@ -224,7 +224,7 @@ public:
     const char *m_interface;
   };
   Vector<Transporter_interface> m_transporter_interface;
-  void add_transporter_interface(const char *interface, unsigned short port);
+  void add_transporter_interface(const char *interf, unsigned short port);
 protected:
   
 private:

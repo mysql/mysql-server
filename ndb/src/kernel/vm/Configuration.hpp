@@ -21,7 +21,7 @@
 #include <ndb_types.h>
 
 class ConfigRetriever;
-class LocalConfig;
+struct LocalConfig;
 
 class Configuration {
 public:
