@@ -3715,25 +3715,33 @@ sending messages, the client part merely calls the server part.
 
 The libmysql files are split into three directories: libmysql (this
 one), libmysql_r (the next one), and libmysqld (the next one after
-that). It may be that the original intention was that the libmysql
-directory would hold the "client part" files, and the libmysqld
-directory would hold the "server part" files.
+that).
+@*@*
+
+The "library of mysql" has some client-connection
+modules. For example, as described in an earlier
+section of this manual, there is a discussion of
+libmysql/libmysql.c which sends packets from the
+client to the server. Many of the entries in the
+libmysql directory (and in the following libmysqld
+directory) are 'symlinks' on Linux, that is, they
+are in fact pointers to files in other directories.
 @*@*
 
 The program files on this directory are:
 @itemize @bullet
 @item
-conf_to_src.c  --  has to do with charsets 
+conf_to_src.c  --  has to do with charsets
 @item
-dll.c  --  initialization of the dll library 
+dll.c  --  initialization of the dll library
 @item
-errmsg.c  --  English error messages, compare \mysys\errors.c 
+errmsg.c  --  English error messages, compare \mysys\errors.c
 @item
-get_password.c  --  get password 
+get_password.c  --  get password
 @item
 libmysql.c  --  the code that implements the MySQL API, i.e. the functions a client that wants to connect to MySQL will call
 @item
-manager.c  --  initialize/connect/fetch with MySQL manager 
+manager.c  --  initialize/connect/fetch with MySQL manager
 @end itemize
 @*@*
 
@@ -3742,8 +3750,7 @@ manager.c  --  initialize/connect/fetch with MySQL manager
 The MySQL Library, Part 2.
 @*@*
 
-This is a continuation of the libmysql directory. There is only one
-file here, used to build a thread-safe libmysql library:
+There is only one file here, used to build a thread-safe libmysql library:
 @itemize @bullet
 @item
 makefile.am
@@ -3755,8 +3762,9 @@ makefile.am
 The MySQL library, Part 3.
 @*@*
 
-This is a continuation of the libmysql directory and contains the MySQL
-Server as an embeddable library. The program files on this directory
+The Embedded MySQL Server Library. The product of libmysqld
+is not a client/server affair, but a library. There is a wrapper
+to emulate the client calls. The program files on this directory
 are:
 @itemize @bullet
 @item
@@ -3771,9 +3779,9 @@ lib_vio.c --  Emulate the vio directory's communication buffer
 Some user-contributed manual pages
 @*@*
 
-These are user-contributed "man" (manual) pages in a special markup 
+These are user-contributed "man" (manual) pages in a special markup
 format. The format is described in a document with a heading like
-"man page for man" or "macros to format man pages" which you can find 
+"man page for man" or "macros to format man pages" which you can find
 in a Linux directory or on the Internet.
 @*@*
 
@@ -3785,23 +3793,17 @@ The MyISAM table handler.
 The C files in this subdirectory come in six main groups:
 @itemize @bullet
 @item
-ft*.c files  --  ft stands for "Full Text", code contributed by Sergei
-Golubchik
+ft*.c files  --  ft stands for "Full Text", code contributed by Sergei Golubchik
 @item
-mi*.c files  --  mi stands for "My Isam", these are the main programs
-for Myisam
+mi*.c files  --  mi stands for "My Isam", these are the main programs for Myisam
 @item
-myisam*.c files  --  for example, "myisamchk" utility routine
-functions source
+myisam*.c files  --  for example, "myisamchk" utility routine functions source
 @item
-rt*.c files  --  rt stands for "rtree", some code was written by
-Alexander Barkov 
+rt*.c files  --  rt stands for "rtree", some code was written by Alexander Barkov
 @item
-sp*.c files  --  sp stands for "spatial", some code was written by
-Ramil Kalimullin 
+sp*.c files  --  sp stands for "spatial", some code was written by Ramil Kalimullin
 @item
-sort.c  --  this is a single file that sorts keys for index-create
-purposes 
+sort.c  --  this is a single file that sorts keys for index-create purposes
 @end itemize
 @*@*
 
