@@ -43,6 +43,7 @@ public:
   {
     init_make_field(tmp_field,field_type());
   }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_proc_real :public Item_proc
@@ -62,6 +63,7 @@ public:
   double val() { return value; }
   longlong val_int() { return (longlong) value; }
   String *val_str(String *s) { s->set(value,decimals); return s; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_proc_int :public Item_proc
@@ -79,6 +81,7 @@ public:
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *s) { s->set(value); return s; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -98,6 +101,7 @@ public:
   {
     return null_value ? (String*) 0 : (String*) &str_value;
   }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 /* The procedure class definitions */
