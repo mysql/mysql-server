@@ -1,3 +1,4 @@
+eval_result;
 source include/master-slave.inc;
 connection master;
 use test;
