@@ -188,7 +188,7 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   // to the graphical management interface.
   //-----------------------------------------------------------------------
   EventReport * const eventReport = (EventReport *)&signal->theData[0]; 
-  EventReport::EventType eventType = eventReport->getEventType();
+  Ndb_logevent_type eventType = eventReport->getEventType();
 
   jamEntry();
   
@@ -362,7 +362,7 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       //-----------------------------------------------------
       // Report that the connection to the node is closed
       //-----------------------------------------------------
-      signal->theData[0] = EventReport::CommunicationClosed;
+      signal->theData[0] = NDB_LE_CommunicationClosed;
       signal->theData[1] = i;
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
       
@@ -396,7 +396,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
     //-----------------------------------------------------
     // Report that the connection to the node is opened
     //-----------------------------------------------------
-    signal->theData[0] = EventReport::CommunicationOpened;
+    signal->theData[0] = NDB_LE_CommunicationOpened;
     signal->theData[1] = tStartingNode;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
     //-----------------------------------------------------
@@ -408,7 +408,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 	globalTransporterRegistry.do_connect(i);
 	globalTransporterRegistry.setIOState(i, HaltIO);
 	
-	signal->theData[0] = EventReport::CommunicationOpened;
+	signal->theData[0] = NDB_LE_CommunicationOpened;
 	signal->theData[1] = i;
 	sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
       }
@@ -433,7 +433,7 @@ void Cmvmi::execENABLE_COMORD(Signal* signal)
     //-----------------------------------------------------
   // Report that the version of the node
   //-----------------------------------------------------
-  signal->theData[0] = EventReport::ConnectedApiVersion;
+  signal->theData[0] = NDB_LE_ConnectedApiVersion;
   signal->theData[1] = tStartingNode;
   signal->theData[2] = getNodeInfo(tStartingNode).m_version;
 
@@ -475,7 +475,7 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
 
   cancelSubscription(hostId);
 
-  signal->theData[0] = EventReport::Disconnected;
+  signal->theData[0] = NDB_LE_Disconnected;
   signal->theData[1] = hostId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 }
@@ -525,7 +525,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   //------------------------------------------
   // Also report this event to the Event handler
   //------------------------------------------
-  signal->theData[0] = EventReport::Connected;
+  signal->theData[0] = NDB_LE_Connected;
   signal->theData[1] = hostId;
   signal->header.theLength = 2;
   

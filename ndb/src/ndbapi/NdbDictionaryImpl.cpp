@@ -550,12 +550,6 @@ NdbIndexImpl::getTable() const
 }
 
 const NdbTableImpl *
-NdbIndexImpl::getBaseTable() const
-{
-  return m_table;
-}
-
-const NdbTableImpl *
 NdbIndexImpl::getIndexTable() const
 {
   return m_table;
@@ -799,7 +793,7 @@ NdbDictInterface::setTransporter(class TransporterFacade * tf)
 			   execNodeStatus);
   
   if ( m_blockNumber == -1 ) {
-    m_error.code = 4105;
+    m_error.code= 4105;
     return false; // no more free blocknumbers
   }//if
   Uint32 theNode = tf->ownId();
@@ -953,7 +947,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
       aNodeId = m_transporter->get_an_alive_node();
     }
     if(aNodeId == 0){
-      m_error.code = 4009;
+      m_error.code= 4009;
       m_transporter->unlock_mutex();
       DBUG_RETURN(-1);
     }
@@ -980,7 +974,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
       }
     }
     
-    m_error.code = 0;
+    m_error.code= 0;
     
     m_waiter.m_node = aNodeId;
     m_waiter.m_state = wst;
@@ -1048,7 +1042,7 @@ NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
   
   const Uint32 strLen = strlen(name) + 1; // NULL Terminated
   if(strLen > MAX_TAB_NAME_SIZE) {//sizeof(req->tableName)){
-    m_error.code = 4307;
+    m_error.code= 4307;
     return 0;
   }
 
@@ -1085,9 +1079,9 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
   if (r) return 0;
 
   NdbTableImpl * rt = 0;
-  m_error.code = parseTableInfo(&rt, 
-  				(Uint32*)m_buffer.get_data(), 
-  				m_buffer.length() / 4, fullyQualifiedNames);
+  m_error.code= parseTableInfo(&rt, 
+			       (Uint32*)m_buffer.get_data(), 
+			       m_buffer.length() / 4, fullyQualifiedNames);
   rt->buildColumnHash();
   return rt;
 }
@@ -1122,7 +1116,7 @@ NdbDictInterface::execGET_TABINFO_REF(NdbApiSignal * signal,
 {
   const GetTabInfoRef* ref = CAST_CONSTPTR(GetTabInfoRef, signal->getDataPtr());
 
-  m_error.code = ref->errorCode;
+  m_error.code= ref->errorCode;
   m_waiter.signal(NO_WAIT);
 }
 
@@ -1354,9 +1348,10 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   if(tableDesc.FragmentDataLen > 0)
   {
-    int i;
-    Uint32 fragCount = tableDesc.FragmentData[0];
-    Uint32 replicaCount = tableDesc.FragmentData[1];
+    unsigned i;
+    Uint32 replicaCount = tableDesc.FragmentData[0];
+    Uint32 fragCount = tableDesc.FragmentData[1];
+
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
 
@@ -1365,9 +1360,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       impl->m_fragments.push_back(tableDesc.FragmentData[i+2]);
     }
 
-    impl->m_replicaCount = replicaCount;
-    impl->m_fragmentCount = fragCount;
-    
     Uint32 topBit = (1 << 31);
     for(int i = 31; i>=0; i--){
       if((fragCount & topBit) != 0)
@@ -1404,13 +1396,13 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   Ndb_local_table_info *info=
     get_local_table_info(t.m_internalName.c_str(),false);
   if (info == NULL) {
-    m_error.code = 709;
+    m_error.code= 709;
     return -1;
   }
   if (createBlobTables(*(info->m_table_impl)) != 0) {
     int save_code = m_error.code;
     (void)dropTable(t);
-    m_error.code = save_code;
+    m_error.code= save_code;
     return -1;
   }
   return 0;
@@ -1480,7 +1472,7 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
 
   DBUG_ENTER("NdbDictionaryImpl::alterTable");
   if(!get_local_table_info(originalInternalName, false)){
-    m_error.code = 709;
+    m_error.code= 709;
     DBUG_RETURN(-1);
   }
   // Alter the table
@@ -1516,12 +1508,12 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   DBUG_ENTER("NdbDictInterface::createOrAlterTable");
   unsigned i;
   if((unsigned)impl.getNoOfPrimaryKeys() > NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY){
-    m_error.code = 4317;
+    m_error.code= 4317;
     DBUG_RETURN(-1);
   }
   unsigned sz = impl.m_columns.size();
   if (sz > NDB_MAX_ATTRIBUTES_IN_TABLE){
-    m_error.code = 4318;
+    m_error.code= 4318;
     DBUG_RETURN(-1);
   }
 
@@ -1546,7 +1538,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       continue;
     if (col->m_autoIncrement) {
       if (haveAutoIncrement) {
-        m_error.code = 4335;
+        m_error.code= 4335;
         DBUG_RETURN(-1);
       }
       haveAutoIncrement = true;
@@ -1556,7 +1548,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
   // Check max length of frm data
   if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
-    m_error.code = 1229;
+    m_error.code= 1229;
     DBUG_RETURN(-1);
   }
   tmpTab.FrmLen = impl.m_frm.length();
@@ -1604,22 +1596,22 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
     // check type and compute attribute size and array size
     if (! tmpAttr.translateExtType()) {
-      m_error.code = 703;
+      m_error.code= 703;
       DBUG_RETURN(-1);
     }
     // charset is defined exactly for char types
     if (col->getCharType() != (col->m_cs != NULL)) {
-      m_error.code = 703;
+      m_error.code= 703;
       DBUG_RETURN(-1);
     }
     // primary key type check
     if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
-      m_error.code = 743;
+      m_error.code= 743;
       DBUG_RETURN(-1);
     }
     // distribution key not supported for Char attribute
     if (col->m_distributionKey && col->m_cs != NULL) {
-      m_error.code = 745;
+      m_error.code= 745;
       DBUG_RETURN(-1);
     }
     // charset in upper half of precision
@@ -1677,7 +1669,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
 				     autoIncrementValue)) {
 	if (ndb.theError.code == 0) {
-	  m_error.code = 4336;
+	  m_error.code= 4336;
 	  ndb.theError = m_error;
 	} else
 	  m_error= ndb.theError;
@@ -1727,7 +1719,7 @@ NdbDictInterface::execCREATE_TABLE_REF(NdbApiSignal * signal,
 {
   const CreateTableRef* const ref=
     CAST_CONSTPTR(CreateTableRef, signal->getDataPtr());
-  m_error.code = ref->errorCode;
+  m_error.code= ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
 }
@@ -1771,7 +1763,7 @@ NdbDictInterface::execALTER_TABLE_REF(NdbApiSignal * signal,
 {
   const AlterTableRef * const ref = 
     CAST_CONSTPTR(AlterTableRef, signal->getDataPtr());
-  m_error.code = ref->errorCode;
+  m_error.code= ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);
 }
@@ -1816,7 +1808,7 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
 
   if (impl.m_indexType != NdbDictionary::Index::Undefined) {
-    m_receiver.m_error.code = 1228;
+    m_receiver.m_error.code= 1228;
     return -1;
   }
 
@@ -1926,7 +1918,7 @@ NdbDictInterface::execDROP_TABLE_REF(NdbApiSignal * signal,
 				      LinearSectionPtr ptr[3])
 {
   const DropTableRef* const ref = CAST_CONSTPTR(DropTableRef, signal->getDataPtr());
-  m_error.code = ref->errorCode;
+  m_error.code= ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
 }
@@ -2378,7 +2370,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
     const NdbColumnImpl* col = 
       table.getColumn(evnt.m_columns[i]->m_name.c_str());
     if(col == 0){
-      m_error.code = 4247;
+      m_error.code= 4247;
       return -1;
     }
     // Copy column definition
@@ -2404,7 +2396,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
   // Check for illegal duplicate attributes
   for(i = 1; i<attributeList_sz; i++) {
     if (evnt.m_columns[i-1]->m_attrId == evnt.m_columns[i]->m_attrId) {
-      m_error.code = 4258;
+      m_error.code= 4258;
       return -1;
     }
   }
@@ -2452,7 +2444,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 
   const size_t len = strlen(evnt.m_externalName.c_str()) + 1;
   if(len > MAX_TAB_NAME_SIZE) {
-    m_error.code = 4241;
+    m_error.code= 4241;
     return -1;
   }
 
@@ -2565,9 +2557,7 @@ int
 NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
 				     NdbEventImpl & evnt)
 {
-#ifdef EVENT_DEBUG
-  ndbout_c("SUB_STOP_REQ");
-#endif
+  DBUG_ENTER("NdbDictInterface::stopSubscribeEvent");
 
   NdbApiSignal tSignal(m_reference);
   //  tSignal.theReceiversBlockNumber = SUMA;
@@ -2583,7 +2573,7 @@ NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
   sumaStop->part            = (Uint32) SubscriptionData::TableData;
   sumaStop->subscriberRef   = m_reference;
 
-  return stopSubscribeEvent(&tSignal, NULL);
+  DBUG_RETURN(stopSubscribeEvent(&tSignal, NULL));
 }
 
 int
@@ -2643,7 +2633,7 @@ NdbDictionaryImpl::getEvent(const char * eventName)
 #ifdef EVENT_DEBUG
       ndbout_c("NdbDictionaryImpl::getEvent could not find column id %d", id);
 #endif
-      m_error.code = 4247;
+      m_error.code= 4247;
       delete ev;
       return NULL;
     }
@@ -2661,9 +2651,8 @@ void
 NdbDictInterface::execCREATE_EVNT_CONF(NdbApiSignal * signal,
 				       LinearSectionPtr ptr[3])
 {
-#ifdef EVENT_DEBUG
-  ndbout << "NdbDictionaryImpl.cpp: execCREATE_EVNT_CONF" << endl;
-#endif
+  DBUG_ENTER("NdbDictInterface::execCREATE_EVNT_CONF");
+
   m_buffer.clear();
   unsigned int len = signal->getLength() << 2;
   m_buffer.append((char *)&len, sizeof(len));
@@ -2673,45 +2662,49 @@ NdbDictInterface::execCREATE_EVNT_CONF(NdbApiSignal * signal,
     m_buffer.append((char *)ptr[0].p, strlen((char *)ptr[0].p)+1);
   }
 
+  const CreateEvntConf * const createEvntConf=
+    CAST_CONSTPTR(CreateEvntConf, signal->getDataPtr());
+
+  Uint32 subscriptionId = createEvntConf->getEventId();
+  Uint32 subscriptionKey = createEvntConf->getEventKey();
+
+  DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d",
+		     subscriptionId,subscriptionKey));
   m_waiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execCREATE_EVNT_REF(NdbApiSignal * signal,
 				      LinearSectionPtr ptr[3])
 {
-#ifdef EVENT_DEBUG
-  ndbout << "NdbDictionaryImpl.cpp: execCREATE_EVNT_REF" << endl;
-  ndbout << "Exiting" << endl;
-  exit(-1);
-#endif
+  DBUG_ENTER("NdbDictInterface::execCREATE_EVNT_REF");
 
-  const CreateEvntRef* const ref = CAST_CONSTPTR(CreateEvntRef, signal->getDataPtr());
-  m_error.code = ref->getErrorCode();
-#ifdef EVENT_DEBUG
-  ndbout_c("execCREATE_EVNT_REF");
-  ndbout_c("ErrorCode %u", ref->getErrorCode());
-  ndbout_c("Errorline %u", ref->getErrorLine());
-  ndbout_c("ErrorNode %u", ref->getErrorNode());
-#endif
-  m_waiter.signal(NO_WAIT);  
+  const CreateEvntRef* const ref=
+    CAST_CONSTPTR(CreateEvntRef, signal->getDataPtr());
+  m_error.code= ref->getErrorCode();
+  DBUG_PRINT("error",("error=%d,line=%d,node=%d",ref->getErrorCode(),
+		      ref->getErrorLine(),ref->getErrorNode()));
+  m_waiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execSUB_STOP_CONF(NdbApiSignal * signal,
 				      LinearSectionPtr ptr[3])
 {
-  DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
-#ifdef EVENT_DEBUG
-  ndbout << "Got GSN_SUB_STOP_CONF" << endl;
-#endif
-  //  SubRemoveConf * const sumaRemoveConf = CAST_CONSTPTR(SubRemoveConf, signal->getDataPtr());
+  DBUG_ENTER("NdbDictInterface::execSUB_STOP_CONF");
+  const SubStopConf * const subStopConf=
+    CAST_CONSTPTR(SubStopConf, signal->getDataPtr());
 
-  //  Uint32 subscriptionId = sumaRemoveConf->subscriptionId;
-  //  Uint32 subscriptionKey = sumaRemoveConf->subscriptionKey;
-  //  Uint32 senderData = sumaRemoveConf->senderData;
+  Uint32 subscriptionId = subStopConf->subscriptionId;
+  Uint32 subscriptionKey = subStopConf->subscriptionKey;
+  Uint32 subscriberData = subStopConf->subscriberData;
 
+  DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
+		     subscriptionId,subscriptionKey,subscriberData));
   m_waiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -2719,19 +2712,17 @@ NdbDictInterface::execSUB_STOP_REF(NdbApiSignal * signal,
 				     LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
-#ifdef EVENT_DEBUG
-  ndbout << "Got GSN_SUB_STOP_REF" << endl;
-#endif
-  const SubRemoveRef * const sumaRemoveRef=
-    CAST_CONSTPTR(SubRemoveRef, signal->getDataPtr());
+  const SubStopRef * const subStopRef=
+    CAST_CONSTPTR(SubStopRef, signal->getDataPtr());
 
-  //  Uint32 subscriptionId = sumaRemoveRef->subscriptionId;
-  //  Uint32 subscriptionKey = sumaRemoveRef->subscriptionKey;
-  //  Uint32 senderData = sumaRemoveRef->senderData;
+  Uint32 subscriptionId = subStopRef->subscriptionId;
+  Uint32 subscriptionKey = subStopRef->subscriptionKey;
+  Uint32 subscriberData = subStopRef->subscriberData;
+  m_error.code= subStopRef->errorCode;
 
-  m_error.code= sumaRemoveRef->errorCode;
+  DBUG_PRINT("error",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d,error=%d",
+		      subscriptionId,subscriptionKey,subscriberData,m_error.code));
   m_waiter.signal(NO_WAIT);
-
   DBUG_VOID_RETURN;
 }
 
@@ -2739,57 +2730,55 @@ void
 NdbDictInterface::execSUB_START_CONF(NdbApiSignal * signal,
 				     LinearSectionPtr ptr[3])
 {
-#ifdef EVENT_DEBUG
-  ndbout << "Got GSN_SUB_START_CONF" << endl;
-#endif
-  const SubStartConf * const sumaStartConf = CAST_CONSTPTR(SubStartConf, signal->getDataPtr());
+  DBUG_ENTER("NdbDictInterface::execSUB_START_CONF");
+  const SubStartConf * const subStartConf=
+    CAST_CONSTPTR(SubStartConf, signal->getDataPtr());
 
-  //  Uint32 subscriptionId = sumaStartConf->subscriptionId;
-  //  Uint32 subscriptionKey = sumaStartConf->subscriptionKey;
+  Uint32 subscriptionId = subStartConf->subscriptionId;
+  Uint32 subscriptionKey = subStartConf->subscriptionKey;
   SubscriptionData::Part part = 
-  (SubscriptionData::Part)sumaStartConf->part;
-  //  Uint32 subscriberData = sumaStartConf->subscriberData;
+    (SubscriptionData::Part)subStartConf->part;
+  Uint32 subscriberData = subStartConf->subscriberData;
 
   switch(part) {
   case SubscriptionData::MetaData: {
-#ifdef EVENT_DEBUG
-    ndbout << "SubscriptionData::MetaData" << endl;
-#endif
-    m_error.code = 1;
+    DBUG_PRINT("error",("SubscriptionData::MetaData"));
+    m_error.code= 1;
     break;
   }
   case SubscriptionData::TableData: {
-#ifdef EVENT_DEBUG
-    ndbout << "SubscriptionData::TableData" << endl;
-#endif
+    DBUG_PRINT("info",("SubscriptionData::TableData"));
     break;
   }
   default: {
-#ifdef EVENT_DEBUG
-    ndbout_c("NdbDictInterface::execSUB_START_CONF wrong data");
-#endif
-    m_error.code = 1;
+    DBUG_PRINT("error",("wrong data"));
+    m_error.code= 2;
     break;
   }
   }
+  DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
+		     subscriptionId,subscriptionKey,subscriberData));
   m_waiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execSUB_START_REF(NdbApiSignal * signal,
 				    LinearSectionPtr ptr[3])
 {
-#ifdef EVENT_DEBUG
-    ndbout << "Got GSN_SUB_START_REF" << endl;
-#endif
-  m_error.code = 1;
-  m_waiter.signal(NO_WAIT);  
+  DBUG_ENTER("NdbDictInterface::execSUB_START_REF");
+  const SubStartRef * const subStartRef=
+    CAST_CONSTPTR(SubStartRef, signal->getDataPtr());
+  m_error.code= subStartRef->errorCode;
+  m_waiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 void
 NdbDictInterface::execSUB_GCP_COMPLETE_REP(NdbApiSignal * signal,
 					   LinearSectionPtr ptr[3])
 {
-  const SubGcpCompleteRep * const rep = CAST_CONSTPTR(SubGcpCompleteRep, signal->getDataPtr());
+  const SubGcpCompleteRep * const rep=
+    CAST_CONSTPTR(SubGcpCompleteRep, signal->getDataPtr());
 
   const Uint32 gci            = rep->gci;
   //  const Uint32 senderRef      = rep->senderRef;
@@ -2800,7 +2789,8 @@ NdbDictInterface::execSUB_GCP_COMPLETE_REP(NdbApiSignal * signal,
   const Uint32 ref = signal->theSendersBlockRef;
 
   NdbApiSignal tSignal(m_reference);
-  SubGcpCompleteAcc * acc = CAST_PTR(SubGcpCompleteAcc, tSignal.getDataPtrSend());
+  SubGcpCompleteAcc * acc=
+    CAST_PTR(SubGcpCompleteAcc, tSignal.getDataPtrSend());
 
   acc->rep = *rep;
 
@@ -2858,9 +2848,9 @@ NdbDictInterface::execSUB_TABLE_DATA(NdbApiSignal * signal,
 int 
 NdbDictionaryImpl::dropEvent(const char * eventName)
 {
-  NdbEventImpl *ev =  new NdbEventImpl();
+  NdbEventImpl *ev= new NdbEventImpl();
   ev->setName(eventName);
-  int ret = m_receiver.dropEvent(*ev);
+  int ret= m_receiver.dropEvent(*ev);
   delete ev;  
 
   //  printf("__________________RET %u\n", ret);
@@ -2909,31 +2899,25 @@ void
 NdbDictInterface::execDROP_EVNT_CONF(NdbApiSignal * signal,
 				     LinearSectionPtr ptr[3])
 {
-#ifdef EVENT_DEBUG
-  ndbout << "NdbDictionaryImpl.cpp: execDROP_EVNT_CONF" << endl;
-#endif
-
+  DBUG_ENTER("NdbDictInterface::execDROP_EVNT_CONF");
   m_waiter.signal(NO_WAIT);  
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execDROP_EVNT_REF(NdbApiSignal * signal,
 				    LinearSectionPtr ptr[3])
 {
-#ifdef EVENT_DEBUG
-  ndbout << "NdbDictionaryImpl.cpp: execDROP_EVNT_REF" << endl;
-#endif
-  const DropEvntRef* const ref = CAST_CONSTPTR(DropEvntRef, signal->getDataPtr());
-  m_error.code = ref->getErrorCode();
+  DBUG_ENTER("NdbDictInterface::execDROP_EVNT_REF");
+  const DropEvntRef* const ref=
+    CAST_CONSTPTR(DropEvntRef, signal->getDataPtr());
+  m_error.code= ref->getErrorCode();
 
-#if 0
-  ndbout_c("execDROP_EVNT_REF");
-  ndbout_c("ErrorCode %u", ref->getErrorCode());
-  ndbout_c("Errorline %u", ref->getErrorLine());
-  ndbout_c("ErrorNode %u", ref->getErrorNode());
-#endif
+  DBUG_PRINT("info",("ErrorCode=%u Errorline=%u ErrorNode=%u",
+	     ref->getErrorCode(), ref->getErrorLine(), ref->getErrorNode()));
 
-  m_waiter.signal(NO_WAIT);  
+  m_waiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************
@@ -2998,7 +2982,7 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
   }
   if (! ok) {
     // bad signal data
-    m_error.code = 4213;
+    m_error.code= 4213;
     return -1;
   }
   list.count = count;
@@ -3064,7 +3048,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal)
     m_transporter->lock_mutex();
     Uint16 aNodeId = m_transporter->get_an_alive_node();
     if (aNodeId == 0) {
-      m_error.code = 4009;
+      m_error.code= 4009;
       m_transporter->unlock_mutex();
       return -1;
     }
@@ -3072,7 +3056,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal)
       m_transporter->unlock_mutex();
       continue;
     }
-    m_error.code = 0;
+    m_error.code= 0;
     m_waiter.m_node = aNodeId;
     m_waiter.m_state = WAIT_LIST_TABLES_CONF;
     m_waiter.wait(WAITFOR_RESPONSE_TIMEOUT);

@@ -244,7 +244,7 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId)
   req->newestGci = SYSFILE->newestRestorableGCI;
   sendSignal(ref, GSN_START_RECREQ, signal, StartRecReq::SignalLength, JBB);
 
-  signal->theData[0] = EventReport::StartREDOLog;
+  signal->theData[0] = NDB_LE_StartREDOLog;
   signal->theData[1] = nodeId;
   signal->theData[2] = SYSFILE->keepGCI;
   signal->theData[3] = SYSFILE->lastCompletedGCI[nodeId];
@@ -1792,7 +1792,7 @@ void Dbdih::nodeDictStartConfLab(Signal* signal)
   /*-----------------------------------------------------------------*/
   // Report that node restart has completed copy of dictionary.
   /*-----------------------------------------------------------------*/
-  signal->theData[0] = EventReport::NR_CopyDict;
+  signal->theData[0] = NDB_LE_NR_CopyDict;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
 }//Dbdih::nodeDictStartConfLab()
 
@@ -1813,7 +1813,7 @@ void Dbdih::gcpBlockedLab(Signal* signal)
   /*-----------------------------------------------------------------*/
   // Report that node restart has completed copy of distribution info.
   /*-----------------------------------------------------------------*/
-  signal->theData[0] = EventReport::NR_CopyDistr;
+  signal->theData[0] = NDB_LE_NR_CopyDistr;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
 
   /**
@@ -1968,7 +1968,7 @@ void Dbdih::execSTART_COPYREQ(Signal* signal)
   /*-------------------------------------------------------------------------*/
   // REPORT Copy process of node restart is now about to start up.
   /*-------------------------------------------------------------------------*/
-  signal->theData[0] = EventReport::NR_CopyFragsStarted;
+  signal->theData[0] = NDB_LE_NR_CopyFragsStarted;
   signal->theData[1] = startNodeId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
@@ -2933,7 +2933,7 @@ void Dbdih::execCREATE_FRAGCONF(Signal* signal)
     /* --------------------------------------------------------------------- */
     // REPORT that copy of fragment has been completed.
     /* --------------------------------------------------------------------- */
-    signal->theData[0] = EventReport::NR_CopyFragDone;
+    signal->theData[0] = NDB_LE_NR_CopyFragDone;
     signal->theData[1] = takeOverPtr.p->toStartingNode;
     signal->theData[2] = tabPtr.i;
     signal->theData[3] = takeOverPtr.p->toCurrentFragid;
@@ -3169,7 +3169,7 @@ Dbdih::switchPrimaryMutex_locked(Signal* signal, Uint32 toPtrI, Uint32 retVal){
 
 void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
 {
-  signal->theData[0] = EventReport::NR_CopyFragsCompleted;
+  signal->theData[0] = NDB_LE_NR_CopyFragsCompleted;
   signal->theData[1] = takeOverPtr.p->toStartingNode;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
@@ -4454,7 +4454,7 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
   sendLoopMacro(MASTER_GCPREQ, sendMASTER_GCPREQ);
   cgcpMasterTakeOverState = GMTOS_INITIAL;
   
-  signal->theData[0] = EventReport::GCP_TakeoverStarted;
+  signal->theData[0] = NDB_LE_GCP_TakeoverStarted;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
 
   setLocalNodefailHandling(signal, oldMasterId, NF_GCP_TAKE_OVER);
@@ -4961,7 +4961,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     break;
   }//switch
 
-  signal->theData[0] = EventReport::GCP_TakeoverCompleted;
+  signal->theData[0] = NDB_LE_GCP_TakeoverCompleted;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
 
   /*--------------------------------------------------*/
@@ -5393,7 +5393,7 @@ Dbdih::checkEmptyLcpComplete(Signal *signal){
   if(isMaster()){
     jam();
 
-    signal->theData[0] = EventReport::LCP_TakeoverStarted;
+    signal->theData[0] = NDB_LE_LCP_TakeoverStarted;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
     
     signal->theData[0] = 7012;
@@ -5865,7 +5865,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
     ndbrequire(false);
     break;
   }//switch
-  signal->theData[0] = EventReport::LCP_TakeoverCompleted;
+  signal->theData[0] = NDB_LE_LCP_TakeoverCompleted;
   signal->theData[1] = c_lcpMasterTakeOverState.state;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
   
@@ -5900,7 +5900,7 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     /* -------------------------------------------------------------------- */
     // Report the event that DBTC completed node failure handling.
     /* -------------------------------------------------------------------- */
-    signal->theData[0] = EventReport::NodeFailCompleted;
+    signal->theData[0] = NDB_LE_NodeFailCompleted;
     signal->theData[1] = DBTC;
     signal->theData[2] = failedNodePtr.i;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -5913,7 +5913,7 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     /* --------------------------------------------------------------------- */
     // Report the event that DBDICT completed node failure handling.
     /* --------------------------------------------------------------------- */
-    signal->theData[0] = EventReport::NodeFailCompleted;
+    signal->theData[0] = NDB_LE_NodeFailCompleted;
     signal->theData[1] = DBDICT;
     signal->theData[2] = failedNodePtr.i;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -5926,7 +5926,7 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     /* --------------------------------------------------------------------- */
     // Report the event that DBDIH completed node failure handling.
     /* --------------------------------------------------------------------- */
-    signal->theData[0] = EventReport::NodeFailCompleted;
+    signal->theData[0] = NDB_LE_NodeFailCompleted;
     signal->theData[1] = DBDIH;
     signal->theData[2] = failedNodePtr.i;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -5939,7 +5939,7 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     /* --------------------------------------------------------------------- */
     // Report the event that DBDIH completed node failure handling.
     /* --------------------------------------------------------------------- */
-    signal->theData[0] = EventReport::NodeFailCompleted;
+    signal->theData[0] = NDB_LE_NodeFailCompleted;
     signal->theData[1] = DBLQH;
     signal->theData[2] = failedNodePtr.i;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -5974,7 +5974,7 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     /* -------------------------------------------------------------------- */
     // Report the event that nodeId has completed node failure handling.
     /* -------------------------------------------------------------------- */
-    signal->theData[0] = EventReport::NodeFailCompleted;
+    signal->theData[0] = NDB_LE_NodeFailCompleted;
     signal->theData[1] = 0;
     signal->theData[2] = failedNodePtr.i;
     signal->theData[3] = nodeId;
@@ -6047,7 +6047,7 @@ void Dbdih::nodeFailCompletedCheckLab(Signal* signal,
   /* ---------------------------------------------------------------------- */
   // Report the event that all nodes completed node failure handling.
   /* ---------------------------------------------------------------------- */
-  signal->theData[0] = EventReport::NodeFailCompleted;
+  signal->theData[0] = NDB_LE_NodeFailCompleted;
   signal->theData[1] = 0;
   signal->theData[2] = failedNodePtr.i;
   signal->theData[3] = 0;
@@ -7230,7 +7230,7 @@ void Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   /***************************************************************************/
   // Report the event that a global checkpoint has started.
   /***************************************************************************/
-  signal->theData[0] = EventReport::GlobalCheckpointStarted; //Event type
+  signal->theData[0] = NDB_LE_GlobalCheckpointStarted; //Event type
   signal->theData[1] = cnewgcp;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
@@ -7693,7 +7693,7 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     // Report the event that a global checkpoint has completed.
     /************************************************************************/
     signal->setTrace(0);
-    signal->theData[0] = EventReport::GlobalCheckpointCompleted; //Event type
+    signal->theData[0] = NDB_LE_GlobalCheckpointCompleted; //Event type
     signal->theData[1] = coldgcp;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
 
@@ -9196,7 +9196,7 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   ndbrequire(((int)c_lcpState.oldestRestorableGci) > 0);
 
   if (ERROR_INSERTED(7011)) {
-    signal->theData[0] = EventReport::LCPStoppedInCalcKeepGci;
+    signal->theData[0] = NDB_LE_LCPStoppedInCalcKeepGci;
     signal->theData[1] = 0;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
     return;
@@ -9282,7 +9282,7 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
   /***************************************************************************/
   // Report the event that a local checkpoint has started.
   /***************************************************************************/
-  signal->theData[0] = EventReport::LocalCheckpointStarted; //Event type
+  signal->theData[0] = NDB_LE_LocalCheckpointStarted; //Event type
   signal->theData[1] = SYSFILE->latestLCP_ID + 1;
   signal->theData[2] = c_lcpState.keepGci;
   signal->theData[3] = c_lcpState.oldestRestorableGci;
@@ -9659,7 +9659,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   /* --------------------------------------------------------------------- */
   // REPORT that local checkpoint have completed this fragment.
   /* --------------------------------------------------------------------- */
-  signal->theData[0] = EventReport::LCPFragmentCompleted;
+  signal->theData[0] = NDB_LE_LCPFragmentCompleted;
   signal->theData[1] = nodeId;
   signal->theData[2] = tableId;
   signal->theData[3] = fragId;
@@ -10108,7 +10108,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   /***************************************************************************/
   // Report the event that a local checkpoint has completed.
   /***************************************************************************/
-  signal->theData[0] = EventReport::LocalCheckpointCompleted; //Event type
+  signal->theData[0] = NDB_LE_LocalCheckpointCompleted; //Event type
   signal->theData[1] = SYSFILE->latestLCP_ID;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
   
