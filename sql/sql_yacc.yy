@@ -2863,15 +2863,15 @@ key_usage_list2:
 	key_usage_list2 ',' ident
         { Select->select_lex()->
 	    interval_list.push_back(new String((const char*) $3.str, $3.length,
-				    default_charset_info)); }
+				    system_charset_info)); }
 	| ident
         { Select->select_lex()->
 	    interval_list.push_back(new String((const char*) $1.str, $1.length,
-				    default_charset_info)); }
+				    system_charset_info)); }
 	| PRIMARY_SYM
         { Select->select_lex()->
 	    interval_list.push_back(new String("PRIMARY", 7,
-				    default_charset_info)); };
+				    system_charset_info)); };
 
 using_list:
 	ident
@@ -3756,7 +3756,7 @@ opt_describe_column:
 	/* empty */	{}
 	| text_string	{ Lex->wild= $1; }
 	| ident
-	  { Lex->wild= new String((const char*) $1.str,$1.length,default_charset_info); };
+	  { Lex->wild= new String((const char*) $1.str,$1.length,system_charset_info); };
 
 
 /* flush things */
@@ -4829,7 +4829,7 @@ column_list:
 column_list_id:
 	ident
 	{
-	  String *new_str = new String((const char*) $1.str,$1.length,default_charset_info);
+	  String *new_str = new String((const char*) $1.str,$1.length,system_charset_info);
 	  List_iterator <LEX_COLUMN> iter(Lex->columns);
 	  class LEX_COLUMN *point;
 	  LEX *lex=Lex;

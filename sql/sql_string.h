@@ -117,7 +117,7 @@ public:
     Ptr=(char*) str; str_length=arg_length; Alloced_length=0 ; alloced=0;
     str_charset=cs;
   }
-  bool set_latin1(const char *str, uint32 arg_length);
+  bool set_ascii(const char *str, uint32 arg_length);
   inline void set_quick(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     if (!alloced)

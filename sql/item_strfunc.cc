@@ -2257,7 +2257,7 @@ String *Item_func_hex::val_str(String *str)
     if ((null_value= args[0]->null_value))
       return 0;
     ptr= longlong2str(dec,ans,16);
-    if (str->copy(ans,(uint32) (ptr-ans),default_charset_info))
+    if (str->copy(ans,(uint32) (ptr-ans),default_charset()))
       return &empty_string;			// End of memory
     return str;
   }
@@ -2366,7 +2366,7 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   case 3:
-    sep_buf.set(",", 1, default_charset_info);
+    sep_buf.set(",", 1, default_charset());
     sep = &sep_buf;
   }
   null_value=0;
