@@ -146,7 +146,7 @@ public:
     QS_TYPE_RANGE_DESC = 2,
     QS_TYPE_FULLTEXT   = 3,
     QS_TYPE_ROR_INTERSECT = 4,
-    QS_TYPE_ROR_UNION = 5,
+    QS_TYPE_ROR_UNION = 5
   };
 
   /* Get type of this quick select - one of the QS_TYPE_* values */
