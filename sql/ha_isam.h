@@ -32,19 +32,20 @@ class ha_isam: public handler
  public:
   ha_isam(TABLE *table)
     :handler(table), file(0),
-    int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		    HA_KEY_READ_WRONG_STR | HA_DUPP_POS |
-		    HA_NOT_DELETE_WITH_CACHE | HA_FILE_BASED)
+    int_table_flags(HA_READ_RND_SAME |
+		    HA_DUPP_POS | HA_NOT_DELETE_WITH_CACHE | HA_FILE_BASED)
   {}
   ~ha_isam() {}
+  ulong index_flags(uint idx, uint part, bool all_parts) const
+  { return HA_READ_NEXT; } // but no HA_READ_PREV here!!!
   const char *table_type() const { return "ISAM"; }
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
   ulong table_flags() const { return int_table_flags; }
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return N_MAXKEY; }
-  uint max_key_parts()     const { return N_MAXKEY_SEG; }
-  uint max_key_length()    const { return N_MAX_KEY_LENGTH; }
+  uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
+  uint max_supported_keys()          const { return N_MAXKEY; }
+  uint max_supported_key_parts()     const { return N_MAXKEY_SEG; }
+  uint max_supported_key_length()    const { return N_MAX_KEY_LENGTH; }
   uint min_record_length(uint options) const;
   bool low_byte_first() const { return 0; }
 
@@ -62,11 +63,10 @@ class ha_isam: public handler
   int index_prev(byte * buf);
   int index_first(byte * buf);
   int index_last(byte * buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
-  my_off_t row_position() { return nisam_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);
   int external_lock(THD *thd, int lock_type);

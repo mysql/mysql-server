@@ -59,10 +59,10 @@ printFSREADWRITEREQ(FILE * output, const Uint32 * theData,
 	  sig->numberOfPages);
   fprintf(output, " pageData: ");
 
-
+  unsigned int i;
   switch(sig->getFormatFlag(sig->operationFlag)){
   case FsReadWriteReq::fsFormatListOfPairs:
-    for (unsigned int i = 0; i < sig->numberOfPages*2; i += 2){
+    for (i= 0; i < sig->numberOfPages*2; i += 2){
       fprintf(output, " H\'%.8x, H\'%.8x\n", sig->data.pageData[i], 
                                              sig->data.pageData[i + 1]);
     }
@@ -72,7 +72,7 @@ printFSREADWRITEREQ(FILE * output, const Uint32 * theData,
                                            sig->data.pageData[1]);
     break;
   case FsReadWriteReq::fsFormatListOfMemPages:
-    for (unsigned int i = 0; i < (sig->numberOfPages + 1); i++){
+    for (i= 0; i < (sig->numberOfPages + 1); i++){
       fprintf(output, " H\'%.8x, ", sig->data.pageData[i]);
     }
     break;

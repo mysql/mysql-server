@@ -2717,8 +2717,11 @@ btr_estimate_number_of_different_key_vals(
 			rec = page_rec_get_next(rec);
 		}
 		
+
 		if (n_cols == dict_index_get_n_unique_in_tree(index)) {
-			/* We add one because we know that the first record
+
+			/* If there is more than one leaf page in the tree,
+			we add one because we know that the first record
 			on the page certainly had a different prefix than the
 			last record on the previous index page in the
 			alphabetical order. Before this fix, if there was
@@ -2726,7 +2729,11 @@ btr_estimate_number_of_different_key_vals(
 			algorithm grossly underestimated the number of rows
 			in the table. */
 
-			n_diff[n_cols]++;
+			if (btr_page_get_prev(page, &mtr) != FIL_NULL
+			    || btr_page_get_next(page, &mtr) != FIL_NULL) {
+
+				n_diff[n_cols]++;
+			}
 		}
 
 		total_external_size +=
@@ -2937,7 +2944,7 @@ btr_cur_mark_dtuple_inherited_extern(
 		if (!is_updated) {
 			dfield = dtuple_get_nth_field(entry, ext_vec[i]);
 
-			data = dfield_get_data(dfield);
+			data = (byte*) dfield_get_data(dfield);
 			len = dfield_get_len(dfield);
 		
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -2997,7 +3004,7 @@ btr_cur_unmark_dtuple_extern_fields(
 	for (i = 0; i < n_ext_vec; i++) {
 		dfield = dtuple_get_nth_field(entry, ext_vec[i]);
 
-		data = dfield_get_data(dfield);
+		data = (byte*) dfield_get_data(dfield);
 		len = dfield_get_len(dfield);
 		
 		len -= BTR_EXTERN_FIELD_REF_SIZE;

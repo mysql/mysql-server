@@ -141,3 +141,27 @@ select * from t1 where a = 'b';
 select * from t1 where a = 'b' and a = 'b';
 select * from t1 where a = 'b' and a != 'b';
 drop table t1;
+
+#
+# Bug #3928 regexp [[:>:]] and UTF-8
+#
+set names utf8;
+
+# This should return TRUE
+select  'вася'  rlike '[[:<:]]вася[[:>:]]';
+select  'вася ' rlike '[[:<:]]вася[[:>:]]';
+select ' вася'  rlike '[[:<:]]вася[[:>:]]';
+select ' вася ' rlike '[[:<:]]вася[[:>:]]';
+
+# This should return FALSE
+select  'васяz' rlike '[[:<:]]вася[[:>:]]';
+select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
+select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
+
+#
+# Bug #4555
+# ALTER TABLE crashes mysqld with enum column collated utf8_unicode_ci
+#
+CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8_unicode_ci);
+ALTER TABLE t1 ADD COLUMN b CHAR(20);
+DROP TABLE t1;

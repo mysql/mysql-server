@@ -425,21 +425,21 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	str->append(month_names[l_time->month-1],3);
 	break;
       case 'W':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
 					 l_time->day),0);
 	str->append(day_names[weekday]);
 	break;
       case 'a':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),0);
 	str->append(day_names[weekday],3);
 	break;
       case 'D':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(l_time->day, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 1, '0');
@@ -507,7 +507,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
       case 'j':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(calc_daynr(l_time->year,l_time->month,
 					l_time->day) - 
@@ -555,7 +555,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'u':
       {
 	uint year;
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(calc_week(l_time,
 				       (*ptr) == 'U' ?
@@ -569,7 +569,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'V':
       {
 	uint year;
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(calc_week(l_time,
 				       ((*ptr) == 'V' ?
@@ -584,7 +584,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'X':
       {
 	uint year;
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	(void) calc_week(l_time,
 			 ((*ptr) == 'X' ?
@@ -596,7 +596,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       }
       break;
       case 'w':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),1);
@@ -894,6 +894,9 @@ longlong Item_func_year::val_int()
 
 longlong Item_func_unix_timestamp::val_int()
 {
+  TIME ltime;
+  bool not_used;
+  
   DBUG_ASSERT(fixed == 1);
   if (arg_count == 0)
     return (longlong) current_thd->query_start();
@@ -903,12 +906,19 @@ longlong Item_func_unix_timestamp::val_int()
     if (field->type() == FIELD_TYPE_TIMESTAMP)
       return ((Field_timestamp*) field)->get_timestamp();
   }
-  String *str=args[0]->val_str(&value);
-  if ((null_value=args[0]->null_value))
+  
+  if (get_arg0_date(&ltime, 0))
   {
-    return 0; /* purecov: inspected */
+    /*
+      We have to set null_value again because get_arg0_date will also set it
+      to true if we have wrong datetime parameter (and we should return 0 in 
+      this case).
+    */
+    null_value= args[0]->null_value;
+    return 0;
   }
-  return (longlong) str_to_timestamp(str->ptr(),str->length());
+  
+  return (longlong) TIME_to_timestamp(current_thd, &ltime, &not_used);
 }
 
 
@@ -977,13 +987,13 @@ static bool get_interval_value(Item *args,interval_type int_type,
     interval->year= (ulong) value;
     break;
   case INTERVAL_QUARTER:
-    interval->month=value*3;
+    interval->month= (ulong)(value*3);
     break;
   case INTERVAL_MONTH:
     interval->month= (ulong) value;
     break;
   case INTERVAL_WEEK:
-    interval->day=value*7;
+    interval->day= (ulong)(value*7);
     break;
   case INTERVAL_DAY:
     interval->day= (ulong) value;
@@ -1103,7 +1113,7 @@ int Item_date::save_in_field(Field *field, bool no_conversions)
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return set_field_to_null(field);
   field->set_notnull();
-  field->store_time(&ltime, TIMESTAMP_DATE);
+  field->store_time(&ltime, MYSQL_TIMESTAMP_DATE);
   return 0;
 }
 
@@ -1125,31 +1135,22 @@ bool Item_func_from_days::get_date(TIME *ltime, uint fuzzy_date)
     return 1;
   bzero(ltime, sizeof(TIME));
   get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
-  ltime->time_type= TIMESTAMP_DATE;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }
 
 
 void Item_func_curdate::fix_length_and_dec()
 {
-  struct tm start;
-  
   collation.set(&my_charset_bin);
   decimals=0; 
   max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
 
-  store_now_in_tm(current_thd->query_start(),&start);
+  store_now_in_TIME(&ltime);
   
-  /* For getdate */
-  ltime.year=	start.tm_year+1900;
-  ltime.month=	start.tm_mon+1;
-  ltime.day=	start.tm_mday;
-  ltime.hour=	0;
-  ltime.minute=	0;
-  ltime.second=	0;
-  ltime.second_part=0;
-  ltime.neg=0;
-  ltime.time_type=TIMESTAMP_DATE;
+  /* We don't need to set second_part and neg because they already 0 */
+  ltime.hour= ltime.minute= ltime.second= 0;
+  ltime.time_type= MYSQL_TIMESTAMP_DATE;
   value= (longlong) TIME_to_ulonglong_date(&ltime);
 }
 
@@ -1165,31 +1166,39 @@ String *Item_func_curdate::val_str(String *str)
   return str;
 }
 
+/*
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole CURDATE function.
+*/
+void Item_func_curdate_local::store_now_in_TIME(TIME *now_time)
+{
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, 
+                                             (my_time_t)thd->query_start());
+  thd->time_zone_used= 1;
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for UTC
+    time zone. Defines time zone (UTC) used for whole UTC_DATE function.
+*/
+void Item_func_curdate_utc::store_now_in_TIME(TIME *now_time)
+{
+  my_tz_UTC->gmt_sec_to_TIME(now_time, 
+                             (my_time_t)(current_thd->query_start()));
+  /* 
+    We are not flagging this query as using time zone, since it uses fixed
+    UTC-SYSTEM time-zone.
+  */
+}
+
+
 bool Item_func_curdate::get_date(TIME *res,
 				 uint fuzzy_date __attribute__((unused)))
 {
   *res=ltime;
   return 0;
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for local timezone.
-    Defines timezone (local) used for whole CURDATE function
-*/
-void Item_func_curdate_local::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  localtime_r(&now,now_tm);
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for UTC
-    Defines timezone (UTC) used for whole UTC_DATE function
-*/
-void Item_func_curdate_utc::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  gmtime_r(&now,now_tm);
 }
 
 
@@ -1203,17 +1212,12 @@ String *Item_func_curtime::val_str(String *str)
 
 void Item_func_curtime::fix_length_and_dec()
 {
-  struct tm start;
-  String tmp((char*) buff,sizeof(buff), &my_charset_bin);
   TIME ltime;
+  String tmp((char*) buff,sizeof(buff), &my_charset_bin);
 
-  decimals=0; 
-  store_now_in_tm(current_thd->query_start(),&start);
-  ltime.hour=	start.tm_hour;
-  ltime.minute=	start.tm_min;
-  ltime.second=	start.tm_sec;
-  ltime.second_part= 0;
-  ltime.neg= 0;
+  decimals=0;
+  collation.set(&my_charset_bin);
+  store_now_in_TIME(&ltime);
   value= TIME_to_ulonglong_time(&ltime);
   make_time((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
@@ -1221,22 +1225,30 @@ void Item_func_curtime::fix_length_and_dec()
 
 
 /*
-    Converts time in time_t to struct tm represenatation for local timezone.
-    Defines timezone (local) used for whole CURTIME function
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole CURTIME function.
 */
-void Item_func_curtime_local::store_now_in_tm(time_t now, struct tm *now_tm)
+void Item_func_curtime_local::store_now_in_TIME(TIME *now_time)
 {
-  localtime_r(&now,now_tm);
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, 
+                                             (my_time_t)thd->query_start());
+  thd->time_zone_used= 1;
 }
 
 
 /*
-    Converts time in time_t to struct tm represenatation for UTC.
-    Defines timezone (UTC) used for whole UTC_TIME function
+    Converts current time in my_time_t to TIME represenatation for UTC
+    time zone. Defines time zone (UTC) used for whole UTC_TIME function.
 */
-void Item_func_curtime_utc::store_now_in_tm(time_t now, struct tm *now_tm)
+void Item_func_curtime_utc::store_now_in_TIME(TIME *now_time)
 {
-  gmtime_r(&now,now_tm);
+  my_tz_UTC->gmt_sec_to_TIME(now_time, 
+                             (my_time_t)(current_thd->query_start()));
+  /* 
+    We are not flagging this query as using time zone, since it uses fixed
+    UTC-SYSTEM time-zone.
+  */
 }
 
 
@@ -1250,22 +1262,44 @@ String *Item_func_now::val_str(String *str)
 
 void Item_func_now::fix_length_and_dec()
 {
-  struct tm start;
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
 
   decimals=0;
   collation.set(&my_charset_bin);
 
-  store_now_in_tm(current_thd->query_start(),&start);
-  
-  /* For getdate */
-  localtime_to_TIME(&ltime, &start);
-  ltime.time_type= TIMESTAMP_DATETIME;
-  
+  store_now_in_TIME(&ltime);
   value= (longlong) TIME_to_ulonglong_datetime(&ltime);
 
   make_datetime((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole NOW function.
+*/
+void Item_func_now_local::store_now_in_TIME(TIME *now_time)
+{
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, 
+                                             (my_time_t)thd->query_start());
+  thd->time_zone_used= 1;
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for UTC
+    time zone. Defines time zone (UTC) used for whole UTC_TIMESTAMP function.
+*/
+void Item_func_now_utc::store_now_in_TIME(TIME *now_time)
+{
+  my_tz_UTC->gmt_sec_to_TIME(now_time, 
+                             (my_time_t)(current_thd->query_start()));
+  /* 
+    We are not flagging this query as using time zone, since it uses fixed
+    UTC-SYSTEM time-zone.
+  */
 }
 
 
@@ -1280,28 +1314,8 @@ bool Item_func_now::get_date(TIME *res,
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
-  to->store_time(&ltime,TIMESTAMP_DATETIME);
+  to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   return 0;
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for local timezone.
-    Defines timezone (local) used for whole CURRENT_TIMESTAMP function
-*/
-void Item_func_now_local::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  localtime_r(&now,now_tm);
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for UTC.
-    Defines timezone (UTC) used for whole UTC_TIMESTAMP function
-*/
-void Item_func_now_utc::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  gmtime_r(&now,now_tm);
 }
 
 
@@ -1461,7 +1475,7 @@ String *Item_func_date_format::val_str(String *str)
   {
     String *res;
     if (!(res=args[0]->val_str(str)) ||
-	(str_to_time(res->ptr(),res->length(),&l_time)))
+	(str_to_time_with_warn(res->ptr(), res->length(), &l_time)))
       goto null_date;
 
     l_time.year=l_time.month=l_time.day=0;
@@ -1486,7 +1500,9 @@ String *Item_func_date_format::val_str(String *str)
 
   /* Create the result string */
   if (!make_date_time(&date_time_format, &l_time,
-		      is_time_format ? TIMESTAMP_TIME : TIMESTAMP_DATE, str))
+                      is_time_format ? MYSQL_TIMESTAMP_TIME :
+                                       MYSQL_TIMESTAMP_DATE,
+                      str))
     return str;
 
 null_date:
@@ -1495,24 +1511,31 @@ null_date:
 }
 
 
+void Item_func_from_unixtime::fix_length_and_dec()
+{ 
+  thd= current_thd;
+  collation.set(&my_charset_bin);
+  decimals=0;
+  max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  thd->time_zone_used= 1;
+}
+
+
 String *Item_func_from_unixtime::val_str(String *str)
 {
-  struct tm tm_tmp;
-  time_t tmp;
-  TIME ltime;
+  TIME time_tmp;
+  my_time_t tmp;
   
   DBUG_ASSERT(fixed == 1);
   tmp= (time_t) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     goto null_date;
-
-  localtime_r(&tmp,&tm_tmp);
-
-  localtime_to_TIME(&ltime, &tm_tmp);
-
+  
+  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
+  
   if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
     goto null_date;
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, str);
+  make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
   return str;
 
 null_date:
@@ -1523,28 +1546,109 @@ null_date:
 
 longlong Item_func_from_unixtime::val_int()
 {
-  TIME ltime;
-  struct tm tm_tmp;
-  time_t tmp;
+  TIME time_tmp;
+  my_time_t tmp;
+  
   DBUG_ASSERT(fixed == 1);
 
   tmp= (time_t) (ulong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 0;
-  localtime_r(&tmp,&tm_tmp);
-  localtime_to_TIME(&ltime, &tm_tmp);
-  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+  
+  current_thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
+  
+  return (longlong) TIME_to_ulonglong_datetime(&time_tmp);
 }
 
 bool Item_func_from_unixtime::get_date(TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  time_t tmp=(time_t) (ulong) args[0]->val_int();
+  my_time_t tmp=(my_time_t) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 1;
-  struct tm tm_tmp;
-  localtime_r(&tmp,&tm_tmp);
-  localtime_to_TIME(ltime, &tm_tmp);
+  
+  current_thd->variables.time_zone->gmt_sec_to_TIME(ltime, tmp);
+
+  return 0;
+}
+
+
+void Item_func_convert_tz::fix_length_and_dec()
+{ 
+  String str;
+  
+  thd= current_thd;
+  collation.set(&my_charset_bin);
+  decimals= 0;
+  max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+
+  if (args[1]->const_item())
+    from_tz= my_tz_find(thd, args[1]->val_str(&str));
+  
+  if (args[2]->const_item())
+    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+}
+
+
+String *Item_func_convert_tz::val_str(String *str)
+{
+  TIME time_tmp;
+
+  if (get_date(&time_tmp, 0))
+    return 0;
+  
+  if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
+  {
+    null_value= 1;
+    return 0;
+  }
+  
+  make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
+  return str;
+}
+
+
+longlong Item_func_convert_tz::val_int()
+{
+  TIME time_tmp;
+
+  if (get_date(&time_tmp, 0))
+    return 0;
+  
+  return (longlong)TIME_to_ulonglong_datetime(&time_tmp);
+}
+
+
+bool Item_func_convert_tz::get_date(TIME *ltime,
+				       uint fuzzy_date __attribute__((unused)))
+{
+  my_time_t my_time_tmp;
+  bool not_used;
+  String str;
+  
+  if (!args[1]->const_item())
+    from_tz= my_tz_find(thd, args[1]->val_str(&str));
+  
+  if (!args[2]->const_item())
+    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+  
+  if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, 0))
+  {
+    null_value= 1;
+    return 1;
+  }
+
+  /* Check if we in range where we treat datetime values as non-UTC */
+  if (ltime->year < TIMESTAMP_MAX_YEAR && ltime->year > TIMESTAMP_MIN_YEAR ||
+      ltime->year==TIMESTAMP_MAX_YEAR && ltime->month==1 && ltime->day==1 ||
+      ltime->year==TIMESTAMP_MIN_YEAR && ltime->month==12 && ltime->day==31)
+  {
+    my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
+    if (my_time_tmp >= TIMESTAMP_MIN_VALUE && my_time_tmp <= TIMESTAMP_MAX_VALUE)
+      to_tz->gmt_sec_to_TIME(ltime, my_time_tmp);
+  }
+  
+  null_value= 0;
   return 0;
 }
 
@@ -1617,7 +1721,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   case INTERVAL_DAY_HOUR:
   {
     longlong sec, days, daynr, microseconds, extra_sec;
-    ltime->time_type=TIMESTAMP_DATETIME;		// Return full date
+    ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // Return full date
     microseconds= ltime->second_part + sign*interval.second_part;
     extra_sec= microseconds/1000000L;
     microseconds= microseconds%1000000L;
@@ -1704,7 +1808,7 @@ String *Item_date_add_interval::val_str(String *str)
   if (Item_date_add_interval::get_date(&ltime,0))
     return 0;
 
-  if (ltime.time_type == TIMESTAMP_DATE)
+  if (ltime.time_type == MYSQL_TIMESTAMP_DATE)
     format= DATE_ONLY;
   else if (ltime.second_part)
     format= DATE_TIME_MICROSECOND;
@@ -1727,7 +1831,7 @@ longlong Item_date_add_interval::val_int()
   if (Item_date_add_interval::get_date(&ltime,0))
     return (longlong) 0;
   date = (ltime.year*100L + ltime.month)*100L + ltime.day;
-  return ltime.time_type == TIMESTAMP_DATE ? date :
+  return ltime.time_type == MYSQL_TIMESTAMP_DATE ? date :
     ((date*100L + ltime.hour)*100L+ ltime.minute)*100L + ltime.second;
 }
 
@@ -1808,7 +1912,7 @@ longlong Item_extract::val_int()
   else
   {
     String *res= args[0]->val_str(&value);
-    if (!res || str_to_time(res->ptr(),res->length(),&ltime))
+    if (!res || str_to_time_with_warn(res->ptr(), res->length(), &ltime))
     {
       null_value=1;
       return 0;
@@ -1986,7 +2090,7 @@ String *Item_datetime_typecast::val_str(String *str)
 bool Item_time_typecast::get_time(TIME *ltime)
 {
   bool res= get_arg0_time(ltime);
-  ltime->time_type= TIMESTAMP_TIME;
+  ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return res;
 }
 
@@ -2009,7 +2113,7 @@ String *Item_time_typecast::val_str(String *str)
 bool Item_date_typecast::get_date(TIME *ltime, uint fuzzy_date)
 {
   bool res= get_arg0_date(ltime,1);
-  ltime->time_type= TIMESTAMP_DATE;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;
 }
 
@@ -2115,17 +2219,17 @@ String *Item_func_add_time::val_str(String *str)
   {
     if (get_arg0_date(&l_time1,1) || 
         args[1]->get_time(&l_time2) ||
-        l_time1.time_type == TIMESTAMP_TIME || 
-        l_time2.time_type != TIMESTAMP_TIME)
+        l_time1.time_type == MYSQL_TIMESTAMP_TIME || 
+        l_time2.time_type != MYSQL_TIMESTAMP_TIME)
       goto null_date;
   }
   else                                // ADDTIME function
   {
     if (args[0]->get_time(&l_time1) || 
         args[1]->get_time(&l_time2) ||
-        l_time2.time_type == TIMESTAMP_DATETIME)
+        l_time2.time_type == MYSQL_TIMESTAMP_DATETIME)
       goto null_date;
-    is_time= (l_time1.time_type == TIMESTAMP_TIME);
+    is_time= (l_time1.time_type == MYSQL_TIMESTAMP_TIME);
     if (is_time && (l_time2.neg == l_time1.neg && l_time1.neg))
       l_time3.neg= 1;
   }
@@ -2248,11 +2352,11 @@ bool calc_time_diff(TIME *l_time1,TIME *l_time2, int l_sign,
   long microseconds= *microseconds_out;
 
   /*
-    We suppose that if first argument is TIMESTAMP_TIME
+    We suppose that if first argument is MYSQL_TIMESTAMP_TIME
     the second argument should be TIMESTAMP_TIME also.
     We should check it before calc_time_diff call.
   */
-  if (l_time1->time_type == TIMESTAMP_TIME)  // Time value
+  if (l_time1->time_type == MYSQL_TIMESTAMP_TIME)  // Time value
     days= l_time1->day - l_sign*l_time2->day;
   else                                      // DateTime value
     days= (calc_daynr((uint) l_time1->year,
@@ -2317,7 +2421,7 @@ String *Item_func_timediff::val_str(String *str)
 			      &seconds, &microseconds);
 
   /*
-    For TIMESTAMP_TIME only:
+    For MYSQL_TIMESTAMP_TIME only:
       If both argumets are negative values and diff between them
       is negative we need to swap sign as result should be positive.
   */
@@ -2415,7 +2519,6 @@ longlong Item_func_timestamp_diff::val_int()
     uint year;
     uint year_beg, year_end, month_beg, month_end;
     uint diff_days= (uint) (seconds/86400L);
-    uint diff_months= 0;
     uint diff_years= 0;
     if (neg == -1)
     {
@@ -2591,13 +2694,13 @@ void Item_func_get_format::print(String *str)
   str->append('(');
 
   switch (type) {
-  case TIMESTAMP_DATE:
+  case MYSQL_TIMESTAMP_DATE:
     str->append("DATE, ");
     break;
-  case TIMESTAMP_DATETIME:
+  case MYSQL_TIMESTAMP_DATETIME:
     str->append("DATETIME, ");
     break;
-  case TIMESTAMP_TIME:
+  case MYSQL_TIMESTAMP_TIME:
     str->append("TIME, ");
     break;
   default:
@@ -2680,25 +2783,25 @@ void Item_func_str_to_date::fix_length_and_dec()
   decimals=0;
   cached_field_type= MYSQL_TYPE_STRING;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-  cached_timestamp_type= TIMESTAMP_NONE;
+  cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
   if ((const_item= args[1]->const_item()))
   {
     format= args[1]->val_str(&format_str);
     cached_format_type= check_result_type(format->ptr(), format->length());
     switch (cached_format_type) {
     case DATE_ONLY:
-      cached_timestamp_type= TIMESTAMP_DATE;
+      cached_timestamp_type= MYSQL_TIMESTAMP_DATE;
       cached_field_type= MYSQL_TYPE_DATE; 
       max_length= MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
       break;
     case TIME_ONLY:
     case TIME_MICROSECOND:
-      cached_timestamp_type= TIMESTAMP_TIME;
+      cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
       cached_field_type= MYSQL_TYPE_TIME; 
       max_length= MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
       break;
     default:
-      cached_timestamp_type= TIMESTAMP_DATETIME;
+      cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
       cached_field_type= MYSQL_TYPE_DATETIME; 
       break;
     }
@@ -2724,7 +2827,7 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
 			ltime, cached_timestamp_type))
     goto null_date;
-  if (cached_timestamp_type == TIMESTAMP_TIME && ltime->day)
+  if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {
     /*
       Day part for time type can be nonzero value and so 
@@ -2765,6 +2868,6 @@ bool Item_func_last_day::get_date(TIME *ltime, uint fuzzy_date)
   ltime->day= days_in_month[month_idx];
   if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
     ltime->day= 29;
-  ltime->time_type= TIMESTAMP_DATE;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }

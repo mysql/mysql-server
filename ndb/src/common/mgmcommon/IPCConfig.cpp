@@ -17,9 +17,13 @@
 #include "IPCConfig.hpp"
 #include <NdbOut.hpp>
 #include <NdbHost.h>
+
 #include <TransporterDefinitions.hpp>
 #include <TransporterRegistry.hpp>
 #include <Properties.hpp>
+
+#include <mgmapi_configuration.hpp>
+#include <mgmapi_config_parameters.h>
 
 #if defined DEBUG_TRANSPORTER
 #define DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
@@ -334,3 +338,158 @@ IPCConfig::getNodeType(NodeId id) const {
 
   return out;
 }
+
+Uint32
+IPCConfig::configureTransporters(Uint32 nodeId,
+				 const class ndb_mgm_configuration & config,
+				 class TransporterRegistry & tr){
+
+  Uint32 noOfTransportersCreated = 0;
+  ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
+  
+  for(iter.first(); iter.valid(); iter.next()){
+    
+    Uint32 nodeId1, nodeId2, remoteNodeId;
+    if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
+    if(iter.get(CFG_CONNECTION_NODE_2, &nodeId2)) continue;
+
+    if(nodeId1 != nodeId && nodeId2 != nodeId) continue;
+    remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
+
+    Uint32 sendSignalId = 1;
+    Uint32 checksum = 1;
+    if(iter.get(CFG_CONNECTION_SEND_SIGNAL_ID, &sendSignalId)) continue;
+    if(iter.get(CFG_CONNECTION_CHECKSUM, &checksum)) continue;
+
+    Uint32 type = ~0;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
+
+    switch(type){
+    case CONNECTION_TYPE_SHM:{
+      SHM_TransporterConfiguration conf;
+      conf.localNodeId  = nodeId;
+      conf.remoteNodeId = remoteNodeId;
+      conf.byteOrder    = 0;
+      conf.compression  = 0;
+      conf.checksum     = checksum;
+      conf.signalId     = sendSignalId;
+      
+      if(iter.get(CFG_SHM_KEY, &conf.shmKey)) break;
+      if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shmSize)) break;
+      
+      if(!tr.createTransporter(&conf)){
+	ndbout << "Failed to create SHM Transporter from: " 
+	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
+      } else {
+	noOfTransportersCreated++;
+      }
+      break;
+    }
+    case CONNECTION_TYPE_SCI:{
+      SCI_TransporterConfiguration conf;
+      conf.localNodeId  = nodeId;
+      conf.remoteNodeId = remoteNodeId;
+      conf.byteOrder    = 0;
+      conf.compression  = 0;
+      conf.checksum     = checksum;
+      conf.signalId     = sendSignalId;
+      
+      if(iter.get(CFG_SCI_SEND_LIMIT, &conf.sendLimit)) break;
+      if(iter.get(CFG_SCI_BUFFER_MEM, &conf.bufferSize)) break;
+      
+      if(nodeId == nodeId1){
+	if(iter.get(CFG_SCI_NODE1_ADAPTERS, &conf.nLocalAdapters)) break;
+	if(iter.get(CFG_SCI_NODE2_ADAPTERS, &conf.nRemoteAdapters)) break;
+	if(iter.get(CFG_SCI_NODE2_ADAPTER0, &conf.remoteSciNodeId0)) break;
+	if(conf.nRemoteAdapters > 1){
+	  if(iter.get(CFG_SCI_NODE2_ADAPTER1, &conf.remoteSciNodeId1)) break;
+	}
+      } else {
+	if(iter.get(CFG_SCI_NODE2_ADAPTERS, &conf.nLocalAdapters)) break;
+	if(iter.get(CFG_SCI_NODE1_ADAPTERS, &conf.nRemoteAdapters)) break;
+	if(iter.get(CFG_SCI_NODE1_ADAPTER0, &conf.remoteSciNodeId0)) break;
+	if(conf.nRemoteAdapters > 1){
+	  if(iter.get(CFG_SCI_NODE1_ADAPTER1, &conf.remoteSciNodeId1)) break;
+	}
+      }
+      
+      if(!tr.createTransporter(&conf)){
+	ndbout << "Failed to create SCI Transporter from: " 
+	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
+      } else {
+	noOfTransportersCreated++;
+	continue;
+      }
+    }
+    case CONNECTION_TYPE_TCP:{
+      TCP_TransporterConfiguration conf;
+      
+      const char * host1, * host2;
+      if(iter.get(CFG_TCP_HOSTNAME_1, &host1)) break;
+      if(iter.get(CFG_TCP_HOSTNAME_2, &host2)) break;
+      
+      if(iter.get(CFG_TCP_SERVER_PORT, &conf.port)) break;
+      if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.sendBufferSize)) break;
+      if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.maxReceiveSize)) break;
+      
+      const char * proxy;
+      if (!iter.get(CFG_TCP_PROXY, &proxy)) {
+	if (strlen(proxy) > 0 && nodeId2 == nodeId) {
+	  // TODO handle host:port
+	  conf.port = atoi(proxy);
+	}
+      }
+      
+      conf.localNodeId    = nodeId;
+      conf.remoteNodeId   = remoteNodeId;
+      conf.localHostName  = (nodeId == nodeId1 ? host1 : host2);
+      conf.remoteHostName = (nodeId == nodeId1 ? host2 : host1);
+      conf.byteOrder      = 0;
+      conf.compression    = 0;
+      conf.checksum       = checksum;
+      conf.signalId       = sendSignalId;
+      
+      if(!tr.createTransporter(&conf)){
+	ndbout << "Failed to create TCP Transporter from: " 
+	       << nodeId << " to: " << remoteNodeId << endl;
+      } else {
+	noOfTransportersCreated++;
+      }
+    case CONNECTION_TYPE_OSE:{
+      OSE_TransporterConfiguration conf;
+      
+      const char * host1, * host2;
+      if(iter.get(CFG_OSE_HOSTNAME_1, &host1)) break;
+      if(iter.get(CFG_OSE_HOSTNAME_2, &host2)) break;
+      
+      if(iter.get(CFG_OSE_PRIO_A_SIZE, &conf.prioASignalSize)) break;
+      if(iter.get(CFG_OSE_PRIO_B_SIZE, &conf.prioBSignalSize)) break;
+      if(iter.get(CFG_OSE_RECEIVE_ARRAY_SIZE, &conf.receiveBufferSize)) break;
+      
+      conf.localNodeId    = nodeId;
+      conf.remoteNodeId   = remoteNodeId;
+      conf.localHostName  = (nodeId == nodeId1 ? host1 : host2);
+      conf.remoteHostName = (nodeId == nodeId1 ? host2 : host1);
+      conf.byteOrder      = 0;
+      conf.compression    = 0;
+      conf.checksum       = checksum;
+      conf.signalId       = sendSignalId;
+      
+      if(!tr.createTransporter(&conf)){
+	ndbout << "Failed to create OSE Transporter from: " 
+	       << nodeId << " to: " << remoteNodeId << endl;
+      } else {
+	noOfTransportersCreated++;
+      }
+    }
+    default:
+      ndbout << "Unknown transporter type from: " << nodeId << 
+	" to: " << remoteNodeId << endl;
+      break;
+    }
+    }
+  }
+  
+  return noOfTransportersCreated;
+}
+  

@@ -1,0 +1,10 @@
+select * from t9 order by a;
+a	b
+1	2
+2	3
+3	4
+4	5
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	1
+drop table t9;

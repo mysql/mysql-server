@@ -40,8 +40,8 @@ const char* errorType[] = {
 static int WriteMessage(ErrorCategory thrdType, int thrdMessageID,
 			const char* thrdProblemData, 
 			const char* thrdObjRef,
-			Uint32 thrdTheEmulatedJamIndex = 0,
-			Uint8 thrdTheEmulatedJam[] = 0);
+			Uint32 thrdTheEmulatedJamIndex,
+			Uint8 thrdTheEmulatedJam[]);
 
 static void dumpJam(FILE* jamStream, 
 		    Uint32 thrdTheEmulatedJamIndex, 
@@ -157,21 +157,18 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line)
 {
   char refMessage[100];
 
-#ifdef USE_EMULATED_JAM
+#ifdef NO_EMULATED_JAM
+  snprintf(refMessage, 100, "file: %s lineNo: %d",
+	   file, line);
+#else
   const Uint32 blockNumber = theEmulatedJamBlockNumber;
   const char *blockName = getBlockName(blockNumber);
 
   snprintf(refMessage, 100, "%s line: %d (block: %s)",
 	   file, line, blockName);
-  
+#endif
   WriteMessage(assert, ERR_ERROR_PRGERR, message, refMessage,
 	       theEmulatedJamIndex, theEmulatedJam);
-#else
-  snprintf(refMessage, 100, "file: %s lineNo: %d",
-	   file, line);
-
-  WriteMessage(assert, ERR_ERROR_PRGERR, message, refMessage);
-#endif
 
   NdbShutdown(NST_ErrorHandler);
 }
@@ -199,12 +196,8 @@ ErrorReporter::handleError(ErrorCategory type, int messageID,
   // The value for type is not always set correctly in the calling function.
   // So, to correct this, we set it set it to the value corresponding to
   // the function that is called.
-#ifdef USE_EMULATED_JAM
   WriteMessage(type, messageID, problemData,
 	       objRef, theEmulatedJamIndex, theEmulatedJam);
-#else
-  WriteMessage(type, messageID, problemData, objRef);
-#endif
   if(messageID == ERR_ERROR_INSERT){
     NdbShutdown(NST_ErrorInsert);
   } else {
@@ -212,9 +205,6 @@ ErrorReporter::handleError(ErrorCategory type, int messageID,
   }
 }
 
-// This is the function to write the error-message, 
-// when the USE_EMULATED_JAM-flag is set
-// during compilation.
 int 
 WriteMessage(ErrorCategory thrdType, int thrdMessageID,
 	     const char* thrdProblemData, const char* thrdObjRef,
@@ -302,9 +292,7 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
   //  ...and "dump the jam" there.
   //  ErrorReporter::dumpJam(jamStream);
   if(thrdTheEmulatedJam != 0){
-#ifdef USE_EMULATED_JAM
     dumpJam(jamStream, thrdTheEmulatedJamIndex, thrdTheEmulatedJam);
-#endif
   }
   
   /* Dont print the jobBuffers until a way to copy them, 
@@ -325,7 +313,7 @@ void
 dumpJam(FILE *jamStream, 
 	Uint32 thrdTheEmulatedJamIndex, 
 	Uint8 thrdTheEmulatedJam[]) {
-#ifdef USE_EMULATED_JAM   
+#ifndef NO_EMULATED_JAM   
   // print header
   const int maxaddr = 8;
   fprintf(jamStream, "JAM CONTENTS up->down left->right ?=not block entry\n");
@@ -392,5 +380,5 @@ dumpJam(FILE *jamStream,
   }
   fprintf(jamStream, "\n");
   fflush(jamStream);
-#endif // USE_EMULATED_JAM
+#endif // ifndef NO_EMULATED_JAM
 }

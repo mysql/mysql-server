@@ -38,14 +38,14 @@ Backup::Backup(const Configuration & conf) :
   c_nodePool.setSize(MAX_NDB_NODES);
   c_masterNodeId = getOwnNodeId();
   
-  const Properties * p = conf.getOwnProperties();
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0;
-  p->get("ParallelBackups", &noBackups);
-  ndbrequire(p->get("MaxNoOfTables", &noTables));
-  ndbrequire(p->get("MaxNoOfAttributes", &noAttribs));
-
+  ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
+  
   // To allow for user tables AND SYSTAB 
   // See ClusterConfig
   //TODO get this infor from NdbCntr
@@ -65,7 +65,7 @@ Backup::Backup(const Configuration & conf) :
   c_fragmentPool.setSize(noBackups * 2 * NO_OF_FRAG_PER_NODE * noTables);
   
   Uint32 szMem = 0;
-  p->get("BackupMemory", &szMem);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MEM, &szMem);
   Uint32 noPages = (szMem + sizeof(Page32) - 1) / sizeof(Page32);
   // We need to allocate an additional of 2 pages. 1 page because of a bug in
   // ArrayPool and another one for DICTTAINFO.
@@ -74,9 +74,9 @@ Backup::Backup(const Configuration & conf) :
   Uint32 szDataBuf = (2 * 1024 * 1024);
   Uint32 szLogBuf = (2 * 1024 * 1024);
   Uint32 szWrite = 32768;
-  p->get("BackupDataBufferSize", &szDataBuf);
-  p->get("BackupLogBufferSize", &szLogBuf);
-  p->get("BackupWriteSize", &szWrite);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
   
   c_defaults.m_logBufferSize = szLogBuf;
   c_defaults.m_dataBufferSize = szDataBuf;

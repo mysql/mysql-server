@@ -292,9 +292,7 @@ waiting, in its lock queue. Solution: We can copy the locks as gap type
 locks, so that also the waiting locks are transformed to granted gap type
 locks on the inserted record. */
 
-#ifdef UNIV_DEBUG
 ibool	lock_print_waits	= FALSE;
-#endif /* UNIV_DEBUG */
 
 /* The lock system */
 lock_sys_t*	lock_sys	= NULL;
@@ -510,7 +508,7 @@ lock_sys_create(
 
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
 
-	lock_latest_err_file = tmpfile();
+	lock_latest_err_file = os_file_create_tmpfile();
 }
 
 /*************************************************************************
@@ -1354,8 +1352,7 @@ lock_rec_has_expl(
 
 	return(NULL);
 }
-
-#ifdef UNIV_DEBUG			
+			
 /*************************************************************************
 Checks if some other transaction has a lock request in the queue. */
 static
@@ -1398,7 +1395,6 @@ lock_rec_other_has_expl_req(
 
 	return(NULL);
 }
-#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Checks if some other transaction has a conflicting explicit lock request
@@ -1688,13 +1684,11 @@ lock_rec_enqueue_waiting(
 
 	ut_a(que_thr_stop(thr));
 
-#ifdef UNIV_DEBUG
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu in index ",
 			(ulong) ut_dulint_get_low(trx->id));
 		ut_print_name(stderr, index->name);
 	}
-#endif /* UNIV_DEBUG */
 	
 	return(DB_LOCK_WAIT);	
 }
@@ -2029,17 +2023,14 @@ lock_grant(
 
                 lock->trx->auto_inc_lock = lock;
         } else if (lock_get_type(lock) == LOCK_TABLE_EXP) {
-		ut_ad(lock_get_mode(lock) == LOCK_S
+		ut_a(lock_get_mode(lock) == LOCK_S
 			|| lock_get_mode(lock) == LOCK_X);
-		lock->trx->n_tables_locked++;
 	}
 
-#ifdef UNIV_DEBUG
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu ends\n",
 		       (ulong) ut_dulint_get_low(lock->trx->id));
 	}
-#endif /* UNIV_DEBUG */
 
 	/* If we are resolving a deadlock by choosing another transaction
 	as a victim, then our original transaction may not be in the
@@ -3110,11 +3101,9 @@ lock_deadlock_recursive(
 					lock_table_print(ef, start->wait_lock);
 				}
 
-#ifdef UNIV_DEBUG
 				if (lock_print_waits) {
 					fputs("Deadlock detected\n", stderr);
 				}
-#endif /* UNIV_DEBUG */
 
 				if (ut_dulint_cmp(wait_lock->trx->undo_no,
 							start->undo_no) >= 0) {
@@ -3213,6 +3202,10 @@ lock_table_create(
 	lock->type_mode = type_mode | LOCK_TABLE;
 	lock->trx = trx;
 
+	if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+		lock->trx->n_lock_table_exp++;
+	}
+
 	lock->un_member.tab_lock.table = table;
 
 	UT_LIST_ADD_LAST(un_member.tab_lock.locks, table->locks, lock);
@@ -3248,7 +3241,11 @@ lock_table_remove_low(
 	if (lock == trx->auto_inc_lock) {
 		trx->auto_inc_lock = NULL;
 	}
-	
+
+	if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+		lock->trx->n_lock_table_exp--;
+	}
+
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
 	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
 }	
@@ -3396,7 +3393,7 @@ lock_table(
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(flags == 0 || flags == LOCK_TABLE_EXP);
+	ut_a(flags == 0 || flags == LOCK_TABLE_EXP);
 
 	trx = thr_get_trx(thr);
 
@@ -3428,10 +3425,7 @@ lock_table(
 
 	lock_table_create(table, mode | flags, trx);
 
-	if (flags) {
-		ut_ad(mode == LOCK_S || mode == LOCK_X);
-		trx->n_tables_locked++;
-	}
+	ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
 	lock_mutex_exit_kernel();
 
@@ -3512,13 +3506,13 @@ lock_table_dequeue(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(lock_get_type(in_lock) == LOCK_TABLE ||
+	ut_a(lock_get_type(in_lock) == LOCK_TABLE ||
 		lock_get_type(in_lock) == LOCK_TABLE_EXP);
 
 	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
 
 	lock_table_remove_low(in_lock);
-	
+
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
 
@@ -3618,9 +3612,8 @@ lock_release_off_kernel(
 
 			lock_table_dequeue(lock);
 			if (lock_get_type(lock) == LOCK_TABLE_EXP) {
-				ut_ad(lock_get_mode(lock) == LOCK_S
+				ut_a(lock_get_mode(lock) == LOCK_S
 					|| lock_get_mode(lock) == LOCK_X);
-				trx->n_tables_locked--;
 			}
 		}
 
@@ -3641,11 +3634,12 @@ lock_release_off_kernel(
 	mem_heap_empty(trx->lock_heap);
 
 	ut_a(trx->auto_inc_lock == NULL);
-	ut_a(trx->n_tables_locked == 0);
+	ut_a(trx->n_lock_table_exp == 0);
 }
 
 /*************************************************************************
-Releases table locks, and releases possible other transactions waiting
+Releases table locks explicitly requested with LOCK TABLES (indicated by
+lock type LOCK_TABLE_EXP), and releases possible other transactions waiting
 because of these locks. */
 
 void
@@ -3670,7 +3664,7 @@ lock_release_tables_off_kernel(
 		count++;
 
 		if (lock_get_type(lock) == LOCK_TABLE_EXP) {
-			ut_ad(lock_get_mode(lock) == LOCK_S
+			ut_a(lock_get_mode(lock) == LOCK_S
 				|| lock_get_mode(lock) == LOCK_X);
 			if (trx->insert_undo || trx->update_undo) {
 
@@ -3686,7 +3680,7 @@ lock_release_tables_off_kernel(
 			}
 
 			lock_table_dequeue(lock);
-			trx->n_tables_locked--;
+
 			lock = UT_LIST_GET_LAST(trx->trx_locks);
 			continue;
 		}
@@ -3705,9 +3699,7 @@ lock_release_tables_off_kernel(
 		lock = UT_LIST_GET_PREV(trx_locks, lock);
 	}
 
-	mem_heap_empty(trx->lock_heap);
-
-	ut_a(trx->n_tables_locked == 0);
+	ut_a(trx->n_lock_table_exp == 0);
 }
 
 /*************************************************************************
@@ -4177,7 +4169,6 @@ loop:
 	goto loop;
 }
 
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the lock queue on a table. */
 
@@ -4488,7 +4479,6 @@ lock_validate(void)
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /*============ RECORD LOCK CHECKS FOR ROW OPERATIONS ====================*/
 

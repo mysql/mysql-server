@@ -1,0 +1,208 @@
+#
+# SQL Syntax for Prepared Statements test
+#
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1
+(
+  a int primary key,
+  b char(10)
+);
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+
+# basic functionality
+set @a=2;
+prepare stmt1 from 'select * from t1 where a <= ?';
+execute stmt1 using @a;
+set @a=3;
+execute stmt1 using @a;
+
+# non-existant statement
+--error 1243
+deallocate prepare no_such_statement;
+
+--error 1210
+execute stmt1;
+
+# Nesting ps commands is not allowed: 
+--error 1064
+prepare stmt2 from 'prepare nested_stmt from "select 1"';
+
+--error 1064
+prepare stmt2 from 'execute stmt1';
+
+--error 1064
+prepare stmt2 from 'deallocate prepare z';
+
+# PS insert 
+prepare stmt3 from 'insert into t1 values (?,?)';
+set @arg1=5, @arg2='five';
+execute stmt3 using @arg1, @arg2;
+select * from t1 where a>3;
+
+# PS update 
+prepare stmt4 from 'update t1 set a=? where b=?';
+set @arg1=55, @arg2='five';
+execute stmt4 using @arg1, @arg2;
+select * from t1 where a>3;
+
+# PS create/delete
+prepare stmt4 from 'create table t2 (a int)';
+execute stmt4;
+prepare stmt4 from 'drop table t2';
+execute stmt4;
+
+# Do something that will cause error
+--error 1051
+execute stmt4;
+
+# placeholders in result field names.
+prepare stmt5 from 'select ? + a from t1';
+set @a=1;
+execute stmt5 using @a;
+
+execute stmt5 using @no_such_var;
+
+set @nullvar=1;
+set @nullvar=NULL;
+execute stmt5 using @nullvar;
+
+set @nullvar2=NULL;
+execute stmt5 using @nullvar2;
+
+# Check that multiple SQL statements are disabled inside PREPARE
+--error 1064
+prepare stmt6 from 'select 1; select2';
+
+--error 1064
+prepare stmt6 from 'insert into t1 values (5,"five"); select2';
+
+# This shouldn't parse
+--error 1064
+explain prepare stmt6 from 'insert into t1 values (5,"five"); select2';
+
+create table t2
+(
+  a int
+);
+
+insert into t2 values (0);
+
+# parameter is NULL
+set @arg00=NULL ;
+prepare stmt1 from 'select 1 FROM t2 where a=?' ;
+execute stmt1 using @arg00 ;
+
+# prepare using variables:
+--error 1064
+prepare stmt1 from @nosuchvar;
+
+set @ivar= 1234;
+--error 1064
+prepare stmt1 from @ivar;
+
+set @fvar= 123.4567;
+--error 1064
+prepare stmt1 from @fvar;
+
+set @str1 = 'select ?';
+set @str2 = convert(@str1 using ucs2);
+prepare stmt1 from @str2;
+execute stmt1 using @ivar;
+drop table t1,t2;
+
+#
+# Bug #4105: Server crash on attempt to prepare a statement with character
+# set introducer
+#
+PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
+set @var='A';
+EXECUTE stmt1 USING @var;
+DEALLOCATE PREPARE stmt1;
+
+#
+# BUG#3486:  FOUND_ROWS() fails inside stored procedure [and prepared statement]
+#
+create table t1 (id int);
+prepare stmt1 from "select FOUND_ROWS()";
+select SQL_CALC_FOUND_ROWS * from t1;
+# Expect 0
+execute stmt1;
+insert into t1 values (1);
+select SQL_CALC_FOUND_ROWS * from t1;
+# Expect 1
+execute stmt1;
+# Expect 0
+execute stmt1;
+deallocate prepare stmt1;
+drop table t1;
+
+#
+# prepared EXPLAIN
+#
+create table t1 
+(
+  c1  tinyint, c2  smallint, c3  mediumint, c4  int,
+  c5  integer, c6  bigint, c7  float, c8  double,
+  c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
+  c13 date, c14 datetime, c15 timestamp(14), c16 time,
+  c17 year, c18 bit, c19 bool, c20 char,
+  c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
+  c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
+  c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
+  c32 set('monday', 'tuesday', 'wednesday')
+) engine = MYISAM ;
+create table t2 like t1;
+
+set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
+prepare stmt1 from @stmt ;
+execute stmt1 ;
+execute stmt1 ;
+explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
+deallocate prepare stmt1;
+drop tables t1,t2;
+
+#
+# parameters from variables (for field creation)
+#
+set @arg00=1;
+prepare stmt1 from ' create table t1 (m int) as select 1 as m ' ;
+execute stmt1 ;
+select m from t1;
+drop table t1;
+prepare stmt1 from ' create table t1 (m int) as select ? as m ' ;
+execute stmt1 using @arg00;
+select m from t1;
+deallocate prepare stmt1;
+drop table t1;
+
+#
+# eq() for parameters
+#
+create table t1 (id int(10) unsigned NOT NULL default '0',
+                 name varchar(64) NOT NULL default '',
+                 PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
+insert into t1 values (1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(6,'6'),(7,'7');
+prepare stmt1 from 'select name from t1 where id=? or id=?';
+set @id1=1,@id2=6;
+execute stmt1 using @id1, @id2;
+select name from t1 where id=1 or id=6;
+deallocate prepare stmt1;
+drop table t1;
+
+#
+# SHOW TABLE STATUS test
+#
+create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
+prepare stmt1 from ' show table status from test like ''t1%'' ';
+--replace_column 12 # 13 # 14 #
+execute stmt1;
+--replace_column 12 # 13 # 14 #
+show table status from test like 't1%' ;
+deallocate prepare stmt1 ;
+drop table t1;

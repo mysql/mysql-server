@@ -161,11 +161,12 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in the MySQL
 					table handle */
 /*************************************************************************
-Unlocks a table lock possibly reserved by trx. */
+Unlocks all table locks explicitly requested by trx (with LOCK TABLES,
+lock type LOCK_TABLE_EXP). */
 
 void		  	
-row_unlock_table_for_mysql(
-/*=======================*/
+row_unlock_tables_for_mysql(
+/*========================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
 Sets a table lock on the table mentioned in prebuilt. */
@@ -558,6 +559,9 @@ struct row_prebuilt_struct {
 	dtuple_t*	clust_ref;	/* prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/* LOCK_NONE, LOCK_S, or LOCK_X */
+	ulint		stored_select_lock_type;/* inside LOCK TABLES, either
+					LOCK_S or LOCK_X depending on the lock
+					type */
 	ulint		mysql_row_len;	/* length in bytes of a row in the
 					MySQL format */
 	ulint		n_rows_fetched;	/* number of rows fetched after

@@ -578,7 +578,7 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 
 static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
 {
-  for (; table_list ; table_list=table_list->next)
+  for (; table_list ; table_list=table_list->next_local)
   {
     if (table_list->table && table_is_used(table_list->table,0))
       return 1;
@@ -632,7 +632,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
   bool got_all_locks=1;
   TABLE_LIST *lock_table;
 
-  for (lock_table=table_list ; lock_table ; lock_table=lock_table->next)
+  for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
     int got_lock;
     if ((got_lock=lock_table_name(thd,lock_table)) < 0)
@@ -675,7 +675,9 @@ end:
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table)
 {
-  for (TABLE_LIST *table=table_list ; table != last_table ; table=table->next)
+  for (TABLE_LIST *table= table_list;
+       table != last_table;
+       table= table->next_local)
     unlock_table_name(thd,table);
   pthread_cond_broadcast(&COND_refresh);
 }

@@ -85,6 +85,11 @@ Item *create_func_conv(Item* a, Item *b, Item *c)
   return new Item_func_conv(a,b,c);
 }
 
+Item *create_func_convert_tz(Item* a, Item *b, Item *c)
+{
+  return new Item_func_convert_tz(a,b,c);
+}
+
 Item *create_func_cos(Item* a)
 {
   return new Item_func_cos(a);
@@ -145,7 +150,7 @@ Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
   thd->lex->safe_to_cache_query= 0;
-  return new Item_int(NullS,(longlong) thd->found_rows(),21);
+  return new Item_func_found_rows();
 }
 
 Item *create_func_from_days(Item* a)
@@ -364,7 +369,7 @@ Item *create_func_space(Item *a)
   CHARSET_INFO *cs= current_thd->variables.collation_connection;
   Item *sp;
   
-  if (cs->state & MY_CS_NONTEXT)
+  if (cs->mbminlen > 1)
   {
     sp= new Item_string("",0,cs);
     if (sp)

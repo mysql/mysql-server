@@ -17,7 +17,8 @@
 /**
  * O_DIRECT
  */
-#ifdef NDB_LINUX
+#if 0
+//#ifdef NDB_LINUX
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -34,10 +35,12 @@
 #include <NdbThread.h>
 #include <signaldata/FsOpenReq.hpp>
 
-#ifdef NDB_LINUX
+#if 0
+#ifdef HAVE_PREAD
 // This is for pread and pwrite
 #ifndef __USE_UNIX98
 #define __USE_UNIX98
+#endif
 #endif
 #endif
 
@@ -343,11 +346,10 @@ void AsyncFile::openReq(Request* request)
   }
 
 #if 0
-#if NDB_LINUX
+  //#if NDB_LINUX
   if(Global_useO_DIRECT){
     new_flags |= O_DIRECT;
   }
-#endif
 #endif
 
   switch(flags & 0x3){

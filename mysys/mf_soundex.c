@@ -52,7 +52,7 @@ void soundex(CHARSET_INFO * cs,register my_string out_pntr, my_string in_pntr,
 
   if (remove_garbage)
   {
-    while (*in_pntr && !my_isalpha(cs,*in_pntr)) /* Skipp pre-space */
+    while (*in_pntr && !my_isalpha(cs,*in_pntr)) /* Skip pre-space */
       in_pntr++;
   }
   *out_pntr++ = map[(uchar)*in_pntr];	/* Copy first letter		 */
@@ -82,7 +82,7 @@ void soundex(CHARSET_INFO * cs,register my_string out_pntr, my_string in_pntr,
 
   /*
     If alpha, map input letter to soundex code.
-    If not alpha and remove_garbage is set then skipp to next char
+    If not alpha and remove_garbage is set then skip to next char
     else return 0
     */
 

@@ -852,7 +852,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  int *killed= killed_ptr(info->sort_info->param->thd);
+  volatile int *killed= killed_ptr(info->sort_info->param);
 
   DBUG_ENTER("merge_buffers");
 
@@ -874,7 +874,8 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
     count+= buffpek->count;
     buffpek->base= strpos;
     buffpek->max_keys=maxcount;
-    strpos+= (uint) (error=(int) info->read_to_buffer(from_file,buffpek,sort_length));
+    strpos+= (uint) (error=(int) info->read_to_buffer(from_file,buffpek,
+                                                      sort_length));
     if (error == -1)
       goto err; /* purecov: inspected */
     queue_insert(&queue,(char*) buffpek);
@@ -891,7 +892,8 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (to_file)
       {
-        if (info->write_key(info,to_file,(byte*) buffpek->key,(uint) sort_length,1))
+        if (info->write_key(info,to_file,(byte*) buffpek->key,
+                            (uint) sort_length,1))
         {
           error=1; goto err; /* purecov: inspected */
         }

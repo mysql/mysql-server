@@ -47,7 +47,7 @@ protected:
   /* old engine if engine was changed */
   subselect_engine *old_engine;
   /* cache of used external tables */
-  table_map used_tables_cache; 
+  table_map used_tables_cache;
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
   /* work with 'substitution' */
@@ -69,21 +69,22 @@ public:
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
-  /* 
+  /*
      We need this method, because some compilers do not allow 'this'
      pointer in constructor initialization list, but we need pass pointer
      to subselect Item class to select_subselect classes constructor.
   */
-  virtual void init (st_select_lex *select_lex, 
+  virtual void init (st_select_lex *select_lex,
 		     select_subselect *result);
 
   ~Item_subselect();
   void cleanup();
-  virtual void reset() 
+  virtual void reset()
   {
     null_value= 1;
   }
   virtual trans_res select_transformer(JOIN *join);
+  virtual trans_res no_select_transform() { return RES_OK; }
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -209,7 +210,6 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_not(0)
-     
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -220,6 +220,7 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
+  trans_res no_select_transform();
   trans_res single_value_transformer(JOIN *join,
 				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
@@ -275,7 +276,7 @@ public:
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
   virtual void cleanup()= 0;
-  
+
   // set_thd should be called before prepare()
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   THD * get_thd() { return thd; }

@@ -22,6 +22,8 @@
 #include <NdbTick.h>
 #include <SimulatedBlock.hpp>
 #include <NodeBitmask.hpp>
+#include <SignalCounter.hpp>
+
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ArbitSignalData.hpp>
 #include <signaldata/CmRegSignalData.hpp>
@@ -33,23 +35,9 @@
 #ifdef QMGR_C
 
 #define NO_REG_APP 1
-/* Boolean flags --------------------------------*/
-#define ZNULL 0xfffe
 
 /* Delay values, ms -----------------------------*/
 #define ZDELAY_REGREQ 1000
-
-/* Phase of QMGR node    ------------------------*/
-#define ZINIT 1 		/* All nodes start in phase INIT         */
-#define ZWAITING 2 		/* Node is connecting to cluster         */
-#define ZRUNNING 3 		/* Node is running in the cluster        */
-#define ZBLOCKED 4 		/* Node is blocked from the cluster      */
-#define ZWAIT_PRESIDENT 5
-#define ZDEAD 6
-#define ZAPI_ACTIVE 7 		/* API IS RUNNING IN NODE                */
-#define ZFAIL_CLOSING 8         /* API/NDB IS DISCONNECTING              */
-#define ZPREPARE_FAIL 9         /* PREPARATION FOR FAILURE               */
-#define ZAPI_INACTIVE 10        /* Inactive API */
 
 /* Type of refuse in CM_NODEINFOREF -------------*/
 #define ZNOT_RUNNING 0
@@ -100,18 +88,40 @@ public:
     WAITING_FOR_FAILCONF2 = 2,
     WAITING_FOR_NDB_FAILCONF = 3
   };
+
+  enum Phase {
+    ZINIT = 1, 		        /* All nodes start in phase INIT         */
+    ZSTARTING = 2, 		/* Node is connecting to cluster         */
+    ZRUNNING = 3, 		/* Node is running in the cluster        */
+    ZPREPARE_FAIL = 4,       /* PREPARATION FOR FAILURE               */
+    ZFAIL_CLOSING = 5,             /* API/NDB IS DISCONNECTING              */
+    ZAPI_ACTIVE = 6,            /* API IS RUNNING IN NODE                */
+    ZAPI_INACTIVE = 7           /* Inactive API */
+  };
+
+  struct StartRecord {
+    void reset(){ m_startKey++; m_startNode = 0;}
+    Uint32 m_startKey;
+    Uint32 m_startNode;
+    Uint64 m_startTimeout;
+    
+    Uint32 m_gsn;
+    SignalCounter m_nodes;
+  } c_start;
+
+  NdbNodeBitmask c_definedNodes; // DB nodes in config
+  NdbNodeBitmask c_clusterNodes; // DB nodes in cluster
+  NodeBitmask c_connectedNodes;  // All kinds of connected nodes
+  Uint32 c_maxDynamicId;
   
   // Records
   struct NodeRec {
     UintR ndynamicId;
-    UintR phase;
+    Phase phase;
     UintR alarmCount;
     
-    bool m_connected;
     QmgrState sendPrepFailReqStatus;
     QmgrState sendCommitFailReqStatus;
-    QmgrState sendCmAddPrepStatus;
-    QmgrState sendCmAddCommitStatus;
     QmgrState sendPresToStatus;
     FailState failState;
     BlockReference rcv[2];        // remember which failconf we have received
@@ -122,18 +132,6 @@ public:
   
   typedef Ptr<NodeRec> NodeRecPtr;
   
-  struct RegApp {
-    NdbNodeBitmask m_runNodes;
-    char name[15 + 1];
-    UintR noofapps;
-    UintR noofpending;
-    BlockReference blockref;
-    Uint16 version;
-    Uint16 activity;
-  };
-
-  typedef Ptr<RegApp> RegAppPtr;
-
   enum ArbitState {
     ARBIT_NULL = 0,
     ARBIT_INIT = 1,             // create new ticket
@@ -191,7 +189,6 @@ private:
   void execCM_HEARTBEAT(Signal* signal);
   void execCM_ADD(Signal* signal);
   void execCM_ACKADD(Signal* signal);
-  void execCM_APPCHG(Signal* signal);
   void execCM_REGREQ(Signal* signal);
   void execCM_REGCONF(Signal* signal);
   void execCM_REGREF(Signal* signal);
@@ -214,10 +211,6 @@ private:
   void execCONNECT_REP(Signal* signal);
   void execNDB_FAILCONF(Signal* signal);
   void execSTTOR(Signal* signal);
-  void execAPPL_REGREQ(Signal* signal);
-  void execAPPL_STARTREG(Signal* signal);
-  void execAPPL_RUN(Signal* signal);
-  void execCM_INIT(Signal* signal);
   void execCM_INFOCONF(Signal* signal);
   void execCLOSE_COMCONF(Signal* signal);
   void execAPI_REGREQ(Signal* signal);
@@ -242,53 +235,31 @@ private:
   // Statement blocks
   void node_failed(Signal* signal, Uint16 aFailedNode);
   void checkStartInterface(Signal* signal);
-  void applchangerep(Signal* signal,
-                     UintR aRegApp,
-                     Uint16 aNode,
-                     UintR aType,
-                     UintR aVersion);
-  void cmappAdd(Signal* signal,
-                UintR aRegApp,
-                Uint16 aNode,
-                UintR aType,
-                UintR aVersion);
-  void cmappStart(Signal* signal,
-                  UintR aRegApp,
-                  Uint16 aNode,
-                  UintR aType,
-                  UintR aVersion);
   void failReport(Signal* signal,
                   Uint16 aFailedNode,
                   UintR aSendFailRep,
                   FailRep::FailCause failCause);
   void findNeighbours(Signal* signal);
   Uint16 translateDynamicIdToNodeId(Signal* signal, UintR TdynamicId);
-  UintR getDynamicId(Signal* signal);
+
   void initData(Signal* signal);
-  void prepareAdd(Signal* signal, Uint16 addNode);
-  void sendappchg(Signal* signal, UintR aRegApp, Uint16 aNode);
   void sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 TfailNo);
   void sendPrepFailReq(Signal* signal, Uint16 aNode);
   void sendApiFailReq(Signal* signal, Uint16 aFailedNode);
   void sendApiRegRef(Signal*, Uint32 ref, ApiRegRef::ErrorCode);
 
   // Generated statement blocks
+  void startphase1(Signal* signal);
   void electionWon();
   void cmInfoconf010Lab(Signal* signal);
   void apiHbHandlingLab(Signal* signal);
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
-  void cmAdd010Lab(Signal* signal);
-  void cmAckadd010Lab(Signal* signal);
-  void cmAppchg010Lab(Signal* signal);
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
 		       CmRegRef::ErrorCode);
   void systemErrorBecauseOtherNodeFailed(Signal* signal, NodeId);
   void systemErrorLab(Signal* signal,
 		      const char* message = NULL);
-  void cmRegref010Lab(Signal* signal);
-  void cmNodeinforeq010Lab(Signal* signal);
-  void cmNodeinfoconf010Lab(Signal* signal);
   void prepFailReqLab(Signal* signal);
   void prepFailConfLab(Signal* signal);
   void prepFailRefLab(Signal* signal);
@@ -300,13 +271,10 @@ private:
   void presToConfLab(Signal* signal);
   void sendSttorryLab(Signal* signal);
   void sttor020Lab(Signal* signal);
-  void applRegreq010Lab(Signal* signal);
-  void applStartreg010Lab(Signal* signal);
-  void applRun010Lab(Signal* signal);
-  void cmInit010Lab(Signal* signal);
   void closeComConfLab(Signal* signal);
   void apiRegReqLab(Signal* signal);
-  void regreqTimelimitLab(Signal* signal, UintR callTime);
+  void regreqTimeLimitLab(Signal* signal);
+  void regreqTimeMasterLimitLab(Signal* signal);
   void cmRegreq010Lab(Signal* signal);
   void cmRegconf010Lab(Signal* signal);
   void sttor010Lab(Signal* signal);
@@ -347,6 +315,12 @@ private:
   bool checkAPIVersion(NodeId, Uint32 nodeVersion, Uint32 ownVersion) const;
   bool checkNDBVersion(NodeId, Uint32 nodeVersion, Uint32 ownVersion) const;
 
+  void cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec* self);
+  void sendCmAckAdd(Signal *, Uint32 nodeId, CmAdd::RequestType);
+  void joinedCluster(Signal* signal, NodeRecPtr nodePtr);
+  void sendCmRegReq(Signal * signal, Uint32 nodeId);
+  void sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self);
+
 private:
   void sendPrepFailReqRef(Signal* signal, 
 			  Uint32 dstBlockRef,
@@ -364,7 +338,6 @@ private:
   /**** Common stored variables ****/
 
   NodeRec *nodeRec;
-  RegApp * regApp;
   ArbitRec arbitRec;
 
   /* Block references ------------------------------*/
@@ -377,27 +350,17 @@ private:
 
   /* Counters --------------------------------------*/
   Uint16 cnoOfNodes; 		 /* Static node counter          */
-  Uint16 cclustersize; 		 /* Currently not used           */
   /* Status flags ----------------------------------*/
 
-  Uint16 cstartseq; 		/* Marks what startseq we are in according to
-				   STTOR */
+  Uint32 c_restartPartialTimeout;
 
-  Uint16 cpresidentBusy; /* Only used by the president, ZTRUE / ZFALSE */
-  Uint16 cacceptRegreq;	 /* Used by president, ZTRUE / ZFALSE 	       */
-  Uint16 cwaitContinuebPhase1;
-  Uint16 cwaitContinuebPhase2;
   Uint16 creadyDistCom;
-  
-  UintR cstartNo;
   Uint16 c_regReqReqSent;
   Uint16 c_regReqReqRecv;
   Uint64 c_stopElectionTime;
   Uint16 cpresidentCandidate;
   Uint16 cdelayRegreq;
   Uint16 cpresidentAlive;
-  Uint16 csignalkey;
-  Uint16 cstartNode;
   Uint16 cnoFailedNodes;
   Uint16 cnoPrepFailedNodes;
   Uint16 cnoCommitFailedNodes;
@@ -410,7 +373,6 @@ private:
   UintR cfailureNr;
 
   QmgrState ctoStatus;
-  UintR ccm_infoconfCounter;
   UintR cLqhTimeSignalCount;
   bool cHbSent;
   NDB_TICKS clatestTransactionCheck;
@@ -421,68 +383,10 @@ private:
   class Timer hb_api_timer;
 
 
-  UintR cnodemask[NdbNodeBitmask::Size];
   Uint16 cfailedNodes[MAX_NDB_NODES];
   Uint16 cprepFailedNodes[MAX_NDB_NODES];
   Uint16 ccommitFailedNodes[MAX_NDB_NODES];
 
-  /***************************************************************************/
-  /* RECORD NODE_REC: The NodeList contains information about all other nodes 
-   *                  in the cluster.
-   *   Member variables: 
-   *       NTYPE           [ ZACTIVE,
-   *                         ZPASSIVE,     Marks the level of activity the 
-   *                                       node will show in the cluster.
-   *                         ZLISTENER ]   
-   *       PHASE           [ ZINIT,      = Initial face, before node is added 
-   *                                       to cluster
-   *                         ZWAITING,   = Node is added to the cluster and 
-   *                                       ready to run
-   *                         ZRUNNING,   = Node is up and running.
-   *                         ZBLOCKED    = Node is not in the cluster
-   *                         ZAPI_ACTIVE = Node has an active application
-   *                         ZFAIL_CLOSING = Node is disconnecting  
-   *                         ZDEAD ]       = Node has been declared as dead
-   *       ALARM_COUNT  No of times an alarm has been sent before it is 
-   *                    acknowledged
-   ***************************************************************************/
-  /*************************************************************************
-   * RECORD REG_APP: The REG_APP record is used to store information about 
-   *                 each registered application running on the current node.
-   * Member variables:
-   *       BLOCKREF        Reference of application block to receive cluster 
-   *                       signals 
-   *       PTR             Not used today but may be used by appl. in future
-   *       NAME            Unique name of application, max 15 char. long
-   *       SUBTYPE         Provided as a mechanism for applications to have 
-   *                       more than one type running in the same application 
-   *                       ring. i.e. NDB & NDB-API
-   *       VERSION         Version no. of application. Two different versions 
-   *                       will be handled as different applications.
-   *       TYPE            [ ZACTIVE,
-   *                         ZPASSIVE,
-   *                         ZLISTENER ]   Type of member in the cluster
-   *       ACTIVITY        [ ZADD,         Application has been registered on 
-   *                                       node.
-   *                         ZSTART,       Application is ready to start 
-   *                                       running distributed.
-   *                         ZRUN,         Application is running actively.
-   *                         ZDELETE ]     Application is beeing removed from 
-   *                                       the node.
-   *       HBDELAY         Delay time for periodic intervalls.
-   *       STATUS          Heartbeat status, indicates if app is responding 
-   *                       to HBREQ.
-   *       RUNNODES()      If value is ZTRUE -> app. is also running on the 
-   *                       indexed node.
-   *       NOOFAPPS        No. of applications left to register themselves as 
-   *                       ready to start, STATUS = ZSTART before we can send 
-   *                       APPL_STARTCONF.
-   *       NOOFPENDING     No. of apps that have registered themselfs as ready
-   *                       to start before this app has. We need this since 
-   *                       we set NOOFAPPS when we receive the local 
-   *                       APPL_START. NOOFPENDING is subtracted from NOOFAPPS
-   *                       when NOOFAPPS is set.
-   **************************************************************************/
-
 };
+
 #endif

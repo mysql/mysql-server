@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <ndb_types.h>
+#include <kernel/ndb_limits.h>
 
 class NdbSqlUtil {
 public:
@@ -77,7 +78,9 @@ public:
       Binary,           // Len
       Varbinary,        // Max len
       Datetime,         // Precision down to 1 sec  (size 8 bytes)
-      Timespec          // Precision down to 1 nsec (size 12 bytes)
+      Timespec,         // Precision down to 1 nsec (size 12 bytes)
+      Blob,             // Blob
+      Clob              // Text blob
     };
     Enum m_typeId;
     Cmp* m_cmp;         // set to NULL if cmp not implemented
@@ -121,6 +124,8 @@ private:
   static Cmp cmpVarbinary;
   static Cmp cmpDatetime;
   static Cmp cmpTimespec;
+  static Cmp cmpBlob;
+  static Cmp cmpClob;
 };
 
 inline int
@@ -145,7 +150,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Tinyunsigned:
     {
       if (size >= 1) {
@@ -160,7 +164,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Smallint:
     {
       if (size >= 1) {
@@ -175,7 +178,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Smallunsigned:
     {
       if (size >= 1) {
@@ -190,7 +192,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Mediumint:         // XXX fix these
     break;
   case Type::Mediumunsigned:
@@ -209,7 +210,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Unsigned:
     {
       if (size >= 1) {
@@ -224,7 +224,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Bigint:
     {
       if (size >= 2) {
@@ -241,7 +240,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Bigunsigned:
     {
       if (size >= 2) {
@@ -258,7 +256,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Float:
     {
       if (size >= 1) {
@@ -273,7 +270,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Double:
     {
       if (size >= 2) {
@@ -290,7 +286,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Decimal:
     break;
   case Type::Char:
@@ -305,7 +300,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       int k = memcmp(u1.v, u2.v, size << 2);
       return k < 0 ? -1 : k > 0 ? +1 : full == size ? 0 : CmpUnknown;
     }
-    break;
   case Type::Varchar:
     {
       /*
@@ -323,7 +317,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Binary:            // XXX fix these
     break;
   case Type::Varbinary:
@@ -347,9 +340,24 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Timespec:          // XXX fix this
     break;
+  case Type::Blob:              // XXX fix
+    break;
+  case Type::Clob:
+    {
+      // skip blob head, the rest is varchar
+      const unsigned skip = NDB_BLOB_HEAD_SIZE;
+      if (size >= skip + 1) {
+        union { const Uint32* p; const char* v; } u1, u2;
+        u1.p = p1 + skip;
+        u2.p = p2 + skip;
+        // length in first 2 bytes
+        int k = strncmp(u1.v + 2, u2.v + 2, ((size - skip) << 2) - 2);
+        return k < 0 ? -1 : k > 0 ? +1 : full == size ? 0 : CmpUnknown;
+      }
+      return CmpUnknown;
+    }
   }
   return CmpError;
 }

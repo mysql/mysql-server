@@ -64,10 +64,10 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     table_list= reverse_table_list(table_list);
 
     /* Find the last renamed table */
-    for (table=table_list ;
-	 table->next != ren_table ;
-	 table=table->next->next) ;
-    table=table->next->next;			// Skip error table
+    for (table= table_list;
+	 table->next_local != ren_table ;
+	 table= table->next_local->next_local) ;
+    table= table->next_local->next_local;		// Skip error table
     /* Revert to old names */
     rename_tables(thd, table, 1);
 
@@ -89,7 +89,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     send_ok(thd);
   }
 
-  unlock_table_names(thd,table_list);
+  unlock_table_names(thd, table_list);
 
 err:
   pthread_mutex_unlock(&LOCK_open);
@@ -114,8 +114,8 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
 
   while (table_list)
   {
-    TABLE_LIST *next= table_list->next;
-    table_list->next= prev;
+    TABLE_LIST *next= table_list->next_local;
+    table_list->next_local= prev;
     prev= table_list;
     table_list= next;
   }
@@ -134,13 +134,13 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
   TABLE_LIST *ren_table,*new_table;
   DBUG_ENTER("rename_tables");
 
-  for (ren_table=table_list ; ren_table ; ren_table=new_table->next)
+  for (ren_table= table_list; ren_table; ren_table= new_table->next_local)
   {
     db_type table_type;
     char name[FN_REFLEN];
     const char *new_alias, *old_alias;
 
-    new_table=ren_table->next;
+    new_table= ren_table->next_local;
     if (lower_case_table_names == 2)
     {
       old_alias= ren_table->alias;

@@ -35,6 +35,8 @@
 #include <NdbSleep.h>
 #include <new>
 
+#include <signal.h>        // For process signals
+
 extern "C" {
   extern void (* ndb_new_handler)();
 }
@@ -43,11 +45,11 @@ extern "C" {
  * Declare the global variables 
  */
 
-#ifdef USE_EMULATED_JAM
-   Uint8 theEmulatedJam[EMULATED_JAM_SIZE * 4];
-   Uint32 theEmulatedJamIndex = 0;
-   Uint32 theEmulatedJamBlockNumber = 0;
-#endif // USE_EMULATED_JAM
+#ifndef NO_EMULATED_JAM
+Uint8 theEmulatedJam[EMULATED_JAM_SIZE * 4];
+Uint32 theEmulatedJamIndex = 0;
+Uint32 theEmulatedJamBlockNumber = 0;
+#endif
 
    GlobalData globalData;
 

@@ -30,35 +30,6 @@
 #include <mgmapi.h>
 #include "CpcClient.hpp"
 
-/**
-   psuedo code for run-test.bin
-   
-   define autotest_wrapper process at each host
-   start ndb-processes
-   
-   for each testcase
-   do
-     start mysqld processes
-     start replication processes
-     start test programs
-   
-     wait until test program finished or max time passed
-   
-     stop test program
-     stop replication processes
-     stop mysqld processes
-   
-     write report data-file
-     if test failed and ! last test
-     restart ndb processes
-   
-     drop all tables created by test
-   done
-   
-   stop ndb processes
-   undefined wrapper processes
-*/
-
 /** Global variables */
 static const char progname[] = "ndb_atrt";
 static const char * g_gather_progname = "atrt-gather-result.sh";
@@ -75,6 +46,7 @@ static const char * g_report_filename = 0;
 static const char * g_default_user = 0;
 static const char * g_default_base_dir = 0;
 static int          g_default_base_port = 0;
+static int          g_mysqld_use_base = 1;
 
 static int g_report = 0;
 static int g_verbosity = 0;
@@ -158,10 +130,17 @@ main(int argc, const char ** argv){
       
       if(!start_processes(g_config, atrt_process::NDB_DB))
 	goto end;
-      
-      if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED))
-	goto end;
-      
+
+      if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NOT_STARTED))
+        goto end;
+
+      for(Uint32 i = 0; i<3; i++)      
+        if(wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED))
+	  goto started;
+
+      goto end;
+
+started:
       g_logger.info("Ndb start completed");
     }
     
@@ -347,7 +326,7 @@ parse_args(int argc, const char** argv){
     return false;
   }
   
-  g_default_user = strdup(getenv("USER"));
+  g_default_user = strdup(getenv("LOGNAME"));
 
   return true;
 }
@@ -377,6 +356,8 @@ setup_config(atrt_config& config){
 
   int lineno = 0;
   char buf[2048];
+  BaseString connect_string;
+  int mysql_port_offset = 0;
   while(fgets(buf, 2048, f)){
     lineno++;
 
@@ -405,6 +386,11 @@ setup_config(atrt_config& config){
 
     if(split1[0].trim() == "user"){
       g_default_user = strdup(split1[1].trim().c_str());
+      continue;
+    }
+
+    if(split1[0].trim() == "mysqld-use-base" && split1[1].trim() == "no"){
+      g_mysqld_use_base = 0;
       continue;
     }
 
@@ -449,8 +435,10 @@ setup_config(atrt_config& config){
     for(size_t i = 0; i<hosts.size(); i++){
       BaseString & tmp = hosts[i];
       atrt_host * host = find(tmp, config.m_hosts);
+      BaseString & dir = host->m_base_dir;
 
       const int index = config.m_processes.size() + 1;
+
       atrt_process proc;
       proc.m_index = index;
       proc.m_host = host;
@@ -458,8 +446,8 @@ setup_config(atrt_config& config){
       proc.m_proc.m_type = "temporary";
       proc.m_proc.m_owner = "atrt";  
       proc.m_proc.m_group = "group";    
-      proc.m_proc.m_cwd.assign(host->m_base_dir).append("/run/");
-      proc.m_proc.m_env.assign("LD_LIBRARY_PATH=").append(host->m_base_dir).append("/lib");
+      proc.m_proc.m_cwd.assign(dir).append("/run/");
+      proc.m_proc.m_env.assfmt("LD_LIBRARY_PATH=%s/lib/mysql", dir.c_str());
       proc.m_proc.m_stdout = "log.out";
       proc.m_proc.m_stderr = "2>&1";
       proc.m_proc.m_runas = proc.m_host->m_user;
@@ -468,16 +456,33 @@ setup_config(atrt_config& config){
       proc.m_ndb_mgm_port = g_default_base_port;
       if(split1[0] == "mgm"){
 	proc.m_type = atrt_process::NDB_MGM;
-	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_mgm");
-	proc.m_proc.m_path.assign(host->m_base_dir).append("/bin/mgmtsrvr");
+	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_mgmd");
+	proc.m_proc.m_path.assign(dir).append("/libexec/ndb_mgmd");
 	proc.m_proc.m_args = "-n -c initconfig.txt";
-	proc.m_proc.m_cwd.appfmt("%d.ndb_mgm", index);
+	proc.m_proc.m_cwd.appfmt("%d.ndb_mgmd", index);
+	connect_string.appfmt(";host=%s:%d", 
+			      proc.m_hostname.c_str(), proc.m_ndb_mgm_port);
       } else if(split1[0] == "ndb"){
 	proc.m_type = atrt_process::NDB_DB;
-	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_db");
-	proc.m_proc.m_path.assign(host->m_base_dir).append("/bin/ndb");
+	proc.m_proc.m_name.assfmt("%d-%s", index, "ndbd");
+	proc.m_proc.m_path.assign(dir).append("/libexec/ndbd");
 	proc.m_proc.m_args = "-i -n";
-	proc.m_proc.m_cwd.appfmt("%d.ndb_db", index);
+	proc.m_proc.m_cwd.appfmt("%d.ndbd", index);
+      } else if(split1[0] == "mysqld"){
+	proc.m_type = atrt_process::MYSQL_SERVER;
+	proc.m_proc.m_name.assfmt("%d-%s", index, "mysqld");
+	proc.m_proc.m_path.assign(dir).append("/libexec/mysqld");
+	proc.m_proc.m_args = "--core-file --ndbcluster";
+	proc.m_proc.m_cwd.appfmt("%d.mysqld", index);
+	if(mysql_port_offset > 0 || g_mysqld_use_base){
+	  // setup mysql specific stuff
+	  const char * basedir = proc.m_proc.m_cwd.c_str();
+	  proc.m_proc.m_args.appfmt("--datadir=%s", basedir);
+	  proc.m_proc.m_args.appfmt("--pid-file=%s/mysql.pid", basedir);
+	  proc.m_proc.m_args.appfmt("--socket=%s/mysql.sock", basedir);
+	  proc.m_proc.m_args.appfmt("--port=%d", 
+				    g_default_base_port-(++mysql_port_offset));
+	}
       } else if(split1[0] == "api"){
 	proc.m_type = atrt_process::NDB_API;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_api");
@@ -494,7 +499,13 @@ setup_config(atrt_config& config){
       config.m_processes.push_back(proc);
     }
   }
-  
+
+  // Setup connect string
+  for(size_t i = 0; i<config.m_processes.size(); i++){
+    config.m_processes[i].m_proc.m_env.appfmt(" NDB_CONNECTSTRING=nodeid=%d%s", 
+                                              i+1, connect_string.c_str());
+  }
+ 
  end:
   fclose(f);
   return result;
@@ -622,6 +633,11 @@ wait_ndb(atrt_config& config, int goal){
 	  g_logger.critical("Strange DB status during start: %d %d", i, min2);
 	  return false;
 	}
+
+	if(min2 < min){
+	  g_logger.critical("wait ndb failed node: %d %d %d %d", 
+			    state->node_states[i].node_id, min, min2, goal);
+	}
       }
     }
     
@@ -691,7 +707,7 @@ bool
 start_processes(atrt_config& config, int types){
   for(size_t i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i];
-    if((types & proc.m_type) != 0){
+    if((types & proc.m_type) != 0 && proc.m_proc.m_path != ""){
       if(!start_process(proc)){
 	return false;
       }
@@ -759,18 +775,24 @@ update_status(atrt_config& config, int){
 
   for(size_t i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i];
-    Vector<SimpleCpcClient::Process> & h_procs = m_procs[proc.m_host->m_index];
-    bool found = false;
-    for(size_t j = 0; j<h_procs.size(); j++){
-      if(proc.m_proc.m_id == h_procs[j].m_id){
-	found = true;
-	proc.m_proc.m_status = h_procs[j].m_status;
-	break;
+    if(proc.m_proc.m_id != -1){
+      Vector<SimpleCpcClient::Process> &h_procs= m_procs[proc.m_host->m_index];
+      bool found = false;
+      for(size_t j = 0; j<h_procs.size(); j++){
+	if(proc.m_proc.m_id == h_procs[j].m_id){
+	  found = true;
+	  proc.m_proc.m_status = h_procs[j].m_status;
+	  break;
+	}
       }
-    }
-    if(!found){
-      g_logger.error("update_status: not found");
-      return false;
+      if(!found){
+	g_logger.error("update_status: not found");
+	g_logger.error("id: %d host: %s cmd: %s", 
+		       proc.m_proc.m_id,
+		       proc.m_hostname.c_str(),
+		       proc.m_proc.m_path.c_str());
+	return false;
+      }
     }
   }
   return true;
@@ -877,16 +899,24 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     return false;
   }
   
-  for(size_t i = 0; i<config.m_processes.size(); i++){
+  size_t i = 0;
+  for(; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i]; 
     if(proc.m_type == atrt_process::NDB_API){
-      proc.m_proc.m_path.assign(proc.m_host->m_base_dir).append("/bin/").append(tc.m_command);
+      proc.m_proc.m_path.assfmt("%s/bin/%s", proc.m_host->m_base_dir.c_str(),
+				tc.m_command.c_str());
       proc.m_proc.m_args.assign(tc.m_args);
-      return true;
+      break;
     }
   }
-
-  return false;
+  for(i++; i<config.m_processes.size(); i++){
+    atrt_process & proc = config.m_processes[i]; 
+    if(proc.m_type == atrt_process::NDB_API){
+      proc.m_proc.m_path.assign("");
+      proc.m_proc.m_args.assign("");
+    }
+  }
+  return true;
 }
 
 bool
