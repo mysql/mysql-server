@@ -51,9 +51,9 @@ Item::Item():
   thd->free_list= this;
   loop_id= 0;
   /*
-    Item constractor can be called during execution other tnec SQL_COM
+    Item constructor can be called during execution other tnen SQL_COM
     command => we should check thd->lex.current_select on zero (thd->lex
-    can be uninitialized)
+    can be uninitialised)
   */
   if (thd->lex.current_select &&
       thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
