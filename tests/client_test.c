@@ -10123,9 +10123,9 @@ static void test_bug4231()
   bzero(tm, sizeof(tm));
 
   bind[0].buffer_type= MYSQL_TYPE_TIME;
-  bind[0].buffer= (void*) tm;
+  bind[0].buffer= &tm[0];
   bind[1].buffer_type= MYSQL_TYPE_TIME;
-  bind[1].buffer= (void*) tm+1;
+  bind[1].buffer= &tm[1];
 
   mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
