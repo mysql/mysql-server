@@ -146,7 +146,7 @@ NdbReceiver::copyout(NdbReceiver & dstRec){
   
   while(dst){
     Uint32 len = ((src->theAttrSize * src->theArraySize)+3)/4;
-    dst->receive_data((Uint32*)src->aRef(), len);
+    dst->receive_data((Uint32*)src->aRef(),  src->isNULL() ? 0 : len);
     src = src->next();
     dst = dst->next();
   }
