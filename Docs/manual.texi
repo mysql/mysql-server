@@ -21629,6 +21629,10 @@ You will be introduced to replication and learn how to implement it.
 Towards the end, there are some frequently asked questions and descriptions 
 of problems and how to solve them.
 
+We suggest that you visit our website at @uref{http://www.mysql.com/}
+often and read updates to this section. Replication is constantly being
+improved, and we update the manual frequently with the most current
+information.
 
 @node Replication Intro, Replication Implementation, Replication, Replication
 @subsection Introduction
@@ -21677,11 +21681,29 @@ logging on the master. If you start your slaves with data that doesn't
 agree with what was on the master @strong{when the binary log was
 started}, your slaves may fail.
 
-A future version (4.0) of MySQL will remove the need to keep a
-(possibly large) snapshot of data for new slaves that you might wish to
-set up through the live backup functionality with no locking required.
-However, at this time, it is necessary to block all writes either with a
-global read lock or by shutting down the master while taking a snapshot.
+Starting in 4.0.0, one can use @code{LOAD DATA FROM MASTER} to set up
+a slave. Note that 4.0.0 slaves cannot communicate with 3.23 masters, but 4.0.1
+and later version slaves can. 3.23 slave cannot talk to 4.0 master.
+
+You must also be aware that @code{LOAD DATA FROM MASTER} currently works only
+if all the tables on the master are @code{MyISAM} type, and will acuire a
+global read lock, so no writes are possible while the tables are being
+transferred from the master. This limitation is of a temporary nature, and is
+due to the fact that we have not yet implemented hot lock-free table backup.
+It will be removed in the future 4.0 branch versions once we implemented hot
+backup enabling @code{LOAD DATA FROM MASTER} to work without blocking master
+updates.
+
+Due to the above limitation, we recommend that at this point  you use
+@code{LOAD DATA FROM MASTER} only if the dataset on the master is relatively
+small, or if a prolonged read lock on the master is acceptable. While the
+actual speed of @code{LOAD DATA FROM MASTER} may vary from system to system,
+a good rule for a rough estimate of how long it is going to take is 1 second
+per 1 MB of the data file. You will get close to the estimate if both master
+and slave are equivalent to 700 MHz Pentium, are connected through
+100 MBit/s network, and your index file is about half the size of your data
+file. Of course, your mileage will vary from system to system, the above rule
+just gives you a rough order of magnitude estimate.
 
 Once a slave is properly configured and running, it will simply connect
 to the master and wait for updates to process. If the master goes away
@@ -21704,6 +21726,19 @@ your current MySQL server. It assumes you want to replicate all
 your databases and have not configured replication before. You will need
 to shutdown your master server briefly to complete the steps outlined
 below.
+
+While the above method is the most straightforward way to set up a slave,
+it is not the only one. For example, if you already have a snapshot
+of the master, and
+the master already has server id set and binary logging enabled, one can
+set up a slave without shutting the master down or even blocking the updates.
+Please refer to @xref{Replication FAQ}. for more details.
+
+If you want to become a real MySQL replication guru, we suggest that you
+begin with studing, pondering, and trying all commands
+mentioned in @xref{Replication SQL}. You should also familiarize yourself
+with replication startup options in @code{my.cnf} in
+@xref{Replication Options}.
 
 @enumerate
 @item
@@ -21822,7 +21857,6 @@ of the master's binary log is has processed. @strong{Do not} remove or
 edit the file, unless you really know what you are doing. Even in that case,
 it is preferred that you use @code{CHANGE MASTER TO} command.
 
-
 @menu
 * Replication Features::        Replication Features and Known Problems
 * Replication Options::         Replication Options in my.cnf
@@ -21856,9 +21890,11 @@ on the master and the slave. If not, you may get duplicate key errors on
 the slave, because a key that is regarded as unique on the master may
 not be that in the other character set.
 @item
-@code{LOAD DATA INFILE} will be handled properly as long as the file
+In 3.23, @code{LOAD DATA INFILE} will be handled properly as long as the file
 still resides on the master server at the time of update
-propagation. @code{LOAD LOCAL DATA INFILE} will be skipped.
+propagation. @code{LOAD LOCAL DATA INFILE} will be skipped. In 4.0, this
+limitation is not present - all forms of @code{LOAD DATA INFILE} are properly
+replicated.
 @item
 Update queries that use user variables are not replication-safe (yet).
 @item
@@ -21978,7 +22014,17 @@ to get rid of old logs while the slave is running.
 
 If you are using replication, we recommend you to use MySQL Version
 3.23.30 or later. Older versions work, but they do have some bugs and are
-missing some features.
+missing some features. Some of the options below may not be available in
+your version if it is not the most recent one. For all options specific to
+the 4.0 branch, there is a note indicating so. Otherwise, if you discover
+that the option you are interested in is not available in your 3.23 version,
+and you really need it, please upgrade to the most recent 3.23 branch.
+
+Please be aware that 4.0 branch is still in alpha, so some things may not be
+working as smoothly as you would like. If you really would like to try
+the new features of 4.0, we recommend you do it in such a way that in
+case there is a problem  your mission critical applications will not be
+disrupted.
 
 On both master and slave you need to use the @code{server-id} option.
 This sets an unique replication id. You should pick a unique value in the
@@ -22020,7 +22066,7 @@ current database is 'database_name'. All others database are ignored.
 Note that if you use this you should ensure that you only do updates in
 the current database.
 
-Example: @code{binlog-do-db=some_database}.
+Example: @code{binlog-do-db=sales}.
 
 @item @code{binlog-ignore-db=database_name} @tab
 Tells the master that updates where the current database is
@@ -22028,7 +22074,7 @@ Tells the master that updates where the current database is
 you use this you should ensure that you only do updates in the current
 database.
 
-Example: @code{binlog-ignore-db=some_database}
+Example: @code{binlog-ignore-db=accounting}
 @end multitable
 
 The following table has the options you can use for the @strong{SLAVE}:
@@ -22038,27 +22084,33 @@ The following table has the options you can use for the @strong{SLAVE}:
 @item @strong{Option} @tab @strong{Description}
 @item @code{master-host=host} @tab
 Master hostname or IP address for replication. If not set, the slave
-thread will not be started.
+thread will not be started. Note that the setting of @code{master-host}
+will be ignored if there exists a valid @code{master.info} file. Probably a
+better name for this options would have been something like
+@code{bootstrap-master-host}, but it is too late to change now.
 
 Example: @code{master-host=db-master.mycompany.com}.
 
 @item @code{master-user=username} @tab
-The user the slave thread will us for authentication when connecting to
+The username the slave thread will use for authentication when connecting to
 the master. The user must have @code{FILE} privilege. If the master user
-is not set, user @code{test} is assumed.
+is not set, user @code{test} is assumed. The value in @code{master.info} will
+take precedence if it can be read.
 
 Example: @code{master-user=scott}.
 
 @item @code{master-password=password} @tab
 The password the slave thread will authenticate with when connecting to
-the master. If not set, an empty password is assumed.
+the master. If not set, an empty password is assumed.The value in
+@code{master.info} will take precedence if it can be read.
 
 Example: @code{master-password=tiger}.
 
 @item @code{master-port=portnumber} @tab
 The port the master is listening on. If not set, the compiled setting of
 @code{MYSQL_PORT} is assumed. If you have not tinkered with
-@code{configure} options, this should be 3306.
+@code{configure} options, this should be 3306. The value in
+@code{master.info} will take precedence if it can be read.
 
 Example: @code{master-port=3306}.
 
@@ -22070,17 +22122,21 @@ lost.  Default is 60.
 Example: @code{master-connect-retry=60}.
 
 @item @code{master-ssl} @tab
-Turn SSL on
+Available after 4.0.0. Turn SSL on for replication. Be warned that is
+this is a relatively new feature.
 
 Example: @code{master-ssl}.
 
 @item @code{master-ssl-key} @tab
-Master SSL keyfile name
+Available after 4.0.0. Master SSL keyfile name. Only applies if you have
+enabled @code{master-ssl}.
 
 Example: @code{master-ssl-key=SSL/master-key.pem}.
 
 @item @code{master-ssl-cert} @tab
-Master SSL certificate file name
+Available after 4.0.0. Master SSL certificate file name. Only applies if
+you have enabled @code{master-ssl}.
+
 
 Example: @code{master-ssl-key=SSL/master-cert.pem}.
 
@@ -22091,6 +22147,23 @@ directory.  Sasha: The only reason I see for ever changing the default
 is the desire to be rebelious.
 
 Example: @code{master-info-file=master.info}.
+
+@item @code{report-host} @tab
+Available after 4.0.0. Hostname or IP of the slave to be reported to to
+the master during slave registration. Will appear in the output of
+@code{SHOW SLAVE HOSTS}. Leave unset if you do not want the slave to
+register itself with the master. Note that it is not sufficient for the
+master to simply read the IP of the slave off the socket once the slave
+connects. Due to @code{NAT} and other routing issues, that IP may not be
+valid for connecting to the slave from the master or other hosts.
+
+Example: @code{report-host=slave1.mycompany.com}
+
+@item @code{report-port} @tab
+Available after 4.0.0. Port for connecting to slave reported to the
+master during slave registration.  Set it only if the slave is listening
+on a non-default port or if you have a special tunnel from the master or
+other clients to the slave. If not sure, leave this option unset.
 
 @item @code{replicate-do-table=db_name.table_name} @tab
 Tells the slave thread to restrict replication to the specified table.
@@ -22212,7 +22285,21 @@ logs. In pre 3.23.26 versions the command was called
 @code{FLUSH SLAVE}(Slave)
 
 @item @code{LOAD TABLE tblname FROM MASTER}
- @tab Downloads a copy of the table from master to the slave. (Slave)
+ @tab Downloads a copy of the table from master to the slave. Implemented
+ mainly for debugging of @code{LOAD DATA FROM MASTER}, but some "gourmet"
+ users might find it useful for other things. Do not use it if you consider
+ yourself the average "non-hacker" type user. (Slave)
+
+@item @code{LOAD DATA FROM MASTER} @tab
+Available starting in 4.0.0. Takes a snapshot of the master and copies
+it to the slave. Updates the values of @code{MASTER_LOG_FILE} and
+@code{MASTER_LOG_POS} so that the slave will start replicating from the
+correct position. Will honor table and database exclusion rules
+specified with @code{replicate-*} options. So far works only with
+@code{MyISAM} tables and acquires a global read lock on the master while
+taking the snapshot. In the future it is planned to make it work with
+@code{InnoDB} tables and to remove the need for global read lock using
+the non-blocking online backup feature.
 
 @item @code{CHANGE MASTER TO master_def_list}
  @tab Changes the master parameters to the values specified in
@@ -22241,12 +22328,45 @@ automatically be reset to an empty string and 0, respectively (the start
 values). Note that if you restart the slave, it will remember its last master.
 If this is not desirable, you should delete the @file{master.info} file before
 restarting, and the slave will read its master from @code{my.cnf} or the
-command line. (Slave)
+command line.
+
+This command is useful for setting up a slave when you have the snapshot of
+the master and have record the log and the offset on the master that the
+snapshot corresponds to. You can run
+ @code{CHANGE MASTER TO MASTER_LOG_FILE='log_name_on_master',
+ MASTER_LOG_POS=log_offset_on_master} on the slave after restoring the
+snapshot.
+
+(Slave)
 
 @item @code{SHOW MASTER STATUS} @tab Provides status information on the binlog of the master. (Master)
 
+@item @code{SHOW SLAVE HOSTS} @tab Available after 4.0.0. Gives a
+listing of slaves currently registered with the master (Master)
+
 @item @code{SHOW SLAVE STATUS} @tab Provides status information on essential parameters of the slave thread. (Slave)
-@item @code{SHOW MASTER LOGS} @tab Only available starting in Version 3.23.28. Lists the binary logs on the master. You should use this command prior to @code{PURGE MASTER LOGS TO} to find out how far you should go.
+@item @code{SHOW MASTER LOGS} @tab Only available starting in Version
+3.23.28. Lists the binary logs on the master. You should use this
+command prior to @code{PURGE MASTER LOGS TO} to find out how far you
+should go. (Master)
+
+@item @code{SHOW BINLOG EVENTS [ IN 'logname' ] [ FROM pos ]
+ [ LIMIT [offset,] rows ] } @tab
+Shows the events in the binary update log. Primarily used for
+testing/debugging, but can also be used by regular clients that for some
+reason need to read the binary log contents. (Master)
+
+@item @code{SHOW NEW MASTER FOR SLAVE WITH MASTER_LOG_FILE='logfile' AND
+ MASTER_LOG_POS=pos AND
+MASTER_LOG_SEQ=log_seq AND MASTER_SERVER_ID=server_id} @tab
+This command is used when a slave of a possibly dead/unavailable master
+needs to be switched to replicate off another slave that has been
+replicating the same master. The command will return recalculated
+replication coordinates, and the output can be used in a subsequent
+@code{CHANGE MASTER TO} command. Normal users should never need to run
+this command. It is primarily reserved for internal use by the fail-safe
+replication code. We may later change the syntax if we find a more
+intuitive way to describe this operation.
 
 @item @code{PURGE MASTER LOGS TO 'logname'}
  @tab  Available starting in Version 3.23.28. Deletes all the
@@ -22277,6 +22397,87 @@ last log on the list), backup all the logs you are about to delete
 
 @node Replication FAQ, Replication Problems, Replication SQL, Replication
 @subsection Replication FAQ
+
+@strong{Q}: How do I configure a slave if the master is already running
+and I do not want to stop it?
+
+@strong{A}: There are several options. If you have taken a backup of the
+master at some point and recorded the binlog name and offset ( from the
+output of @code{SHOW MASTER STATUS} ) corresponding to the snapshot, do
+the following:
+
+@itemize @bullet
+@item
+Make sure unique server id is assigned to the slave.
+@item
+Execute @code{CHANGE MASTER TO MASTER_HOST='master-host-name',
+ MASTER_USER='master-user-name', MASTER_PASSWORD='master-pass',
+ MASTER_LOG_FILE='recorded-log-name', MASTER_LOG_POS=recorded_log_pos}
+@item
+Execute @code{SLAVE START}
+@end itemize
+
+If you do not have a backup of the master already, here is a quick way to
+do it consistently:
+
+@itemize @bullet
+@item
+@code{FLUSH TABLES WITH READ LOCK}
+@item
+@code{gtar zcf /tmp/backup.tar.gz /var/lib/mysql} ( or a variation of this)
+@item
+@code{SHOW MASTER STATUS} - make sure to record the output - you will need it
+later
+@item
+@code{UNLOCK TABLES}
+@end itemize
+
+Afterwards, follow the instructions for the case when you have a snapshot and
+have records the log name and offset. You can use the same snapshot to set up
+several slaves. As long as the binary logs of the master are left intact, you
+can wait as long as several days or in some cases maybe a month to set up a
+slave once you have the snapshot of the master. In theory the waiting gap can
+be infinite. The two practical limitations is the diskspace of the master
+getting filled with old logs, and the amount of time it will take the slave to
+catch up.
+
+In version 4.0.0 and newer, you can also use @code{LOAD DATA FROM
+MASTER}.  This is a convenient command that will take a snapshot,
+restore it to the slave, and adjust the log name and offset on the slave
+all at once. In the future, @code{LOAD DATA FROM MASTER} will be the
+recommended way to set up a slave.  Be warned, howerver, that the read
+lock may be held for a long time if you use this command. It is not yet
+implemented as efficiently as we would like to have it. If you have
+large tables, the preferred method at this time is still with a local
+@code{tar} snapshot after executing @code{FLUSH TABLES WITH READ LOCK}.
+
+@strong{Q}: Does the slave need to be connected to the master all the time?
+
+@strong{A}: No, it does not. You can have the slave go down or stay
+disconnected for hours or even days, then reconnect, catch up on the
+updates, and then disconnect or go down for a while again. So you can,
+for example, use master-slave setup over a dial-up link that is up only
+for short periods of time. The implications of that are that at any
+given time the slave is not guaranteed to be in sync with the master
+unless you take some special measures. In the future, we will have the
+option to block the master until at least one slave is in sync.
+
+@strong{Q}: How do I force the master to block updates until the slave catches
+up?
+
+@strong{A}: Execute the following commands:
+
+@itemize @bullet
+@item
+Master: @code{FLUSH TABLES WITH READ LOCK}
+@item
+Master: @code{SHOW MASTER STATUS} - record the log name and the offset
+@item
+Slave: @code{SELECT MASTER_POS_WAIT('recorded_log_name', recorded_log_offset)}
+When the select returns, the slave is currently in sync with the master
+@item
+Master: @code{UNLOCK TABLES} - now the master will continue updates.
+@end itemize
 
 @cindex @code{Binlog_Dump}
 @strong{Q}: Why do I sometimes see more than one @code{Binlog_Dump} thread on
