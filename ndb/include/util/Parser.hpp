@@ -165,6 +165,7 @@ Parser<T>::Parser(const ParserRow<T> rows[], class InputStream & in,
 template<class T>
 inline
 Parser<T>::~Parser(){
+  delete impl;
 }
 
 template<class T>
