@@ -140,15 +140,6 @@ public:
     delete *prev;
     *prev=node;
   }
-  inline void *pop(void)
-  {
-    if (first == &end_of_list) return 0;
-    list_node *tmp=first;
-    first=first->next;
-    if (!--elements)
-      last= &first;
-    return tmp->info;
-  }
   inline void concat(base_list *list)
   {
     if (!list->is_empty())
@@ -157,6 +148,15 @@ public:
       last= list->last;
       elements+= list->elements;
     }
+  }
+  inline void *pop(void)
+  {
+    if (first == &end_of_list) return 0;
+    list_node *tmp=first;
+    first=first->next;
+    if (!--elements)
+      last= &first;
+    return tmp->info;
   }
   inline void disjoin(base_list *list)
   {
