@@ -5594,7 +5594,7 @@ InnoDB: Doublewrite buffer created
 InnoDB: creating foreign key constraint system tables
 InnoDB: foreign key constraint system tables created
 011024 10:58:25  InnoDB: Started
-@end  example
+@end example
 
 For further information about running MySQL on Windows,
 see @ref{Windows}.
