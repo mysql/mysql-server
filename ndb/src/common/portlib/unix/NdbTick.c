@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include "NdbTick.h"
-#include <time.h>
 
 #define NANOSEC_PER_SEC  1000000000
 #define MICROSEC_PER_SEC 1000000
@@ -25,7 +25,7 @@
 #define MILLISEC_PER_NANOSEC 1000000
 
 
-#if defined NDB_SOLARIS || NDB_HPUX
+#ifdef HAVE_CLOCK_GETTIME
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timespec tick_time;
@@ -44,11 +44,7 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   * micros = t.tv_nsec / 1000;
   return res;
 }
-#endif
-
-#if defined NDB_LINUX || NDB_MACOSX
-#include <unistd.h>
-#include <sys/time.h>
+#else
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timeval tick_time;

@@ -18,6 +18,7 @@
 #define NDB_TCP_H
 
 #include <ndb_global.h>
+#include <ndb_net.h>
 
 #if defined NDB_OSE || defined NDB_SOFTOSE
 /**
@@ -45,10 +46,6 @@ typedef int socklen_t;
 /**
  * Include files needed
  */
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-
 #include <netdb.h>
 
 #define NDB_NONBLOCK O_NONBLOCK
@@ -75,12 +72,7 @@ typedef int socklen_t;
 
 #endif
 
-#ifndef NDB_MACOSX
-#define NDB_SOCKLEN_T socklen_t
-#else
-#define NDB_SOCKLEN_T int
-#endif
-
+#define NDB_SOCKLEN_T SOCKET_SIZE_TYPE
 
 #ifdef	__cplusplus
 extern "C" {
