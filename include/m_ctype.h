@@ -232,7 +232,7 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define my_strnncoll(s, a, b, c, d)   ((s)->strnncoll((s), (a), (b), (c), (d)))
 #define my_like_range(s, a, b, c, d, e, f, g, h) \
                 ((s)->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h)))
-#define my_wildcmp(cs,s,se,w,we,e,o,m)	((cs)->wildcmp,(s),(se),(w),(we),(e),(o),(m))
+#define my_wildcmp(cs,s,se,w,we,e,o,m)	((cs)->wildcmp((cs),(s),(se),(w),(we),(e),(o),(m)))
 
 #define use_mb(s)                     ((s)->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->ismbchar((s), (a), (b)))
