@@ -1378,7 +1378,6 @@ void mi_check_print_info(MI_CHECK *param __attribute__((unused)),
   VOID(vfprintf(stdout, fmt, args));
   VOID(fputc('\n',stdout));
   va_end(args);
-  return;
 }
 
 /* VARARGS */
