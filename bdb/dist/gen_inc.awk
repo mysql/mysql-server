@@ -18,20 +18,20 @@
 #	i_pfile		include file that contains internal (PUBLIC) prototypes
 /PUBLIC:/ {
 	sub("^.*PUBLIC:[	 ][	 ]*", "")
-	if ($0 ~ "^#if|^#ifdef|^#ifndef|^#else|^#endif") {
+	if ($0 ~ /^#(if|ifdef|ifndef|else|endif)/) {
 		print $0 >> i_pfile
 		print $0 >> i_dfile
 		next
 	}
 	pline = sprintf("%s %s", pline, $0)
-	if (pline ~ "));") {
+	if (pline ~ /\)\);/) {
 		sub("^[	 ]*", "", pline)
 		print pline >> i_pfile
 		if (pline !~ db_version_unique_name) {
-			def = gensub("[	 ][	 ]*__P.*", "", 1, pline)
-			sub("^.*[	 ][*]*", "", def)
+			sub("[	 ][	 ]*__P.*", "", pline)
+			sub("^.*[	 ][*]*", "", pline)
 			printf("#define	%s %s@DB_VERSION_UNIQUE_NAME@\n",
-			    def, def) >> i_dfile
+			    pline, pline) >> i_dfile
 		}
 		pline = ""
 	}
@@ -53,20 +53,20 @@
 # functions in libraries built with that configuration option.
 /EXTERN:/ {
 	sub("^.*EXTERN:[	 ][	 ]*", "")
-	if ($0 ~ "^#if|^#ifdef|^#ifndef|^#else|^#endif") {
+	if ($0 ~ /^#(if|ifdef|ifndef|else|endif)/) {
 		print $0 >> e_pfile
 		print $0 >> e_dfile
 		next
 	}
 	eline = sprintf("%s %s", eline, $0)
-	if (eline ~ "));") {
+	if (eline ~ /\)\);/) {
 		sub("^[	 ]*", "", eline)
 		print eline >> e_pfile
-		if (eline !~ db_version_unique_name && eline !~ "^int txn_") {
-			def = gensub("[	 ][	 ]*__P.*", "", 1, eline)
-			sub("^.*[	 ][*]*", "", def)
+		if (eline !~ db_version_unique_name && eline !~ /^int txn_/) {
+			sub("[	 ][	 ]*__P.*", "", eline)
+			sub("^.*[	 ][*]*", "", eline)
 			printf("#define	%s %s@DB_VERSION_UNIQUE_NAME@\n",
-			    def, def) >> e_dfile
+			    eline, eline) >> e_dfile
 		}
 		eline = ""
 	}

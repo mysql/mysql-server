@@ -647,7 +647,7 @@ history_save(History *h, const char *fname)
 	for (retval = HLAST(h, &ev);
 	    retval != -1;
 	    retval = HPREV(h, &ev), i++) {
-		len = strlen(ev.str) * 4;
+		len = strlen(ev.str) * 4 + 1;
 		if (len >= max_size) {
 			max_size = (len + 1023) & ~1023;
 			ptr = h_realloc(ptr, max_size);
