@@ -377,7 +377,10 @@ Item *create_func_space(Item *a)
   {
     sp= new Item_string("",0,cs);
     if (sp)
-      sp->str_value.copy(" ",1,&my_charset_latin1,cs);
+    {
+      uint dummy_errors;
+      sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
+    }
   }
   else
   {

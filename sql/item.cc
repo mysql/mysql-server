@@ -818,7 +818,9 @@ bool Item_param::set_str(const char *str, ulong length)
     Assign string with no conversion: data is converted only after it's
     been written to the binary log.
   */
-  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin))
+  uint dummy_errors;
+  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin,
+                     &dummy_errors))
     DBUG_RETURN(TRUE);
   state= STRING_VALUE;
   maybe_null= 0;
