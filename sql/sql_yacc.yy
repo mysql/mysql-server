@@ -4817,7 +4817,7 @@ in_sum_expr:
 cast_type:
         BINARY opt_len		{ $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; Lex->dec= 0; }
         | CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; Lex->dec= 0; }
-	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
+	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; Lex->dec=0; }
         | SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
