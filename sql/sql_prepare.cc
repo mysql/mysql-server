@@ -1871,6 +1871,9 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       /* remove option which was put by mysql_explain_union() */
       sl->options&= ~SELECT_DESCRIBE;
 
+      /* see unique_table() */
+      sl->exclude_from_table_unique_test= FALSE;
+
       /*
         Copy WHERE clause pointers to avoid damaging they by optimisation
       */

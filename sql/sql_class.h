@@ -1207,6 +1207,8 @@ public:
   bool	     no_trans_update, abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
+  /* set during loop of derived table processing */
+  bool       derived_tables_processing;
   longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;

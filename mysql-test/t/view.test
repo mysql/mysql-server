@@ -1198,15 +1198,118 @@ create table t1 (col1 int);
 create table t2 (col1 int);
 create view v1 as select * from t1;
 create view v2 as select * from v1;
+create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
 -- error 1093
 update v2 set col1 = (select max(col1) from v1);
-#update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+-- error 1093
+update v2 set col1 = (select max(col1) from t1);
+-- error 1093
+update v2 set col1 = (select max(col1) from v2);
+-- error 1093
+update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+-- error 1093
+update t1,t2 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
+-- error 1093
+update v1,t2 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
+-- error 1093
+update t2,v2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+-- error 1093
+update t2,t1 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
+-- error 1093
+update t2,v1 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
+-- error 1093
+update v2,t2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
+-- error 1093
+update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
+-- error 1093
+update v1,t2 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
+-- error 1093
+update t2,v2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
+-- error 1093
+update t2,t1 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
+-- error 1093
+update t2,v1 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
+-- error 1093
+update v2,t2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
+-- error 1093
+update t1,t2 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
+-- error 1093
+update v1,t2 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
+-- error 1093
+update t2,v2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
+-- error 1093
+update t2,t1 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
+-- error 1093
+update t2,v1 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
+-- error 1093
+update v3 set v3.col1 = (select max(col1) from v1);
+-- error 1093
+update v3 set v3.col1 = (select max(col1) from t1);
+-- error 1093
+update v3 set v3.col1 = (select max(col1) from v2);
+-- error 1093
+update v3 set v3.col1 = (select max(col1) from v3);
 -- error 1093
 delete from v2 where col1 = (select max(col1) from v1);
-#delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
+-- error 1093
+delete from v2 where col1 = (select max(col1) from t1);
+-- error 1093
+delete from v2 where col1 = (select max(col1) from v2);
+-- error 1093
+delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
+-- error 1093
+delete t1 from t1,t2 where (select max(col1) from v1) > 0 and t1.col1 = t2.col1;
+-- error 1093
+delete v1 from v1,t2 where (select max(col1) from v1) > 0 and v1.col1 = t2.col1;
+-- error 1093
+delete v2 from v2,t2 where (select max(col1) from t1) > 0 and v2.col1 = t2.col1;
+-- error 1093
+delete t1 from t1,t2 where (select max(col1) from t1) > 0 and t1.col1 = t2.col1;
+-- error 1093
+delete v1 from v1,t2 where (select max(col1) from t1) > 0 and v1.col1 = t2.col1;
+-- error 1093
+delete v2 from v2,t2 where (select max(col1) from v2) > 0 and v2.col1 = t2.col1;
+-- error 1093
+delete t1 from t1,t2 where (select max(col1) from v2) > 0 and t1.col1 = t2.col1;
+-- error 1093
+delete v1 from v1,t2 where (select max(col1) from v2) > 0 and v1.col1 = t2.col1;
 -- error 1093
 insert into v2 values ((select max(col1) from v1));
-drop view v2,v1;
+-- error 1093
+insert into t1 values ((select max(col1) from v1));
+-- error 1093
+insert into v2 values ((select max(col1) from v1));
+-- error 1093
+insert into v2 values ((select max(col1) from t1));
+-- error 1093
+insert into t1 values ((select max(col1) from t1));
+-- error 1093
+insert into v2 values ((select max(col1) from t1));
+-- error 1093
+insert into v2 values ((select max(col1) from v2));
+-- error 1093
+insert into t1 values ((select max(col1) from v2));
+-- error 1093
+insert into v2 values ((select max(col1) from v2));
+-- error 1093
+insert into v3 (col1) values ((select max(col1) from v1));
+-- error 1093
+insert into v3 (col1) values ((select max(col1) from t1));
+-- error 1093
+insert into v3 (col1) values ((select max(col1) from v2));
+#check with TZ tables in list
+-- error 1093
+insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
+insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
+-- error 1048
+insert into mysql.time_zone values ('', (select CONVERT_TZ('20050101000000','UTC','MET') from t2));
+# temporary table algorithm view should be equal to subquery in the from clause
+create algorithm=temptable view v4 as select * from t1;
+insert into t1 values (1),(2),(3);
+insert into t1 (col1) values ((select max(col1) from v4));
+select * from t1;
+
+drop view v4,v3,v2,v1;
 drop table t1,t2;
 
 #
@@ -1637,6 +1740,8 @@ select * from t2;
 delete from v3;
 -- error 1395
 delete v3,t1 from v3,t1;
+-- error 1395
+delete t1,v3 from t1,v3;
 # delete from t1 just to reduce result set size
 delete from t1;
 # prepare statement with insert join view
@@ -1716,3 +1821,30 @@ select s2 from v1 vq1 where 2 = (select count(*) aa from v1 vq2 having vq1.s2 = 
 drop view v1;
 drop table t1;
 
+#
+# Test case for bug #9398 CREATE TABLE with SELECT from a multi-table view
+#
+CREATE TABLE t1 (a1 int);
+CREATE TABLE t2 (a2 int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE VIEW v1(a,b) AS SELECT a1,a2 FROM t1 JOIN t2 ON a1=a2 WHERE a1>1;
+
+SELECT * FROM v1;
+CREATE TABLE t3 SELECT * FROM v1;
+SELECT * FROM t3;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+#
+# Test for BUG#8703 "insert into table select from view crashes"
+#
+create table t1 (a int);
+create table t2 like t1;
+create table t3 like t1;
+create view v1 as select t1.a x, t2.a y from t1 join t2 where t1.a=t2.a;
+insert into t3 select x from v1;
+insert into t2 select x from v1;
+drop view v1;
+drop table t1,t2,t3;
