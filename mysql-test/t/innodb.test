@@ -758,3 +758,14 @@ SELECT * FROM t3 WHERE id1="my-test-1" LOCK IN SHARE MODE;
 COMMIT;
 set autocommit=1;
 DROP TABLE t1,t2,t3;
+
+#
+# Check update with conflicting key
+#
+
+CREATE TABLE t1 (a int not null primary key, b int not null, unique (b)) type=innodb;
+INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+# We need the a < 1000 test here to quard against the halloween problems
+UPDATE t1 set a=a+100 where b between 2 and 3 and a < 1000;
+SELECT * from t1;
+drop table t1;
