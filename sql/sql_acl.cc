@@ -1149,7 +1149,7 @@ bool check_change_password(THD *thd, const char *host, const char *user,
     return(1);
   }
   uint len=strlen(new_password);
-  if (len != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
+  if (len && len != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
       len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
     net_printf(thd, 0,
