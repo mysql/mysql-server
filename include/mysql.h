@@ -229,7 +229,7 @@ typedef struct st_mysql
   my_bool	reconnect;		/* set to 1 if automatic reconnect */
 
   /* session-wide random string */
-  char	        scramble[max(SCRAMBLE_LENGTH,SCRAMBLE_LENGTH_323)+1];
+  char	        scramble[SCRAMBLE_LENGTH+1];
 
  /*
    Set if this is the original connection, not a master or a slave we have

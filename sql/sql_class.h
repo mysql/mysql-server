@@ -547,7 +547,7 @@ public:
   DYNAMIC_ARRAY user_var_events;
 
   /* scramble - random string sent to client on handshake */
-  char	     scramble[max(SCRAMBLE_LENGTH, SCRAMBLE_LENGTH_323)+1];
+  char	     scramble[SCRAMBLE_LENGTH+1];
 
   uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
