@@ -494,7 +494,7 @@ bool show_master_info(THD* thd, MASTER_INFO* mi);
 bool show_binlog_info(THD* thd);
 
 /* See if the query uses any tables that should not be replicated */
-int tables_ok(THD* thd, TABLE_LIST* tables);
+bool tables_ok(THD* thd, TABLE_LIST* tables);
 
 /*
   Check to see if the database is ok to operate on with respect to the
