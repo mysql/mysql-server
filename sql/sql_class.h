@@ -352,6 +352,7 @@ struct system_variables
   ulong max_length_for_sort_data;
   ulong max_sort_length;
   ulong max_tmp_tables;
+  ulong max_insert_delayed_threads;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
   ulong net_buffer_length;
@@ -387,6 +388,7 @@ struct system_variables
   my_bool log_warnings;
   my_bool low_priority_updates;
   my_bool new_mode;
+  my_bool query_cache_wlock_invalidate;
   my_bool old_passwords;
   
   /* Only charset part of these variables is sensible */

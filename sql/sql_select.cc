@@ -2638,6 +2638,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   ha_rows rec;
   double tmp;
   THD *thd= join->thd;
+  if (thd->killed)				// Abort
+    return;
 
   if (!rest_tables)
   {
@@ -5462,13 +5464,22 @@ free_tmp_table(THD *thd, TABLE *entry)
   save_proc_info=thd->proc_info;
   thd->proc_info="removing tmp table";
   free_blobs(entry);
-  if (entry->db_stat && entry->file)
+  if (entry->file)
   {
-    (void) entry->file->close();
+    if (entry->db_stat)
+    {
+      (void) entry->file->close();
+    }
+    /*
+      We can't call ha_delete_table here as the table may created in mixed case
+      here and we have to ensure that delete_table gets the table name in
+      the original case.
+    */
+    if (!(test_flags & TEST_KEEP_TMP_TABLES) || entry->db_type == DB_TYPE_HEAP)
+      entry->file->delete_table(entry->real_name);
     delete entry->file;
   }
-  if (!(test_flags & TEST_KEEP_TMP_TABLES) || entry->db_type == DB_TYPE_HEAP)
-    (void) ha_delete_table(entry->db_type,entry->real_name);
+
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
     (*ptr)->free();
@@ -5941,8 +5952,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   if (tab->on_expr && !table->null_row)
   {
     if ((table->null_row= test(tab->on_expr->val_int() == 0)))
-      empty_record(table);
-    }
+      mark_as_null_row(table);  
+  }
   if (!table->null_row)
     table->maybe_null=0;
   DBUG_RETURN(0);

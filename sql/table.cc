@@ -701,8 +701,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (db_stat)
   {
     int err;
+    unpack_filename(index_file,index_file);
     if ((err=(outparam->file->
-	      ha_open(unpack_filename(index_file,index_file),
+	      ha_open(index_file,
 		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
 		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
 		       ((db_stat & HA_WAIT_IF_LOCKED) ||
@@ -1283,7 +1284,9 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-   char *start=name;
+  char *start=name;
+  /* Used to catch empty names and names with end space */
+  bool last_char_is_space= TRUE;
 
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, name);
@@ -1291,6 +1294,7 @@ bool check_db_name(char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -1301,19 +1305,22 @@ bool check_db_name(char *name)
         continue;
       }
     }
+#else
+    last_char_is_space= *name==' ';
 #endif
     if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
 	*name == FN_EXTCHAR)
       return 1;
     name++;
   }
-  return (uint) (name - start) > NAME_LEN || name == start;
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
   a '/', or a '.' character
+  or ' ' at the end
   returns 1 on error
 */
 
@@ -1323,10 +1330,17 @@ bool check_table_name(const char *name, uint length)
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  bool last_char_is_space= FALSE;
+#else
+  if (name[length-1]==' ')
+    return 1;
+#endif
 
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, end);
@@ -1341,16 +1355,23 @@ bool check_table_name(const char *name, uint length)
       return 1;
     name++;
   }
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  return last_char_is_space;
+#else
   return 0;
+#endif
 }
+
 
 bool check_column_name(const char *name)
 {
   const char *start= name;
-
+  bool last_char_is_space= TRUE;
+  
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -1361,13 +1382,15 @@ bool check_column_name(const char *name)
         continue;
       }
     }
+#else
+    last_char_is_space= *name==' ';
 #endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
   }
   /* Error if empty or too long column name */
-  return (name == start || (uint) (name - start) > NAME_LEN);
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 /*

@@ -987,7 +987,7 @@ int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
   Buffer+=rest_length;
   Count-=rest_length;
   info->write_pos+=rest_length;
-  if (_flush_io_cache(info,0))
+  if (my_b_flush_io_cache(info,0))
   {
     unlock_append_buffer(info);
     return 1;
@@ -1094,12 +1094,12 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
 #endif
 
 
-int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
+int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 {
   uint length;
   my_bool append_cache;
   my_off_t pos_in_file;
-  DBUG_ENTER("_flush_io_cache");
+  DBUG_ENTER("my_b_flush_io_cache");
 
   if (!(append_cache = (info->type == SEQ_READ_APPEND)))
     need_append_buffer_lock=0;

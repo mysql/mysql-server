@@ -1275,7 +1275,6 @@ dnl circular references.
  \$(top_builddir)/innobase/page/libpage.a\
  \$(top_builddir)/innobase/rem/librem.a\
  \$(top_builddir)/innobase/thr/libthr.a\
- \$(top_builddir)/innobase/com/libcom.a\
  \$(top_builddir)/innobase/sync/libsync.a\
  \$(top_builddir)/innobase/data/libdata.a\
  \$(top_builddir)/innobase/mach/libmach.a\

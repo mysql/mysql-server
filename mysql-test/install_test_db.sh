@@ -5,20 +5,27 @@
 # This scripts creates the privilege tables db, host, user, tables_priv,
 # columns_priv in the mysql database, as well as the func table.
 
-if [ x$1 = x"-bin" ]; then
- shift 1
- execdir=../bin
- bindir=../bin
- BINARY_DIST=1
- fix_bin=mysql-test
- scriptdir=../bin
- libexecdir=../libexec
+if [ x$1 = x"--bin" ]; then
+  shift 1
+
+  # Check if it's a binary distribution or a 'make install'
+  if test -x ../libexec/mysqld
+  then
+    execdir=../libexec
+  else
+    execdir=../bin
+  fi
+  bindir=../bin
+  BINARY_DIST=1
+  fix_bin=mysql-test
+  scriptdir=../bin
+  libexecdir=../libexec
 else
- execdir=../sql
- bindir=../client
- fix_bin=.
- scriptdir=../scripts
- libexecdir=../libexec
+  execdir=../sql
+  bindir=../client
+  fix_bin=.
+  scriptdir=../scripts
+  libexecdir=../libexec
 fi
 
 vardir=var

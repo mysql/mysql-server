@@ -54,8 +54,9 @@ static double _nwghts[11]=
 static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 
 #define FTB_FLAG_TRUNC 1                  /* MUST be 1                  */
-#define FTB_FLAG_YES   2                  /* These two - YES and NO     */
-#define FTB_FLAG_NO    4                  /*  should NEVER be set both  */
+#define FTB_FLAG_YES   2                  /*  no two from these three   */
+#define FTB_FLAG_NO    4                  /*   YES, NO, WONLY           */
+#define FTB_FLAG_WONLY 8                  /*  should be ever set both   */
 
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr
@@ -504,7 +505,8 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
       ftbe->cur_weight +=  weight;
       if ((int) ftbe->yesses < ythresh)
         break;
-      yn= ((int) ftbe->yesses++ == ythresh) ? ftbe->flags : 0 ;
+      if (!(yn & FTB_FLAG_WONLY))
+        yn= ((int) ftbe->yesses++ == ythresh) ? ftbe->flags : FTB_FLAG_WONLY ;
       weight*= ftbe->weight;
     }
   }

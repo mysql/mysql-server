@@ -60,7 +60,9 @@ trx_rseg_header_create(
 	page_t*		page;
 	
 	ut_ad(mtr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space),
 							MTR_MEMO_X_LOCK));
 	sys_header = trx_sysf_get(mtr);
@@ -81,7 +83,9 @@ trx_rseg_header_create(
 		return(FIL_NULL);
 	}
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_RSEG_HEADER_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	page_no = buf_frame_get_page_no(page);
 
@@ -132,7 +136,9 @@ trx_rseg_mem_create(
 	fil_addr_t	node_addr;
 	ulint		sum_of_undo_sizes;
 
-	ut_ad(mutex_own(&kernel_mutex));	
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = mem_alloc(sizeof(trx_rseg_t));
 
@@ -173,8 +179,7 @@ trx_rseg_mem_create(
 			       + node_addr.boffset;
 			       
 		rseg->last_trx_no = mtr_read_dulint(
-					undo_log_hdr + TRX_UNDO_TRX_NO,
-					MLOG_8BYTES, mtr);
+					undo_log_hdr + TRX_UNDO_TRX_NO, mtr);
 		rseg->last_del_marks = mtr_read_ulint(
 					undo_log_hdr + TRX_UNDO_DEL_MARKS,
 					MLOG_2BYTES, mtr);

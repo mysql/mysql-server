@@ -476,11 +476,11 @@ buf_block_init(
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
-	
+
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_create(&(block->debug_latch));
 	rw_lock_set_level(&(block->debug_latch), SYNC_NO_ORDER_CHECK);
-#endif
+#endif /* UNIV_SYNC_DEBUG */
 }
 
 /************************************************************************
@@ -1325,9 +1325,9 @@ buf_page_optimistic_get_func(
 	}
 
 	if (!UT_DULINT_EQ(modify_clock, block->modify_clock)) {
-
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(block->frame, SYNC_NO_ORDER_CHECK);
-	
+#endif /* UNIV_SYNC_DEBUG */
 		if (rw_latch == RW_S_LATCH) {
 			rw_lock_s_unlock(&(block->lock));
 		} else {
@@ -1527,7 +1527,9 @@ buf_page_init(
 				in units of a page */
 	buf_block_t*	block)	/* in: block to init */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
 
 	/* Set the state of the block */

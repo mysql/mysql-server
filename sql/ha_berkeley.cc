@@ -1343,7 +1343,7 @@ int ha_berkeley::index_init(uint keynr)
 int ha_berkeley::index_end()
 {
   int error=0;
-  DBUG_ENTER("index_end");
+  DBUG_ENTER("ha_berkely::index_end");
   if (cursor)
   {
     DBUG_PRINT("enter",("table: '%s'", table->real_name));

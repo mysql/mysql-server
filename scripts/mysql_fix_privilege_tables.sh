@@ -10,6 +10,9 @@ sql_only=0
 basedir=""
 verbose=0
 args=""
+port=""
+socket=""
+database="mysql"
 
 file=mysql_fix_privilege_tables.sql
 
@@ -34,6 +37,9 @@ parse_arguments() {
       --host=*) host=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --sql|--sql-only) sql_only=1;;
       --verbose) verbose=1 ;;
+      --port=*) port=`echo "$arg" | sed -e "s;--port=;;"` ;;
+      --socket=*) socket=`echo "$arg" | sed -e "s;--socket=;;"` ;;
+      --database=*) database=`echo "$arg" | sed -e "s;--database=;;"` ;;
       *)
         if test -n "$pick_args"
         then
@@ -93,11 +99,19 @@ then
   password=`echo $args | sed -e 's/ *//g'`
 fi
 
+cmd="$bindir/mysql -f --user=$user --host=$host"
 if test -z "$password" ; then
-  cmd="$bindir/mysql -f --user=$user --host=$host mysql"
 else
-  cmd="$bindir/mysql -f --user=$user --password=$password --host=$host mysql"
+  cmd="$cmd --password=$password"
 fi
+if test ! -z "$port"; then
+  cmd="$cmd --port=$port"
+fi
+if test ! -z "$socket"; then
+  cmd="$cmd --socket=$socket"
+fi
+cmd="$cmd --database=$database"
+
 if test $sql_only = 1
 then
   cmd="cat"

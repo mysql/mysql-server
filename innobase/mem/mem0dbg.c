@@ -7,6 +7,7 @@ but is included in mem0mem.* !
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
+#ifdef UNIV_MEM_DEBUG
 mutex_t	mem_hash_mutex;	 /* The mutex which protects in the
 			debug version the hash table containing
 			the list of live memory heaps, and
@@ -16,12 +17,11 @@ mutex_t	mem_hash_mutex;	 /* The mutex which protects in the
 extent of memory allocations. Only used in the debug version.
 Protected by mem_hash_mutex above. */
 
-ulint	mem_n_created_heaps 		= 0;
-ulint	mem_n_allocations	  	= 0;
-ulint	mem_total_allocated_memory	= 0;
-ulint	mem_current_allocated_memory	= 0;
-ulint	mem_max_allocated_memory	= 0;
-ulint	mem_last_print_info		= 0;
+static ulint	mem_n_created_heaps 		= 0;
+static ulint	mem_n_allocations	  	= 0;
+static ulint	mem_total_allocated_memory	= 0;
+static ulint	mem_current_allocated_memory	= 0;
+static ulint	mem_max_allocated_memory	= 0;
 
 /* Size of the hash table for memory management tracking */
 #define	MEM_HASH_SIZE	997
@@ -43,12 +43,12 @@ struct mem_hash_node_struct {
 typedef UT_LIST_BASE_NODE_T(mem_hash_node_t) mem_hash_cell_t;
 
 /* The hash table of allocated heaps */
-mem_hash_cell_t		mem_hash_table[MEM_HASH_SIZE];
+static mem_hash_cell_t		mem_hash_table[MEM_HASH_SIZE];
 
 /* The base node of the list of all allocated heaps */
-mem_hash_cell_t		mem_all_list_base;
+static mem_hash_cell_t		mem_all_list_base;
 
-ibool	mem_hash_initialized	= FALSE;
+static ibool	mem_hash_initialized	= FALSE;
 
 
 UNIV_INLINE
@@ -65,45 +65,44 @@ mem_hash_get_nth_cell(ulint i)
 
 	return(&(mem_hash_table[i]));
 }
+#endif /* UNIV_MEM_DEBUG */
 
 /* Accessor functions for a memory field in the debug version */
 
 void
 mem_field_header_set_len(byte* field, ulint len)
 {
-	ut_ad(len >= 0);
-
-	mach_write(field - 2 * sizeof(ulint), len);
+	mach_write_to_4(field - 2 * sizeof(ulint), len);
 }
 
 ulint
 mem_field_header_get_len(byte* field)
 {
-	return(mach_read(field - 2 * sizeof(ulint)));
+	return(mach_read_from_4(field - 2 * sizeof(ulint)));
 }
 
 void
 mem_field_header_set_check(byte* field, ulint check)
 {
-	mach_write(field - sizeof(ulint), check);
+	mach_write_to_4(field - sizeof(ulint), check);
 }
 
 ulint
 mem_field_header_get_check(byte* field)
 {
-	return(mach_read(field - sizeof(ulint)));
+	return(mach_read_from_4(field - sizeof(ulint)));
 }
 
 void
 mem_field_trailer_set_check(byte* field, ulint check)
 {
-	mach_write(field + mem_field_header_get_len(field), check);
+	mach_write_to_4(field + mem_field_header_get_len(field), check);
 }
 
 ulint
 mem_field_trailer_get_check(byte* field)
 {
-	return(mach_read(field +
+	return(mach_read_from_4(field +
 			mem_field_header_get_len(field)));
 }
 
@@ -164,6 +163,7 @@ mem_field_init(
 	mem_field_header_set_check(usr_buf, rnd);
 	mem_field_trailer_set_check(usr_buf, rnd);
 
+#ifdef UNIV_MEM_DEBUG
 	/* Update the memory allocation information */
 
 	mutex_enter(&mem_hash_mutex);
@@ -182,6 +182,7 @@ mem_field_init(
 	combination of 0xBA and 0xBE */
 
 	mem_init_buf(usr_buf, n);
+#endif /* UNIV_MEM_DEBUG */
 }
 
 /**********************************************************************
@@ -191,12 +192,14 @@ void
 mem_field_erase(
 /*============*/
 	byte*	buf,	/* in: memory field */
-	ulint	n)	/* in: how many bytes the user requested */
+	ulint	n __attribute__((unused)))
+			/* in: how many bytes the user requested */
 {
 	byte*	usr_buf;
 
 	usr_buf = buf + MEM_FIELD_HEADER_SIZE;
-	
+
+#ifdef UNIV_MEM_DEBUG
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory    -= n;
 	mutex_exit(&mem_hash_mutex);
@@ -208,8 +211,10 @@ mem_field_erase(
 	combination of 0xDE and 0xAD */
 
 	mem_erase_buf(buf, MEM_SPACE_NEEDED(n));
+#endif /* UNIV_MEM_DEBUG */
 }
 
+#ifdef UNIV_MEM_DEBUG
 /*******************************************************************
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
@@ -372,6 +377,7 @@ mem_hash_remove(
 
 	mutex_exit(&mem_hash_mutex);
 }
+#endif /* UNIV_MEM_DEBUG */
 
 /*******************************************************************
 Checks a memory heap for consistency and prints the contents if requested.

@@ -443,9 +443,9 @@ static struct my_option my_long_options[] =
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"local-load", 'l', "Prepare files for local load in directory.",
+  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
    (gptr*) &dirname_for_local_load, (gptr*) &dirname_for_local_load, 0,
-   GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -579,6 +579,7 @@ static int parse_args(int *argc, char*** argv)
 static MYSQL* safe_connect()
 {
   MYSQL *local_mysql = mysql_init(NULL);
+
   if (!local_mysql)
     die("Failed on mysql_init");
 
@@ -893,7 +894,7 @@ int main(int argc, char** argv)
   {
     if (init_tmpdir(&tmpdir, 0))
       exit(1);
-    dirname_for_local_load= my_tmpdir(&tmpdir);
+    dirname_for_local_load= my_strdup(my_tmpdir(&tmpdir), MY_WME);
   }
 
   if (load_processor.init())
@@ -904,6 +905,8 @@ int main(int argc, char** argv)
     load_processor.init_by_cur_dir();
 
   exit_value= 0;
+  fprintf(result_file,
+	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
   while (--argc >= 0)
   {
     if (dump_log_entries(*(argv++)))
