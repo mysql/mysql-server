@@ -665,6 +665,23 @@ void NdbScanOperation::closeScan()
       break;
     }
     
+    while(m_sent_receivers_count){
+      theNdb->theWaiter.m_node = nodeId;
+      theNdb->theWaiter.m_state = WAIT_SCAN;
+      int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+      switch(return_code){
+      case 0:
+	break;
+      case -1:
+	setErrorCode(4008);
+      case -2:
+	m_api_receivers_count = 0;
+	m_conf_receivers_count = 0;
+	m_sent_receivers_count = 0;
+	theNdbCon->theReleaseOnClose = true;
+      }
+    }
+    
     if(m_api_receivers_count+m_conf_receivers_count){
       // Send close scan
       send_next_scan(0, true); // Close scan

@@ -292,91 +292,61 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
   return NDBT_OK;
 }
 
-int HugoOperations::scanReadRecords(Ndb* pNdb, 
-				    Uint32 parallelism, ScanLock lock){
-
-#ifdef JONAS_NOT_DONE
-  NdbConnection * pCon = pNdb->hupp(pTrans);
+NdbResultSet*
+HugoOperations::scanReadRecords(Ndb* pNdb, ScanLock lock){
+  
   NDBT_ResultRow * m_tmpRow = new NDBT_ResultRow(tab);
-  ScanTmp tmp(pCon, m_tmpRow);
-  tmp.m_op = ScanTmp::READ;
 
-  NdbOperation* pOp = pCon->getNdbOperation(tab.getName());	
+  NdbScanOperation* pOp = pTrans->getNdbScanOperation(tab.getName());	
   if (pOp == NULL) {
-    ERR(pCon->getNdbError());
-    return NDBT_FAILED;
+    ERR(pTrans->getNdbError());
+    return 0;
   }
   
+
   int check = 0;
+  NdbResultSet * rs = 0;
   switch(lock){
   case SL_ReadHold:
-    check = pOp->openScanReadHoldLock(parallelism);
+    rs = pOp->readTuples(NdbScanOperation::LM_Read, 1, 1);
     break;
   case SL_Exclusive:
-    check = pOp->openScanExclusive(parallelism);
+    rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, 1, 1);
     break;
   case SL_Read:
   default:
-    check = pOp->openScanRead(parallelism);
+    rs = pOp->readTuples(NdbScanOperation::LM_Dirty, 1, 1);
   }
   
-  if( check == -1 ) {
-    ERR(pCon->getNdbError());
-    return NDBT_FAILED;
+  if( rs == 0) {
+    ERR(pTrans->getNdbError());
+    return 0;
   }
   
   check = pOp->interpret_exit_ok();
   if( check == -1 ) {
-    ERR(pCon->getNdbError());
-    return NDBT_FAILED;
+    ERR(pTrans->getNdbError());
+    return 0;
   }
   
   // Define attributes to read  
   for(int a = 0; a<tab.getNoOfColumns(); a++){
     if((m_tmpRow->attributeStore(a) = 
 	pOp->getValue(tab.getColumn(a)->getName())) == 0) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
+      ERR(pTrans->getNdbError());
+      return 0;
     }
   } 
-
-  check = tmp.pTrans->executeScan();   
-  if( check == -1 ) {
-    NdbError err = tmp.pTrans->getNdbError();
-    ERR(err);
-    return err.code;
-  }
-
-  tmp.m_delete = false;
-  m_scans.push_back(tmp);
-
-  return 0;
-#endif
+  return rs;
 }
 
-int HugoOperations::executeScanRead(Ndb* pNdb){
-
-  int check = 0;
-  for(Uint32 i = 0; i<m_scans.size(); i++){
-    ScanTmp & tmp = m_scans[i];
-    check = run(tmp);
-    if(check != 0){
-      return check;
-    }
+int
+HugoOperations::readTuples(NdbResultSet* rs){
+  int res = 0;
+  while((res = rs->nextResult()) == 0){
   }
-  while(m_scans.size() > 0){
-    ScanTmp & tmp = m_scans[m_scans.size() - 1];
-    if(tmp.m_op != ScanTmp::DONE)
-      abort();
-    
-    tmp.pTrans->close();
-    delete tmp.m_tmpRow;
-    m_scans.erase(m_scans.size() - 1);
-  }
-  if(check != 0){
-    return check;
-  }
-  
+  if(res != 1)
+    return NDBT_FAILED;
   return NDBT_OK;
 }
 
@@ -384,19 +354,6 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
 				   AbortOption eao){
 
   int check = 0;
-  while(m_scans.size() > 0){
-    ScanTmp & tmp = m_scans[m_scans.size() - 1];
-    if(tmp.m_op != ScanTmp::DONE)
-      abort();
-    
-    tmp.pTrans->close();
-    delete tmp.m_tmpRow;
-    m_scans.erase(m_scans.size() - 1);
-  }
-  if(check != 0){
-    return check;
-  }
-  
   check = pTrans->execute(Commit, eao);   
 
   if( check == -1 ) {
@@ -414,54 +371,9 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
   return NDBT_OK;
 }
 
-int
-HugoOperations::run(ScanTmp & tmp){
-#if JONAS_NOT_DONE
-  int count = 0;
-  if(tmp.m_op == ScanTmp::DONE)
-    abort();
-
-  int eof = tmp.pTrans->nextScanResult(true) ;
-  while(eof == 0){
-    count++;
-    switch(tmp.m_op){
-    case ScanTmp::READ:
-    case ScanTmp::UPDATE:
-    case ScanTmp::DELETE:
-      break;
-    case ScanTmp::DONE:
-      abort();
-    }
-    rows.push_back(tmp.m_tmpRow->clone());
-    eof = tmp.pTrans->nextScanResult(false);
-  }
-
-  tmp.m_op = ScanTmp::DONE;
-  if (eof == -1) {
-    deallocRows();
-    NdbError err = tmp.pTrans->getNdbError();
-    ERR(err);
-    return err.code;
-  }    
-
-  if(count == 0)
-    return 626;
-#endif
-
-  return 0;
-}
-
 int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
 
   int check;
-  for(Uint32 i = 0; i<m_scans.size(); i++){
-    ScanTmp & tmp = m_scans[i];
-    check = run(tmp);
-    if(check != 0){
-      return check;
-    }
-  }
-
   check = pTrans->execute(NoCommit, eao);   
 
   if( check == -1 ) {
@@ -701,10 +613,6 @@ HugoOperations::refresh() {
   NdbConnection* t = getTransaction(); 
   if(t)
     t->refresh();
-  for(Uint32 i = 0; i<m_scans.size(); i++){
-    if(m_scans[i].pTrans)
-      m_scans[i].pTrans->refresh();
-  }
 }
 
 int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
