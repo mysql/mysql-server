@@ -2118,8 +2118,8 @@ bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
 }
 
 
-bool check_grant_column (THD *thd,TABLE *table, const char *name,
-			 uint length, uint show_tables)
+bool check_grant_column(THD *thd,TABLE *table, const char *name,
+			uint length, uint show_tables)
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
@@ -2127,6 +2127,8 @@ bool check_grant_column (THD *thd,TABLE *table, const char *name,
   uint want_access=table->grant.want_privilege;
   if (!want_access)
     return 0;					// Already checked
+  if (!grant_option)
+    goto err2;
 
   pthread_mutex_lock(&LOCK_grant);
 
@@ -2158,8 +2160,9 @@ bool check_grant_column (THD *thd,TABLE *table, const char *name,
 #endif
 
   /* We must use my_printf_error() here! */
- err:
+err:
   pthread_mutex_unlock(&LOCK_grant);
+err2:
   if (!show_tables)
   {
     const char *command="";

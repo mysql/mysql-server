@@ -195,8 +195,23 @@ Error in execute: select command denied to user: 'grant_user@localhost' for colu
 grant SELECT on *.* to grant_user@localhost
 Connecting grant_user
 update grant_test.test set b=b+1
+update grant_test.test set b=b+1 where a > 0
 revoke SELECT on *.* from grant_user@localhost
+grant SELECT on grant_test.* to grant_user@localhost
 Connecting grant_user
+update grant_test.test set b=b+1
+update grant_test.test set b=b+1 where a > 0
+grant UPDATE on *.* to grant_user@localhost
+Connecting grant_user
+update grant_test.test set b=b+1
+update grant_test.test set b=b+1 where a > 0
+revoke UPDATE on *.* from grant_user@localhost
+revoke SELECT on grant_test.* from grant_user@localhost
+Connecting grant_user
+update grant_test.test set b=b+1 where a > 0
+Error in execute: select command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+update grant_test.test set b=b+1
+Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 select * from test
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 grant select on grant_test.test to grant_user@localhost
