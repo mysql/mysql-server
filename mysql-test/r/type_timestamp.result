@@ -35,6 +35,10 @@ UPDATE t1 SET value="my value" WHERE id="myKey";
 SELECT stamp FROM t1 WHERE id="myKey";
 stamp
 1999-04-02 00:00:00
+UPDATE t1 SET id="myKey" WHERE value="my value";
+SELECT stamp FROM t1 WHERE id="myKey";
+stamp
+1999-04-02 00:00:00
 drop table t1;
 create table t1 (a timestamp);
 insert into t1 values (now());
