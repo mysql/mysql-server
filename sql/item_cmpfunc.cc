@@ -217,14 +217,10 @@ void Item_bool_func2::fix_length_and_dec()
           in its memory: it will be reused on each execute.
         */
         Item_arena *arena= thd->current_arena, backup;
-        if (!arena->is_stmt_prepare())
-          arena= 0;
-        else
-          thd->set_n_backup_item_arena(arena, &backup);
+        thd->set_n_backup_item_arena(arena, &backup);
 	conv= new Item_func_conv_charset(args[weak],
                                          args[strong]->collation.collation);
-        if (arena)
-          thd->restore_backup_item_arena(arena, &backup);
+        thd->restore_backup_item_arena(arena, &backup);
         conv->collation.set(args[weak]->collation.derivation);
         conv->fix_fields(thd, 0, &conv);
       }
@@ -1625,7 +1621,7 @@ cmp_item* cmp_item_row::make_same()
 cmp_item_row::~cmp_item_row()
 {
   DBUG_ENTER("~cmp_item_row");
-  DBUG_PRINT("enter",("this: %lx", this));
+  DBUG_PRINT("enter",("this: 0x%lx", this));
   if (comparators)
   {
     for (uint i= 0; i < n; i++)

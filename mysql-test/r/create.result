@@ -298,7 +298,7 @@ select * from t3;
 id	name
 create table if not exists t3 like t1;
 Warnings:
-Warning	1050	Table 't3' already exists
+Note	1050	Table 't3' already exists
 select @@warning_count;
 @@warning_count
 1

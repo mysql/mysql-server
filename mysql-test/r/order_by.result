@@ -328,7 +328,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	9	NULL	5	Using where; Using index
 explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	4	const	2	Using where; Using index
+1	SIMPLE	t1	range	a	a	9	NULL	2	Using where; Using index
 explain select * from t1 where a = 1 order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	4	const	5	Using where; Using index

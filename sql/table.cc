@@ -85,7 +85,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   SQL_CRYPT *crypted=0;
   MEM_ROOT *old_root;
   DBUG_ENTER("openfrm");
-  DBUG_PRINT("enter",("name: '%s'  form: %lx",name,outparam));
+  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx",name,outparam));
 
   error=1;
   disk_buff=NULL;
@@ -1548,9 +1548,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
   /* view fields translation table */
   if (!(transl=
-	(Item**)(thd->current_arena ?
-                 thd->current_arena :
-                 thd)->alloc(select->item_list.elements * sizeof(Item*))))
+	(Item**)(thd->current_arena->alloc(select->item_list.elements * sizeof(Item*)))))
   {
     DBUG_RETURN(1);
   }
@@ -1585,6 +1583,9 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   if (where)
   {
     Item_arena *arena= thd->current_arena, backup;
+    if (!arena->is_stmt_prepare())
+      arena= 0;                                   // For easier test
+
     if (!where->fixed && where->fix_fields(thd, ancestor, &where))
       goto err;
 

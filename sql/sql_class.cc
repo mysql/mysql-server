@@ -1472,8 +1472,10 @@ void Statement::end_statement()
 
 void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
+  DBUG_ENTER("Item_arena::set_n_backup_item_arena");
   backup->set_item_arena(this);
   set_item_arena(set);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1482,7 +1484,7 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
   set->set_item_arena(this);
   set_item_arena(backup);
   // reset backup mem_root to avoid its freeing
-  init_alloc_root(&backup->mem_root, 0, 0);
+  clear_alloc_root(&backup->mem_root);
 }
 
 void Item_arena::set_item_arena(Item_arena *set)

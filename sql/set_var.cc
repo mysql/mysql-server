@@ -2404,7 +2404,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 #endif
 
   if (!(var->save_result.time_zone=
-          my_tz_find(res, thd->lex->time_zone_tables_used)))
+        my_tz_find(res, thd->lex->time_zone_tables_used)))
   {
     my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
     return 1;

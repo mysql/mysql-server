@@ -2297,6 +2297,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_CHANGE_KEY_TO_DUP: 
     DBUG_PRINT("info", ("HA_EXTRA_CHANGE_KEY_TO_DUP"));
+  case HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
+    DBUG_PRINT("info", ("HA_EXTRA_KEYREAD_PRESERVE_FIELDS"));
     break;
 
   }

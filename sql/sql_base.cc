@@ -1732,10 +1732,10 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     {
       for (TABLE_LIST *cursor= (TABLE_LIST *) sl->table_list.first;
            cursor;
-           cursor=cursor->next)
+           cursor=cursor->next_local)
       {
-        if (cursor->table_list)
-          cursor->table= cursor->table_list->table;
+        if (cursor->correspondent_table)
+          cursor->table= cursor->correspondent_table->table;
       }
     }
   }
@@ -1948,15 +1948,8 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
           *ref= trans[i];
         else
         {
-          Item_arena *arena= thd->current_arena, backup;
-          if (!arena->is_stmt_prepare())
-            arena= 0;
-          else
-            thd->set_n_backup_item_arena(arena, &backup);
-          *ref= new Item_ref(trans + i, 0, table_list->view_name.str,
+          *ref= new Item_ref(trans + i, ref, table_list->view_name.str,
                              item_name);
-          if (arena)
-            thd->restore_backup_item_arena(arena, &backup);
           /* as far as Item_ref have defined refernce it do not need tables */
           if (*ref)
             (*ref)->fix_fields(thd, 0, ref);
@@ -2440,14 +2433,14 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   if (!wild_num)
     return 0;
   Item_arena *arena= thd->current_arena, backup;
-  if (!arena->is_stmt_prepare())
-    arena= 0;                                   // For easier test
 
   /*
-    If we are in preparing prepared statement phase then we have change
-    temporary mem_root to statement mem root to save changes of SELECT list
+    Don't use arena if we are not in prepared statements or stored procedures
+    For PS/SP we have to use arena to remember the changes
   */
-  if (arena)
+  if (arena->state == Item_arena::CONVENTIONAL_EXECUTION)
+    arena= 0;                                   // For easier test later one
+  else
     thd->set_n_backup_item_arena(arena, &backup);
 
   List_iterator<Item> it(fields);
@@ -3057,7 +3050,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 
 err:
   if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
 }
 

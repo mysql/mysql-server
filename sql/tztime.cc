@@ -1406,20 +1406,30 @@ extern "C" byte* my_offset_tzs_get_key(Time_zone_offset *entry, uint *length,
     for opening of time zone tables from preallocated array.
 */
 
-void
-tz_init_table_list(TABLE_LIST *tz_tabs)
+static void
+tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
 {
   bzero(tz_tabs, sizeof(TABLE_LIST) * 4);
   tz_tabs[0].alias= tz_tabs[0].real_name= (char*)"time_zone_name";
   tz_tabs[1].alias= tz_tabs[1].real_name= (char*)"time_zone";
   tz_tabs[2].alias= tz_tabs[2].real_name= (char*)"time_zone_transition_type";
   tz_tabs[3].alias= tz_tabs[3].real_name= (char*)"time_zone_transition";
-  tz_tabs[0].next= tz_tabs+1;
-  tz_tabs[1].next= tz_tabs+2;
-  tz_tabs[2].next= tz_tabs+3;
+  tz_tabs[0].next_global= tz_tabs[0].next_local= tz_tabs+1;
+  tz_tabs[1].next_global= tz_tabs[1].next_local= tz_tabs+2;
+  tz_tabs[2].next_global= tz_tabs[2].next_local= tz_tabs+3;
   tz_tabs[0].lock_type= tz_tabs[1].lock_type= tz_tabs[2].lock_type=
     tz_tabs[3].lock_type= TL_READ;
   tz_tabs[0].db= tz_tabs[1].db= tz_tabs[2].db= tz_tabs[3].db= (char *)"mysql";
+
+  /* Link into global list */
+  tz_tabs[0].prev_global= *global_next_ptr;
+  tz_tabs[1].prev_global= &tz_tabs[0].next_global;
+  tz_tabs[2].prev_global= &tz_tabs[1].next_global;
+  tz_tabs[3].prev_global= &tz_tabs[2].next_global;
+
+  **global_next_ptr= tz_tabs;
+  /* Update last-global-pointer to point to pointer in last table */
+  *global_next_ptr= &tz_tabs[3].next_global;
 }
 
 
@@ -1440,19 +1450,20 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
 */
 
 TABLE_LIST *
-my_tz_get_table_list(THD *thd)
+my_tz_get_table_list(THD *thd, TABLE_LIST ***global_next_ptr)
 {
   TABLE_LIST *tz_tabs;
+  DBUG_ENTER("my_tz_get_table_list");
 
   if (!time_zone_tables_exist)
-    return 0;
+    DBUG_RETURN(0);
 
   if (!(tz_tabs= (TABLE_LIST *)thd->alloc(sizeof(TABLE_LIST) * 4)))
-    return &fake_time_zone_tables_list;
+    DBUG_RETURN(&fake_time_zone_tables_list);
 
-  tz_init_table_list(tz_tabs);
+  tz_init_table_list(tz_tabs, global_next_ptr);
 
-  return tz_tabs;
+  DBUG_RETURN(tz_tabs);
 }
 
 
@@ -1486,7 +1497,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 {
   THD *thd;
   TABLE_LIST *tables= 0;
-  TABLE_LIST tables_buff[5];
+  TABLE_LIST tables_buff[5], **tmp_link, *first_table;
   TABLE *table;
   TZ_NAMES_ENTRY *tmp_tzname;
   my_bool return_val= 1;
@@ -1553,9 +1564,10 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     (char*)"time_zone_leap_second";
   tables_buff[0].lock_type= TL_READ;
   tables_buff[0].db= thd->db;
-  tables_buff[0].next= tables_buff + 1;
+  tables_buff[0].next_global= tables_buff[0].next_local= tables_buff + 1;
   /* Fill TABLE_LIST for rest of the time zone describing tables */
-  tz_init_table_list(tables_buff + 1);
+  tmp_link= &first_table;
+  tz_init_table_list(tables_buff + 1, &tmp_link);
 
   if (open_tables(thd, tables_buff, &counter) ||
       lock_tables(thd, tables_buff, counter))
@@ -1757,8 +1769,9 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     and it is specifically for this purpose).
   */
   table= tz_tables->table;
-  tz_tables= tz_tables->next;
-  table->field[0]->store(tz_name->ptr(), tz_name->length(), &my_charset_latin1);
+  tz_tables= tz_tables->next_local;
+  table->field[0]->store(tz_name->ptr(), tz_name->length(),
+                         &my_charset_latin1);
   /*
     It is OK to ignore ha_index_init()/ha_index_end() return values since
     mysql.time_zone* tables are MyISAM and these operations always succeed
@@ -1769,7 +1782,9 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
                               0, HA_READ_KEY_EXACT))
   {
+#ifdef EXTRA_DEBUG    
     sql_print_error("Can't find description of time zone.");
+#endif
     goto end;
   }
 
@@ -1783,7 +1798,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     using the only index in this table).
   */
   table= tz_tables->table;
-  tz_tables= tz_tables->next;
+  tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong)tzid);
   (void)table->file->ha_index_init(0);
 
@@ -1810,7 +1825,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     Right - using special index.
   */
   table= tz_tables->table;
-  tz_tables= tz_tables->next;
+  tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong)tzid);
   (void)table->file->ha_index_init(0);
 

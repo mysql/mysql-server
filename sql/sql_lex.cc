@@ -1014,7 +1014,7 @@ void st_select_lex::init_query()
   subquery_in_having= explicit_limit= 0;
   first_execution= 1;
   first_cond_optimization= 1;
-  parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  parsing_place= NO_MATTER;
   no_wrap_view_item= 0;
 }
 
@@ -1659,11 +1659,6 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
 }
 
 
-st_lex::st_lex()
-  :result(0)
-{}
-
-
 /*
   Unlink first table from global table list and first table from outer select
   list (lex->select_lex)
@@ -1793,10 +1788,10 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
 
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
 {
-  if (thd->current_arena && first_execution)
+  if (thd->current_arena->is_stmt_prepare() && first_execution)
   {
-    prep_where= where;
     first_execution= 0;
+    prep_where= where;
   }
 }
 

@@ -321,7 +321,7 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
     pos[6]=pos[7]=0;				// For the future
     pos+=8;
     key_parts+=key->key_parts;
-    DBUG_PRINT("loop",("flags: %d  key_parts: %d at %lx",
+    DBUG_PRINT("loop",("flags: %d  key_parts: %d at 0x%lx",
 		       key->flags,key->key_parts,
 		       key->key_part));
     for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;

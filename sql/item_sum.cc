@@ -64,7 +64,7 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 
 /*
-  Save copy of arguments if we prepare prepared statement
+  Save copy of arguments if we are preparing a prepared statement
   (arguments can be rewritten in get_tmp_table_item())
 
   SYNOPSIS

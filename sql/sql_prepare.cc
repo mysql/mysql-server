@@ -414,6 +414,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
   *pos+= length;
 }
 
+
 static void set_param_date(Item_param *param, uchar **pos, ulong len)
 {
   MYSQL_TIME tm;
@@ -1864,7 +1865,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   }
 
   thd->set_statement(&thd->stmt_backup);
-  thd->current_arena= 0;
+  thd->current_arena= thd;
   DBUG_VOID_RETURN;
 
 set_params_data_err:
@@ -1891,6 +1892,8 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
   String expanded_query;
   DBUG_ENTER("mysql_sql_stmt_execute");
 
+  DBUG_ASSERT(thd->free_list == NULL);
+
   if (!(stmt= (Prepared_statement*)thd->stmt_map.find_by_name(stmt_name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_name->length,
@@ -1906,9 +1909,8 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     DBUG_VOID_RETURN;
   }
 
-  DBUG_ASSERT(thd->free_list == NULL);
-
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
+  thd->set_statement(stmt);
   if (stmt->set_params_from_vars(stmt,
                                  thd->stmt_backup.lex->prepared_stmt_params,
                                  &expanded_query))
@@ -1916,9 +1918,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     send_error(thd);
   }
-  thd->current_arena= stmt;
   execute_stmt(thd, stmt, &expanded_query);
-  thd->current_arena= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1941,7 +1941,6 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
 {
   DBUG_ENTER("execute_stmt");
 
-  thd->set_n_backup_statement(stmt, &thd->stmt_backup);
   reset_stmt_for_execute(thd, stmt->lex);
 
   if (expanded_query->length() &&

@@ -106,6 +106,7 @@ select * from mysqltest2.t1 order by a;
 connection master;
 drop database mysqltest2;
 drop database mysqltest3;
+--replace_column 2 # 5 #
 show binlog events from 95;
 sync_slave_with_master;
 

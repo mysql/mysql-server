@@ -628,7 +628,7 @@ insert into t2 values (10,1),(20,2),(30,3);
 explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	3	Using index
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	2	const	1	Using where; Using index
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	2	const	1	Using index
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 fooID	barID	fooID
 10	1	NULL
@@ -703,13 +703,13 @@ explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from
 order by m.match_id desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using where
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	
 explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using where
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	
 select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
@@ -729,7 +729,7 @@ t2 s straight_join t1 m where m.match_id = 1
 order by UUX desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using where
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	
 select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 t2 s straight_join t1 m where m.match_id = 1 
 order by UUX desc;
