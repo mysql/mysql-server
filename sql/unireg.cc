@@ -29,7 +29,6 @@
 #include <m_ctype.h>
 
 #define FCOMP			17		/* Bytes for a packed field */
-#define FCOMP			17		/* Bytes for a packed field */
 
 static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
