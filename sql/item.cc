@@ -46,11 +46,11 @@ void item_init(void)
 }
 
 Item::Item():
-  name_length(0), fixed(0)
+  name_length(0), fixed(0),
+  collation(default_charset(), DERIVATION_COERCIBLE)
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  collation.set(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
 
@@ -114,13 +114,31 @@ void Item::cleanup()
   DBUG_PRINT("info", ("Item: 0x%lx", this));
   DBUG_PRINT("info", ("Type: %d", (int)type()));
   fixed=0;
+  marker= 0;
   DBUG_VOID_RETURN;
 }
+
+
+/*
+  cleanup() item if it is 'fixed'
+
+  SYNOPSIS
+    cleanup_processor()
+    arg - a dummy parameter, is not used here
+*/
+
+bool Item::cleanup_processor(byte *arg)
+{
+  if (fixed)
+    cleanup();
+  return FALSE;
+}
+
 
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 
-   orig_field_name(field_name_par), changed_during_fix_field(0), 
+   orig_field_name(field_name_par),
    db_name(db_name_par), table_name(table_name_par), 
    field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
    cached_table(0), depended_from(0)
@@ -134,7 +152,6 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
    orig_db_name(item->orig_db_name),
    orig_table_name(item->orig_table_name), 
    orig_field_name(item->orig_field_name),
-   changed_during_fix_field(0),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
@@ -151,11 +168,6 @@ void Item_ident::cleanup()
 		       table_name, orig_table_name,
 		       field_name, orig_field_name));
   Item::cleanup();
-  if (changed_during_fix_field)
-  {
-    *changed_during_fix_field= this;
-    changed_during_fix_field= 0;
-  }
   db_name= orig_db_name; 
   table_name= orig_table_name;
   field_name= orig_field_name;
@@ -267,6 +279,41 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 }
 
 
+Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  /*
+    Don't allow automatic conversion to non-Unicode charsets,
+    as it potentially loses data.
+  */
+  if (!(tocs->state & MY_CS_UNICODE))
+    return NULL; // safe conversion is not possible
+  return new Item_func_conv_charset(this, tocs);
+}
+
+
+Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  uint conv_errors;
+  String tmp, cstr, *ostr= val_str(&tmp);
+  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                             cstr.charset(),
+                                             collation.derivation)))
+  {
+    /*
+      Safe conversion is not possible (or EOM).
+      We could not convert a string into the requested character set
+      without data loss. The target charset does not cover all the
+      characters from the string. Operation cannot be done correctly.
+    */
+    return NULL;
+  }
+  conv->str_value.copy();
+  return conv;
+}
+
+
 bool Item_string::eq(const Item *item, bool binary_cmp) const
 {
   if (type() == item->type())
@@ -361,7 +408,43 @@ Item_splocal::type() const
 }
 
 
-bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
+
+/*
+   Aggregate two collations together taking
+   into account their coercibility (aka derivation):
+
+   0 == DERIVATION_EXPLICIT  - an explicitely written COLLATE clause
+   1 == DERIVATION_NONE      - a mix of two different collations
+   2 == DERIVATION_IMPLICIT  - a column
+   3 == DERIVATION_COERCIBLE - a string constant
+
+   The most important rules are:
+
+   1. If collations are the same:
+      chose this collation, and the strongest derivation.
+
+   2. If collations are different:
+     - Character sets may differ, but only if conversion without
+       data loss is possible. The caller provides flags whether
+       character set conversion attempts should be done. If no
+       flags are substituted, then the character sets must be the same.
+       Currently processed flags are:
+         MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+         MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
+     - two EXPLICIT collations produce an error, e.g. this is wrong:
+       CONCAT(expr1 collate latin1_swedish_ci, expr2 collate latin1_german_ci)
+     - the side with smaller derivation value wins,
+       i.e. a column is stronger than a string constant,
+       an explicit COLLATE clause is stronger than a column.
+     - if derivations are the same, we have DERIVATION_NONE,
+       we'll wait for an explicit COLLATE clause which possibly can
+       come from another argument later: for example, this is valid,
+       but we don't know yet when collecting the first two arguments:
+         CONCAT(latin1_swedish_ci_column,
+                latin1_german1_ci_column,
+                expr COLLATE latin1_german2_ci)
+*/
+bool DTCollation::aggregate(DTCollation &dt, uint flags)
 {
   nagg++;
   if (!my_charset_same(collation, dt.collation))
@@ -392,28 +475,37 @@ bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
       else
        ; // Do nothing
     }
-    else if (superset_conversion)
+    else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
+             derivation < dt.derivation &&
+             collation->state & MY_CS_UNICODE)
     {
-      if (derivation < dt.derivation &&
-          collation->state & MY_CS_UNICODE)
-        ; // Do nothing
-      else if (dt.derivation < derivation &&
-               dt.collation->state & MY_CS_UNICODE)
-      {
-        set(dt);
-        strong= nagg;
-      }
-      else
-      {
-        // Cannot convert to superset
-        set(0, DERIVATION_NONE);
-        return 1;
-      }
+      // Do nothing
+    }
+    else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
+             dt.derivation < derivation &&
+             dt.collation->state & MY_CS_UNICODE)
+    {
+      set(dt);
+      strong= nagg;
+    }
+    else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
+             derivation < dt.derivation &&
+             dt.derivation == DERIVATION_COERCIBLE)
+    {
+      // Do nothing;
+    }
+    else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
+             dt.derivation < derivation &&
+             derivation == DERIVATION_COERCIBLE)
+    {
+      set(dt);
+      strong= nagg;
     }
     else
     {
+      // Cannot apply conversion
       set(0, DERIVATION_NONE);
-      return 1; 
+      return 1;
     }
   }
   else if (derivation < dt.derivation)
@@ -452,19 +544,47 @@ Item_field::Item_field(Field *f)
    have_privileges(0), any_privileges(0)
 {
   set_field(f);
-  collation.set(DERIVATION_IMPLICIT);
-  fixed= 1;
+  /*
+    field_name and talbe_name should not point to garbage
+    if this item is to be reused
+  */
+  orig_table_name= orig_field_name= "";
 }
 
 Item_field::Item_field(THD *thd, Field *f)
-  :Item_ident(NullS, thd->strdup(f->table_name), 
-              thd->strdup(f->field_name)),
+  :Item_ident(f->table->table_cache_key, f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
+  /*
+    We always need to provide Item_field with a fully qualified field
+    name to avoid ambiguity when executing prepared statements like
+    SELECT * from d1.t1, d2.t1; (assuming d1.t1 and d2.t1 have columns
+    with same names).
+    This is because prepared statements never deal with wildcards in
+    select list ('*') and always fix fields using fully specified path
+    (i.e. db.table.column).
+    No check for OOM: if db_name is NULL, we'll just get
+    "Field not found" error.
+    We need to copy db_name, table_name and field_name because they must
+    be allocated in the statement memory, not in table memory (the table
+    structure can go away and pop up again between subsequent executions
+    of a prepared statement).
+  */
+  if (thd->current_arena->is_stmt_prepare())
+  {
+    if (db_name)
+      orig_db_name= thd->strdup(db_name);
+    orig_table_name= thd->strdup(table_name);
+    orig_field_name= thd->strdup(field_name);
+    /*
+      We don't restore 'name' in cleanup because it's not changed
+      during execution. Still we need it to point to persistent
+      memory if this item is to be reused.
+    */
+    name= (char*) orig_field_name;
+  }
   set_field(f);
-  collation.set(DERIVATION_IMPLICIT);
-  fixed= 1;
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
@@ -491,6 +611,21 @@ void Item_field::set_field(Field *field_par)
   db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
+  fixed= 1;
+}
+
+
+/*
+  Reset this item to point to a field from the new temporary table.
+  This is used when we create a new temporary table for each execution
+  of prepared statement.
+*/
+
+void Item_field::reset_field(Field *f)
+{
+  set_field(f);
+  /* 'name' is pointing at field->field_name of old field */
+  name= (char*) f->field_name;
 }
 
 const char *Item_ident::full_name() const
@@ -793,6 +928,12 @@ String *Item_null::val_str(String *str)
 }
 
 
+Item *Item_null::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  collation.set(tocs);
+  return this;
+}
+
 /*********************** Item_param related ******************************/
 
 /* 
@@ -888,7 +1029,9 @@ bool Item_param::set_str(const char *str, ulong length)
     Assign string with no conversion: data is converted only after it's
     been written to the binary log.
   */
-  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin))
+  uint dummy_errors;
+  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin,
+                     &dummy_errors))
     DBUG_RETURN(TRUE);
   state= STRING_VALUE;
   maybe_null= 0;
@@ -1043,7 +1186,7 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
     return field->store(str_value.ptr(), str_value.length(),
                         str_value.charset());
   case NULL_VALUE:
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, no_conversions);
   case NO_VALUE:
   default:
     DBUG_ASSERT(0);
@@ -1146,9 +1289,10 @@ String *Item_param::val_str(String* str)
     return str;
   case TIME_VALUE:
   {
-    if (str->reserve(MAX_DATE_REP_LENGTH))
+    if (str->reserve(MAX_DATE_STRING_REP_LENGTH))
       break;
-    TIME_to_string(&value.time, str);
+    str->length((uint) my_TIME_to_str(&value.time, (char*) str->ptr()));
+    str->set_charset(&my_charset_bin);
     return str;
   }
   case NULL_VALUE:
@@ -1178,24 +1322,19 @@ const String *Item_param::query_val_str(String* str) const
   case TIME_VALUE:
     {
       char *buf, *ptr;
-      String tmp;
       str->length(0);
       /*
         TODO: in case of error we need to notify replication
         that binary log contains wrong statement 
       */
-      if (str->reserve(MAX_DATE_REP_LENGTH+3))
+      if (str->reserve(MAX_DATE_STRING_REP_LENGTH+3))
         break; 
 
       /* Create date string inplace */
       buf= str->c_ptr_quick();
       ptr= buf;
       *ptr++= '\'';
-      tmp.set(ptr, MAX_DATE_REP_LENGTH, &my_charset_bin);
-      tmp.length(0);
-      TIME_to_string(&value.time, &tmp);
-
-      ptr+= tmp.length();
+      ptr+= (uint) my_TIME_to_str(&value.time, ptr);
       *ptr++= '\'';
       str->length((uint32) (ptr - buf));
       break;
@@ -1249,6 +1388,10 @@ bool Item_param::convert_str_value(THD *thd)
                               value.cs_info.character_set_client,
                               value.cs_info.final_character_set_of_str_value);
     }
+    else
+      str_value.set_charset(value.cs_info.final_character_set_of_str_value);
+    /* Here str_value is guaranteed to be in final_character_set_of_str_value */
+
     max_length= str_value.length();
     decimals= 0;
     /*
@@ -1373,7 +1516,7 @@ bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item)
 {
-  // store pointer on SELECT_LEX from wich item is dependent
+  // store pointer on SELECT_LEX from which item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
@@ -1388,6 +1531,8 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 		 ER_WARN_FIELD_RESOLVED, warn_buff);
   }
 }
+
+
 
 
 /*
@@ -1534,13 +1679,14 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   ORDER *group_list= (ORDER*) select->group_list.first;
   bool ambiguous_fields= FALSE;
   uint counter;
+  bool not_used;
 
   /*
     Search for a column or derived column named as 'ref' in the SELECT
     clause of the current select.
   */
   if (!(select_ref= find_item_in_list(ref, *(select->get_item_list()), &counter,
-                                      REPORT_EXCEPT_NOT_FOUND)))
+                                      REPORT_EXCEPT_NOT_FOUND, &not_used)))
     return NULL; /* Some error occurred. */
 
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
@@ -1687,10 +1833,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
           enum_parsing_place place= prev_subselect_item->parsing_place;
           /*
             Check table fields only if the subquery is used somewhere out of
-            HAVING or SELECT list, or the outer SELECT does not use grouping
-            (i.e. tables are accessible).
+            HAVING, or the outer SELECT does not use grouping (i.e. tables are
+            accessible).
           */
-          if (((place != IN_HAVING && place != SELECT_LIST) ||
+          if ((place != IN_HAVING ||
                (outer_sel->with_sum_func == 0 &&
                 outer_sel->group_list.elements == 0)) &&
               (from_field= find_field_in_tables(thd, this, table_list,
@@ -1762,15 +1908,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       }
       else if (ref != not_found_item)
       {
-        /* Should be checked in resolve_ref_in_select_and_group(). */
+        /* Should have been checked in resolve_ref_in_select_and_group(). */
         DBUG_ASSERT(*ref && (*ref)->fixed);
 
-	Item_ref *rf;
-	*reference= rf= new Item_ref(ref, reference, (char *) table_name,
-                                     (char *) field_name);
-	register_item_tree_changing(reference);
+	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
+                                   (char *)table_name, (char *)field_name);
 	if (!rf)
 	  return TRUE;
+        thd->change_item_tree(reference, rf);
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
@@ -1787,12 +1932,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-	  *reference= rf= new Item_ref(reference, *reference,
-                                       (cached_table->db[0]?cached_table->db:0),
-                                       (char *)cached_table->alias,
-                                       (char *)field_name);
+          rf= new Item_ref((cached_table->db[0] ? cached_table->db : 0),
+                           (char*) cached_table->alias, (char*) field_name);
 	  if (!rf)
 	    return TRUE;
+          thd->change_item_tree(reference, rf);
 	  /*
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
@@ -1861,6 +2005,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   return FALSE;
 }
 
+
+Item *Item_field::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  no_const_subst= 1;
+  return Item::safe_charset_converter(tocs);
+}
+
+
 void Item_field::cleanup()
 {
   DBUG_ENTER("Item_field::cleanup");
@@ -1871,6 +2023,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1915,7 +2068,8 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
 
 /*
-  Set a pointer to the multiple equality the field reference belongs to (if any)
+  Set a pointer to the multiple equality the field reference belongs to
+  (if any)
    
   SYNOPSIS
     equal_fields_propagator()
@@ -1954,7 +2108,21 @@ Item *Item_field::equal_fields_propagator(byte *arg)
 
 
 /*
-  Set a pointer to the multiple equality the field reference belongs to (if any)
+  Mark the item to not be part of substitution if it's not a binary item
+  See comments in Arg_comparator::set_compare_func() for details
+*/
+
+Item *Item_field::set_no_const_sub(byte *arg)
+{
+  if (field->charset() != &my_charset_bin)
+    no_const_subst=1;
+  return this;
+}
+
+
+/*
+  Set a pointer to the multiple equality the field reference belongs to
+  (if any)
    
   SYNOPSIS
     replace_equal_field_processor()
@@ -1990,6 +2158,7 @@ bool Item_field::replace_equal_field_processor(byte *arg)
   return 0;
 }
 
+
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
 {
@@ -2000,7 +2169,9 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->table_name=	empty_name;
   tmp_field->col_name=		name;
   tmp_field->charsetnr=         collation.collation->number;
-  tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;
+  tmp_field->flags=             (maybe_null ? 0 : NOT_NULL_FLAG) | 
+                                (my_binary_compare(collation.collation) ?
+                                 BINARY_FLAG : 0);
   tmp_field->type=field_type;
   tmp_field->length=max_length;
   tmp_field->decimals=decimals;
@@ -2629,15 +2800,15 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
           enum_parsing_place place= prev_subselect_item->parsing_place;
           /*
             Check table fields only if the subquery is used somewhere out of
-            HAVING or SELECT list, or the outer SELECT does not use grouping
-            (i.e. tables are accessible).
+            HAVING or the outer SELECT does not use grouping (i.e. tables are
+            accessible).
             TODO: 
             Here we could first find the field anyway, and then test this
             condition, so that we can give a better error message -
             ER_WRONG_FIELD_WITH_GROUP, instead of the less informative
             ER_BAD_FIELD_ERROR which we produce now.
           */
-          if (((place != IN_HAVING && place != SELECT_LIST) ||
+          if ((place != IN_HAVING ||
                (!outer_sel->with_sum_func &&
                 outer_sel->group_list.elements == 0)))
           {
@@ -2679,19 +2850,24 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
         {
           my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
                           this->full_name(), current_thd->where);
-          ref= 0;
+          ref= 0;                                 // Safety
           return TRUE;
         }
-        else if (from_field != not_found_field)
+        if (from_field != not_found_field)
         {
-          ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
+          /*
+            Set ref to 0 as we are replacing this item with the found item and
+            this will ensure we get an error if this item would be used
+            elsewhere
+          */
+          ref= 0;                                 // Safety
           if (from_field != view_ref_found)
           {
-            Item_field* fld= new Item_field(from_field);
-            if (!((*reference)= fld))
+            Item_field* fld;
+            if (!(fld= new Item_field(tmp)))
               return TRUE;
-            mark_as_dependent(thd, last, current_sel, fld);
-            register_item_tree_changing(reference);
+            thd->change_item_tree(reference, fld);
+            mark_as_dependent(thd, last, thd->lex->current_select, fld);
             return FALSE;
           }
           /*
@@ -2757,8 +2933,6 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
-  if (hook_ptr)
-    *hook_ptr= orig_item;
   DBUG_VOID_RETURN;
 }
 
@@ -2881,7 +3055,6 @@ bool Item_default_value::fix_fields(THD *thd,
   def_field->move_field(def_field->table->default_values -
                         def_field->table->record[0]);
   set_field(def_field);
-  fixed= 1;
   return 0;
 }
 
@@ -2939,7 +3112,6 @@ bool Item_insert_value::fix_fields(THD *thd,
     set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
 			     tmp_field->table, &my_charset_bin));
   }
-  fixed= 1;
   return 0;
 }
 
@@ -3058,10 +3230,12 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 }
 
 
-Item *resolve_const_item(Item *item,Item *comp_item)
+void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
+  Item *item= *ref;
+  Item *new_item;
   if (item->basic_const_item())
-    return item;				// Can't be better
+    return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
 				     item->result_type());
   char *name=item->name;			// Alloced by sql_alloc
@@ -3072,27 +3246,32 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
-      return new Item_null(name);
-    uint length=result->length();
-    char *tmp_str=sql_strmake(result->ptr(),length);
-    return new Item_string(name,tmp_str,length,result->charset());
+      new_item= new Item_null(name);
+    else
+    {
+      uint length= result->length();
+      char *tmp_str= sql_strmake(result->ptr(), length);
+      new_item= new Item_string(name, tmp_str, length, result->charset());
+    }
   }
-  if (res_type == INT_RESULT)
+  else if (res_type == INT_RESULT)
   {
     longlong result=item->val_int();
     uint length=item->max_length;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_int(name,result,length));
+    new_item= (null_value ? (Item*) new Item_null(name) :
+               (Item*) new Item_int(name, result, length));
   }
   else
   {						// It must REAL_RESULT
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_real(name,result,decimals,length));
+    new_item= (null_value ? (Item*) new Item_null(name) : (Item*)
+               new Item_real(name, result, decimals, length));
   }
+  if (new_item)
+    thd->change_item_tree(ref, new_item);
 }
 
 /*
@@ -3319,6 +3498,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   else
     field_example= 0;
   max_length= real_length(item);
+  maybe_null= item->maybe_null;
   collation.set(item->collation);
 }
 
@@ -3336,62 +3516,90 @@ static Item_result type_convertor[4][4]=
  {STRING_RESULT, REAL_RESULT,   INT_RESULT,    ROW_RESULT},
  {ROW_RESULT,    ROW_RESULT,    ROW_RESULT,    ROW_RESULT}};
 
+
+/*
+  Values of 'from' field can be stored in 'to' field.
+
+  SYNOPSIS
+    is_attr_compatible()
+    from        Item which values should be saved
+    to          Item where values should be saved
+
+  RETURN
+    1   can be saved
+    0   can not be saved
+*/
+
+inline bool is_attr_compatible(Item *from, Item *to)
+{
+  return ((to->max_length >= from->max_length) &&
+          (to->maybe_null || !from->maybe_null) &&
+          (to->result_type() != STRING_RESULT ||
+           from->result_type() != STRING_RESULT ||
+           my_charset_same(from->collation.collation,
+                           to->collation.collation)));
+}
+
+
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
   uint32 new_length= real_length(item);
-  bool change_field= 0, skip_store_field= 0;
-  Item_result new_type= type_convertor[item_type][item->result_type()];
+  bool use_new_field= 0, use_expression_type= 0;
+  Item_result new_result_type= type_convertor[item_type][item->result_type()];
+  bool item_is_a_field= item->type() == Item::FIELD_ITEM;
 
-  // we have both fields
-  if (field_example && item->type() == Item::FIELD_ITEM)
+  /*
+    Check if both items point to fields: in this case we
+    can adjust column types of result table in the union smartly.
+  */
+  if (field_example && item_is_a_field)
   {
     Field *field= ((Item_field *)item)->field;
-    if (field_example->field_cast_type() != field->field_cast_type())
+    /* Can 'field_example' field store data of the column? */
+    if ((use_new_field=
+         (!field->field_cast_compatible(field_example->field_cast_type()) ||
+          !is_attr_compatible(item, this))))
     {
-      if (!(change_field=
-	    field_example->field_cast_compatible(field->field_cast_type())))
-      {
-	/*
-	  if old field can't store value of 'worse' new field we will make
-	  decision about result field type based only on Item result type
-	*/
-	if (!field->field_cast_compatible(field_example->field_cast_type()))
-	  skip_store_field= 1;
-      }
+      /*
+        The old field can't store value of the new field.
+        Check if the new field can store value of the old one.
+      */
+      use_expression_type|=
+        (!field_example->field_cast_compatible(field->field_cast_type()) ||
+         !is_attr_compatible(this, item));
     }
   }
-
-  // size/type should be changed
-  if (change_field ||
-      (new_type != item_type) ||
-      (max_length < new_length) ||
-      ((new_type == INT_RESULT) &&
-       (decimals < item->decimals)) ||
-      (!maybe_null && item->maybe_null) ||
-      (item_type == STRING_RESULT && new_type == STRING_RESULT &&
-       !my_charset_same(collation.collation, item->collation.collation)))
+  else if (field_example || item_is_a_field)
   {
-    // new field has some parameters worse then current
-    skip_store_field|= (change_field &&
-			(max_length > new_length) ||
-			((new_type == INT_RESULT) &&
-			 (decimals > item->decimals)) ||
-			(maybe_null && !item->maybe_null) ||
-			(item_type == STRING_RESULT &&
-			 new_type == STRING_RESULT &&
-			 !my_charset_same(collation.collation,
-					  item->collation.collation)));
     /*
-      It is safe assign pointer on field, because it will be used just after
-      all JOIN::prepare calls and before any SELECT execution
+      Expression types can't be mixed with field types, we have to use
+      expression types.
     */
-    if (skip_store_field || item->type() != Item::FIELD_ITEM)
+    use_new_field= 1;                           // make next if test easier
+    use_expression_type= 1;
+  }
+
+  /* Check whether size/type of the result item should be changed */
+  if (use_new_field ||
+      (new_result_type != item_type) || (new_length > max_length) ||
+      (!maybe_null && item->maybe_null) ||
+      (item_type == STRING_RESULT && 
+       collation.collation != item->collation.collation))
+  {
+    const char *old_cs,*old_derivation;
+    if (use_expression_type || !item_is_a_field)
       field_example= 0;
     else
+    {
+      /*
+        It is safe to assign a pointer to field here, because it will be used
+        before any table is closed.
+      */
       field_example= ((Item_field*) item)->field;
+    }
 
-    const char *old_cs= collation.collation->name,
-      *old_derivation= collation.derivation_name();
+    old_cs= collation.collation->name;
+    old_derivation= collation.derivation_name();
     if (item_type == STRING_RESULT && collation.aggregate(item->collation))
     {
       my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
@@ -3405,18 +3613,18 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     max_length= max(max_length, new_length);
     decimals= max(decimals, item->decimals);
     maybe_null|= item->maybe_null;
-    item_type= new_type;
+    item_type= new_result_type;
   }
   DBUG_ASSERT(item_type != ROW_RESULT);
   return 0;
 }
 
+
 uint32 Item_type_holder::real_length(Item *item)
 {
   if (item->type() == Item::FIELD_ITEM)
-  {
     return ((Item_field *)item)->max_disp_length();
-  }
+
   switch (item->result_type())
   {
   case STRING_RESULT:
@@ -3452,6 +3660,14 @@ String *Item_type_holder::val_str(String*)
   return 0;
 }
 
+void Item_result_field::cleanup()
+{
+  DBUG_ENTER("Item_result_field::cleanup()");
+  Item::cleanup();
+  result_field= 0;
+  DBUG_VOID_RETURN;
+}
+
 /*****************************************************************************
 ** Instantiate templates
 *****************************************************************************/
@@ -3460,5 +3676,6 @@ String *Item_type_holder::val_str(String*)
 template class List<Item>;
 template class List_iterator<Item>;
 template class List_iterator_fast<Item>;
+template class List_iterator_fast<Item_field>;
 template class List<List_item>;
 #endif
