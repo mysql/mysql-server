@@ -150,7 +150,7 @@ create table t1 (d1 double, d2 double unsigned);
 insert into t1 set d1 = -1.0;
 update t1 set d2 = d1;
 Warnings:
-Warning	1264	Data truncated; out of range for column 'd2' at row 1
+Warning	1264	Out of range value adjusted for column 'd2' at row 1
 select * from t1;
 d1	d2
 -1	0

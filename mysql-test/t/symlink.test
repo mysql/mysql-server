@@ -50,8 +50,8 @@ optimize table t9;
 repair table t9;
 alter table t9 add column c int not null;
 
-#--replace_result $MYSQL_TEST_DIR TEST_DIR
-#show create table t9;
+--replace_result $MYSQL_TEST_DIR TEST_DIR
+show create table t9;
 
 # Test renames
 alter table t9 rename t8, add column d int not null;
