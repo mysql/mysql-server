@@ -1958,7 +1958,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0 };
+const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0,0};
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
@@ -2561,7 +2561,7 @@ default_service_handling(char **argv,
 			 const char *extra_opt)
 {
   char path_and_service[FN_REFLEN+FN_REFLEN+32], *pos, *end;
-  end= path_and_service + sizeof(path_and_service)-1;
+  end= path_and_service + sizeof(path_and_service)-3;
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
@@ -2571,7 +2571,9 @@ default_service_handling(char **argv,
     *pos++= ' ';
     pos= add_quoted_string(pos, extra_opt, end);
   }
-  *pos= 0;					// Ensure end null
+  /* We must have servicename last */
+  *pos++= ' ';
+  strmake(pos, servicename, (uint) (end+2 - pos));
 
   if (Service.got_service_option(argv, "install"))
   {
@@ -2616,7 +2618,7 @@ int main(int argc, char **argv)
       if (Service.IsService(argv[1]))
       {
         /* start an optional service */
-        load_default_groups[0]= argv[1];
+        load_default_groups[3]= argv[1];
         start_mode= 1;
         Service.Init(argv[1], mysql_service);
         return 0;
@@ -2624,8 +2626,7 @@ int main(int argc, char **argv)
     }
     else if (argc == 3) /* install or remove any optional service */
     {
-      if (!default_service_handling(argv, argv[2], argv[2], file_path,
-				    argv[2]))
+      if (!default_service_handling(argv, argv[2], argv[2], file_path, ""))
 	return 0;
       if (Service.IsService(argv[2]))
       {
@@ -2637,6 +2638,7 @@ int main(int argc, char **argv)
 	opt_argc= 2;				// Skip service-name
 	opt_argv=argv;
 	start_mode= 1;
+        load_default_groups[3]= argv[2];
 	Service.Init(argv[2], mysql_service);
 	return 0;
       }
