@@ -289,7 +289,7 @@ Item *create_func_period_diff(Item* a, Item *b)
 
 Item *create_func_pi(void)
 {
-  return new Item_static_real_func("pi()", M_PI, 6, 8);
+  return new Item_static_float_func("pi()", M_PI, 6, 8);
 }
 
 Item *create_func_pow(Item* a, Item *b)
@@ -454,7 +454,7 @@ Item *create_load_file(Item* a)
 }
 
 
-Item *create_func_cast(Item *a, Cast_target cast_type, int len,
+Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
 		       CHARSET_INFO *cs)
 {
   Item *res;
@@ -467,6 +467,9 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len,
   case ITEM_CAST_DATE:		res= new Item_date_typecast(a); break;
   case ITEM_CAST_TIME:		res= new Item_time_typecast(a); break;
   case ITEM_CAST_DATETIME:	res= new Item_datetime_typecast(a); break;
+  case ITEM_CAST_DECIMAL:
+    res= new Item_decimal_typecast(a, (len>0) ? len : 10, dec ? dec : 2);
+    break;
   case ITEM_CAST_CHAR:
     res= new Item_char_typecast(a, len, cs ? cs : 
 				current_thd->variables.collation_connection);

@@ -194,8 +194,8 @@ MY_LOG_DIR="$MYSQL_TEST_DIR/var/log"
 #
 # Set LD_LIBRARY_PATH if we are using shared libraries
 #
-LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$LD_LIBRARY_PATH"
-DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$DYLD_LIBRARY_PATH"
+LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/zlib/.libs:$LD_LIBRARY_PATH"
+DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/zlib/.libs:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 
 #
@@ -441,7 +441,7 @@ while test $# -gt 0; do
       STRACE_CLIENT=1
       ;;
     --debug)
-      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
+      EXTRA_MASTER_MYSQLD_TRACE=" \
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/slave.trace"
@@ -1150,6 +1150,10 @@ start_master()
    this_master_myport=$MASTER_MYPORT
    NOT_FIRST_MASTER_EXTRA_OPTS=""
   fi
+  if [ -n "$EXTRA_MASTER_MYSQLD_TRACE" ] 
+  then
+      CURR_MASTER_MYSQLD_TRACE="$EXTRA_MASTER_MYSQLD_TRACE$1"
+  fi
   if [ -z "$DO_BENCH" ]
   then
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
@@ -1173,7 +1177,7 @@ start_master()
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
-           $NOT_FIRST_MASTER_EXTRA_OPTS"
+           $NOT_FIRST_MASTER_EXTRA_OPTS $CURR_MASTER_MYSQLD_TRACE"
   else
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
           --server-id=$id --rpl-recovery-rank=1 \

@@ -1672,7 +1672,7 @@ fld1	count(*)
 158402	4181
 select sum(Period)/count(*) from t1;
 sum(Period)/count(*)
-9410.00
+9410.00000
 select companynr,count(price) as "count",sum(price) as "sum" ,abs(sum(price)/count(price)-avg(price)) as "diff",(0+count(price))*companynr as func from t3 group by companynr;
 companynr	count	sum	diff	func
 37	12543	309394878010	0.0000	464091
@@ -2109,7 +2109,7 @@ select @b;
 aaaa
 select @c;
 @c
-6.26
+6.260
 create table t1 (a int not null auto_increment primary key);
 insert into t1 values ();
 insert into t1 values ();
@@ -2388,3 +2388,16 @@ WART	0100	1
 WART	0200	1
 WART	0300	3
 DROP TABLE t1;
+CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
+CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
+INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+DROP TABLE t1, t2;
