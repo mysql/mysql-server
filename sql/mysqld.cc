@@ -3807,7 +3807,6 @@ static void get_options(int argc,char **argv)
     case (int) OPT_SKIP_SHOW_DB:
       opt_skip_show_db=1;
       opt_specialflag|=SPECIAL_SKIP_SHOW_DB;
-      mysql_port=0;
       break;
     case (int) OPT_MEMLOCK:
       locked_in_memory=1;
