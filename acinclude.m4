@@ -868,6 +868,36 @@ AC_MSG_CHECKING(for OpenSSL)
 ])
 
 
+dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_BIG_TABLES
+dnl Sets BIG_TABLES if --with-big-tables is used
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_BIG_TABLES], [
+  AC_ARG_WITH([big-tables],
+              [
+  --with-big-tables       Support tables with more than 4 G rows even on 32 bit platforms],
+              [bigtables="$withval"],
+              [bigtables=no])
+  AC_MSG_CHECKING([for big tables support])
+
+  case "$bigtables" in
+    yes )
+      AC_DEFINE([BIG_TABLES], [1], [Support big tables])
+      AC_MSG_RESULT([yes])
+      [bigtables=yes]
+      ;;
+    * )
+      AC_MSG_RESULT([no])
+      [bigtables=no]
+      ;;
+  esac
+
+])
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_BIG_TABLES SECTION
+dnl ---------------------------------------------------------------------------
+
+
 AC_DEFUN(MYSQL_CHECK_MYSQLFS, [
   AC_ARG_WITH([mysqlfs],
               [
