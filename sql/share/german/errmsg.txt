@@ -295,4 +295,5 @@ character-set=latin1
 "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn der Slave-Server unerwartet neu startet",
 "SQL-Thread soll nicht gestartet werden. Daher werden UNTIL-Optionen ignoriert"
 "Incorrect index name '%-.100s'",
+"Query cache failed to set size %lu, new query cache size is %lu",
 "Column '%-.64s' cannot be part of FULLTEXT index"

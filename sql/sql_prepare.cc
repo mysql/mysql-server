@@ -72,7 +72,7 @@ Long data handling:
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 
-#define IS_PARAM_NULL(pos, param_no) pos[param_no/8] & (1 << param_no & 7)
+#define IS_PARAM_NULL(pos, param_no) (pos[param_no/8] & (1 << (param_no & 7)))
 
 #define STMT_QUERY_LOG_LENGTH 8192
 

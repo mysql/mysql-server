@@ -1010,3 +1010,13 @@ insert into t1 values (2);
 set sort_buffer_size = (select s1 from t1);
 do (select * from t1);
 drop table t1;
+
+#
+# optimized ALL/ANY with union
+#
+create table t1 (s1 char);
+insert into t1 values ('e');
+select * from t1 where 'f' > any (select s1 from t1);
+select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
+explain select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
+drop table t1;
