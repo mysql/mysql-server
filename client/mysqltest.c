@@ -109,6 +109,7 @@ MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
+static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;;
 
 static FILE* file_stack[MAX_INCLUDE_DEPTH];
 static FILE** cur_file;
@@ -885,7 +886,10 @@ int do_exec(struct st_query* q)
   if (disable_result_log)
   {
     while (fgets(buf, sizeof(buf), res_file))
-    {}
+    {
+      buf[strlen(buf)-1]=0;
+      DBUG_PRINT("exec_result",("%s", buf));
+    }
   }
   else
   {
@@ -1648,24 +1652,48 @@ int do_while(struct st_query* q)
 }
 
 
-my_bool end_of_query(int c, char* p)
+/*
+  Read characters from line buffer or file. This is needed to allow
+  my_ungetc() to buffer MAX_DELIMITER characters for a file
+
+  NOTE:
+    This works as long as one doesn't change files (with 'source file_name')
+    when there is things pushed into the buffer.  This should however not
+    happen for any tests in the test suite.
+*/
+
+char my_getc(FILE *file)
 {
-  uint i, j;
-  int tmp[MAX_DELIMITER]= {0};
+  if (line_buffer_pos == line_buffer)
+    return fgetc(file);
+  return line_buffer[--line_buffer_pos];
+}
 
-  for (i= 0; c == *(delimiter + i) && i < delimiter_length;
-       i++, c= fgetc(*cur_file))
+void my_ungetc(int c)
+{
+  line_buffer[line_buffer_pos++]= c;
+}
+
+
+my_bool end_of_query(int c)
+{
+  uint i,j;
+  char tmp[MAX_DELIMITER];
+
+  if (c != *delimiter)
+    return 0;
+
+  for (i= 1; i < delimiter_length &&
+	 (c= my_getc(*cur_file)) == *(delimiter + i);
+       i++)
     tmp[i]= c;
-  tmp[i]= c;
 
-  for (j= i; j > 0 && i != delimiter_length; j--)
-    ungetc(tmp[j], *cur_file);
   if (i == delimiter_length)
-  {
-    ungetc(tmp[i], *cur_file);
-    *p= 0;
-    return 1;
-  }
+    return 1;					/* Found delimiter */
+
+  /* didn't find delimiter, push back things that we read */
+  for (j = 1 ; j <= i ; j++)
+    my_ungetc(tmp[j]);
   return 0;
 }
 
@@ -1683,7 +1711,7 @@ int read_line(char* buf, int size)
   for (; p < buf_end ;)
   {
     no_save= 0;
-    c= fgetc(*cur_file);
+    c= my_getc(*cur_file);
     if (feof(*cur_file))
     {
       if ((*cur_file) != stdin)
@@ -1698,8 +1726,11 @@ int read_line(char* buf, int size)
     switch(state) {
     case R_NORMAL:
       /*  Only accept '{' in the beginning of a line */
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       else if (c == '\'')
 	state = R_Q1;
       else if (c == '"')
@@ -1735,7 +1766,7 @@ int read_line(char* buf, int size)
 	*buf= 0;
 	return 0;
       }
-      else if (end_of_query(c, p) || c == '{')
+      else if (end_of_query(c) || c == '{')
       {
 	*p= 0;
 	return 0;
@@ -1755,8 +1786,11 @@ int read_line(char* buf, int size)
 	state= R_ESC_SLASH_Q1;
       break;
     case R_ESC_Q_Q1:
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       if (c != '\'')
 	state= R_NORMAL;
       else
@@ -1773,8 +1807,11 @@ int read_line(char* buf, int size)
 	state= R_ESC_SLASH_Q2;
       break;
     case R_ESC_Q_Q2:
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       if (c != '"')
 	state= R_NORMAL;
       else

@@ -10,27 +10,39 @@ set @name="This is a very long string, that mustn't find room in a system field 
 
 create table test_db select * from mysql.db;
 delete from test_db;
+--disable_warnings
 insert into test_db (Host,Db,User) values (@name,@name,@name);
+--enable_warnings
 
 create table test_host select * from mysql.host;
 delete from test_host;
+--disable_warnings
 insert into test_host (Host,Db) values (@name,@name);
+--enable_warnings
 
 create table test_user select * from mysql.user;
 delete from test_user;
+--disable_warnings
 insert into test_user (Host,User) values (@name,@name);
+--enable_warnings
 
 create table test_func select * from mysql.func;
 delete from test_func;
+--disable_warnings
 insert into test_func (name) values (@name);
+--enable_warnings
 
 create table test_tables_priv select * from mysql.tables_priv;
 delete from test_tables_priv;
+--disable_warnings
 insert into test_tables_priv (Host,Db,User,Table_name) values (@name,@name,@name,@name);
+--enable_warnings
 
 create table test_columns_priv select * from mysql.columns_priv;
 delete from test_columns_priv;
+--disable_warnings
 insert into test_columns_priv (Host,Db,User,Table_name,Column_name) values (@name,@name,@name,@name,@name);
+--enable_warnings
 
 # 'Host' field must be the same for all the tables:
 

@@ -483,3 +483,16 @@ select col1 n from t1 union select col2 n from t1 order by n;
 alter table t1 add index myindex (col2);
 select col1 n from t1 union select col2 n from t1 order by n;
 drop  table t1;
+
+#
+# Bug #1428, incorrect handling of UNION ALL
+# NOTE: The current result is wrong, needs to be fixed!
+#
+
+create table t1 (i int);
+insert into t1 values (1);
+select * from t1 UNION select * from t1;
+select * from t1 UNION ALL select * from t1;
+# The following should return 2 lines
+select * from t1 UNION select * from t1 UNION ALL select * from t1;
+drop table t1;

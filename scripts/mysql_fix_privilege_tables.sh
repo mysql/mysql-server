@@ -56,21 +56,15 @@ parse_arguments() {
 
 # Get first arguments from the my.cfg file, groups [mysqld] and
 # [mysql_install_db], and then merge with the command line arguments
-if test -x ./bin/my_print_defaults
-then
-  print_defaults="./bin/my_print_defaults"
-elif test -x @bindr@/my_print_defaults
-then
-  print_defaults="@bindir@/my_print_defaults"
-elif test -x @bindir@/mysql_print_defaults
-then
-  print_defaults="@bindir@/mysql_print_defaults"
-elif test -x extra/my_print_defaults
-then
-  print_defaults="extra/my_print_defaults"
-else
-  print_defaults="my_print_defaults"
-fi
+
+for dir in ./bin @bindir@ @bindir@ extra $bindir/../bin $bindir/../extra
+do
+  if test -x $dir/my_print_defaults
+  then
+    print_defaults="$dir/my_print_defaults"
+    break
+  fi
+done
 
 parse_arguments `$print_defaults $defaults mysql_install_db mysql_fix_privilege_tables`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
@@ -109,7 +103,6 @@ fi
 
 cmd="$bindir/mysql -f --user=$user --host=$host"
 if test -z "$password" ; then
-else
   cmd="$cmd --password=$password"
 fi
 if test ! -z "$port"; then

@@ -907,3 +907,18 @@ n
 9
 10
 drop  table t1;
+create table t1 (i int);
+insert into t1 values (1);
+select * from t1 UNION select * from t1;
+i
+1
+select * from t1 UNION ALL select * from t1;
+i
+1
+1
+select * from t1 UNION select * from t1 UNION ALL select * from t1;
+i
+1
+1
+1
+drop table t1;
