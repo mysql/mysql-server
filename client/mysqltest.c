@@ -95,9 +95,13 @@ static FILE** cur_file;
 static FILE** file_stack_end;
 static uint lineno_stack[MAX_INCLUDE_DEPTH];
 static char TMPDIR[FN_REFLEN];
+static int  *block_ok_stack_end;
 
-static int block_stack[BLOCK_STACK_DEPTH];
 static int *cur_block, *block_stack_end;
+static int block_stack[BLOCK_STACK_DEPTH];
+
+
+static int block_ok_stack[BLOCK_STACK_DEPTH];
 static uint global_expected_errno[MAX_EXPECTED_ERRORS];
 
 DYNAMIC_ARRAY q_lines;
@@ -121,7 +125,7 @@ typedef struct
 
 PARSER parser;
 MASTER_POS master_pos;
-int block_ok = 1; /* set to 0 if the current block should not be executed */
+int* block_ok; /* set to 0 if the current block should not be executed */
 int false_block_depth = 0;
 const char* result_file = 0; /* if set, all results are concated and
 				compared against this file*/
@@ -1091,13 +1095,14 @@ int do_done(struct st_query* q)
   q->type = Q_END_BLOCK;
   if (cur_block == block_stack)
     die("Stray '}' - end of block before beginning");
-  if (block_ok)
+  if (*block_ok--)
+  {
     parser.current_line = *--cur_block;
+  }
   else
     {
-      if (!--false_block_depth)
-	block_ok = 1;
       ++parser.current_line;
+      --cur_block;
     }
   return 0;
 }
@@ -1109,11 +1114,14 @@ int do_while(struct st_query* q)
   VAR v;
   if (cur_block == block_stack_end)
 	die("Nesting too deeply");
-  if (!block_ok)
+  if (!*block_ok)
     {
       ++false_block_depth;
+      *++block_ok = 0;
+      *cur_block++ = parser.current_line++;
       return 0;
     }
+    
   expr_start = strchr(p, '(');
   if (!expr_start)
     die("missing '(' in while");
@@ -1124,9 +1132,11 @@ int do_while(struct st_query* q)
   *cur_block++ = parser.current_line++;
   if (!v.int_val)
     {
-      block_ok = 0;
-      false_block_depth = 1;
+      *++block_ok = 0;
+      false_block_depth++;
     }
+  else
+    *++block_ok = 1;
   return 0;
 }
 
@@ -1837,7 +1847,11 @@ int main(int argc, char** argv)
 		     INIT_Q_LINES);
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;
+  memset(block_ok_stack, 0, sizeof(block_stack));
+  block_ok_stack_end = block_ok_stack + BLOCK_STACK_DEPTH;
   cur_block = block_stack;
+  block_ok = block_ok_stack;
+  *block_ok = 1;
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
   init_var_hash();
@@ -1861,7 +1875,7 @@ int main(int argc, char** argv)
     int current_line_inc = 1, processed = 0;
     if (q->type == Q_UNKNOWN || q->type == Q_COMMENT_WITH_COMMAND)
       get_query_type(q);
-    if (block_ok)
+    if (*block_ok)
     {
       processed = 1;
       switch (q->type) {
