@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
@@ -105,7 +104,6 @@ Configuration::init(int argc, const char** argv){
   }
   // check for depricated flag '-i'
 
-  my_init();
 #ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);

@@ -22,6 +22,7 @@
 
 
 int main(int argc, const char** argv){
+  ndb_init();
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";
   int _unqualified = 0;

@@ -14,43 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 #include <ndb_global.h>
-#include <NdbOut.hpp>
+#include <my_sys.h>
 
-#include <NdbApi.hpp>
-#include <NdbMain.h>
-#include <NDBT.hpp> 
-#include <NdbSleep.h>
-#include <getarg.h>
-#include "Bank.hpp"
- 
-
-int main(int argc, const char** argv){
-  ndb_init();
-  int _help = 0;
-  
-  struct getargs args[] = {
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
-  char desc[] = 
-    "This program will make GL records in the bank\n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) ||  _help) {
-    arg_printusage(args, num_args, argv[0], desc);
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+int
+ndb_init()
+{
+  if (my_init()) {
+    const char* err = "my_init() failed - exit\n";
+    write(2, err, strlen(err));
+    exit(1);
   }
-
-  Bank bank;
-
-  if (bank.performMakeGLs() != 0)
-    return NDBT_ProgramExit(NDBT_FAILED);
-  
-  return NDBT_ProgramExit(NDBT_OK);
-
+  return 0;
 }
-
-
-

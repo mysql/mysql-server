@@ -610,6 +610,7 @@ extern "C" void* ThreadFunc(void*)
 
 int main(int argc, char* argv[])
 {
+    ndb_init();
     Uint32 nSeconds = 1;
     Uint32 nThread = 1;
 

@@ -171,6 +171,7 @@ tellThreads(StartType what)
 
 NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
 {
+  ndb_init();
   ThreadNdb*            pThreadData;
   int                   returnValue = NDBT_OK;
   int i;

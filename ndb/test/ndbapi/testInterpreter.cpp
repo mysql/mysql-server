@@ -224,6 +224,7 @@ TESTCASE("NdbErrorOperation",
 NDBT_TESTSUITE_END(testInterpreter);
 
 int main(int argc, const char** argv){
+  ndb_init();
   //  TABLE("T1");
   return testInterpreter.execute(argc, argv);
 }

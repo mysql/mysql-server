@@ -79,6 +79,7 @@ const int arg_count = 10;
 
 int
 main(int argc, const char ** argv){
+  ndb_init();
   
   bool restart = true;
   int lineno = 1;
