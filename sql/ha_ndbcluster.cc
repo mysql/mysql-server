@@ -183,16 +183,40 @@ bool ha_ndbcluster::get_error_message(int error,
 
 /*
   Check if type is supported by NDB.
+  TODO Use this once, not in every operation
 */
 
 static inline bool ndb_supported_type(enum_field_types type)
 {
   switch (type) {
+  case MYSQL_TYPE_DECIMAL:    
+  case MYSQL_TYPE_TINY:        
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_INT24:       
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:    
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:        
+  case MYSQL_TYPE_YEAR:        
+  case MYSQL_TYPE_STRING:      
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_BLOB:    
+  case MYSQL_TYPE_MEDIUM_BLOB:   
+  case MYSQL_TYPE_LONG_BLOB:  
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:         
+    return true;
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
-    return false;
+    break;
   }
-  return true;
+  return false;
 }
 
 
