@@ -37,7 +37,7 @@ Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build) {
 
 char * getVersionString(Uint32 version, char * status) {
   char buff[100];
-  if (status)
+  if (status && status[0] != 0)
     snprintf(buff, sizeof(buff),
 	     "Version %d.%d.%d (%s)",
 	     getMajor(version),
