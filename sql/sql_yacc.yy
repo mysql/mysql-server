@@ -2851,6 +2851,11 @@ show_param:
 	    lex->grant_user=$3;
 	    lex->grant_user->password.str=NullS;
 	  }
+	| CREATE DATABASE ident
+	  {
+	    Lex->sql_command=SQLCOM_SHOW_CREATE_DB;
+	    Lex->name=$3.str;
+	  }
         | CREATE TABLE_SYM table_ident
           {
 	    Lex->sql_command = SQLCOM_SHOW_CREATE;
