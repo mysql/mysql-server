@@ -3037,12 +3037,11 @@ You should consider changing lower_case_table_names to 1 or 2",
              (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
     if (global_system_variables.log_warnings)
-      sql_print_warning("\
-You have forced lower_case_table_names to 2 through a command-line \
-option, even though your file system '%s' is case sensitive.  This means \
-that you can create a table that you can then no longer access. \
-You should consider changing lower_case_table_names to 0.",
+      sql_print_warning("lower_case_table_names was set to 2, even though your "
+                        "the file system '%s' is case sensitive.  Now setting "
+                        "lower_case_table_names to 0 to avoid future problems.",
 			mysql_real_data_home);
+    lower_case_table_names= 0;
   }
 
   select_thread=pthread_self();
