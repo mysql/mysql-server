@@ -247,7 +247,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (wrong_tables.length())
 	wrong_tables.append(',');
-      wrong_tables.append(String(table->real_name,default_charset_info));
+      wrong_tables.append(String(table->real_name,system_charset_info));
     }
   }
   thd->tmp_table_used= tmp_table_deleted;

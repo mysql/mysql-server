@@ -4549,7 +4549,7 @@ void Field_geom::set_key_image(char *buff,uint length,CHARSET_INFO *cs)
 
 void Field_geom::sql_type(String &res) const
 {
-  res.set("geometry", 8, default_charset_info);
+  res.set("geometry", 8, &my_charset_latin1);
 }
 
 int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
