@@ -37,6 +37,7 @@ typedef struct xml_attr_st
   const char *end;
 } MY_XML_ATTR;
 
+
 static const char *lex2str(int lex)
 {
   switch(lex)
@@ -97,7 +98,8 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   else if ( (p->cur[0]=='"') || (p->cur[0]=='\'') )
   {
     p->cur++;
-    for(  ; ( p->cur < p->end ) && (p->cur[0]!=a->beg[0]); p->cur++);
+    for(  ; ( p->cur < p->end ) && (p->cur[0] != a->beg[0]); p->cur++)
+    {}
     a->end=p->cur;
     if (a->beg[0]==p->cur[0])p->cur++;
     a->beg++;
@@ -106,7 +108,10 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   }
   else
   {
-    for( ; (p->cur < p->end) && !strchr("?'\"=/<> \t\r\n", p->cur[0]); p->cur++);
+    for(;
+	(p->cur < p->end) && !strchr("?'\"=/<> \t\r\n", p->cur[0]);
+	p->cur++)
+    {}
     a->end=p->cur;
     my_xml_norm_text(a);
     lex=MY_XML_IDENT;
@@ -145,12 +150,14 @@ static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
   return st->enter ? st->enter(st,st->attr,st->attrend-st->attr) : MY_XML_OK;
 }
 
+
 static void mstr(char *s,const char *src,uint l1, uint l2)
 {
   l1 = l1<l2 ? l1 : l2;
   memcpy(s,src,l1);
   s[l1]='\0';
 }
+
 
 static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
 {
@@ -172,7 +179,7 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
     return MY_XML_ERROR;
   }
   
-  rc = p->leave ? p->leave(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
+  rc = p->leave_xml ? p->leave_xml(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
   
   *e='\0';
   p->attrend=e;
@@ -237,7 +244,8 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
       }
       else
       {
-        sprintf(p->errstr,"3: %s unexpected (ident or '/' wanted)",lex2str(lex));
+        sprintf(p->errstr,"3: %s unexpected (ident or '/' wanted)",
+		lex2str(lex));
         return MY_XML_ERROR;
       }
       
@@ -256,7 +264,8 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
           }
           else
           {
-            sprintf(p->errstr,"4: %s unexpected (ident or string wanted)",lex2str(lex));
+            sprintf(p->errstr,"4: %s unexpected (ident or string wanted)",
+		    lex2str(lex));
             return MY_XML_ERROR;
           }
         }
@@ -318,34 +327,46 @@ gt:
   return MY_XML_OK;
 }
 
+
 void my_xml_parser_create(MY_XML_PARSER *p)
 {
   bzero((void*)p,sizeof(p[0]));
 }
 
+
 void my_xml_parser_free(MY_XML_PARSER *p  __attribute__((unused)))
 {
 }
 
-void my_xml_set_value_handler(MY_XML_PARSER *p, int (*action)(MY_XML_PARSER *p, const char *s, uint l))
+
+void my_xml_set_value_handler(MY_XML_PARSER *p,
+			      int (*action)(MY_XML_PARSER *p, const char *s,
+					    uint l))
 {
   p->value=action;
 }
 
-void my_xml_set_enter_handler(MY_XML_PARSER *p, int (*action)(MY_XML_PARSER *p, const char *s, uint l))
+void my_xml_set_enter_handler(MY_XML_PARSER *p,
+			      int (*action)(MY_XML_PARSER *p, const char *s,
+					    uint l))
 {
   p->enter=action;
 }
 
-void my_xml_set_leave_handler(MY_XML_PARSER *p, int (*action)(MY_XML_PARSER *p, const char *s, uint l))
+
+void my_xml_set_leave_handler(MY_XML_PARSER *p,
+			      int (*action)(MY_XML_PARSER *p, const char *s,
+					    uint l))
 {
-  p->leave=action;
+  p->leave_xml=action;
 }
+
 
 void my_xml_set_user_data(MY_XML_PARSER *p, void *user_data)
 {
   p->user_data=user_data;
 }
+
 
 const char *my_xml_error_string(MY_XML_PARSER *p)
 {
@@ -358,8 +379,10 @@ uint my_xml_error_pos(MY_XML_PARSER *p)
   const char *beg=p->beg;
   const char *s;
   for ( s=p->beg ; s<p->cur; s++)
+  {
     if (s[0]=='\n')
       beg=s;
+  }
   return p->cur-beg;
 }
 
@@ -368,7 +391,9 @@ uint my_xml_error_lineno(MY_XML_PARSER *p)
   uint res=0;
   const char *s;
   for ( s=p->beg ; s<p->cur; s++)
+  {
     if (s[0]=='\n')
       res++;
+  }
   return res;
 }

@@ -110,6 +110,7 @@
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
 #endif
 
+#ifdef HPUX11
 /*
   Fix warnings on HPUX11
   There is something really strange with HPUX11 include files as you get
@@ -117,11 +118,10 @@
   do the following:
  */
 #if !defined(_XOPEN_SOURCE_EXTENDED) && ! defined(__cplusplus)
-#define _XOPEN_SOURCE_EXTENDED
+#define _XOPEN_SOURCE_EXTENDED 1
 #endif
 
 /* Fix type of socklen as this is depending on the above define */
-#ifdef HPUX11
 #undef SOCKET_SIZE_TYPE
 #ifdef _XOPEN_SOURCE_EXTENDED
 #define SOCKET_SIZE_TYPE socklen_t

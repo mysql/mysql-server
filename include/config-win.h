@@ -143,6 +143,11 @@ typedef uint rf_SetTimer;
 #define HAVE_NAMED_PIPE			/* We can only create pipes on NT */
 #endif
 
+/* We need to close files to break connections on shutdown */
+#ifndef SIGNAL_WITH_VIO_CLOSE
+#define SIGNAL_WITH_VIO_CLOSE
+#endif
+
 /* Use all character sets in MySQL */
 #define USE_MB 1
 #define USE_MB_IDENT 1
@@ -324,4 +329,4 @@ inline double ulonglong2double(ulonglong value)
 #define statistic_increment(V,L) thread_safe_increment((V),(L))
 
 #define shared_memory_buffer_length 16000
-#define default_shared_memory_base_name "MYSQL";
+#define default_shared_memory_base_name "MYSQL"
