@@ -1216,7 +1216,6 @@ mysql_execute_command(void)
 #endif
   }
   
-  thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
   /*
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
