@@ -1567,7 +1567,7 @@ fil_op_write_log(
 	
 	mlog_close(mtr, log_ptr);
 
-	mlog_catenate_string(mtr, name, ut_strlen(name) + 1);
+	mlog_catenate_string(mtr, (byte*) name, ut_strlen(name) + 1);
 
 	if (type == MLOG_FILE_RENAME) {
 		log_ptr = mlog_open(mtr, 30);
@@ -1576,7 +1576,7 @@ fil_op_write_log(
 	
 		mlog_close(mtr, log_ptr);
 
-		mlog_catenate_string(mtr, new_name, ut_strlen(new_name) + 1);
+		mlog_catenate_string(mtr, (byte*) new_name, ut_strlen(new_name) + 1);
 	}
 }
 #endif
@@ -1630,7 +1630,7 @@ fil_op_log_parse_or_replay(
 		return(NULL);
 	}
 
-	name = ptr;
+	name = (char*) ptr;
 
 	ptr += name_len;
 
@@ -1649,7 +1649,7 @@ fil_op_log_parse_or_replay(
 			return(NULL);
 		}
 
-		new_name = ptr;
+		new_name = (char*) ptr;
 
 		ptr += new_name_len;
 	}

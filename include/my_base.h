@@ -133,7 +133,7 @@ enum ha_extra_function {
   HA_EXTRA_RETRIEVE_ALL_COLS,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
-  HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
+  HA_EXTRA_PRELOAD_BUFFER_SIZE          /* Set buffer size for preloading */
 };
 
 	/* The following is parameter to ha_panic() */
