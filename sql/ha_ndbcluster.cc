@@ -69,6 +69,7 @@ typedef NdbDictionary::Dictionary  NDBDICT;
 bool ndbcluster_inited= false;
 
 static Ndb* g_ndb= NULL;
+static Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 
 // Handler synchronization
 pthread_mutex_t ndbcluster_mutex;
@@ -3183,12 +3184,12 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_ndb(NULL),
-  m_share(0),
   m_table(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
 		HA_NULL_IN_KEY |
                 HA_NOT_EXACT_COUNT |
                 HA_NO_PREFIX_CHAR_KEYS),
+  m_share(0),
   m_use_write(false),
   retrieve_all_fields(FALSE),
   rows_to_insert(1),
@@ -3196,8 +3197,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   bulk_insert_rows(1024),
   bulk_insert_not_flushed(false),
   ops_pending(0),
-  blobs_pending(0),
   skip_auto_increment(true),
+  blobs_pending(0),
   blobs_buffer(0),
   blobs_buffer_size(0),
   dupkey((uint) -1)
@@ -3311,7 +3312,7 @@ Ndb* ha_ndbcluster::seize_ndb()
   // Seize from pool
   ndb= Ndb::seize();
 #else
-  ndb= new Ndb("");  
+  ndb= new Ndb(g_ndb_cluster_connection, "");  
 #endif
   if (ndb->init(max_transactions) != 0)
   {
@@ -3395,8 +3396,12 @@ int ndbcluster_discover(const char *dbname, const char *name,
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", dbname, name)); 
 
-  Ndb ndb(dbname);
-  if ((ndb.init() != 0) && (ndb.waitUntilReady() != 0))
+  Ndb ndb(g_ndb_cluster_connection, dbname);
+
+  if (ndb.init())
+    ERR_RETURN(ndb.getNdbError());
+
+  if (ndb.waitUntilReady(0))
     ERR_RETURN(ndb.getNdbError());
   
   if (!(tab= ndb.getDictionary()->getTable(name)))
@@ -3471,21 +3476,24 @@ bool ndbcluster_init()
   DBUG_ENTER("ndbcluster_init");
   // Set connectstring if specified
   if (ndbcluster_connectstring != 0)
-  {
     DBUG_PRINT("connectstring", ("%s", ndbcluster_connectstring));     
-    Ndb::setConnectString(ndbcluster_connectstring);
+  if ((g_ndb_cluster_connection=
+       new Ndb_cluster_connection(ndbcluster_connectstring)) == 0)
+  {
+    DBUG_PRINT("error",("Ndb_cluster_connection(%s)",ndbcluster_connectstring));
+    DBUG_RETURN(TRUE);
+  }
+  if (g_ndb_cluster_connection->start_connect_thread())
+  {
+    DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
+    DBUG_RETURN(TRUE);
   }
   // Create a Ndb object to open the connection  to NDB
-  g_ndb= new Ndb("sys");
+  g_ndb= new Ndb(g_ndb_cluster_connection, "sys");
   if (g_ndb->init() != 0)
   {
     ERR_PRINT (g_ndb->getNdbError());
     DBUG_RETURN(TRUE);
-  }
-  if (g_ndb->waitUntilReady() != 0)
-  {
-    ERR_PRINT (g_ndb->getNdbError());
-    DBUG_RETURN(TRUE);   
   }
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
@@ -3511,6 +3519,9 @@ bool ndbcluster_end()
 
   delete g_ndb;
   g_ndb= NULL;
+  if (g_ndb_cluster_connection)
+    delete g_ndb_cluster_connection;
+  g_ndb_cluster_connection= NULL;
   if (!ndbcluster_inited)
     DBUG_RETURN(0);
   hash_free(&ndbcluster_open_tables);
