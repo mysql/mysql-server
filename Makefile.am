@@ -29,7 +29,8 @@ SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 # Relink after clean
 linked_sources = linked_client_sources linked_server_sources \
 		 linked_libmysql_sources linked_libmysql_r_sources \
-		 linked_libmysqld_sources linked_include_sources
+		 linked_libmysqld_sources  linked_libmysqldex_sources \
+		 linked_include_sources
 
 CLEANFILES = $(linked_sources)
 
@@ -55,6 +56,10 @@ linked_libmysql_r_sources: linked_libmysql_sources
 linked_libmysqld_sources:
 	cd libmysqld; $(MAKE) link_sources
 	echo timestamp > linked_libmysqld_sources
+
+linked_libmysqldex_sources:
+	cd libmysqld/examples; $(MAKE) link_sources
+	echo timestamp > linked_libmysqldex_sources
 
 #avoid recursive make calls in sql directory
 linked_server_sources:

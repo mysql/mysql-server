@@ -177,6 +177,7 @@ gmon.out
 heap/hp_test1
 heap/hp_test2
 include/my_config.h
+include/my_global.h
 include/mysql_version.h
 include/widec.h
 innobase/conftest.s1
@@ -283,6 +284,7 @@ linked_include_sources
 linked_libmysql_r_sources
 linked_libmysql_sources
 linked_libmysqld_sources
+linked_libmysqldex_sources
 linked_server_sources
 linked_tools_sources
 locked
@@ -393,11 +395,10 @@ support-files/mysql.spec
 tags
 tmp/*
 tools/my_vsnprintf.c
+tools/mysqlmanager
 tools/mysqlmngd
 tools/mysys_priv.h
+vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-tools/mysqlmanager
-vio/test-ssl
-vio/test-ssl
