@@ -1753,7 +1753,7 @@ void Unknown_log_event::print(FILE* file, bool short_form, char* last_db)
 #ifndef MYSQL_CLIENT
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  int expected_error,actual_error = 0;
+  int expected_error, actual_error= 0;
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
 
@@ -1801,19 +1801,30 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       else if (!strcmp(thd->query,"COMMIT"))
 	rli->inside_transaction=0;
 
+      /*
+        If we expected a non-zero error code, and we don't get the same error
+        code, and none of them should be ignored.
+      */
       if ((expected_error != (actual_error = thd->net.last_errno)) &&
 	  expected_error &&
 	  !ignored_error_code(actual_error) &&
 	  !ignored_error_code(expected_error))
       {
-	const char* errmsg = "Slave: did not get the expected error\
- running query from master - expected: '%s' (%d), got '%s' (%d)"; 
-	sql_print_error(errmsg, ER_SAFE(expected_error),
-			expected_error,
-			actual_error ? thd->net.last_error: "no error",
-			actual_error);
-	thd->query_error = 1;
+	slave_print_error(rli, 0,
+                          "Query '%s' did not get the same error as the query \
+got on master - got on master: '%s' (%d), got on slave: '%s' (%d) \
+(default database was '%s')",
+                          query,
+                          ER_SAFE(expected_error),
+                          expected_error,
+                          actual_error ? thd->net.last_error: "no error",
+                          actual_error,
+                          print_slave_db_safe((char*)db));
+	thd->query_error= 1;
       }
+      /*
+        If we get the same error code as expected, or they should be ignored. 
+      */
       else if (expected_error == actual_error ||
 	       ignored_error_code(actual_error))
       {
@@ -1821,37 +1832,38 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 	*rli->last_slave_error = 0;
 	rli->last_slave_errno = 0;
       }
-    }
-    else
-    {
-      // master could be inconsistent, abort and tell DBA to check/fix it
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
-      thd->db = thd->query = 0;
-      VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      thd->variables.convert_set = 0;
-      close_thread_tables(thd);
-      free_root(&thd->mem_root,0);
-      return 1;
-    }
-  }
-  thd->db= 0;				// prevent db from being freed
+      /*
+        Other cases: mostly we expected no error and get one.
+      */
+      else if (thd->query_error || thd->fatal_error)
+      {
+        slave_print_error(rli,actual_error, "Error '%s' on query '%s' \
+(default database was '%s')",
+                          actual_error ? thd->net.last_error :
+                          "unexpected success or fatal error", query,
+                          print_slave_db_safe((char*)db)); 
+        thd->query_error= 1;
+      }
+    } 
+    /* 
+       End of sanity check. If the test was wrong, the query got a really bad
+       error on the master, which could be inconsistent, abort and tell DBA to
+       check/fix it. check_expected_error() already printed the message to
+       stderr and rli, and set thd->query_error to 1.
+    */
+  } /* End of if (db_ok(... */
+
+end:
+
   VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->db= 0;	                        // prevent db from being freed
   thd->query= 0;			// just to be sure
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
   thd->variables.convert_set = 0;
-  close_thread_tables(thd);
-      
-  if (thd->query_error || thd->fatal_error)
-  {
-    slave_print_error(rli,actual_error, "error '%s' on query '%s'",
-		      actual_error ? thd->net.last_error :
-		      "unexpected success or fatal error", query);
-    free_root(&thd->mem_root,0);
-    return 1;
-  }
+  close_thread_tables(thd);      
   free_root(&thd->mem_root,0);
-  return Log_event::exec_event(rli); 
+  return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
 }
 
 /*
@@ -1972,8 +1984,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	   event in the master log
 	*/
 	sql_print_error("Slave: load data infile at position %s in log \
-'%s' produced %d warning(s)", llstr(log_pos,llbuff), RPL_LOG_NAME, 
-			thd->cuted_fields );
+'%s' produced %d warning(s) (loaded table was '%s', database was '%s')",
+                        llstr(log_pos,llbuff), RPL_LOG_NAME, 
+			thd->cuted_fields,
+                        (char*)table_name,
+                        print_slave_db_safe((char*)db));
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
     }
@@ -2005,8 +2020,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       err=ER(sql_errno);       
     }
     slave_print_error(rli,sql_errno,
-		      "Error '%s' running load data infile",
-		      err);
+		      "Error '%s' running load data infile \
+(loaded table was '%s', database was '%s')",
+		      err, (char*)table_name, print_slave_db_safe((char*)db));
     free_root(&thd->mem_root,0);
     return 1;
   }
@@ -2014,7 +2030,10 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	    
   if (thd->fatal_error)
   {
-    sql_print_error("Fatal error running LOAD DATA INFILE ");
+    slave_print_error(rli,ER_UNKNOWN_ERROR,
+"Fatal error running \
+LOAD DATA INFILE (loaded table was '%s', database was '%s')",
+                    (char*)table_name, print_slave_db_safe((char*)db));
     return 1;
   }
 
@@ -2311,7 +2330,21 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   */
   if (lev->exec_event(0,rli,1)) 
   {
-    slave_print_error(rli,my_errno, "Failed executing load from '%s'", fname);
+    /*
+      We want to indicate the name of the file that could not be loaded
+      (SQL_LOADxxx).
+      But as we are here we are sure the error is in rli->last_slave_error and
+      rli->last_slave_errno (example of error: duplicate entry for key), so we
+      don't want to overwrite it with the filename.
+      What we want instead is add the filename to the current error message.
+    */
+    char *tmp= my_strdup(rli->last_slave_error,MYF(MY_WME));
+    if (!tmp)
+      goto err;
+    slave_print_error(rli,rli->last_slave_errno, /* ok to re-use the error code */
+                      "%s. Failed executing load from '%s'", 
+                      tmp, fname);
+    my_free(tmp,MYF(0));
     thd->options = save_options;
     goto err;
   }

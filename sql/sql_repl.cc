@@ -878,9 +878,14 @@ int change_master(THD* thd, MASTER_INFO* mi)
     and we have the hold on the run locks which will keep all threads that
     could possibly modify the data structures from running
   */
+
+  /*
+    If the user specified host or port without binlog or position, 
+    reset binlog's name to FIRST and position to 4.
+  */ 
+
   if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
   {
-    // if we change host or port, we must reset the postion
     mi->master_log_name[0] = 0;
     mi->master_log_pos= BIN_LOG_HEADER_SIZE;
     mi->rli.pending = 0;
@@ -950,15 +955,24 @@ int change_master(THD* thd, MASTER_INFO* mi)
       DBUG_RETURN(1);
     }
   }
-  mi->rli.master_log_pos = mi->master_log_pos;
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  /* If changing RELAY_LOG_FILE or RELAY_LOG_POS, this will be nonsense: */
+  mi->rli.master_log_pos = mi->master_log_pos;
   strmake(mi->rli.master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.master_log_name)-1);
   if (!mi->rli.master_log_name[0]) // uninitialized case
     mi->rli.master_log_pos=0;
 
   pthread_mutex_lock(&mi->rli.data_lock);
-  mi->rli.abort_pos_wait++;
+  mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
+  /* 
+     If we don't write new coordinates to disk now, then old will remain in
+     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
+     before START SLAVE, then old will remain in relay-log.info, and will be the
+     in-memory value at restart (thus causing errors, as the old relay log does
+     not exist anymore).
+  */
+  flush_relay_log_info(&mi->rli); 
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 
