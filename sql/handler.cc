@@ -316,7 +316,10 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
     thd->tx_isolation=thd->session_tx_isolation;
     if (operation_done)
+    {
       statistic_increment(ha_commit_count,&LOCK_status);
+      thd->transaction.cleanup();
+    }
   }
 #endif // using transactions
   DBUG_RETURN(error);
@@ -361,7 +364,10 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
     thd->tx_isolation=thd->session_tx_isolation;
     if (operation_done)
+    {
       statistic_increment(ha_rollback_count,&LOCK_status);
+      thd->transaction.cleanup();
+    }
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
