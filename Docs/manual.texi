@@ -6259,9 +6259,8 @@ shell> ln -s full-path-to-mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
 shell> chown -R root  .
-shell> chown -R mysql ./data
+shell> chown -R mysql data
 shell> chgrp -R mysql .
-shell> chown -R root ./bin
 shell> bin/safe_mysqld --user=mysql &
 or
 shell> bin/mysqld_safe --user=mysql &
@@ -6394,9 +6393,9 @@ Change ownership of binaries to @code{root} and ownership of the data
 directory to the user that you will run @code{mysqld} as:
 
 @example
-shell> chown -R root  /usr/local/mysql
+shell> chown -R root  /usr/local/mysql/.
 shell> chown -R mysql /usr/local/mysql/data
-shell> chgrp -R mysql /usr/local/mysql
+shell> chgrp -R mysql /usr/local/mysql/.
 @end example
 
 The first command changes the @code{owner} attribute of the files to the
