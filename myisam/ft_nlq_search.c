@@ -99,6 +99,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   info->update|= HA_STATE_AKTIV;              /* for _mi_test_if_changed() */
 
+  /* The following should be safe, even if we compare doubles */
   while (!r && gweight)
   {
 
@@ -127,6 +128,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 #else
 #error
 #endif
+  /* The following should be safe, even if we compare doubles */
     if (tmp_weight==0)
       DBUG_RETURN(doc_cnt); /* stopword, doc_cnt should be 0 */
 
