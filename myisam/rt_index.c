@@ -86,7 +86,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
     if (nod_flag) 
     { 
       /* this is an internal node in the tree */
-      if (!(res = rtree_key_cmp(keyinfo->seg, info->lastkey2, k, 
+      if (!(res = rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k, 
                             info->last_rkey_length, nod_cmp_flag)))
       {
         switch ((res = rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag,
@@ -107,7 +107,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
     else 
     { 
       /* this is a leaf */
-      if (!rtree_key_cmp(keyinfo->seg, info->lastkey2, k, 
+      if (!rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k, 
                          info->last_rkey_length, search_flag))
       {
         uchar *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
@@ -180,7 +180,8 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
   }
 
   /* Save searched key */
-  memcpy(info->lastkey2, key, keyinfo->keylength - info->s->base.rec_reflength);
+  memcpy(info->first_mbr_key, key, keyinfo->keylength -
+	 info->s->base.rec_reflength);
   info->last_rkey_length = key_length;
 
   info->rtree_recursion_depth = -1;
@@ -194,6 +195,12 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
 
 /* 
    Find next key in r-tree according to search_flag condition
+
+  SYNOPSIS
+   rtree_find_next()
+   info			Handler to MyISAM file
+   uint keynr		Key number to use
+   search_flag		Bitmap of flags how to do the search
 
    RETURN
      -1  Error
@@ -217,7 +224,7 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
 
     while (key < info->int_maxpos)
     {
-      if (!rtree_key_cmp(keyinfo->seg, info->lastkey2, key, 
+      if (!rtree_key_cmp(keyinfo->seg, info->first_mbr_key, key, 
                          info->last_rkey_length, search_flag))
       {
         uchar *after_key = key + keyinfo->keylength;
@@ -353,13 +360,16 @@ err1:
   return -1;
 }
 
+
 /*
-Get first key in r-tree
-Result values:
--1 - error
- 0 - found
- 1 - not found
+  Get first key in r-tree
+
+  RETURN
+    -1	Error
+    0	Found
+    1	Not found
 */
+
 int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
 {
   my_off_t root;
@@ -377,12 +387,16 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
   return rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
 }
 
-/* Get next key in r-tree
-Result values:
--1 - error
- 0 - found
- 1 - not found
+
+/* 
+  Get next key in r-tree
+
+  RETURN
+    -1	Error
+    0	Found
+    1	Not found
 */
+
 int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
 {
   my_off_t root;
@@ -421,13 +435,16 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
   }
 }
 
+
 /*
-Go down and insert key into tree
-Result values:
--1 - error
- 0 - child was not split
- 1 - child was split
+  Go down and insert key into tree
+
+  RETURN
+    -1	Error
+    0	Child was not split
+    1	Child was split
 */
+
 static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
                             uint key_length, my_off_t page, my_off_t *new_page, 
                             int ins_level, int level)
@@ -504,13 +521,16 @@ err1:
   return -1;
 }
 
+
 /*
-Insert key into the tree
-Result values:
--1 - error
- 0 - root was not split
- 1 - root was split
+  Insert key into the tree
+
+  RETURN
+    -1	Error
+    0	Root was not split
+    1	Root was split
 */
+
 static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key, 
                              uint key_length, int ins_level)
 {
@@ -594,20 +614,29 @@ err1:
   return res;
 }
 
+
 /*
-Insert key into the tree - interface function
-Result values:
--1 - error
- 0 - OK
+  Insert key into the tree - interface function
+
+  RETURN
+    -1	Error
+    0	OK
 */
+
 int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 {
   return (rtree_insert_level(info, keynr, key, key_length, -1) == -1) ? -1 : 0;
 }
 
+
 /* 
-Fill reinsert page buffer 
+  Fill reinsert page buffer 
+
+  RETURN
+    -1	Error
+    0	OK
 */
+
 static int rtree_fill_reinsert_list(stPageList *ReinsertList, my_off_t page, 
                                     int level)
 {
@@ -628,14 +657,17 @@ err1:
   return -1;
 }
 
+
 /*
-Go down and delete key from the tree
-Result values:
--1 - error
- 0 - deleted
- 1 - not found
- 2 - empty leaf
+  Go down and delete key from the tree
+
+  RETURN
+    -1	Error
+    0	Deleted
+    1	Not found
+    2	Empty leaf
 */
+
 static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
                            uint key_length, my_off_t page, uint *page_size, 
                            stPageList *ReinsertList, int level)
@@ -754,12 +786,15 @@ err1:
   return -1;
 }
 
+
 /*
-Delete key - interface function
-Result values:
--1 - error
- 0 - deleted
+  Delete key - interface function
+
+  RETURN
+    -1	Error
+    0	Deleted
 */
+
 int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 {
   uint page_size;
@@ -860,9 +895,14 @@ err1:
   }
 }
 
+
 /* 
-Estimate number of suitable keys in the tree 
+  Estimate number of suitable keys in the tree 
+
+  RETURN
+    estimated value
 */
+
 ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key, 
                        uint key_length, uint flag)
 {
