@@ -109,6 +109,6 @@ update t1 set b=4 where a=1 order by b desc limit 1;
 select * from t1;
 a	b
 1	4
-1	4
 1	2
+1	4
 drop table t1;
