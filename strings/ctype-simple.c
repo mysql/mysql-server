@@ -15,8 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
+#include "my_sys.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "dbug.h"
+#include "stdarg.h"
 #include "assert.h"
 
 int my_strnxfrm_simple(CHARSET_INFO * cs, 
@@ -117,6 +120,67 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
     }
   }
   return MY_CS_ILUNI;
+}
+
+
+static int my_vsnprintf_8bit(char *to, size_t n, const char* fmt, va_list ap)
+{
+  char *start=to, *end=to+n-1;
+  for (; *fmt ; fmt++)
+  {
+    if (fmt[0] != '%')
+    {
+      if (to == end)			/* End of buffer */
+	break;
+      *to++= *fmt;			/* Copy ordinary char */
+      continue;
+    }
+    /* Skip if max size is used (to be compatible with printf) */
+    fmt++;
+    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
+      fmt++;
+    if (*fmt == 'l')
+      fmt++;
+    if (*fmt == 's')				/* String parameter */
+    {
+      reg2 char	*par = va_arg(ap, char *);
+      uint plen,left_len = (uint)(end-to);
+      if (!par) par = (char*)"(null)";
+      plen = (uint) strlen(par);
+      if (left_len <= plen)
+	plen = left_len - 1;
+      to=strnmov(to,par,plen);
+      continue;
+    }
+    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
+    {
+      register int iarg;
+      if ((uint) (end-to) < 16)
+	break;
+      iarg = va_arg(ap, int);
+      if (*fmt == 'd')
+	to=int10_to_str((long) iarg,to, -10);
+      else
+	to=int10_to_str((long) (uint) iarg,to,10);
+      continue;
+    }
+    /* We come here on '%%', unknown code or too long parameter */
+    if (to == end)
+      break;
+    *to++='%';				/* % used as % or unknown code */
+  }
+  DBUG_ASSERT(to <= end);
+  *to='\0';				/* End of errmessage */
+  return (uint) (to - start);
+}
+
+
+int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
+		     char* to, uint n, const char* fmt, ...)
+{
+  va_list args;
+  va_start(args,fmt);
+  return my_vsnprintf_8bit(to, n, fmt, args);
 }
 
 

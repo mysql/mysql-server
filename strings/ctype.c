@@ -2838,7 +2838,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -2874,7 +2875,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -2909,7 +2911,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -2944,7 +2947,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -2980,7 +2984,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3015,7 +3020,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3050,7 +3056,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3085,7 +3092,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3121,7 +3129,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3156,7 +3165,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3191,7 +3201,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3226,7 +3237,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3261,7 +3273,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3296,7 +3309,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3331,7 +3345,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3367,7 +3382,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3402,7 +3418,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3438,7 +3455,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3474,7 +3492,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3509,7 +3528,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3544,7 +3564,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3579,7 +3600,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3614,7 +3636,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
   },
 #endif
 
@@ -3650,7 +3673,8 @@ static CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,		/* hash_caseup */
     NULL,		/* hash_sort   */
-    0
+    0,
+    NULL
   }
 };
 

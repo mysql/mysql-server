@@ -177,7 +177,8 @@ static CHARSET_INFO my_charset_bin_st =
     my_strncasecmp_bin,		/* strncasecmp   */
     my_hash_caseup_bin,		/* hash_caseup   */
     my_hash_sort_bin,		/* hash_sort     */
-    255				/* max_sort_char */
+    255,			/* max_sort_char */
+    my_snprintf_8bit		/* snprintf      */
 };
 
 

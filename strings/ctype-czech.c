@@ -625,7 +625,8 @@ CHARSET_INFO my_charset_czech =
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
 };
 
 #endif
