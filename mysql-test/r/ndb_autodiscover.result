@@ -332,7 +332,7 @@ Handler_discover	0
 drop table t6;
 show tables;
 Tables_in_test
-create table t1 (a int) engine=ndb;
+create table t1 (a int,b longblob) engine=ndb;
 show tables;
 Tables_in_test
 t1
@@ -342,10 +342,10 @@ show tables;
 Tables_in_test2
 select * from t1;
 ERROR 42S02: Table 'test2.t1' doesn't exist
-create table t2 (b int) engine=ndb;
+create table t2 (b int,c longblob) engine=ndb;
 use test;
 select * from t1;
-a
+a	b
 show tables;
 Tables_in_test
 t1
