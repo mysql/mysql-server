@@ -3336,7 +3336,7 @@ bool User_var_log_event::write(IO_CACHE* file)
       dec->fix_buffer_pointer();
       buf2[0]= (char)(dec->intg + dec->frac);
       buf2[1]= (char)dec->frac;
-      decimal2bin((decimal*)val, buf2+2, buf2[0], buf2[1]);
+      decimal2bin((decimal_t*)val, buf2+2, buf2[0], buf2[1]);
       val_len= decimal_bin_size(buf2[0], buf2[1]) + 2;
       break;
     }
@@ -3403,8 +3403,8 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
       int str_len= sizeof(str_buf) - 1;
       int precision= (int)val[0];
       int scale= (int)val[1];
-      decimal_digit dec_buf[10];
-      decimal dec;
+      decimal_digit_t dec_buf[10];
+      decimal_t dec;
       dec.len= 10;
       dec.buf= dec_buf;
 
