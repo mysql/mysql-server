@@ -1084,7 +1084,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) NOT NULL default '0',
-  `(SELECT a)` bigint(20) NOT NULL default '0'
+  `(SELECT a)` bigint(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
@@ -1102,7 +1102,7 @@ a
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL default '0'
+  `a` bigint(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int);
@@ -1976,3 +1976,14 @@ create table t1 (x int);
 select  (select b.x from t1 as b where b.x=a.x) from t1 as a where a.x=2 group by a.x;
 (select b.x from t1 as b where b.x=a.x)
 drop table t1;
+CREATE TABLE `t1` ( `master` int(10) unsigned NOT NULL default '0', `map` smallint(6) unsigned NOT NULL default '0', `slave` int(10) unsigned NOT NULL default '0', `access` int(10) unsigned NOT NULL default '0', UNIQUE KEY `access_u` (`master`,`map`,`slave`));
+INSERT INTO `t1` VALUES (1,0,0,700),(1,1,1,400),(1,5,5,400),(1,12,12,400),(1,12,32,400),(4,12,32,400);
+CREATE TABLE `t2` ( `id` int(10) unsigned NOT NULL default '0', `pid` int(10) unsigned NOT NULL default '0', `map` smallint(6) unsigned NOT NULL default '0', `level` tinyint(4) unsigned NOT NULL default '0', `title` varchar(255) default NULL, PRIMARY KEY  (`id`,`pid`,`map`), KEY `level` (`level`), KEY `id` (`id`,`map`)) ;
+INSERT INTO `t2` VALUES (6,5,12,7,'a'),(12,0,0,7,'a'),(12,1,0,7,'a'),(12,5,5,7,'a'),(12,5,12,7,'a');
+SELECT b.sc FROM (SELECT (SELECT a.access FROM t1 a WHERE a.map = op.map AND a.slave = op.pid AND a.master = 1) ac FROM t2 op WHERE op.id = 12 AND op.map = 0) b;
+ERROR 42S22: Unknown column 'b.sc' in 'field list'
+SELECT b.ac FROM (SELECT (SELECT a.access FROM t1 a WHERE a.map = op.map AND a.slave = op.pid AND a.master = 1) ac FROM t2 op WHERE op.id = 12 AND op.map = 0) b;
+ac
+700
+NULL
+drop tables t1,t2;

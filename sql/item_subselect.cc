@@ -401,7 +401,6 @@ void Item_singlerow_subselect::fix_length_and_dec()
     engine->fix_length_and_dec(row);
     value= *row;
   }
-  maybe_null= engine->may_be_null();
 }
 
 uint Item_singlerow_subselect::cols()

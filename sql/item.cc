@@ -2486,6 +2486,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   else
     field_example= 0;
   max_length= real_length(item);
+  maybe_null= item->maybe_null;
   collation.set(item->collation);
 }
 
