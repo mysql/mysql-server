@@ -97,10 +97,12 @@ int mysql_update(THD *thd,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates)
 {
-  bool 		using_limit=limit != HA_POS_ERROR;
+  bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
+  bool          ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   int		error=0;
+  int           res;
   uint		used_index;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
@@ -152,7 +154,7 @@ int mysql_update(THD *thd,
 #endif
   {
     thd->lex->select_lex.no_wrap_view_item= 1;
-    int res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
+    res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
     thd->lex->select_lex.no_wrap_view_item= 0;
     if (res)
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -369,6 +371,18 @@ int mysql_update(THD *thd,
 
       if (compare_record(table, query_id))
       {
+        if ((res= table_list->view_check_option(thd, ignore_err)) !=
+            VIEW_CHECK_OK)
+        {
+          found--;
+          if (res == VIEW_CHECK_SKIP)
+            continue;
+          else if (res == VIEW_CHECK_ERROR)
+          {
+            error= 1;
+            break;
+          }
+        }
 	if (!(error=table->file->update_row((byte*) table->record[1],
 					    (byte*) table->record[0])))
 	{
@@ -979,6 +993,7 @@ multi_update::~multi_update()
 bool multi_update::send_data(List<Item> &not_used_values)
 {
   TABLE_LIST *cur_table;
+  bool ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   DBUG_ENTER("multi_update::send_data");
 
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
@@ -1011,6 +1026,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
       if (compare_record(table, thd->query_id))
       {
 	int error;
+        if ((error= cur_table->view_check_option(thd, ignore_err)) !=
+            VIEW_CHECK_OK)
+        {
+          found--;
+          if (error == VIEW_CHECK_SKIP)
+            continue;
+          else if (error == VIEW_CHECK_ERROR)
+            DBUG_RETURN(1);
+        }
 	if (!updated++)
 	{
 	  /*

@@ -388,3 +388,5 @@ character-set=koi8r
 "Field '%-.64s' doesn't have a default value",
 "Division by 0",
 "Incorrect %-.32s value: '%-.128s' for column '%.64s' at row %ld",
+"CHECK OPTION для необновляемого VIEW '%-.64s.%-.64s'"
+"проверка CHECK OPTION для VIEW '%-.64s.%-.64s' провалилась"
