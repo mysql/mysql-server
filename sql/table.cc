@@ -61,8 +61,8 @@ static byte* get_field_name(Field **buff,uint *length,
    5    It is new format of .frm file
 */
 
-int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
-	    uint ha_open_flags, TABLE *outparam)
+int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
+            uint prgflag, uint ha_open_flags, TABLE *outparam)
 {
   reg1 uint i;
   reg2 uchar *strpos;
@@ -119,6 +119,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   }
 
   bzero((char*) outparam,sizeof(*outparam));
+  outparam->in_use= thd;
   outparam->blob_ptr_size=sizeof(char*);
   outparam->db_stat = db_stat;
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
@@ -733,7 +734,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->db_low_byte_first=outparam->file->low_byte_first();
 
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
-  current_thd->status_var.opened_tables++;
+  thd->status_var.opened_tables++;
 #ifndef DBUG_OFF
   if (use_hash)
     (void) hash_check(&outparam->name_hash);

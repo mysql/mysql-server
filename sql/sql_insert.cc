@@ -1652,12 +1652,14 @@ void select_insert::cleanup()
 
 select_insert::~select_insert()
 {
+  DBUG_ENTER("~select_insert");
   if (table)
   {
     table->next_number_field=0;
     table->file->reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1815,7 +1817,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table->next_number_field=table->found_next_number_field;
 
   restore_record(table,default_values);			// Get empty record
-  thd->count_cuted_fields= CHECK_FIELD_WARN;		// count warnings
+  /* Count warnings. This is reset in ~select_insert() */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0;
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)

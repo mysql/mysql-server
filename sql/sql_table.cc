@@ -1387,7 +1387,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     don't want to delete from it) 2) it would be written before the CREATE
     TABLE, which is a wrong order. So we keep binary logging disabled.
   */
-  if (!(table= open_table(thd, create_table, 0, (bool*) 0)))
+  if (!(table= open_table(thd, create_table, &thd->mem_root, (bool*) 0)))
   {
     quick_rm_table(create_info->db_type, create_table->db,
 		   table_case_name(create_info, create_table->real_name));
@@ -1629,7 +1629,7 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
     char name[FN_REFLEN];
     strxmov(name, mysql_data_home, "/", table_list->db, "/",
 	    table_list->real_name, NullS);
-    if (openfrm(name, "", 0, 0, 0, &tmp_table))
+    if (openfrm(thd, name, "", 0, 0, 0, &tmp_table))
       DBUG_RETURN(0);				// Can't open frm file
     table= &tmp_table;
   }
@@ -3026,7 +3026,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     bzero((void*) &tbl, sizeof(tbl));
     tbl.db= new_db;
     tbl.real_name= tbl.alias= tmp_name;
-    new_table= open_table(thd, &tbl, 0, 0);
+    new_table= open_table(thd, &tbl, &thd->mem_root, 0);
   }
   else
   {

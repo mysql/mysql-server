@@ -471,7 +471,7 @@ public:
   {}
   bool copy()
   {
-    return item->save_in_field(to_field, 1) || err != 0;
+    return item->save_in_field_no_warnings(to_field, 1) || err != 0;
   }
   const char *name() const { return "func"; }
 };
