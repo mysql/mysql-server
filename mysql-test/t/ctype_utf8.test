@@ -644,3 +644,15 @@ create table t1 (
 insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 drop table t1;
+
+#
+# Test for calculate_interval_lengths() function
+#
+create table t1 (
+  a enum('петя','вася','анюта') character set utf8 not null default 'анюта',
+  b set('петя','вася','анюта') character set utf8 not null default 'анюта'
+);
+create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
+show create table t2;
+drop table t2;
+drop table t1;

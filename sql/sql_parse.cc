@@ -4091,6 +4091,31 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 #endif
 
 
+/*
+  Calculate interval lengths.
+  Strip trailing spaces from all strings.
+  After this function call:
+  - ENUM uses max_length
+  - SET uses tot_length.
+*/
+void calculate_interval_lengths(THD *thd, TYPELIB *interval,
+                                uint *max_length, uint *tot_length)
+{
+  const char **pos;
+  uint *len;
+  CHARSET_INFO *cs= thd->variables.character_set_client;
+  *max_length= *tot_length= 0;
+  for (pos= interval->type_names, len= interval->type_lengths;
+       *pos ; pos++, len++)
+  {
+    *len= (uint) strip_sp((char*) *pos);
+    uint length= cs->cset->numchars(cs, *pos, *pos + *len);
+    *tot_length+= length;
+    set_if_bigger(*max_length, length);
+  }
+}
+
+
 /*****************************************************************************
 ** Store field definition for create
 ** Return 0 if ok
@@ -4405,19 +4430,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if (new_field->pack_length > 4)
 	new_field->pack_length=8;
       new_field->interval=interval;
-      new_field->length=0;
-      uint *lengths;
-      const char **pos;
-      for (pos=interval->type_names,
-           lengths= interval->type_lengths; *pos ; pos++, lengths++)
-      {
-        CHARSET_INFO *cs= thd->variables.character_set_client;
-        uint length= (uint) strip_sp((char*) *pos)+1;
-        set_if_smaller(*lengths, length);
-        length= cs->cset->numchars(cs, *pos, *pos+length);
-        new_field->length+= length;
-      }
-      new_field->length--;
+      uint dummy_max_length;
+      calculate_interval_lengths(thd, interval,
+                                 &dummy_max_length, &new_field->length);
+      new_field->length+= (interval->count - 1);
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
       {
@@ -4442,19 +4458,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     {
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
-      new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
-      set_if_smaller(interval->type_lengths[0], new_field->length);
-      uint *lengths;
-      const char **pos;
-      for (pos= interval->type_names+1,
-           lengths= interval->type_lengths+1; *pos ; pos++, lengths++)
-      {
-        CHARSET_INFO *cs= thd->variables.character_set_client;
-        uint length=(uint) strip_sp((char*) *pos);
-        set_if_smaller(*lengths, length);
-        length= cs->cset->numchars(cs, *pos, *pos+length);
-        set_if_bigger(new_field->length,length);
-      }
+
+      uint dummy_tot_length;
+      calculate_interval_lengths(thd, interval,
+                                 &new_field->length, &dummy_tot_length);
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
       {
