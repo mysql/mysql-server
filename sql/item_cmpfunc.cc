@@ -2707,9 +2707,6 @@ longlong Item_cond_xor::val_int()
        IS NULL(a)         -> IS NOT NULL(a)
        IS NOT NULL(a)     -> IS NULL(a)
 
-  NOTE
-    This method is used in the eliminate_not_funcs() function.
-
   RETURN
     New item or
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
@@ -2718,7 +2715,7 @@ longlong Item_cond_xor::val_int()
 Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
   // We should apply negation elimination to the argument of the NOT function
-  return eliminate_not_funcs(thd, args[0]);
+  return args[0];
 }
 
 
