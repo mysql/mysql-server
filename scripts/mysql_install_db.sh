@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 1997, 1998, 1999 TCX DataKonsult AB & Monty Program KB & Detron HB
+# Copyright (C) 2002 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file.
 
 # This scripts creates the privilege tables db, host, user, tables_priv,
@@ -224,7 +224,14 @@ then
   c_u="$c_u   References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   ssl_type enum('NONE','ANY','X509', 'SPECIFIED') DEFAULT 'NONE' NOT NULL,"
+  c_u="$c_u   Show_db_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Super_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   ssl_type enum('','ANY','X509', 'SPECIFIED') DEFAULT '' NOT NULL,"
   c_u="$c_u   ssl_cipher BLOB NOT NULL,"
   c_u="$c_u   x509_issuer BLOB NOT NULL,"
   c_u="$c_u   x509_subject BLOB NOT NULL,"
@@ -235,14 +242,14 @@ then
   c_u="$c_u )"
   c_u="$c_u comment='Users and global privileges';"
 
-  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
-  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
+  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
   
-  REPLACE INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
-  REPLACE INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','NONE','','','',0,0,0);
+  REPLACE INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+  REPLACE INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
   
-  INSERT INTO user VALUES ('localhost','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','NONE','','','',0,0,0);
-  INSERT INTO user VALUES ('$hostname','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','NONE','','','',0,0,0);"
+  INSERT INTO user (host,user) values ('localhost','');
+  INSERT INTO user (host,user) values ('$hostname','');"
 fi
 
 if test ! -f $mdata/func.frm
@@ -343,7 +350,7 @@ then
     echo "cd @prefix@ ; $bindir/mysqld_safe &"
     echo
     echo "You can test the MySQL daemon with the benchmarks in the 'sql-bench' directory:"
-    echo "cd sql-bench ; run-all-tests"
+    echo "cd sql-bench ; perl run-all-tests"
     echo
   fi
   echo "Please report any problems with the @scriptdir@/mysqlbug script!"

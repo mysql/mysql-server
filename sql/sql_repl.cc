@@ -21,7 +21,6 @@
 #include "sql_acl.h"
 #include "log_event.h"
 #include "mini_client.h"
-#include <thr_alarm.h>
 #include <my_dir.h>
 #include <assert.h>
 
@@ -537,11 +536,13 @@ impossible position";
   thd->proc_info = "waiting to finalize termination";
   end_io_cache(&log);
   pthread_mutex_lock(&LOCK_thread_count);
-  // exclude  iteration through thread list
-  // this is needed for purge_logs() - it will iterate through
-  // thread list and update thd->current_linfo->index_file_offset
-  // this mutex will make sure that it never tried to update our linfo
-  // after we return from this stack frame
+  /*
+    Exclude  iteration through thread list
+    this is needed for purge_logs() - it will iterate through
+    thread list and update thd->current_linfo->index_file_offset
+    this mutex will make sure that it never tried to update our linfo
+    after we return from this stack frame
+  */
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
@@ -557,7 +558,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
   NET* net = &thd->net;
   int thread_mask;
   
-  if (check_access(thd, PROCESS_ACL, any_db))
+  if (check_access(thd, SUPER_ACL, any_db))
     return 1;
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   init_thread_mask(&thread_mask,mi,1 /* inverse */);
@@ -597,7 +598,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   if (!thd) thd = current_thd;
   NET* net = &thd->net;
 
-  if (check_access(thd, PROCESS_ACL, any_db))
+  if (check_access(thd, SUPER_ACL, any_db))
     return 1;
   thd->proc_info = "Killing slave";
   int thread_mask;

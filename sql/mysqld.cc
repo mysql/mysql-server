@@ -3146,7 +3146,7 @@ static struct my_option my_long_options[] =
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-show-database", OPT_SAFE_SHOW_DB,
-   "Don't show databases for which the user has no privileges",
+   "Depricated option; One should use GRANT SHOW DATABASES instead...",
    (gptr*) &opt_safe_show_db, (gptr*) &opt_safe_show_db, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"safe-user-create", OPT_SAFE_USER_CREATE,

@@ -923,9 +923,9 @@ public:
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg),
     packlength(packlength_arg),typelib(typelib_arg)
-    {
+  {
       flags|=ENUM_FLAG;
-    }
+  }
   enum_field_types type() const { return FIELD_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;

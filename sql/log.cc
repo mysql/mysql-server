@@ -826,7 +826,7 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
       if (thd)
       {						// Normal thread
 	if ((thd->options & OPTION_LOG_OFF) &&
-	    (thd->master_access & PROCESS_ACL))
+	    (thd->master_access & SUPER_ACL))
 	{
 	  VOID(pthread_mutex_unlock(&LOCK_log));
 	  return 0;				// No logging
@@ -907,7 +907,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
     IO_CACHE *file = &log_file;
 #endif    
     if ((thd && !(thd->options & OPTION_BIN_LOG) &&
-	 (thd->master_access & PROCESS_ACL)) ||
+	 (thd->master_access & SUPER_ACL)) ||
 	(db && !db_ok(db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
@@ -1084,7 +1084,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       char buff[80],*end;
       end=buff;
       if (!(thd->options & OPTION_UPDATE_LOG) &&
-	  (thd->master_access & PROCESS_ACL))
+	  (thd->master_access & SUPER_ACL))
       {
 	VOID(pthread_mutex_unlock(&LOCK_log));
 	return 0;

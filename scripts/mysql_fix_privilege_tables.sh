@@ -12,6 +12,17 @@ echo "and give the MySQL root user password as a argument!"
 root_password="$1"
 host="localhost"
 
+echo "Converting all privilege tables to MyISAM format"
+@bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
+ALTER TABLE user type=MyISAM;
+ALTER TABLE db type=MyISAM;
+ALTER TABLE host type=MyISAM;
+ALTER TABLE func type=MyISAM;
+ALTER TABLE columns_priv type=MyISAM;
+ALTER TABLE tables_priv type=MyISAM;
+END_OF_DATA
+
+
 # Fix old password format, add File_priv and func table
 echo ""
 echo "If your tables are already up to date or partially up to date you will"
@@ -56,10 +67,18 @@ END_OF_DATA
   echo ""
 fi
 
+#
+# The second alter changes ssl_type to new 4.0.2 format
+
 echo "Adding columns needed by GRANT .. REQUIRE (openssl)"
 echo "You can ignore any Duplicate column errors"
-@bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
-ALTER TABLE user ADD ssl_type enum('NONE','ANY','X509', 'SPECIFIED') DEFAULT 'NONE' NOT NULL, ADD ssl_cipher BLOB NOT NULL, ADD x509_issuer BLOB NOT NULL, ADD x509_subject BLOB NOT NULL
+@bindir@/mysql -f --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+ALTER TABLE user
+ADD ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL,
+ADD ssl_cipher BLOB NOT NULL,
+ADD x509_issuer BLOB NOT NULL,
+ADD x509_subject BLOB NOT NULL;
+ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 END_OF_DATA
 echo ""
 
@@ -98,7 +117,7 @@ END_OF_DATA
 #
 
 echo "Changing name of columns_priv.Type -> columns_priv.Column_priv"
-echo "You can ignore any errors from this"
+echo "You can ignore any Unknown column errors from this"
 
 @bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
 ALTER TABLE columns_priv change Type Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL;
@@ -117,12 +136,41 @@ alter table func add type enum ('function','aggregate') NOT NULL;
 EOF
 echo ""
 
-echo "Converting all privilege tables to MyISAM format"
-@bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
-ALTER TABLE user type=MyISAM;
-ALTER TABLE db type=MyISAM;
-ALTER TABLE host type=MyISAM;
-ALTER TABLE func type=MyISAM;
-ALTER TABLE columns_priv type=MyISAM;
-ALTER TABLE tables_priv type=MyISAM;
+#
+# Change the user table to MySQL 4.0 format
+#
+
+echo "Adding new fields used by MySQL 4.02 to the privilege tables"
+echo "You can ignore any Duplicate column errors"
+
+@bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+alter table user
+add Show_db_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER alter_priv,
+add Super_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Show_db_priv,
+add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Super_priv,
+add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_tmp_table_priv,
+add Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv,
+add Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Execute_priv,
+add Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_slave_priv
+END_OF_DATA
+
+if test $? -eq "0"
+then
+  # Convert privileges so that users have similar privileges as before
+  echo ""
+  echo "Updating new privileges in MySQL 4.0.2 from old ones"
+  @bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+  update user set show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv
+END_OF_DATA
+  echo ""
+fi
+
+# Add fields that can be used to limit number of questions and connections
+# for some users.
+
+@bindir@/mysql -f --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+alter table user
+add max_questions int(11) NOT NULL AFTER x509_subject,
+add max_updates   int(11) unsigned NOT NULL AFTER max_questions,
+add max_connections int(11) unsigned NOT NULL AFTER max_updates;
 END_OF_DATA

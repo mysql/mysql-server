@@ -37,8 +37,8 @@ typedef struct st_grant_info
 {
   GRANT_TABLE *grant_table;
   uint version;
-  uint privilege;
-  uint want_privilege;
+  ulong privilege;
+  ulong want_privilege;
 } GRANT_INFO;
 
 enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};

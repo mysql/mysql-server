@@ -19,7 +19,6 @@
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
-#include <thr_alarm.h>
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>

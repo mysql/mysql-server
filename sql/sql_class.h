@@ -309,34 +309,25 @@ public:
    */
   
   char	  *host,*user,*priv_user,*db,*ip;
-  /* proc_info points to a string that will show in the Info column of
-     SHOW PROCESSLIST output
-     host_or_ip points to host if host is available, otherwise points to ip   
-   */
-  const   char *proc_info, *host_or_ip;
-  
-  /*
-    client_capabilities has flags describing what the client can do
-    sql_mode determines if certain non-standard SQL behaviour should be
-     enabled
-    max_packet_length - supposed to be maximum packet length the client
-     can handle, but it currently appears to be assigned but never used
-     except for one debugging statement
-   */
-  uint	  client_capabilities,sql_mode,max_packet_length;
+  /* Points to info-string that will show in SHOW PROCESSLIST */
+  const char *proc_info;
+  /* points to host if host is available, otherwise points to ip */
+  const char *host_or_ip;
+ 
+  uint client_capabilities;		/* What the client supports */
+  ulong max_packet_length;		/* Max packet length for client */
+  /* Determines if which non-standard SQL behaviour should be enabled */
+  uint sql_mode;
+  ulong master_access;			/* Global privileges from mysql.user */
+  ulong db_access;			/* Privileges for current db */
 
-  /*
-    master_access - privillege descriptor mask for system threads
-    db_access - privillege descriptor mask for regular threads
-  */
-  uint	  master_access,db_access;
   
   /*
     open_tables - list of regular tables in use by this thread
     temporary_tables - list of temp tables in use by this thread
     handler_tables - list of tables that were opened with HANDLER OPEN
      and are still in use by this thread
-   */
+  */
   TABLE   *open_tables,*temporary_tables, *handler_tables;
   // TODO: document the variables below
   MYSQL_LOCK *lock,*locked_tables;
@@ -388,10 +379,10 @@ public:
              max_join_size, sent_row_count, examined_row_count;
   table_map  used_tables;
   USER_CONN *user_connect;
-  ulong	     query_id,version, inactive_timeout,options,thread_id;
+  ulong	     query_id,version, inactive_timeout,options,thread_id, col_access;
   long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	     current_tablenr,tmp_table,cond_count,col_access;
+  uint	     current_tablenr,tmp_table,cond_count;
   uint	     server_status,open_options;
   uint32     query_length;
   uint32     db_length;
