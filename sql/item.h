@@ -39,13 +39,22 @@ enum Derivation
 
 /*
   Flags for collation aggregation modes:
-  allow conversion to a superset
-  allow conversion of a coercible value (i.e. constant).
+  MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+  MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
+                                 (i.e. constant).
+  MY_COLL_ALLOW_CONV           - allow any kind of conversion
+                                 (combintion of the above two)
+  MY_COLL_DISALLOW_NONE        - don't allow return DERIVATION_NONE
+                                 (e.g. when aggregating for comparison)
+  MY_COLL_CMP_CONV             - combination of MY_COLL_ALLOW_CONV
+                                 and MY_COLL_DISALLOW_NONE
 */
 
 #define MY_COLL_ALLOW_SUPERSET_CONV   1
 #define MY_COLL_ALLOW_COERCIBLE_CONV  2
-
+#define MY_COLL_ALLOW_CONV            3
+#define MY_COLL_DISALLOW_NONE         4
+#define MY_COLL_CMP_CONV              7
 
 class DTCollation {
 public:
@@ -302,6 +311,7 @@ public:
   Field *tmp_table_field_from_field_type(TABLE *table);
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
+  virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
     cleanup();
@@ -447,6 +457,7 @@ public:
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
   void print(String *str) { str->append("NULL", 4); }
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 
@@ -717,6 +728,7 @@ public:
     return new Item_string(name, str_value.ptr(), 
     			   str_value.length(), &my_charset_bin);
   }
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
