@@ -3659,6 +3659,47 @@ static int create_ndb_column(NDBCOL &col,
   Create a table in NDB Cluster
  */
 
+static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
+{
+  if (form->s->max_rows == 0) /* default setting, don't set fragmentation */
+    return;
+  /**
+   * get the number of fragments right
+   */
+  uint no_fragments;
+  {
+#if MYSQL_VERSION_ID >= 50000
+    uint acc_row_size= 25+2;
+#else
+    uint acc_row_size= pk_length*4;
+    /* add acc overhead */
+    if (pk_length <= 8)
+      acc_row_size+= 25+2;  /* main page will set the limit */
+    else
+      acc_row_size+= 4+4;   /* overflow page will set the limit */
+#endif
+    ulonglong acc_fragment_size= 512*1024*1024;
+    ulonglong max_rows= form->s->max_rows;
+    no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
+  }
+  {
+    uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
+    NDBTAB::FragmentType ftype;
+    if (no_fragments > 2*no_nodes)
+    {
+      ftype= NDBTAB::FragAllLarge;
+      if (no_fragments > 4*no_nodes)
+	push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+		     "Ndb might have problems storing the max amount of rows specified");
+    }
+    else if (no_fragments > no_nodes)
+      ftype= NDBTAB::FragAllMedium;
+    else
+      ftype= NDBTAB::FragAllSmall;
+    tab.setFragmentType(ftype);
+  }
+}
+
 int ha_ndbcluster::create(const char *name, 
 			  TABLE *form, 
 			  HA_CREATE_INFO *info)
@@ -3760,7 +3801,9 @@ int ha_ndbcluster::create(const char *name,
       break;
     }
   }
-  
+
+  ndb_set_fragmentation(tab, form, pk_length);
+
   if ((my_errno= check_ndb_connection()))
     DBUG_RETURN(my_errno);
   
