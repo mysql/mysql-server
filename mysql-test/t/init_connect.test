@@ -28,7 +28,7 @@ connection con0;
 set GLOBAL init_connect="adsfsdfsdfs";
 connect (con5,localhost,user_1,,);
 connection con5;
---error 2013
+--error 2013,2006
 select @a;
 connection con0;
 drop table t1;

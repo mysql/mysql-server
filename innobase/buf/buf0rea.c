@@ -85,7 +85,8 @@ buf_read_page_low(
 		     		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE))) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Warning: trying to read doublewrite buffer page %lu\n", offset);
+"  InnoDB: Warning: trying to read doublewrite buffer page %lu\n",
+			(ulong) offset);
 
 		return(0);
 	}
@@ -126,7 +127,8 @@ buf_read_page_low(
 
 	if (buf_debug_prints) {
 		printf("Posting read request for page %lu, sync %lu\n",
-							   offset, sync);
+							   (ulong) offset,
+		       					   (ulong) sync);
 	}
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
@@ -268,7 +270,7 @@ buf_read_ahead_random(
 "  InnoDB: Warning: in random readahead trying to access tablespace\n"
 "InnoDB: %lu page no. %lu,\n"
 "InnoDB: but the tablespace does not exist or is just being dropped.\n",
-				 space, i);
+					(ulong) space, (ulong) i);
 			}
 		}
 	}
@@ -282,7 +284,8 @@ buf_read_ahead_random(
 	if (buf_debug_prints && (count > 0)) {
 	
 		printf("Random read-ahead space %lu offset %lu pages %lu\n",
-						space, offset, count);
+						(ulong) space, (ulong) offset,
+		       				(ulong) count);
 	}
 
 	return(count);
@@ -322,7 +325,7 @@ buf_read_page(
 		fprintf(stderr,
 "  InnoDB: error: trying to access tablespace %lu page no. %lu,\n"
 "InnoDB: but the tablespace does not exist or is just being dropped.\n",
-				 space, offset);
+				 (ulong) space, (ulong) offset);
 	}
 
 	/* Flush pages from the end of the LRU list if necessary */
@@ -549,7 +552,7 @@ buf_read_ahead_linear(
 "  InnoDB: Warning: in linear readahead trying to access tablespace\n"
 "InnoDB: %lu page no. %lu,\n"
 "InnoDB: but the tablespace does not exist or is just being dropped.\n",
-				 space, i);
+				 (ulong) space, (ulong) i);
 			}
 		}
 	}
@@ -566,7 +569,7 @@ buf_read_ahead_linear(
 	if (buf_debug_prints && (count > 0)) {
 		printf(
 		"LINEAR read-ahead space %lu offset %lu pages %lu\n",
-		space, offset, count);
+		(ulong) space, (ulong) offset, (ulong) count);
 	}
 
 	return(count);
@@ -627,7 +630,7 @@ buf_read_ibuf_merge_pages(
 	buf_flush_free_margin();
 
 	if (buf_debug_prints) {
-		printf("Ibuf merge read-ahead pages %lu\n", n_stored);
+		printf("Ibuf merge read-ahead pages %lu\n", (ulong) n_stored);
 	}
 }
 
@@ -669,7 +672,7 @@ buf_read_recv_pages(
 				fprintf(stderr,
 "InnoDB: Error: InnoDB has waited for 50 seconds for pending\n"
 "InnoDB: reads to the buffer pool to be finished.\n"
-"InnoDB: Number of pending reads %lu\n", buf_pool->n_pend_reads);
+"InnoDB: Number of pending reads %lu\n", (ulong) buf_pool->n_pend_reads);
 
 				os_aio_print_debug = TRUE;
 			}
@@ -693,6 +696,7 @@ buf_read_recv_pages(
 	buf_flush_free_margin();
 
 	if (buf_debug_prints) {
-		printf("Recovery applies read-ahead pages %lu\n", n_stored);
+		printf("Recovery applies read-ahead pages %lu\n",
+		       (ulong) n_stored);
 	}
 }

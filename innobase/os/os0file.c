@@ -216,7 +216,7 @@ os_file_get_last_error(
 
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
-  "  InnoDB: Operating system error number %lu in a file operation.\n", err);
+  "  InnoDB: Operating system error number %lu in a file operation.\n", (ulong) err);
 
 		if (err == ERROR_PATH_NOT_FOUND) {
 			fprintf(stderr,
@@ -1499,7 +1499,7 @@ os_file_set_size(
 		    != offset / (ib_longlong)(100 * 1024 * 1024)) {
 
 		        fprintf(stderr, " %lu00",
-				(ulint)((offset + n_bytes)
+				(ulong) ((offset + n_bytes)
 					/ (ib_longlong)(100 * 1024 * 1024)));
 		}
 		
@@ -1858,9 +1858,9 @@ error_handling:
 	fprintf(stderr,
 "InnoDB: Fatal error: cannot read from file. OS error number %lu.\n",
 #ifdef __WIN__
-		(ulint)GetLastError()
+		(ulong) GetLastError()
 #else
-		(ulint)errno
+		(ulong) errno
 #endif
 		);
 	fflush(stderr);
@@ -2013,8 +2013,8 @@ retry:
 "InnoDB: offset %lu %lu. Operating system error number %lu.\n"
 "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
 "InnoDB: what the error number means.\n",
-			name, offset_high, offset,
-			(ulint)GetLastError());
+			name, (ulong) offset_high, (ulong) offset,
+			(ulong) GetLastError());
 
 		return(FALSE);
 	} 
@@ -2060,12 +2060,12 @@ retry:
 "InnoDB: Operating system error number %lu.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
-			name, offset_high, offset, n, (ulint)len,
-			err);
+			name, (ulong) offset_high, (ulong) offset,
+			(ulong) n, (ulong) len, (ulong) err);
 
 		if (strerror((int)err) != NULL) {
 			fprintf(stderr,
-"InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+"InnoDB: Error number %lu means '%s'.\n", (ulong) err, strerror((int)err));
 		}
 
 		fprintf(stderr,
@@ -3151,7 +3151,7 @@ restart:
 
 			if (os_aio_print_debug) {
 				fprintf(stderr,
-"InnoDB: i/o for slot %lu already done, returning\n", i);
+"InnoDB: i/o for slot %lu already done, returning\n", (ulong) i);
 			}
 
 			ret = TRUE;
@@ -3298,8 +3298,8 @@ consecutive_loop:
 	if (os_aio_print_debug) {
 		fprintf(stderr,
 "InnoDB: doing i/o of type %lu at offset %lu %lu, length %lu\n",
-			slot->type, slot->offset_high, slot->offset,
-			total_len);
+			(ulong) slot->type, (ulong) slot->offset_high,
+			(ulong) slot->offset, (ulong) total_len);
 	}
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
@@ -3309,8 +3309,9 @@ consecutive_loop:
 			    || (slot->offset % UNIV_PAGE_SIZE != 0)) {
 				fprintf(stderr,
 "InnoDB: Error: trying a displaced write to %s %lu %lu, len %lu\n",
-					slot->name, slot->offset_high,
-					slot->offset, total_len);
+					slot->name, (ulong) slot->offset_high,
+					(ulong) slot->offset,
+					(ulong) total_len);
 				ut_a(0);
 			}
 			  
@@ -3409,7 +3410,7 @@ recommended_sleep:
 	if (os_aio_print_debug) {
 		fprintf(stderr,
 "InnoDB: i/o handler thread for i/o segment %lu wakes up\n",
-			global_segment);
+			(ulong) global_segment);
 	}
 	
 	goto restart;
@@ -3491,7 +3492,8 @@ os_aio_print(
 	}
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
-		buf += sprintf(buf, "I/O thread %lu state: %s (%s)\n", i,
+		buf += sprintf(buf, "I/O thread %lu state: %s (%s)\n",
+			                (ulong) i,
 					srv_io_thread_op_info[i],
 					srv_io_thread_function[i]);
 	}
@@ -3523,7 +3525,7 @@ loop:
 
 	ut_a(array->n_reserved == n_reserved);
 
-	buf += sprintf(buf, " %lu", n_reserved);
+	buf += sprintf(buf, " %lu", (ulong) n_reserved);
 	
 	os_mutex_exit(array->mutex);
 
@@ -3563,15 +3565,18 @@ loop:
 
 	buf += sprintf(buf,
 		"Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
-	       fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes);
+	       (ulong) fil_n_pending_log_flushes,
+	       (ulong) fil_n_pending_tablespace_flushes);
 	buf += sprintf(buf,
 		"%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
-		os_n_file_reads, os_n_file_writes, os_n_fsyncs);
+		(ulong) os_n_file_reads, (ulong) os_n_file_writes,
+		(ulong) os_n_fsyncs);
 
 	if (os_file_n_pending_preads != 0 || os_file_n_pending_pwrites != 0) {
 	        buf += sprintf(buf,
 		    "%lu pending preads, %lu pending pwrites\n",
-		    os_file_n_pending_preads, os_file_n_pending_pwrites);
+		    (ulong) os_file_n_pending_preads,
+		    (ulong) os_file_n_pending_pwrites);
 	}
 
 	if (os_n_file_reads == os_n_file_reads_old) {
@@ -3585,7 +3590,7 @@ loop:
 "%.2f reads/s, %lu avg bytes/read, %.2f writes/s, %.2f fsyncs/s\n",
 		(os_n_file_reads - os_n_file_reads_old)
 		/ time_elapsed,
-		(ulint)avg_bytes_read,
+		(ulong)avg_bytes_read,
 		(os_n_file_writes - os_n_file_writes_old)
 		/ time_elapsed,
 		(os_n_fsyncs - os_n_fsyncs_old)

@@ -1177,7 +1177,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 	error = trx->error_state;
 
 	if (error != DB_SUCCESS) {
-		fprintf(stderr, "InnoDB: error %lu in creation\n", error);
+		fprintf(stderr, "InnoDB: error %lu in creation\n",
+			(ulong) error);
 		
 		ut_a(error == DB_OUT_OF_FILE_SPACE);
 
@@ -1256,27 +1257,27 @@ loop:
 	/* We allocate the new id from the sequence of table id's */
 	id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
-	sprintf(buf2, "%lu_%lu", ut_dulint_get_high(id),
-						ut_dulint_get_low(id));
+	sprintf(buf2, "%lu_%lu", (ulong) ut_dulint_get_high(id),
+		                 (ulong) ut_dulint_get_low(id));
 	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(buf2) + 1);
 	ut_memcpy(foreign->id, buf2, ut_strlen(buf2) + 1);
 	
 	len += sprintf(buf + len,
 	"INSERT INTO SYS_FOREIGN VALUES('%lu_%lu', '%s', '%s', %lu);\n",
-					ut_dulint_get_high(id),
-					ut_dulint_get_low(id),
+					(ulong) ut_dulint_get_high(id),
+					(ulong) ut_dulint_get_low(id),
 					table->name,
 					foreign->referenced_table_name,
-					foreign->n_fields
-					+ (foreign->type << 24));
+					(ulong) (foreign->n_fields
+					+ (foreign->type << 24)));
 
 	for (i = 0; i < foreign->n_fields; i++) {
 
 		len += sprintf(buf + len,
 	"INSERT INTO SYS_FOREIGN_COLS VALUES('%lu_%lu', %lu, '%s', '%s');\n",
-					ut_dulint_get_high(id),
-					ut_dulint_get_low(id),
-					i,
+					(ulong) ut_dulint_get_high(id),
+					(ulong) ut_dulint_get_low(id),
+					(ulong) i,
 					foreign->foreign_col_names[i],
 					foreign->referenced_col_names[i]);
 	}
@@ -1303,7 +1304,7 @@ loop:
 	if (error != DB_SUCCESS) {
 	        fprintf(stderr,
 			"InnoDB: Foreign key constraint creation failed:\n"
-			"InnoDB: internal error number %lu\n", error);
+			"InnoDB: internal error number %lu\n", (ulong) error);
 
 		if (error == DB_DUPLICATE_KEY) {
 			fprintf(stderr,

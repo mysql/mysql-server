@@ -637,7 +637,8 @@ srv_suspend_thread(void)
 	if (srv_print_thread_releases) {
 	
 		printf("Suspending thread %lu to slot %lu meter %lu\n",
-		os_thread_get_curr_id(), slot_no, srv_meter[SRV_RECOVERY]);
+		(ulong) os_thread_get_curr_id(), (ulong) slot_no,
+		(ulong) srv_meter[SRV_RECOVERY]);
 	}
 
 	slot = srv_table_get_nth_slot(slot_no);
@@ -697,7 +698,8 @@ srv_release_threads(
 			if (srv_print_thread_releases) {
 				printf(
 		"Releasing thread %lu type %lu from slot %lu meter %lu\n",
-				slot->id, type, i, srv_meter[SRV_RECOVERY]);
+				(ulong) slot->id, (ulong) type, (ulong) i,
+		                (ulong) srv_meter[SRV_RECOVERY]);
 			}
 
 			count++;
@@ -776,7 +778,7 @@ srv_dec_thread_count(
 	/* FIXME: the following assertion sometimes fails: */
 
 	if (srv_n_threads_active[type] == 0) {
-		printf("Error: thread type %lu\n", type);
+		printf("Error: thread type %lu\n", (ulong) type);
 
 		ut_ad(0);
 	}	
@@ -987,7 +989,7 @@ srv_console(
 
 			printf(
 			"Starting disk access simulation with pct %lu\n",
-							srv_sim_disk_wait_pct);
+						(ulong) srv_sim_disk_wait_pct);
 		} else {
 			printf("\nNot supported!\n");
 		}
@@ -2114,7 +2116,7 @@ srv_table_reserve_slot_for_mysql(void)
 "  InnoDB: There appear to be %lu MySQL threads currently waiting\n"
 "InnoDB: inside InnoDB, which is the upper limit. Cannot continue operation.\n"
 "InnoDB: We intentionally generate a seg fault to print a stack trace\n"
-"InnoDB: on Linux. But first we print a list of waiting threads.\n", i);
+"InnoDB: on Linux. But first we print a list of waiting threads.\n", (ulong) i);
 
 			for (i = 0; i < OS_THREAD_MAX_N; i++) {
 
@@ -2122,10 +2124,10 @@ srv_table_reserve_slot_for_mysql(void)
 
 			        fprintf(stderr,
 "Slot %lu: thread id %lu, type %lu, in use %lu, susp %lu, time %lu\n",
-				  i, os_thread_pf(slot->id),
-				  slot->type, slot->in_use,
-				  slot->suspended,
-			  (ulint)difftime(ut_time(), slot->suspend_time));
+				  (ulong) i, (ulong) os_thread_pf(slot->id),
+				  (ulong) slot->type, (ulong) slot->in_use,
+				  (ulong) slot->suspended,
+			  (ulong) difftime(ut_time(), slot->suspend_time));
 			}
 
 		        ut_a(0);
@@ -2368,7 +2370,7 @@ srv_sprintf_innodb_monitor(
 
 	buf += sprintf(buf,
 "Per second averages calculated from the last %lu seconds\n",
-					(ulint)time_elapsed);
+					(ulong) time_elapsed);
 	       	       
 	buf += sprintf(buf, "----------\n"
 		       "SEMAPHORES\n"
@@ -2445,20 +2447,22 @@ srv_sprintf_innodb_monitor(
 		       "BUFFER POOL AND MEMORY\n"
 		       "----------------------\n");
 	buf += sprintf(buf,
-	"Total memory allocated %lu; in additional pool allocated %lu\n",
+	"Total memory allocated " ULINTPF
+	"; in additional pool allocated" ULINTPF "\n",
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
 
 	if (mem_out_of_mem_err_msg_count > 0) {
 	        buf += sprintf(buf,
-	"Mem allocation has spilled out of additional mem pool %lu times\n",
+	"Mem allocation has spilled out of additional mem pool" ULINTPF
+						"times\n",
 					mem_out_of_mem_err_msg_count);
 	}
 
 	if (srv_use_awe) {
 		buf += sprintf(buf,
 	"In addition to that %lu MB of AWE memory allocated\n",
-		srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE));
+		(ulong) (srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE)));
 	}
 	
 	buf_print_io(buf, buf_end);
@@ -2470,29 +2474,31 @@ srv_sprintf_innodb_monitor(
 		       "--------------\n");
 	buf += sprintf(buf,
         "%ld queries inside InnoDB, %lu queries in queue\n",
-                        srv_conc_n_threads, srv_conc_n_waiting_threads);
+		       (long) srv_conc_n_threads,
+		       (ulong) srv_conc_n_waiting_threads);
 
         n_reserved = fil_space_get_n_reserved_extents(0);
         if (n_reserved > 0) {
                 buf += sprintf(buf,
         "%lu tablespace extents now reserved for B-tree split operations\n",
-                                                    n_reserved);
+                                                    (ulong) n_reserved);
         }
 
 #ifdef UNIV_LINUX
 	buf += sprintf(buf,
 	"Main thread process no. %lu, id %lu, state: %s\n",
-			srv_main_thread_process_no,
-			srv_main_thread_id,
-			srv_main_thread_op_info);
+		       (ulong) srv_main_thread_process_no,
+		       (ulong) srv_main_thread_id,
+		       srv_main_thread_op_info);
 #else
 	buf += sprintf(buf,
 	"Main thread id %lu, state: %s\n",
-			srv_main_thread_id,
+			(ulong) srv_main_thread_id,
 			srv_main_thread_op_info);
 #endif
 	buf += sprintf(buf,
-	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
+	"Number of rows inserted " ULINTPF
+	", updated " ULINTPF ", deleted " ULINTPF ", read " ULINTPF "\n",
 			srv_n_rows_inserted, 
 			srv_n_rows_updated, 
 			srv_n_rows_deleted, 
@@ -2746,10 +2752,10 @@ loop:
 "  InnoDB: Error: old log sequence number %lu %lu was greater\n"
 "InnoDB: than the new log sequence number %lu %lu!\n"
 "InnoDB: Please send a bug report to mysql@lists.mysql.com\n",
-		ut_dulint_get_high(old_lsn),
-		ut_dulint_get_low(old_lsn),
-		ut_dulint_get_high(new_lsn),
-		ut_dulint_get_low(new_lsn));
+		(ulong) ut_dulint_get_high(old_lsn),
+		(ulong) ut_dulint_get_low(old_lsn),
+		(ulong) ut_dulint_get_high(new_lsn),
+		(ulong) ut_dulint_get_low(new_lsn));
 	}
 
 	old_lsn = new_lsn;

@@ -959,7 +959,7 @@ loop:
 	loop_count++;
 
 	if (loop_count > 1) {
-		printf("!!!!!!!!COM_SHM loop count %lu\n", loop_count);
+		printf("!!!!!!!!COM_SHM loop count %lu\n", (ulong) loop_count);
 	}
 
 	ut_ad(loop_count < 2);
@@ -1088,7 +1088,8 @@ loop:
 	loop_count++;
 
 	if (loop_count > 5) {
-		printf("!!!!!!COM_SHM Notempty loop count %lu\n", loop_count);
+		printf("!!!!!!COM_SHM Notempty loop count %lu\n",
+		       (ulong) loop_count);
 	}
 
 	ut_ad(loop_count < 100);

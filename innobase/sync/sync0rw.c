@@ -235,8 +235,8 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu spin wait rw-s-lock at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
-				lock->cfile_name, lock->cline, i);
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) lock,
+		lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
 	mutex_enter(rw_lock_get_mutex(lock));
@@ -265,8 +265,8 @@ lock_loop:
 		if (srv_print_latch_waits) {
 			printf(
 		"Thread %lu OS wait rw-s-lock at %lx cfile %s cline %lu\n",
-			os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
-				lock->cfile_name, lock->cline);
+			(ulong) os_thread_pf(os_thread_get_curr_id()),
+		        (ulong) lock, lock->cfile_name, (ulong) lock->cline);
 		}
 
 		rw_s_system_call_count++;
@@ -483,8 +483,8 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu spin wait rw-x-lock at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
-					lock->cfile_name, lock->cline, i);
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) lock,
+		lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
 	rw_x_spin_wait_count++;
@@ -516,8 +516,8 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		printf(
 		"Thread %lu OS wait for rw-x-lock at %lx cfile %s cline %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
-				lock->cfile_name, lock->cline);
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) lock,
+		lock->cfile_name, (ulong) lock->cline);
 	}
 
 	rw_x_system_call_count++;
@@ -850,7 +850,8 @@ rw_lock_debug_print(
 	rwt 	  = info->lock_type;	
 			
 	printf("Locked: thread %ld file %s line %ld  ",
-		os_thread_pf(info->thread_id), info->file_name, info->line);
+		(ulong) os_thread_pf(info->thread_id), info->file_name,
+	        (ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
 		printf("S-LOCK");
 	} else if (rwt == RW_LOCK_EX) {
@@ -861,7 +862,7 @@ rw_lock_debug_print(
 		ut_error;
 	}
 	if (info->pass != 0) {
-		printf(" pass value %lu", info->pass);
+		printf(" pass value %lu", (ulong) info->pass);
 	}
 	printf("\n");
 }

@@ -342,7 +342,8 @@ log_close(void)
 "InnoDB: If you are using big BLOB or TEXT rows, you must set the\n"
 "InnoDB: combined size of log files at least 10 times bigger than the\n"
 "InnoDB: largest such row.\n",
-			checkpoint_age, log->log_group_capacity);
+				(ulong) checkpoint_age,
+				(ulong) log->log_group_capacity);
 		}
 	}
 
@@ -898,7 +899,8 @@ log_group_check_flush_completion(
 	if (!log_sys->one_flushed && group->n_pending_writes == 0) {
 
 		if (log_debug_writes) {
-			printf("Log flushed first to group %lu\n", group->id);
+			printf("Log flushed first to group %lu\n",
+			       (ulong) group->id);
 		}
 	
 		log_sys->written_to_some_lsn = log_sys->write_lsn;
@@ -909,7 +911,7 @@ log_group_check_flush_completion(
 
 	if (log_debug_writes && (group->n_pending_writes == 0)) {
 
-		printf("Log flushed to group %lu\n", group->id);
+		printf("Log flushed to group %lu\n", (ulong) group->id);
 	}
 
 	return(0);
@@ -1049,8 +1051,8 @@ log_group_file_header_flush(
 
 	if (log_debug_writes) {
 		printf(
-		"Writing log file header to group %lu file %lu\n", group->id,
-								nth_file);
+		"Writing log file header to group %lu file %lu\n",
+		(ulong) group->id, (ulong) nth_file);
 	}
 
 	if (log_do_write) {
@@ -1139,13 +1141,14 @@ loop:
 		printf(
 		"Writing log file segment to group %lu offset %lu len %lu\n"
 		"start lsn %lu %lu\n",
-			group->id, next_offset, write_len,
-			ut_dulint_get_high(start_lsn),
-			ut_dulint_get_low(start_lsn));
+			(ulong) group->id, (ulong) next_offset,
+		        (ulong) write_len,
+			(ulong) ut_dulint_get_high(start_lsn),
+			(ulong) ut_dulint_get_low(start_lsn));
 		printf(
 		"First block n:o %lu last block n:o %lu\n",
-			log_block_get_hdr_no(buf),
-			log_block_get_hdr_no(
+			(ulong) log_block_get_hdr_no(buf),
+			(ulong) log_block_get_hdr_no(
 				buf + write_len - OS_FILE_LOG_BLOCK_SIZE));
 		ut_a(log_block_get_hdr_no(buf)
 			== log_block_convert_lsn_to_no(start_lsn));
@@ -1286,10 +1289,10 @@ loop:
 
 	if (log_debug_writes) {
 		printf("Writing log from %lu %lu up to lsn %lu %lu\n",
-			ut_dulint_get_high(log_sys->written_to_all_lsn),
-			ut_dulint_get_low(log_sys->written_to_all_lsn),
-					ut_dulint_get_high(log_sys->lsn),
-					ut_dulint_get_low(log_sys->lsn));
+			(ulong) ut_dulint_get_high(log_sys->written_to_all_lsn),
+			(ulong) ut_dulint_get_low(log_sys->written_to_all_lsn),
+			(ulong) ut_dulint_get_high(log_sys->lsn),
+			(ulong)	ut_dulint_get_low(log_sys->lsn));
 	}
 
 	log_sys->n_pending_writes++;
@@ -1525,7 +1528,8 @@ log_io_complete_checkpoint(
 	log_sys->n_pending_checkpoint_writes--;
 
 	if (log_debug_writes) {
-		printf("Checkpoint info written to group %lu\n", group->id);
+		printf("Checkpoint info written to group %lu\n",
+		       (ulong) group->id);
 	}
 
 	if (log_sys->n_pending_checkpoint_writes == 0) {
@@ -1848,9 +1852,9 @@ log_checkpoint(
 
 	if (log_debug_writes) {
 		printf("Making checkpoint no %lu at lsn %lu %lu\n",
-			ut_dulint_get_low(log_sys->next_checkpoint_no),
-			ut_dulint_get_high(oldest_lsn),
-			ut_dulint_get_low(oldest_lsn));
+			(ulong) ut_dulint_get_low(log_sys->next_checkpoint_no),
+			(ulong) ut_dulint_get_high(oldest_lsn),
+			(ulong) ut_dulint_get_low(oldest_lsn));
 	}
 
 	log_groups_write_checkpoint_info();
@@ -2079,7 +2083,7 @@ log_archived_file_name_gen(
 
 	UT_NOT_USED(id);	/* Currently we only archive the first group */
 	
-	sprintf(buf, "%sib_arch_log_%010lu", srv_arch_dir, file_no);
+	sprintf(buf, "%sib_arch_log_%010lu", srv_arch_dir, (ulong) file_no);
 }
 
 /**********************************************************
@@ -2262,9 +2266,9 @@ loop:
 	if (log_debug_writes) {
 		printf(
 		"Archiving starting at lsn %lu %lu, len %lu to group %lu\n",
-					ut_dulint_get_high(start_lsn),
-					ut_dulint_get_low(start_lsn),
-					len, group->id);
+					(ulong) ut_dulint_get_high(start_lsn),
+					(ulong) ut_dulint_get_low(start_lsn),
+					(ulong) len, (ulong) group->id);
 	}
 
 	log_sys->n_pending_archive_ios++;
@@ -2358,7 +2362,7 @@ log_archive_write_complete_groups(void)
 
 	if (log_debug_writes && trunc_files) {
 		printf("Complete file(s) archived to group %lu\n",
-								group->id);
+							  (ulong) group->id);
 	}
 
 	/* Calculate the archive file space start lsn */
@@ -2554,10 +2558,10 @@ loop:
 
 	if (log_debug_writes) {
 		printf("Archiving from lsn %lu %lu to lsn %lu %lu\n",
-			ut_dulint_get_high(log_sys->archived_lsn),
-			ut_dulint_get_low(log_sys->archived_lsn),
-			ut_dulint_get_high(limit_lsn),
-			ut_dulint_get_low(limit_lsn));
+			(ulong) ut_dulint_get_high(log_sys->archived_lsn),
+			(ulong) ut_dulint_get_low(log_sys->archived_lsn),
+			(ulong) ut_dulint_get_high(limit_lsn),
+			(ulong) ut_dulint_get_low(limit_lsn));
 	}
 
 	/* Read the log segment to the archive buffer */
@@ -2666,7 +2670,8 @@ log_archive_close_groups(
 		if (log_debug_writes) {
 			printf(
 			"Incrementing arch file no to %lu in log group %lu\n",
-				group->archived_file_no + 2, group->id);
+				(ulong) group->archived_file_no + 2,
+			        (ulong) group->id);
 		}
 	}
 }
@@ -3117,10 +3122,10 @@ loop:
 		fprintf(stderr,
 "InnoDB: Error: log sequence number at shutdown %lu %lu\n"
 "InnoDB: is lower than at startup %lu %lu!\n",
-			  ut_dulint_get_high(lsn),
-			  ut_dulint_get_low(lsn),
-			  ut_dulint_get_high(srv_start_lsn),
-			  ut_dulint_get_low(srv_start_lsn));
+			  (ulong) ut_dulint_get_high(lsn),
+			  (ulong) ut_dulint_get_low(lsn),
+			  (ulong) ut_dulint_get_high(srv_start_lsn),
+			  (ulong) ut_dulint_get_low(srv_start_lsn));
 	}
 
 	srv_shutdown_lsn = lsn;
@@ -3232,12 +3237,12 @@ log_print(
 	buf += sprintf(buf, "Log sequence number %lu %lu\n"
 	       "Log flushed up to   %lu %lu\n"
 	       "Last checkpoint at  %lu %lu\n",
-			ut_dulint_get_high(log_sys->lsn),
-			ut_dulint_get_low(log_sys->lsn),
-			ut_dulint_get_high(log_sys->flushed_to_disk_lsn),
-			ut_dulint_get_low(log_sys->flushed_to_disk_lsn),
-			ut_dulint_get_high(log_sys->last_checkpoint_lsn),
-			ut_dulint_get_low(log_sys->last_checkpoint_lsn));
+			(ulong) ut_dulint_get_high(log_sys->lsn),
+			(ulong) ut_dulint_get_low(log_sys->lsn),
+			(ulong) ut_dulint_get_high(log_sys->flushed_to_disk_lsn),
+			(ulong) ut_dulint_get_low(log_sys->flushed_to_disk_lsn),
+			(ulong) ut_dulint_get_high(log_sys->last_checkpoint_lsn),
+			(ulong) ut_dulint_get_low(log_sys->last_checkpoint_lsn));
 
 	current_time = time(NULL);
 			
@@ -3246,10 +3251,10 @@ log_print(
 	buf += sprintf(buf,
 	"%lu pending log writes, %lu pending chkp writes\n"
 	"%lu log i/o's done, %.2f log i/o's/second\n",
-	log_sys->n_pending_writes,
-	log_sys->n_pending_checkpoint_writes,
-	log_sys->n_log_ios,
-	(log_sys->n_log_ios - log_sys->n_log_ios_old) / time_elapsed);
+	(ulong) log_sys->n_pending_writes,
+	(ulong) log_sys->n_pending_checkpoint_writes,
+	(ulong) log_sys->n_log_ios,
+	((log_sys->n_log_ios - log_sys->n_log_ios_old) / time_elapsed));
 
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = current_time;
