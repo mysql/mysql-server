@@ -1304,7 +1304,7 @@ JOIN::exec()
       curr_join->select_distinct=0;		/* Each row is unique */
     
     curr_join->join_free(0);			/* Free quick selects */
-    if (select_distinct && ! group_list)
+    if (curr_join->select_distinct && ! curr_join->group_list)
     {
       thd->proc_info="Removing duplicates";
       if (curr_join->tmp_having)
