@@ -30,11 +30,11 @@ class ha_isam: public handler
 
  public:
   ha_isam(TABLE *table): handler(table), file(0),
-    int_option_flag(HA_READ_NEXT+HA_READ_PREV+HA_READ_RND_SAME+
-		    HA_KEYPOS_TO_RNDPOS+ HA_READ_ORDER+ HA_LASTKEY_ORDER+
-		    HA_HAVE_KEY_READ_ONLY+HA_READ_NOT_EXACT_KEY+
-		    HA_LONGLONG_KEYS+HA_KEY_READ_WRONG_STR + HA_DUPP_POS +
-		    HA_NOT_DELETE_WITH_CACHE)
+    int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_RND_SAME |
+		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
+		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
+		    HA_LONGLONG_KEYS | HA_KEY_READ_WRONG_STR | HA_DUPP_POS |
+		    HA_NOT_DELETE_WITH_CACHE | HA_NO_FULLTEXT_KEY)
     {}
   ~ha_isam() {}
   const char *table_type() const { return "ISAM"; }

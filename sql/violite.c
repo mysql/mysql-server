@@ -39,7 +39,7 @@
 #include <sys/ioctl.h>
 #endif
 
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__)
+#if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__) && !defined(__FreeBSD__)
 #include <netinet/ip.h>
 #if !defined(alpha_linux_port)
 #include <netinet/tcp.h>
