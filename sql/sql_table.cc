@@ -1982,7 +1982,6 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   }
 
   // Must be written before unlock
-  mysql_update_log.write(thd,thd->query, thd->query_length);
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
