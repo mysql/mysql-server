@@ -200,7 +200,7 @@ DROP TABLE t1;
 
 
 # Bug #2390
-# Check alignment
+# Check alignment for constants
 #
 SELECT HEX(_ucs2 0x0);
 SELECT HEX(_ucs2 0x01);
@@ -218,3 +218,39 @@ SELECT HEX(_ucs2 0x0123456789ABC);
 SELECT HEX(_ucs2 0x0123456789ABCD);
 SELECT HEX(_ucs2 0x0123456789ABCDE);
 SELECT HEX(_ucs2 0x0123456789ABCDEF);
+
+#
+# Check alignment for from-binary-conversion with CAST and CONVERT
+#
+SELECT hex(cast(0xAA as char character set ucs2));
+SELECT hex(convert(0xAA using ucs2));
+
+#
+# Check alignment for string types
+#
+CREATE TABLE t1 (a char(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a varchar(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a text character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a mediumtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a longtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+-- the same should be also done with enum and set
