@@ -48055,7 +48055,7 @@ Fixed shutdown problem on HPUX.
 @item
 Added functions @code{des_encrypt()} and @code{des_decrypt()}.
 @item
-Added statement FLUSH DES_KEY_FILE.
+Added statement @code{FLUSH DES_KEY_FILE}.
 @item
 Added mysqld option @code{--des-key-file}.
 @item
@@ -48108,7 +48108,7 @@ Added boolean fulltext search code. It should be considered early alpha.
 Extended @code{MODIFY} and @code{CHANGE} in @code{ALTER TABLE} to accept
 the @code{AFTER} keyword.
 @item
-Index are now used with @code{ORDER} BY on a whole InnoDB table.
+Index are now used with @code{ORDER BY} on a whole @code{InnoDB} table.
 @end itemize
 
 @node News-4.0.0,  , News-4.0.1, News-4.0.x
@@ -48123,7 +48123,7 @@ Added documentation for @code{libmysqld}, the embedded MySQL server
 library.  Also added example programs (a @code{mysql} client and
 @code{mysqltest} test program) which use @code{libmysqld}.
 @item
-Removed all Gemini hooks from MySQL.
+Removed all Gemini hooks from MySQL server.
 @item
 Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and
