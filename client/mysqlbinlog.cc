@@ -45,7 +45,7 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
 void sql_print_error(const char *format, ...);
 
-static bool one_database = 0;
+static bool one_database=0, to_last_remote_log= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
@@ -440,6 +440,12 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &sock, (gptr*) &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 
    0, 0},
+  {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
+requested binlog but rather continue printing until the end of the last \
+binlog of the MySQL server. If you send the output to the same MySQL server,
+that may lead to an endless loop.",
+   (gptr*) &to_last_remote_log, (gptr*) &to_last_remote_log, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
@@ -707,33 +713,34 @@ static int dump_remote_log_entries(const char* logname)
     Log_event_type type= ev->get_type_code();
     if (!old_format || ( type != LOAD_EVENT && type != CREATE_FILE_EVENT))
     {
-      /*
-        If this is a Rotate event, maybe it's the end of the requested binlog;
-        in this case we are done (stop transfer).
-        This is suitable for binlogs, not relay logs (but for now we don't read
-        relay logs remotely because the server is not able to do that). If one
-        day we read relay logs remotely, then we will have a problem with the
-        detection below: relay logs contain Rotate events which are about the
-        binlogs, so which would trigger the end-detection below.
-      */
       if (ev->get_type_code() == ROTATE_EVENT)
       {
         Rotate_log_event *rev= (Rotate_log_event *)ev;
         /*
+          mysqld is sending us all its binlogs after the requested one, but we
+          don't want them.
           If this is a fake Rotate event, and not about our log, we can stop
           transfer. If this a real Rotate event (so it's not about our log,
           it's in our log describing the next log), we print it (because it's
           part of our log) and then we will stop when we receive the fake one
           soon.
+          This is suitable for binlogs, not relay logs (but for now we don't
+          read relay logs remotely because the server is not able to do
+          that). If one day we read relay logs remotely, then we will have a
+          problem with the detection below: relay logs contain Rotate events
+          which are about the binlogs, so which would trigger the end-detection
+          below.
         */
-        if (rev->when == 0)
+        if ((rev->when == 0) && !to_last_remote_log)
         {
           if ((rev->ident_len != logname_len) ||
               memcmp(rev->new_log_ident, logname, logname_len))
             DBUG_RETURN(0);
           /*
             Otherwise, this is a fake Rotate for our log, at the very beginning
-            for sure. Skip it.
+            for sure. Skip it, because it was not in the original log. If we
+            are running with to_last_remote_log, we print it, because it serves
+            as a useful marker between binlogs then.
           */
           continue;
         }
