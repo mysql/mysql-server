@@ -50,7 +50,7 @@ if (pos > end_pos)             \
 ** In MySQL the server will handle version issues.
 ******************************************************************************/
 
-static MI_INFO *test_if_reopen(char *filename)
+MI_INFO *test_if_reopen(char *filename)
 {
   LIST *pos;
 
