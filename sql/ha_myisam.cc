@@ -1350,7 +1350,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 		      HA_CREATE_INFO *info)
 {
   int error;
-  uint i,j,recpos,minpos,fieldpos,temp_length,length;
+  uint i,j,recpos,minpos,fieldpos,temp_length,length, create_flags= 0;
   bool found_real_auto_increment=0;
   enum ha_base_keytype type;
   char buff[FN_REFLEN];
@@ -1538,17 +1538,21 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   create_info.data_file_name=  info->data_file_name;
   create_info.index_file_name= info->index_file_name;
 
+  if (info->options & HA_LEX_CREATE_TMP_TABLE)
+    create_flags|= HA_CREATE_TMP_TABLE;
+  if (options & HA_OPTION_PACK_RECORD)
+    create_flags|= HA_PACK_RECORD;
+  if (options & HA_OPTION_CHECKSUM)
+    create_flags|= HA_CREATE_CHECKSUM;
+  if (options & HA_OPTION_DELAY_KEY_WRITE)
+    create_flags|= HA_CREATE_DELAY_KEY_WRITE;
+
   /* TODO: Check that the following fn_format is really needed */
   error=mi_create(fn_format(buff,name,"","",2+4),
 		  share->keys,keydef,
 		  (uint) (recinfo_pos-recinfo), recinfo,
 		  0, (MI_UNIQUEDEF*) 0,
-		  &create_info,
-		  (((options & HA_OPTION_PACK_RECORD) ? HA_PACK_RECORD : 0) |
-		   ((options & HA_OPTION_CHECKSUM) ? HA_CREATE_CHECKSUM : 0) |
-		   ((options & HA_OPTION_DELAY_KEY_WRITE) ?
-		    HA_CREATE_DELAY_KEY_WRITE : 0)));
-
+		  &create_info, create_flags);
 
   my_free((gptr) recinfo,MYF(0));
   DBUG_RETURN(error);

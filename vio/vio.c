@@ -27,20 +27,23 @@
  * Helper to fill most of the Vio* with defaults.
  */
 
-void vio_reset(Vio* vio, enum enum_vio_type type,
-		      my_socket sd, HANDLE hPipe,
-		      my_bool localhost)
+static void vio_init(Vio* vio, enum enum_vio_type type,
+                     my_socket sd, HANDLE hPipe, uint flags)
 {
-  DBUG_ENTER("vio_reset");
-  DBUG_PRINT("enter", ("type: %d  sd: %d  localhost: %d", type, sd,
-                       localhost));
+  DBUG_ENTER("vio_init");
+  DBUG_PRINT("enter", ("type: %d  sd: %d  flags: %d", type, sd, flags));
 
+#ifndef HAVE_VIO_READ_BUFF
+  flags&= ~VIO_BUFFERED_READ;
+#endif
   bzero((char*) vio, sizeof(*vio));
   vio->type	= type;
   vio->sd	= sd;
   vio->hPipe	= hPipe;
-  vio->localhost= localhost;
-#ifdef HAVE_VIO  
+  vio->localhost= flags & VIO_LOCALHOST;
+  if ((flags & VIO_BUFFERED_READ) &&
+      !(vio->read_buffer= (char*)my_malloc(VIO_READ_BUFFER_SIZE, MYF(MY_WME))))
+    flags&= ~VIO_BUFFERED_READ;
 #ifdef __WIN__ 
   if (type == VIO_TYPE_NAMEDPIPE)
   {
@@ -101,7 +104,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
   {
     vio->viodelete	=vio_delete;
     vio->vioerrno	=vio_errno;
-    vio->read		=vio_read;
+    vio->read= (flags & VIO_BUFFERED_READ) ? vio_read_buff : vio_read;
     vio->write		=vio_write;
     vio->fastsend	=vio_fastsend;
     vio->viokeepalive	=vio_keepalive;
@@ -113,21 +116,30 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
   }
-#endif /* HAVE_VIO */
   DBUG_VOID_RETURN;
+}
+
+
+/* Reset initialized VIO to use with another transport type */
+
+void vio_reset(Vio* vio, enum enum_vio_type type,
+               my_socket sd, HANDLE hPipe, uint flags)
+{
+  my_free(vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  vio_init(vio, type, sd, hPipe, flags);
 }
 
 
 /* Open the socket or TCP/IP connection and read the fnctl() status */
 
-Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
+Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
 {
   Vio *vio;
   DBUG_ENTER("vio_new");
   DBUG_PRINT("enter", ("sd: %d", sd));
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
-    vio_reset(vio, type, sd, 0, localhost);
+    vio_init(vio, type, sd, 0, flags);
     sprintf(vio->desc,
 	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
 	    vio->sd);
@@ -163,7 +175,7 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_ENTER("vio_new_handle");
   if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
   {
-    vio_reset(vio, VIO_TYPE_NAMEDPIPE, 0, hPipe, TRUE);
+    vio_init(vio, VIO_TYPE_NAMEDPIPE, 0, hPipe, VIO_LOCALHOST);
     strmov(vio->desc, "named pipe");
   }
   DBUG_RETURN(vio);
@@ -179,7 +191,7 @@ Vio *vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_m
   DBUG_ENTER("vio_new_win32shared_memory");
   if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
   {
-    vio_reset(vio, VIO_TYPE_SHARED_MEMORY, 0, 0, TRUE);
+    vio_init(vio, VIO_TYPE_SHARED_MEMORY, 0, 0, VIO_LOCALHOST);
     vio->handle_file_map= handle_file_map;
     vio->handle_map= handle_map;
     vio->event_server_wrote= event_server_wrote;
@@ -204,11 +216,8 @@ void vio_delete(Vio* vio)
   if (vio)
   {
     if (vio->type != VIO_CLOSED)
-#ifdef HAVE_VIO /*WAX*/
       vio->vioclose(vio);
-#else
-      vio_close(vio);
-#endif
+    my_free((gptr) vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
     my_free((gptr) vio,MYF(0));
   }
 }
