@@ -157,7 +157,7 @@ static const err_code_mapping err_map[]=
   { 721, HA_ERR_TABLE_EXIST, 1 },
   { 4244, HA_ERR_TABLE_EXIST, 1 },
 
-  { 709, HA_ERR_NO_SUCH_TABLE, 1 },
+  { 709, HA_ERR_NO_SUCH_TABLE, 0 },
   { 284, HA_ERR_NO_SUCH_TABLE, 1 },
 
   { 266, HA_ERR_LOCK_WAIT_TIMEOUT, 1 },
@@ -2362,14 +2362,13 @@ void ha_ndbcluster::print_results()
   char buf_type[MAX_FIELD_WIDTH], buf_val[MAX_FIELD_WIDTH];
   String type(buf_type, sizeof(buf_type), &my_charset_bin);
   String val(buf_val, sizeof(buf_val), &my_charset_bin);
-  for (uint f=0; f<table->s->fields;f++)
+  for (uint f= 0; f < table->s->fields; f++)
   {
     /* Use DBUG_PRINT since DBUG_FILE cannot be filtered out */
     char buf[2000];
     Field *field;
     void* ptr;
     NdbValue value;
-    NdbBlob *ndb_blob;
 
     buf[0]= 0;
     field= table->field[f];
@@ -2383,7 +2382,6 @@ void ha_ndbcluster::print_results()
 
     if (! (field->flags & BLOB_FLAG))
     {
-      ndb_blob= NULL;
       if (value.rec->isNULL())
       {
         my_snprintf(buf, sizeof(buf), "NULL");
@@ -2397,7 +2395,7 @@ void ha_ndbcluster::print_results()
     }
     else
     {
-      ndb_blob= value.blob;
+      NdbBlob *ndb_blob= value.blob;
       bool isNull= TRUE;
       ndb_blob->getNull(isNull);
       if (isNull) {
@@ -3994,45 +3992,43 @@ int ha_ndbcluster::alter_table_name(const char *to)
 
 
 /*
-  Delete a table from NDB Cluster
+  Delete table from NDB Cluster
+
  */
 
 int ha_ndbcluster::delete_table(const char *name)
 {
-  DBUG_ENTER("delete_table");
+  DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
   set_dbname(name);
   set_tabname(name);
-  
+
   if (check_ndb_connection())
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  // Remove .ndb file
+
+  /* Call ancestor function to delete .ndb file */
   handler::delete_table(name);
+  
+  /* Drop the table from NDB */
   DBUG_RETURN(drop_table());
 }
 
 
 /*
-  Drop a table in NDB Cluster
+  Drop table in NDB Cluster
  */
 
 int ha_ndbcluster::drop_table()
 {
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
-  
+
   DBUG_ENTER("drop_table");
   DBUG_PRINT("enter", ("Deleting %s", m_tabname));
-  
-  if (dict->dropTable(m_tabname)) 
-  {
-    const NdbError err= dict->getNdbError();
-    if (err.code == 709)
-      ; // 709: No such table existed
-    else 
-      ERR_RETURN(dict->getNdbError());
-  }  
+
   release_metadata();
+  if (dict->dropTable(m_tabname))
+    ERR_RETURN(dict->getNdbError());
   DBUG_RETURN(0);
 }
 
@@ -4509,18 +4505,20 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     // Delete old files
     List_iterator_fast<char> it3(delete_list);
     while ((file_name=it3++))
-    {  
-      DBUG_PRINT("info", ("Remove table %s/%s",db, file_name ));
+    {
+      DBUG_PRINT("info", ("Remove table %s/%s", db, file_name));
       // Delete the table and all related files
       TABLE_LIST table_list;
       bzero((char*) &table_list,sizeof(table_list));
       table_list.db= (char*) db;
       table_list.alias= table_list.table_name= (char*)file_name;
-      (void)mysql_rm_table_part2(thd, &table_list, 
-				 /* if_exists */ TRUE, 
-				 /* drop_temporary */ FALSE, 
+      (void)mysql_rm_table_part2(thd, &table_list,
+				 /* if_exists */ FALSE,
+				 /* drop_temporary */ FALSE,
 				 /* drop_view */ FALSE,
 				 /* dont_log_query*/ TRUE);
+      /* Clear error message that is returned when table is deleted */
+      thd->clear_error();
     }
   }
 
