@@ -370,6 +370,32 @@ row_ins_cascade_ancestor_updates_table(
 	return(FALSE);
 }
 	
+/*************************************************************************
+Returns the number of ancestor UPDATE or DELETE nodes of a
+cascaded update/delete node. */
+static
+ulint
+row_ins_cascade_n_ancestors(
+/*========================*/
+				/* out: number of ancestors */
+	que_node_t*	node)	/* in: node in a query graph */
+{
+	que_node_t*	parent;
+	ulint		n_ancestors = 0;
+
+	parent = que_node_get_parent(node);
+	
+	while (que_node_get_type(parent) == QUE_NODE_UPDATE) {
+		n_ancestors++;
+
+		parent = que_node_get_parent(parent);
+
+		ut_a(parent);
+	}
+
+	return(n_ancestors);
+}
+	
 /**********************************************************************
 Calculates the update vector node->cascade->update for a child table in
 a cascaded update. */
@@ -616,6 +642,34 @@ row_ins_foreign_report_add_err(
 }
 
 /*************************************************************************
+Invalidate the query cache for the given table. */
+static
+void
+row_ins_invalidate_query_cache(
+/*===========================*/
+	que_thr_t*	thr,		/* in: query thread whose run_node
+					is an update node */
+	const char*	name)		/* in: table name prefixed with
+					database name and a '/' character */
+{
+	char*	buf;
+	char*	ptr;
+	ulint	len = strlen(name) + 1;
+
+	buf = mem_strdupl(name, len);
+
+	ptr = strchr(buf, '/');
+	ut_a(ptr);
+	*ptr = '\0';
+
+	/* We call a function in ha_innodb.cc */
+#ifndef UNIV_HOTBACKUP
+	innobase_invalidate_query_cache(thr_get_trx(thr), buf, len);
+#endif
+	mem_free(buf);
+}
+
+/*************************************************************************
 Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
 RESTRICT. */
@@ -650,26 +704,14 @@ row_ins_foreign_check_on_constraint(
 	ulint		n_to_update;
 	ulint		err;
 	ulint		i;
-	char*		ptr;
-	char		table_name_buf[1000];
 	
 	ut_a(thr && foreign && pcur && mtr);
 
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table */
 
-	ut_a(ut_strlen(table->name) < 998);
-	strcpy(table_name_buf, table->name);
+	row_ins_invalidate_query_cache(thr, table->name);
 
-	ptr = strchr(table_name_buf, '/');
-	ut_a(ptr);
-	*ptr = '\0';
-	
-	/* We call a function in ha_innodb.cc */
-#ifndef UNIV_HOTBACKUP
-	innobase_invalidate_query_cache(thr_get_trx(thr), table_name_buf,
-						ut_strlen(table->name) + 1);
-#endif
 	node = thr->run_node;
 
 	if (node->is_delete && 0 == (foreign->type &
@@ -752,6 +794,16 @@ row_ins_foreign_check_on_constraint(
 		row_ins_foreign_report_err(
 (char*)"Trying an update, possibly causing a cyclic cascaded update\n"
 "in the child table,", thr, foreign, btr_pcur_get_rec(pcur), entry);
+
+		goto nonstandard_exit_func;
+	}
+
+	if (row_ins_cascade_n_ancestors(cascade) >= 15) {
+		err = DB_ROW_IS_REFERENCED;
+
+		row_ins_foreign_report_err(
+(char*)"Trying a too deep cascaded delete or update\n",
+			thr, foreign, btr_pcur_get_rec(pcur), entry);
 
 		goto nonstandard_exit_func;
 	}

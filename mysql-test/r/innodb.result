@@ -1259,3 +1259,15 @@ Cannot delete or update a parent row: a foreign key constraint fails
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 Unknown table 't1' in where clause
 drop table t3,t2,t1;
+create table t1(
+id int primary key,
+pid int,
+index(pid),
+foreign key(pid) references t1(id) on delete cascade) type=innodb;
+insert into t1 values(0,0),(1,0),(2,1),(3,2),(4,3),(5,4),(6,5),(7,6),
+(8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14);
+delete from t1 where id=0;
+Cannot delete or update a parent row: a foreign key constraint fails
+delete from t1 where id=15;
+delete from t1 where id=0;
+drop table t1;
