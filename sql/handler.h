@@ -269,7 +269,7 @@ public:
   virtual int rnd_end() { return 0; }
   virtual int rnd_next(byte *buf)=0;
   virtual int rnd_pos(byte * buf, byte *pos)=0;
-  virtual int rnd_first(byte *buf);
+  virtual int read_first_row(byte *buf, uint primary_key);
   virtual int restart_rnd_next(byte *buf, byte *pos);
   virtual ha_rows records_in_range(int inx,
 			           const byte *start_key,uint start_key_len,
