@@ -1688,15 +1688,8 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 59:{
     jam();
-    const TcKeyReq * const tcKeyReq = (TcKeyReq *)&signal->theData[0];
-    const Uint32 t1 = tcKeyReq->transId1;
-    const Uint32 t2 = tcKeyReq->transId2;
-    signal->theData[0] = apiConnectptr.p->ndbapiConnect;
-    signal->theData[1] = t1;
-    signal->theData[2] = t2;
-    signal->theData[3] = ZABORTINPROGRESS;
-    sendSignal(apiConnectptr.p->ndbapiBlockref, 
-	       GSN_TCROLLBACKREP, signal, 4, JBB);
+    terrorCode = ZABORTINPROGRESS;
+    abortErrorLab(signal);
     return;
   }
     
@@ -2217,6 +2210,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
   UintR Ttransid0 = tcKeyReq->transId1;
   UintR Ttransid1 = tcKeyReq->transId2;
 
+  regApiPtr->m_exec_flag = 0;
+  regApiPtr->returncode = 0;
   regApiPtr->returnsignal = RS_TCKEYCONF;
   regApiPtr->firstTcConnect = RNIL;
   regApiPtr->lastTcConnect = RNIL;
@@ -2382,6 +2377,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   bool isIndexOp = regApiPtr->isIndexOp;
   bool isIndexOpReturn = regApiPtr->indexOpReturn;
   regApiPtr->isIndexOp = false; // Reset marker
+  regApiPtr->m_exec_flag |= TexecFlag;
   switch (regApiPtr->apiConnectstate) {
   case CS_CONNECTED:{
     if (TstartFlag == 1 && getAllowStartTransaction() == true){
@@ -2390,6 +2386,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       //---------------------------------------------------------------------
       jam();
       initApiConnectRec(signal, regApiPtr);
+      regApiPtr->m_exec_flag = TexecFlag;
     } else {
       if(getAllowStartTransaction() == true){
 	/*------------------------------------------------------------------
@@ -2432,6 +2429,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	//--------------------------------------------------------------------
         jam();
         initApiConnectRec(signal, regApiPtr);
+	regApiPtr->m_exec_flag = TexecFlag;
       } else if(TexecFlag) {
 	TCKEY_abort(signal, 59);
 	return;
@@ -5101,8 +5099,8 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
           // We will abort it instead.
           /*******************************************************************/
           regApiPtr->returnsignal = RS_NO_RETURN;
-          abort010Lab(signal);
           errorCode = ZTRANS_STATUS_ERROR;
+          abort010Lab(signal);
         }//if
       } else {
         jam();
@@ -5128,8 +5126,8 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
       // transaction. We will abort it instead.
       /***********************************************************************/
       regApiPtr->returnsignal = RS_NO_RETURN;
-      abort010Lab(signal);
       errorCode = ZPREPAREINPROGRESS;
+      abort010Lab(signal);
       break;
       
     case CS_START_COMMITTING:
@@ -5661,7 +5659,10 @@ void Dbtc::abortErrorLab(Signal* signal)
     return;
   }
   transP->returnsignal = RS_TCROLLBACKREP;
-  transP->returncode = terrorCode;
+  if(transP->returncode == 0){
+    jam();
+    transP->returncode = terrorCode;
+  }
   abort010Lab(signal);
 }//Dbtc::abortErrorLab()
 
@@ -5989,7 +5990,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
   /*       FIND OUT WHAT WE NEED TO DO BASED ON THE STATE INFORMATION.*/
   /*------------------------------------------------------------------*/
   DEBUG("Time-out in state = " << apiConnectptr.p->apiConnectstate
-	<< " apiConnectptr.i = " << apiConnectptr.i);
+	<< " apiConnectptr.i = " << apiConnectptr.i 
+	<< " - exec: " << apiConnectptr.p->m_exec_flag);
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec){
@@ -6003,11 +6005,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
         jam();
         return;
       }//if
-      apiConnectptr.p->returnsignal = RS_NO_RETURN;
-    } else {
-      jam();
-      apiConnectptr.p->returnsignal = RS_TCROLLBACKREP;      
     }
+    apiConnectptr.p->returnsignal = RS_TCROLLBACKREP;      
     apiConnectptr.p->returncode = ZTIME_OUT_ERROR;
     abort010Lab(signal);
     return;
@@ -9385,9 +9384,9 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
     return;
   }
 
-  if(!apiFail){
+  Uint32 ref = apiConnectptr.p->ndbapiBlockref;
+  if(!apiFail && ref){
     jam();
-    Uint32 ref = apiConnectptr.p->ndbapiBlockref;
     ScanTabConf * conf = (ScanTabConf*)&signal->theData[0];
     conf->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
     conf->requestInfo = ScanTabConf::EndOfData;
@@ -9395,7 +9394,7 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
     conf->transId2 = apiConnectptr.p->transid[1];
     sendSignal(ref, GSN_SCAN_TABCONF, signal, ScanTabConf::SignalLength, JBB);
   }
-
+  
   releaseScanResources(scanPtr);
   
   if(apiFail){
@@ -9926,48 +9925,52 @@ void Dbtc::releaseAbortResources(Signal* signal)
   apiConnectptr.p->apiConnectstate = CS_ABORTING;
   apiConnectptr.p->abortState = AS_IDLE;
 
-  bool ok = false;
-  Uint32 blockRef = apiConnectptr.p->ndbapiBlockref;
-  switch(apiConnectptr.p->returnsignal){
-  case RS_TCROLLBACKCONF:
+  if(apiConnectptr.p->m_exec_flag || apiConnectptr.p->apiFailState == ZTRUE){
     jam();
-    ok = true;
-    signal->theData[0] = apiConnectptr.p->ndbapiConnect;
-    signal->theData[1] = apiConnectptr.p->transid[0];
-    signal->theData[2] = apiConnectptr.p->transid[1];
-    sendSignal(blockRef, GSN_TCROLLBACKCONF, signal, 3, JBB);
-    break;
-  case RS_TCROLLBACKREP:{
-    jam();
-    ok = true;
-    TcRollbackRep * const tcRollbackRep = 
-      (TcRollbackRep *) signal->getDataPtr();
-    
-    tcRollbackRep->connectPtr = apiConnectptr.p->ndbapiConnect;
-    tcRollbackRep->transId[0] = apiConnectptr.p->transid[0];
-    tcRollbackRep->transId[1] = apiConnectptr.p->transid[1];
-    tcRollbackRep->returnCode = apiConnectptr.p->returncode;
-    sendSignal(blockRef, GSN_TCROLLBACKREP, signal, 
-	       TcRollbackRep::SignalLength, JBB);
-  }
-    break;
-  case RS_NO_RETURN:
-    jam();
-    ok = true;
-    break;
-  case RS_TCKEYCONF:
-  case RS_TCKEYREF:
-  case RS_TC_COMMITCONF:
-    break;
-  }    
-  if(!ok){
-    jam();
-    ndbout_c("returnsignal = %d", apiConnectptr.p->returnsignal);
-    sendSystemError(signal);
-  }//if
+    bool ok = false;
+    Uint32 blockRef = apiConnectptr.p->ndbapiBlockref;
+    ReturnSignal ret = apiConnectptr.p->returnsignal;
+    apiConnectptr.p->returnsignal = RS_NO_RETURN;
+    apiConnectptr.p->m_exec_flag = 0;
+    switch(ret){
+    case RS_TCROLLBACKCONF:
+      jam();
+      ok = true;
+      signal->theData[0] = apiConnectptr.p->ndbapiConnect;
+      signal->theData[1] = apiConnectptr.p->transid[0];
+      signal->theData[2] = apiConnectptr.p->transid[1];
+      sendSignal(blockRef, GSN_TCROLLBACKCONF, signal, 3, JBB);
+      break;
+    case RS_TCROLLBACKREP:{
+      jam();
+      ok = true;
+      TcRollbackRep * const tcRollbackRep = 
+	(TcRollbackRep *) signal->getDataPtr();
+      
+      tcRollbackRep->connectPtr = apiConnectptr.p->ndbapiConnect;
+      tcRollbackRep->transId[0] = apiConnectptr.p->transid[0];
+      tcRollbackRep->transId[1] = apiConnectptr.p->transid[1];
+      tcRollbackRep->returnCode = apiConnectptr.p->returncode;
+      sendSignal(blockRef, GSN_TCROLLBACKREP, signal, 
+		 TcRollbackRep::SignalLength, JBB);
+    }
+      break;
+    case RS_NO_RETURN:
+      jam();
+      ok = true;
+      break;
+    case RS_TCKEYCONF:
+    case RS_TC_COMMITCONF:
+      break;
+    }    
+    if(!ok){
+      jam();
+      ndbout_c("returnsignal = %d", apiConnectptr.p->returnsignal);
+      sendSystemError(signal);
+    }//if
 
+  }
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
-  apiConnectptr.p->abortState = AS_IDLE;
   if (apiConnectptr.p->apiFailState == ZTRUE) {
     jam();
     handleApiFailState(signal, apiConnectptr.i);
