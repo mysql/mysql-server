@@ -41,7 +41,6 @@ args: -n SingleUserMode T1
 #
 # SYSTEM RESTARTS
 #
-
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR3 T6 
