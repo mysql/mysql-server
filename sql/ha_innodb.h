@@ -180,10 +180,10 @@ class ha_innobase: public handler
         /*
           ask handler about permission to cache table during query registration
         */
-        my_bool cached_table_registration(THD *thd, char *table_key,
-                                          uint key_length,
-                                          qc_engine_callback *call_back,
-                                          ulonglong *engine_data)
+        my_bool register_query_cache_table(THD *thd, char *table_key,
+					   uint key_length,
+					   qc_engine_callback *call_back,
+					   ulonglong *engine_data)
         {
           *call_back= innobase_query_caching_of_table_permitted;
           *engine_data= 0;

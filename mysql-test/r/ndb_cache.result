@@ -36,22 +36,22 @@ Variable_name	Value
 Qcache_hits	1
 insert into t1 value (2, 7, 8, 'Second row');
 insert into t1 value (4, 5, 6, 'Fourth row');
-select * from t1;
+select * from t1 order by pk;
 pk	a	b	c
+1	3	3	First row
 2	7	8	Second row
 4	5	6	Fourth row
-1	3	3	First row
 show status like "Qcache_inserts";
 Variable_name	Value
 Qcache_inserts	3
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
-select * from t1;
+select * from t1 order by pk;
 pk	a	b	c
+1	3	3	First row
 2	7	8	Second row
 4	5	6	Fourth row
-1	3	3	First row
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	2
@@ -81,10 +81,10 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	3
 use test;
-select * from t1;
+select * from t1 order by pk;
 pk	a	b	c
-2	7	8	Second row
 1	3	3	First row
+2	7	8	Second row
 select * from t1 where b=3;
 pk	a	b	c
 1	3	3	First row
@@ -96,11 +96,11 @@ use test;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-select * from t1;
+select * from t1 order by pk desc;
 pk	a	b	c
 2	7	8	Second row
 1	4	3	First row
-select * from t1;
+select * from t1 order by pk desc;
 pk	a	b	c
 2	7	8	Second row
 1	4	3	First row
@@ -110,11 +110,11 @@ Qcache_inserts	7
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	5
-select * from t1;
+select * from t1 order by pk desc;
 pk	a	b	c
 2	7	8	Second row
 1	4	3	First row
-select * from t1;
+select * from t1 order by pk desc;
 pk	a	b	c
 2	7	8	Second row
 1	4	3	First row
@@ -138,7 +138,7 @@ Qcache_inserts	7
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	7
-select * from t1;
+select * from t1 order by pk desc;
 pk	a	b	c
 2	7	8	Second row
 1	4	3	First row
@@ -161,7 +161,7 @@ Qcache_inserts	8
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	7
-select * from t1;
+select * from t1 order by pk desc;
 pk	a	b	c
 2	7	8	Second row
 1	5	3	First row
@@ -171,7 +171,7 @@ Qcache_inserts	9
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	7
-select * from t1;
+select * from t1 order by pk desc;
 pk	a	b	c
 2	7	8	Second row
 1	5	3	First row
