@@ -501,8 +501,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       select_distinct=0;
   }
   else if (select_distinct && join.tables - join.const_tables == 1 &&
-	   ((thd->select_limit == HA_POS_ERROR ||
-	    (join.select_options & OPTION_FOUND_ROWS)) &&
+	   (thd->select_limit == HA_POS_ERROR ||
+	    (join.select_options & OPTION_FOUND_ROWS) ||
 	    order &&
 	    !(skip_sort_order=
 	      test_if_skip_sort_order(&join.join_tab[join.const_tables],
@@ -4899,11 +4899,12 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	JOIN_TAB *jt=join->join_tab;
 	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
 	    && !join->send_group_parts && !join->having && !jt->select_cond &&
-	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT) && (jt->records < INT_MAX32))
+	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{
 	  /* Join over all rows in table;  Return number of found rows */
 	  join->select_options ^= OPTION_FOUND_ROWS;
-	  join->send_records = jt->records;
+	  jt->table->file->info(HA_STATUS_VARIABLE);
+	  join->send_records = jt->table->file->records;
 	}
 	else 
 	{
@@ -4941,10 +4942,9 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	join->procedure->end_group();
       if (idx < (int) join->send_group_parts)
       {
-	int error;
+	int error=0;
 	if (join->procedure)
 	{
-	  error=0;
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
  	  else if (join->do_send_rows)
@@ -4962,13 +4962,11 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
-	  else
+	  else if (join->do_send_rows)
 	    error=join->result->send_data(*join->fields) ? 1 : 0;
 	}
 	if (error > 0)
 	  DBUG_RETURN(-1);			/* purecov: inspected */
-	if (end_of_records)
-	  DBUG_RETURN(0);
 	if (!error && ++join->send_records >= join->thd->select_limit &&
 	    join->do_send_rows)
 	{
@@ -4977,6 +4975,8 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  join->do_send_rows=0;
 	  join->thd->select_limit = HA_POS_ERROR;
         }
+	if (end_of_records)
+	  DBUG_RETURN(0);
       }
     }
     else
