@@ -93,8 +93,12 @@ id	data
 zip	100
 delete from t1;
 drop procedure zip;
-drop procedure zap;
 drop procedure bar;
+call zap(7, @zap);
+select @zap;
+@zap
+8
+drop procedure zap;
 create procedure c1(x int)
 call c2("c", x);
 create procedure c2(s char(16), x int)
@@ -132,7 +136,17 @@ io1	1
 delete from t1;
 drop procedure iotest;
 drop procedure inc2;
+create procedure incr(inout x int)
+call inc(x);
+select @zap;
+@zap
+8
+call incr(@zap);
+select @zap;
+@zap
+9
 drop procedure inc;
+drop procedure incr;
 create procedure cbv1()
 begin
 declare y int default 3;
