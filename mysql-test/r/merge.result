@@ -275,12 +275,12 @@ a	b
 1	2
 drop table t3,t1,t2;
 drop table if exists t6, t5, t4, t3, t2, t1;
-create table t1 (a int not null, b int not null, key(a,b));
-create table t2 (a int not null, b int not null, key(a,b));
+create table t1 (a int not null, b int not null auto_increment, primary key(a,b));
+create table t2 (a int not null, b int not null auto_increment, primary key(a,b));
 create table t3 (a int not null, b int not null, key(a,b)) UNION=(t1,t2) INSERT_METHOD=NO;
 create table t4 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=NO;
-create table t5 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
-create table t6 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
+create table t5 (a int not null, b int not null auto_increment, primary key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+create table t6 (a int not null, b int not null auto_increment, primary key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -299,18 +299,18 @@ show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL default '0',
-  `b` int(11) NOT NULL default '0',
-  KEY `a` (`a`,`b`)
+  `b` int(11) NOT NULL auto_increment,
+  PRIMARY KEY  (`a`,`b`)
 ) TYPE=MRG_MyISAM INSERT_METHOD=FIRST UNION=(t1,t2)
 show create table t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` int(11) NOT NULL default '0',
-  `b` int(11) NOT NULL default '0',
-  KEY `a` (`a`,`b`)
+  `b` int(11) NOT NULL auto_increment,
+  PRIMARY KEY  (`a`,`b`)
 ) TYPE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1,t2)
-insert into t1 values (1,1),(1,2),(1,3),(1,4);
-insert into t2 values (2,1),(2,2),(2,3),(2,4);
+insert into t1 values (1,NULL),(1,NULL),(1,NULL),(1,NULL);
+insert into t2 values (2,NULL),(2,NULL),(2,NULL),(2,NULL);
 select * from t3 order by b,a limit 3;
 a	b
 select * from t4 order by b,a limit 3;
@@ -461,6 +461,73 @@ a	b
 5	2
 6	1
 6	2
+select 1;
+1
+1
+insert into t5 values (1,NULL),(5,NULL);
+insert into t6 values (2,NULL),(6,NULL);
+select * from t1 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+1	5
+4	1
+4	2
+5	1
+5	2
+5	3
+select * from t2 order by a,b;
+a	b
+2	1
+2	2
+2	3
+2	4
+2	5
+6	1
+6	2
+6	3
+select * from t5 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+1	5
+2	1
+2	2
+2	3
+2	4
+2	5
+4	1
+4	2
+5	1
+5	2
+5	3
+6	1
+6	2
+6	3
+select * from t6 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+1	5
+2	1
+2	2
+2	3
+2	4
+2	5
+4	1
+4	2
+5	1
+5	2
+5	3
+6	1
+6	2
+6	3
 drop table if exists t6, t5, t4, t3, t2, t1;
 CREATE TABLE t1 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,1);

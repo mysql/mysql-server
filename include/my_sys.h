@@ -323,8 +323,7 @@ typedef struct st_io_cache_share
   int             count;
   /* actual IO_CACHE that filled the buffer */
   struct st_io_cache *active;
-  /* the following will be implemented whenever the need arises */
-#ifdef NOT_IMPLEMENTED
+#ifdef NOT_YET_IMPLEMENTED
   /* whether the structure should be free'd */
   my_bool alloced;
 #endif
