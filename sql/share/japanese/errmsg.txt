@@ -96,7 +96,7 @@
 "ALTER TABLE で全ての column は削除できません. DROP TABLE を使用してください",
 "'%-.64s' を破棄できませんでした. Check that column/key exists",
 "レコード数: %ld  重複数: %ld  Warnings: %ld",
-"INSERT TABLE '%-.64s' isn't allowed in FROM table list",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "thread id: %lu はありません",
 "thread %lu のオーナーではありません",
 "No tables used",
@@ -251,3 +251,4 @@
 "Reference '%-.64s' not supported (%s)",
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"

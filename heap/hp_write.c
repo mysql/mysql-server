@@ -155,7 +155,7 @@ static byte *next_free_record_pos(HP_SHARE *info)
 	/* Write a hash-key to the hash-index */
 
 int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
-		  const byte *record, byte *recpos)
+		 const byte *record, byte *recpos)
 {
   HP_SHARE *share = info->s;
   int flag;

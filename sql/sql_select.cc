@@ -4115,6 +4115,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->usable_key_parts=keyinfo->key_parts= param->group_parts;
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
+    keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     for (; group ; group=group->next,key_part_info++)
     {
       Field *field=(*group->item)->tmp_table_field();
@@ -4191,6 +4192,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
     keyinfo->key_length=(uint16) reclength;
     keyinfo->name=(char*) "tmp";
+    keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     if (null_pack_length)
     {
       key_part_info->null_bit=0;

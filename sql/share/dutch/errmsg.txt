@@ -105,7 +105,7 @@
 "Het is niet mogelijk alle velden te verwijderen met ALTER TABLE. Gebruik a.u.b. DROP TABLE hiervoor!",
 "Kan '%-.64s' niet weggooien. Controleer of het veld of de zoeksleutel daadwerkelijk bestaat.",
 "Records: %ld  Dubbel: %ld  Waarschuwing: %ld",
-"INSERT TABLE '%-.64s' is niet toegestaan in de FROM tabel-lijst",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Onbekend thread id: %lu",
 "U bent geen bezitter van thread %lu",
 "Geen tabellen gebruikt.",
@@ -260,3 +260,4 @@
 "Reference '%-.64s' not supported (%s)",
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"

@@ -96,7 +96,7 @@
 "En kan ikke slette alle felt med ALTER TABLE. Bruk DROP TABLE isteden.",
 "Kan ikke DROP '%-.64s'. Undersøk om felt/nøkkel eksisterer.",
 "Poster: %ld  Like: %ld  Advarsler: %ld",
-"INSERT TABLE '%-.64s' er ikke tillatt i FROM tabell liste",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Ukjent tråd id: %lu",
 "Du er ikke eier av tråden %lu",
 "Ingen tabeller i bruk",
@@ -251,3 +251,4 @@
 "Reference '%-.64s' not supported (%s)",
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"

@@ -1,33 +1,33 @@
-SELECT (1,2,3)=(1,2,3);
-SELECT (2,2,3)=(1+1,2,3);
-SELECT (1,2,3)=(1+1,2,3);
-SELECT (1,2,3)<(1+1,2,3);
-SELECT (1,2,3)>(1+1,2,3);
-SELECT (1,2,3)<=(1+1,2,3);
-SELECT (1,2,3)>=(1+1,2,3);
-SELECT (1,2,3)<>(1+1,2,3);
-SELECT (NULL,2,3)=(NULL,2,3);
-SELECT (NULL,2,3)<=>(NULL,2,3);
-SELECT (1,2,(3,4,5))=(1,2,(3,4,5));
-SELECT ('test',2,3.33)=('test',2,3.33);
+SELECT ROW(1,2,3)=ROW(1,2,3);
+SELECT ROW(2,2,3)=ROW(1+1,2,3);
+SELECT ROW(1,2,3)=ROW(1+1,2,3);
+SELECT ROW(1,2,3)<ROW(1+1,2,3);
+SELECT ROW(1,2,3)>ROW(1+1,2,3);
+SELECT ROW(1,2,3)<=ROW(1+1,2,3);
+SELECT ROW(1,2,3)>=ROW(1+1,2,3);
+SELECT ROW(1,2,3)<>ROW(1+1,2,3);
+SELECT ROW(NULL,2,3)=ROW(NULL,2,3);
+SELECT ROW(NULL,2,3)<=>ROW(NULL,2,3);
+SELECT ROW(1,2,ROW(3,4,5))=ROW(1,2,ROW(3,4,5));
+SELECT ROW('test',2,3.33)=ROW('test',2,3.33);
 -- error 1239
-SELECT ('test',2,3.33)=('test',2,3.33,4);
+SELECT ROW('test',2,3.33)=ROW('test',2,3.33,4);
 drop table if exists t1;
 create table t1 ( a int, b int, c int);
 insert into t1 values (1,2,3), (2,3,1), (3,2,1);
-select * from t1 where (1,2,3)=(a,b,c);
-select * from t1 where (0,2,3)=(a,b,c);
-select * from t1 where (1,2,3)<(a,b,c);
+select * from t1 where ROW(1,2,3)=ROW(a,b,c);
+select * from t1 where ROW(0,2,3)=ROW(a,b,c);
+select * from t1 where ROW(1,2,3)<ROW(a,b,c);
 drop table t1;
 
 -- error 1239
-select (1,1);
+select ROW(1,1);
 drop table if exists t1;
 create table t1 (i int);
 -- error 1239
-select 1 from t1 where (1,1);
+select 1 from t1 where ROW(1,1);
 -- error 1239
-select count(*) from t1 order by (1,1);
+select count(*) from t1 order by ROW(1,1);
 #TODO remove comments after parser fixing
 #-- error 1239
 #select count(*) from t1 order by i having (1,1);

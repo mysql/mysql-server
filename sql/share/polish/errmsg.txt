@@ -98,7 +98,7 @@
 "Nie mo¿na usun?æ wszystkich pól wykorzystuj?c ALTER TABLE. W zamian u¿yj DROP TABLE",
 "Nie mo¿na wykonaæ operacji DROP '%-.64s'. Sprawd¥, czy to pole/klucz istnieje",
 "Rekordów: %ld  Duplikatów: %ld  Ostrze¿eñ: %ld",
-"Operacja INSERT TABLE '%-.64s' nie jest dozwolona w li?cie tabel w FROM",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Nieznany identyfikator w?tku: %lu",
 "Nie jeste? w³a?cicielem w?tku %lu",
 "Nie ma ¿adej u¿ytej tabeli",
@@ -253,3 +253,4 @@
 "Reference '%-.64s' not supported (%s)",
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
