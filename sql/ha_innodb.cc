@@ -117,6 +117,7 @@ my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool	innobase_file_per_table			= FALSE;
+my_bool innobase_locks_unsafe_for_binlog        = FALSE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -908,6 +909,7 @@ innobase_init(void)
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
 	srv_file_per_table = (ibool) innobase_file_per_table;
+        srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
 
