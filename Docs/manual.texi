@@ -39264,10 +39264,12 @@ likely it is that we can fix the problem!
 * C API datatypes::             C API Datatypes
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
-* C Thread functions::          
+* C Thread functions::          C Thread Functions
+* C Embedded Server functions:: C Embedded Server Functions
 * C API problems::              Common questions and problems when using the C API
 * Building clients::            Building Client Programs
 * Threaded clients::            How to Make a Threaded Client
+* libmysqld::                   libmysqld, the Embedded MySQL Server Library
 @end menu
 
 The C API code is distributed with MySQL. It is included in the
@@ -39307,8 +39309,10 @@ The MySQL server shrinks each communication buffer to
 the buffer associated with a connection is not decreased until the connection
 is closed, at which time client memory is reclaimed.
 
-For programming with threads, consult the 'how to make a thread-safe
-client' chapter. @xref{Threaded clients}.
+For programming with threads, see @ref{Threaded clients}.
+For creating a stand-alone application which includes the
+"server" and "client" in the same program (and does not
+communicate with an external MySQL server), see @ref{libmysqld}.
 
 
 @node C API datatypes, C API function overview, C, C
@@ -39649,8 +39653,8 @@ Retrieves a complete result set to the client.
 @item @strong{mysql_thread_id()} @tab
 Returns the current thread ID.
 
-@item @strong{mysql_thread_save()} @tab
-Returns 1 if the clients are compiled as thread-safe.
+@item @strong{mysql_thread_safe()} @tab
+Returns 1 if the clients are compiled as thread safe.
 
 @item @strong{mysql_use_result()} @tab
 Initiates a row-by-row result set retrieval.
@@ -40674,7 +40678,6 @@ of @code{mysql_field_count()} whether or not the statement was a
 
 @code{MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result, MYSQL_FIELD_OFFSET offset)}
 
-* Threaded clients::         How to Make a Threaded Client
 @subsubheading Description
 
 Sets the field cursor to the given offset.   The next call to
@@ -41956,19 +41959,19 @@ The connection to the server was lost during the query.
 An unknown error occurred.
 @end table
 
-@node C Thread functions, C API problems, C API functions, C
+@node C Thread functions, C Embedded Server functions, C API functions, C
 @subsection C Threaded Function Descriptions
 
 You need to use the following functions when you want to create a
 threaded client. @xref{Threaded clients}.
 
 @menu
-* my_init::                     
-* my_thread_init()::            
-* my_thread_end()::             
+* my_init()::                     @code{my_init()}
+* mysql_thread_init()::           @code{mysql_thread_init()}
+* mysql_thread_end()::            @code{mysql_thread_end()}
 @end menu
 
-@node my_init, my_thread_init(), C Thread functions, C Thread functions
+@node my_init(), mysql_thread_init(), C Thread functions, C Thread functions
 @subsubsection @code{my_init()}
 
 @findex @code{my_init()}
@@ -41977,20 +41980,20 @@ threaded client. @xref{Threaded clients}.
 
 This function needs to be called once in the program before calling any
 MySQL function.  This initializes some global variables that MySQL
-needs.  If you are using a thread safe client library, this will also
-call @code{my_thread_init()} for this thread.
+needs.  If you are using a thread-safe client library, this will also
+call @code{mysql_thread_init()} for this thread.
 
-This is automatically called by @code{mysql_init()}
-and @code{mysql_connect()}.
+This is automatically called by @code{mysql_init()},
+@code{mysql_server_init()} and @code{mysql_connect()}.
 
 @subsubheading Return Values
 
 none.
 
-@node my_thread_init(), my_thread_end(), my_init, C Thread functions
-@subsubsection @code{my_thread_init()}
+@node mysql_thread_init(), mysql_thread_end(), my_init(), C Thread functions
+@subsubsection @code{mysql_thread_init()}
 
-@findex @code{my_thread_init()}
+@findex @code{mysql_thread_init()}
 
 @subsubheading Description
 
@@ -42003,24 +42006,115 @@ This is automatically called by @code{my_init()} and @code{mysql_connect()}.
 
 none.
 
-@node my_thread_end(),  , my_thread_init(), C Thread functions
-@subsubsection @code{my_thread_end()}
+@node mysql_thread_end(),  , mysql_thread_init(), C Thread functions
+@subsubsection @code{mysql_thread_end()}
 
-@findex @code{my_thread_end()}
+@findex @code{mysql_thread_end()}
 
 @subsubheading Description
 
 This function needs to be called before calling @code{pthread_exit()} to
-freed memory allocated by @code{my_thread_init()}.
+free memory allocated by @code{mysql_thread_init()}.
 
-Note that this function is NOT invoked automatically by the client
-library!
+Note that this function @strong{is not invoked automatically} by the client
+library.  It must be called explicitly to avoid a memory leak.
 
 @subsubheading Return Values
 
 none.
 
-@node C API problems, Building clients, C Thread functions, C
+@node C Embedded Server functions, C API problems, C Thread functions, C
+@subsection C Embedded Server Function Descriptions
+
+You must use the following functions if you want to allow your
+application to be linked against the embedded MySQL server library.
+@xref{libmysqld}.
+
+If the program is linked with @code{-lmysqlclient} instead of
+@code{-lmysqld}, these functions do nothing.  This makes it
+possible to choose between using the embedded MySQL server and
+a stand-alone server without modifying any code.
+
+@menu
+* mysql_server_init()::
+* mysql_server_end()::
+@end menu
+
+@node mysql_server_init(), mysql_server_end(), C Embedded Server functions, C Embedded Server functions
+@subsubsection @code{mysql_server_init()}
+
+@findex @code{mysql_server_init()}
+
+@code{void mysql_server_init(int argc, const char **argv, const char **groups)}
+
+@subsubheading Description
+
+This function @strong{must} be called once in the program before
+calling any other MySQL function.  It starts up the server and
+initializes any subsystems (@code{mysys}, InnoDB, etc.) that the
+server uses.  If this function is not called, the program will
+crash.
+
+The @code{argc} and @code{argv} arguments are analogous to the
+arguments to @code{main()}.  The first element of @code{argv}
+is ignored (it typically contains the program name).  For
+convenience, @code{argc} may be @code{0} (zero) if there are no
+command-line arguments for the server.
+
+The @code{NULL}-terminated list of strings in @code{groups}
+selects which groups in the option files will be active.
+@xref{Option files}.  For convenience, @code{groups} may be
+@code{NULL}, in which case the @code{[server]} group will be
+active.
+
+@subsubheading Example
+
+@example
+#include <mysql.h>
+#include <stdlib.h>
+
+static char *server_args[] = @{
+  "this_program",       /* this string is not used */
+  "--datadir=.",
+  "--set-variable=key_buffer_size=32M"
+@};
+static char *server_groups[] = @{
+  "server",
+  "this_program_SERVER",
+  (char *)NULL
+@};
+
+int main(void) @{
+  mysql_server_init(sizeof(server_args) / sizeof(char *),
+                    server_args, server_groups);
+
+  /* Use any MySQL API functions here */
+
+  mysql_server_end();
+
+  return EXIT_SUCCESS;
+@}
+@end example
+
+@subsubheading Return Values
+
+none.
+
+@node mysql_server_end(),  , mysql_server_init(), C Embedded Server functions
+@subsubsection @code{mysql_server_end()}
+
+@findex @code{mysql_server_end()}
+
+@subsubheading Description
+
+This function @strong{must} be called once in the program after
+all other MySQL functions.  It shuts down the embedded server.
+
+@subsubheading Return Values
+
+none.
+
+@node C API problems, Building clients, C Embedded Server functions, C
 @subsection Common questions and problems when using the C API
 
 @tindex @code{mysql_query()}
@@ -42196,7 +42290,7 @@ For clients that use MySQL header files, you may need to specify a
 files.
 
 
-@node Threaded clients,  , Building clients, C
+@node Threaded clients, libmysqld , Building clients, C
 @subsection How to Make a Threaded Client
 
 @cindex clients, threaded
@@ -42232,7 +42326,7 @@ interrupts, you can make great use of the routines in the
 @code{my_init()} first! @xref{C Thread functions}.
 
 All functions except @code{mysql_real_connect()} are by default
-thread safe.  The following notes describe how to compile a thread safe
+thread safe.  The following notes describe how to compile a thread-safe
 client library and use it in a thread-safe manner.  (The notes below for
 @code{mysql_real_connect()} actually apply to @code{mysql_connect()} as
 well, but because @code{mysql_connect()} is deprecated, you should be
@@ -42296,10 +42390,10 @@ The get things to work smoothly you have to do the following:
 Call @code{my_init()} at the start of your program if it calls
 any other MySQL function before calling @code{mysql_real_connect()}.
 @item
-Call @code{my_thread_init()} in the thread handler before calling
+Call @code{mysql_thread_init()} in the thread handler before calling
 any MySQL function.
 @item
-In the thread, call @code{my_thread_end()} before calling
+In the thread, call @code{mysql_thread_end()} before calling
 @code{pthread_exit()}.  This will free the memory used by MySQL thread
 specific variables.
 @end enumerate
@@ -42307,6 +42401,383 @@ specific variables.
 You may get some errors because of undefined symbols when linking your
 client with @code{mysqlclient_r}. In most cases this is because you haven't
 included the thread libraries on the link/compile line.
+
+@node libmysqld,  , Threaded clients, C
+@subsection libmysqld, the Embedded MySQL Server Library
+
+@cindex libmysqld
+@cindex embedded MySQL server library
+
+@menu
+* libmysqld overview::          Overview of the Embedded MySQL Server Library
+* libmysqld compiling::         Compiling Programs with @code{libmysqld}
+* libmysqld example::           A Simple Embedded Server Example
+* libmysqld licensing::         Licensing the Embedded Server
+@end menu
+
+@node libmysqld overview, libmysqld compiling, libmysqld, libmysqld
+@subsubsection Overview of the Embedded MySQL Server Library
+
+The embedded MySQL server library makes it possible to run a
+full-featured MySQL server inside the client application.  The
+main benefits are increased speed and more simple management for
+embedded applications.
+
+@node libmysqld compiling, libmysqld example, libmysqld overview, libmysqld
+@subsubsection Compiling Programs with @code{libmysqld}
+
+Currently, all of the support libraries must be explicitly
+listed when linking with @code{-lmysqld}.  In the future,
+@code{mysql_config --libmysqld-libs} will name the libraries to
+make this easier.  Also, all of the supporting libraries will
+probably be incorporated into libmysqld at some time to simplify
+this even more.
+
+The correct flags for compiling and linking a threaded program
+must be used, even if you do not directly call any thread
+functions in your code.
+
+@node libmysqld example, libmysqld licensing, libmysqld compiling, libmysqld
+@subsubsection A Simple Embedded Server Example
+
+This example program and makefile should work without any
+changes on a Linux or FreeBSD system.  For other operating
+systems, minor changes will be needed.  This example is
+designed to give enough details to understand the problem,
+without the clutter that is a necessary part of a real
+application.
+
+To try out the example, create an @file{example} directory
+at the same level as the mysql-4.0 source directory.  Save
+the @file{example.c} source and the @file{GNUmakefile} in the
+directory, and run GNU @file{make} from inside the @file{example}
+directory.
+
+@file{example.c}
+@example
+/*
+ * A simple example client, using the embedded MySQL server library
+ */
+
+#include <mysql.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+enum on_error @{ E_okay, E_warn, E_fail @};
+
+static void   die(MYSQL *db, char *fmt, ...);
+MYSQL *db_connect(const char *dbname);
+void db_disconnect(MYSQL *db);
+void db_do_query(MYSQL *db, const char *query, enum on_error on_error);
+
+const char *server_groups[] = @{ "test_client_SERVER", "server", NULL @};
+
+int
+main(int argc, char **argv)
+@{
+  MYSQL *one, *two;
+
+  /* This must be called before any other mysql functions.
+   *
+   * You can use mysql_server_init(0, NULL, NULL), and it will
+   * initialize the server using groups = @{ "server", NULL @}.
+   *
+   * In your $HOME/.my.cnf file, you probably want to put:
+
+[test_client_SERVER]
+language = /path/to/source/of/mysql/sql/share/english
+
+   * You could, of course, modify argc and argv before passing
+   * them to this function.  Or you could create new ones in any
+   * way you like.  But all of the arguments in argv (except for
+   * argv[0], which is the program name) should be valid options
+   * for the MySQL server.
+   *
+   * If you link this client against the normal mysqlclient
+   * library, this function is just a stub that does nothing.
+   */
+  mysql_server_init(argc, argv, server_groups);
+
+  one = db_connect("test");
+  two = db_connect(NULL);
+
+  db_do_query(one, "show table status", E_fail);
+  db_do_query(two, "show databases", E_fail);
+
+  mysql_close(two);
+  mysql_close(one);
+
+  /* This must be called after all other mysql functions */
+  mysql_server_end();
+
+  exit(EXIT_SUCCESS);
+@}
+
+void
+die(MYSQL *db, char *fmt, ...)
+@{
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  putc('\n', stderr);
+  if (db)
+    db_disconnect(db);
+  exit(EXIT_FAILURE);
+@}
+
+MYSQL *
+db_connect(const char *dbname)
+@{
+  MYSQL *db = mysql_init(NULL);
+  if (!db)
+    die(db, "mysql_init failed: no memory");
+  mysql_options(db, MYSQL_READ_DEFAULT_GROUP, "simple");
+  if (!mysql_real_connect(db, NULL, NULL, NULL, dbname, 0, NULL, 0))
+    die(db, "mysql_real_connect failed: %s", mysql_error(db));
+
+  return db;
+@}
+
+void
+db_disconnect(MYSQL *db)
+@{
+  mysql_close(db);
+@}
+
+/*
+ * show_query: this code is snagged from mysql.cc; this function
+ * is intended to be used internally to db_do_query()
+ */
+static char *
+show_query(MYSQL *db)
+@{
+  MYSQL_RES   *res;
+  MYSQL_FIELD *field;
+  MYSQL_ROW    row;
+  char         sep[256], *psep = sep;
+  char        *is_num = 0;
+  char        *err = 0;
+  unsigned int length = 1;      /* initial "|" */
+  unsigned int off;
+
+  if (!(res = mysql_store_result(db)))
+    return mysql_error(db);
+
+  if (!(is_num = malloc(mysql_num_fields(res))))
+  @{
+    err = "out of memory";
+    goto err;
+  @}
+
+  /* set up */
+  *psep++ = '+';
+  while ((field = mysql_fetch_field(res)))
+  @{
+    unsigned int len = strlen(field->name);
+    if (len < field->max_length)
+      len = field->max_length;
+    if (len < 2 && !IS_NOT_NULL(field->flags))
+      len = 2;  /* \N */
+    field->max_length = len + 1;        /* bending the API... */
+    len += 2; length += len + 1;        /* " " before, " |" after */
+    if (length >= 255)
+    @{
+      err = "row too long";
+      goto err;
+    @}
+    memset(psep, '-', len); psep += len;
+    *psep++ = '+';
+    *psep   = '\0';
+  @}
+
+  /* column headings */
+  puts(sep);
+  mysql_field_seek(res,0);
+  fputc('|',stdout);
+  for (off=0; (field = mysql_fetch_field(res)) ; off++)
+  @{
+    printf(" %-*s|",field->max_length, field->name);
+    is_num[off]= IS_NUM(field->type);
+  @}
+  fputc('\n',stdout);
+  puts(sep);
+
+  /* rows */
+  while ((row = mysql_fetch_row(res)))
+  @{
+    (void) fputs("|",stdout);
+    mysql_field_seek(res,0);
+    for (off=0 ; off < mysql_num_fields(res); off++)
+    @{
+      field = mysql_fetch_field(res);
+      printf(is_num[off] ? "%*s |" : " %-*s|",
+             field->max_length, row[off] ? (char*) row[off] : "NULL");
+    @}
+    (void) fputc('\n',stdout);
+  @}
+  puts(sep);
+
+err:
+  if (is_num)
+    free(is_num);
+  mysql_free_result(res);
+
+  return err;
+@}
+
+void
+db_do_query(MYSQL *db, const char *query, enum on_error on_error)
+@{
+  char *err = 0;
+  if (mysql_query(db, query) != 0)
+    goto err;
+
+  if (mysql_field_count(db) > 0)
+  @{
+    if ((err = show_query(db)))
+      goto err;
+  @}
+  else if (mysql_affected_rows(db))
+    printf("Affected rows: %lld [%s]\n", mysql_affected_rows(db), query);
+
+  return;
+
+err:
+  switch (on_error) @{
+  case E_okay:
+    break;
+  case E_warn:
+    fprintf(stderr, "db_do_query failed: %s [%s]\n",
+        err ? err : mysql_error(db), query);
+    break;
+  case E_fail:
+    die(db, "db_do_query failed: %s [%s]",
+        err ? err : mysql_error(db), query);
+    break;
+  @}
+@}
+@end example
+
+@file{GNUmakefile}
+@example
+# Set this to your mysql source directory
+m        := ../mysql-4.0
+
+CC       := cc
+CPPFLAGS := -I$m/include -D_THREAD_SAFE -D_REENTRANT
+CFLAGS   := -g -W -Wall
+LDFLAGS  := -static
+LDLIBS    = $(embed_libs) -lz -lm -lcrypt
+
+ifneq (,$(shell grep FreeBSD /COPYRIGHT 2>/dev/null))
+# FreeBSD
+LDFLAGS += -pthread
+else
+# Assume Linux
+LDLIBS += -lpthread
+endif
+
+
+# Standard libraries
+
+embed_libs := \
+        $m/libmysqld/.libs/libmysqld.a \
+        $m/isam/libnisam.a \
+        $m/myisam/libmyisam.a \
+        $m/heap/libheap.a \
+        $m/merge/libmerge.a \
+        $m/myisammrg/libmyisammrg.a
+
+
+# Optionally-built libraries
+
+ifneq (,$(shell test -r $m/innobase/usr/libusr.a && echo "yes"))
+embed_libs += \
+        $m/innobase/usr/libusr.a \
+        $m/innobase/odbc/libodbc.a \
+        $m/innobase/srv/libsrv.a \
+        $m/innobase/que/libque.a \
+        $m/innobase/srv/libsrv.a \
+        $m/innobase/dict/libdict.a \
+        $m/innobase/ibuf/libibuf.a \
+        $m/innobase/row/librow.a \
+        $m/innobase/pars/libpars.a \
+        $m/innobase/btr/libbtr.a \
+        $m/innobase/trx/libtrx.a \
+        $m/innobase/read/libread.a \
+        $m/innobase/usr/libusr.a \
+        $m/innobase/buf/libbuf.a \
+        $m/innobase/ibuf/libibuf.a \
+        $m/innobase/eval/libeval.a \
+        $m/innobase/log/liblog.a \
+        $m/innobase/fsp/libfsp.a \
+        $m/innobase/fut/libfut.a \
+        $m/innobase/fil/libfil.a \
+        $m/innobase/lock/liblock.a \
+        $m/innobase/mtr/libmtr.a \
+        $m/innobase/page/libpage.a \
+        $m/innobase/rem/librem.a \
+        $m/innobase/thr/libthr.a \
+        $m/innobase/com/libcom.a \
+        $m/innobase/sync/libsync.a \
+        $m/innobase/data/libdata.a \
+        $m/innobase/mach/libmach.a \
+        $m/innobase/ha/libha.a \
+        $m/innobase/dyn/libdyn.a \
+        $m/innobase/mem/libmem.a \
+        $m/innobase/sync/libsync.a \
+        $m/innobase/ut/libut.a \
+        $m/innobase/os/libos.a \
+        $m/innobase/ut/libut.a
+endif
+
+ifneq (,$(shell test -r $m/bdb/build_unix/libdb.a && echo "yes"))
+embed_libs += $m/bdb/build_unix/libdb.a
+endif
+
+
+# Support libraries
+
+embed_libs += \
+        $m/mysys/libmysys.a \
+        $m/strings/libmystrings.a \
+        $m/dbug/libdbug.a \
+        $m/regex/libregex.a
+
+
+# Optionally built support libraries
+
+ifneq (,$(shell test -r $m/readline/libreadline.a && echo "yes"))
+embed_libs += $m/readline/libreadline.a
+endif
+
+# This works for simple one-file test programs
+sources := $(wildcard *.c)
+objects := $(patsubst %c,%o,$(sources))
+targets := $(basename $(sources))
+
+all: $(targets)
+
+clean:
+	rm -f $(targets) $(objects) *.core
+@end example
+
+@node libmysqld licensing, , libmysqld example, libmysqld
+@subsubsection Licensing the Embedded Server
+
+The MySQL source code is covered by the GNU GPL license
+(@pxref{GPL license}).  One result of this is that any program
+which includes, by linking with @code{libmysqld}, the MySQL
+source code must be released as free software (under a license
+compatible with the GPL).
+
+We encourage everyone to promote free software by releasing
+code under the GPL or a compatible license.  For those who
+are not able to do this, another option is to purchase the
+MySQL code from MySQL AB under a looser license.  For details
+concerning this issue, please see @ref{Licensing policy}.
 
 @node Cplusplus, Java, C, Clients
 @section MySQL C++ APIs
@@ -45773,7 +46244,7 @@ Python interface for MySQL. By Joseph Skinner @email{joe@@earthlight.co.nz}. Mod
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQL-python-0.3.0.tar.gz, MySQL-python-0.3.0.tar.gz}
 MySQLdb Python is an DB-API v2.0-compliant interface to MySQL. Transactions
 are supported if the server and tables support them.  It is
-thread-safe, and contains a compatibility module for older code
+thread safe, and contains a compatibility module for older code
 written for the no-longer-maintained MySQLmodule interface.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_12.tar.gz, mysql_mex_1_12.tar.gz}
@@ -46957,6 +47428,15 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added documentation for @code{libmysqld}, the embedded
+MySQL server library.  Also added example programs (a
+@code{mysql} client and @code{mysqltest} test program) which use
+@code{libmysqld}.
+@item
+Removed @code{my_thread_init()} and @code{my_thread_end()}
+from mysql_com.h, and added @code{mysql_thread_init()} and
+@code{mysql_thread_end()} to mysql.h.
+@item
 Fixed handling of big unsigned bigint constants.
 @item
 New character set @code{latin_de} which provides correct German sorting.
@@ -47116,12 +47596,6 @@ not yet 100% confident in this code.
 @node News-3.23.43, News-3.23.42, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
-@item
-Fixed a unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
-many tables and @code{ORDER BY}.
-@item
-Fixed bug in @code{LOAD DATA FROM MASTER} when using table with
-@code{CHECKSUM=1}.
 @item
 Added unique error message when one gets a DEADLOCK during a transaction with
 BDB tables.
