@@ -253,12 +253,6 @@ while test $# -gt 0; do
     --start-and-exit)
      START_AND_EXIT=1
      ;;
-    --skip-innodb)
-     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innodb"
-     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innodb" ;;
-    --skip-bdb)
-     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-bdb"
-     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-bdb" ;;
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
