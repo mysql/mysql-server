@@ -33,6 +33,7 @@
 #include <m_ctype.h>
 #include <nisam.h>
 #include "sql_select.h"
+#include <assert.h>
 
 
 #ifndef EXTRA_DEBUG
@@ -288,7 +289,6 @@ typedef struct st_qsel_param {
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
 } PARAM;
-
 
 static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
 			       Item_func::Functype type,Item *value,
@@ -2455,8 +2455,8 @@ int QUICK_SELECT::get_next()
       if ((error=file->index_first(record)))
 	DBUG_RETURN(error);			// Empty table
       if (cmp_next(range) == 0)
-	DBUG_RETURN(0);				// No matching records
-      range=0;					// To next range
+	DBUG_RETURN(0);
+      range=0;			// No matching records; go to next range
       continue;
     }
     if ((result = file->index_read(record,(byte*) range->min_key,
@@ -2514,6 +2514,158 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
       return 1;
   }
   return (range->flag & NEAR_MAX) ? 1 : 0;		// Exact match
+}
+
+/*
+ * This is a hack: we inherit from QUICK_SELECT so that we can use the
+ * get_next() interface, but we have to hold a pointer to the original
+ * QUICK_SELECT because its data are used all over the place.  What
+ * should be done is to factor out the data that is needed into a base
+ * class (QUICK_SELECT), and then have two subclasses (_ASC and _DESC)
+ * which handle the ranges and implement the get_next() function.  But
+ * for now, this seems to work right at least.
+ */
+QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q)
+  : QUICK_SELECT(*q), quick(q), rev_it(rev_ranges)
+{
+  bool not_read_after_key = file->option_flag() & HA_NOT_READ_AFTER_KEY;
+  for (QUICK_RANGE *r = it++; r; r = it++)
+  {
+    rev_ranges.push_front(r);
+    if (not_read_after_key && range_reads_after_key(r))
+    {
+      error = HA_ERR_UNSUPPORTED;
+      break;
+    }
+  }
+}
+
+int QUICK_SELECT_DESC::get_next()
+{
+  DBUG_ENTER("QUICK_SELECT_DESC::get_next");
+
+  /* The max key is handled as follows:
+   *   - if there is NO_MAX_RANGE, start at the end and move backwards
+   *   - if it is an EQ_RANGE and max key covers the entire key, go directly
+   *     to the key and read through it (sorting backwards is
+   *     same as sorting forwards)
+   *   - if it is NEAR_MAX, go to the key or next, step back once, and
+   *     move backwards
+   *   - otherwise (not NEAR_MAX == include the key), go after the key,
+   *     step back once, and move backwards
+   */
+
+  for (;;)
+  {
+    int result;
+    if (range)
+    {						// Already read through key
+      result = ((range->flag & EQ_RANGE) ?
+		file->index_next_same(record, (byte*) range->min_key,
+				      range->min_length) :
+		file->index_prev(record));
+      if (!result)
+      {
+	if (cmp_prev(*rev_it.ref()) == 0)
+	  DBUG_RETURN(0);
+      }
+      else if (result != HA_ERR_END_OF_FILE)
+	DBUG_RETURN(result);
+    }
+
+    if (!(range=rev_it++))
+      DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
+
+    if (range->flag & NO_MAX_RANGE)		// Read last record
+    {
+      int error;
+      if ((error=file->index_last(record)))
+	DBUG_RETURN(error);			// Empty table
+      if (cmp_prev(range) == 0)
+	DBUG_RETURN(0);
+      range=0;			// No matching records; go to next range
+      continue;
+    }
+
+    if (range->flag & EQ_RANGE &&
+	head->key_info[index].key_length == range->max_length)
+    {
+      result = file->index_read(record, (byte*) range->max_key,
+				range->max_length, HA_READ_KEY_EXACT);
+    }
+    else
+    {
+      dbug_assert(range->flag & NEAR_MAX || range_reads_after_key(range));
+      /* Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
+       * do the right thing - go past all keys which match the prefix */
+      file->index_read(record, (byte*) range->max_key, range->max_length,
+		       ((range->flag & NEAR_MAX) ?
+			HA_READ_KEY_OR_PREV : HA_READ_AFTER_KEY));
+      result = file->index_prev(record);
+    }
+    if (result)
+    {
+      if (result != HA_ERR_KEY_NOT_FOUND)
+	DBUG_RETURN(result);
+      range=0;					// Not found, to next range
+      continue;
+    }
+    if (cmp_prev(range) == 0)
+    {
+      if (range->flag == (UNIQUE_RANGE | EQ_RANGE))
+	range = 0;				// Stop searching
+      DBUG_RETURN(0);				// Found key is in range
+    }
+    range = 0;					// To next range
+  }
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+/*
+ * Returns 0 if found key is inside range (found key >= range->min_key).
+ */
+int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
+{
+  if (range->flag & NO_MIN_RANGE)
+    return (0);					/* key can't be to small */
+
+  KEY_PART *key_part = quick->key_parts;
+  for (char *key = range->min_key, *end = key + range->min_length;
+       key < end;
+       key += key_part++->part_length)
+  {
+    int cmp;
+    if (key_part->null_bit)
+    {
+      // this key part allows null values; NULL is lower than everything else
+      if (*key++)
+      {
+	// the range is expecting a null value
+	if (!key_part->field->is_null())
+	  return 0;	// not null -- still inside the range
+	continue;	// null -- exact match, go to next key part
+      }
+      else if (key_part->field->is_null())
+	return 1;	// null -- outside the range
+    }
+    if ((cmp = key_part->field->key_cmp((byte*) key,
+					key_part->part_length)) > 0)
+      return 0;
+    if (cmp < 0)
+      return 1;
+  }
+  return (range->flag & NEAR_MIN) ? 1 : 0;		// Exact match
+}
+
+/*
+ * True if this range will require using HA_READ_AFTER_KEY
+ */
+bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range)
+{
+  // See comment in get_next()
+  return range->flag & (NO_MAX_RANGE | NEAR_MAX) ? 1 :
+    (range->flag & EQ_RANGE &&
+     head->key_info[index].key_length == range->max_length) ? 0 : 1;
 }
 
 /*****************************************************************************

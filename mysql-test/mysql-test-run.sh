@@ -250,7 +250,7 @@ fi
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
-#DASH72=`expr substr '------------------------------------------------------------------------' 1 $E`
+#DASH72=`$EXPR substr '------------------------------------------------------------------------' 1 $E`
 DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
@@ -667,7 +667,7 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- if [ -n $SKIP_TEST ] ; then 
+ if [ -n "$SKIP_TEST" ] ; then 
    SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
    if [ x$SKIP_THIS_TEST = x1 ] ;
    then
