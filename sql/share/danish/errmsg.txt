@@ -295,5 +295,5 @@ character-set=latin1
 "Unknown table engine '%s'",
 "'%s' is deprecated, use '%s' instead",
 "The target table %-.100s of the %s is not updateable",
-"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working",
+"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
 "The MySQL server is running with the %s option so it cannot execute this statement",

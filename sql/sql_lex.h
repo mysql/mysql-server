@@ -552,7 +552,7 @@ typedef struct st_lex
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
-  List<Item>          param_list;
+  List<Item_param>    param_list;
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
@@ -577,7 +577,6 @@ typedef struct st_lex
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
-  uint param_count;
   uint slave_thd_opt;
   uint8 describe;
   bool drop_if_exists, drop_temporary, local_file;

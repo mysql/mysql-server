@@ -169,3 +169,28 @@ hex(s1)
 drop table t1;
 create table t1 (a text character set utf8, primary key(a(360)));
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
+CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ( 'test' );
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = 'test' and b.a = 'test';
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a and a.a = 'test';
+a	a
+test	test
+DROP TABLE t1;
+create table t1 (a char(255) character set utf8);
+insert into t1 values('b'),('b');
+select * from t1 where a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a != 'b';
+a
+drop table t1;
