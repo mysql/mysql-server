@@ -205,11 +205,17 @@ resolve it\n");
 
 /* Produce a core for the thread */
 
-#ifdef HAVE_WRITE_CORE
+#ifdef HAVE_LINUXTHREADS
 void write_core(int sig)
 {
   signal(sig, SIG_DFL);
   if (fork() != 0) exit(1);			// Abort main program
   // Core will be written at exit
 }
-#endif /* HAVE_WRITE_CORE */
+#else
+void write_core(int sig)
+{
+  signal(sig, SIG_DFL);
+  pthread_kill(pthread_self(), sig);
+}
+#endif
