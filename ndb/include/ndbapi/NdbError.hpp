@@ -17,6 +17,8 @@
 #ifndef NDB_ERROR_HPP
 #define NDB_ERROR_HPP
 
+#include <ndberror.h>
+
 /**
  * @struct NdbError
  * @brief Contains error information
@@ -51,7 +53,7 @@ struct NdbError {
      * The error code indicate success<br>
      * (Includes classification: NdbError::NoError)
      */
-    Success = 0,
+    Success = ndberror_st_success,
 
     /**
      * The error code indicates a temporary error.
@@ -61,7 +63,7 @@ struct NdbError {
      *  NdbError::OverloadError, NdbError::NodeShutdown 
      *  and NdbError::TimeoutExpired.)
      */
-    TemporaryError = 1,
+    TemporaryError = ndberror_st_temporary,
     
     /**
      * The error code indicates a permanent error.<br>
@@ -71,14 +73,14 @@ struct NdbError {
      *  NdbError::UserDefinedError, NdbError::InternalError, and, 
      *  NdbError::FunctionNotImplemented.)
      */
-    PermanentError = 2,
+    PermanentError = ndberror_st_permanent,
   
     /**
      * The result/status is unknown.<br>
      * (Includes classifications: NdbError::UnknownResultError, and
      *  NdbError::UnknownErrorCode.)
      */
-    UnknownResult = 3
+    UnknownResult = ndberror_st_unknown
   };
   
   /**
@@ -88,85 +90,85 @@ struct NdbError {
     /**
      * Success.  No error occurred.
      */
-    NoError = 0,  
+    NoError = ndberror_cl_none,
 
     /**
      * Error in application program.
      */
-    ApplicationError = 1,  
+    ApplicationError = ndberror_cl_application,
 
     /**
      * Read operation failed due to missing record.
      */
-    NoDataFound = 2,
+    NoDataFound = ndberror_cl_no_data_found,
 
     /**
      * E.g. inserting a tuple with a primary key already existing 
      * in the table.
      */
-    ConstraintViolation = 3,
+    ConstraintViolation = ndberror_cl_constraint_violation,
 
     /**
      * Error in creating table or usage of table.
      */
-    SchemaError = 4,
+    SchemaError = ndberror_cl_schema_error,
 
     /**
      * Error occurred in interpreted program.
      */
-    UserDefinedError = 5,
+    UserDefinedError = ndberror_cl_user_defined,
     
     /**
      * E.g. insufficient memory for data or indexes.
      */
-    InsufficientSpace = 6,
+    InsufficientSpace = ndberror_cl_insufficient_space,
 
     /**
      * E.g. too many active transactions.
      */
-    TemporaryResourceError = 7,
+    TemporaryResourceError = ndberror_cl_temporary_resource,
 
     /**
      * Temporary failures which are probably inflicted by a node
      * recovery in progress.  Examples: information sent between
      * application and NDB lost, distribution change.
      */
-    NodeRecoveryError = 8,
+    NodeRecoveryError = ndberror_cl_node_recovery,
 
     /**
      * E.g. out of log file space.
      */
-    OverloadError = 9,
+    OverloadError = ndberror_cl_overload,
 
     /**
      * Timeouts, often inflicted by deadlocks in NDB.
      */
-    TimeoutExpired = 10,
+    TimeoutExpired = ndberror_cl_timeout_expired,
     
     /**
      * Is is unknown whether the transaction was committed or not.
      */
-    UnknownResultError = 11,
+    UnknownResultError = ndberror_cl_unknown_result,
     
     /**
      * A serious error in NDB has occurred.
      */
-    InternalError = 12,
+    InternalError = ndberror_cl_internal_error,
 
     /**
      * A function used is not yet implemented.
      */
-    FunctionNotImplemented = 13,
+    FunctionNotImplemented = ndberror_cl_function_not_implemented,
 
     /**
      * Error handler could not determine correct error code.
      */
-    UnknownErrorCode = 14,
+    UnknownErrorCode = ndberror_cl_unknown_error_code,
 
     /**
      * Node shutdown
      */
-    NodeShutdown = 15
+    NodeShutdown = ndberror_cl_node_shutdown
   };
   
   /**
@@ -203,6 +205,22 @@ struct NdbError {
     code = 0;
     message = 0;
     details = 0;
+  }
+  NdbError(const ndberror_struct & ndberror){
+    status = (NdbError::Status) ndberror.status;
+    classification = (NdbError::Classification) ndberror.classification;
+    code = ndberror.code;
+    message = ndberror.message;
+    details = ndberror.details;
+  }
+  operator ndberror_struct() const {
+    ndberror_struct ndberror;
+    ndberror.status = (ndberror_status_enum) status;
+    ndberror.classification = (ndberror_classification_enum) classification;
+    ndberror.code = code;
+    ndberror.message = message;
+    ndberror.details = details;
+    return ndberror;
   }
 };
 

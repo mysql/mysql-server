@@ -422,7 +422,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(system_charset_info,file->name,wild))
+	  if (wild_case_compare(files_charset_info, file->name, wild))
 	    continue;
 	}
 	else if (wild_compare(file->name,wild,0))
@@ -1207,7 +1207,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, *alias;
-  String type(tmp, sizeof(tmp),&my_charset_bin);
+  String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
   uint primary_key;
   KEY *key_info;
@@ -1254,7 +1254,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       type.set(tmp, sizeof(tmp),&my_charset_bin);
 
     field->sql_type(type);
-    packet->append(type.ptr(),type.length());
+    packet->append(type.ptr(), type.length(), system_charset_info);
 
     if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
     {
@@ -1313,7 +1313,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else if (field->maybe_null())
         packet->append("NULL", 4);                    // Null as default
       else
-        packet->append(tmp,0);
+        packet->append(tmp);
     }
 
     if (!foreign_db_mode && !limited_mysql_mode &&
@@ -1597,10 +1597,13 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->query=0;
         if (tmp->query)
         {
-	  /* query_length is always set before tmp->query */
+	  /* 
+            query_length is always set to 0 when we set query = NULL; see
+	    the comment in sql_class.h why this prevents crashes in possible
+            races with query_length
+          */
           uint length= min(max_query_length, tmp->query_length);
-          thd_info->query=(char*) thd->memdup(tmp->query,length+1);
-          thd_info->query[length]=0;
+          thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
         thread_infos.append(thd_info);
       }

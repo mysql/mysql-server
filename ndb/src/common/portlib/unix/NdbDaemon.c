@@ -14,40 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include "NdbDaemon.h"
-#include <assert.h>
-
-#ifdef NDB_LINUX
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
-#endif
-
-#ifdef NDB_SOLARIS
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
-#endif
 
 #define NdbDaemon_ErrorSize 500
-#if defined(NDB_LINUX) || defined(NDB_SOLARIS)
 long NdbDaemon_DaemonPid;
 int NdbDaemon_ErrorCode;
 char NdbDaemon_ErrorText[NdbDaemon_ErrorSize];
-#endif
+
 int
 NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 {
-  /* XXX fix other unixes */
-#if defined(NDB_LINUX) || defined(NDB_SOLARIS)
   int lockfd = -1, logfd = -1, n;
   char buf[64];
 
@@ -149,10 +126,20 @@ NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
     dup2(logfd, 2);
     close(logfd);
   }
-#endif
   /* Success */
   return 0;
 }
+
+#if 0
+int
+NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
+{
+  /* Fail */
+  snprintf(NdbDaemon_ErrorText, NdbDaemon_ErrorSize,
+	   "Daemon mode not implemented");
+  return -1;
+}
+#endif
 
 #ifdef NDB_DAEMON_TEST
 

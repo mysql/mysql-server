@@ -33,7 +33,7 @@
 
 class NdbDictObjectImpl {
 public:
-  int m_version;
+  Uint32 m_version;
   NdbDictionary::Object::Status m_status;
   
   bool change();

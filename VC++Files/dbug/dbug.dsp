@@ -19,13 +19,14 @@ CFG=dbug - Win32 Debug
 !MESSAGE
 !MESSAGE "dbug - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "dbug - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "dbug - Win32 TLS_DEBUG" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "dbug - Win32 Release"
@@ -41,14 +42,14 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_release\dbug.lib"
 
@@ -72,9 +73,34 @@ LIB32=link.exe -lib
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\dbug.lib"
+
+!ELSEIF  "$(CFG)" == "dbug - Win32 TLS_DEBUG"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir "dbug___Win32_TLS_DEBUG"
+# PROP BASE Intermediate_Dir "dbug___Win32_TLS_DEBUG"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir "dbug___Win32_TLS_DEBUG"
+# PROP Intermediate_Dir "dbug___Win32_TLS_DEBUG"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "__WIN32__" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "__WIN32__" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409
+# ADD RSC /l 0x409
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_debug\dbug_tls.lib"
+# ADD LIB32 /nologo /out:"..\lib_debug\dbug_tls.lib"
 
 !ENDIF
 
@@ -82,6 +108,7 @@ LIB32=link.exe -lib
 
 # Name "dbug - Win32 Release"
 # Name "dbug - Win32 Debug"
+# Name "dbug - Win32 TLS_DEBUG"
 # Begin Source File
 
 SOURCE=.\dbug.c

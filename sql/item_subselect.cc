@@ -56,10 +56,24 @@ void Item_subselect::init(st_select_lex *select_lex,
   DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
   unit= select_lex->master_unit();
 
-  if (select_lex->next_select())
-    engine= new subselect_union_engine(unit, result, this);
+  if (unit->item)
+  {
+    /*
+      Item can be changed in JOIN::prepare while engine in JOIN::optimize
+      => we do not copy old_engine here
+    */
+    engine= unit->item->engine;
+    unit->item->engine= 0;
+    unit->item= this;
+    engine->change_item(this, result);
+  }
   else
-    engine= new subselect_single_select_engine(select_lex, result, this);
+  {
+    if (select_lex->next_select())
+      engine= new subselect_union_engine(unit, result, this);
+    else
+      engine= new subselect_single_select_engine(select_lex, result, this);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -69,11 +83,13 @@ void Item_subselect::cleanup()
   Item_result_field::cleanup();
   if (old_engine)
   {
-    engine->cleanup();
+    if (engine)
+      engine->cleanup();
     engine= old_engine;
     old_engine= 0;
   }
-  engine->cleanup();
+  if (engine)
+    engine->cleanup();
   reset();
   value_assigned= 0;
   DBUG_VOID_RETURN;
@@ -104,7 +120,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
-  stmt= thd->current_statement;
+  arena= thd->current_arena;
 
   char const *save_where= thd->where;
   int res= engine->prepare();
@@ -127,7 +143,6 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       if (have_to_be_excluded)
 	engine->exclude();
       substitution= 0;
-      fixed= 1;
       thd->where= "checking transformed subquery";      
       if (!(*ref)->fixed)
 	ret= (*ref)->fix_fields(thd, tables, ref);
@@ -316,8 +331,8 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     if (join->conds || join->having)
     {
       Item *cond;
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
+      if (arena)
+	thd->set_n_backup_item_arena(arena, &backup);
 
       if (!join->having)
 	cond= join->conds;
@@ -330,15 +345,15 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 					   new Item_null())))
 	goto err;
     }
-    if (stmt)
-      thd->restore_backup_item_arena(stmt, &backup);
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
     return RES_REDUCE;
   }
   return RES_OK;
   
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   return RES_ERROR;
 }
 
@@ -618,8 +633,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   Statement backup;
 
   thd->where= "scalar IN/ALL/ANY subquery";
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->set_n_backup_item_arena(arena, &backup);
 
   if (select_lex->item_list.elements > 1)
   {
@@ -660,10 +675,20 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	item= new Item_sum_min(*select_lex->ref_pointer_array);
       }
       *select_lex->ref_pointer_array= item;
-      select_lex->item_list.empty();
-      select_lex->item_list.push_back(item);
+      {
+	List_iterator<Item> it(select_lex->item_list);
+	it++;
+	it.replace(item);
+      }
 
-      // fix_fields call for 'item' will be made during new subquery fix_fields
+      /*
+	Item_sum_(max|min) can't substitute other item => we can use 0 as
+	reference
+      */
+      if (item->fix_fields(thd, join->tables_list, 0))
+	goto err;
+      /* we added aggregate function => we have to change statistic */
+      count_field_types(&join->tmp_table_param, join->all_fields, 0);
 
       subs= new Item_singlerow_subselect(select_lex);
     }
@@ -823,21 +848,21 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena)
+	  thd->restore_backup_item_arena(arena, &backup);
 	DBUG_RETURN(RES_REDUCE);
       }
     }
   }
 
 ok:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 
@@ -855,8 +880,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   Item *item= 0;
 
   thd->where= "row IN/ALL/ANY subquery";
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);  
+  if (arena)
+    thd->set_n_backup_item_arena(arena, &backup);  
 
   SELECT_LEX *select_lex= join->select_lex;
 
@@ -940,13 +965,13 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     if (join->conds->fix_fields(thd, join->tables_list, 0))
       goto err;
   }
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 
@@ -1421,4 +1446,68 @@ void subselect_indexsubquery_engine::print(String *str)
     cond->print(str);
   }
   str->append(')');
+}
+
+/*
+  change select_result object of engine
+
+  SINOPSYS
+    subselect_single_select_engine::change_result()
+    si		new subselect Item
+    res		new select_result object
+
+  RETURN
+    0  OK
+    -1 error
+*/
+
+int subselect_single_select_engine::change_item(Item_subselect *si,
+						select_subselect *res)
+{
+  item= si;
+  result= res;
+  return select_lex->join->change_result(result);
+}
+
+
+/*
+  change select_result object of engine
+
+  SINOPSYS
+    subselect_single_select_engine::change_result()
+    si		new subselect Item
+    res		new select_result object
+
+  RETURN
+    0  OK
+    -1 error
+*/
+
+int subselect_union_engine::change_item(Item_subselect *si,
+					select_subselect *res)
+{
+  item= si;
+  int rc= unit->change_result(res, result);
+  result= res;
+  return rc;
+}
+
+
+/*
+  change select_result emulation, never should be called
+
+  SINOPSYS
+    subselect_single_select_engine::change_result()
+    si		new subselect Item
+    res		new select_result object
+
+  RETURN
+    -1 error
+*/
+
+int subselect_uniquesubquery_engine::change_item(Item_subselect *si,
+						 select_subselect *res)
+{
+  DBUG_ASSERT(0);
+  return -1;
 }

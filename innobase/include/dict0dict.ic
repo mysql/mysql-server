@@ -536,8 +536,8 @@ UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
 /*==============================*/
-				/* out: table, NULL if not found */
-	char*	table_name)	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
 {
 	dict_table_t*	table;
 	ulint		table_fold;
@@ -562,8 +562,8 @@ UNIV_INLINE
 dict_table_t*
 dict_table_get_low(
 /*===============*/
-				/* out: table, NULL if not found */
-	char*	table_name)	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
 {
 	dict_table_t*	table;
 	
@@ -642,7 +642,7 @@ dict_table_get_index(
 /*=================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	char*		name)	/* in: index name */
+	const char*	name)	/* in: index name */
 {
 	dict_index_t*	index	= NULL;
 	

@@ -17,11 +17,9 @@
 #ifndef SIGNAL_DATA_H
 #define SIGNAL_DATA_H
 
+#include <ndb_global.h>
 #include <ndb_limits.h>
 #include <kernel_types.h>
-#include <NdbStdio.h>
-#include <NdbConstant.hpp>
-#include <stdlib.h>
 
 #ifndef NDB_ASSERT
 #ifdef VM_TRACE

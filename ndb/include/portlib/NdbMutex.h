@@ -17,10 +17,11 @@
 #ifndef NDB_MUTEX_H
 #define NDB_MUTEX_H
 
+#include <ndb_global.h>
+
 #ifdef NDB_WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <windows.h>
 #endif
 
 #ifdef	__cplusplus

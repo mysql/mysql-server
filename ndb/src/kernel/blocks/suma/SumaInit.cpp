@@ -132,9 +132,9 @@ SumaParticipant::~SumaParticipant()
 
 Suma::Suma(const Configuration & conf) :
   SumaParticipant(conf),
+  Restart(*this),
   c_nodes(c_nodePool),
-  c_runningSubscriptions(c_subCoordinatorPool),
-  Restart(*this)
+  c_runningSubscriptions(c_subCoordinatorPool)
 {
   
   c_nodePool.setSize(MAX_NDB_NODES);

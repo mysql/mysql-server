@@ -15,14 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include "NdbMem.h"
+#include <ndb_global.h>
 
-#include <assert.h>
-#include <assert.h>
-#include <stdlib.h>
-#ifndef NDB_MACOSX
-#include <sys/mman.h>
-#endif
+#include <NdbMem.h>
 
 void NdbMem_Create()
 {
@@ -59,19 +54,18 @@ void NdbMem_Free(void* ptr)
 
  
 int NdbMem_MemLockAll(){
-#if defined NDB_MACOSX
-  return 0;
-#else
-  //return mlockall(MCL_CURRENT | MCL_FUTURE);
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   return mlockall(MCL_CURRENT);
+#else
+  return -1;
 #endif
 }
 
 int NdbMem_MemUnlockAll(){
-#if defined NDB_MACOSX
-  return 0;
-#else
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   return munlockall();
+#else
+  return -1;
 #endif
 }
 

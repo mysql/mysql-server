@@ -17,8 +17,7 @@
 #ifndef NDB_MEM_H
 #define NDB_MEM_H
 
-#include <stddef.h>
-
+#include <ndb_global.h>
 
 #ifdef	__cplusplus
 extern "C" {

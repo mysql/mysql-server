@@ -18,11 +18,8 @@
  * @file ndb_types.h
  */
 
-#ifndef SYS_TYPES_H
-#define SYS_TYPES_H
-
-#include <sys/types.h>
-#include <stddef.h>
+#ifndef NDB_TYPES_H
+#define NDB_TYPES_H
 
 typedef          char  Int8;
 typedef unsigned char  Uint8;
@@ -36,7 +33,13 @@ typedef unsigned int UintR;
 #ifdef __SIZE_TYPE__
 typedef __SIZE_TYPE__ UintPtr;
 #else
+#include <my_config.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 typedef uintptr_t UintPtr;
 #endif
 

@@ -16,18 +16,18 @@ Creates a memory heap block where data can be allocated. */
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
-			/* out, own: memory heap block, NULL if did not
-			succeed */
-	mem_heap_t* heap,/* in: memory heap or NULL if first block should
-			be created */
-	ulint	n,	/* in: number of bytes needed for user data, or
-			if init_block is not NULL, its size in bytes */
-	void*	init_block, /* in: init block in fast create, type must be
-			MEM_HEAP_DYNAMIC */
-	ulint 	type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
-			MEM_HEAP_BUFFER */
-	char*  	file_name,/* in: file name where created */
-	ulint 	line);   /* in: line where created */
+				/* out, own: memory heap block,
+				NULL if did not succeed */
+	mem_heap_t*	heap,	/* in: memory heap or NULL if first block
+				should be created */
+	ulint		n,	/* in: number of bytes needed for user data, or
+				if init_block is not NULL, its size in bytes */
+	void*		init_block, /* in: init block in fast create,
+				type must be MEM_HEAP_DYNAMIC */
+	ulint		type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
+				MEM_HEAP_BUFFER */
+	const char*	file_name,/* in: file name where created */
+	ulint		line);	/* in: line where created */
 /**********************************************************************
 Frees a block from a memory heap. */
 
@@ -377,27 +377,27 @@ UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(
 /*=================*/
-				/* out, own: memory heap */
-	ulint	n,		/* in: desired start block size,
-				this means that a single user buffer
-				of size n will fit in the block, 
-				0 creates a default size block;
-				if init_block is not NULL, n tells
-				its size in bytes */
-	void*	init_block,	/* in: if very fast creation is
-				wanted, the caller can reserve some
-				memory from its stack, for example,
-				and pass it as the the initial block
-				to the heap: then no OS call of malloc
-				is needed at the creation. CAUTION:
-				the caller must make sure the initial
-				block is not unintentionally erased
-				(if allocated in the stack), before
-				the memory heap is explicitly freed. */
-	ulint	type,		/* in: MEM_HEAP_DYNAMIC, or MEM_HEAP_BUFFER
-				possibly ORed to MEM_HEAP_BTR_SEARCH */
-	char*  	file_name,	/* in: file name where created */
-	ulint	line		/* in: line where created */
+					/* out, own: memory heap */
+	ulint		n,		/* in: desired start block size,
+					this means that a single user buffer
+					of size n will fit in the block, 
+					0 creates a default size block;
+					if init_block is not NULL, n tells
+					its size in bytes */
+	void*		init_block,	/* in: if very fast creation is
+					wanted, the caller can reserve some
+					memory from its stack, for example,
+					and pass it as the the initial block
+					to the heap: then no OS call of malloc
+					is needed at the creation. CAUTION:
+					the caller must make sure the initial
+					block is not unintentionally erased
+					(if allocated in the stack), before
+					the memory heap is explicitly freed. */
+	ulint		type,		/* in: MEM_HEAP_DYNAMIC
+					or MEM_HEAP_BUFFER */ 
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	)
 {
 	mem_block_t*   block; 
@@ -440,10 +440,9 @@ void
 mem_heap_free_func(
 /*===============*/
 	mem_heap_t*   	heap,  		/* in, own: heap to be freed */
-	char*  		file_name __attribute__((unused)),
+	const char*	file_name __attribute__((unused)),
 					/* in: file name where freed */
 	ulint    	line  __attribute__((unused)))
-					/* in: line where freed */
 {
 	mem_block_t*	block;
 	mem_block_t*	prev_block;
@@ -486,11 +485,11 @@ UNIV_INLINE
 void*
 mem_alloc_func(
 /*===========*/
-				/* out, own: free storage, NULL if did not
-				succeed */
-	ulint   n,              /* in: desired number of bytes */
-	char*  	file_name,	/* in: file name where created */
-	ulint   line		/* in: line where created */
+					/* out, own: free storage, NULL
+					if did not succeed */
+	ulint		n,		/* in: desired number of bytes */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	)
 {
 	mem_heap_t*   	heap; 
@@ -523,9 +522,9 @@ UNIV_INLINE
 void
 mem_free_func(
 /*==========*/
-	void*   ptr,       	/* in, own: buffer to be freed */
-	char*  	file_name,      /* in: file name where created */
-	ulint   line            /* in: line where created */
+	void*		ptr,		/* in, own: buffer to be freed */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	)
 {
 	mem_heap_t*   heap; 
@@ -569,11 +568,12 @@ UNIV_INLINE
 void*
 mem_realloc(
 /*========*/
-			/* out, own: free storage, NULL if did not succeed */
-	void*	buf,	/* in: pointer to an old buffer */
-	ulint   n,	/* in: desired number of bytes */
-	char*  	file_name,/* in: file name where called */
-	ulint 	line)  	/* in: line where called */
+					/* out, own: free storage,
+					NULL if did not succeed */
+	void*		buf,		/* in: pointer to an old buffer */
+	ulint		n,		/* in: desired number of bytes */
+	const char*	file_name,	/* in: file name where called */
+	ulint		line)		/* in: line where called */
 {
 	mem_free(buf);
 

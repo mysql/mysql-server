@@ -14,8 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <limits.h>
-#include <errno.h>
+#include <ndb_global.h>
 
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
@@ -855,7 +854,7 @@ int Ndbfs::translateErrno(int aErrno)
       //no space left on device
     case ENFILE:
     case EDQUOT:
-#ifndef NDB_MACOSX
+#ifdef ENOSR
     case ENOSR:
 #endif
     case ENOSPC:
@@ -873,12 +872,16 @@ int Ndbfs::translateErrno(int aErrno)
       return FsRef::fsErrInvalidParameters;
       //environment error
     case ELOOP:
-#ifndef NDB_MACOSX
+#ifdef ENOLINK
     case ENOLINK:
+#endif
+#ifdef EMULTIHOP
     case EMULTIHOP:
 #endif
-#ifndef NDB_LINUX
+#ifdef EOPNOTSUPP
     case EOPNOTSUPP:
+#endif
+#ifdef ESPIPE
     case ESPIPE:
 #endif
     case EPIPE:

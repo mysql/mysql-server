@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include "SimulatedBlock.hpp"
 #include <NdbOut.hpp>
 #include <GlobalData.hpp>
@@ -24,8 +26,6 @@
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
 #include <NdbMem.h>
-#include <NdbStdio.h>
-#include <stdarg.h>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ContinueFragmented.hpp>
 #include <signaldata/NodeStateSignalData.hpp>

@@ -90,8 +90,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   /* Skip rows inserted by current inserted */
   for (r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root) ;
-       (subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
-       !r && info->lastpos >= info->state->data_file_length ;
+       !r &&
+         (subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
+         info->lastpos >= info->state->data_file_length ;
        r= _mi_search_next(info, keyinfo, info->lastkey,
                           info->lastkey_length, SEARCH_BIGGER, key_root))
     ;
