@@ -2294,9 +2294,9 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
     if (!arg || test(*(uint*) arg))
-      mysql->client_flag|= CLIENT_LOCAL_FILES;
+      mysql->options.client_flag|= CLIENT_LOCAL_FILES;
     else
-      mysql->client_flag&= ~CLIENT_LOCAL_FILES;
+      mysql->options.client_flag&= ~CLIENT_LOCAL_FILES;
     break;
   case MYSQL_INIT_COMMAND:
     my_free(mysql->options.init_command,MYF(MY_ALLOW_ZERO_PTR));
