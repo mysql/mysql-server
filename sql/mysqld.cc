@@ -2634,6 +2634,7 @@ struct show_var_st init_vars[]= {
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
+  {"bdb_version",             (char*) DB_VERSION_STRING,            SHOW_CHAR},
 #endif
   {"binlog_cache_size",       (char*) &binlog_cache_size,	    SHOW_LONG},
   {"character_set",           default_charset,                      SHOW_CHAR},
