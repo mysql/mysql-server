@@ -67,10 +67,18 @@ static void read_texts(const char *file_name,const char ***point,
     goto err; /* purecov: inspected */
   textcount=head[4];
 
+  if (!head[30])
+  {
+    sql_print_error("No character set information in '%s'. \
+You probably haven't reinstalled the latest file version.",name);
+    goto err1;
+  }
+  
   if (!(cset= get_charset(head[30],MYF(MY_WME))))
   {
-    funktpos= 3;
-    goto err;
+    sql_print_error("Character set #%d is not supported for messagefile '%s'",
+                    (int)head[30],name);
+    goto err1;
   }
   
   length=uint2korr(head+6); count=uint2korr(head+8);
@@ -112,9 +120,6 @@ Check that the above file is the right version for this program!",
 
 err:
   switch (funktpos) {
-  case 3:
-    buff="Character set is not supported for messagefile '%s'";
-    break;
   case 2:
     buff="Not enough memory for messagefile '%s'";
     break;
@@ -125,9 +130,10 @@ err:
     buff="Can't find messagefile '%s'";
     break;
   }
+  sql_print_error(buff,name);
+err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
-  sql_print_error(buff,name);
   unireg_abort(1);
 } /* read_texts */
 
