@@ -499,6 +499,10 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
     {
       char buf[10];
       uint buflen;
+      uint charlen= my_charpos(cs, min_org, min_str, res_length/cs->mbmaxlen);
+      
+      if (charlen < (uint) (min_str - min_org))
+        min_str= min_org + charlen;
       
       /* Write min key  */
       *min_length= (uint) (min_str - min_org);
