@@ -79,7 +79,7 @@ character-set=latin1
 "En BLOB '%-.64s' kan inte vara nyckel med den använda tabelltypen",
 "För stor kolumnlängd angiven för '%-.64s' (max= %d). Använd en BLOB instället",
 "Det får finnas endast ett AUTO_INCREMENT-fält och detta måste vara en nyckel",
-"%s: klar att ta emot klienter\n",
+"%s: klar att ta emot klienter",
 "%s: Normal avslutning\n",
 "%s: Fick signal %d. Avslutar!\n",
 "%s: Avslutning klar\n",

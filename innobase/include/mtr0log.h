@@ -111,7 +111,8 @@ mlog_open(
 /*======*/
 			/* out: buffer, NULL if log mode MTR_LOG_NONE */
 	mtr_t*	mtr,	/* in: mtr */
-	ulint	size);	/* in: buffer size in bytes */
+	ulint	size);	/* in: buffer size in bytes; MUST be
+			smaller than DYN_ARRAY_DATA_SIZE! */
 /************************************************************
 Closes a buffer opened to mlog. */
 UNIV_INLINE

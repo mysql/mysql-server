@@ -19,7 +19,7 @@
 AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
-EXTRA_DIST =		INSTALL-SOURCE README COPYING
+EXTRA_DIST =		INSTALL-SOURCE README COPYING EXCEPTIONS-CLIENT
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack @sql_client_dirs@ \

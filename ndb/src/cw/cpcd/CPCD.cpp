@@ -431,3 +431,5 @@ CPCD::report(int id, CPCEvent::EventType t){
   }
   m_subscribers.unlock();
 }
+
+template class MutexVector<EventSubscriber*>;

@@ -4319,8 +4319,12 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_TIMESTAMP:
     if (!length)
       new_field->length= 14;			// Full date YYYYMMDDHHMMSS
-    else
+    else if (new_field->length != 19)
     {
+      /*
+        We support only even TIMESTAMP lengths less or equal than 14
+        and 19 as length of 4.1 compatible representation.
+      */
       new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }

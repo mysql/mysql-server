@@ -326,6 +326,7 @@ TransporterFacade::getIsNodeSendable(NodeId n) const {
              "%d of node: %d", 
              node.m_info.m_type, n);
     abort();
+    return false; // to remove compiler warning
   }
 }
 

@@ -280,3 +280,5 @@ LocalConfig::readConnectString(const char * connectString){
   }
   return return_value;
 }
+
+template class Vector<MgmtSrvrId>;
