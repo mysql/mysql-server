@@ -652,6 +652,8 @@ struct show_var_st init_vars[]= {
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
+  {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
+  {"have_example",	      (char*) &have_example_db,	            SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
   {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},

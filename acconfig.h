@@ -119,6 +119,9 @@
 /* Builds Archive Storage Engine */
 #undef HAVE_ARCHIVE_DB
 
+/* Builds CSV Storage Engine */
+#undef HAVE_CSV_DB
+
 /* fp_except from ieeefp.h */
 #undef HAVE_FP_EXCEPT
 
