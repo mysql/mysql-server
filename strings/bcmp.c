@@ -26,7 +26,6 @@
 #include "m_string.h"
 
 #ifdef HAVE_purify
-#undef bcmp
 #undef HAVE_BCMP
 #endif
 
@@ -51,7 +50,11 @@ uint len;					/* 0 <= len <= 65535 */
 
 #else
 
+#ifndef HAVE_purify
 int bcmp(register const char *s1,register const char *s2, register uint len)
+#else
+int my_bcmp(register const char *s1,register const char *s2, register uint len)
+#endif
 {
   while (len-- != 0 && *s1++ == *s2++) ;
   return len+1;
