@@ -355,3 +355,36 @@ first	second	w	c	o	e	d	t	i	r
 121	120	0	0	1	0	0	0	1	0
 121	121	1	1	0	1	0	0	1	0
 DROP TABLE pt, ls, p, mpt, mls, mp, gc, geo;
+CREATE TABLE g1 (
+pt  point,
+ln  linestring,
+pg  polygon,
+mpt multipoint,
+mln multilinestring,
+mpg multipolygon,
+gc  geometrycollection,
+gm  geometry
+);
+SHOW FIELDS FROM g1;
+Field	Type	Collation	Null	Key	Default	Extra
+pt	point	binary	YES		NULL	
+ln	linestring	binary	YES		NULL	
+pg	polygon	binary	YES		NULL	
+mpt	multipoint	binary	YES		NULL	
+mln	multilinestring	binary	YES		NULL	
+mpg	multipolygon	binary	YES		NULL	
+gc	geometrycollection	binary	YES		NULL	
+gm	geometry	binary	YES		NULL	
+ALTER TABLE g1 ADD fid INT NOT NULL;
+SHOW FIELDS FROM g1;
+Field	Type	Collation	Null	Key	Default	Extra
+pt	point	binary	YES		NULL	
+ln	linestring	binary	YES		NULL	
+pg	polygon	binary	YES		NULL	
+mpt	multipoint	binary	YES		NULL	
+mln	multilinestring	binary	YES		NULL	
+mpg	multipolygon	binary	YES		NULL	
+gc	geometrycollection	binary	YES		NULL	
+gm	geometry	binary	YES		NULL	
+fid	int(11)	binary			0	
+DROP TABLE g1;
