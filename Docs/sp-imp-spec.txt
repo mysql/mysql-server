@@ -243,6 +243,23 @@
     5) On success, set the new values of the OUT and INOUT parameters in
        the caller's frame.
 
+    - USE database
+
+      Before executing the instruction we also keeps the current default
+      database (if any). If this was changed during execution (i.e. a "USE"
+      statement has been executed), we restore the current database to the
+      original.
+
+      This is the most useful way to handle USE in procedures. If we didn't,
+      the caller would find himself in a different database after calling
+      a function, which can be confusing.
+      Restoring the database also gives full freedom to the procedure writer:
+      - It's possible to write "general" procedures that are independent of
+        the actual database name.
+      - It's possible to write procedures that work on a particular database
+        by calling USE, without having to use fully qualified table names
+	everywhere (which doesn't help if you want to call other, "general",
+	procedures anyway).
 
     - Evaluating Items
 
@@ -339,6 +356,9 @@
 
     Dropping is done by simply getting the procedure with the sp_find()
     function and calling sp_drop() (both in sp.{cc,h}).
+
+    DROP PROCEDURE/FUNCTION also supports the non-standard "IF EXISTS",
+    analogous to other DROP statements in MySQL.
 
 
   - Class and function APIs
