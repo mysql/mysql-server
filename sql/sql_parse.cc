@@ -209,7 +209,8 @@ check_connections(THD *thd)
   /* nasty, but any other way? */
   uint pkt_len = 0;
   {
-    char buff[60],*end;
+    /* buff[] needs to big enough to hold the server_version variable */
+    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+32],*end;
     int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
 	               CLIENT_TRANSACTIONS;
     LINT_INIT(pkt_len);
