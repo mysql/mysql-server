@@ -2571,6 +2571,12 @@ select_derived:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables= 1;
+	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN && 
+	       lex->sql_command <= (int)SQLCOM_HA_READ) || lex->sql_command == (int)SQLCOM_KILL)
+	  {	
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
               mysql_new_select(lex, 1))
 	    YYABORT;
@@ -4607,6 +4613,12 @@ in_subselect_init:
 subselect_start:
 	'(' SELECT_SYM
 	{
+	  LEX *lex=Lex;
+	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN && 
+	       lex->sql_command <= (int)SQLCOM_HA_READ) || lex->sql_command == (int)SQLCOM_KILL)	  {	
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
 	  if (mysql_new_select(Lex, 1))
 	    YYABORT;
 	};

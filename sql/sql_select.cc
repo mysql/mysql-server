@@ -714,6 +714,13 @@ JOIN::exec()
   int      tmp_error;
 
   DBUG_ENTER("JOIN::exec");
+  
+  if (procedure)
+  {
+    if (procedure->change_columns(fields_list) ||
+	result->prepare(fields_list, unit))
+      DBUG_VOID_RETURN;
+  }
 
   if (!tables_list)
   {                                           // Only test of functions
@@ -768,8 +775,6 @@ JOIN::exec()
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
 				  select_limit, 0))))
       order=0;
-    if (procedure)
-      (void)result->prepare(fields_list, unit);
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
 		    select_distinct);
@@ -989,9 +994,6 @@ JOIN::exec()
   }
   if (procedure)
   {
-    if (procedure->change_columns(fields_list) ||
-	result->prepare(fields_list, unit))
-      DBUG_VOID_RETURN;
     count_field_types(&tmp_table_param, all_fields, 0);
   }
   if (group || tmp_table_param.sum_func_count ||
