@@ -313,3 +313,77 @@ table	CREATE TABLE `table` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE `table`;
 SET sql_quote_show_create=ON;
+select @@max_heap_table_size;
+@@max_heap_table_size
+1047552
+CREATE TABLE t1 (
+a int(11) default NULL,
+KEY a TYPE BTREE (a)
+) ENGINE=HEAP;
+CREATE TABLE t2 (
+b int(11) default NULL,
+index(b)
+) ENGINE=HEAP;
+CREATE TABLE t3 (
+a int(11) default NULL,
+b int(11) default NULL,
+KEY a TYPE BTREE (a),
+index(b)
+) ENGINE=HEAP;
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+insert into t3 values (1,1),(2,2);
+show table status;
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	Fixed	2	5	39904	249415	42	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	Fixed	2	5	39904	249415	39904	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	2	9	33072	248103	22090	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+insert into t1 values (3),(4);
+insert into t2 values (3),(4);
+insert into t3 values (3,3),(4,4);
+show table status;
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	Fixed	4	5	39904	249415	84	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	Fixed	4	5	39904	249415	39904	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	4	9	33072	248103	22132	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+show table status;
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	Fixed	5	5	39904	249415	105	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	Fixed	5	5	39904	249415	39904	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	5	9	33072	248103	22153	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+delete from t1 where a=3;
+delete from t2 where b=3;
+delete from t3 where a=3;
+show table status;
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	Fixed	4	5	39904	249415	105	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	Fixed	4	5	39904	249415	39904	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	4	9	33072	248103	22153	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+delete from t1;
+delete from t2;
+delete from t3;
+show table status;
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	Fixed	0	5	0	249415	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	Fixed	0	5	0	249415	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	0	9	0	248103	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+show table status;
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	Fixed	1	5	39904	249415	21	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	Fixed	1	5	39904	249415	39904	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	1	9	33072	248103	22069	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+delete from t1 where a=5;
+delete from t2 where b=5;
+delete from t3 where a=5;
+show table status;
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	Fixed	0	5	39904	249415	21	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	Fixed	0	5	39904	249415	39904	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	Fixed	0	9	33072	248103	22069	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+drop table t1, t2, t3;
