@@ -1227,6 +1227,7 @@ bool delayed_insert::handle_inserts(void)
 	  sql_print_error("%s",thd.net.last_error);
 	  goto err;
 	}
+	query_cache.invalidate(table);
 	if (thr_reschedule_write_lock(*thd.lock->locks))
 	{
 	  /* This should never happen */
@@ -1251,6 +1252,7 @@ bool delayed_insert::handle_inserts(void)
     sql_print_error("%s",thd.net.last_error);
     goto err;
   }
+  query_cache.invalidate(table);
   pthread_mutex_lock(&mutex);
   DBUG_RETURN(0);
 
