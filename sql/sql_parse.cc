@@ -3399,9 +3399,12 @@ purposes internal to the MySQL server", MYF(0));
 	     my_strcasecmp(&my_charset_latin1,
                            user->host.str, thd->host_or_ip)))
 	{
-	  if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
+	  if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1))
+	  {
+	    send_error(thd, ER_PASSWORD_NOT_ALLOWED);
 	    goto error;
-	  break;			// We are allowed to do changes
+	  }
+	  break;		  // We are allowed to do global changes
 	}
       }
     }
