@@ -8508,7 +8508,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   
  SCAN_TAB_error:
   jam();
-  ndbrequire(false);
   ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
   ref->apiConnectPtr = transP->ndbapiConnect;
   ref->transId1 = transid1;
