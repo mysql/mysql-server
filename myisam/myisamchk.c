@@ -183,7 +183,6 @@ static struct option long_options[] =
   {"information",      no_argument,	  0, 'i'},
   {"keys-used",        required_argument, 0, 'k'},
   {"medium-check",     no_argument,	  0, 'm'},
-  {"no-symlinks",      no_argument,	  0, 'l'},
   {"quick",	       no_argument,	  0, 'q'},
   {"read-only",        no_argument,	  0, 'T'},
   {"recover",	       no_argument,	  0, 'r'},
@@ -372,9 +371,6 @@ static void get_options(register int *argc,register char ***argv)
       break;
     case 'k':
       check_param.keys_in_use= (ulonglong) strtoll(optarg,NULL,10);
-      break;
-    case 'l':
-      check_param.opt_follow_links=0;
       break;
     case 'm':
       check_param.testflag|= T_MEDIUM;		/* Medium check */

@@ -527,8 +527,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   int error=0;
   uint extra_testflag=0;
   bool optimize_done= !optimize, statistics_done=0;
-  char fixed_name[FN_REFLEN];
   const char *old_proc_info=thd->proc_info;
+  char fixed_name[FN_REFLEN];
   MYISAM_SHARE* share = file->s;
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
@@ -540,8 +540,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   param.thd=thd;
   param.tmpdir=mysql_tmpdir;
   param.out_flag=0;
-  VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
-		     4+ (param.opt_follow_links ? 16 : 0)));
+  strmov(fixed_name,file->filename);
 
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables && mi_lock_database(file,F_WRLCK))
@@ -847,14 +846,14 @@ void ha_myisam::info(uint flag)
     
    /*
      Set data_file_name and index_file_name to point at the symlink value
-     if table is symlinked
+     if table is symlinked (Ie;  Real name is not same as generated name)
    */
     data_file_name=index_file_name=0;
-    fn_format(name_buff, file->filename, "", MI_NAME_IEXT, 4);
-    if (!strcmp(name_buff, info.data_file_name))
+    fn_format(name_buff, file->filename, "", MI_NAME_DEXT, 2);
+    if (strcmp(name_buff, info.data_file_name))
       data_file_name=info.data_file_name;
-    strmov(fn_ext(name_buff),MI_NAME_DEXT);
-    if (!strcmp(name_buff, info.index_file_name))
+    strmov(fn_ext(name_buff),MI_NAME_IEXT);
+    if (strcmp(name_buff, info.index_file_name))
       index_file_name=info.index_file_name;
   }
   if (flag & HA_STATUS_ERRKEY)
@@ -1099,7 +1098,7 @@ int ha_myisam::create(const char *name, register TABLE *form,
   create_info.data_file_name= info->data_file_name;
   create_info.index_file_name=info->index_file_name;
 
-  error=mi_create(fn_format(buff,name,"","",2+4+16),
+  error=mi_create(fn_format(buff,name,"","",2+4),
 		  form->keys,keydef,
 		  (uint) (recinfo_pos-recinfo), recinfo,
 		  0, (MI_UNIQUEDEF*) 0,

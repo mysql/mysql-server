@@ -1491,6 +1491,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 					  1);
     }
   }
+  else
+    create_info->data_file_name=create_info->index_file_name=0;
 
   if ((error=mysql_create_table(thd, new_db, tmp_name,
 				create_info,

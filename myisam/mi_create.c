@@ -38,12 +38,13 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   register uint i,j;
   File dfile,file;
   int errpos,save_errno;
+  myf create_flag;
   uint fields,length,max_key_length,packed,pointer,
        key_length,info_length,key_segs,options,min_key_length_skipp,
        base_pos,varchar_count,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,offset;
   ulong reclength, real_reclength,min_pack_length;
-  char buff[FN_REFLEN];
+  char filename[FN_REFLEN],linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
   ulonglong tot_length,max_rows;
   enum en_fieldtype type;
@@ -467,12 +468,31 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     MI_EXTEND_BLOCK_LENGTH;
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
+  
+  if (ci->index_file_name)
+  {
+    fn_format(filename, ci->index_file_name,"",MI_NAME_IEXT,4);
+    fn_format(linkname,name, "",MI_NAME_IEXT,4);
+    linkname_ptr=linkname;
+    /*
+      Don't create the table if the link or file exists to ensure that one
+      doesn't accidently destroy another table.
+    */
+    create_flag=0;
+  }
+  else
+  {
+    fn_format(filename,name,"",MI_NAME_IEXT,(4+ (flags & HA_DONT_TOUCH_DATA) ?
+					     32 : 0));
+    linkname_ptr=0;
+    /* Replace the current file */
+    create_flag=MY_DELETE_OLD;
+  }
 
-  if ((file= my_create_with_symlink(ci->index_file_name,
-				    fn_format(buff,name,"",MI_NAME_IEXT,4+
-					      (ci->index_file_name ? 0 : 32)),
+  if ((file= my_create_with_symlink(linkname_ptr,
+				    filename,
 				    0, O_RDWR | O_TRUNC,
-				    MYF(MY_WME | MY_DELETE_OLD))) < 0)
+				    MYF(MY_WME | create_flag))) < 0)
     goto err;
   errpos=1;
 
@@ -481,8 +501,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 #ifdef USE_RAID
     if (share.base.raid_type)
     {
-      (void) fn_format(buff,name,"",MI_NAME_DEXT,2+4);
-      if ((dfile=my_raid_create(buff,0,O_RDWR | O_TRUNC,
+      (void) fn_format(filename,name,"",MI_NAME_DEXT,2+4);
+      if ((dfile=my_raid_create(filename,0,O_RDWR | O_TRUNC,
 				share.base.raid_type,
 				share.base.raid_chunks,
 				share.base.raid_chunksize,
@@ -492,11 +512,23 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     else
 #endif
     {
-      (void) fn_format(buff,name,"",MI_NAME_DEXT,2+4 +
-		       (ci->data_file_name ? 0 : 32));
+      if (ci->data_file_name)
+      {
+	fn_format(filename, ci->data_file_name,"",MI_NAME_DEXT,4);
+	fn_format(linkname, name, "",MI_NAME_DEXT,4);
+	linkname_ptr=linkname;
+	create_flag=0;
+      }
+      else
+      {
+	fn_format(filename,name,"",MI_NAME_DEXT,4);
+	linkname_ptr=0;
+	create_flag=MY_DELETE_OLD;
+      }
       if ((dfile= 
-	   my_create_with_symlink(ci->data_file_name, buff, 
-				  0,O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+	   my_create_with_symlink(linkname_ptr, filename,
+				  0,O_RDWR | O_TRUNC,
+				  MYF(MY_WME | create_flag))) < 0)
 	goto err;
     }
     errpos=3;
@@ -517,14 +549,14 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   /* Write key and keyseg definitions */
   for (i=0 ; i < share.base.keys - uniques; i++)
   {
-    uint ft_segs=(keydefs[i].flag & HA_FULLTEXT) ? FT_SEGS : 0;    /* SerG */
+    uint ft_segs=(keydefs[i].flag & HA_FULLTEXT) ? FT_SEGS : 0;
 
     if (mi_keydef_write(file, &keydefs[i]))
       goto err;
     for (j=0 ; j < keydefs[i].keysegs-ft_segs ; j++)
       if (mi_keyseg_write(file, &keydefs[i].seg[j]))
 	goto err;
-    for (j=0 ; j < ft_segs ; j++)                                   /* SerG */
+    for (j=0 ; j < ft_segs ; j++)
     {
       MI_KEYSEG seg=ft_keysegs[j];
       seg.language= keydefs[i].seg[0].language;
@@ -605,24 +637,16 @@ err:
     VOID(my_close(dfile,MYF(0)));
     /* fall through */
   case 2:
-  if (! (flags & HA_DONT_TOUCH_DATA))
-  {
     /* QQ: Tõnu should add a call to my_raid_delete() here */
-    VOID(fn_format(buff,name,"",MI_NAME_DEXT,2+4));
-    my_delete(buff,MYF(0));
-    if (ci->data_file_name && strcmp(buff,ci->data_file_name))
-      my_delete(ci->data_file_name,MYF(0));
-  }
+  if (! (flags & HA_DONT_TOUCH_DATA))
+    my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_DEXT,2+4),
+			   MYF(0));
     /* fall through */
   case 1:
     VOID(my_close(file,MYF(0)));
     if (! (flags & HA_DONT_TOUCH_DATA))
-    {
-      VOID(fn_format(buff,name,"",MI_NAME_IEXT,2+4));
-      my_delete(buff,MYF(0));
-      if (ci->index_file_name && strcmp(buff,ci->index_file_name))
-	my_delete(ci->index_file_name,MYF(0));
-    }
+      my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_IEXT,2+4),
+			     MYF(0));
   }
   my_free((char*) rec_per_key_part, MYF(0));
   DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */

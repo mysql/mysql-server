@@ -207,6 +207,7 @@ SHOW_COMP_OPTION have_ssl=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_ssl=SHOW_OPTION_NO;
 #endif
+SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 
 
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
@@ -2485,7 +2486,7 @@ enum options {
                OPT_TEMP_POOL, OPT_DO_PSTACK, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
-	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS, OPT_REPORT_HOST,
+	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
 	       OPT_SHOW_SLAVE_AUTH_INFO
 };
@@ -2623,7 +2624,7 @@ static struct option long_options[] = {
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
-  {"skip-symlinks",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
+  {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINK},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
@@ -2832,6 +2833,7 @@ struct show_var_st init_vars[]= {
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
+  {"have_symlink",            (char*) &have_symlink,         	    SHOW_HAVE},
   {"have_ssl",		      (char*) &have_ssl,		    SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
 #ifdef HAVE_INNOBASE_DB
@@ -3068,6 +3070,7 @@ static void usage(void)
   /* We have to break the string here because of VC++ limits */
   puts("\
   --skip-stack-trace    Don't print a stack trace on failure\n\
+  --skip-symlink	Don't allow symlinking of tables\n\
   --skip-show-database  Don't allow 'SHOW DATABASE' commands\n\
   --skip-thread-priority\n\
 			Don't give threads different priorities.\n\
@@ -3454,6 +3457,7 @@ static void get_options(int argc,char **argv)
       myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;
       my_disable_symlinks=1;
+      have_symlink=SHOW_OPTION_DISABLED;
       ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
       break;
     case (int) OPT_SAFE:
@@ -3510,8 +3514,9 @@ static void get_options(int argc,char **argv)
     case (int) OPT_SKIP_STACK_TRACE:
       test_flags|=TEST_NO_STACKTRACE;
       break;
-    case (int) OPT_SKIP_SYMLINKS:
+    case (int) OPT_SKIP_SYMLINK:
       my_disable_symlinks=1;
+      have_symlink=SHOW_OPTION_DISABLED;
       break;
     case (int) OPT_BIND_ADDRESS:
       if (optarg && isdigit(optarg[0]))

@@ -23,6 +23,7 @@
 */
 
 #include "mysys_priv.h"
+#include "mysys_err.h"
 #include <m_string.h>
 
 File my_create_with_symlink(const char *linkname, const char *filename,
@@ -30,11 +31,27 @@ File my_create_with_symlink(const char *linkname, const char *filename,
 {
   File file;
   int tmp_errno;
+  /* Test if we should create a link */
+  int create_link=(linkname && strcmp(linkname,filename));
   DBUG_ENTER("my_create_with_symlink");
+
+  if (!(MyFlags & MY_DELETE_OLD))
+  {
+    if (!access(filename,F_OK))
+    {
+      my_error(EE_CANTCREATEFILE, MYF(0), filename, EEXIST);
+      DBUG_RETURN(-1);
+    }
+    if (create_link && !access(linkname,F_OK))
+    {
+      my_error(EE_CANTCREATEFILE, MYF(0), linkname, EEXIST);
+      DBUG_RETURN(-1);
+    }
+  }
+
   if ((file=my_create(filename, createflags, access_flags, MyFlags)) >= 0)
   {
-    /* Test if we should create a link */
-    if (linkname && strcmp(linkname,filename))
+    if (create_link)
     {
       /* Delete old link/file */
       if (MyFlags & MY_DELETE_OLD)

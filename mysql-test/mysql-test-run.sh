@@ -99,8 +99,9 @@ export MYSQL_TEST_DIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
   
-TESTDIR="$MYSQL_TEST_DIR/t/"
+TESTDIR="$MYSQL_TEST_DIR/t"
 TESTSUFFIX=test
+TOT_SKIP=0
 TOT_PASS=0
 TOT_FAIL=0
 TOT_TEST=0
@@ -359,8 +360,10 @@ report_stats () {
 	$ECHO ""
         $ECHO "The log files in $MYSQL_TEST_DIR/var/log may give you some hint"
 	$ECHO "of what when wrong."
-	$ECHO "If you want to report this error, please read first the documentation at"
-        $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
+	$ECHO ""
+	$ECHO "Please follow the instructions outlined at"
+	$ECHO "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
+	$ECHO "to find the reason to this problem and how to report this."
     fi
 }
 
@@ -640,7 +643,7 @@ run_testcase ()
    timestr="$USERT $SYST $REALT"
    pname=`$ECHO "$tname                 "|$CUT -c 1-16`
    RES="$pname          $timestr"
-   pass_inc
+   skip_inc
    $ECHO "$RES$RES_SPACE [ skipped ]"
    return
  fi
@@ -747,7 +750,7 @@ run_testcase ()
 	$ECHO "Resuming Tests"
 	$ECHO ""
       else
-        pass_inc
+        skip_inc
 	$ECHO "$RES$RES_SPACE [ skipped ]"
       fi
     fi

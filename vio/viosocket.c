@@ -101,7 +101,7 @@ int vio_read(Vio * vio, gptr buf, int size)
 #ifndef DBUG_OFF
   if (r < 0)
   {
-    DBUG_PRINT("error", ("Got error %d during read",errno));
+    DBUG_PRINT("vio_error", ("Got error %d during read",errno));
   }
 #endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
@@ -129,7 +129,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 #ifndef DBUG_OFF
   if (r < 0)
   {
-    DBUG_PRINT("error", ("Got error on write: %d",errno));
+    DBUG_PRINT("vio_error", ("Got error on write: %d",errno));
   }
 #endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
@@ -268,7 +268,7 @@ int vio_close(Vio * vio)
   }
   if (r)
   {
-    DBUG_PRINT("error", ("close() failed, error: %d",errno));
+    DBUG_PRINT("vio_error", ("close() failed, error: %d",errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
@@ -310,8 +310,7 @@ my_bool vio_peer_addr(Vio * vio, char *buf)
       DBUG_PRINT("exit", ("getpeername, error: %d", errno));
       DBUG_RETURN(1);
     }
-    /* FIXME */
-/*    my_inet_ntoa(vio->remote.sin_addr,buf);  */
+    my_inet_ntoa(vio->remote.sin_addr,buf);
   }
   DBUG_PRINT("exit", ("addr=%s", buf));
   DBUG_RETURN(0);
@@ -349,4 +348,3 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
   DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
 #endif
 }
-

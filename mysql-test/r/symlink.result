@@ -1,0 +1,23 @@
+Table	Op	Msg_type	Msg_text
+test.t9	check	status	OK
+Table	Op	Msg_type	Msg_text
+test.t9	optimize	status	OK
+Table	Op	Msg_type	Msg_text
+test.t9	repair	status	OK
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` char(16) NOT NULL default '',
+  `c` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) TYPE=MyISAM
+count(*)
+16724
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` char(16) NOT NULL default '',
+  `c` int(11) NOT NULL default '0',
+  `d` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) TYPE=MyISAM
