@@ -248,6 +248,7 @@ int st_select_lex_unit::exec()
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union(), *last_select;
   LINT_INIT(last_select);
+  bool do_print_slow=0;
 
   if (executed && !(dependent || uncacheable))
     DBUG_RETURN(0);
@@ -313,6 +314,7 @@ int st_select_lex_unit::exec()
 	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
+      do_print_slow = do_print_slow || (select_cursor->options & (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED));
     }
   }
   optimized= 1;
@@ -325,7 +327,6 @@ int st_select_lex_unit::exec()
   {
     List<Item_func_match> empty_list;
     empty_list.empty();
-    thd->lex.select_lex.ftfunc_list= &empty_list;
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
@@ -338,6 +339,8 @@ int st_select_lex_unit::exec()
 	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
 	thd->options&= ~OPTION_FOUND_ROWS;
+      fake_select->ftfunc_list= &empty_list;
+
       res= mysql_select(thd, &ref_pointer_array, &result_table_list,
 			0, item_list, NULL,
 			global_parameters->order_list.elements,
@@ -348,9 +351,10 @@ int st_select_lex_unit::exec()
 	thd->limit_found_rows = (ulonglong)table->file->records;
       fake_select->exclude();
       delete fake_select;
+      if (select_cursor == &thd->lex.select_lex && !do_print_slow)
+	select_cursor->options &= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
     }
   }
-  thd->lex.select_lex.ftfunc_list= &thd->lex.select_lex.ftfunc_list_alloc;
   thd->lex.current_select= lex_select_save;
   DBUG_RETURN(res);
 }

@@ -512,7 +512,8 @@ public:
   {
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
-    tmp->set_charset(&my_charset_bin);
+    if (tmp)
+      tmp->set_charset(&my_charset_bin);
     return tmp;
   }
   void fix_length_and_dec() 

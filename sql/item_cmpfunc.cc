@@ -769,7 +769,8 @@ Item_func_if::val_str(String *str)
 {
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   String *res=arg->val_str(str);
-  res->set_charset(charset());
+  if (res)
+    res->set_charset(charset());
   null_value=arg->null_value;
   return res;
 }
