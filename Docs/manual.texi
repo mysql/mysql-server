@@ -121,20 +121,20 @@ for that version.
 * Tutorial::                    MySQL Tutorial
 * MySQL Database Administration::  MySQL Database Administration
 * MySQL Optimisation::          MySQL Optimisation
-* Reference::                   MySQL language reference
-* Table types::                 MySQL table types
-* Clients::                     MySQL client tools and APIs
+* Reference::                   MySQL Language Reference
+* Table types::                 MySQL Table Types
+* Clients::                     MySQL Client Tools and APIs
 * Extending MySQL::             Extending MySQL
 * Problems::                    Problems
-* Contrib::                     Contributed programs
+* Contrib::                     Contributed Programs
 * Credits::                     Contributors to MySQL
-* News::                        MySQL change history
-* Porting::                     Comments on porting to other systems
+* News::                        MySQL Change History
+* Porting::                     Porting to Other Systems
 * Environment variables::       MySQL environment variables
-* Regexp::                      Description of MySQL regular expression syntax
+* Regexp::                      MySQL Regular Expression Syntax
 * GPL license::                 GNU General Public License
 * LGPL license::                GNU Lesser General Public License
-* Function Index::              SQL command, type and function index
+* Function Index::              SQL Command, Type and Function Index
 * Concept Index::               Concept Index
 @end menu
 
@@ -11453,7 +11453,7 @@ perl} indicates the command to use.
 
 
 @node Tutorial, MySQL Database Administration, Installing, Top
-@chapter Introduction to MySQL: A MySQL Tutorial
+@chapter Tutorial Introduction to MySQL
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -23430,7 +23430,7 @@ check @code{Slave_open_temp_tables} variable to see if it is 0, then issue
 with @code{SLAVE START} and see
 if you have better luck next time. There will be a cleaner solution, but it
 has to wait until version 4.0.
-In earlier versions temporary tables are not being replicated properly - we
+In earlier versions temporary tables are not replicated properly - we
 recommend that you either upgrade, or execute @code{SET SQL_LOG_BIN=0} on
 your clients before all queries with temp tables.
 @item
@@ -23504,11 +23504,6 @@ what they do. The old @code{FLUSH} variants still work, though, for
 compatibility.
 
 @item
-Starting in Version 3.23.21, you can use @code{LOAD TABLE FROM MASTER} for
-network backup and to set up replication initially. We have recently
-received a number of bug reports concerning it that we are investigating, so
-we recommend that you use it only in testing until we make it more stable.
-@item
 Starting in Version 3.23.23, you can change masters and adjust log position
 with @code{CHANGE MASTER TO}.
 @item
@@ -23521,6 +23516,39 @@ with a different name on the slave.
 @item
 Starting in Version 3.23.28, you can use @code{PURGE MASTER LOGS TO 'log-name'}
 to get rid of old logs while the slave is running.
+@item
+Due to the non-transactional nature of MyISAM tables, it is possible to have
+a query that will only partially update a table and return an error code. This
+can happen, for example, on a multi-row insert that has one row violating a
+key constraint, or if a long update query is killed after updating some of the
+rows. If that happens on the master, the slave thread will exit and wait for
+the DBA to decide what to do about it unless the error code is legitimate and
+the query execution results in the same error code. If this error code
+validation behaviour is not desirable, some ( or all) errors could be masked
+out with @code{slave-skip-errors} option starting in Version 3.23.47.
+@item
+While individual tables can be excluded from replication with
+@code{replicate-do-table}/@code{replicate-ignore-table} or
+@code{replicate-wild-do-table}/@code{replicate-wild-ignore-table}, there
+are currently some design deficiencies that in some rather rare cases
+produce unexpected results. The replication protocol does not inform the
+slave explicitly which tables are going to be modified by the query - so
+the slave has to parse the query to know this. To avoid redundant
+parsing for queries that will end up actually being executed, table
+exclusion is currently implemented by sending the query to the standard
+MySQL parser, which will short-circuit the query and report success if
+it detects that the table should be ignored. In addition to several
+inefficiencies, this approach is also more bug prone, and there are two
+known bugs as of Version 3.23.49 - because the parser automatically opens
+the table when parsing some queries the ignored table has to exist on
+the slave. The other bug is that if the ignored table gets partially
+updated, the slave thread will not notice that the table actually should
+have been ignored and will suspend the replication process. While the
+above bugs are conceptually very simple to fix, we have not yet found a way
+to do this without a sigficant code change that would compromize the stability
+status of 3.23 branch. There exists a workaround for both if in the rare case
+it happens to affect your application -  use @code{slave-skip-errors}.
+
 @end itemize
 
 
@@ -45552,7 +45580,7 @@ return a big result row!
 
 
 @node Can not connect to server, Blocked host, Gone away, Common errors
-@appendixsubsec @code{Can't connect to [local] MySQL server} error
+@appendixsubsec @code{Can't connect to [local] MySQL server} Error
 
 A MySQL client on Unix can connect to the @code{mysqld} server in two
 different ways: Unix sockets, which connect through a file in the file
@@ -46636,7 +46664,7 @@ the original table.
 
 
 @node Problems with mysql.sock, Timezone problems, Temporary files, Administration Issues
-@appendixsubsec How to Protect or change the MySQL socket file @file{/tmp/mysql.sock}
+@appendixsubsec How to Protect or Change the MySQL Socket File @file{/tmp/mysql.sock}
 
 @cindex @code{mysql.sock}, protection
 @cindex deletion, @code{mysql.sock}
@@ -47011,7 +47039,7 @@ Post the test file using @code{mysqlbug} to @email{mysql@@lists.mysql.com}.
 @end enumerate
 
 @node Problems with float,  , No matching rows, Query Issues
-@appendixsubsec Problems with floating point comparison
+@appendixsubsec Problems with Floating Point Comparison
 
 Floating point numbers cause confusion sometimes, because these numbers
 are not stored as exact values inside computer architecture. What one
@@ -48590,7 +48618,7 @@ Development on the embedded @code{mysqld} version.
 
 
 @node News, Porting, Credits, Top
-@appendix MySQL change history
+@appendix MySQL Change History
 
 @cindex ChangeLog
 @cindex changes, log
@@ -54666,7 +54694,7 @@ Fixed @code{DISTINCT} with calculated columns.
 
 
 @node Porting, Environment variables, News, Top
-@appendix Comments on Porting to Other Systems
+@appendix Porting to Other Systems
 
 @cindex porting, to other systems
 
@@ -54746,8 +54774,8 @@ will ensure that your thread installation has even a remote chance to work!
 @menu
 * Debugging server::            Debugging a MySQL server
 * Debugging client::            Debugging a MySQL client
-* The DBUG package::            The DBUG package
-* Locking methods::             Locking methods
+* The DBUG package::            The DBUG Package
+* Locking methods::             Locking ethods
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 @end menu
@@ -54802,7 +54830,7 @@ problems that may be unique to your environment.
 
 
 @node Compiling for debugging, Making trace files, Debugging server, Debugging server
-@appendixsubsec Compiling MYSQL for debugging
+@appendixsubsec Compiling MYSQL for Debugging
 
 If you have some very specific problem, you can always try to debug
 MySQL.  To do this you must configure MySQL with the
@@ -54856,7 +54884,7 @@ default compiled with support for trace files.
 
 
 @node Making trace files, Using gdb on mysqld, Compiling for debugging, Debugging server
-@appendixsubsec Creating trace files
+@appendixsubsec Creating Trace Files
 
 If the @code{mysqld} server doesn't start or if you can cause the
 @code{mysqld} server to crash quickly, you can try to create a trace
@@ -54990,7 +55018,7 @@ setting the @code{DBI_TRACE} environment variable.
 
 
 @node Using stack trace, Using log files, Using gdb on mysqld, Debugging server
-@appendixsubsec Using a stack trace
+@appendixsubsec Using a Stack Trace
 
 On some operating systems, the error log will contain a stack trace if
 @code{mysqld} dies unexpectedly. You can use this to find out where (and
@@ -55059,7 +55087,7 @@ repeat the problem!  @xref{Bug reports}.
 
 
 @node Using log files, Reproduceable test case, Using stack trace, Debugging server
-@appendixsubsec Using log files to find cause of errors in mysqld
+@appendixsubsec Using Log Files to Find Cause of Errors in mysqld
 
 Note that before starting @code{mysqld} with @code{--log} you should
 check all your tables with @code{myisamchk}.
@@ -55110,7 +55138,7 @@ messages but instead try to find out why @code{mysqld} died.
 
 
 @node Reproduceable test case,  , Using log files, Debugging server
-@appendixsubsec Making a test case when you experience table corruption
+@appendixsubsec Making a Test Case When You Experience Table Corruption
 
 If you get corrupted tables or if @code{mysqld} always fails after some
 update commands, you can test if this bug is reproducible by doing the
@@ -55199,7 +55227,7 @@ MySQL installation with new MySQL library.
 
 
 @node The DBUG package, Locking methods, Debugging client, Porting
-@appendixsec The DBUG package.
+@appendixsec The DBUG Package
 
 @cindex DBUG package
 
@@ -55622,7 +55650,7 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 
 
 @node Regexp, GPL license, Environment variables, Top
-@appendix Description of MySQL regular expression syntax
+@appendix MySQL Regular Expression Syntax
 
 @cindex regex
 @cindex regular expression syntax, described
@@ -56213,8 +56241,10 @@ Public License instead of this License.
 @node LGPL license, Function Index, GPL license, Top
 @appendix GNU LESSER GENERAL PUBLIC LICENSE
 
-@cindex LGPL, Lesser General Public License
+@cindex LGPL, Library General Public License
 @cindex LGPL, GNU Library General Public License
+@cindex LGPL, Lesser General Public License
+@cindex LGPL, GNU Lesser General Public License
 
 @center Version 2.1, February 1999
 

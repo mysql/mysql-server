@@ -730,6 +730,7 @@ start_master()
   	    --server-id=1  \
           --basedir=$MY_BASEDIR \
           --port=$MASTER_MYPORT \
+          --local-infile \
           --exit-info=256 \
           --core \
           --datadir=$MASTER_MYDDIR \
@@ -749,6 +750,7 @@ start_master()
           --server-id=1 --rpl-recovery-rank=1 \
           --basedir=$MY_BASEDIR --init-rpl-role=master \
           --port=$MASTER_MYPORT \
+          --local-infile \
           --datadir=$MASTER_MYDDIR \
           --pid-file=$MASTER_MYPID \
           --socket=$MASTER_MYSOCK \

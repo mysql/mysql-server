@@ -23,6 +23,12 @@ int heap_rnext(HP_INFO *info, byte *record)
   byte *pos;
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_rnext");
+  
+  if (!(info->s->records))
+  {
+    my_errno=HA_ERR_END_OF_FILE;
+    DBUG_RETURN(my_errno);
+  }
 
   if (info->lastinx < 0)
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
