@@ -3266,3 +3266,30 @@ select wss_type from t1 where wss_type =102935229216544093;
 wss_type
 102935229216544093
 drop table t1;
+create table t1 (a int not null auto_increment primary key);
+insert into t1 values ();
+insert into t1 values ();
+insert into t1 values ();
+select * from (t1 as t2 left join t1 as t3 using (a)), t1;
+a	a	a
+1	1	1
+2	2	1
+3	3	1
+1	1	2
+2	2	2
+3	3	2
+1	1	3
+2	2	3
+3	3	3
+select * from t1, (t1 as t2 left join t1 as t3 using (a));
+a	a	a
+1	1	1
+2	1	1
+3	1	1
+1	2	2
+2	2	2
+3	2	2
+1	3	3
+2	3	3
+3	3	3
+drop table t1;

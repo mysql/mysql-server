@@ -2026,7 +2026,7 @@ opt_pad:
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
 	| join_table		{ $$=$1; }
-	| join_table_list normal_join join_table { $$=$3; }
+	| join_table_list normal_join join_table_list { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table { $$=$3 ; $$->straight=1; }
 	| join_table_list INNER_SYM JOIN_SYM join_table ON expr
 	  { add_join_on($4,$6); $$=$4; }
@@ -3307,6 +3307,7 @@ option_value:
 	  {
 	    Lex->var_list.push_back(new set_var_password($3,$5));
 	  }
+	;
 
 internal_variable_name:
 	ident
@@ -3316,6 +3317,7 @@ internal_variable_name:
 	    YYABORT;
 	  $$=tmp;
 	}
+	;
 
 isolation_types:
 	READ_SYM UNCOMMITTED_SYM	{ $$= ISO_READ_UNCOMMITTED; }
@@ -3674,6 +3676,7 @@ require_clause: /* empty */
 	  {
 	    Lex->ssl_type=SSL_TYPE_NONE;
 	  }
+	;
 
 grant_options:
 	/* empty */ {}

@@ -1751,3 +1751,16 @@ select wss_type from t1 where wss_type ='102935229216544104';
 select wss_type from t1 where wss_type ='102935229216544093';
 select wss_type from t1 where wss_type =102935229216544093;
 drop table t1;
+
+#
+# Test of removing redundant braces in the FROM part
+# (The second case used to cause a syntax error)
+#
+
+create table t1 (a int not null auto_increment primary key);
+insert into t1 values ();
+insert into t1 values ();
+insert into t1 values ();
+select * from (t1 as t2 left join t1 as t3 using (a)), t1;
+select * from t1, (t1 as t2 left join t1 as t3 using (a));
+drop table t1;
