@@ -377,7 +377,7 @@ static uint get_access(TABLE *form,uint fieldnr)
 {
   uint access_bits=0,bit;
   char buff[2];
-  String res(buff,sizeof(buff));
+  String res(buff,sizeof(buff),default_charset_info);
   Field **pos;
 
   for (pos=form->field+fieldnr,bit=1 ; *pos ; pos++ , bit<<=1)
@@ -1091,8 +1091,8 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   tables.db=(char*) "mysql";
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
-  table->field[0]->store(host,(uint) strlen(host));
-  table->field[1]->store(user,(uint) strlen(user));
+  table->field[0]->store(host,(uint) strlen(host), system_charset_info);
+  table->field[1]->store(user,(uint) strlen(user), system_charset_info);
 
   if (table->file->index_read_idx(table->record[0],0,
 				  (byte*) table->field[0]->ptr,0,
@@ -1102,7 +1102,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,1);
-  table->field[2]->store(new_password,(uint) strlen(new_password));
+  table->field[2]->store(new_password,(uint) strlen(new_password), system_charset_info);
   if ((error=table->file->update_row(table->record[1],table->record[0])))
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
@@ -1161,8 +1161,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     empty_string[0]=0;
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length);
-  table->field[1]->store(combo.user.str,combo.user.length);
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(combo.user.str,combo.user.length, system_charset_info);
   table->file->index_init(0);
   if (table->file->index_read(table->record[0],
 			      (byte*) table->field[0]->ptr,0,
@@ -1183,17 +1183,17 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       goto end;
     }
     old_row_exists = 0;
-    restore_record(table,2);			// cp empty row from record[2]
-    table->field[0]->store(combo.host.str,combo.host.length);
-    table->field[1]->store(combo.user.str,combo.user.length);
-    table->field[2]->store(password,(uint) strlen(password));
+    restore_record(table,2);	// cp empty row from record[2]
+    table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+    table->field[1]->store(combo.user.str,combo.user.length, system_charset_info);
+    table->field[2]->store(password,(uint) strlen(password), system_charset_info);
   }
   else
   {
     old_row_exists = 1;
     store_record(table,1);			// Save copy for update
     if (combo.password.str)			// If password given
-      table->field[2]->store(password,(uint) strlen(password));
+      table->field[2]->store(password,(uint) strlen(password), system_charset_info);
   }
 
   for (i = 3, j = SELECT_ACL;			// starting from reload
@@ -1201,7 +1201,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
        i++, j <<= 1)
   {
     if (j & rights)				 // set requested privileges
-      table->field[i]->store(&what,1);
+      table->field[i]->store(&what,1, system_charset_info);
   }
   rights=get_access(table,3);
 #ifdef HAVE_OPENSSL
@@ -1209,30 +1209,30 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   DBUG_PRINT("info",("table->fields=%d",table->fields));
   if (table->fields >= 21)		/* From 4.0.0 we have more fields */
   {
-    table->field[18]->store("",0);
-    table->field[19]->store("",0);
-    table->field[20]->store("",0);
+    table->field[18]->store("",0, system_charset_info);
+    table->field[19]->store("",0, system_charset_info);
+    table->field[20]->store("",0, system_charset_info);
     switch (thd->lex.ssl_type) {
     case SSL_TYPE_ANY:
-      table->field[17]->store("ANY",3);
+      table->field[17]->store("ANY",3, system_charset_info);
       break;
     case SSL_TYPE_X509:
-      table->field[17]->store("X509",4);
+      table->field[17]->store("X509",4, system_charset_info);
       break;
     case SSL_TYPE_SPECIFIED:
-      table->field[17]->store("SPECIFIED",9);
+      table->field[17]->store("SPECIFIED",9, system_charset_info);
       if (thd->lex.ssl_cipher)
 	table->field[18]->store(thd->lex.ssl_cipher,
-				strlen(thd->lex.ssl_cipher));
+				strlen(thd->lex.ssl_cipher), system_charset_info);
       if (thd->lex.x509_issuer)
 	table->field[19]->store(thd->lex.x509_issuer,
-				strlen(thd->lex.x509_issuer));
+				strlen(thd->lex.x509_issuer), system_charset_info);
       if (thd->lex.x509_subject)
 	table->field[20]->store(thd->lex.x509_subject,
-				strlen(thd->lex.x509_subject));
+				strlen(thd->lex.x509_subject), system_charset_info);
       break;
     default:
-      table->field[17]->store("NONE",4);
+      table->field[17]->store("NONE",4, system_charset_info);
     }
   }
 #endif /* HAVE_OPENSSL */
@@ -1315,9 +1315,9 @@ static int replace_db_table(TABLE *table, const char *db,
     DBUG_RETURN(-1);
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length);
-  table->field[1]->store(db,(uint) strlen(db));
-  table->field[2]->store(combo.user.str,combo.user.length);
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
   table->file->index_init(0);
   if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,0,
 	      HA_READ_KEY_EXACT))
@@ -1330,9 +1330,9 @@ static int replace_db_table(TABLE *table, const char *db,
     }
     old_row_exists = 0;
     restore_record(table,2);			// cp empty row from record[2]
-    table->field[0]->store(combo.host.str,combo.host.length);
-    table->field[1]->store(db,(uint) strlen(db));
-    table->field[2]->store(combo.user.str,combo.user.length);
+    table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+    table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+    table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
   }
   else
   {
@@ -1344,7 +1344,7 @@ static int replace_db_table(TABLE *table, const char *db,
   for (i = 3, j = 1; i < table->fields; i++, j <<= 1)
   {
     if (j & store_rights)			// do it if priv is chosen
-      table->field [i]->store(&what,1);		// set requested privileges
+      table->field [i]->store(&what,1, system_charset_info);// set requested privileges
   }
   rights=get_access(table,3);
   rights=fix_rights_for_db(rights);
@@ -1466,16 +1466,16 @@ public:
     if (cols)
     {
       int key_len;
-      col_privs->field[0]->store(host,(uint) strlen(host));
-      col_privs->field[1]->store(db,(uint) strlen(db));
-      col_privs->field[2]->store(user,(uint) strlen(user));
-      col_privs->field[3]->store(tname,(uint) strlen(tname));
+      col_privs->field[0]->store(host,(uint) strlen(host), system_charset_info);
+      col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
+      col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
+      col_privs->field[3]->store(tname,(uint) strlen(tname), system_charset_info);
       key_len=(col_privs->field[0]->pack_length()+
 	       col_privs->field[1]->pack_length()+
 	       col_privs->field[2]->pack_length()+
 	       col_privs->field[3]->pack_length());
       key_copy(key,col_privs,0,key_len);
-      col_privs->field[4]->store("",0);
+      col_privs->field[4]->store("",0, system_charset_info);
       col_privs->file->index_init(0);
       if (col_privs->file->index_read(col_privs->record[0],
 				      (byte*) col_privs->field[0]->ptr,
@@ -1574,10 +1574,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
   byte key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_column_table");
 
-  table->field[0]->store(combo.host.str,combo.host.length);
-  table->field[1]->store(db,(uint) strlen(db));
-  table->field[2]->store(combo.user.str,combo.user.length);
-  table->field[3]->store(table_name,(uint) strlen(table_name));
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
   key_length=(table->field[0]->pack_length()+ table->field[1]->pack_length()+
 	      table->field[2]->pack_length()+ table->field[3]->pack_length());
   key_copy(key,table,0,key_length);
@@ -1594,7 +1594,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     uint privileges = xx->rights;
     bool old_row_exists=0;
     key_restore(table,key,0,key_length);
-    table->field[4]->store(xx->column.ptr(),xx->column.length());
+    table->field[4]->store(xx->column.ptr(),xx->column.length(),system_charset_info);
 
     if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,
 				0, HA_READ_KEY_EXACT))
@@ -1608,9 +1608,9 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	continue; /* purecov: inspected */
       }
       old_row_exists = 0;
-      restore_record(table,2);			// Get empty record
+      restore_record(table,2);				// Get empty record
       key_restore(table,key,0,key_length);
-      table->field[4]->store(xx->column.ptr(),xx->column.length());
+      table->field[4]->store(xx->column.ptr(),xx->column.length(), system_charset_info);
     }
     else
     {
@@ -1682,7 +1682,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       {
 	GRANT_COLUMN *grant_column = NULL;
 	char  colum_name_buf[HOSTNAME_LENGTH+1];
-	String column_name(colum_name_buf,sizeof(colum_name_buf));
+	String column_name(colum_name_buf,sizeof(colum_name_buf),system_charset_info);
 
 	privileges&= ~rights;
 	table->field[6]->store((longlong)
@@ -1749,10 +1749,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   restore_record(table,2);			// Get empty record
-  table->field[0]->store(combo.host.str,combo.host.length);
-  table->field[1]->store(db,(uint) strlen(db));
-  table->field[2]->store(combo.user.str,combo.user.length);
-  table->field[3]->store(table_name,(uint) strlen(table_name));
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
   store_record(table,1);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0],0,
@@ -1797,7 +1797,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     }
   }
 
-  table->field[4]->store(grantor,(uint) strlen(grantor));
+  table->field[4]->store(grantor,(uint) strlen(grantor), system_charset_info);
   table->field[6]->store((longlong) store_table_rights);
   table->field[7]->store((longlong) store_col_rights);
   rights=fix_rights_for_table(store_table_rights);
@@ -2612,7 +2612,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     DBUG_RETURN(-1);
   }
 
-  Item_string *field=new Item_string("",0);
+  Item_string *field=new Item_string("",0,system_charset_info);
   List<Item> field_list;
   field->name=buff;
   field->max_length=1024;
@@ -2628,7 +2628,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   if (acl_user->access || acl_user->password)
   {
     want_access=acl_user->access;
-    String global(buff,sizeof(buff));
+    String global(buff,sizeof(buff),system_charset_info);
     global.length(0);
     global.append("GRANT ",6);
 
@@ -2734,7 +2734,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       want_access=acl_db->access;
       if (want_access) 
       {
-	String db(buff,sizeof(buff));
+	String db(buff,sizeof(buff),system_charset_info);
 	db.length(0);
 	db.append("GRANT ",6);
 
@@ -2793,7 +2793,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       want_access=grant_table->privs;
       if ((want_access | grant_table->cols) != 0)
       {
-	String global(buff,sizeof(buff));
+	String global(buff,sizeof(buff),system_charset_info);
 	global.length(0);
 	global.append("GRANT ",6);
 

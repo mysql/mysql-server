@@ -363,8 +363,10 @@ select_result::select_result()
   thd=current_thd;
 }
 
-static String default_line_term("\n"),default_escaped("\\"),
-	      default_field_term("\t");
+static String
+	default_line_term("\n",default_charset_info),
+	default_escaped("\\",default_charset_info),
+	default_field_term("\t",default_charset_info);
 
 sql_exchange::sql_exchange(char *name,bool flag)
   :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
@@ -507,7 +509,7 @@ bool select_export::send_data(List<Item> &items)
   DBUG_ENTER("send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   tmp.length(0);
 
   if (thd->offset_limit)
@@ -714,7 +716,7 @@ bool select_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   tmp.length(0);
   Item *item;
   DBUG_ENTER("send_data");

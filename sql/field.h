@@ -59,7 +59,7 @@ public:
 	utype unireg_check_arg, const char *field_name_arg,
 	struct st_table *table_arg);
   virtual ~Field() {}
-  virtual void store(const char *to,uint length)=0;
+  virtual void store(const char *to,uint length,CHARSET_INFO *cs)=0;
   virtual void store(double nr)=0;
   virtual void store(longlong nr)=0;
   virtual void store_time(TIME *ltime,timestamp_type t_type);
@@ -242,10 +242,10 @@ public:
   Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
 	    const char *field_name_arg,
-	    struct st_table *table_arg)
+	    struct st_table *table_arg,CHARSET_INFO *charset)
     :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	   unireg_check_arg, field_name_arg, table_arg)
-    { field_charset=default_charset_info; }
+    { field_charset=charset; }
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
   friend class create_field;
@@ -279,7 +279,7 @@ public:
   enum ha_base_keytype key_type() const
     { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
   void reset(void);
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   double val_real(void);
@@ -308,7 +308,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_TINY;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=0; }
@@ -337,7 +337,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_SHORT;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;}
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=0; }
@@ -366,7 +366,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_INT24;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
@@ -400,7 +400,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_LONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
@@ -436,7 +436,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_LONGLONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
@@ -463,7 +463,7 @@ public:
     {}
   enum_field_types type() const { return FIELD_TYPE_FLOAT;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_FLOAT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { bzero(ptr,sizeof(float)); }
@@ -495,7 +495,7 @@ public:
     {}
   enum_field_types type() const { return FIELD_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { bzero(ptr,sizeof(double)); }
@@ -518,10 +518,10 @@ public:
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
     :Field_str(ptr_arg, len_arg, null, 1,
-	       unireg_check_arg, field_name_arg, table_arg)
+	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
     {}
   enum_field_types type() const { return FIELD_TYPE_NULL;}
-  void store(const char *to, uint length) { null[0]=1; }
+  void store(const char *to, uint length, CHARSET_INFO *cs) { null[0]=1; }
   void store(double nr)   { null[0]=1; }
   void store(longlong nr) { null[0]=1; }
   void reset(void)	  {}
@@ -532,7 +532,7 @@ public:
   int cmp(const char *a, const char *b) { return 0;}
   void sort_string(char *buff, uint length)  {}
   uint32 pack_length() const { return 0; }
-  void sql_type(String &str) const { str.set("null",4); }
+  void sql_type(String &str) const { str.set("null",4,default_charset_info); }
   uint size_of() const { return sizeof(*this); }
 };
 
@@ -545,7 +545,7 @@ public:
   enum Item_result result_type () const { return field_length == 8 || field_length == 14 ? INT_RESULT : STRING_RESULT; }
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
@@ -585,7 +585,7 @@ public:
 		unireg_check_arg, field_name_arg, table_arg, 1, 1)
     {}
   enum_field_types type() const { return FIELD_TYPE_YEAR;}
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   double val_real(void);
@@ -601,16 +601,16 @@ public:
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg)
+	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
     {}
   Field_date(bool maybe_null_arg, const char *field_name_arg,
 		 struct st_table *table_arg)
     :Field_str((char*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg) {}
+	       NONE, field_name_arg, table_arg, default_charset_info) {}
   enum_field_types type() const { return FIELD_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
@@ -631,13 +631,13 @@ public:
 		enum utype unireg_check_arg, const char *field_name_arg,
 		struct st_table *table_arg)
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg)
+	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
     {}
   enum_field_types type() const { return FIELD_TYPE_DATE;}
   enum_field_types real_type() const { return FIELD_TYPE_NEWDATE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_UINT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void store_time(TIME *ltime,timestamp_type type);
@@ -662,16 +662,16 @@ public:
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
     :Field_str(ptr_arg, 8, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg)
+	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
     {}
   Field_time(bool maybe_null_arg, const char *field_name_arg,
 		 struct st_table *table_arg)
     :Field_str((char*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg) {}
+	       NONE, field_name_arg, table_arg, default_charset_info) {}
   enum_field_types type() const { return FIELD_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
@@ -694,18 +694,18 @@ public:
 		 enum utype unireg_check_arg, const char *field_name_arg,
 		 struct st_table *table_arg)
     :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg)
+	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
     {}
   Field_datetime(bool maybe_null_arg, const char *field_name_arg,
 		 struct st_table *table_arg)
     :Field_str((char*) 0,19, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg) {}
+	       NONE, field_name_arg, table_arg, default_charset_info) {}
   enum_field_types type() const { return FIELD_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
   enum Item_result cmp_type () const { return INT_RESULT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void store_time(TIME *ltime,timestamp_type type);
@@ -730,18 +730,18 @@ public:
   Field_string(char *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
-	       struct st_table *table_arg,bool binary_arg)
+	       struct st_table *table_arg,bool binary_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg),
+	       unireg_check_arg, field_name_arg, table_arg,cs),
     binary_flag(binary_arg)
     {
       if (binary_arg)
 	flags|=BINARY_FLAG;
     }
   Field_string(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	       struct st_table *table_arg, bool binary_arg)
+	       struct st_table *table_arg, bool binary_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg),
+	       NONE, field_name_arg, table_arg, cs),
     binary_flag(binary_arg)
     {
       if (binary_arg)
@@ -759,7 +759,7 @@ public:
   bool zero_pack() const { return 0; }
   bool binary() const { return binary_flag; }
   void reset(void) { bfill(ptr,field_length,' '); }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   double val_real(void);
@@ -785,18 +785,18 @@ public:
   Field_varstring(char *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
 		  uchar null_bit_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
-		  struct st_table *table_arg,bool binary_arg)
+		  struct st_table *table_arg,bool binary_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg),
+	       unireg_check_arg, field_name_arg, table_arg, cs),
     binary_flag(binary_arg)
     {
       if (binary_arg)
 	flags|=BINARY_FLAG;
     }
   Field_varstring(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-		  struct st_table *table_arg, bool binary_arg)
+		  struct st_table *table_arg, bool binary_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg),
+	       NONE, field_name_arg, table_arg, cs),
     binary_flag(binary_arg)
     {
       if (binary_arg)
@@ -811,7 +811,7 @@ public:
   void reset(void) { bzero(ptr,field_length+2); }
   uint32 pack_length() const { return (uint32) field_length+2; }
   uint32 key_length() const { return (uint32) field_length; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   double val_real(void);
@@ -844,7 +844,7 @@ public:
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
 	     struct st_table *table_arg, bool binary_arg)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg),
+	       NONE, field_name_arg, table_arg, default_charset_info),
     packlength(3),binary_flag(binary_arg), geom_flag(true)
     {
       flags|= BLOB_FLAG;
@@ -854,7 +854,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
     { return binary_flag ? HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT; }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   double val_real(void);
@@ -951,7 +951,7 @@ public:
 		 struct st_table *table_arg,uint packlength_arg,
 		 TYPELIB *typelib_arg)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg),
+	       unireg_check_arg, field_name_arg, table_arg, default_charset_info),
     packlength(packlength_arg),typelib(typelib_arg)
     {
       flags|=ENUM_FLAG;
@@ -959,7 +959,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr);
   void store(longlong nr);
   void reset() { bzero(ptr,packlength); }
@@ -994,7 +994,7 @@ public:
     {
       flags=(flags & ~ENUM_FLAG) | SET_FLAG;
     }
-  void store(const char *to,uint length);
+  void store(const char *to,uint length,CHARSET_INFO *charset);
   void store(double nr) { Field_set::store((longlong) nr); }
   void store(longlong nr);
   virtual bool zero_pack() const { return 1; }

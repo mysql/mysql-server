@@ -3377,14 +3377,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case Item_sum::AVG_FUNC:			/* Place for sum & count */
       if (group)
 	return new Field_string(sizeof(double)+sizeof(longlong),
-				maybe_null, item->name,table,1);
+				maybe_null, item->name,table,1,default_charset_info);
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
     case Item_sum::STD_FUNC:			/* Place for sum & count */
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
-				 maybe_null, item->name,table,1);
+				 maybe_null, item->name,table,1,default_charset_info);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
 				item->name,table,item_sum->decimals);
@@ -3403,7 +3403,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	  return  new Field_blob(item_sum->max_length,maybe_null,
 				 item->name,table,item->binary);
 	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->binary);
+				 item->name,table,item->binary,default_charset_info);
       }
     }
     thd->fatal_error=1;
@@ -3457,7 +3457,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				   item->name,table,item->binary);
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->binary);
+				    item->name,table,item->binary,default_charset_info);
       break;
     }
     if (copy_func)
@@ -3876,7 +3876,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 					    (uchar*) 0,
 					    (uint) 0,
 					    Field::NONE,
-					    NullS, table, (bool) 1);
+					    NullS, table, (bool) 1, default_charset_info);
       key_part_info->key_type=FIELDFLAG_BINARY;
       key_part_info->type=    HA_KEYTYPE_BINARY;
       key_part_info++;
@@ -6790,7 +6790,7 @@ change_to_use_tmp_fields(List<Item> &items)
       if (_db_on_ && !item_field->name)
       {
 	char buff[256];
-	String str(buff,sizeof(buff));
+	String str(buff,sizeof(buff),default_charset_info);
 	str.length(0);
 	item->print(&str);
 	item_field->name=sql_strmake(str.ptr(),str.length());
@@ -7021,7 +7021,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(new Item_empty_string("",0));
     item_list.push_back(new Item_empty_string("",0));
     item_list.push_back(new Item_empty_string("",0));
-    item_list.push_back(new Item_string(message,strlen(message)));
+    item_list.push_back(new Item_string(message,strlen(message),default_charset_info));
     if (result->send_data(item_list))
       result->send_error(0,NullS);
   }
@@ -7034,13 +7034,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
       char buff1[512], buff2[512], bufff[512];
-      String tmp1(buff1,sizeof(buff1));
-      String tmp2(buff2,sizeof(buff2));
+      String tmp1(buff1,sizeof(buff1),default_charset_info);
+      String tmp2(buff2,sizeof(buff2),default_charset_info);
       item_list.empty();
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
-      item_list.push_back(new Item_string(table->table_name,strlen(table->table_name)));
-      item_list.push_back(new Item_string(join_type_str[tab->type],strlen(join_type_str[tab->type])));
+      item_list.push_back(new Item_string(table->table_name,strlen(table->table_name),default_charset_info));
+      item_list.push_back(new Item_string(join_type_str[tab->type],strlen(join_type_str[tab->type]),default_charset_info));
       tmp1.length(0); tmp2.length(0);
       key_map bits;
       uint j;
@@ -7054,12 +7054,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	}
       }
       if (tmp1.length())
-	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length()));
+	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),default_charset_info));
       else
 	item_list.push_back(new Item_null());
       if (tab->ref.key_parts)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,strlen(table->key_info[tab->ref.key].name)));
+	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,strlen(table->key_info[tab->ref.key].name),default_charset_info));
 	item_list.push_back(new Item_int((int) tab->ref.key_length));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
 	{
@@ -7067,17 +7067,17 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	    tmp2.append(',');
 	  tmp2.append((*ref)->name());
 	}
-	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length()));
+	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),default_charset_info));
       }
       else if (tab->type == JT_NEXT)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->index].name,strlen(table->key_info[tab->index].name)));
+	item_list.push_back(new Item_string(table->key_info[tab->index].name,strlen(table->key_info[tab->index].name),default_charset_info));
 	item_list.push_back(new Item_int((int) table->key_info[tab->index].key_length));
 	item_list.push_back(new Item_null());
       }
       else if (tab->select && tab->select->quick)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->select->quick->index].name,strlen(table->key_info[tab->select->quick->index].name)));
+	item_list.push_back(new Item_string(table->key_info[tab->select->quick->index].name,strlen(table->key_info[tab->select->quick->index].name),default_charset_info));
 	item_list.push_back(new Item_int((int) tab->select->quick->max_used_key_length));
 	item_list.push_back(new Item_null());
       }
@@ -7088,14 +7088,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_null());
       }
       sprintf(bufff,"%.0f",join->best_positions[i].records_read);
-      item_list.push_back(new Item_string(bufff,strlen(bufff)));
+      item_list.push_back(new Item_string(bufff,strlen(bufff),default_charset_info));
       my_bool key_read=table->key_read;
       if (tab->type == JT_NEXT &&
 	  ((table->used_keys & ((key_map) 1 << tab->index))))
 	key_read=1;
       
       if (tab->info)
-	item_list.push_back(new Item_string(tab->info,strlen(tab->info)));
+	item_list.push_back(new Item_string(tab->info,strlen(tab->info),default_charset_info));
       else if (tab->select)
       {
 	if (tab->use_quick == 2)
@@ -7149,7 +7149,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	}
 	buff_ptr=strmov(buff_ptr,"Distinct");
       }
-      item_list.push_back(new Item_string(buff,(uint) (buff_ptr - buff)));
+      item_list.push_back(new Item_string(buff,(uint) (buff_ptr - buff),default_charset_info));
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))

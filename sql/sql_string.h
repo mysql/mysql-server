@@ -46,22 +46,21 @@ public:
   String(uint32 length_arg)
   { 
     alloced=0; Alloced_length=0; (void) real_alloc(length_arg); 
-    str_charset=default_charset_info;  
   }
-  String(const char *str)
+  String(const char *str, CHARSET_INFO *cs)
   { 
     Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
-    str_charset=default_charset_info;
+    str_charset=cs;
   }
-  String(const char *str,uint32 len)
+  String(const char *str,uint32 len, CHARSET_INFO *cs)
   { 
     Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;
-    str_charset=default_charset_info;  
+    str_charset=cs;
   }
-  String(char *str,uint32 len)
+  String(char *str,uint32 len, CHARSET_INFO *cs)
   { 
     Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;
-    str_charset=default_charset_info;
+    str_charset=cs;
   }
   String(const String &str)
   { 
@@ -103,23 +102,27 @@ public:
       Alloced_length=str.Alloced_length-offset;
     else
       Alloced_length=0;
+    str_charset=str.str_charset;
   }
-  inline void set(char *str,uint32 arg_length)
+  inline void set(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     free();
     Ptr=(char*) str; str_length=Alloced_length=arg_length ; alloced=0;
+    str_charset=cs;
   }
-  inline void set(const char *str,uint32 arg_length)
+  inline void set(const char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     free();
     Ptr=(char*) str; str_length=arg_length; Alloced_length=0 ; alloced=0;
+    str_charset=cs;
   }
-  inline void set_quick(char *str,uint32 arg_length)
+  inline void set_quick(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     if (!alloced)
     {
       Ptr=(char*) str; str_length=Alloced_length=arg_length;
     }
+    str_charset=cs;
   }
   bool set(longlong num);
   /* bool set(long num); */

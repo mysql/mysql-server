@@ -513,7 +513,7 @@ void Item_sum_hybrid::reset_field()
   if (hybrid_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff)),*res;
+    String tmp(buff,sizeof(buff),default_charset_info),*res;
 
     res=args[0]->val_str(&tmp);
     if (args[0]->null_value)
@@ -524,7 +524,7 @@ void Item_sum_hybrid::reset_field()
     else
     {
       result_field->set_notnull();
-      result_field->store(res->ptr(),res->length());
+      result_field->store(res->ptr(),res->length(),tmp.charset());
     }
   }
   else if (hybrid_type == INT_RESULT)
@@ -694,7 +694,7 @@ Item_sum_hybrid::min_max_update_str_field(int offset)
     if (result_field->is_null() ||
 	(cmp_sign * (binary ? stringcmp(res_str,&tmp_value) :
 		 sortcmp(res_str,&tmp_value)) < 0))
-      result_field->store(res_str->ptr(),res_str->length());
+      result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     else
     {						// Use old value
       char *res=result_field->ptr;

@@ -466,7 +466,7 @@ multi_update::prepare(List<Item> &values)
       }
       if (counter)
       {
-	Field_string offset(table_ref->table->file->ref_length,false,"offset",table_ref->table,true);
+	Field_string offset(table_ref->table->file->ref_length,false,"offset",table_ref->table,true,default_charset_info);
 	temp_fields->push_front(new Item_field(((Field *)&offset)));
 // Here I make tmp tables
 	int cnt=counter-1;
@@ -616,7 +616,8 @@ bool multi_update::send_data(List<Item> &values)
       {
 	// Here we insert into each temporary table
 	values_by_table.push_front(new Item_string((char*) table->file->ref,
-						   table->file->ref_length));
+						   table->file->ref_length,
+						   system_charset_info));
 	fill_record(tmp_tables[secure_counter]->field,values_by_table);
 	error= write_record(tmp_tables[secure_counter],
 			    &(infos[secure_counter]));

@@ -227,7 +227,7 @@ Item *create_func_lpad(Item* a, Item *b, Item *c)
 
 Item *create_func_ltrim(Item* a)
 {
-  return new Item_func_ltrim(a,new Item_string(" ",1));
+  return new Item_func_ltrim(a,new Item_string(" ",1,default_charset_info));
 }
 
 Item *create_func_md5(Item* a)
@@ -309,7 +309,7 @@ Item *create_func_rpad(Item* a, Item *b, Item *c)
 
 Item *create_func_rtrim(Item* a)
 {
-  return new Item_func_rtrim(a,new Item_string(" ",1));
+  return new Item_func_rtrim(a,new Item_string(" ",1,default_charset_info));
 }
 
 Item *create_func_sec_to_time(Item* a)
@@ -329,7 +329,7 @@ Item *create_func_sin(Item* a)
 
 Item *create_func_space(Item *a)
 {
-  return new Item_func_repeat(new Item_string(" ",1),a);
+  return new Item_func_repeat(new Item_string(" ",1,default_charset_info),a);
 }
 
 Item *create_func_soundex(Item* a)
@@ -374,7 +374,9 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string(NullS,server_version, (uint) strlen(server_version));
+  return new Item_string(NullS,server_version, 
+			 (uint) strlen(server_version),
+			 default_charset_info);
 }
 
 Item *create_func_weekday(Item* a)
