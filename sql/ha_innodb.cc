@@ -429,6 +429,36 @@ innobase_mysql_print_thd(
 	putc('\n', f);
 }
 
+/**********************************************************************
+Compares NUL-terminated UTF-8 strings case insensitively.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+int
+innobase_strcasecmp(
+/*================*/
+				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
+	const char*	a,	/* in: first string to compare */
+	const char*	b)	/* in: second string to compare */
+{
+	return(my_strcasecmp(system_charset_info, a, b));
+}
+
+/**********************************************************************
+Makes all characters in a NUL-terminated UTF-8 string lower case.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+void
+innobase_casedn_str(
+/*================*/
+	char*	a)	/* in/out: string to put in lower case */
+{
+	my_casedn_str(system_charset_info, a);
+}
+
 /*************************************************************************
 Creates a temporary file. */
 extern "C"
@@ -687,14 +717,7 @@ innobase_query_caching_of_table_permitted(
 					    separator between db and table */
 	norm_name[full_name_len] = '\0';
 #ifdef __WIN__
-	/* Put to lower case */
-
-	char*	ptr = norm_name;
-
-	while (*ptr != '\0') {
-	        *ptr = tolower(*ptr);
-	        ptr++;
-	}
+	innobase_casedn_str(norm_name);
 #endif
 	/* The call of row_search_.. will start a new transaction if it is
 	not yet started */
@@ -3559,9 +3582,9 @@ create_index(
 
 			field = form->field[j];
 
-			if (0 == ut_cmp_in_lower_case(
-					(char*)field->field_name,
-					(char*)key_part->field->field_name)) {
+			if (0 == innobase_strcasecmp(
+					field->field_name,
+					key_part->field->field_name)) {
 				/* Found the corresponding column */
 
 				break;
@@ -4003,7 +4026,7 @@ innobase_drop_database(
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
 #ifdef  __WIN__
-	my_casedn_str(system_charset_info, namebuf);
+	innobase_casedn_str(namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = current_thd;
