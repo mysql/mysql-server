@@ -307,8 +307,8 @@ then
 fi
 
 echo "Installing all prepared tables"
-if eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
-         --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" << END_OF_DATA
+if (
+    cat << END_OF_DATA
 use mysql;
 $c_d
 $i_d
@@ -325,6 +325,9 @@ $i_f
 $c_t
 $c_c
 END_OF_DATA
+    cat fill_func_tables.sql
+) | eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
+         --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
 then
   echo ""
   if test "$IN_RPM" -eq 0

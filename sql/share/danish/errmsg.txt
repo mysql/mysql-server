@@ -246,3 +246,4 @@
 "Subselect returns more than 1 field",
 "Subselect returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
+"Corrupt or doesn\'t exist help database",

@@ -246,3 +246,4 @@
 "Подзапрос возвращает более одного поля",
 "Подзапрос возвращает более одной записи",
 "Unknown prepared statement handler (%ld) given to %s",
+"Corrupt or doesn\'t exist help database",
