@@ -909,9 +909,14 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| CHARSET o_eq charset_name_or_default
+	| opt_default CHARSET o_eq charset_name_or_default
 	  { 
-	    Lex->create_info.table_charset= $3;
+	    Lex->create_info.table_charset= $4;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
+	| opt_default CHAR_SYM SET o_eq charset_name_or_default
+	  { 
+	    Lex->create_info.table_charset= $5;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD o_eq merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
@@ -1170,9 +1175,14 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+opt_default:
+	/* empty */	{}
+	| DEFAULT	{};
+
 opt_db_default_character_set:
-	/* empty */		{ $$=default_charset_info; }
-	| DEFAULT CHAR_SYM SET charset_name_or_default  { $$=$4; };
+	/* empty */	{ $$=default_charset_info; }
+	| opt_default CHAR_SYM SET charset_name_or_default	{ $$=$4; }
+	| opt_default CHARSET charset_name_or_default		{ $$=$3; };
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
