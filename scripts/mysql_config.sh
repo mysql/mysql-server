@@ -62,7 +62,7 @@ get_full_path ()
 {
   case $1 in
     /*)	echo "$1";;
-    ./*) tmp=`pwd`/$1; echo $tmp | sed -e 's;/./;/;' ;;
+    ./*) tmp=`pwd`/$1; echo $tmp | sed -e 's;/\./;/;' ;;
      *) which $1 ;;
    esac
 }
