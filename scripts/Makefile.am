@@ -65,6 +65,7 @@ pkgdata_DATA =		make_binary_distribution
 # failures with it.
 CLEANFILES =		@server_scripts@ \
 			make_binary_distribution \
+			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
