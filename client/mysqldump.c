@@ -649,7 +649,7 @@ static char *quote_name(const char *name, char *buff, my_bool force)
   while (*name)
   {
     if (*name == QUOTE_CHAR)
-      *to= QUOTE_CHAR;
+      *to++= QUOTE_CHAR;
     *to++= *name++;
   }
   to[0]=QUOTE_CHAR;
@@ -1647,7 +1647,7 @@ static int dump_all_tables_in_db(char *database)
   if (opt_xml)
     fputs("</database>\n", md_result_file);
   if (lock_tables)
-    mysql_query(sock,"UNLOCK_TABLES");
+    mysql_query(sock,"UNLOCK TABLES");
   return 0;
 } /* dump_all_tables_in_db */
 
