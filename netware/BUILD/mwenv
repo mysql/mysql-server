@@ -13,7 +13,7 @@ export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;
 export WINEPATH="$MYDEV/mw/bin"
 
 # the default added path is "$HOME/mydev/mysql-x.x-x/netware/BUILD"
-export PATH="$PATH:/home/kp/mydev/mysql-VERSION/netware/BUILD"
+export PATH="$PATH:BUILD_DIR/mysql-VERSION/netware/BUILD"
 
 export AR='mwldnlm'
 export AR_FLAGS='-type library -o'
