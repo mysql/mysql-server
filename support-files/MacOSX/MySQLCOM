@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# /Library/StartupItems/MySQL/MySQL
+# /Library/StartupItems/MySQLCOM/MySQLCOM
 #
 # A script to automatically start up MySQL on system bootup
 # for Mac OS X. This is actually just a wrapper script around
