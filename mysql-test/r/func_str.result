@@ -276,6 +276,48 @@ select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'substr_index'
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
 ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'substr_index'
+select _latin1'B' between _latin1'a' and _latin1'c';
+_latin1'B' between _latin1'a' and _latin1'c'
+1
+select _latin1'B' collate latin1_bin between _latin1'a' and _latin1'c';
+_latin1'B' collate latin1_bin between _latin1'a' and _latin1'c'
+0
+select _latin1'B' between _latin1'a' collate latin1_bin and _latin1'c';
+_latin1'B' between _latin1'a' collate latin1_bin and _latin1'c'
+0
+select _latin1'B' between _latin1'a' and _latin1'c' collate latin1_bin;
+_latin1'B' between _latin1'a' and _latin1'c' collate latin1_bin
+0
+select _latin2'B' between _latin1'a' and _latin1'b';
+ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'between'
+select _latin1'B' between _latin2'a' and _latin1'b';
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'between'
+select _latin1'B' between _latin1'a' and _latin2'b';
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE) for operation 'between'
+select _latin1'B' collate latin1_general_ci between _latin1'a' collate latin1_bin and _latin1'b';
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT), (latin1_bin,EXPLICIT), (latin1_swedish_ci,COERCIBLE) for operation 'between'
+select _latin1'B' in (_latin1'a',_latin1'b');
+_latin1'B' in (_latin1'a',_latin1'b')
+1
+select _latin1'B' collate latin1_bin in (_latin1'a',_latin1'b');
+_latin1'B' collate latin1_bin in (_latin1'a',_latin1'b')
+0
+select _latin1'B' in (_latin1'a' collate latin1_bin,_latin1'b');
+_latin1'B' in (_latin1'a' collate latin1_bin,_latin1'b')
+0
+select _latin1'B' in (_latin1'a',_latin1'b' collate latin1_bin);
+_latin1'B' in (_latin1'a',_latin1'b' collate latin1_bin)
+0
+select _latin2'B' in (_latin1'a',_latin1'b');
+ERROR HY000: Illegal mix of collations for operation ' IN '
+select _latin1'B' in (_latin2'a',_latin1'b');
+ERROR HY000: Illegal mix of collations for operation ' IN '
+select _latin1'B' in (_latin1'a',_latin2'b');
+ERROR HY000: Illegal mix of collations for operation ' IN '
+select _latin1'B' COLLATE latin1_general_ci in (_latin1'a' COLLATE latin1_bin,_latin1'b');
+ERROR HY000: Illegal mix of collations for operation ' IN '
+select _latin1'B' COLLATE latin1_general_ci in (_latin1'a',_latin1'b' COLLATE latin1_bin);
+ERROR HY000: Illegal mix of collations for operation ' IN '
 select collation(bin(130)), coercibility(bin(130));
 collation(bin(130))	coercibility(bin(130))
 latin1_swedish_ci	3

@@ -32,6 +32,18 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
+static void my_coll_agg3_error(DTCollation &c1, 
+			       DTCollation &c2,
+			       DTCollation &c3,
+			       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
+	   fname);
+}
+
 Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
 {
   return new Item_func_eq(a, b);
@@ -575,11 +587,19 @@ void Item_func_between::fix_length_and_dec()
   cmp_type=item_cmp_type(args[0]->result_type(),
            item_cmp_type(args[1]->result_type(),
                          args[2]->result_type()));
-  /* QQ: COERCIBILITY */
-  if (args[0]->binary() | args[1]->binary() | args[2]->binary())
-    cmp_charset= &my_charset_bin;
-  else
-    cmp_charset= args[0]->charset();
+
+  if (cmp_type == STRING_RESULT)
+  {
+    cmp_collation.set(args[0]->collation);
+    if (!cmp_collation.aggregate(args[1]->collation))
+      cmp_collation.aggregate(args[2]->collation);
+    if (cmp_collation.derivation == DERIVATION_NONE)
+    {
+      my_coll_agg3_error(args[0]->collation, args[1]->collation, 
+			 args[2]->collation, func_name());
+      return;
+    }
+  }
 
   /*
     Make a special case of compare with date/time and longlong fields.
@@ -611,17 +631,17 @@ longlong Item_func_between::val_int()
     a=args[1]->val_str(&value1);
     b=args[2]->val_str(&value2);
     if (!args[1]->null_value && !args[2]->null_value)
-      return (sortcmp(value,a,cmp_charset) >= 0 && 
-	      sortcmp(value,b,cmp_charset) <= 0) ? 1 : 0;
+      return (sortcmp(value,a,cmp_collation.collation) >= 0 && 
+	      sortcmp(value,b,cmp_collation.collation) <= 0) ? 1 : 0;
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
     {
-      null_value= sortcmp(value,b,cmp_charset) <= 0; // not null if false range.
+      null_value= sortcmp(value,b,cmp_collation.collation) <= 0; // not null if false range.
     }
     else
     {
-      null_value= sortcmp(value,a,cmp_charset) >= 0; // not null if false range.
+      null_value= sortcmp(value,a,cmp_collation.collation) >= 0; // not null if false range.
     }
   }
   else if (cmp_type == INT_RESULT)
@@ -1176,17 +1196,17 @@ void Item_func_coalesce::fix_length_and_dec()
  Classes and function for the IN operator
 ****************************************************************************/
 
-static int cmp_longlong(longlong *a,longlong *b)
+static int cmp_longlong(void *cmp_arg, longlong *a,longlong *b)
 {
   return *a < *b ? -1 : *a == *b ? 0 : 1;
 }
 
-static int cmp_double(double *a,double *b)
+static int cmp_double(void *cmp_arg, double *a,double *b)
 {
   return *a < *b ? -1 : *a == *b ? 0 : 1;
 }
 
-static int cmp_row(cmp_item_row* a, cmp_item_row* b)
+static int cmp_row(void *cmp_arg, cmp_item_row* a, cmp_item_row* b)
 {
   return a->compare(b);
 }
@@ -1203,18 +1223,18 @@ int in_vector::find(Item *item)
   {
     uint mid=(start+end+1)/2;
     int res;
-    if ((res=(*compare)(base+mid*size,result)) == 0)
+    if ((res=(*compare)(collation, base+mid*size, result)) == 0)
       return 1;
     if (res < 0)
       start=mid;
     else
       end=mid-1;
   }
-  return (int) ((*compare)(base+start*size,result) == 0);
+  return (int) ((*compare)(collation, base+start*size, result) == 0);
 }
 
-in_string::in_string(uint elements,qsort_cmp cmp_func)
-  :in_vector(elements, sizeof(String), cmp_func),
+in_string::in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs)
+  :in_vector(elements, sizeof(String), cmp_func, cs),
    tmp(buff, sizeof(buff), &my_charset_bin)
 {}
 
@@ -1253,7 +1273,7 @@ in_row::in_row(uint elements, Item * item)
 {
   base= (char*) new cmp_item_row[count= elements];
   size= sizeof(cmp_item_row);
-  compare= (qsort_cmp) cmp_row;
+  compare= (qsort2_cmp) cmp_row;
   tmp.store_value(item);
 }
 
@@ -1278,7 +1298,7 @@ void in_row::set(uint pos, Item *item)
 }
 
 in_longlong::in_longlong(uint elements)
-  :in_vector(elements,sizeof(longlong),(qsort_cmp) cmp_longlong)
+  :in_vector(elements,sizeof(longlong),(qsort2_cmp) cmp_longlong, 0)
 {}
 
 void in_longlong::set(uint pos,Item *item)
@@ -1295,7 +1315,7 @@ byte *in_longlong::get_value(Item *item)
 }
 
 in_double::in_double(uint elements)
-  :in_vector(elements,sizeof(double),(qsort_cmp) cmp_double)
+  :in_vector(elements,sizeof(double),(qsort2_cmp) cmp_double, 0)
 {}
 
 void in_double::set(uint pos,Item *item)
@@ -1442,17 +1462,8 @@ bool Item_func_in::nulls_in_row()
   return 0;
 }
 
-static int srtcmp_in(const String *x,const String *y)
+static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
-  CHARSET_INFO *cs= x->charset();
-  return cs->coll->strnncollsp(cs,
-                        (unsigned char *) x->ptr(),x->length(),
-			(unsigned char *) y->ptr(),y->length());
-}
-
-static int bincmp_in(const String *x,const String *y)
-{
-  CHARSET_INFO *cs= &my_charset_bin;
   return cs->coll->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
@@ -1468,10 +1479,18 @@ void Item_func_in::fix_length_and_dec()
   {
     switch (item->result_type()) {
     case STRING_RESULT:
-      if (item->binary())
-	array=new in_string(arg_count,(qsort_cmp) srtcmp_in);
-      else
-	array=new in_string(arg_count,(qsort_cmp) bincmp_in);
+      uint i;
+      cmp_collation.set(item->collation);
+      for (i=0 ; i<arg_count; i++)
+	if (cmp_collation.aggregate(args[i]->collation))
+	  break;
+      if (cmp_collation.derivation == DERIVATION_NONE)
+      {
+        my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),func_name());
+	return;
+      }
+      array=new in_string(arg_count,(qsort2_cmp) srtcmp_in, 
+			  cmp_collation.collation);
       break;
     case INT_RESULT:
       array= new in_longlong(arg_count);
