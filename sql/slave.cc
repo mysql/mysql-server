@@ -962,13 +962,19 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
 {
   const char* errmsg= 0;
   
+  /*
+    Note the following switch will bug when we have MySQL branch 30 ;)
+  */
   switch (*mysql->server_version) {
   case '3':
-    mi->old_format = 1;
+    mi->old_format = 
+      (strncmp(mysql->server_version, "3.23.57", 7) < 0) /* < .57 */ ?
+      BINLOG_FORMAT_323_LESS_57 : 
+      BINLOG_FORMAT_323_GEQ_57 ;
     break;
   case '4':
   case '5':
-    mi->old_format = 0;
+    mi->old_format = BINLOG_FORMAT_CURRENT;
     break;
   default:
     errmsg = "Master reported unrecognized MySQL version";
@@ -1204,6 +1210,16 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
      Read_Master_Log_Pos: 9744 -rw-rw----    1 guilhem  qq           8192 Jun  5 16:27 gbichot2-relay-bin.002
 
     See how 4 is less than 7811 and 8192 is less than 9744.
+
+    WARNING: this is risky because the slave can stay like this for a long time;
+    then if it has a power failure, master.info says the I/O thread has read
+    until 9744 while the relay-log contains only until 8192 (the in-memory part
+    from 8192 to 9744 has been lost), so the SQL slave thread will miss some
+    events, silently breaking replication.
+    Ideally we would like to flush master.info only when we know that the relay
+    log has no in-memory tail.
+    Note that the above problem may arise only when only the IO thread is
+    started, which is unlikely.
   */
 
   if (open_log(&rli->relay_log, glob_hostname, opt_relay_logname,
