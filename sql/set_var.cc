@@ -351,6 +351,8 @@ sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 #ifdef HAVE_INNOBASE_DB
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
                                                         &srv_max_buf_pool_modified_pct);
+sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
+							&srv_auto_extend_increment);
 #endif
 
 /* Time/date/datetime formats */
@@ -601,6 +603,7 @@ sys_var *sys_variables[]=
   &sys_os,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
+  &sys_innodb_autoextend_increment,
 #endif    
   &sys_unique_checks,
   &sys_warning_count
@@ -674,6 +677,7 @@ struct show_var_st init_vars[]= {
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
+  {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
