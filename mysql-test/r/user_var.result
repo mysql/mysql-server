@@ -109,8 +109,8 @@ select @a:=0;
 select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
 @a	@a:=@a+count(*)	count(*)	@a
 0	1	1	0
-0	3	2	0
-0	6	3	0
+0	2	2	0
+0	3	3	0
 select @a:=0;
 @a:=0
 0
