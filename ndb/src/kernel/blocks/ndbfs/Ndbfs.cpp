@@ -67,7 +67,7 @@ Ndbfs::Ndbfs(const Configuration & conf) :
   //ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
 
   // Create idle AsyncFiles
-  Uint32 noIdleFiles = 16;
+  Uint32 noIdleFiles = 27;
   for (Uint32 i = 0; i < noIdleFiles; i++){
     theIdleFiles.push_back(createAsyncFile());
   }
