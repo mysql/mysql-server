@@ -424,6 +424,8 @@ int simple_command(MYSQL *mysql,enum enum_server_command command,
 unsigned long net_safe_read(MYSQL* mysql);
 void mysql_once_init(void);
 
+extern my_bool server_inited;
+
 #ifdef __NETWARE__
 #pragma pack(pop)		/* restore alignment */
 #endif
