@@ -243,7 +243,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     it2.rewind();
   }
-  /* If fixed row records, we need on bit to check for deleted rows */
+  /* If fixed row records, we need one bit to check for deleted rows */
   if (!(db_options & HA_OPTION_PACK_RECORD))
     null_fields++;
   pos=(null_fields+7)/8;
