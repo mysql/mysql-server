@@ -254,7 +254,17 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
   thd->tmp_table_used= tmp_table_deleted;
-  if (some_tables_deleted || tmp_table_deleted)
+  error= 0;
+  if (wrong_tables.length())
+  {
+    if (!foreign_key_error)
+      my_error(ER_BAD_TABLE_ERROR,MYF(0), wrong_tables.c_ptr());
+    else
+      my_error(ER_ROW_IS_REFERENCED, MYF(0));
+    error= 1;
+  }
+
+  if (some_tables_deleted || tmp_table_deleted || !error)
   {
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query)
@@ -262,7 +272,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       mysql_update_log.write(thd, thd->query,thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	thd->clear_error();
+        if (!error)
+          thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      tmp_table_deleted && !some_tables_deleted);
 	mysql_bin_log.write(&qinfo);
@@ -271,15 +282,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   }
 
   unlock_table_names(thd, tables);
-  error= 0;
-  if (wrong_tables.length())
-  {
-    if (!foreign_key_error)
-      my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
-    else
-      my_error(ER_ROW_IS_REFERENCED,MYF(0));
-    error= 1;
-  }
   DBUG_RETURN(error);
 }
 

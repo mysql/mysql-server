@@ -1,5 +1,5 @@
-drop table if exists t1,t2;
 set timestamp=1000000000;
+drop table if exists t1,t2;
 create table t1 (word varchar(20));
 create table t2 (id int auto_increment not null primary key);
 insert into t1 values ("abirvalg");
@@ -16,6 +16,8 @@ flush logs;
 --- Local --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
+SET TIMESTAMP=1000000000;
+drop table if exists t1,t2;
 SET TIMESTAMP=1000000000;
 create table t1 (word varchar(20));
 SET TIMESTAMP=1000000000;
@@ -50,6 +52,8 @@ insert into t1 values ("Alas");
 --- Remote --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
+SET TIMESTAMP=1000000000;
+drop table if exists t1,t2;
 SET TIMESTAMP=1000000000;
 create table t1 (word varchar(20));
 SET TIMESTAMP=1000000000;
