@@ -979,7 +979,7 @@ String *Item_func_right::val_str(String *str)
     As far "res" contains at least "length" bytes
     (according to the above condition and return),
     the below statement is safe. res->numchars() can 
-    never return a value less than "length".
+    never return a value more than "length".
   */
   uint start=res->numchars()-(uint) length;
   start=res->charpos(start);
