@@ -512,6 +512,11 @@ MyISAM Table Formats
 * Dynamic format::              Dynamic table characteristics
 * Compressed format::           Compressed table characteristics
 
+MyISAM table problems.
+
+* Corrupted MyISAM tables::     
+* MyISAM table close::          
+
 BDB or Berkeley_DB Tables
 
 * BDB overview::                Overview of BDB Tables
@@ -533,7 +538,7 @@ InnoDB Tables
 
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -545,6 +550,35 @@ InnoDB Tables
 * Error handling::              Error handling
 * InnoDB restrictions::         Some restrictions on InnoDB tables
 * InnoDB contact information::  InnoDB contact information. 
+
+Creating an InnoDB database
+
+* Error createing InnoDB::      
+
+Backing up and recovering an InnoDB database
+
+* InnoDB checkpoints::          
+
+InnoDB transaction model
+
+* InnoDB consinsten read::      
+* InnoDB locking reads::        
+* InnoDB Next-key locking::     
+* InnoDB Locks set::            
+* InnoDB Deadlock detection::   
+
+Table and index structures
+
+* InnoDB physical structure::   
+* InnoDB Insert buffering::     
+* InnoDB Adaptive hash::        
+* InnoDB Physical record::      
+
+File space management and disk i/o
+
+* InnoDB Disk i/o::             
+* InnoDB File space::           
+* InnoDB File Defragmenting::   
 
 MySQL Tutorial
 
@@ -927,6 +961,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
@@ -1091,7 +1126,7 @@ Debugging a MySQL server
 * Using gdb on mysqld::         
 * Using stack trace::           
 * Using log files::             
-* Reproducable test case::      
+* Reproduceable test case::     
 
 @end detailmenu
 @end menu
@@ -3232,7 +3267,7 @@ It is most helpful when a good description of the problem is included in the
 bug report.  That is, a good example of all the things you did that led to
 the problem and the problem itself exactly described.  The best reports are
 those that include a full example showing how to reproduce the bug or
-problem.  @xref{Reproducable test case}.
+problem.  @xref{Reproduceable test case}.
 
 If a program produces an error message, it is very important to include the
 message in your report!  If we try to search for something from the archives
@@ -19672,8 +19707,13 @@ REPAIR TABLE tbl_name[,tbl_name...] [QUICK] [EXTENDED]
 @code{REPAIR TABLE} only works on @code{MyISAM} tables and is the same
 as running @code{myisamchk -r table_name} on the table.
 
-Repair the corrupted table. The command returns a table with the following
-columns:
+Normally you should never have to run this command, but if disaster strikes
+you are very likely to get back all your data from a MyISAM table with
+@code{REPAIR TABLE}. If your tables get corrupted a lot you should
+try to find the reason for this! @xref{Crashing}. @xref{MyISAM table problems}.
+
+@code{REPAIR TABLE} repairs a possible corrupted table. The command returns a
+table with the following columns:
 
 @multitable @columnfractions .35 .65
 @item @strong{Column} @tab @strong{Value}
@@ -21136,7 +21176,7 @@ FLUSH flush_option [,flush_option]
 
 You should use the @code{FLUSH} command if you want to clear some of the
 internal caches @strong{MySQL} uses.  To execute @code{FLUSH}, you must have
-the @strong{reload} privilege.
+the @strong{RELOAD} privilege.
 
 @code{flush_option} can be any of the following:
 
@@ -23810,6 +23850,65 @@ Can be uncompressed with @code{myisamchk}.
 @node MyISAM table problems,  , MyISAM table formats, MyISAM
 @subsection MyISAM table problems.
 
+The file format that @strong{MySQL} uses to store data has been extensively
+tested, but there are always circumstances that may cause database tables
+to become corrupted.
+
+@menu
+* Corrupted MyISAM tables::     
+* MyISAM table close::          
+@end menu
+
+@node Corrupted MyISAM tables, MyISAM table close, MyISAM table problems, MyISAM table problems
+@subsubsection Corrupted MyISAM tables.
+
+Even if the MyISAM table format is very reliable (all changes to a table
+is written before the SQL statements returns) , you can still get
+corrupted tables if some of the following things happens:
+
+@itemize @bullet
+@item
+The @code{mysqld} process being killed in the middle of a write.
+@item
+Unexpected shutdown of the computer (for example, if the computer is turned
+off).
+@item
+A hardware error.
+@item
+You are using an external program (like myisamchk) on a live table.
+@item
+A software bug in the MySQL or MyISAM code.
+@end itemize
+
+Typial typical symptoms for a corrupt table is:
+
+@itemize @bullet
+@item
+You get the error @code{Incorrect key file for table: '...'. Try to repair it}
+while selecting data from the table.
+@item
+Queries doesn't find rows in the table or returns incomplete data.
+@end itemize
+
+You can check if a table is ok with the command @code{CHECK
+TABLE}. @xref{CHECK TABLE}.
+
+You can repair a corrupted table with @code{REPAIR TABLE}. @xref{REPAIR TABLE}.
+You can also repair a table, when @code{mysqld} is not running with
+the @code{myisamchk} command. @code{myisamchk syntax}.
+
+If your tables get corrupted a lot you should try to find the reason for
+this! @xref{Crashing}. 
+
+In this case the most important thing to know is if the table got
+corrupted if the @code{mysqld} died (one can easily verify this by
+checking if there is a recent row @code{restarted mysqld} in the mysqld
+error file).  If this isn't the case, then you should try to make a test
+case of this.  @xref{Reproduceable test case}.
+
+@node MyISAM table close,  , Corrupted MyISAM tables, MyISAM table problems
+@subsubsection Clients is using or hasn't closed the table properly
+
 Each @code{MyISAM} @code{.MYI} file has in the header a counter that can
 be used to check if a table has been closed properly.
 
@@ -23854,7 +23953,8 @@ The @code{MyISAM} tables are copied without a @code{LOCK} and
 (Note that the table may still be ok, as @strong{MySQL} always issues writes
 for everything between each statement).
 @item
-Someone has done a @code{myisamchk --repair} or @code{myisamchk --update-state}on a table that was in use by @code{mysqld}.
+Someone has done a @code{myisamchk --repair} or @code{myisamchk
+--update-state}on a table that was in use by @code{mysqld}.
 @item
 Many @code{mysqld} servers are using the table and one has done a
 @code{REPAIR} or @code{CHECK} of the table while it was in use by
@@ -24504,7 +24604,7 @@ NuSphere is working on removing these limitations.
 @menu
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -24761,6 +24861,11 @@ InnoDB: Started
 mysqld: ready for connections
 @end example
 
+@menu
+* Error createing InnoDB::      
+@end menu
+
+@node Error createing InnoDB,  , Creating an InnoDB database, Creating an InnoDB database
 @subsubsection If something goes wrong in database creation
 
 If something goes wrong in an InnoDB database creation, you should
@@ -24917,6 +25022,11 @@ first find a backup which is not corrupted. From a backup do the recovery
 from the general log files of @strong{MySQL} according to instructions in the
 MySQL manual.
 
+@menu
+* InnoDB checkpoints::          
+@end menu
+
+@node InnoDB checkpoints,  , Backing up, Backing up
 @subsubsection Checkpoints
 
 InnoDB implements a checkpoint mechanism called a fuzzy
@@ -24993,6 +25103,15 @@ and become visible to other users. A @code{ROLLBACK}
 on the other hand cancels all modifications made by the current
 transaction.
 
+@menu
+* InnoDB consinsten read::      
+* InnoDB locking reads::        
+* InnoDB Next-key locking::     
+* InnoDB Locks set::            
+* InnoDB Deadlock detection::   
+@end menu
+
+@node InnoDB consinsten read, InnoDB locking reads, InnoDB transaction model, InnoDB transaction model
 @subsubsection Consistent read
 
 A consistent read means that InnoDB uses its multiversioning to
@@ -25017,6 +25136,7 @@ on the tables it accesses, and therefore other users are free to
 modify those tables at the same time a consistent read is being performed
 on the table.
 
+@node InnoDB locking reads, InnoDB Next-key locking, InnoDB consinsten read, InnoDB transaction model
 @subsubsection Locking reads
 
 A consistent read is not convenient in some circumstances.
@@ -25073,6 +25193,7 @@ available data setting exclusive locks on each row it reads.
 Thus it sets the same locks a searched SQL @code{UPDATE} would set
 on the rows.
 
+@node InnoDB Next-key locking, InnoDB Locks set, InnoDB locking reads, InnoDB transaction model
 @subsubsection Next-key locking: avoiding the 'phantom problem'
 
 In row level locking InnoDB uses an algorithm called next-key locking.
@@ -25126,6 +25247,7 @@ anyone meanwhile inserting a duplicate for your row. Thus the next-key
 locking allows you to 'lock' the non-existence of something in your
 table.
 
+@node InnoDB Locks set, InnoDB Deadlock detection, InnoDB Next-key locking, InnoDB transaction model
 @subsubsection Locks set by different SQL statements in InnoDB
 
 @itemize @bullet
@@ -25177,6 +25299,7 @@ get a table lock on a table where another user currently has row level
 locks. But that does not put transaction integerity into danger.
 @end itemize
 
+@node InnoDB Deadlock detection,  , InnoDB Locks set, InnoDB transaction model
 @subsubsection Deadlock detection and rollback
 
 InnoDB automatically detects a deadlock of transactions and rolls
@@ -25272,6 +25395,14 @@ uses this primary key value to search for the row from the clustered
 index. Note that if the primary key is long, the secondary indexes
 will use more space.
 
+@menu
+* InnoDB physical structure::   
+* InnoDB Insert buffering::     
+* InnoDB Adaptive hash::        
+* InnoDB Physical record::      
+@end menu
+
+@node InnoDB physical structure, InnoDB Insert buffering, Table and index, Table and index
 @subsubsection Physical structure of an index
 
 All indexes in InnoDB are B-trees where the index records are
@@ -25286,6 +25417,7 @@ If records are inserted in a random order, then the pages will be
 1/2 - 15/16 full. If the fillfactor of an index page drops below 1/2,
 InnoDB will try to contract the index tree to free the page.
 
+@node InnoDB Insert buffering, InnoDB Adaptive hash, InnoDB physical structure, Table and index
 @subsubsection Insert buffering
 
 It is a common situation in a database application that the
@@ -25312,6 +25444,7 @@ same page in of the index tree, and hence save disk i/o's.
 It has been measured that the insert buffer can speed up insertions
 to a table up to 15 times.
 
+@node InnoDB Adaptive hash, InnoDB Physical record, InnoDB Insert buffering, Table and index
 @subsubsection Adaptive hash indexes
 
 If a database fits almost entirely in main memory, then the fastest way
@@ -25334,6 +25467,7 @@ In a sense, through the adaptive hash index mechanism InnoDB adapts itself
 to ample main memory, coming closer to the architecture of main memory
 databases.
 
+@node InnoDB Physical record,  , InnoDB Adaptive hash, Table and index
 @subsubsection Physical record structure
 
 @itemize @bullet
@@ -25360,6 +25494,13 @@ the pointer is 1 byte, else 2 bytes.
 @node File space management, Error handling, Table and index, InnoDB
 @subsection File space management and disk i/o
 
+@menu
+* InnoDB Disk i/o::             
+* InnoDB File space::           
+* InnoDB File Defragmenting::   
+@end menu
+
+@node InnoDB Disk i/o, InnoDB File space, File space management, File space management
 @subsubsection Disk i/o
 
 In disk i/o InnoDB uses asynchronous i/o. On Windows NT
@@ -25390,6 +25531,7 @@ in a tablespace seems to be in the process of being
 fully read into the buffer pool. Then InnoDB posts the remaining
 reads to the i/o system.
 
+@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk i/o, File space management
 @subsubsection File space management
 
 The data files you define in the configuration file form the tablespace
@@ -25436,6 +25578,7 @@ but remember that deleted rows can be physically removed only in a
 purge operation after they are no longer needed in transaction rollback or
 consistent read.
 
+@node InnoDB File Defragmenting,  , InnoDB File space, File space management
 @subsubsection Defragmenting a table
 
 If there are random insertions or deletions
@@ -32830,8 +32973,13 @@ Temporary directory (instead of /tmp).
 You can use 'perldoc mysqlhotcopy' to get a more complete documentation for
 @code{mysqlhotcopy}.
 
-@code{mysqlhotcopy} reads the group @code{[mysqlhotcopy]} from the option
-files.
+@code{mysqlhotcopy} reads the groups @code[client] and  @code{[mysqlhotcopy]}
+from the option files.
+
+To be able to execute @code{mysqlhotcopy} you need write access to the
+backup directory, @code{SELECT} privilege to the tables you are about to
+copy and the @strong{MySQL} @code{Reload} privilege (to be able to
+execute @code{FLUSH TABLES}).
 
 @cindex importing, data
 @cindex data, importing
@@ -34253,23 +34401,12 @@ the table (this also applies if you are using @code{--skip-locking}).
 If you don't take down @code{mysqld} you should at least do a
 @code{mysqladmin flush-tables} before you run @code{myisamchk}.
 
-The file format that @strong{MySQL} uses to store data has been extensively
-tested, but there are always external circumstances that may cause database
-tables to become corrupted:
-
-@itemize @bullet
-@item
-The @code{mysqld} process being killed in the middle of a write.
-@item
-Unexpected shutdown of the computer (for example, if the computer is turned
-off).
-@item
-A hardware error.
-@end itemize
-
 This chapter describes how to check for and deal with data corruption
 in @strong{MySQL} databases.  If your tables get corrupted a lot you should
-try to find the reason for this! @xref{Debugging server}.
+try to find the reason for this! @xref{Crashing}.
+
+The @code{MyISAM} table section contains reason for why a table could be
+corrupted. @xref{MyISAM table problems}.
 
 When performing crash recovery, it is important to understand that each table
 @code{tbl_name} in a database corresponds to three files in the database
@@ -36117,7 +36254,7 @@ have been able to locate the bug and should do a bug report for this!
 
 @item
 Try to make a test case that we can use to reproduce the problem.
-@xref{Reproducable test case}.
+@xref{Reproduceable test case}.
 
 @item
 Try running the included mysql-test test and the @strong{MySQL}
@@ -44176,6 +44313,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
@@ -44218,7 +44356,20 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
+@node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.39
+@itemize @bullet
+@item
+Fixed problem with shutdown when @code{INSERT DELAYED} was waiting for
+a @code{LOCK TABLE}.
+@item
+Fixed coredump bug buged in InnoDB when tablespace was full.
+@item
+Fixed problem with @code{MERGE} tables and big tables (> 4G) when using
+@code{ORDER BY}.
+@end itemize
+
+@node News-3.23.38, News-3.23.37, News-3.23.39, News-3.23.x
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
 @item
@@ -50011,7 +50162,7 @@ problems that may be unique to your environment.
 * Using gdb on mysqld::         
 * Using stack trace::           
 * Using log files::             
-* Reproducable test case::      
+* Reproduceable test case::     
 @end menu
 
 @node Compiling for debugging, Making trace files, Debugging server, Debugging server
@@ -50256,7 +50407,7 @@ that killed @code{mysqld} and preferable a test case so that we can
 repeat the problem!  @xref{Bug reports}.
 @end enumerate
 
-@node Using log files, Reproducable test case, Using stack trace, Debugging server
+@node Using log files, Reproduceable test case, Using stack trace, Debugging server
 @appendixsubsec Using log files to find cause of errors in mysqld
 
 Note that before starting @code{mysqld} with @code{--log} you should
@@ -50306,7 +50457,7 @@ It's of course not a good sign if @code{mysqld} did died unexpectedly,
 but in this case one shouldn't investigate the @code{Checking table...} 
 messages but instead try to find out why @code{mysqld} died.
 
-@node Reproducable test case,  , Using log files, Debugging server
+@node Reproduceable test case,  , Using log files, Debugging server
 @appendixsubsec Making a test case when you experience table corruption
 
 If you get corrupted tables or if @code{mysqld} always fails after some

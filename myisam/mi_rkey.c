@@ -28,7 +28,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   uchar *key_buff;
   MYISAM_SHARE *share=info->s;
   uint pack_key_length;
-  DBUG_ENTER("_mi_rkey");
+  DBUG_ENTER("mi_rkey");
   DBUG_PRINT("enter",("base: %lx  inx: %d  search_flag: %d",
 		      info,inx,search_flag));
 
