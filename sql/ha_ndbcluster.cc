@@ -1215,6 +1215,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
 	be sent to NDB
       */
       DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
+      if (ops_pending)
       {
 	if (current_thd->transaction.on)
 	{
