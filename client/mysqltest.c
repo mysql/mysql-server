@@ -2360,7 +2360,7 @@ int main(int argc, char** argv)
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
   cur_file = file_stack;
   lineno   = lineno_stack;
-  init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
+  my_init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
 		     INIT_Q_LINES);
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;

@@ -246,9 +246,10 @@ err:
 }
 
 /* called from get_options() in mysqld.cc on start-up */
-void init_slave_skip_errors(char* arg)
+
+void init_slave_skip_errors(const char* arg)
 {
-  char* p;
+  const char *p;
   my_bool last_was_digit = 0;
   if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
   {
@@ -275,8 +276,11 @@ void init_slave_skip_errors(char* arg)
   }
 }
 
-// we assume we have a run lock on rli and that the both slave thread
-// are not running
+/*
+  We assume we have a run lock on rli and that the both slave thread
+  are not running
+*/
+
 int purge_relay_logs(RELAY_LOG_INFO* rli, bool just_reset, const char** errmsg)
 {
   DBUG_ENTER("purge_relay_logs");
@@ -514,7 +518,7 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
 
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
 {
-  init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
+  my_init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
 		     TABLE_RULE_ARR_SIZE);
   *a_inited = 1;
 }

@@ -1774,8 +1774,8 @@ client library, so it is convenient and easy to use. @xref{libmysqld}.
 @item
 Version 4.0 further increases @emph{the speed of MySQL Server}
 in a number of areas,
-such as bulk @code{INSERT}s, searching on packed indices, creation of
-@code{FULLTEXT} indices as well as @code{COUNT(DISTINCT)}.
+such as bulk @code{INSERT}s, searching on packed indexes, creation of
+@code{FULLTEXT} indexes as well as @code{COUNT(DISTINCT)}.
 
 @item
 The table handler @code{InnoDB} is now offered as a feature of the
@@ -4938,12 +4938,39 @@ same time. @xref{DELETE}.
 
 PostgreSQL currently offers the following advantages over MySQL Server:
 
+Note that because we know the MySQL road map, we have included in the
+following table the version when MySQL Server should support this feature.
+Unfortunately we couldn't do this for previous comparison, because we
+don't know the PostgreSQL roadmap.
+
+@multitable @columnfractions .30 .30
+@item @strong{Feature}                     @tab @strong{MySQL version}
+@item Subselects                           @tab 4.1
+@item Foreign keys                         @tab 4.1
+@item Views                                @tab 5.0
+@item Stored procedures                    @tab 5.0
+@item Triggers                             @tab 5.0
+@item Unions                               @tab 4.0
+@item Full join                            @tab 4.1
+@item Constraints                          @tab 4.1 or 5.0
+@item Cursors                              @tab 4.1 or 5.0
+@item R-trees                              @tab 4.1 (for MyISAM tables)
+@item Inherited tables                     @tab Not planned
+@item Extensible type system               @tab Not planned
+@end multitable
+
+Other reasons someone may consider for using PostgreSQL:
+
 @itemize @bullet
 @item
 Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
 
 @item
 One can speed up PostgreSQL by coding things as stored procedures.
+
+@item
+For geographical data, R-trees make PostgreSQL better than MySQL Server.
+(note: MySQL version 4.1 will have R-trees for MyISAM tables).
 
 @item
 The PostgreSQL optimiser can do some optimisation that the current MySQL
@@ -10540,7 +10567,7 @@ you back a string that looks like "000514676700", with a format of
 xxyyyyyymmss where xx and ss are always 0's, yyyyyy is a unique system
 id and mm is the id of the CPU Planar. A chart of these values can be
 found at
-@uref{http://www.rs6000.ibm.com/doc_link/en_US/a_doc_lib/cmds/aixcmds5/uname.htm}.
+@uref{http://publib.boulder.ibm.com/doc_link/en_US/a_doc_lib/cmds/aixcmds5/uname.htm}.
 This will give you a machine type and a machine model you can use to
 determine what type of cpu you have.
 
@@ -14112,8 +14139,8 @@ Read the default keys used by @code{DES_ENCRYPT()} and @code{DES_DECRYPT()}
 from this file.
 
 @item --enable-locking
-Enable system locking.  Note that if you use this option on a system
-which a not fully working lockd() (as on Linux) you will easily get
+Enable system locking.  Note that if you use this option on a system on
+which @code{lockd} does not fully work (as on Linux), you will easily get
 mysqld to deadlock.
 
 @item --enable-named-pipe
@@ -14539,8 +14566,7 @@ will automatically be directed to the new running server!
 
 If you need to do this more permanently, you should create an option
 file for each server. @xref{Option files}.  In your startup script that
-is executed at boot time (mysql.server?) you should specify for both
-servers:
+is executed at boot time you should specify for both servers:
 
 @code{safe_mysqld --default-file=path-to-option-file}
 
@@ -16710,10 +16736,11 @@ request.
 @item
 Database privilege changes take effect at the next @code{USE db_name}
 command.
-@end itemize
 
-Global privilege changes and password changes take effect the next time the
-client connects.
+@item
+Global privilege changes and password changes take effect the next time
+the client connects.
+@end itemize
 
 
 @node Default privileges, Adding users, Privilege changes, User Account Management
@@ -17457,19 +17484,19 @@ If you are using a Veritas file system, you can do:
 
 @enumerate
 @item
-Execute in a client (perl ?) @code{FLUSH TABLES WITH READ LOCK}
+From a client (or Perl), execute: @code{FLUSH TABLES WITH READ LOCK}.
 
 @item
-Fork a shell or execute in another client @code{mount vxfs snapshot}.
+From another shell, execute: @code{mount vxfs snapshot}.
 
 @item
-Execute in the first client @code{UNLOCK TABLES}
+From the first client, execute: @code{UNLOCK TABLES}.
 
 @item
-Copy files from snapshot
+Copy files from snapshot.
 
 @item
-Unmount snapshot
+Unmount snapshot.
 @end enumerate
 
 
@@ -17484,9 +17511,9 @@ Unmount snapshot
 BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
 @end example
 
-Make a copy of all the table files to the backup directory that are the
-minimum needed to restore it. Currenlty only works for @code{MyISAM}
-tables. For @code{MyISAM} table, copies @file{.frm} (definition)  and
+Copies to the backup directory the minimum number of table files needed
+to restore the table. Currently only works for @code{MyISAM} tables.
+For @code{MyISAM} tables, copies @file{.frm} (definition)  and
 @file{.MYD} (data) files. The index file can be rebuilt from those two.
 
 Before using this command, please see @ref{Backup}.
@@ -17584,7 +17611,7 @@ The different check types stand for the following:
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
 @end multitable
 
-For dynamic sized @code{MyISAM} tables a started check will always
+For dynamically sized @code{MyISAM} tables a started check will always
 do a @code{MEDIUM} check. For static size rows we skip the row scan
 for @code{QUICK} and @code{FAST} as the rows are very seldom corrupted.
 
@@ -17594,7 +17621,8 @@ You can combine check options as in:
 CHECK TABLE test_table FAST QUICK;
 @end example
 
-Which only would do a quick check on the table if it wasn't closed properly.
+Which would simply do a quick check on the table to see whether it was
+closed properly.
 
 @strong{Note:} that in some case @code{CHECK TABLE} will change the
 table!  This happens if the table is marked as 'corrupted' or 'not
@@ -17978,8 +18006,8 @@ If you have lots of memory, you should increase the size of
 @code{sort_buffer_size}!
 @item  -o or --safe-recover
 Uses an old recovery method (reads through all rows in order and updates
-all index trees based on the found rows); this is a magnitude slower
-than @code{-r}, but can handle a couple of very unlikely cases that
+all index trees based on the found rows); this is an order of magnitude
+slower than @code{-r}, but can handle a couple of very unlikely cases that
 @code{-r} cannot handle.  This recovery method also uses much less disk
 space than @code{-r}. Normally one should always first repair with
 @code{-r}, and only if this fails use @code{-o}.
@@ -18396,8 +18424,8 @@ shell> myisamchk -r tbl_name
 @end example
 
 You can optimise a table in the same way using the SQL @code{OPTIMIZE TABLE}
-statement.  @code{OPTIMIZE TABLE} does a repair of the table, a key
-analyses and also sorts the index tree to give faster key lookups.
+statement.  @code{OPTIMIZE TABLE} does a repair of the table and a key
+analysis, and also sorts the index tree to give faster key lookups.
 There is also no possibility of unwanted interaction between a utility
 and the server, because the server does all the work when you use
 @code{OPTIMIZE TABLE}. @xref{OPTIMIZE TABLE}.
@@ -18791,8 +18819,8 @@ What percentage of the data file is unused.
 
 @item Blocks/Record
 Average number of blocks per record (that is, how many links a fragmented
-record is composed of). This is always 1 for fixed-format tables. This value
-should stay as close to 1.0 as possible. If it gets too big, you can
+record is composed of). This is always 1.0 for fixed-format tables. This
+value should stay as close to 1.0 as possible. If it gets too big, you can
 reorganise the table with @code{myisamchk}.
 @xref{Optimisation}.
 
@@ -19517,6 +19545,10 @@ or @samp{M} to indicate kilobytes or megabytes. For example, @code{16M}
 indicates 16 megabytes.  The case of suffix letters does not matter;
 @code{16M} and @code{16m} are equivalent:
 
+@c FIX 2002-04-29 arjen / paul
+@c FIX Below should be a @multitable just like SHOW STATUS.
+@c FIX Has to wait till after O'Reilly printed edition is out the door.
+
 @cindex variables, values
 @itemize
 @item @code{ansi_mode}.
@@ -19701,10 +19733,10 @@ Index blocks are buffered and are shared by all threads.
 Increase this to get better index handling (for all reads and multiple
 writes) to as much as you can afford; 64M on a 256M machine that mainly
 runs MySQL is quite common.  If you, however, make this too big
-(more than 50% of your total memory?) your system may start to page and
-become extremely slow. Remember that because MySQL does not cache
-data read, that you will have to leave some room for the OS filesystem
-cache.
+(for instance more than 50% of your total memory) your system may start
+to page and become extremely slow. Remember that because MySQL does not
+cache data reads, you will have to leave some room for the OS
+filesystem cache.
 
 You can check the performance of the key buffer by doing @code{show
 status} and examine the variables @code{Key_read_requests},
@@ -19826,9 +19858,9 @@ The buffer that is allocated when sorting the index when doing a
 @code{ALTER TABLE}.
 
 @item @code{myisam_max_extra_sort_file_size}.
-If the creating of the temporary file for fast index creation would be
-this much bigger than using the key cache, then prefer the key cache
-method.  This is mainly used to force long character keys in large
+If the temporary file used for fast index creation would be bigger than
+using the key cache by the amount specified here, then prefer the key
+cache method.  This is mainly used to force long character keys in large
 tables to use the slower key cache method to create the index.
 @strong{NOTE} that this parameter is given in megabytes!
 
@@ -20045,11 +20077,11 @@ one extra connection for a client with the @strong{process} privilege
 to ensure that you should always be able to login and check the system
 (assuming you are not giving this privilege to all your users).
 
-Some frequently states in @code{mysqladmin processlist}
+Some states commonly seen in @code{mysqladmin processlist}
 
 @itemize @bullet
 @item @code{Checking table}
-The thread doing an [automatic ?] checking of the table.
+The thread is performing [automatic] checking of the table.
 @item @code{Closing tables}
 Means that the thread is flushing the changed table data to disk and
 closing the used tables. This should be a fast operation.  If not, then
@@ -20431,7 +20463,7 @@ The @code{configure} program uses this comment to include
 the character set into the MySQL library automatically.
 
 The strxfrm_multiply and mbmaxlen lines will be explained in
-the following sections.  Only include them if you the string
+the following sections.  Only include these if you need the string
 collating functions or the multi-byte character set functions,
 respectively.
 
@@ -20857,7 +20889,7 @@ or     mysqld_multi [OPTIONS] @{start|stop|report@} [GNR-GNR,GNR,GNR-GNR,...]
 
 The GNR above means the group number. You can start, stop or report
 any GNR, or several of them at the same time. (See --example) The GNRs
-list can be comma separated, or a dash combined, of which the latter
+list can be comma separated or combined with a dash, of which the latter
 means that all the GNRs between GNR1-GNR2 will be affected. Without
 GNR argument all the found groups will be either started, stopped, or
 reported. Note that you must not have any white spaces in the GNR
@@ -20954,7 +20986,7 @@ release) if test -d /data/mysql -a -f ./share/mysql/english/errmsg.sys
 @end example
 The above test should be successful, or you may encounter problems.
 @item
-Beware of the dangers starting multiple @code{mysqlds} in the same data
+Beware of the dangers starting multiple @code{mysqld}s in the same data
 directory.  Use separate data directories, unless you @strong{know} what
 you are doing!
 @item
@@ -23278,7 +23310,7 @@ your databases and have not configured replication before. You will need
 to shutdown your master server briefly to complete the steps outlined
 below.
 
-While the above method is the most straightforward way to set up a slave,
+While this method is the most straightforward way to set up a slave,
 it is not the only one. For example, if you already have a snapshot
 of the master, and
 the master already has server id set and binary logging enabled, you can
@@ -23451,7 +23483,7 @@ the new privileges into effect.
 Temporary tables starting in 3.23.29 are replicated properly with the
 exception of the case when you shut down slave server ( not just slave thread),
 you have some temporary tables open, and they are used in subsequent updates.
-To deal with this problem, to shut down the slave, do @code{SLAVE STOP}, then
+To deal with this problem shutting down the slave, do @code{SLAVE STOP},
 check @code{Slave_open_temp_tables} variable to see if it is 0, then issue
 @code{mysqladmin shutdown}. If the number is not 0, restart the slave thread
 with @code{SLAVE START} and see
@@ -23621,8 +23653,7 @@ slaves. In Versions 3.23.26 and later, you should use
 Because the user could issue the @code{FLUSH LOGS} command, we need to
 know which log is currently active and which ones have been rotated out
 and in what sequence. This information is stored in the binary log index file.
-The default is @file{`hostname`.index}. You can use this option if you want to
-be a rebel.
+The default is @file{`hostname`.index}. You should not need to change this.
 
 Example: @code{log-bin-index=db.index}
 
@@ -23713,8 +23744,7 @@ Example: @code{master-ssl-key=SSL/master-cert.pem}
 @item @code{master-info-file=filename} @tab
 The location of the file that remembers where we left off on the master
 during the replication process. The default is @file{master.info} in the data
-directory.  Sasha: The only reason I see for ever changing the default
-is the desire to be rebellious.
+directory. You should not need to change this.
 
 Example: @code{master-info-file=master.info}
 
@@ -23971,7 +24001,7 @@ intuitive way to describe this operation.
  @tab  Available starting in Version 3.23.28. Deletes all the
 replication logs that are listed in the log
 index as being prior to the specified log, and removes them from the
-log index, so that the given log now becomes first. Example:
+log index, so that the given log now becomes the first. Example:
 
 @example
 PURGE MASTER LOGS TO 'mysql-bin.010'
@@ -24032,7 +24062,7 @@ later
 @end itemize
 
 Afterwards, follow the instructions for the case when you have a snapshot and
-have records the log name and offset. You can use the same snapshot to set up
+have recorded the log name and offset. You can use the same snapshot to set up
 several slaves. As long as the binary logs of the master are left intact, you
 can wait as long as several days or in some cases maybe a month to set up a
 slave once you have the snapshot of the master. In theory the waiting gap can
@@ -24308,9 +24338,9 @@ the slaves of the master change in case of failure. Some suggestions:
 @item
 To tell a slave to change the master use the @code{CHANGE MASTER TO} command.
 @item
-A good way to keep your applications informed where the master is by
-having a dynamic DNS entry for the master. With @strong{bind} you can
-use @code{nsupdate} to dynamically update your DNS.
+A good way to keep your applications informed as to the location of the
+master is by having a dynamic DNS entry for the master.
+With @code{bind} you can use @file{nsupdate} to dynamically update your DNS.
 @item
 You should run your slaves with the @code{log-bin} option and without
 @code{log-slave-updates}. This way the slave will be ready to become a
@@ -24405,10 +24435,10 @@ bug report. Ideally, we would like to have a test case in the format found in
 case like that, you can expect a patch within a day or two in most cases,
 although, of course, you mileage may vary depending on a number of factors.
 
-Second best option is a just program with easily configurable connection
-arguments for the master and the slave that will demonstrate the problem on our
-systems. You can write one in Perl or in C, depending on which language you
-know better.
+The second best option is to write a simple program with easily configurable
+connection arguments for the master and the slave that will demonstrate
+the problem on our systems. You can write one in Perl or in C, depending
+on which language you know better.
 
 If you have one of the above ways to demonstrate the bug, use
 @code{mysqlbug} to prepare a bug report and send it to
@@ -25568,7 +25598,7 @@ SELECT * FROM t1 WHERE key_part1=1 ORDER BY key_part1 DESC,key_part2 DESC
 
 Some cases where MySQL can NOT use indexes to resolve the @code{ORDER
 BY}: (Note that MySQL will still use indexes to find the rows that
-matches the where clause):
+matches the @code{WHERE} clause):
 
 @itemize @bullet
 @item
@@ -25576,7 +25606,7 @@ You are doing an @code{ORDER BY} on different keys:
 
 @code{SELECT * FROM t1 ORDER BY key1,key2}
 @item
-You are doing an @code{ORDER BY} on not following key parts.
+You are doing an @code{ORDER BY} using non-consecutive key parts.
 
 @code{SELECT * FROM t1 WHERE key2=constant ORDER BY key_part2}
 
@@ -25698,8 +25728,8 @@ will abort the query (If you are not using @code{SQL_CALC_FOUND_ROWS}).
 @code{LIMIT 0} will always quickly return an empty set.  This is useful
 to check the query and to get the column types of the result columns.
 @item
-The size of temporary tables uses the @code{LIMIT #} to calculate how much
-space is needed to resolve the query.
+When the server uses temporary tables to resolve the query, the
+@code{LIMIT #} is used to calculate how much space is required.
 @end itemize
 
 
@@ -26003,7 +26033,7 @@ is integrated in @code{mysqld}.
 Use @code{AUTO_INCREMENT} columns to make unique values.
 @item
 Use @code{OPTIMIZE TABLE} once in a while to avoid fragmentation when
-using dynamic table format. @xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}}.
+using a dynamic table format. @xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}}.
 
 @item
 Use @code{HEAP} tables to get more speed when possible. @xref{Table
@@ -48958,16 +48988,18 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @item
 Query cache disabled in mysqldump.
 @item
+Fixed problem on Windows 98 that made sending of results very slow.
+@item
 Boolean fulltext search weighting scheme changed to something more reasonable.
 @item
-Fixed bug in boolean fulltext search, that caused MySQL to ignore queries of
+Fixed bug in boolean fulltext search that caused MySQL to ignore queries of
 @code{ft_min_word_len} characters.
 @item
-Boolean fulltext search now supports "phrase searches".
+Boolean fulltext search now supports ``phrase searches''.
 @item
 New configure option @code{--without-query-cache}. 
 @item
-Memory allocation strategy for 'root memory' changed. Block size now grows 
+Memory allocation strategy for ``root memory'' changed. Block size now grows 
 with number of allocated blocks.
 @item
 @code{INET_NTOA()} now returns @code{NULL} if you give it an argument that

@@ -243,7 +243,7 @@ int db_show_field(char *b,const char *database,const char *table, const char *fi
    if (!(database[0] && table[0] && field[0]))
       DBUG_RETURN(-1);
 
-   init_dynamic_array(&field_array, sizeof(buff), 4096, 1024);
+   my_init_dynamic_array(&field_array, sizeof(buff), 4096, 1024);
 
    if (mysql_select_db(sock,database))
    {
@@ -593,7 +593,7 @@ gptr db_load_functions()
    int i=0;
    struct func_st func;
    DBUG_ENTER("db_load_functions");
-   init_dynamic_array(&functions_array, sizeof(struct func_st), 4096, 1024);
+   my_init_dynamic_array(&functions_array, sizeof(struct func_st), 4096, 1024);
    while(functions[i]) {
       strcpy(func.type_s,   functions[i]);   /* Type in string: "table"`               */
       strcpy(func.filename, functions[i+1]); /* Name like it appears on FS: "count"    */

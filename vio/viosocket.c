@@ -87,7 +87,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
   int r;
   DBUG_ENTER("vio_write");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
-#ifdef __WIN__
+#if defined( __WIN__)
   if ( vio->type == VIO_TYPE_NAMEDPIPE)
   {
     DWORD length;
@@ -95,7 +95,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
       DBUG_RETURN(-1);
     DBUG_RETURN(length);
   }
-  r = send(vio->sd, buf, size,0);
+  r = send(vio->sd, buf, size, 0);
 #else
   r = write(vio->sd, buf, size);
 #endif /* __WIN__ */
