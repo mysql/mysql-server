@@ -289,12 +289,10 @@ uint my_numchars_mb(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
-		     const char *b  __attribute__((unused)),
-		     const char *e  __attribute__((unused)),
-		     uint pos)
+		     const char *b, const char *e, uint pos)
 {
-  uint res=0, mblen;
-  const char *b0;
+  uint mblen;
+  const char *b0=b;
   
   while (pos && b<e)
   {
