@@ -29,7 +29,18 @@ while ($1)
   dec $1;
  }
 enable_query_log;
+
+select count(*) from t1 where id1 > 95;
+select count(*) from t2 where id2 > 95;
+select count(*) from t3 where id3 > 95;
+
 update t1,t2,t3 set t1.t="aaa", t2.t="bbb", t3.t="cc" where  t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 90;
+select count(*) from t1 where t = "aaa";
+select count(*) from t1 where id1 > 90;
+select count(*) from t2 where t = "bbb";
+select count(*) from t2 where id2 > 90;
+select count(*) from t3 where t = "cc";
+select count(*) from t3 where id3 > 90;
 delete t1.*, t2.*, t3.*  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 95;
 
 check table t1, t2, t3;
