@@ -93,7 +93,7 @@ public:
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() 
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=2*default_charset()->mbmaxlen;
     maybe_null=1; 
@@ -110,7 +110,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=10*default_charset()->mbmaxlen;
     maybe_null=1; 
@@ -254,7 +254,7 @@ public:
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=1*default_charset()->mbmaxlen;
     maybe_null=1;
@@ -270,7 +270,7 @@ class Item_func_dayname :public Item_func_weekday
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0; 
     max_length=9*default_charset()->mbmaxlen;
     maybe_null=1; 
@@ -322,7 +322,7 @@ public:
   const char *func_name() const { return "date"; }
   void fix_length_and_dec()
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=10*default_charset()->mbmaxlen;
   }
@@ -440,7 +440,7 @@ class Item_func_from_unixtime :public Item_date_func
   const char *func_name() const { return "from_unixtime"; }
   void fix_length_and_dec()
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=19*default_charset()->mbmaxlen;
   }
@@ -457,7 +457,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     maybe_null=1;
     max_length=13*default_charset()->mbmaxlen;
   }
@@ -529,12 +529,12 @@ public:
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
     if (tmp)
-      tmp->set_charset(charset());
+      tmp->set_charset(collation.collation);
     return tmp;
   }
   void fix_length_and_dec()
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     max_length=args[0]->max_length;
   }
   void print(String *str);
@@ -547,7 +547,7 @@ public:
   Item_char_typecast(Item *a) :Item_typecast(a) {}
   void fix_length_and_dec()
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     max_length=args[0]->max_length;
   }
 };

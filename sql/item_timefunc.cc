@@ -574,7 +574,7 @@ void Item_func_curdate::fix_length_and_dec()
   struct tm tm_tmp,*start;
   time_t query_start=current_thd->query_start();
   
-  set_charset(default_charset());
+  collation.set(default_charset());
   decimals=0; 
   max_length=10*default_charset()->mbmaxlen;
   localtime_r(&query_start,&tm_tmp);
@@ -617,7 +617,7 @@ void Item_func_curtime::fix_length_and_dec()
   max_length=8*cs->mbmaxlen;
   localtime_r(&query_start,&tm_tmp);
   start=&tm_tmp;
-  set_charset(cs);
+  collation.set(cs);
   value=(longlong) ((ulong) ((uint) start->tm_hour)*10000L+
 		    (ulong) (((uint) start->tm_min)*100L+
 			     (uint) start->tm_sec));
@@ -644,7 +644,7 @@ void Item_func_now::fix_length_and_dec()
   
   decimals=0;
   max_length=19*cs->mbmaxlen;
-  set_charset(cs);
+  collation.set(cs);
   localtime_r(&query_start,&tm_tmp);
   start=&tm_tmp;
   value=((longlong) ((ulong) ((uint) start->tm_year+1900)*10000L+
@@ -1130,7 +1130,7 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
 void Item_date_add_interval::fix_length_and_dec()
 {
   enum_field_types arg0_field_type;
-  set_charset(default_charset());
+  collation.set(default_charset());
   maybe_null=1;
   max_length=26*MY_CHARSET_BIN_MB_MAXLEN;
   value.alloc(32);
