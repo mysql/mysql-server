@@ -2317,10 +2317,10 @@ Try also with PIPE or TCP/IP
         /* Store copy as we'll need it later */
         memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
         /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash,net->read_pos);
+        password_hash_stage2(password_hash,(const char*) net->read_pos);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
-                       SCRAMBLE41_LENGTH);
+        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
         mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Encode scramble with password. Recycle buffer */
         password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
@@ -2534,10 +2534,10 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
         /* Store copy as we'll need it later */
         memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
         /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash,net->read_pos);
+        password_hash_stage2(password_hash, (const char*) net->read_pos);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
-                       SCRAMBLE41_LENGTH);
+        password_crypt((const char*) net->read_pos+4, mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
         mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Encode scramble with password. Recycle buffer */
         password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
@@ -2547,8 +2547,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
         /* Create password to decode scramble */
         create_key_from_old_password(passwd,password_hash);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
-                       SCRAMBLE41_LENGTH);
+        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
         mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Finally scramble decoded scramble with password */
         scramble(buff, mysql->scramble_buff, passwd,
@@ -4059,7 +4059,7 @@ static void store_param_str(NET *net, MYSQL_BIND *param)
   ulong length= *param->length;
   char *to= (char *) net_store_length((char *) net->write_pos, length);
   memcpy(to, param->buffer, length);
-  net->write_pos= to+length;
+  net->write_pos= (uchar*) to+length;
 }
 
 
@@ -4211,7 +4211,7 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     }
     length= (ulong) (net->write_pos - net->buff);
     /* TODO: Look into avoding the following memdup */
-    if (!(param_data= my_memdup( net->buff, length, MYF(0))))
+    if (!(param_data= my_memdup((const char*) net->buff, length, MYF(0))))
     {
       set_stmt_error(stmt, CR_OUT_OF_MEMORY);
       DBUG_RETURN(1);
@@ -4538,19 +4538,22 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   switch(param->buffer_type) {
   case MYSQL_TYPE_TINY:
   {
-    uchar data= (uchar)my_strntol(system_charset_info,value,length,10,NULL,&err);
+    uchar data= (uchar)my_strntol(system_charset_info,value,length,10,NULL,
+				  &err);
     *buffer= data;
     break;
   }
   case MYSQL_TYPE_SHORT:
   {
-    short data= (short)my_strntol(system_charset_info,value,length,10,NULL,&err);
+    short data= (short)my_strntol(system_charset_info,value,length,10,NULL,
+				  &err);
     int2store(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 data= (int32)my_strntol(system_charset_info,value,length,10,NULL,&err);
+    int32 data= (int32)my_strntol(system_charset_info,value,length,10,NULL,
+				  &err);
     int4store(buffer, data);    
     break;
   }
@@ -4738,7 +4741,7 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
   }
   default:      
     length= net_field_length(row); 
-    send_data_str(param,*row,length);
+    send_data_str(param,(char*) *row,length);
     break;
   }
   *row+= length;
