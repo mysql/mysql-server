@@ -202,12 +202,8 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
   Uint8 tDistrKeyIndicator = theDistrKeyIndicator;
-  Uint8 tDistrGroupIndicator = theDistrGroupIndicator;
-  Uint8 tDistrGroupType = theDistrGroupType;
   Uint8 tScanIndicator = theScanInfo & 1;
 
-  tcKeyReq->setDistributionGroupFlag(tReqInfo, tDistrGroupIndicator);
-  tcKeyReq->setDistributionGroupTypeFlag(tReqInfo, tDistrGroupType);
   tcKeyReq->setDistributionKeyFlag(tReqInfo, tDistrKeyIndicator);
   tcKeyReq->setScanIndFlag(tReqInfo, tScanIndicator);
 
@@ -218,15 +214,13 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 //-------------------------------------------------------------
   Uint32* tOptionalDataPtr = &tcKeyReq->scanInfo;
   Uint32 tDistrGHIndex = tScanIndicator;
-  Uint32 tDistrKeyIndex = tDistrGHIndex + tDistrGroupIndicator;
+  Uint32 tDistrKeyIndex = tDistrGHIndex;
 
   Uint32 tScanInfo = theScanInfo;
-  Uint32 tDistributionGroup = theDistributionGroup;
-  Uint32 tDistrKeySize = theDistrKeySize;
+  Uint32 tDistrKey = theDistributionKey;
 
   tOptionalDataPtr[0] = tScanInfo;
-  tOptionalDataPtr[tDistrGHIndex] = tDistributionGroup;
-  tOptionalDataPtr[tDistrKeyIndex] = tDistrKeySize;
+  tOptionalDataPtr[tDistrKeyIndex] = tDistrKey;
 
 //-------------------------------------------------------------
 // The next is step is to compress the key data part of the

@@ -191,33 +191,13 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 #endif
 
     int tDistrKey = tAttrInfo->m_distributionKey;
-    int tDistrGroup = tAttrInfo->m_distributionGroup;
     OperationType tOpType = theOperationType;
-    if ((tDistrKey != 1) && (tDistrGroup != 1)) {
+    if ((tDistrKey != 1)) {
       ;
-    } else if (tDistrKey == 1) {
-      theDistrKeySize += totalSizeInWords;
-      theDistrKeyIndicator = 1;
     } else {
-      Uint32 TsizeInBytes = sizeInBytes;
-      Uint32 TbyteOrderFix = 0;
-      char*   TcharByteOrderFix = (char*)&TbyteOrderFix;
-      if (tAttrInfo->m_distributionGroupBits == 8) {
-	char tFirstChar = aValue[TsizeInBytes - 2];
-	char tSecondChar = aValue[TsizeInBytes - 2];
-	TcharByteOrderFix[0] = tFirstChar;
-	TcharByteOrderFix[1] = tSecondChar;
-	TcharByteOrderFix[2] = 0x30;
-	TcharByteOrderFix[3] = 0x30;
-	theDistrGroupType = 0;
-      } else {
-	TbyteOrderFix = ((aValue[TsizeInBytes - 2] - 0x30) * 10) 
-	  + (aValue[TsizeInBytes - 1] - 0x30);
-	theDistrGroupType = 1;
-      }//if
-      theDistributionGroup = TbyteOrderFix;
-      theDistrGroupIndicator = 1;
-    }//if
+      /** TODO DISTKEY */
+      theDistrKeyIndicator = 1;
+    }
     /******************************************************************************
      *	If the operation is an insert request and the attribute is stored then
      *      we also set the value in the stored part through putting the 
@@ -225,26 +205,24 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
      *****************************************************************************/
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
-      if (!tAttrInfo->m_indexOnly){
-        // invalid data can crash kernel
-        if (cs != NULL &&
-           (*cs->cset->well_formed_len)(cs,
-                                        aValueToWrite,
-                                        aValueToWrite + sizeInBytes,
-                                        sizeInBytes) != sizeInBytes)
-          goto equal_error4;
-	Uint32 ahValue;
-	const Uint32 sz = totalSizeInWords;
-	AttributeHeader::init(&ahValue, tAttrId, sz);
-	insertATTRINFO( ahValue );
-	insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
-	if (bitsInLastWord != 0) {
-	  tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
-	  tData = convertEndian(tData);
-	  tData = tData & ((1 << bitsInLastWord) - 1);
-	  tData = convertEndian(tData);
-	  insertATTRINFO( tData );
-	}//if
+      // invalid data can crash kernel
+      if (cs != NULL &&
+	  (*cs->cset->well_formed_len)(cs,
+				       aValueToWrite,
+				       aValueToWrite + sizeInBytes,
+				       sizeInBytes) != sizeInBytes)
+	goto equal_error4;
+      Uint32 ahValue;
+      const Uint32 sz = totalSizeInWords;
+      AttributeHeader::init(&ahValue, tAttrId, sz);
+      insertATTRINFO( ahValue );
+      insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
+      if (bitsInLastWord != 0) {
+	tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
+	tData = convertEndian(tData);
+	tData = tData & ((1 << bitsInLastWord) - 1);
+	tData = convertEndian(tData);
+	insertATTRINFO( tData );
       }//if
     }//if
     

@@ -78,10 +78,10 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
     for (int j=0; j<3; j++)
       m_theIndexDefined[i][j] = false;  
   
-  TcIndxReq * const tcIndxReq = CAST_PTR(TcIndxReq, theTCREQ->getDataPtrSend());
-  tcIndxReq->scanInfo = 0;
-  theKEYINFOptr = &tcIndxReq->keyInfo[0];
-  theATTRINFOptr = &tcIndxReq->attrInfo[0];
+  TcKeyReq * tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
+  tcKeyReq->scanInfo = 0;
+  theKEYINFOptr = &tcKeyReq->keyInfo[0];
+  theATTRINFOptr = &tcKeyReq->attrInfo[0];
   return 0;
 }
 
@@ -313,33 +313,13 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     }//if
 #endif
     int tDistrKey = tAttrInfo->m_distributionKey;
-    int tDistrGroup = tAttrInfo->m_distributionGroup;
     OperationType tOpType = theOperationType;
-    if ((tDistrKey != 1) && (tDistrGroup != 1)) {
+    if ((tDistrKey != 1)) {
       ;
-    } else if (tDistrKey == 1) {
-      theDistrKeySize += totalSizeInWords;
-      theDistrKeyIndicator = 1;
     } else {
-      Uint32 TsizeInBytes = sizeInBytes;
-      Uint32 TbyteOrderFix = 0;
-      char*   TcharByteOrderFix = (char*)&TbyteOrderFix;
-      if (tAttrInfo->m_distributionGroupBits == 8) {
-	char tFirstChar = aValue[TsizeInBytes - 2];
-	char tSecondChar = aValue[TsizeInBytes - 2];
-	TcharByteOrderFix[0] = tFirstChar;
-	TcharByteOrderFix[1] = tSecondChar;
-	TcharByteOrderFix[2] = 0x30;
-	TcharByteOrderFix[3] = 0x30;
-	theDistrGroupType = 0;
-      } else {
-	TbyteOrderFix = ((aValue[TsizeInBytes - 2] - 0x30) * 10) 
-	  + (aValue[TsizeInBytes - 1] - 0x30);
-	theDistrGroupType = 1;
-      }//if
-      theDistributionGroup = TbyteOrderFix;
-      theDistrGroupIndicator = 1;
-    }//if
+      /** TODO DISTKEY */
+      theDistrKeyIndicator = 1;
+    }
     /**************************************************************************
      *	If the operation is an insert request and the attribute is stored then
      *      we also set the value in the stored part through putting the 
@@ -347,29 +327,27 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
      *************************************************************************/
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
-      if (!tAttrInfo->m_indexOnly){
-        // invalid data can crash kernel
-        if (cs != NULL &&
-            (*cs->cset->well_formed_len)(cs,
-                                         aValueToWrite,
-                                         aValueToWrite + sizeInBytes,
-                                         sizeInBytes) != sizeInBytes)
-          goto equal_error4;
-	Uint32 ahValue;
-	Uint32 sz = totalSizeInWords;
-	AttributeHeader::init(&ahValue, tAttrId, sz);
-	insertATTRINFO( ahValue );
-	insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
-	if (bitsInLastWord != 0) {
-	  tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
-	  tData = convertEndian(tData);
-	  tData = tData & ((1 << bitsInLastWord) - 1);
-	  tData = convertEndian(tData);
-	  insertATTRINFO( tData );
-	}//if
+      // invalid data can crash kernel
+      if (cs != NULL &&
+	  (*cs->cset->well_formed_len)(cs,
+				       aValueToWrite,
+				       aValueToWrite + sizeInBytes,
+				       sizeInBytes) != sizeInBytes)
+	goto equal_error4;
+      Uint32 ahValue;
+      Uint32 sz = totalSizeInWords;
+      AttributeHeader::init(&ahValue, tAttrId, sz);
+      insertATTRINFO( ahValue );
+      insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
+      if (bitsInLastWord != 0) {
+	tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
+	tData = convertEndian(tData);
+	tData = tData & ((1 << bitsInLastWord) - 1);
+	tData = convertEndian(tData);
+	insertATTRINFO( tData );
       }//if
     }//if
-
+    
     /**************************************************************************
      *	Store the Key information in the TCINDXREQ and INDXKEYINFO signals. 
      *************************************************************************/
@@ -468,7 +446,7 @@ int NdbIndexOperation::executeCursor(int aProcessorId)
 void
 NdbIndexOperation::setLastFlag(NdbApiSignal* signal, Uint32 lastFlag)
 {
-  TcIndxReq * const req = CAST_PTR(TcIndxReq, signal->getDataPtrSend());
+  TcKeyReq * const req = CAST_PTR(TcKeyReq, signal->getDataPtrSend());
   TcKeyReq::setExecuteFlag(req->requestInfo, lastFlag);
 }
 
@@ -512,18 +490,18 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 // We start by filling in the first 8 unconditional words of the
 // TCINDXREQ signal.
 //-------------------------------------------------------------
-  TcIndxReq * const tcIndxReq = 
-    CAST_PTR(TcIndxReq, theTCREQ->getDataPtrSend());
+  TcKeyReq * tcKeyReq = 
+    CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
 
   Uint32 tTotalCurrAI_Len = theTotalCurrAI_Len;
   Uint32 tIndexId = m_theIndex->m_indexId;
   Uint32 tSchemaVersion = m_theIndex->m_version;
   
-  tcIndxReq->apiConnectPtr      = aTC_ConnectPtr;
-  tcIndxReq->senderData         = ptr2int();
-  tcIndxReq->attrLen            = tTotalCurrAI_Len;
-  tcIndxReq->indexId            = tIndexId;
-  tcIndxReq->indexSchemaVersion = tSchemaVersion;
+  tcKeyReq->apiConnectPtr      = aTC_ConnectPtr;
+  tcKeyReq->senderData         = ptr2int();
+  tcKeyReq->attrLen            = tTotalCurrAI_Len;
+  tcKeyReq->tableId            = tIndexId;
+  tcKeyReq->tableSchemaVersion = tSchemaVersion;
 
   tTransId1 = (Uint32) aTransactionId;
   tTransId2 = (Uint32) (aTransactionId >> 32);
@@ -551,59 +529,53 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
   Uint8 tSimpleState = tReadInd & tSimpleAlt;
   //theNdbCon->theSimpleState = tSimpleState;
 
-  tcIndxReq->transId1           = tTransId1;
-  tcIndxReq->transId2           = tTransId2;
+  tcKeyReq->transId1           = tTransId1;
+  tcKeyReq->transId2           = tTransId2;
   
   tReqInfo = 0;
 
-  if (tTotalCurrAI_Len <= TcIndxReq::MaxAttrInfo) {
-    tcIndxReq->setAIInTcIndxReq(tReqInfo, tTotalCurrAI_Len);
+  if (tTotalCurrAI_Len <= TcKeyReq::MaxAttrInfo) {
+    tcKeyReq->setAIInTcKeyReq(tReqInfo, tTotalCurrAI_Len);
   } else {
-    tcIndxReq->setAIInTcIndxReq(tReqInfo, TcIndxReq::MaxAttrInfo);
+    tcKeyReq->setAIInTcKeyReq(tReqInfo, TcKeyReq::MaxAttrInfo);
   }//if
 
-  tcIndxReq->setSimpleFlag(tReqInfo, tSimpleIndicator);
-  tcIndxReq->setCommitFlag(tReqInfo, tCommitIndicator);
-  tcIndxReq->setStartFlag(tReqInfo, tStartIndicator);
+  tcKeyReq->setSimpleFlag(tReqInfo, tSimpleIndicator);
+  tcKeyReq->setCommitFlag(tReqInfo, tCommitIndicator);
+  tcKeyReq->setStartFlag(tReqInfo, tStartIndicator);
   const Uint8 tInterpretIndicator = theInterpretIndicator;
-  tcIndxReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
+  tcKeyReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
 
   Uint8 tDirtyIndicator = theDirtyIndicator;
   OperationType tOperationType = theOperationType;
   Uint32 tIndexLen = m_theIndexLen;
   Uint8 abortOption = theNdbCon->m_abortOption;
 
-  tcIndxReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
-  tcIndxReq->setOperationType(tReqInfo, tOperationType);
-  tcIndxReq->setIndexLength(tReqInfo, tIndexLen);
-  tcIndxReq->setCommitType(tReqInfo, abortOption);
+  tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
+  tcKeyReq->setOperationType(tReqInfo, tOperationType);
+  tcKeyReq->setKeyLength(tReqInfo, tIndexLen);
+  tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
   Uint8 tDistrKeyIndicator = theDistrKeyIndicator;
-  Uint8 tDistrGroupIndicator = theDistrGroupIndicator;
-  Uint8 tDistrGroupType = theDistrGroupType;
   Uint8 tScanIndicator = theScanInfo & 1;
 
-  tcIndxReq->setDistributionGroupFlag(tReqInfo, tDistrGroupIndicator);
-  tcIndxReq->setDistributionGroupTypeFlag(tReqInfo, tDistrGroupType);
-  tcIndxReq->setDistributionKeyFlag(tReqInfo, tDistrKeyIndicator);
-  tcIndxReq->setScanIndFlag(tReqInfo, tScanIndicator);
+  tcKeyReq->setDistributionKeyFlag(tReqInfo, tDistrKeyIndicator);
+  tcKeyReq->setScanIndFlag(tReqInfo, tScanIndicator);
 
-  tcIndxReq->requestInfo  = tReqInfo;
+  tcKeyReq->requestInfo  = tReqInfo;
 
 //-------------------------------------------------------------
 // The next step is to fill in the upto three conditional words.
 //-------------------------------------------------------------
-  Uint32* tOptionalDataPtr = &tcIndxReq->scanInfo;
+  Uint32* tOptionalDataPtr = &tcKeyReq->scanInfo;
   Uint32 tDistrGHIndex = tScanIndicator;
-  Uint32 tDistrKeyIndex = tDistrGHIndex + tDistrGroupIndicator;
+  Uint32 tDistrKeyIndex = tDistrGHIndex;
 
   Uint32 tScanInfo = theScanInfo;
-  Uint32 tDistributionGroup = theDistributionGroup;
-  Uint32 tDistrKeySize = theDistrKeySize;
+  Uint32 tDistrKey = theDistributionKey;
 
   tOptionalDataPtr[0] = tScanInfo;
-  tOptionalDataPtr[tDistrGHIndex] = tDistributionGroup;
-  tOptionalDataPtr[tDistrKeyIndex] = tDistrKeySize;
+  tOptionalDataPtr[tDistrKeyIndex] = tDistrKey;
 
 //-------------------------------------------------------------
 // The next is step is to compress the key data part of the
@@ -611,10 +583,10 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 //-------------------------------------------------------------
   Uint32 tKeyIndex = tDistrKeyIndex + tDistrKeyIndicator;
   Uint32* tKeyDataPtr = &tOptionalDataPtr[tKeyIndex];
-  Uint32 Tdata1 = tcIndxReq->keyInfo[0];
-  Uint32 Tdata2 = tcIndxReq->keyInfo[1];
-  Uint32 Tdata3 = tcIndxReq->keyInfo[2];
-  Uint32 Tdata4 = tcIndxReq->keyInfo[3];
+  Uint32 Tdata1 = tcKeyReq->keyInfo[0];
+  Uint32 Tdata2 = tcKeyReq->keyInfo[1];
+  Uint32 Tdata3 = tcKeyReq->keyInfo[2];
+  Uint32 Tdata4 = tcKeyReq->keyInfo[3];
   Uint32 Tdata5;
 
   tKeyDataPtr[0] = Tdata1;
@@ -622,10 +594,10 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
   tKeyDataPtr[2] = Tdata3;
   tKeyDataPtr[3] = Tdata4;
   if (tIndexLen > 4) {
-    Tdata1 = tcIndxReq->keyInfo[4];
-    Tdata2 = tcIndxReq->keyInfo[5];
-    Tdata3 = tcIndxReq->keyInfo[6];
-    Tdata4 = tcIndxReq->keyInfo[7];
+    Tdata1 = tcKeyReq->keyInfo[4];
+    Tdata2 = tcKeyReq->keyInfo[5];
+    Tdata3 = tcKeyReq->keyInfo[6];
+    Tdata4 = tcKeyReq->keyInfo[7];
 
     tKeyDataPtr[4] = Tdata1;
     tKeyDataPtr[5] = Tdata2;
@@ -639,12 +611,12 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 //-------------------------------------------------------------
   Uint32 tAttrInfoIndex;  
 
-  if (tIndexLen > TcIndxReq::MaxKeyInfo) {
+  if (tIndexLen > TcKeyReq::MaxKeyInfo) {
     /**
      *	Set transid and TC connect ptr in the INDXKEYINFO signals
      */
     NdbApiSignal* tSignal = theFirstKEYINFO;
-    Uint32 remainingKey = tIndexLen - TcIndxReq::MaxKeyInfo;
+    Uint32 remainingKey = tIndexLen - TcKeyReq::MaxKeyInfo;
 
     do {
       Uint32* tSigDataPtr = tSignal->getDataPtrSend();
@@ -665,7 +637,7 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
       }
       tSignal = tnextSignal;
     } while (tSignal != NULL);
-    tAttrInfoIndex = tKeyIndex + TcIndxReq::MaxKeyInfo;
+    tAttrInfoIndex = tKeyIndex + TcKeyReq::MaxKeyInfo;
   } else {
     tAttrInfoIndex = tKeyIndex + tIndexLen;
   }//if
@@ -675,14 +647,14 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 // above.
 //-------------------------------------------------------------
   Uint32* tAIDataPtr = &tOptionalDataPtr[tAttrInfoIndex];
-  Tdata1 = tcIndxReq->attrInfo[0];
-  Tdata2 = tcIndxReq->attrInfo[1];
-  Tdata3 = tcIndxReq->attrInfo[2];
-  Tdata4 = tcIndxReq->attrInfo[3];
-  Tdata5 = tcIndxReq->attrInfo[4];
+  Tdata1 = tcKeyReq->attrInfo[0];
+  Tdata2 = tcKeyReq->attrInfo[1];
+  Tdata3 = tcKeyReq->attrInfo[2];
+  Tdata4 = tcKeyReq->attrInfo[3];
+  Tdata5 = tcKeyReq->attrInfo[4];
 
-  theTCREQ->setLength(tcIndxReq->getAIInTcIndxReq(tReqInfo) + 
-                      tAttrInfoIndex + TcIndxReq::StaticLength);
+  theTCREQ->setLength(tcKeyReq->getAIInTcKeyReq(tReqInfo) + 
+                      tAttrInfoIndex + TcKeyReq::StaticLength);
   tAIDataPtr[0] = Tdata1;
   tAIDataPtr[1] = Tdata2;
   tAIDataPtr[2] = Tdata3;

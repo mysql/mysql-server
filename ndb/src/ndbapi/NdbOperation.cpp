@@ -73,8 +73,6 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   theStatus(Init),
   theMagicNumber(0xFE11D0),
   theScanInfo(0),
-  theDistrKeySize(0),
-  theDistributionGroup(0),
   m_tcReqGSN(GSN_TCKEYREQ),
   m_keyInfoGSN(GSN_KEYINFO),
   m_attrInfoGSN(GSN_ATTRINFO),
@@ -150,8 +148,6 @@ NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
 
   theTupKeyLen		= 0;
   theNoOfTupKeyDefined	= 0;
-  theDistrKeySize	= 0;
-  theDistributionGroup	= 0;
 
   theTotalCurrAI_Len	= 0;
   theAI_LenInCurrAI	= 0;
@@ -160,8 +156,6 @@ NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
   theSimpleIndicator	= 0;
   theDirtyIndicator	= 0;
   theInterpretIndicator	= 0;
-  theDistrGroupIndicator= 0;
-  theDistrGroupType     = 0;
   theDistrKeyIndicator  = 0;
   theScanInfo        	= 0;
   theTotalNrOfKeyWordInSignal = 8;

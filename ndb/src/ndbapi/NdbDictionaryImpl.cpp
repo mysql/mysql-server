@@ -69,12 +69,8 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_scale = col.m_scale;
   m_length = col.m_length;
   m_pk = col.m_pk;
-  m_tupleKey = col.m_tupleKey;
   m_distributionKey = col.m_distributionKey;
-  m_distributionGroup = col.m_distributionGroup;
-  m_distributionGroupBits = col.m_distributionGroupBits;
   m_nullable = col.m_nullable;
-  m_indexOnly = col.m_indexOnly;
   m_autoIncrement = col.m_autoIncrement;
   m_autoIncrementInitialValue = col.m_autoIncrementInitialValue;
   m_defaultValue = col.m_defaultValue;
@@ -154,11 +150,7 @@ NdbColumnImpl::init(Type t)
   }
   m_pk = false;
   m_nullable = false;
-  m_tupleKey = false;
-  m_indexOnly = false;
   m_distributionKey = false;
-  m_distributionGroup = false;
-  m_distributionGroupBits = 8;
   m_keyInfoPos = 0;
   // next 2 are set at run time
   m_attrSize = 0;
@@ -188,20 +180,7 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
     return false;
   }
   if(m_pk){
-    if(m_tupleKey != col.m_tupleKey){
-      return false;
-    }
-    if(m_indexOnly != col.m_indexOnly){
-      return false;
-    }
     if(m_distributionKey != col.m_distributionKey){
-      return false;
-    }
-    if(m_distributionGroup != col.m_distributionGroup){
-      return false;
-    }
-    if(m_distributionGroup && 
-       (m_distributionGroupBits != col.m_distributionGroupBits)){
       return false;
     }
   }
@@ -1287,12 +1266,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_arraySize = attrDesc.AttributeArraySize;
     
     col->m_pk = attrDesc.AttributeKeyFlag;
-    col->m_tupleKey = 0;
     col->m_distributionKey = attrDesc.AttributeDKey;
-    col->m_distributionGroup = attrDesc.AttributeDGroup;
-    col->m_distributionGroupBits = 16;
     col->m_nullable = attrDesc.AttributeNullableFlag;
-    col->m_indexOnly = (attrDesc.AttributeStoredInd ? false : true);
     col->m_autoIncrement = (attrDesc.AttributeAutoIncrement ? true : false);
     col->m_autoIncrementInitialValue = ~0;
     col->m_defaultValue.assign(attrDesc.AttributeDefaultValue);
@@ -1528,11 +1503,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     BaseString::snprintf(tmpAttr.AttributeName, sizeof(tmpAttr.AttributeName), 
 	     col->m_name.c_str());
     tmpAttr.AttributeId = i;
-    tmpAttr.AttributeKeyFlag = col->m_pk || col->m_tupleKey;
+    tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeStoredInd = (col->m_indexOnly ? 0 : 1);
+    tmpAttr.AttributeStoredInd = 1;
     tmpAttr.AttributeDKey = col->m_distributionKey;
-    tmpAttr.AttributeDGroup = col->m_distributionGroup;
+    tmpAttr.AttributeDGroup = 0;
 
     tmpAttr.AttributeExtType =
       getKernelConstant(col->m_type,
@@ -2030,10 +2005,6 @@ NdbDictInterface::createIndex(Ndb & ndb,
     // Copy column definition
     *impl.m_columns[i] = *col;
 
-    if(col->m_pk && col->m_indexOnly){
-      m_error.code = 4245;
-      return -1;
-    }
     // index key type check
     if (it == DictTabInfo::UniqueHashIndex &&
         ! NdbSqlUtil::usable_in_hash_index(col->m_type, col->m_cs) ||
