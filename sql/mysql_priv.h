@@ -737,7 +737,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int get_schema_tables_result(JOIN *join);
+bool get_schema_tables_result(JOIN *join);
 
 /* sql_prepare.cc */
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 

@@ -1793,9 +1793,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
                                    !any_privileges)) ==
 	not_found_field)
     {
-#ifdef EMBEDDED_LIBRARY
-      thd->net.last_errno= 0;
-#endif
       SELECT_LEX *last= 0;
       TABLE_LIST *table_list;
       Item **ref= (Item **) not_found_item;
