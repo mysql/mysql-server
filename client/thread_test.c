@@ -16,10 +16,6 @@
    MA 02111-1307, USA */
 
 #include <global.h>
-#include <my_sys.h>
-#include <my_pthread.h>
-#include "mysql.h"
-#include <getopt.h>
 
 #ifndef THREAD
 
@@ -29,6 +25,11 @@ int main(int argc, char **argv)
   exit(1);
 }
 #else
+
+#include <my_sys.h>
+#include <my_pthread.h>
+#include "mysql.h"
+#include <getopt.h>
 
 static my_bool version,verbose;
 static uint thread_count,number_of_tests=1000,number_of_threads=2;
