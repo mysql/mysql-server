@@ -36,6 +36,7 @@
 #include "NdbEventOperationImpl.hpp"
 #include "NdbBlob.hpp"
 #include <AttributeHeader.hpp>
+#include <my_sys.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -64,6 +65,7 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_name = col.m_name;
   m_type = col.m_type;
   m_precision = col.m_precision;
+  m_cs = col.m_cs;
   m_scale = col.m_scale;
   m_length = col.m_length;
   m_pk = col.m_pk;
@@ -87,10 +89,66 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
 }
 
 void
-NdbColumnImpl::init()
+NdbColumnImpl::init(Type t)
 {
+  // do not use default_charset_info as it may not be initialized yet
+  // use binary collation until NDB tests can handle charsets
+  CHARSET_INFO* default_cs = &my_charset_latin1_bin;
   m_attrId = -1;
-  m_type = NdbDictionary::Column::Unsigned;
+  m_type = t;
+  switch (m_type) {
+  case Tinyint:
+  case Tinyunsigned:
+  case Smallint:
+  case Smallunsigned:
+  case Mediumint:
+  case Mediumunsigned:
+  case Int:
+  case Unsigned:
+  case Bigint:
+  case Bigunsigned:
+  case Float:
+  case Double:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    break;
+  case Decimal:
+    m_precision = 10;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    break;
+  case Char:
+  case Varchar:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = default_cs;
+    break;
+  case Binary:
+  case Varbinary:
+  case Datetime:
+  case Timespec:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    break;
+  case Blob:
+    m_precision = 256;
+    m_scale = 8000;
+    m_length = 4;
+    m_cs = NULL;
+    break;
+  case Text:
+    m_precision = 256;
+    m_scale = 8000;
+    m_length = 4;
+    m_cs = default_cs;
+    break;
+  }
   m_pk = false;
   m_nullable = false;
   m_tupleKey = false;
@@ -98,12 +156,10 @@ NdbColumnImpl::init()
   m_distributionKey = false;
   m_distributionGroup = false;
   m_distributionGroupBits = 8;
-  m_length = 1;
-  m_scale = 5;
-  m_precision = 5;
   m_keyInfoPos = 0;
-  m_attrSize = 4,
-  m_arraySize = 1,
+  // next 2 are set at run time
+  m_attrSize = 0;
+  m_arraySize = 0;
   m_autoIncrement = false;
   m_autoIncrementInitialValue = 1;
   m_blobTable = NULL;
@@ -146,51 +202,11 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
       return false;
     }
   }
-  if(m_length != col.m_length){
+  if (m_precision != col.m_precision ||
+      m_scale != col.m_scale ||
+      m_length != col.m_length ||
+      m_cs != col.m_cs) {
     return false;
-  }
-
-  switch(m_type){
-  case NdbDictionary::Column::Undefined:
-    break;
-  case NdbDictionary::Column::Tinyint:
-  case NdbDictionary::Column::Tinyunsigned:
-  case NdbDictionary::Column::Smallint:
-  case NdbDictionary::Column::Smallunsigned:
-  case NdbDictionary::Column::Mediumint:
-  case NdbDictionary::Column::Mediumunsigned:
-  case NdbDictionary::Column::Int:
-  case NdbDictionary::Column::Unsigned:
-  case NdbDictionary::Column::Float:
-    break;
-  case NdbDictionary::Column::Decimal:
-    if(m_scale != col.m_scale || 
-       m_precision != col.m_precision){
-      return false;
-    }
-    break;
-  case NdbDictionary::Column::Char:
-  case NdbDictionary::Column::Varchar:
-  case NdbDictionary::Column::Binary:
-  case NdbDictionary::Column::Varbinary:
-    if(m_length != col.m_length){
-      return false;
-    }
-    break;
-  case NdbDictionary::Column::Bigint:
-  case NdbDictionary::Column::Bigunsigned:
-  case NdbDictionary::Column::Double:
-  case NdbDictionary::Column::Datetime:
-  case NdbDictionary::Column::Timespec:
-    break;
-  case NdbDictionary::Column::Blob:
-  case NdbDictionary::Column::Text:
-    if (m_precision != col.m_precision ||
-        m_scale != col.m_scale ||
-        m_length != col.m_length) {
-      return false;
-    }
-    break;
   }
   if (m_autoIncrement != col.m_autoIncrement){
     return false;
@@ -209,14 +225,18 @@ NdbColumnImpl::create_psuedo(const char * name){
   if(!strcmp(name, "NDB$FRAGMENT")){
     col->setType(NdbDictionary::Column::Unsigned);
     col->m_impl.m_attrId = AttributeHeader::FRAGMENT;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 1;
   } else if(!strcmp(name, "NDB$ROW_COUNT")){
     col->setType(NdbDictionary::Column::Bigunsigned);
     col->m_impl.m_attrId = AttributeHeader::ROW_COUNT;
     col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
   } else if(!strcmp(name, "NDB$COMMIT_COUNT")){
     col->setType(NdbDictionary::Column::Bigunsigned);
     col->m_impl.m_attrId = AttributeHeader::COMMIT_COUNT;
     col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
   } else {
     abort();
   }
@@ -1127,6 +1147,7 @@ indexTypeMapping[] = {
   { -1, -1 }
 };
 
+// TODO: remove, api-kernel type codes must match now
 static const
 ApiKernelMapping
 columnTypeMapping[] = {
@@ -1233,9 +1254,23 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       return 703;
     }
     col->m_extType = attrDesc.AttributeExtType;
-    col->m_precision = attrDesc.AttributeExtPrecision;
+    col->m_precision = (attrDesc.AttributeExtPrecision & 0xFFFF);
     col->m_scale = attrDesc.AttributeExtScale;
     col->m_length = attrDesc.AttributeExtLength;
+    // charset in upper half of precision
+    unsigned cs_number = (attrDesc.AttributeExtPrecision >> 16);
+    // charset is defined exactly for char types
+    if (col->getCharType() != (cs_number != 0)) {
+      delete impl;
+      return 703;
+    }
+    if (col->getCharType()) {
+      col->m_cs = get_charset(cs_number, MYF(0));
+      if (col->m_cs == NULL) {
+        delete impl;
+        return 743;
+      }
+    }
 
     // translate to old kernel types and sizes
     if (! attrDesc.translateExtType()) {
@@ -1486,9 +1521,23 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       getKernelConstant(col->m_type,
                         columnTypeMapping,
                         DictTabInfo::ExtUndefined);
-    tmpAttr.AttributeExtPrecision = col->m_precision;
+    tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
     tmpAttr.AttributeExtScale = col->m_scale;
     tmpAttr.AttributeExtLength = col->m_length;
+    // charset is defined exactly for char types
+    if (col->getCharType() != (col->m_cs != NULL)) {
+      m_error.code = 703;
+      return -1;
+    }
+    // primary key type check
+    if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
+      m_error.code = 743;
+      return -1;
+    }
+    // charset in upper half of precision
+    if (col->getCharType()) {
+      tmpAttr.AttributeExtPrecision |= (col->m_cs->number << 16);
+    }
 
     // DICT will ignore and recompute this
     (void)tmpAttr.translateExtType();
@@ -1948,6 +1997,14 @@ NdbDictInterface::createIndex(Ndb & ndb,
 
     if(col->m_pk && col->m_indexOnly){
       m_error.code = 4245;
+      return -1;
+    }
+    // index key type check
+    if (it == DictTabInfo::UniqueHashIndex &&
+        ! NdbSqlUtil::usable_in_hash_index(col->m_type, col->m_cs) ||
+        it == DictTabInfo::OrderedIndex &&
+        ! NdbSqlUtil::usable_in_ordered_index(col->m_type, col->m_cs)) {
+      m_error.code = 743;
       return -1;
     }
     attributeList.id[i] = col->m_attrId;
