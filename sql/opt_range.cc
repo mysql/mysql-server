@@ -2238,7 +2238,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
     {
       tmp=param->table->file->
 	records_in_range((int) keynr,(byte*)(param->min_key + 1),
-	  min_key_length, (ha_rkey_function)(tmp_min_flag ^ GEOM_FLAG), 
+	  min_key_length, (ha_rkey_function)(tmp_min_flag ^ GEOM_FLAG),
           (byte *)NullS,0,HA_READ_KEY_EXACT);
     }
     else
@@ -2705,20 +2705,28 @@ int QUICK_SELECT_DESC::get_next()
     }
     else
     {
+      DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
+#if NOT_IMPLEMENTED_YET
+      result=file->index_read(record, (byte*) range->max_key,
+			      range->max_length,
+			      ((range->flag & NEAR_MAX) ?
+			       HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV));
+#else
       /* Heikki changed Sept 11, 2002: since InnoDB does not store the cursor
 	 position if READ_KEY_EXACT is used to a primary key with all
 	 key columns specified, we must use below HA_READ_KEY_OR_NEXT,
 	 so that InnoDB stores the cursor position and is able to move
 	 the cursor one step backward after the search. */
 
-      DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
       /* Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
        * do the right thing - go past all keys which match the prefix */
+
       result=file->index_read(record, (byte*) range->max_key,
 			      range->max_length,
 			      ((range->flag & NEAR_MAX) ?
 			       HA_READ_KEY_OR_NEXT : HA_READ_AFTER_KEY));
       result = file->index_prev(record);
+#endif
     }
     if (result)
     {
