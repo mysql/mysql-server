@@ -122,8 +122,26 @@ set_field_to_null(Field *field)
 }
 
 
+/*
+  Set field to NULL or TIMESTAMP or to next auto_increment number
+
+  SYNOPSIS
+    set_field_to_null_with_conversions()
+    field		Field to update
+    no_conversion	Set to 1 if we should return 1 if field can't
+			take null values.
+			If set to 0 we will do store the 'default value'
+			if the field is a special field. If not we will
+			give an error.
+
+  RETURN VALUES
+    0		Field could take 0 or an automatic conversion was used
+    1		Field could not take NULL and no conversion was used.
+		If no_conversion was not set, an error message is printed
+*/
+
 bool
-set_field_to_null_with_conversions(Field *field)
+set_field_to_null_with_conversions(Field *field, bool no_conversions)
 {
   if (field->real_maybe_null())
   {
@@ -131,6 +149,8 @@ set_field_to_null_with_conversions(Field *field)
     field->reset();
     return 0;
   }
+  if (no_conversions)
+    return 1;
 
   /*
     Check if this is a special type, which will get a special walue
@@ -154,8 +174,6 @@ set_field_to_null_with_conversions(Field *field)
 		    field->field_name);
   return 1;
 }
-
-
 
 
 static void do_skip(Copy_field *copy __attribute__((unused)))

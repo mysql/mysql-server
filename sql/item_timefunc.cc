@@ -403,7 +403,7 @@ String *Item_date::val_str(String *str)
 }
 
 
-bool Item_date::save_in_field(Field *field)
+bool Item_date::save_in_field(Field *field, bool no_conversions)
 {
   TIME ltime;
   timestamp_type t_type=TIMESTAMP_FULL;
@@ -518,7 +518,7 @@ bool Item_func_now::get_date(TIME *res,
 }
 
 
-bool Item_func_now::save_in_field(Field *to)
+bool Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
   to->store_time(&ltime,TIMESTAMP_FULL);
