@@ -40,6 +40,7 @@ static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
 static const char *set_charset_name;
 static CHARSET_INFO *set_charset;
+static long opt_myisam_block_size;
 
 static const char *type_names[]=
 { "?","char","binary", "short", "long", "float",
@@ -141,6 +142,9 @@ int main(int argc, char **argv)
 static CHANGEABLE_VAR changeable_vars[] = {
   { "key_buffer_size",(long*) &check_param.use_buffers,(long) USE_BUFFER_INIT,
     (long) MALLOC_OVERHEAD, (long) ~0L,(long) MALLOC_OVERHEAD,(long) IO_SIZE },
+  { "myisam_block_size", (long*) &opt_myisam_block_size,
+      MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
+    0, MI_MIN_KEY_BLOCK_LENGTH },
   { "read_buffer_size", (long*) &check_param.read_buffer_length,(long) READ_BUFFER_INIT,
       (long) MALLOC_OVERHEAD,(long) ~0L,(long) MALLOC_OVERHEAD,(long) 1L },
   { "write_buffer_size", (long*) &check_param.write_buffer_length,(long) READ_BUFFER_INIT,
@@ -159,7 +163,10 @@ static CHANGEABLE_VAR changeable_vars[] = {
       20, 4, HA_FT_MAXLEN, 0, 1 },
   { NullS,(long*) 0,0L,0L,0L,0L,0L,} };
 
-enum options {OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS};
+enum options {
+  OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS,
+  OPT_CORRECT_CHECKSUM
+};
 
 
 static struct option long_options[] =
@@ -167,9 +174,10 @@ static struct option long_options[] =
   {"analyze",		no_argument,	  0, 'a'},
   {"block-search",      required_argument,0, 'b'},
   {"backup",		no_argument,	  0, 'B'},
-  {"character-sets-dir",required_argument,0,  OPT_CHARSETS_DIR},
+  {"character-sets-dir",required_argument,0, OPT_CHARSETS_DIR},
   {"check",	        no_argument,	  0, 'c'},
   {"check-only-changed",no_argument,	  0, 'C'},
+  {"correct-checksum",  no_argument,	  0, OPT_CORRECT_CHECKSUM},
 #ifndef DBUG_OFF
   {"debug",	       optional_argument, 0, '#'},
 #endif
@@ -205,7 +213,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.51 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.52 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -248,6 +256,7 @@ static void usage(void)
 
   puts("Repair options (When using -r or -o) \n\
   -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'\n\
+  --correct-checksum  Correct checksum information for table. \n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
                       file when it's full)\n\
   -e, --extend-check  Try to recover every possible row from the data file\n\
@@ -433,6 +442,9 @@ static void get_options(register int *argc,register char ***argv)
     case 'V':
       print_version();
       exit(0);
+    case OPT_CORRECT_CHECKSUM:
+      check_param.testflag|=T_CALC_CHECKSUM;
+      break;
     case OPT_CHARSETS_DIR:
       charsets_dir = optarg;
       break;
@@ -449,6 +461,11 @@ static void get_options(register int *argc,register char ***argv)
       exit(0);
     }
   }
+  /* If using repair, then update checksum if one uses --update-state */
+  if ((check_param.testflag & T_UPDATE_STATE) &&
+      (check_param.testflag & (T_REP | T_REP_BY_SORT)))
+    check_param.testflag|= T_CALC_CHECKSUM;
+
   (*argc)-=optind;
   (*argv)+=optind;
   if (*argc == 0)
@@ -456,6 +473,7 @@ static void get_options(register int *argc,register char ***argv)
     usage();
     exit(-1);
   }
+
   if ((check_param.testflag & T_UNPACK) &&
       (check_param.opt_rep_quick || (check_param.testflag & T_SORT_RECORDS)))
   {
@@ -479,6 +497,7 @@ static void get_options(register int *argc,register char ***argv)
     if (!(set_charset=get_charset_by_name(set_charset_name, MYF(MY_WME))))
       exit(1);
 
+  myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
   return;
 } /* get options */
 
@@ -605,7 +624,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	(((ulonglong) 1L << share->base.keys)-1)) ||
        test_if_almost_full(info) ||
        info->s->state.header.file_version[3] != myisam_file_magic[3] ||
-       (set_charset && set_charset->number != share->state.header.language)))
+       (set_charset && set_charset->number != share->state.header.language) ||
+       myisam_block_size != MI_KEY_BLOCK_LENGTH))
   {
     if (set_charset)
       check_param.language=set_charset->number;

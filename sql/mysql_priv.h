@@ -506,7 +506,7 @@ void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
 
 extern uint32 server_id;
-extern char mysql_data_home[2],server_version[SERVER_VERSION_LENGTH],
+extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    max_sort_char, mysql_real_data_home[];
 extern my_string mysql_unix_port,mysql_tmpdir;
 extern const char *first_keyword, *localhost, *delayed_user;
