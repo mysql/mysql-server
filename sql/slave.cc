@@ -2146,8 +2146,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   DBUG_ASSERT(rli->sql_thd==thd);
   if (sql_slave_killed(thd,rli))
   {
-    /* do not forget to free ev ! */
-    if (ev) delete ev;
+    delete ev;
     return 1;
   }
   if (ev)
