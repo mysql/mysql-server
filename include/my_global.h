@@ -149,10 +149,6 @@ double my_ulonglong2double(unsigned long long A);
 C_MODE_END
 #endif /* _AIX */
 
-#ifdef UNIXWARE_7
-#define pthread_attr_setstacksize(A,B)	/* setting stack breaks things */
-#endif
-
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
 #endif
