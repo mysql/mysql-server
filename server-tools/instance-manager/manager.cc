@@ -16,12 +16,6 @@
 
 #include "manager.h"
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <signal.h>
-#include <thr_alarm.h>
-
 #include "thread_registry.h"
 #include "listener.h"
 #include "instance_map.h"
@@ -29,6 +23,14 @@
 #include "user_map.h"
 #include "log.h"
 #include "guardian.h"
+
+#include <my_global.h>
+#include <my_sys.h>
+#include <m_string.h>
+#include <signal.h>
+#include <thr_alarm.h>
+#include <sys/wait.h>
+
 
 static int create_pid_file(const char *pid_file_name)
 {
@@ -65,9 +67,7 @@ void manager(const Options &options)
   */
 
   User_map user_map;
-  Instance_map instance_map(options.default_mysqld_path,
-                            options.default_admin_user,
-                            options.default_admin_password);
+  Instance_map instance_map(options.default_mysqld_path);
   Guardian_thread guardian_thread(thread_registry,
                                   &instance_map,
                                   options.monitoring_interval);
@@ -77,8 +77,18 @@ void manager(const Options &options)
 
   instance_map.guardian= &guardian_thread;
 
-  if (instance_map.init() || user_map.init() || instance_map.load() ||
-      user_map.load(options.password_file_name))
+  if (instance_map.init() || user_map.init())
+      return;
+
+  if (instance_map.load())
+  {
+    log_error("Cannot init instances repository. This might be caused by "
+               "the wrong config file options. For instance, missing mysqld "
+               "binary. Aborting.");
+    return;
+    }
+
+  if (user_map.load(options.password_file_name))
     return;
 
   /* write pid file */
@@ -126,6 +136,12 @@ void manager(const Options &options)
     pthread_attr_t guardian_thd_attr;
     int rc;
 
+    /*
+       NOTE: Guardian should be shutdown first. Only then all other threads
+       need to be stopped. This should be done, as guardian is responsible for
+       shutting down the instances, and this is a long operation.
+    */
+
     pthread_attr_init(&guardian_thd_attr);
     pthread_attr_setdetachstate(&guardian_thd_attr, PTHREAD_CREATE_DETACHED);
     rc= pthread_create(&guardian_thd_id, &guardian_thd_attr, guardian,
@@ -153,26 +169,45 @@ void manager(const Options &options)
      more then 10 alarms at the same time.
   */
   init_thr_alarm(10);
+  /* init list of guarded instances */
+  guardian_thread.init();
   /*
-    Now we can init the list of guarded instances. We have to do it after
-    alarm structures initialization as we have to use net_* functions while
-    making the list. And they in their turn need alarms for timeout suppport.
+    After the list of guarded instances have been initialized,
+    Guardian should start them.
   */
-  guardian_thread.start();
+  pthread_cond_signal(&guardian_thread.COND_guardian);
 
   signal(SIGPIPE, SIG_IGN);
 
   while (!shutdown_complete)
   {
-    sigwait(&mask, &signo);
+    int status= 0;
+
+    if ((status= my_sigwait(&mask, &signo)) != 0)
+    {
+      log_error("sigwait() failed");
+      goto err;
+    }
+
     switch (signo)
     {
       case THR_SERVER_ALARM:
         process_alarm(signo);
       break;
       default:
-        thread_registry.deliver_shutdown();
-        shutdown_complete= TRUE;
+      {
+        if (!guardian_thread.is_stopped())
+        {
+          bool stop_instances= true;
+          guardian_thread.request_shutdown(stop_instances);
+          pthread_cond_signal(&guardian_thread.COND_guardian);
+        }
+        else
+        {
+          thread_registry.deliver_shutdown();
+          shutdown_complete= TRUE;
+        }
+      }
       break;
     }
   }
@@ -180,9 +215,6 @@ void manager(const Options &options)
 err:
   /* delete the pid file */
   my_delete(options.pid_file_name, MYF(0));
-
-  /* close permanent connections to the running instances */
-  instance_map.cleanup();
 
   /* free alarm structures */
   end_thr_alarm(1);

@@ -1,44 +1,29 @@
 #!/bin/sh
-# Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
+# Copyright (C) 2005 MySQL AB
 # This file is public domain and comes with NO WARRANTY of any kind
 
-# MySQL daemon start/stop script.
+# MySQL server management daemon start/stop script.
 
 # Usually this is put in /etc/init.d (at least on machines SYSV R4 based
-# systems) and linked to /etc/rc3.d/S99mysql and /etc/rc0.d/K01mysql.
+# systems) and linked to /etc/rc3.d/S99mysqlmanager and
+# /etc/rc0.d/K01mysqlmanager
 # When this is done the mysql server will be started when the machine is
 # started and shut down when the systems goes down.
 
-# Comments to support chkconfig on RedHat Linux
-# chkconfig: 2345 90 20
-# description: A very fast and reliable SQL database engine.
+# description: MySQL database server Instance Manager
 
 # Comments to support LSB init script conventions
 ### BEGIN INIT INFO
-# Provides: mysql
+# Provides: mysqlmanager
 # Required-Start: $local_fs $network $remote_fs
 # Required-Stop: $local_fs $network $remote_fs
 # Default-Start:  2 3 4 5
 # Default-Stop: 0 1 6
-# Short-Description: start and stop MySQL
-# Description: MySQL is a very fast and reliable SQL database engine.
+# Short-Description: start and stop MySQL Instance Manager
+# Description: MySQL Instance Manager is used to start/stop/status/monitor
+# MySQL server instances
 ### END INIT INFO
  
-# If you install MySQL on some other places than @prefix@, then you
-# have to do one of the following things for this script to work:
-#
-# - Run this script from within the MySQL installation directory
-# - Create a /etc/my.cnf file with the following information:
-#   [mysqld]
-#   basedir=<path-to-mysql-installation-directory>
-# - Add the above to any other configuration file (for example ~/.my.ini)
-#   and copy my_print_defaults to /usr/bin
-# - Add the path to the mysql-installation-directory to the basedir variable
-#   below.
-#
-# If you want to affect other MySQL variables, you should make your changes
-# in the /etc/my.cnf, ~/.my.cnf or other MySQL configuration files.
-
 basedir=
 
 # The following variables are only set for letting mysql.server find things.
@@ -50,8 +35,10 @@ if test -z "$basedir"
 then
   basedir=@prefix@
   bindir=@bindir@
+  sbindir=@sbindir@
 else
   bindir="$basedir/bin"
+  sbindir="$basedir/sbin"
 fi
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
@@ -65,11 +52,18 @@ case `echo "testing\c"`,`echo -n testing` in
     *)       echo_n=   echo_c='\c' ;;
 esac
 
-parse_arguments() {
+parse_server_arguments() {
   for arg do
     case "$arg" in
       --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+    esac
+  done
+}
+
+parse_manager_arguments() {
+  for arg do
+    case "$arg" in
       --pid-file=*) pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
@@ -125,20 +119,25 @@ then
   extra_args="-e $datadir/my.cnf"
 fi
 
-parse_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
+parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
+
+parse_manager_arguments `$print_defaults manager`
 
 #
 # Set pid file if not given
 #
 if test -z "$pid_file"
 then
-  pid_file=$datadir/`@HOSTNAME@`.pid
+  pid_file=$datadir/mysqlmanager-`@HOSTNAME@`.pid
 else
   case "$pid_file" in
     /* ) ;;
     * )  pid_file="$datadir/$pid_file" ;;
   esac
 fi
+
+user=@MYSQLD_USER@
+USER_OPTION="--user=$user"
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
@@ -147,18 +146,18 @@ case "$mode" in
   'start')
     # Start daemon
 
-    if test -x $bindir/mysqld_safe
+    if test -x $sbindir/mysqlmanager
     then
-      # Give extra arguments to mysqld with the my.cnf file. This script may
+      # Give extra arguments to mysqlmanager with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file >/dev/null 2>&1 &
+      $sbindir/mysqlmanager "--pid-file=$pid_file" $USER_OPTION --run-as-service >/dev/null 2>&1 &
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then
-        touch /var/lock/subsys/mysql
+        touch /var/lock/subsys/mysqlmanager
       fi
     else
-      echo "Can't execute $bindir/mysqld_safe from dir $basedir"
+      echo "Can't execute $sbindir/mysqlmanager from dir $basedir"
     fi
     ;;
 
@@ -167,15 +166,15 @@ case "$mode" in
     # root password.
     if test -s "$pid_file"
     then
-      mysqld_pid=`cat $pid_file`
-      echo "Killing mysqld with pid $mysqld_pid"
-      kill $mysqld_pid
-      # mysqld should remove the pid_file when it exits, so wait for it.
+      mysqlmanager_pid=`cat $pid_file`
+      echo "Killing mysqlmanager with pid $mysqlmanager_pid"
+      kill $mysqlmanager_pid
+      # mysqlmanager should remove the pid_file when it exits, so wait for it.
 
       sleep 1
       while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
       do
-	[ -z "$flags" ] && echo $echo_n "Wait for mysqld to exit$echo_c" || echo $echo_n ".$echo_c"
+	[ -z "$flags" ] && echo $echo_n "Wait for mysqlmanager to exit$echo_c" || echo $echo_n ".$echo_c"
         flags=a$flags
         sleep 1
       done
@@ -185,12 +184,12 @@ case "$mode" in
          then echo " done"
       fi
       # delete lock for RedHat / SuSE
-      if test -f /var/lock/subsys/mysql
+      if test -f /var/lock/subsys/mysqlmanager
       then
-        rm -f /var/lock/subsys/mysql
+        rm -f /var/lock/subsys/mysqlmanager
       fi
     else
-      echo "No mysqld pid file found. Looked for $pid_file."
+      echo "No mysqlmanager pid file found. Looked for $pid_file."
     fi
     ;;
 

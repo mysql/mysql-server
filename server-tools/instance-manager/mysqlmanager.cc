@@ -22,6 +22,8 @@
 #include <my_sys.h>
 #include <string.h>
 #include <signal.h>
+#include <pwd.h>
+#include <grp.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -54,6 +56,8 @@
 static void init_environment(char *progname);
 static void daemonize(const char *log_file_name);
 static void angel(const Options &options);
+static struct passwd *check_user(const char *user);
+static int set_user(const char *user, struct passwd *user_info);
 
 
 /*
@@ -68,7 +72,20 @@ int main(int argc, char *argv[])
 {
   init_environment(argv[0]);
   Options options;
-  options.load(argc, argv);
+  struct passwd *user_info;
+
+  if (options.load(argc, argv))
+    goto err;
+
+  if ((user_info= check_user(options.user)))
+  {
+      if (set_user(options.user, user_info))
+      {
+        options.cleanup();
+        return 1;
+      }
+  }
+
   if (options.run_as_service)
   {
     /* forks, and returns only in child */
@@ -77,10 +94,83 @@ int main(int argc, char *argv[])
     angel(options);
   }
   manager(options);
+  options.cleanup();
+  my_end(0);
   return 0;
+err:
+  my_end(0);
+  return 1;
 }
 
 /******************* Auxilary functions implementation **********************/
+
+/* Change to run as another user if started with --user */
+
+static struct passwd *check_user(const char *user)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  struct passwd *user_info;
+  uid_t user_id= geteuid();
+
+  /* Don't bother if we aren't superuser */
+  if (user_id)
+  {
+    if (user)
+    {
+      /* Don't give a warning, if real user is same as given with --user */
+      user_info= getpwnam(user);
+      if ((!user_info || user_id != user_info->pw_uid))
+        log_info("One can only use the --user switch if running as root\n");
+    }
+    return NULL;
+  }
+  if (!user)
+  {
+    log_info("You are running mysqlmanager as root! This might introduce security problems. It is safer to use --user option istead.\n");
+    return NULL;
+  }
+  if (!strcmp(user, "root"))
+    return NULL;                 /* Avoid problem with dynamic libraries */
+ if (!(user_info= getpwnam(user)))
+  {
+    /* Allow a numeric uid to be used */
+    const char *pos;
+    for (pos= user; my_isdigit(default_charset_info, *pos); pos++) ;
+    if (*pos)                                   /* Not numeric id */
+      goto err;
+    if (!(user_info= getpwuid(atoi(user))))
+      goto err;
+    else
+      return user_info;
+  }
+  else
+    return user_info;
+
+err:
+  log_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n", user);
+#endif
+  return NULL;
+}
+
+static int set_user(const char *user, struct passwd *user_info)
+{
+  DBUG_ASSERT(user_info);
+#ifdef HAVE_INITGROUPS
+  initgroups((char*) user,user_info->pw_gid);
+#endif
+  if (setgid(user_info->pw_gid) == -1)
+  {
+    log_error("setgid() failed");
+    return 1;
+  }
+  if (setuid(user_info->pw_uid) == -1)
+  {
+    log_error("setuid() failed");
+    return 1;
+  }
+  return 0;
+}
+
 
 
 /*

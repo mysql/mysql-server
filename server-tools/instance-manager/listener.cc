@@ -57,13 +57,11 @@ Listener_thread::Listener_thread(const Listener_thread_args &args) :
   ,total_connection_count(0)
   ,thread_info(pthread_self())
 {
-  thread_registry.register_thread(&thread_info);
 }
 
 
 Listener_thread::~Listener_thread()
 {
-  thread_registry.unregister_thread(&thread_info);
 }
 
 
@@ -82,6 +80,13 @@ void Listener_thread::run()
   enum { LISTEN_BACK_LOG_SIZE = 5 };            // standard backlog size
   int flags;
   int arg= 1;                             /* value to be set by setsockopt */
+  int unix_socket;
+  uint im_port;
+
+  thread_registry.register_thread(&thread_info);
+
+  my_thread_init();
+
   /* I. prepare 'listen' sockets */
 
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
@@ -89,8 +94,7 @@ void Listener_thread::run()
   {
     log_error("Listener_thead::run(): socket(AF_INET) failed, %s",
               strerror(errno));
-    thread_registry.request_shutdown();
-    return;
+    goto err;
   }
 
   struct sockaddr_in ip_socket_address;
@@ -104,7 +108,7 @@ void Listener_thread::run()
   }
   else
     im_bind_addr= htonl(INADDR_ANY);
-  uint im_port= options.port_number;
+  im_port= options.port_number;
 
   ip_socket_address.sin_family= AF_INET;
   ip_socket_address.sin_addr.s_addr = im_bind_addr;
@@ -119,16 +123,14 @@ void Listener_thread::run()
   {
     log_error("Listener_thread::run(): bind(ip socket) failed, '%s'",
               strerror(errno));
-    thread_registry.request_shutdown();
-    return;
+   goto err;
   }
 
   if (listen(ip_socket, LISTEN_BACK_LOG_SIZE))
   {
     log_error("Listener_thread::run(): listen(ip socket) failed, %s",
               strerror(errno));
-    thread_registry.request_shutdown();
-    return;
+    goto err;
   }
       /* set the socket nonblocking */
   flags= fcntl(ip_socket, F_GETFL, 0);
@@ -140,13 +142,12 @@ void Listener_thread::run()
   log_info("accepting connections on ip socket");
 
   /*--------------------------------------------------------------*/
-  int unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
+  unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
   if (unix_socket == INVALID_SOCKET)
   {
     log_error("Listener_thead::run(): socket(AF_UNIX) failed, %s",
               strerror(errno));
-    thread_registry.request_shutdown();
-    return;
+    goto err;
   }
 
   struct sockaddr_un unix_socket_address;
@@ -169,8 +170,7 @@ void Listener_thread::run()
       log_error("Listener_thread::run(): bind(unix socket) failed, "
                 "socket file name is '%s', error '%s'",
                 unix_socket_address.sun_path, strerror(errno));
-      thread_registry.request_shutdown();
-      return;
+      goto err;
     }
     umask(old_mask);
 
@@ -178,8 +178,7 @@ void Listener_thread::run()
     {
       log_error("Listener_thread::run(): listen(unix socket) failed, %s",
                 strerror(errno));
-      thread_registry.request_shutdown();
-      return;
+      goto err;
     }
 
       /* set the socket nonblocking */
@@ -205,7 +204,15 @@ void Listener_thread::run()
     while (thread_registry.is_shutdown() == false)
     {
       fd_set read_fds_arg= read_fds;
+
+      /*
+        When using valgrind 2.0 this syscall doesn't get kicked off by a
+        signal during shutdown. This results in failing assert
+        (Thread_registry::~Thread_registry). Valgrind 2.2 works fine.
+      */
       int rc= select(n, &read_fds_arg, 0, 0, 0);
+
+
       if (rc == -1 && errno != EINTR)
         log_error("Listener_thread::run(): select() failed, %s",
                   strerror(errno));
@@ -256,6 +263,16 @@ void Listener_thread::run()
   close(unix_socket);
   close(ip_socket);
   unlink(unix_socket_address.sun_path);
+
+  thread_registry.unregister_thread(&thread_info);
+  my_thread_end();
+  return;
+
+err:
+  thread_registry.unregister_thread(&thread_info);
+  thread_registry.request_shutdown();
+  my_thread_end();
+  return;
 }
 
 
