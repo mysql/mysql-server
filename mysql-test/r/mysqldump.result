@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, `"t"1`;
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
 <?xml version="1.0"?>
@@ -18,21 +18,22 @@ INSERT INTO t1 VALUES (1), (2);
 </database>
 </mysqldump>
 DROP TABLE t1;
-CREATE TABLE `t"1` (`a"b"c"` char(2));
-INSERT INTO `t"1` VALUES ("\"1"), ("2\"");
+CREATE TABLE `"t"1` (`a"b"` char(2));
+INSERT INTO `"t"1` VALUES ("1\""), ("\"2");
 <?xml version="1.0"?>
 <mysqldump>
 <database name="test">
-	<table_structure name="t&quot;1">
-		<field Field="a&quot;b&quot;c&quot;" Type="char(2)" Null="YES" />
+	<table_structure name="&quot;t&quot;1">
+		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" />
 	</table_structure>
-	<table_data name="t&quot;1">
+	<table_data name="&quot;t&quot;1">
 	<row>
-		<field name="a&quot;b&quot;c&quot;">&quot;1</field>
+		<field name="a&quot;b&quot;">1&quot;</field>
 	</row>
 	<row>
-		<field name="a&quot;b&quot;c&quot;">2&quot;</field>
+		<field name="a&quot;b&quot;">&quot;2</field>
 	</row>
 	</table_data>
 </database>
 </mysqldump>
+DROP TABLE `"t"1`;
