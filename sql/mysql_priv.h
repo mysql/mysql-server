@@ -500,7 +500,6 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 select_result *result, SELECT_LEX_UNIT *unit, 
 		 SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
-void fix_tables_pointers(SELECT_LEX *select_lex);
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 			select_result *result);
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
