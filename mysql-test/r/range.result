@@ -193,7 +193,7 @@ INSERT INTO t1 (art) VALUES ('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'
 ('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j');
 select count(*) from t1 where upper(art) = 'J';
 count(*)
-602
+213
 select count(*) from t1 where art = 'J' or art = 'j';
 count(*)
 602

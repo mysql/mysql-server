@@ -247,3 +247,5 @@
 "Key reference and table reference doesn't match",
 "Пiдзапит поверта╓ бiльш нiж 1 стовбець",
 "Пiдзапит поверта╓ бiльш нiж 1 запис",
+"Unknown prepared statement handler (%ld) given to %s",
+"Help database is corrupt or does not exist",

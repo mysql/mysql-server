@@ -1486,6 +1486,10 @@ mysql_execute_command(THD *thd)
     send_ok(thd);
     break;
 
+  case SQLCOM_HELP:
+    res= mysqld_help(thd,lex->help_arg);
+    break;
+
   case SQLCOM_PURGE:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -2904,7 +2908,6 @@ mysql_init_query(THD *thd)
   thd->select_number= thd->lex.select_lex.select_number= 1;
   thd->lex.value_list.empty();
   thd->free_list= 0;
-  thd->lex.union_option= 0;
   thd->lex.select= &thd->lex.select_lex;
   thd->lex.olap=thd->lex.describe=0;
   thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;

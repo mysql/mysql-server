@@ -245,3 +245,5 @@
 "Key reference and table reference doesn't match",
 "Подзапрос возвращает более одного поля",
 "Подзапрос возвращает более одной записи",
+"Unknown prepared statement handler (%ld) given to %s",
+"Help database is corrupt or does not exist",

@@ -107,6 +107,7 @@ void start_embedded_conn1(NET * net)
   thd->command=COM_SLEEP;
   thd->version=refresh_version;
   thd->set_time();
+  bzero(thd->scramble, sizeof(thd->scramble));
   init_sql_alloc(&thd->mem_root,8192,8192);
 
   check_connections1(thd);

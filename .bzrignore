@@ -505,3 +505,11 @@ vio/test-sslserver
 vio/viotest-ssl
 sql_error.cc
 sql_prepare.cc
+autom4te.cache/*
+innobase/autom4te.cache/*
+configure.lineno
+innobase/configure.lineno
+innobase/stamp-h1
+myisam/rt_test.MYD
+myisam/rt_test.MYI
+stamp-h1

@@ -290,7 +290,7 @@ class store_key :public Sql_alloc
     if (field_arg->type() == FIELD_TYPE_BLOB)
       to_field=new Field_varstring(ptr, length, (uchar*) null, 1, 
 				   Field::NONE, field_arg->field_name,
-				   field_arg->table, field_arg->binary(), default_charset_info);
+				   field_arg->table, field_arg->charset());
     else
     {
       to_field=field_arg->new_field(&thd->mem_root,field_arg->table);
