@@ -57,7 +57,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "que0que.h"
 
-
 /* Log sequence number immediately after startup */
 dulint		srv_start_lsn;
 /* Log sequence number at shutdown */
@@ -1009,6 +1008,14 @@ innobase_start_or_create_for_mysql(void)
 	ulint	i;
 	ibool	srv_file_per_table_original_value  = srv_file_per_table;
 	mtr_t   mtr;
+
+	if (sizeof(ulint) != sizeof(void*)) {
+		fprintf(stderr,
+"InnoDB: Error: size of InnoDB's ulint is %lu, but size of void* is %lu.\n"
+"InnoDB: The sizes should be the same so that on a 64-bit platform you can\n"
+"InnoDB: allocate more than 4 GB of memory.",
+			(ulong)sizeof(ulint), (ulong)sizeof(void*));
+	}
 
 	srv_file_per_table = FALSE; /* system tables are created in tablespace
 									0 */

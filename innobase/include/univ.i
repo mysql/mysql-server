@@ -67,16 +67,6 @@ Microsoft Visual C++ */
 
 #endif /* #if (defined(WIN32) || ... */
 
-#ifdef NOT_USED
-/* On the 64-bit Windows we replace printf with ut_printf, etc. so that
-we can use the %lu format string to print a 64-bit ulint */
-#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
-#define printf 		ut_printf
-#define sprintf 	ut_sprintf
-#define fprintf		ut_fprintf
-#endif
-#endif
-
 /*			DEBUG VERSION CONTROL
 			===================== */
 
@@ -185,27 +175,37 @@ management to ensure correct alignment for doubles etc. */
 */
 
 /* Note that inside MySQL 'byte' is defined as char on Linux! */
-#define byte	unsigned char
+#define byte			unsigned char
 
-/* Another basic type we use is unsigned long integer which is intended to be
-equal to the word size of the machine. */
+/* Another basic type we use is unsigned long integer which should be equal to
+the word size of the machine, that is on a 32-bit platform 32 bits, and on a
+64-bit platform 64 bits. We also give the printf format for the type as a
+macro PRULINT. */
 
 #ifdef _WIN64
 typedef unsigned __int64	ulint;
+#define ULINTPF			"%I64u"
+typedef __int64			lint;
 #else
 typedef unsigned long int	ulint;
+#define ULINTPF			"%lu"
+typedef long int		lint;
 #endif
 
-typedef long int		lint;
-
 #ifdef __WIN__
-typedef __int64       ib_longlong;
+typedef __int64			ib_longlong;
 #else
-typedef longlong ib_longlong;
+typedef longlong		ib_longlong;
+#endif
+
+#ifndef __WIN__
+#if SIZEOF_LONG != SIZEOF_VOIDP
+#error "Error: InnoDB's ulint must be of the same size as void*"
+#endif
 #endif
 
 /* The following type should be at least a 64-bit floating point number */
-typedef double		utfloat;
+typedef double			utfloat;
 
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
@@ -218,7 +218,7 @@ typedef double		utfloat;
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
-#define ibool	ulint
+#define ibool			ulint
 
 #ifndef TRUE
 
