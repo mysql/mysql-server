@@ -225,6 +225,16 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("parameter", String, Mandatory, "Parameter"),
     MGM_ARG("value", String, Mandatory, "Value"),
 
+  MGM_CMD("config lock", &MgmApiSession::configLock, ""),
+
+  MGM_CMD("config unlock", &MgmApiSession::configUnlock, ""),
+    MGM_ARG("commit", Int, Mandatory, "Commit changes"),
+
+  MGM_CMD("set parameter", &MgmApiSession::setParameter, ""),
+    MGM_ARG("node", String, Mandatory, "Node"),
+    MGM_ARG("parameter", String, Mandatory, "Parameter"),
+    MGM_ARG("value", String, Mandatory, "Value"),
+  
   MGM_END()
 };
 
@@ -1249,5 +1259,24 @@ MgmStatService::stopSessions(){
     NDB_CLOSE_SOCKET(m_sockets[i]);
     m_sockets.erase(i);
   }
+}
+
+void
+MgmApiSession::setParameter(Parser_t::Context &,
+			    Properties const &args) {
+  BaseString node, param, value;
+  args.get("node", node);
+  args.get("parameter", param);
+  args.get("value", value);
   
+  BaseString result;
+  int ret = m_mgmsrv.setDbParameter(atoi(node.c_str()), 
+				    atoi(param.c_str()),
+				    value.c_str(),
+				    result);
+  
+  m_output->println("set parameter reply");
+  m_output->println("message: %s", result.c_str());
+  m_output->println("result: %d", ret);
+  m_output->println("");
 }
