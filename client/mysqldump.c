@@ -254,7 +254,7 @@ static struct my_option my_long_options[] =
    "any action on logs will happen at the exact moment of the dump."
    "Option automatically turns --lock-tables off.",
    (gptr*) &opt_master_data, (gptr*) &opt_master_data, 0,
-   GET_UINT, REQUIRED_ARG, 0, 0, MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, 0, 0, 0},
+   GET_UINT, OPT_ARG, 0, 0, MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, 0, 0, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
     (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
     GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
@@ -548,6 +548,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
+  case (int) OPT_MASTER_DATA:
+    if (!argument) /* work like in old versions */
+      opt_master_data= MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL;
+    break;
   case (int) OPT_OPTIMIZE:
     extended_insert= opt_drop= opt_lock= quick= create_options=
       opt_disable_keys= lock_tables= opt_set_charset= 1;
@@ -1680,7 +1684,7 @@ static void dumpTable(uint numFields, char *table)
 	      else if (opt_hex_blob && is_blob)
               {
                 /* sakaik got the idea to to provide blob's in hex notation. */
-                unsigned char *ptr= row[i], *end= ptr+ lengths[i];
+                char *ptr= row[i], *end= ptr+ lengths[i];
                 fputs("0x", md_result_file);
                 for (; ptr < end ; ptr++)
                   fprintf(md_result_file, "%02X", *ptr);
@@ -2046,8 +2050,18 @@ static int do_show_master_status(MYSQL *mysql_con)
 
 static int do_flush_tables_read_lock(MYSQL *mysql_con)
 {
+  /*
+    We do first a FLUSH TABLES. If a long update is running, the FLUSH TABLES
+    will wait but will not stall the whole mysqld, and when the long update is
+    done the FLUSH TABLES WITH READ LOCK will start and succeed quickly. So,
+    FLUSH TABLES is to lower the probability of a stage where both mysqldump
+    and most client connections are stalled. Of course, if a second long
+    update starts between the two FLUSHes, we have that bad stall.
+  */
   return 
-    mysql_query_with_error_report(mysql_con, 0, "FLUSH TABLES WITH READ LOCK");
+    ( mysql_query_with_error_report(mysql_con, 0, "FLUSH TABLES") ||
+      mysql_query_with_error_report(mysql_con, 0,
+                                    "FLUSH TABLES WITH READ LOCK") );
 }
 
 
@@ -2232,7 +2246,7 @@ int main(int argc, char **argv)
   }
   if (opt_master_data && do_show_master_status(sock))
     goto err;
-  if (opt_single_transaction && do_unlock_tables(sock)) // unlock but no commit!
+  if (opt_single_transaction && do_unlock_tables(sock)) /* unlock but no commit! */
     goto err;
 
   if (opt_alldbs)
