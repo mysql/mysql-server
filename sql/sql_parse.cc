@@ -1203,7 +1203,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  thd->lex.select_lex.options=0;		// We store status here
+  thd->server_status&=
+           ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1635,8 +1636,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if ((ulong) (thd->start_time - thd->time_after_lock) >
 	thd->variables.long_query_time ||
-	((thd->lex.select_lex.options &
-	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
+	((thd->server_status &
+	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
     {
       long_query_count++;
@@ -3730,6 +3731,7 @@ mysql_init_query(THD *thd)
   lex->select_lex.prev= &lex->unit.slave;
   lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
+  lex->select_lex.options=0;
   lex->describe= 0;
   lex->derived_tables= FALSE;
   lex->lock_option= TL_READ;

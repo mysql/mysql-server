@@ -419,9 +419,6 @@ drop table t1;
 #
 # conversion memory->disk table
 #
-#
-# conversion memory->disk table
-#
 create table t1 (s char(200));
 insert into t1 values (repeat("1",200));
 create table t2 select * from t1;
@@ -436,3 +433,26 @@ select count(*) from t1;
 select count(*) from t2;
 drop table t1,t2;
 set local tmp_table_size=default;
+
+#
+# slow logging
+#
+create table t1 (a int, index (a), b int);
+insert t1 values (1,1),(2,2),(3,3),(4,4),(5,5);
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+FLUSH STATUS;
+show status like 'Slow_queries';
+select count(*) from t1 where a=7;
+show status like 'Slow_queries';
+select count(*) from t1 where b=13;
+show status like 'Slow_queries';
+select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
+show status like 'Slow_queries';
+select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
+show status like 'Slow_queries';
+drop table t1;
+
