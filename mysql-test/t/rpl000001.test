@@ -59,6 +59,7 @@ connection slave;
 sync_with_master ;
 #give the slave a chance to exit
 sleep 0.5;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 set sql_slave_skip_counter=1;
 slave start;

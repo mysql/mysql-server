@@ -24,7 +24,7 @@
 void init_alloc_root(MEM_ROOT *mem_root, uint block_size, uint pre_alloc_size)
 {
   mem_root->free=mem_root->used=0;
-  mem_root->min_malloc=16;
+  mem_root->min_malloc=32;
   mem_root->block_size=block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
   mem_root->error_handler=0;
 #if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
