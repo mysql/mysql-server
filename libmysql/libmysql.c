@@ -1752,6 +1752,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 */
 #define MAX_DATETIME_REP_LENGTH 12
 
+#define MAX_DOUBLE_STRING_REP_LENGTH 331
 
 /**************** Misc utility functions ****************************/
 
@@ -3265,7 +3266,12 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
     tm->second= (uint) to[7];
     tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
     tm->year= tm->month= 0;
-
+    if (tm->day)
+    {
+      /* Convert days to hours at once */
+      tm->hour+= tm->day*24;
+      tm->day= 0;
+    }
     *pos+= length;
   }
   else
@@ -3558,7 +3564,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       floating point -> string conversion nicely, honor all typecodes
       and param->offset possibly set in mysql_stmt_fetch_column
     */
-    char buff[331];
+    char buff[MAX_DOUBLE_STRING_REP_LENGTH];
     char *end;
     /* TODO: move this to a header shared between client and server. */
 #define NOT_FIXED_DEC  31
@@ -3992,32 +3998,43 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     switch (field->type) {
     case MYSQL_TYPE_NULL: /* for dummy binds */
       param->pack_length= 0;
+      field->max_length= 0;
       break;
     case MYSQL_TYPE_TINY:
       param->pack_length= 1;
+      field->max_length= 4;                     /* as in '-127' */
       break;
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_SHORT:
       param->pack_length= 2;
+      field->max_length= 6;                     /* as in '-32767' */
       break;
     case MYSQL_TYPE_INT24:
+      field->max_length= 9;  /* as in '16777216' or in '-8388607' */
+      param->pack_length= 4;
+      break;
     case MYSQL_TYPE_LONG:
+      field->max_length= 11;                    /* '-2147483647' */
       param->pack_length= 4;
       break;
     case MYSQL_TYPE_LONGLONG:
+      field->max_length= 21;                    /* '18446744073709551616' */
       param->pack_length= 8;
       break;
     case MYSQL_TYPE_FLOAT:
       param->pack_length= 4;
+      field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
       break;
     case MYSQL_TYPE_DOUBLE:
       param->pack_length= 8;
+      field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
       break;
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       param->skip_result= skip_result_with_length;
+      field->max_length= MAX_DATE_STRING_REP_LENGTH;
       break;
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_ENUM:
