@@ -92,8 +92,8 @@ public:
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
-  bool save_args_for_prepared_statements(THD *);
-  bool save_args(Statement* stmt);
+  bool save_args_for_prepared_statement(THD *);
+  bool save_args(Item_arena *arena);
 
   bool walk (Item_processor processor, byte *argument);
 };
