@@ -3127,7 +3127,7 @@ pkinsert(Par par)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 pkupdate(Par par)
@@ -3183,7 +3183,7 @@ pkupdate(Par par)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 pkdelete(Par par)
@@ -3235,7 +3235,7 @@ pkdelete(Par par)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 pkread(Par par)
@@ -3349,7 +3349,7 @@ hashindexupdate(Par par, const ITab& itab)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 hashindexdelete(Par par, const ITab& itab)
@@ -3400,7 +3400,7 @@ hashindexdelete(Par par, const ITab& itab)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 hashindexread(Par par, const ITab& itab)

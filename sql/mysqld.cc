@@ -147,6 +147,10 @@ int deny_severity = LOG_WARNING;
 #include <sys/mman.h>
 #endif
 
+#define zVOLSTATE_ACTIVE 6
+#define zVOLSTATE_DEACTIVE 2
+#define zVOLSTATE_MAINTENANCE 3
+
 #ifdef __NETWARE__
 #include <nks/vm.h>
 #include <library.h>
@@ -1683,7 +1687,9 @@ ulong neb_event_callback(struct EventBlock *eblock)
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
-  if ((voldata->oldState == 6 && voldata->newState == 2))
+  if ((voldata->oldState == zVOLSTATE_ACTIVE &&
+       voldata->newState == zVOLSTATE_DEACTIVE ||
+       voldata->newState == zVOLSTATE_MAINTENANCE))
   {
     /*
       Ensure that we bring down MySQL server only for MySQL data
@@ -4201,6 +4207,9 @@ enum options_mysqld
   OPT_INNODB_TABLE_LOCKS,
   OPT_INNODB_OPEN_FILES,
   OPT_INNODB_AUTOEXTEND_INCREMENT,
+  OPT_INNODB_SYNC_SPIN_LOOPS,
+  OPT_INNODB_CONCURRENCY_TICKETS,
+  OPT_INNODB_THREAD_SLEEP_DELAY,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -4415,6 +4424,9 @@ Disable with --skip-large-pages.",
 Disable with --skip-innodb (will save memory).",
    (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, OPT_INNODB_DEFAULT, 0, 0,
    0, 0, 0},
+  {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
+Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
+   (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
    "Path to individual files and their sizes.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -4426,9 +4438,6 @@ Disable with --skip-innodb (will save memory).",
   {"innodb_doublewrite", OPT_INNODB_DOUBLEWRITE, "Enable InnoDB doublewrite buffer (enabled by default). \
 Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_use_doublewrite, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
-Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
-   (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process.", (gptr*) &innobase_fast_shutdown,
    (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
@@ -5013,6 +5022,12 @@ log and this option does nothing anymore.",
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
    GET_LONG, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, ~0L, 0, 1024*1024L, 0},
+  {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
+   "Number of times a thread is allowed to enter InnoDB within the same \
+    SQL query after it has once got the ticket",
+   (gptr*) &srv_n_free_tickets_to_enter,
+   (gptr*) &srv_n_free_tickets_to_enter,
+   0, GET_LONG, REQUIRED_ARG, 500L, 1L, ~0L, 0, 1L, 0},
   {"innodb_file_io_threads", OPT_INNODB_FILE_IO_THREADS,
    "Number of file I/O threads in InnoDB.", (gptr*) &innobase_file_io_threads,
    (gptr*) &innobase_file_io_threads, 0, GET_LONG, REQUIRED_ARG, 4, 4, 64, 0,
@@ -5066,10 +5081,21 @@ log and this option does nothing anymore.",
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif
 #endif
+  {"innodb_sync_spin_loops", OPT_INNODB_SYNC_SPIN_LOOPS,
+   "Count of spin-loop rounds in InnoDB mutexes",
+   (gptr*) &srv_n_spin_wait_rounds,
+   (gptr*) &srv_n_spin_wait_rounds,
+   0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
-   (gptr*) &innobase_thread_concurrency, (gptr*) &innobase_thread_concurrency,
+   (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
    0, GET_LONG, REQUIRED_ARG, 8, 1, 1000, 0, 1, 0},
+  {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
+   "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
+    " disable a sleep",
+   (gptr*) &srv_thread_sleep_delay,
+   (gptr*) &srv_thread_sleep_delay,
+   0, GET_LONG, REQUIRED_ARG, 10000L, 0L, ~0L, 0, 1L, 0},
 #endif /* HAVE_INNOBASE_DB */
   {"interactive_timeout", OPT_INTERACTIVE_TIMEOUT,
    "The number of seconds the server waits for activity on an interactive connection before closing it.",
@@ -5589,6 +5615,9 @@ struct show_var_st status_vars[]= {
    SHOW_KEY_CACHE_LONG},
   {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},
+#endif /*HAVE_NDBCLUSTER_DB*/
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},

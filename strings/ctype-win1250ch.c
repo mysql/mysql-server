@@ -505,7 +505,9 @@ static int my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
       dest[totlen] = value;
     totlen++;
   } while (value) ;
-  return totlen;
+  if (len > totlen)
+    bfill(dest + totlen, len - totlen, ' ');
+  return len;
 }
 
 #undef IS_END
