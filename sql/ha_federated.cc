@@ -123,8 +123,8 @@
     ha_federated::write_row
 
     <for every field/column>
-    ha_federated::quote_data
-    ha_federated::quote_data
+    Field::quote_data
+    Field::quote_data
     </for every field/column>
 
     ha_federated::reset
@@ -136,18 +136,18 @@
     ha_federated::index_init
     ha_federated::index_read
     ha_federated::index_read_idx
-    ha_federated::quote_data
+    Field::quote_data
     ha_federated::rnd_next
     ha_federated::convert_row_to_internal_format
     ha_federated::update_row
     
     <quote 3 cols, new and old data>
-    <ha_federated::quote_data
-    <ha_federated::quote_data
-    <ha_federated::quote_data
-    <ha_federated::quote_data
-    <ha_federated::quote_data
-    <ha_federated::quote_data
+    Field::quote_data
+    Field::quote_data
+    Field::quote_data
+    Field::quote_data
+    Field::quote_data
+    Field::quote_data
     </quote 3 cols, new and old data>
     
     ha_federated::extra
@@ -595,11 +595,15 @@ bool ha_federated::create_where_from_key(
 {
   uint second_loop= 0;
   KEY_PART_INFO *key_part;
+  bool needs_quotes;
 
   DBUG_ENTER("ha_federated::create_where_from_key");
   for (key_part= key_info->key_part ; (int) key_length > 0 ; key_part++)
   {
     Field *field= key_part->field;
+    needs_quotes= field->needs_quotes();
+    //bool needs_quotes= type_quote(field->type());
+    DBUG_PRINT("ha_federated::create_where_from_key", ("key name %s type %d", field->field_name, field->type()));
     uint length= key_part->length;
 
     if (second_loop++ && to->append(" AND ",5))
@@ -613,6 +617,7 @@ bool ha_federated::create_where_from_key(
       if (*key++)
       {
         if (to->append("IS NULL",7))
+          DBUG_PRINT("ha_federated::create_where_from_key", ("NULL type %s", to->c_ptr_quick()));
           DBUG_RETURN(1);
         key_length-= key_part->store_length;
         key+= key_part->store_length-1;
@@ -620,14 +625,16 @@ bool ha_federated::create_where_from_key(
       }
       key_length--;
     }
-    if (to->append('='))
+    if (to->append("= "))
+      DBUG_RETURN(1);
+    if (needs_quotes && to->append("'"))
       DBUG_RETURN(1);
     if (key_part->type == HA_KEYTYPE_BIT)
     {
       /* This is can be threated as a hex string */
       Field_bit *field= (Field_bit *) (key_part->field);
       char buff[64+2], *ptr;
-      byte *end= key + length;
+      byte *end= (byte *)(key) + length;
 
       buff[0]='0';
       buff[1]='x';
@@ -639,6 +646,8 @@ bool ha_federated::create_where_from_key(
       }
       if (to->append(buff, (uint) (ptr-buff)))
         DBUG_RETURN(1);
+
+      DBUG_PRINT("ha_federated::create_where_from_key", ("bit type %s", to->c_ptr_quick()));
       key_length-= length;
       continue;
     }
@@ -647,165 +656,46 @@ bool ha_federated::create_where_from_key(
       uint blob_length= uint2korr(key);
       key+= HA_KEY_BLOB_LENGTH;
       key_length-= HA_KEY_BLOB_LENGTH;
-      if (append_escaped(to, key, blob_length))
+      if (append_escaped(to, (char *)(key), blob_length))
         DBUG_RETURN(1);
+
+      DBUG_PRINT("ha_federated::create_where_from_key", ("blob type %s", to->c_ptr_quick()));
       length= key_part->length;
     }
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
-      key_length-= HA_KEY_BLOB_LENGTH;
-      length= key_part->length;
+      length= uint2korr(key);
       key+= HA_KEY_BLOB_LENGTH;
-      if (append_escaped(to, key, length))
+      if (append_escaped(to, (char *)(key), length))
         DBUG_RETURN(1);
+
+      DBUG_PRINT("ha_federated::create_where_from_key", ("varchar type %s", to->c_ptr_quick()));
     }
     else
     {
-      //bool need_quotes= field->needs_quotes();
-      bool needs_quotes= type_quote(field->type());
+      DBUG_PRINT("ha_federated::create_where_from_key", ("else block, unknown type so far"));
       char buff[MAX_FIELD_WIDTH];
       String str(buff, sizeof(buff), field->charset()), *res;
 
-      if (needs_quotes && to->append('='))
-        DBUG_RETURN(1);
       res= field->val_str(&str, (char *)(key));
       if (field->result_type() == STRING_RESULT)
       {
-        if (append_escaped(to, res->ptr(), res->length()))
+        if (append_escaped(to, (char *) res->ptr(), res->length()))
           DBUG_RETURN(1);
+        res= field->val_str(&str, (char *)(key));
+
+        DBUG_PRINT("ha_federated::create_where_from_key", ("else block, string type", to->c_ptr_quick()));
       }
       else if (to->append(res->ptr(), res->length()))
         DBUG_RETURN(1);
-      if (needs_quotes && to->append('='))
-        DBUG_RETURN(1);
     }
+    if (needs_quotes && to->append("'"))
+      DBUG_RETURN(1);
+    DBUG_PRINT("ha_federated::create_where_from_key", ("final value for 'to' %s", to->c_ptr_quick()));
     key+= length;
     key_length-= length;
-  }
-}
-/* 
-  SYNOPSIS
-    quote_data()
-     unquoted_string    Pointer pointing to the value of a field
-     field              MySQL Field pointer to field being checked for type
-
-  DESCRIPTION
-    Simple method that passes the field type to the method "type_quote"
-    To get a true/false value as to whether the value in string1 needs 
-    to be enclosed with quotes. This ensures that values in the final 
-    sql statement to be passed to the remote server will be quoted properly
-
-  RETURN_VALUE
-    void      Immediately - if string doesn't need quote
-    void      Upon prepending/appending quotes on each side of variable
-
-*/
-void ha_federated::quote_data(String *unquoted_string, Field *field )
-{
-  char escaped_string[IO_SIZE];
-  char *unquoted_string_buffer;
-  
-  unquoted_string_buffer= unquoted_string->c_ptr_quick();
-
-  int quote_flag;
-  DBUG_ENTER("ha_federated::quote_data");
-  DBUG_PRINT("ha_federated::quote_data",
-    ("unescaped %s", unquoted_string->c_ptr_quick()));
-  // this is the same call that mysql_real_escape_string() calls
-  escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
-    unquoted_string->c_ptr_quick(), unquoted_string->length());
-
-  DBUG_PRINT("ha_federated::quote_data",("escaped %s",escaped_string));
-
-  if (field->is_null())
-  {
-    DBUG_PRINT("ha_federated::quote_data",
-      ("NULL, no quoted needed for unquoted_string %s, returning.",
-      unquoted_string->c_ptr_quick()));
-    DBUG_VOID_RETURN;
-  }
-
-  quote_flag= type_quote(field->type());
-
-  DBUG_PRINT("ha_federated::quote_data",
-      ("quote flag %d type %d", quote_flag, field->type()));
-
-  if (quote_flag == 0)
-  {
-    DBUG_PRINT("ha_federated::quote_data",
-      ("quote flag 0 no quoted needed for unquoted_string %s, returning.",
-      unquoted_string->c_ptr_quick()));
-    DBUG_VOID_RETURN;
-  }
-  else
-  {
-    // reset string, then re-append with quotes and escaped values
-    unquoted_string->length(0);
-    unquoted_string->append("'");
-    unquoted_string->append((char *)escaped_string);
-    unquoted_string->append("'");
-  }
-  DBUG_PRINT("ha_federated::quote_data",
-    ("FINAL quote_flag %d unquoted_string %s escaped_string %s", 
-    quote_flag, unquoted_string->c_ptr_quick(), escaped_string));
-  DBUG_VOID_RETURN;
-}
-
-/*
-  Quote a field type if needed
-
-  SYNOPSIS
-    ha_federated::type_quote
-      int field     Enumerated field type number
-
-  DESCRIPTION 
-    Simple method to give true/false whether a field should be quoted. 
-    Used when constructing INSERT and UPDATE queries to the remote server
-    see write_row and update_row
-
-   RETURN VALUE
-      0   if value is of type NOT needing quotes
-      1   if value is of type needing quotes
-*/
-uint ha_federated::type_quote(int type) 
-{
-  DBUG_ENTER("ha_federated::type_quote");
-  DBUG_PRINT("ha_federated::type_quote", ("field type %d", type));
-
-  switch(type) {
-    //FIX this is a bug, fix when kernel is fixed
-  case MYSQL_TYPE_VARCHAR :
-  case FIELD_TYPE_STRING :
-  case FIELD_TYPE_VAR_STRING :
-  case FIELD_TYPE_YEAR :
-  case FIELD_TYPE_NEWDATE :
-  case FIELD_TYPE_TIME :
-  case FIELD_TYPE_TIMESTAMP :
-  case FIELD_TYPE_DATE :
-  case FIELD_TYPE_DATETIME :
-  case FIELD_TYPE_TINY_BLOB :
-  case FIELD_TYPE_BLOB :
-  case FIELD_TYPE_MEDIUM_BLOB :
-  case FIELD_TYPE_LONG_BLOB :
-  case FIELD_TYPE_GEOMETRY :
-    DBUG_RETURN(1);
-
-  case FIELD_TYPE_DECIMAL : 
-  case FIELD_TYPE_TINY :
-  case FIELD_TYPE_SHORT :
-  case FIELD_TYPE_INT24 :
-  case FIELD_TYPE_LONG :
-  case FIELD_TYPE_FLOAT :
-  case FIELD_TYPE_DOUBLE :
-  case FIELD_TYPE_LONGLONG :
-  case FIELD_TYPE_NULL :
-  case FIELD_TYPE_SET :
-  case FIELD_TYPE_ENUM : 
     DBUG_RETURN(0);
-
-  default: DBUG_RETURN(0);
   }
-  DBUG_RETURN(0);
 }
 
 int load_conn_info(FEDERATED_SHARE *share, TABLE *table)
@@ -1159,7 +1049,8 @@ int ha_federated::write_row(byte * buf)
       insert_string.append((*field)->field_name);
 
       // quote these fields if they require it
-      quote_data(&insert_field_value_string, *field);
+
+      (*field)->quote_data(&insert_field_value_string);
       // append the value
       values_string.append(insert_field_value_string);
       insert_field_value_string.length(0);
@@ -1305,7 +1196,7 @@ int ha_federated::update_row(
     {
       // otherwise =
       (*field)->val_str(&new_field_value);
-      quote_data(&new_field_value, *field);
+      (*field)->quote_data(&new_field_value);
 
       if ( has_a_primary_key )
       {
@@ -1323,7 +1214,7 @@ int ha_federated::update_row(
       {
         (*field)->val_str(&old_field_value,
                           (char *)(old_data + (*field)->offset()));
-        quote_data(&old_field_value, *field);
+        (*field)->quote_data(&old_field_value);
         where_string.append(old_field_value);
       }
     }
@@ -1335,7 +1226,7 @@ int ha_federated::update_row(
         {
           (*field)->val_str(&old_field_value,
                             (char *)(old_data + (*field)->offset()));
-          quote_data(&old_field_value, *field);
+          (*field)->quote_data(&old_field_value);
           where_string.append(old_field_value);
         }
     }
@@ -1412,7 +1303,7 @@ int ha_federated::delete_row(const byte * buf)
     {
       delete_string.append("=");
       (*field)->val_str(&data_string);
-      quote_data(&data_string, *field);
+      (*field)->quote_data(&data_string);
     }
   
     delete_string.append(data_string);
@@ -1469,13 +1360,10 @@ int ha_federated::index_read_idx(byte * buf, uint index, const byte * key,
   char key_value[IO_SIZE];
   char test_value[IO_SIZE];
   String index_string(index_value, sizeof(index_value), &my_charset_bin);
-  String test_string(test_value, sizeof(test_value), &my_charset_bin);
   index_string.length(0);
-  test_string.length(0);
   uint keylen;
 
   char sql_query_buffer[IO_SIZE];
-  String tmp_string;
   String sql_query(sql_query_buffer, sizeof(sql_query_buffer), &my_charset_bin);
   sql_query.length(0);
 
@@ -1484,33 +1372,14 @@ int ha_federated::index_read_idx(byte * buf, uint index, const byte * key,
 
   sql_query.append(share->select_query);
   sql_query.append(" WHERE ");
-  sql_query.append(table->key_info[index].key_part->field->field_name);
-  sql_query.append(" = ");
 
-  if (table->key_info[index].key_part->field->type() == MYSQL_TYPE_VARCHAR) 
-  {
-    //keylen= uint2korr(key);
-    keylen= key[0];
-    create_where_from_key(&tmp_string, &table->key_info[index], key, keylen);
-    memcpy(key_value, key + HA_KEY_BLOB_LENGTH, keylen);
-    key_value[keylen]= 0;
-    DBUG_PRINT("ha_federated::index_read_idx",
-      ("key_value %s len %d", key_value, keylen));
-    index_string.append(key_value);
-  }
-  else
-  {
-    //table->key_info[index].key_part->field->val_str(&index_string, (char
-    //*)(key));
-    index_string.append((char *)(key));
-  }
+  keylen= strlen((char *)(key));
+  create_where_from_key(&index_string, &table->key_info[index], key, keylen);
+  sql_query.append(index_string);
+
   DBUG_PRINT("ha_federated::index_read_idx",
     ("current key %d key value %s index_string value %s length %d", index, (char *)(key),index_string.c_ptr_quick(),
      index_string.length()));
-
-  //table->key_info[index].key_part->field->val_str(&index_string);
-  quote_data(&index_string, table->key_info[index].key_part->field);
-  sql_query.append(index_string);
 
   DBUG_PRINT("ha_federated::index_read_idx",
     ("current position %d sql_query %s", current_position, 
