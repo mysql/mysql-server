@@ -468,6 +468,7 @@ Query_cache query_cache;
 #ifdef HAVE_SMEM
 char *shared_memory_base_name= default_shared_memory_base_name;
 bool opt_enable_shared_memory;
+HANDLE smem_event_connect_request= 0;
 #endif
 
 #include "sslopt-vars.h"
@@ -743,6 +744,15 @@ void kill_mysql(void)
       CloseHandle(hEvent);
     */
   }
+#ifdef HAVE_SMEM
+    /*
+     Send event to smem_event_connect_request for aborting
+    */
+    if (!SetEvent(smem_event_connect_request))
+    {
+      DBUG_PRINT("error",("Got error: %ld from SetEvent of smem_event_connect_request",GetLastError()));
+    }
+#endif  
 #endif
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
@@ -3705,7 +3715,6 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   /* file-mapping object, use for create shared memory */
   HANDLE handle_connect_file_map= 0;
   char  *handle_connect_map= 0;  		// pointer on shared memory
-  HANDLE event_connect_request= 0;		// for start connection actions
   HANDLE event_connect_answer= 0;
   ulong smem_buffer_length= shared_memory_buffer_length + 4;
   ulong connect_number= 1;
@@ -3726,7 +3735,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   */
   suffix_pos= strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
-  if ((event_connect_request= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+  if ((smem_event_connect_request= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
   {
     errmsg= "Could not create request event";
     goto error;
@@ -3757,7 +3766,13 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   while (!abort_loop)
   {
     /* Wait a request from client */
-    WaitForSingleObject(event_connect_request,INFINITE);
+    WaitForSingleObject(smem_event_connect_request,INFINITE);
+
+    /*
+       it can be after shutdown command
+    */
+    if (abort_loop) 
+      goto error;
 
     HANDLE handle_client_file_map= 0;
     char  *handle_client_map= 0;
@@ -3882,7 +3897,7 @@ error:
   if (handle_connect_map)	UnmapViewOfFile(handle_connect_map);
   if (handle_connect_file_map)	CloseHandle(handle_connect_file_map);
   if (event_connect_answer)	CloseHandle(event_connect_answer);
-  if (event_connect_request)	CloseHandle(event_connect_request);
+  if (smem_event_connect_request) CloseHandle(smem_event_connect_request);
 
   decrement_handler_count();
   DBUG_RETURN(0);
