@@ -1082,22 +1082,22 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto err;
   }
 
+  thd->used_tables= 0;                        // Updated by setup_fields
+
+  // JOIN::prepare calls
+  if (unit->prepare(thd, 0, 0))
+  {
+    send_error(thd);
+    goto err_prep;
+  }
   if (lex->describe)
   {
     if (!text_protocol && send_prep_stmt(stmt, 0))
-      goto err;
+      goto err_prep;
+    unit->cleanup();
   }
   else
   {
-    thd->used_tables= 0;                        // Updated by setup_fields
-
-    // JOIN::prepare calls
-    if (unit->prepare(thd, 0, 0))
-    {
-      send_error(thd);
-      goto err_prep;
-    }
-
     if (!text_protocol)
     {
       if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
@@ -1665,6 +1665,8 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
 
   for (; sl; sl= sl->next_select_in_list())
   {
+    /* remove option which was put by mysql_explain_union() */
+    sl->options&= ~SELECT_DESCRIBE;
     /*
       Copy WHERE clause pointers to avoid damaging they by optimisation
     */
