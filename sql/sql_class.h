@@ -98,7 +98,7 @@ public:
   char* get_log_fname() { return log_file_name; }
   void lock_index() { pthread_mutex_lock(&LOCK_index);}
   void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
-  FILE* get_index_file() { return index_file;}
+  File get_index_file() { return index_file;}
 };
 
 /* character conversion tables */

@@ -417,6 +417,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.process=	(ulong) getpid();
   share.state.unique=	(ulong) 0;
+  share.state.update_count=(ulong) 0;
   share.state.version=	(ulong) time((time_t*) 0);
   share.state.sortkey=  (ushort) ~0;
   share.state.auto_increment=ci->auto_increment;

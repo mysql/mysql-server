@@ -70,6 +70,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	{
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
+	  share->state.update_count= info->last_loop= ++info->this_loop;
 	  if (mi_state_info_write(share->kfile, &share->state, 1))
 	    error=my_errno;
 	  share->changed=0;
@@ -346,6 +347,7 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
     {					/* Two threads can't be here */
       share->state.process= share->last_process=   share->this_process;
       share->state.unique=  info->last_unique=	   info->this_unique;
+      share->state.update_count= info->last_loop= ++info->this_loop;
       if ((error=mi_state_info_write(share->kfile, &share->state, 1)))
 	olderror=my_errno;
 #ifdef __WIN__
@@ -377,12 +379,14 @@ int _mi_test_if_changed(register MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
   if (share->state.process != share->last_process ||
-      share->state.unique  != info->last_unique)
+      share->state.unique  != info->last_unique ||
+      share->state.update_count != info->last_loop)
   {						/* Keyfile has changed */
     if (share->state.process != share->this_process)
       VOID(flush_key_blocks(share->kfile,FLUSH_RELEASE));
     share->last_process=share->state.process;
     info->last_unique=	share->state.unique;
+    info->last_loop=	share->state.update_count;
     info->update|=	HA_STATE_WRITTEN;	/* Must use file on next */
     info->data_changed= 1;			/* For mi_is_changed */
     return 1;

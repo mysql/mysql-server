@@ -720,66 +720,66 @@ int show_binlog_info(THD* thd)
 int show_binlogs(THD* thd)
 {
   const char* errmsg = 0;
-  FILE* index_file;
+  File index_file;
   char fname[FN_REFLEN];
   NET* net = &thd->net;
   List<Item> field_list;
   String* packet = &thd->packet;
+  IO_CACHE io_cache;
+  uint length;
   
   if(!mysql_bin_log.is_open())
-    {
-     errmsg = "binlog is not open";
-     goto err;
-    }
+  {
+    errmsg = "binlog is not open";
+    goto err;
+  }
 
   field_list.push_back(new Item_empty_string("Log_name", 128));
   if(send_fields(thd, field_list, 1))
-    {
-      sql_print_error("Failed in send_fields");
-      return 1;
-    }
+  {
+    sql_print_error("Failed in send_fields");
+    return 1;
+  }
   
   mysql_bin_log.lock_index();
   index_file = mysql_bin_log.get_index_file();
-  if(!index_file)
+  if (index_file < 0)
+  {
+    errmsg = "Uninitialized index file pointer";
+    goto err2;
+  }
+  if (init_io_cache(&io_cache, index_file, IO_SIZE, READ_CACHE, 0, 0,
+		   MYF(MY_WME)))
+  {
+    errmsg = "Failed on init_io_cache()";
+    goto err2;
+  }
+  while ((length=my_b_gets(&io_cache, fname, sizeof(fname))))
+  {
+    fname[--length]=0;
+    int dir_len = dirname_length(fname);
+    packet->length(0);
+    net_store_data(packet, fname + dir_len, length-dir_len);
+    if(my_net_write(net, (char*) packet->ptr(), packet->length()))
     {
-	errmsg = "Uninitialized index file pointer";
-	mysql_bin_log.unlock_index();
-	goto err;
+      sql_print_error("Failed in my_net_write");
+      end_io_cache(&io_cache);
+      mysql_bin_log.unlock_index();
+      return 1;
     }
-  if(my_fseek(index_file, 0, MY_SEEK_SET, MYF(MY_WME)))
-    {
-	errmsg = "Failed on fseek()";
-	mysql_bin_log.unlock_index();
-	goto err;
-    }
-  
-  while(fgets(fname, sizeof(fname), index_file))
-    {
-      char* fname_end;
-      *(fname_end = (strend(fname) - 1)) = 0;
-      int dir_len = dirname_length(fname);
-      packet->length(0);
-      net_store_data(packet, fname + dir_len, (fname_end - fname)-dir_len);
-      if(my_net_write(net, (char*) packet->ptr(), packet->length()))
-	{
-	  sql_print_error("Failed in my_net_write");
-	  mysql_bin_log.unlock_index();
-	  return 1;
-	}
-    }
+  }
   
   mysql_bin_log.unlock_index();
+  end_io_cache(&io_cache);
   send_eof(net);   
- err:
-  if(errmsg)
-    {
-     send_error(net, 0, errmsg);
-     return 1;
-    }
-
-  send_ok(net);
   return 0;
+
+err2:
+  mysql_bin_log.unlock_index();
+  end_io_cache(&io_cache);
+err:
+  send_error(net, 0, errmsg);
+  return 1;
 }
 
 
