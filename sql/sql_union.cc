@@ -457,7 +457,9 @@ int st_select_lex_unit::exec()
       else
       {
 	JOIN_TAB *tab,*end;
-	for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+	for (tab=join->join_tab, end=tab+join->tables ;
+	     tab && tab != end ;
+	     tab++)
 	{
 	  delete tab->select;
 	  delete tab->quick;

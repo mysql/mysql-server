@@ -1273,6 +1273,51 @@ select @a|
 @a
 5
 drop procedure bug3863|
+drop table if exists t3|
+create table t3 (
+id int(10) unsigned not null default 0,
+rid int(10) unsigned not null default 0,
+msg text not null,
+primary key (id),
+unique key rid (rid, id)
+)|
+create procedure bug2460_1(in v int)
+begin
+( select n0.id from t3 as n0 where n0.id = v )
+union
+( select n0.id from t3 as n0, t3 as n1
+where n0.id = n1.rid and n1.id = v )
+union
+( select n0.id from t3 as n0, t3 as n1, t3 as n2
+where n0.id = n1.rid and n1.id = n2.rid and n2.id = v );
+end|
+call bug2460_1(2)|
+id
+call bug2460_1(2)|
+id
+insert into t3 values (1, 1, 'foo'), (2, 1, 'bar'), (3, 1, 'zip zap')|
+call bug2460_1(2)|
+id
+2
+1
+call bug2460_1(2)|
+id
+2
+1
+create procedure bug2460_2()
+begin
+drop table if exists t3;
+create table t3 (s1 int);
+insert into t3 select 1 union select 1;
+end|
+call bug2460_2()|
+call bug2460_2()|
+select * from t3|
+s1
+1
+drop procedure bug2460_1|
+drop procedure bug2460_2|
+drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
