@@ -1136,7 +1136,7 @@ static const char *require_quotes(const char *name, uint name_length)
   for ( ; name < end ; name++)
   {
     uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, (uchar) chr);
+    length= my_mbcharlen(system_charset_info, chr);
     if (length == 1 && !system_charset_info->ident_map[chr])
       return name;
   }
@@ -1148,25 +1148,29 @@ void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
+  char quote_char;
   int q= get_quote_char_for_identifier(thd, name, length);
 
-  if (q == EOF) {
+  if (q == EOF)
+  {
     packet->append(name, length, system_charset_info);
     return;
   }
 
-  char quote_char= q;
-
-  /* The identifier must be quoted as it includes a quote character */
+  /*
+    The identifier must be quoted as it includes a quote character or
+   it's a keyword
+  */
 
   packet->reserve(length*2 + 2);
+  quote_char= (char) q;
   packet->append(&quote_char, 1, system_charset_info);
 
   for (name_end= name+length ; name < name_end ; name+= length)
   {
-    char chr= *name;
-    length= my_mbcharlen(system_charset_info, (uchar) chr);
-    if (length == 1 && chr == quote_char)
+    uchar chr= (uchar) *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && chr == (uchar) quote_char)
       packet->append(&quote_char, 1, system_charset_info);
     packet->append(name, length, packet->charset());
   }
@@ -1174,8 +1178,25 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 }
 
 
-/* Get the quote character for displaying an identifier.
-   If no quote character is needed, return EOF. */
+/*
+  Get the quote character for displaying an identifier.
+
+  SYNOPSIS
+    get_quote_char_for_identifier()
+    thd		Thread handler
+    name	name to quote
+    length	length of name
+
+  IMPLEMENTATION
+    If name is a keyword or includes a special character, then force
+    quoting.
+    Otherwise identifier is quoted only if the option OPTION_QUOTE_SHOW_CREATE
+    is set.
+
+  RETURN
+    EOF	  No quote character is needed
+    #	  Quote character
+*/
 
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
 {
@@ -1183,10 +1204,9 @@ int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
       !require_quotes(name, length) &&
       !(thd->options & OPTION_QUOTE_SHOW_CREATE))
     return EOF;
-  else if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
+  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     return '"';
-  else
-    return '`';
+  return '`';
 }
 
 
@@ -1195,10 +1215,9 @@ int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
 static void append_directory(THD *thd, String *packet, const char *dir_type,
 			     const char *filename)
 {
-  uint length;
   if (filename && !(thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
   {
-    length= dirname_length(filename);
+    uint length= dirname_length(filename);
     packet->append(' ');
     packet->append(dir_type);
     packet->append(" DIRECTORY='", 12);
