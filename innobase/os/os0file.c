@@ -763,7 +763,7 @@ try_again:
 	UT_NOT_USED(offset_high);
 #endif	
 try_again:
-	ret = pwrite(file, buf, n, (off_t) offset);
+	ret = os_file_pwrite(file, buf, n, (off_t) offset);
 
 	if ((ulint)ret == n) {
 		return(TRUE);
