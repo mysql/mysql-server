@@ -3788,6 +3788,13 @@ Estonia [OKinteractive] @
 @c @uref{ftp://ftp.clinet.fi/mirrors/ftp.mysql.org/pub/mysql/, FTP}
 
 @item
+@c Added 20001019
+@c EMAIL: d@d.tj (Dominique L . Bouix)
+@c @image{Flags/finland}
+Finland [tonnikala.net] @
+@uref{http://mysql.tonnikala.org/, WWW}
+
+@item
 @c Added 981208
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
 @c @image{Flags/germany}
@@ -3855,6 +3862,12 @@ Iceland [GM] @
 @c @image{Flags/italy}
 Italy [Teta Srl] @
 @uref{http://www.teta.it/mysql/, WWW}
+
+@item
+@c EMAIL: rudy@comm2000.it (Rudy)
+@c @image{Flags/italy}
+Italy [tzone.it] @
+@uref{http://mysql.tzone.it/, WWW}
 
 @c @item
 @c Added 991121
