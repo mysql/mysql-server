@@ -229,3 +229,28 @@ GRANT SELECT (кол) ON `бд`.`таб` TO 'юзер'@'localhost'
 REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
 DROP DATABASE бд;
 SET NAMES latin1;
+SHOW PRIVILEGES;
+Privilege	Context	Comment
+Alter	Tables	To alter the table
+Create	Databases,Tables,Indexes	To create new databases and tables
+Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
+Create view	Tables	To create new views
+Delete	Tables	To delete existing rows
+Drop	Databases,Tables	To drop databases, tables, and views
+File	File access on server	To read and write files on the server
+Grant option	Databases,Tables	To give to other users those privileges you possess
+Index	Tables	To create or drop indexes
+Insert	Tables	To insert data into tables
+Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+Process	Server Admin	To view the plain text of currently executing queries
+References	Databases,Tables	To have references on tables
+Reload	Server Admin	To reload or refresh tables, logs and privileges
+Replication client	Server Admin	To ask where the slave or master servers are
+Replication slave	Server Admin	To read binary log events from the master
+Select	Tables	To retrieve rows from table
+Show databases	Server Admin	To see all databases with SHOW DATABASES
+Show view	Tables	To see views with SHOW CREATE VIEW
+Shutdown	Server Admin	To shut down the server
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Update	Tables	To update existing rows
+Usage	Server Admin	No privileges - allow connect only
