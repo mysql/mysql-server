@@ -1,0 +1,14 @@
+# sel000016
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Numerics.
+# Testing big negative numbers.
+#
+
+@r/sel000016.result SELECT -922337203685477580,-92233720368547758000;

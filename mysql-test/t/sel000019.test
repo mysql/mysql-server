@@ -1,0 +1,14 @@
+# sel000019
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Numerics.
+# Testing DEGREES(), RADIANS().
+#
+
+@r/sel000019.result SELECT DEGREES(PI()),RADIANS(360);

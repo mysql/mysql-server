@@ -1,0 +1,14 @@
+# sel000030
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Control flow.
+# Testing control flow; IF()
+#
+
+@r/sel000030.result SELECT IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0;

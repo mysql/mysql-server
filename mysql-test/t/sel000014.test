@@ -1,0 +1,14 @@
+# sel000014
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Numerics.
+# Testing pos/neg and zero padding.
+#
+
+@r/sel000014.result SELECT 0,256,00000000000000065536,2147483647,-2147483648,2147483648,+4294967296;

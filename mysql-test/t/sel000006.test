@@ -1,0 +1,14 @@
+# sel000006
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Numeric functions.
+# Testing ROUND(); hundreths precision.
+#
+
+@r/sel000006.result SELECT ROUND(5.64,1),ROUND(5.64,2),ROUND(5.64,-1),ROUND(5.64,-2);
