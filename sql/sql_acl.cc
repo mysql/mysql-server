@@ -275,7 +275,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     else
     {
       user.ssl_type=SSL_TYPE_NONE;
-      bzero(&(user.user_resource),sizeof(user.user_resource));
+      bzero((char *)&(user.user_resource),sizeof(user.user_resource));
 #ifndef TO_BE_REMOVED
       if (table->fields <= 13)
       {						// Without grant
@@ -506,7 +506,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
   *priv_user=(char*) user;
   DBUG_ENTER("acl_getroot");
 
-  bzero(mqh,sizeof(USER_RESOURCES));
+  bzero((char *)mqh,sizeof(USER_RESOURCES));
   if (!initialized)
   {
     // If no data allow anything

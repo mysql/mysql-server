@@ -3685,7 +3685,7 @@ grant:
 	  lex->select->db= 0;
 	  lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
 	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
-	  bzero(&(lex->mqh),sizeof(lex->mqh));
+	  bzero((char *)&(lex->mqh),sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table TO_SYM user_list
 	require_clause grant_options

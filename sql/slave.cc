@@ -1710,8 +1710,8 @@ st_relay_log_info::st_relay_log_info()
   last_slave_error[0]=0;
   
 
-  bzero(&info_file,sizeof(info_file));
-  bzero(&cache_buf, sizeof(cache_buf));
+  bzero((char *)&info_file,sizeof(info_file));
+  bzero((char *)&cache_buf, sizeof(cache_buf));
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
