@@ -2345,7 +2345,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       if (!disable_info)
       {
 	char buf[40];
-	sprintf(buf,"affected rows: %ld\n",mysql_affected_rows(mysql));
+	sprintf(buf,"affected rows: %lu\n",(ulong) mysql_affected_rows(mysql));
 	dynstr_append(ds, buf);
 	if (mysql_info(mysql))
 	{
