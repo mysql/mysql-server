@@ -1626,8 +1626,7 @@ mysql_execute_command(void)
     if (!(res=open_and_lock_tables(thd, tables)))
     {
       if ((result=new select_insert(tables->table,&lex->field_list,
-				    lex->sql_command == SQLCOM_REPLACE_SELECT ?
-				    DUP_REPLACE : DUP_IGNORE)))
+				    lex->duplicates)))
 	res=handle_select(thd,lex,result);
     }
     else
