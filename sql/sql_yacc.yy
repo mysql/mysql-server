@@ -4515,6 +4515,7 @@ keyword:
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
+	| DISCARD		{}
 	| DO_SYM		{}
 	| DUAL_SYM		{}
 	| DUMPFILE		{}
@@ -4546,6 +4547,7 @@ keyword:
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
+	| IMPORT		{}
 	| INDEXES		{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
@@ -4654,6 +4656,7 @@ keyword:
 	| SUBDATE_SYM		{}
 	| SUBJECT_SYM		{}
 	| SUPER_SYM		{}
+	| TABLESPACE		{}
 	| TEMPORARY		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
