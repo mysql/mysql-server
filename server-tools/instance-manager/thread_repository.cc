@@ -148,10 +148,11 @@ void Thread_repository::deliver_shutdown()
 {
   struct timespec shutdown_time;
   set_timespec(shutdown_time, 1);
+  Thread_info *info;
 
   pthread_mutex_lock(&LOCK_thread_repository);
   shutdown_in_progress= true;
-  for (Thread_info *info= head.next; info != &head; info= info->next)
+  for (info= head.next; info != &head; info= info->next)
   {
     pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
     /*
@@ -173,7 +174,7 @@ void Thread_repository::deliver_shutdown()
     so this time everybody should be informed (presumably each worker can
     get CPU during shutdown_time.)
   */
-  for (Thread_info *info= head.next; info != &head; info= info->next)
+  for (info= head.next; info != &head; info= info->next)
   {
     pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
     if (info->current_cond)

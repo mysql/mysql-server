@@ -193,7 +193,7 @@ extern "C" {
   {
     return (Ndb_mgmclient_handle) new Ndb_mgmclient(connect_string);
   }
-  int ndb_mgmclient_execute(Ndb_mgmclient_handle h, int argc, const char** argv)
+  int ndb_mgmclient_execute(Ndb_mgmclient_handle h, int argc, char** argv)
   {
     return ((Ndb_mgmclient*)h)->execute(argc, argv, 1);
   }
@@ -226,7 +226,7 @@ extern "C" {
 #include <util/InputStream.hpp>
 #include <util/OutputStream.hpp>
 
-int Ndb_mgmclient::execute(int argc, const char** argv, int _try_reconnect)
+int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect)
 {
   if (argc <= 0)
     return 0;
@@ -1386,7 +1386,7 @@ void
 CommandInterpreter::executeDumpState(int processId, const char* parameters,
 				     bool all) 
 {
-  if(parameters == 0 || strlen(parameters) == 0){
+  if(emptyString(parameters)){
     ndbout << "Expected argument" << endl;
     return;
   }
@@ -1806,6 +1806,10 @@ CommandInterpreter::executeEventReporting(int processId,
 					  const char* parameters, 
 					  bool all) 
 {
+  if (emptyString(parameters)) {
+    ndbout << "Expected argument" << endl;
+    return;
+  }
   connect();
 
   BaseString tmp(parameters);
@@ -1906,6 +1910,7 @@ void
 CommandInterpreter::executeAbortBackup(char* parameters) 
 {
   connect();
+
   strtok(parameters, " ");
   struct ndb_mgm_reply reply;
   char* id = strtok(NULL, "\0");
