@@ -6622,7 +6622,7 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter,
     }
     case(Item_func::COND_OR_FUNC): {
       DBUG_PRINT("info", ("Generating % group", (negated)?"NOR":"OR"));
-      if ((negated) ? filter->begin(NdbScanFilter::OR)
+      if ((negated) ? filter->begin(NdbScanFilter::NOR)
           : filter->begin(NdbScanFilter::OR) == -1)
         DBUG_RETURN(1);
       cond= cond->next;
