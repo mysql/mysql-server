@@ -89,7 +89,7 @@ static bool fixExtConnection(InitConfigFileParser::Context & ctx, const char * d
 static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
 static bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
 static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data);
-static bool fixBackupDataPath(InitConfigFileParser::Context & ctx, const char * data);
+static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data);
 
 const ConfigInfo::SectionRule 
 ConfigInfo::m_SectionRules[] = {
@@ -145,7 +145,7 @@ ConfigInfo::m_SectionRules[] = {
   { "*",    applyDefaultValues, "system" },
 
   { DB_TOKEN,   fixFileSystemPath, 0 },
-  { DB_TOKEN,   fixBackupDataPath, 0 },
+  { DB_TOKEN,   fixBackupDataDir, 0 },
 
   { DB_TOKEN,   checkDbConstraints, 0 },
 
@@ -1101,8 +1101,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1" },
   
   { 
-    CFG_DB_BACKUP_DATA_PATH,
-    "BackupDataPath",
+    CFG_DB_BACKUP_DATADIR,
+    "BackupDataDir",
     DB_TOKEN,
     "Path to where to store backups",
     ConfigInfo::USED,
@@ -2497,14 +2497,14 @@ fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 bool
-fixBackupDataPath(InitConfigFileParser::Context & ctx, const char * data){
+fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * path;
-  if (ctx.m_currentSection->get("BackupDataPath", &path))
+  if (ctx.m_currentSection->get("BackupDataDir", &path))
     return true;
 
   if (ctx.m_currentSection->get("FileSystemPath", &path)) {
-    require(ctx.m_currentSection->put("BackupDataPath", path));
+    require(ctx.m_currentSection->put("BackupDataDir", path));
     return true;
   }
 

@@ -90,7 +90,7 @@
 
 #define CFG_DB_LONG_SIGNAL_BUFFER     157
 
-#define CFG_DB_BACKUP_DATA_PATH       158
+#define CFG_DB_BACKUP_DATADIR         158
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
