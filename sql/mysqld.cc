@@ -3793,6 +3793,7 @@ struct show_var_st status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
   {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
+  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes, SHOW_LONG},
   {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory, 
    SHOW_LONG_CONST},
