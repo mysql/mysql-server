@@ -5295,9 +5295,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
-    if (!join->select_lex->dependent ||
-	((!join->conds || join->conds->val_int()) &&
-	 (!join->having || join->having->val_int())))
+    /*
+      HAVING will be chcked after processing aggregate functions,
+      But WHERE should checkd here (we alredy have read tables)
+    */
+    if(!join->conds || join->conds->val_int())
     {
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
