@@ -2400,14 +2400,17 @@ btr_index_rec_validate(
 		dtype_t*	type = dict_index_get_nth_type(index, i);
 
 		rec_get_nth_field(rec, i, &len);
-		
+
+		/* Note that prefix indexes are not fixed size even when
+		their type is CHAR. */
+
 		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
 		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
 		    && len != dtype_get_fixed_size(type))
 		   ||
 		   (dict_index_get_nth_field(index, i)->prefix_len > 0
-		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
-		    && len !=
+		    && len != UNIV_SQL_NULL
+		    && len >
 			   dict_index_get_nth_field(index, i)->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);

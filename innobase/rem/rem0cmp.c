@@ -14,9 +14,6 @@ Created 7/1/1994 Heikki Tuuri
 
 #include "srv0srv.h"
 
-#include <m_ctype.h>
-#include <my_sys.h>
-
 /*		ALPHABETICAL ORDER
 		==================
 		
@@ -455,8 +452,6 @@ cmp_dtuple_rec_with_match(
 	ulint		cur_bytes; 	/* number of already matched bytes 
 					in current field */
 	int		ret = 3333;	/* return value */
-	
-	CHARSET_INFO*   charset;        /* charset used in the field */
 
 	ut_ad(dtuple && rec && matched_fields && matched_bytes);
 	ut_ad(dtuple_check_typed(dtuple));
@@ -546,33 +541,8 @@ cmp_dtuple_rec_with_match(
 			&& dtype_get_charset_coll(cur_type->prtype) !=
 				data_mysql_latin1_swedish_charset_coll)) {
 
-		  	/* If character set is not latin1_swedish
-			we have to devide character length by the
-			maximum bytes needed for that character
-			set. For example if we have unique prefix
-			index for 1 utf8 character then we have
-			actually 3 bytes allocated in the index.
-			Therefore, we have to divide that with
-			maximum bytes needed for utf8 character i.e.
-			3 byges.*/
-
-                        if ( dtuple_f_len > 0) {
-			  charset = get_charset(
-				dtype_get_charset_coll(cur_type->prtype), 
-				MYF(MY_WME));
-
-			  ut_ad(charset);
-			  ut_ad(charset->mbmaxlen);
-
-			  dtuple_f_len = dtuple_f_len / charset->mbmaxlen;
-
-                          if ( dtuple_f_len == 0)
-			    dtuple_f_len = 1;
-
-			  rec_f_len = dtuple_f_len;
-			} 
-
-			ret = cmp_whole_field(cur_type,
+			ret = cmp_whole_field(
+				cur_type,
 				dfield_get_data(dtuple_field), dtuple_f_len,
 				rec_b_ptr, rec_f_len);
 

@@ -41,6 +41,7 @@ have disables the InnoDB inlining in this file. */
 #include <hash.h>
 #include <myisampack.h>
 #include <mysys_err.h>
+#include <my_sys.h>
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
@@ -5266,6 +5267,63 @@ ulonglong ha_innobase::get_mysql_bin_log_pos()
     longlong) so it's ok to cast it to ulonglong.
   */
   return trx_sys_mysql_bin_log_pos;
+}
+
+extern "C" {
+/***********************************************************************
+This function finds charset information and returns the character
+length for multibyte character set. */
+
+ulint innobase_get_charset_mbmaxlen(
+	ulint charset_id)	/* in: charset id */
+{
+  CHARSET_INFO*   charset;        /* charset used in the field */
+
+  charset = get_charset(charset_id,MYF(MY_WME));
+
+  ut_ad(charset);
+  ut_ad(charset->mbmaxlen);
+
+  return charset->mbmaxlen;
+}
+}
+
+extern "C" {
+/***********************************************************************
+This function finds charset information and returns position the nth 
+character for multibyte character set.*/
+
+ulint innobase_get_at_most_n_mbchars(
+	ulint charset_id,	/* in: character set id */
+        ulint nth,		/* in: nth character    */
+	ulint data_len,         /* in: length of the sting in bytes */
+	const char *pos)	/* in: character string */
+{
+  ulint byte_length;		/* storage length, in bytes. */
+  ulint char_length;		/* character length in bytes */
+  CHARSET_INFO* charset;	/* charset used in the field */
+
+  ut_ad(pos);
+  byte_length = data_len;
+
+  charset = get_charset(charset_id,MYF(MY_WME));
+
+  ut_ad(charset);
+  ut_ad(charset->mbmaxlen);
+
+  char_length= byte_length / charset->mbmaxlen;
+  nth = nth / charset->mbmaxlen;
+
+  if (byte_length > char_length)
+  {
+	char_length= my_charpos(charset, pos, pos + byte_length, nth);
+	set_if_smaller(char_length, byte_length);
+  } 
+  else
+    char_length = nth;
+
+  return char_length;
+}
 }
 
 #endif /* HAVE_INNOBASE_DB */
