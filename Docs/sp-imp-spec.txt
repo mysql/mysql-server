@@ -166,11 +166,28 @@ calling a PROCEDURE.
      expressions or statements.
 
 
+  - Parsing CREATE FUNCTION ...
+
+    Creating a functions is essensially the same thing as for a PROCEDURE,
+    with the addition that a FUNCTION has a return type and a RETURN
+    statement, but no OUT or INOUT parameters.
+
+    [QQ - More details here; sp_head needs a result slot and a type flag
+          indicating if it's a function or procedure]
+
+
   - Storing, caching, dropping...
 
     As seen above, the entired definition string, including the "CREATE
-    PROCEDURE" is kept. The procedure definition string is stored in the
-    table mysql.proc with the name as the key.
+    PROCEDURE" (or "FUNCTION") is kept. The procedure definition string is
+    stored in the table mysql.proc with the name and type as the key, the
+    type being one of the enum ("procedure","function").
+
+    A PROCEDURE is just stored int the mysql.proc table. A FUNCTION has an
+    additional requirement. They will be called in expressions with the same
+    syntax as UDFs, so UDFs and stored FUNCTIONs share the namespace. Thus,
+    we must make sure that we do not have UDFs and FUNCTIONs with the same
+    name (even if they are storded in different places).
 
     This means that we can reparse the procedure as many time as we want.
     The first time, the resulting Lex is used to store the procedure in
@@ -198,7 +215,7 @@ calling a PROCEDURE.
     encapsulated in the files sp.{cc,h}.
 
 
-  - CALL
+  - CALLing a procedure
 
     A CALL is parsed just like any statement. The resulting Lex has the
     sql_command SQLCOM_CALL, the procedure's name and the parameters are
@@ -244,11 +261,26 @@ calling a PROCEDURE.
       For this the support function, sp_head.cc:eval_func_item() is needed.
 
 
-  - Parsing DROP PROCEDURE
+  - Calling a FUNCTION
+
+    Functions don't have an explicit call keyword like procedures. Instead,
+    they appear in expressions with the conventional syntax "fun(arg, ...)".
+    The problem is that we already have User Defined Functions (UDFs) which
+    are called the same way. A UDF is detected by the lexical analyzer (not
+    the parser!), in the find_keyword() function, and returns a UDF_*_FUNC
+    or UDA_*_SUM token with the udf_func object as the yylval.
+
+    So, stored functions must be handled in a simpilar way, and as a
+    consequence, UDFs and functions must not have the same name.
+
+    [QQ - Details of how function calls works here]
+
+
+  - Parsing DROP PROCEDURE/FUNCTION
 
     The procedure name is pushed to Lex->value_list.
     The sql_command code for the result of parsing a is
-    SQLCOM_DROP_PROCEDURE.
+    SQLCOM_DROP_PROCEDURE/SQLCOM_DROP_FUNCTION.
 
     Dropping is done by simply getting the procedure with the sp_find()
     function and calling sp_drop() (both in sp.{cc,h}).

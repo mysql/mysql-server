@@ -22,12 +22,23 @@
 // Finds a stored procedure given its name. Returns NULL if not found.
 //
 sp_head *
-sp_find(THD *thd, Item_string *name);
+sp_find_procedure(THD *thd, Item_string *name);
 
 int
 sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen);
 
 int
-sp_drop(THD *thd, char *name, uint namelen);
+sp_drop_procedure(THD *thd, char *name, uint namelen);
+
+#if 0
+sp_head *
+sp_find_function(THD *thd, Item_string *name);
+
+int
+sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen);
+
+int
+sp_drop_function(THD *thd, char *name, uint namelen);
+#endif
 
 #endif /* _SP_H_ */
