@@ -931,6 +931,7 @@ void st_select_lex::init_select()
   use_index.empty();
   ftfunc_list.empty();
   linkage=UNSPECIFIED_TYPE;
+  depended= 0;
 }
 
 /*
