@@ -97,7 +97,7 @@
   Note: the following includes binlog and closing 0.
   so: innodb+bdb+ndb+binlog+0
 */
-#define MAX_HA 5
+#define MAX_HA 6
 
 /*
   Bits in index_ddl_flags(KEY *wanted_index)
@@ -197,7 +197,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_COMMENT          (1L << 16)
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 
-typedef ulonglong my_xid;
+typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
 #define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
 #define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
@@ -217,11 +217,13 @@ struct xid_t {
   bool eq(long g, long b, const char *d)
   { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
   void set(LEX_STRING *l) { set(l->length, 0, l->str); }
-  void set(ulonglong l)
+  void set(ulonglong xid)
   {
+    my_xid tmp;
     set(MYSQL_XID_PREFIX_LEN, 0, MYSQL_XID_PREFIX);
-    *(ulong*)(data+MYSQL_XID_PREFIX_LEN)=server_id;
-    *(my_xid*)(data+MYSQL_XID_OFFSET)=l;
+    memcpy(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
+    tmp= xid;
+    memcpy(data+MYSQL_XID_OFFSET, &tmp, sizeof(tmp));
     gtrid_length=MYSQL_XID_GTRID_LEN;
   }
   void set(long g, long b, const char *d)
@@ -235,7 +237,9 @@ struct xid_t {
   void null() { formatID= -1; }
   my_xid quick_get_my_xid()
   {
-    return *(my_xid*)(data+MYSQL_XID_OFFSET);
+    my_xid tmp;
+    memcpy(&tmp, data+MYSQL_XID_OFFSET, sizeof(tmp));
+    return tmp;
   }
   my_xid get_my_xid()
   {
@@ -249,7 +253,11 @@ typedef struct xid_t XID;
 
 /* for recover() handlerton call */
 #define MIN_XID_LIST_SIZE  128
+#ifdef SAFEMALLOC
+#define MAX_XID_LIST_SIZE  256
+#else
 #define MAX_XID_LIST_SIZE  (1024*128)
+#endif
 
 /*
   handlerton is a singleton structure - one instance per storage engine -
@@ -753,7 +761,8 @@ bool ha_flush_logs(void);
 void ha_drop_database(char* path);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
-int ha_delete_table(enum db_type db_type, const char *path);
+int ha_delete_table(THD *thd, enum db_type db_type, const char *path,
+                    const char *alias, bool generate_warning);
 
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name,

@@ -116,7 +116,7 @@ count(distinct n)
 5000
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	2
+Created_tmp_disk_tables	1
 drop table t1;
 create table t1 (s text);
 flush status;
@@ -125,5 +125,5 @@ count(distinct s)
 5000
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	2
+Created_tmp_disk_tables	1
 drop table t1;

@@ -46,9 +46,9 @@ extern const char **errmesg;
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 extern uint opt_tc_log_size;
-extern uint tc_log_max_pages_used;
-extern uint tc_log_page_size;
-extern uint tc_log_page_waits;
+extern ulong tc_log_max_pages_used;
+extern ulong tc_log_page_size;
+extern ulong tc_log_page_waits;
 
 #define TC_HEURISTIC_RECOVER_COMMIT   1
 #define TC_HEURISTIC_RECOVER_ROLLBACK 2
@@ -83,14 +83,14 @@ class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 #ifdef HAVE_MMAP
 class TC_LOG_MMAP: public TC_LOG
 {
-  private:
-
+  public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
     POOL,                 // page is in pool
     ERROR,                // last sync failed
     DIRTY                 // new xids added since last sync
   } PAGE_STATE;
 
+  private:
   typedef struct st_page {
     struct st_page *next; // page a linked in a fifo queue
     my_xid *start, *end;  // usable area of a page
@@ -173,6 +173,9 @@ typedef struct st_user_var_events
   Item_result type;
   uint charset_number;
 } BINLOG_USER_VAR_EVENT;
+
+#define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
+#define RP_FORCE_ROTATE               2
 
 class Log_event;
 
@@ -300,13 +303,13 @@ public:
   }
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name);
-  void new_file(bool need_lock= 1);
+  void new_file(bool need_lock);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache);
+  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
 
   /*
     v stands for vector
@@ -319,6 +322,7 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
+  void rotate_and_purge(uint flags);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
@@ -1068,7 +1072,8 @@ public:
     MEM_ROOT mem_root; // Transaction-life memory allocation pool
     void cleanup()
     {
-      changed_tables = 0;
+      changed_tables= 0;
+      savepoints= 0;
 #ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
@@ -1608,10 +1613,12 @@ public:
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
   uint  convert_blob_length; 
   CHARSET_INFO *table_charset; 
+  bool schema_table;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0), convert_blob_length(0)
+    group_length(0), group_null_parts(0), convert_blob_length(0),
+    schema_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {

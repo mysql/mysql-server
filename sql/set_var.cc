@@ -459,6 +459,9 @@ static sys_var_thd_bit	sys_log_binlog("sql_log_bin",
 static sys_var_thd_bit	sys_sql_warnings("sql_warnings", 0,
 					 set_option_bit,
 					 OPTION_WARNINGS);
+static sys_var_thd_bit	sys_sql_notes("sql_notes", 0,
+					 set_option_bit,
+					 OPTION_SQL_NOTES);
 static sys_var_thd_bit	sys_auto_is_null("sql_auto_is_null", 0,
 					 set_option_bit,
 					 OPTION_AUTO_IS_NULL);
@@ -653,6 +656,7 @@ sys_var *sys_variables[]=
   &sys_sql_max_join_size,
   &sys_sql_mode,
   &sys_sql_warnings,
+  &sys_sql_notes,
   &sys_storage_engine,
 #ifdef HAVE_REPLICATION
   &sys_sync_binlog_period,
@@ -927,6 +931,8 @@ struct show_var_st init_vars[]= {
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
+  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
+  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
   {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
@@ -2083,7 +2089,7 @@ bool sys_var_character_set_server::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0),
+    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0),
 	     "character set, collation");
     return 1;
   }
@@ -2190,7 +2196,7 @@ bool sys_var_collation_server::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0),
+    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0),
 	     "character set, collation");
     return 1;
   }
@@ -2540,7 +2546,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0), "time zone");
+    my_error(ER_LOGGING_PROHIBIT_CHANGING_OF, MYF(0), "time zone");
     return 1;
   }
 #endif

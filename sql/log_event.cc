@@ -1029,7 +1029,7 @@ bool Query_log_event::write(IO_CACHE* file)
   if (sql_mode_inited)
   {
     *(start++)= Q_SQL_MODE_CODE;
-    int8store(start, sql_mode);
+    int8store(start, (ulonglong)sql_mode);
     start+= 8;
   }
   if (catalog_len >= 0) // i.e. "catalog inited" (false for 4.0 events)
@@ -1450,9 +1450,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
-    mysql_log.write(thd,COM_QUERY,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
-    
+
     if (ignored_error_code((expected_error= error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
     {
@@ -1535,9 +1534,13 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
       goto end;
     }
 
+    /* If the query was not ignored, it is printed to the general log */
+    if (thd->net.last_errno != ER_SLAVE_IGNORED_TABLE)
+      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
+
 compare_errors:
- 
-    /*
+
+     /*
       If we expected a non-zero error code, and we don't get the same error
       code, and none of them should be ignored.
     */
@@ -3099,12 +3102,14 @@ void Xid_log_event::pack_info(Protocol *protocol)
   we don't care about actual values of xids as long as
   identical numbers compare identically
 */
-Xid_log_event::Xid_log_event(const char* buf,
-                             const Format_description_log_event* description_event)
+
+Xid_log_event::
+Xid_log_event(const char* buf,
+              const Format_description_log_event *description_event)
   :Log_event(buf, description_event)
 {
   buf+= description_event->common_header_len;
-  xid=*((my_xid *)buf);
+  memcpy((char*) &xid, buf, sizeof(xid));
 }
 
 
@@ -3135,9 +3140,9 @@ void Xid_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_eve
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Xid_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  rli->inc_event_relay_log_pos();
   /* For a slave Xid_log_event is COMMIT */
-  return end_trans(thd, COMMIT);
+  mysql_log.write(thd,COM_QUERY,"COMMIT /* implicit, from Xid_log_event */");
+  return end_trans(thd, COMMIT) || Log_event::exec_event(rli);
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -3467,7 +3472,12 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     0 can be passed as last argument (reference on item)
   */
   e.fix_fields(thd, 0, 0);
-  e.update_hash(val, val_len, type, charset, DERIVATION_NONE);
+  /*
+    A variable can just be considered as a table with
+    a single record and with a single column. Thus, like
+    a column value, it could always have IMPLICIT derivation.
+   */
+  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT);
   free_root(thd->mem_root,0);
 
   rli->inc_event_relay_log_pos();
