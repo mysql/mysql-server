@@ -1090,8 +1090,10 @@ int ha_berkeley::delete_row(const byte * record)
     if (error != DB_LOCK_DEADLOCK)
       break;
   }
+#ifdef CANT_COUNT_DELETED_ROWS
   if (!error)
     changed_rows--;
+#endif
   DBUG_RETURN(error);
 }
 

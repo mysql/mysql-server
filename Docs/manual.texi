@@ -268,7 +268,7 @@ System-specific Issues
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::
+* BEOS::                        
 
 Linux Notes (All Linux Versions)
 
@@ -279,7 +279,7 @@ Linux Notes (All Linux Versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::
+* Linux-Ia64::                  
 
 BSD/OS Notes
 
@@ -456,13 +456,13 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 @code{SHOW} Syntax (Get Information About Tables, Columns,...)
 
-* SHOW DATABASE INFO::
-* SHOW TABLE STATUS::
-* SHOW STATUS::
-* SHOW VARIABLES::
-* SHOW PROCESSLIST::
-* SHOW GRANTS::
-* SHOW CREATE TABLE::
+* SHOW DATABASE INFO::          
+* SHOW TABLE STATUS::           
+* SHOW STATUS::                 
+* SHOW VARIABLES::              
+* SHOW PROCESSLIST::            
+* SHOW GRANTS::                 
+* SHOW CREATE TABLE::           
 
 MySQL Table Types
 
@@ -485,12 +485,12 @@ MyISAM Table Formats
 
 BDB or Berkeley_db Tables
 
-* BDB overview::
-* BDB install::
-* BDB start::
-* BDB characteristic::
-* BDB TODO::
-* BDB errors::
+* BDB overview::                
+* BDB install::                 
+* BDB start::                   
+* BDB characteristic::          
+* BDB TODO::                    
+* BDB errors::                  
 
 MySQL Tutorial
 
@@ -509,7 +509,7 @@ Examples of Common Queries
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::
+* example-user-variables::      
 * example-Foreign keys::        Using foreign keys
 
 Creating and Using a Database
@@ -584,16 +584,16 @@ System/Compile Time and Startup Parameter Tuning
 * Internal locking::            How MySQL locks tables
 * Table locking::               Table locking issues
 
-Disk issues
+Disk Issues
 
 * Symbolic links::              Using symbolic links for databases and tables
 
-Speed of queries that access or update data
+Speed of Queries that Access or Update Data
 
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::
+* DISTINCT optimization::       
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -603,15 +603,17 @@ Speed of queries that access or update data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
-* safe_mysqld::
+* safe_mysqld::                 
+* mysql_multi_mysqld::          Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
 * mysqlimport::                 Importing data from text files
+* perror::                      Displaying error messages
 * mysqlshow::                   Showing databases, tables and columns
 * myisampack::                  The @strong{MySQL} compressed read-only table generator
 
-Maintaining a MySQL installation
+Maintaining a MySQL Installation
 
 * Table maintenance::           Table maintenance and crash recovery
 * Maintenance regimen::         Setting up a table maintenance regimen
@@ -619,37 +621,37 @@ Maintaining a MySQL installation
 * Crash recovery::              Using @code{myisamchk} for crash recovery
 * Log files::                   Log file maintenance
 
-Using @code{myisamchk} for table maintenance and crash recovery
+Using @code{myisamchk} for Table Maintenance and Crash Recovery
 
 * myisamchk syntax::            @code{myisamchk} invocation syntax
 * myisamchk memory::            @code{myisamchk} memory usage
 
-@code{myisamchk} invocation syntax
+@code{myisamchk} Invocation Syntax
 
-* myisamchk general options::
-* myisamchk check options::
-* myisamchk repair options::
-* myisamchk other options::
+* myisamchk general options::   
+* myisamchk check options::     
+* myisamchk repair options::    
+* myisamchk other options::     
 
-Using @code{myisamchk} for crash recovery
+Using @code{myisamchk} for Crash Recovery
 
 * Check::                       How to check tables for errors
 * Repair::                      How to repair tables
 * Optimization::                Table optimization
 
-Adding new functions to MySQL
+Adding New Functions to MySQL
 
 * Adding UDF::                  Adding a new user-definable function
 * Adding native function::      Adding a new native function
 
-Adding a new user-definable function
+Adding a New User-definable Function
 
 * UDF calling sequences::       UDF calling sequences
 * UDF arguments::               Argument processing
 * UDF return values::           Return values and error handling
 * UDF compiling::               Compiling and installing user-definable functions
 
-Adding new procedures to MySQL
+Adding New Procedures to MySQL
 
 * procedure analyse::           Procedure analyse
 * Writing a procedure::         Writing a procedure.
@@ -663,11 +665,11 @@ MySQL ODBC Support
 * ODBC and last_insert_id::     How to get the value of an @code{AUTO_INCREMENT} column in ODBC
 * MyODBC bug report::           Reporting problems with MyODBC
 
-Using MySQL with some common programs
+Using MySQL with Some Common Programs
 
 * Apache::                      Using @strong{MySQL} with Apache
 
-Problems and common errors
+Problems and Common Errors
 
 * What is crashing::            How to determine what is causing problems
 * Crashing::                    What to do if @strong{MySQL} keeps crashing
@@ -692,7 +694,7 @@ Problems and common errors
 * ALTER TABLE problems::        Problems with @code{ALTER TABLE}.
 * Change column order::         How to change the order of columns in a table
 
-Some common errors when using MySQL
+Some Common Errors When Using MySQL
 
 * Gone away::                   @code{MySQL server has gone away} error
 * Can not connect to server::   @code{Can't connect to [local] MySQL server} error
@@ -702,21 +704,21 @@ Some common errors when using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::
+* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
 
-Solving some common problems with MySQL
+Solving Some Common Problems with MySQL
 
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::			The binary log
+* Binary log::                  
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
-MySQL client tools and APIs
+MySQL Client Tools and APIs
 
 * C::                           @strong{MySQL} C API
 * C API datatypes::             C API datatypes
@@ -730,7 +732,7 @@ MySQL client tools and APIs
 * Python::                      @strong{MySQL} Python APIs
 * Tcl::                         @strong{MySQL} Tcl APIs
 
-C API function descriptions
+C API Function Descriptions
 
 * mysql_affected_rows::         @code{mysql_affected_rows()}
 * mysql_close::                 @code{mysql_close()}
@@ -800,26 +802,30 @@ MySQL PHP API
 
 * PHP problems::                Common problems with MySQL and PHP
 
-How MySQL compares to other databases
+How MySQL Compares to Other Databases
 
 * Compare mSQL::                How @strong{MySQL} compares to @code{mSQL}
 * Compare PostgreSQL::          How @strong{MySQL} compares with PostgreSQL
 
-How MySQL compares to @code{mSQL}
+How MySQL Compares to @code{mSQL}
 
 * Using mSQL tools::            How to convert @code{mSQL} tools for @strong{MySQL}
 * Protocol differences::        How @code{mSQL} and @strong{MySQL} client/server communications protocols differ
 * Syntax differences::          How @code{mSQL} 2.0 SQL syntax differs from @strong{MySQL}
 
-MySQL internals
+MySQL Internals
 
 * MySQL threads::               MySQL threads
 * MySQL full-text search::      MySQL full-text search
 
+MySQL Full-text Search
+
+* Fine-tuning::                 
+
 Credits
 
-* Developers::
-* Contributors::
+* Developers::                  
+* Contributors::                
 
 MySQL change history
 
@@ -964,7 +970,7 @@ Changes in release 3.19.x
 
 MySQL and the future (The TODO)
 
-* TODO MySQL 4.0::              Things that should be in 4.0
+* TODO MySQL 4.0::              Things that should be in Version 4.0
 * TODO future::                 Things that must be done in the near future
 * TODO sometime::               Things that have to be done sometime
 * TODO unplanned::              Some things we don't have any plans to do
@@ -974,7 +980,7 @@ Comments on porting to other systems
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::
+* Locking methods::             
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 
@@ -6548,7 +6554,7 @@ distribution.
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::
+* BEOS::                        
 @end menu
 
 
@@ -6992,7 +6998,7 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::
+* Linux-Ia64::                  
 @end menu
 
 @node Linux-x86, Linux-RedHat50, Linux, Linux
@@ -19890,13 +19896,13 @@ and @samp{_} wild-card characters.
 @findex SHOW INDEX
 @findex SHOW KEYS
 @menu
-* SHOW DATABASE INFO::
-* SHOW TABLE STATUS::
-* SHOW STATUS::
-* SHOW VARIABLES::
-* SHOW PROCESSLIST::
-* SHOW GRANTS::
-* SHOW CREATE TABLE::
+* SHOW DATABASE INFO::          
+* SHOW TABLE STATUS::           
+* SHOW STATUS::                 
+* SHOW VARIABLES::              
+* SHOW PROCESSLIST::            
+* SHOW GRANTS::                 
+* SHOW CREATE TABLE::           
 @end menu
 
 @cindex displaying, information, @code{SHOW}
@@ -22477,12 +22483,12 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @section BDB or Berkeley_db Tables
 
 @menu
-* BDB overview::
-* BDB install::
-* BDB start::
-* BDB characteristic::
-* BDB TODO::
-* BDB errors::
+* BDB overview::                
+* BDB install::                 
+* BDB start::                   
+* BDB characteristic::          
+* BDB TODO::                    
+* BDB errors::                  
 @end menu
 
 @node BDB overview, BDB install, BDB, BDB
@@ -23074,7 +23080,7 @@ SELECT * FROM shop
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::
+* example-user-variables::      
 * example-Foreign keys::        Using foreign keys
 @end menu
 
@@ -27142,7 +27148,7 @@ great tool to find out if this is a problem with your query.
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::
+* DISTINCT optimization::       
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -28089,14 +28095,14 @@ How big a @code{VARCHAR} column can be
 
 @menu
 * Programs::                    What do the executables do?
-* safe_mysqld::
+* safe_mysqld::                 
 * mysql_multi_mysqld::          Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
 * mysqlimport::                 Importing data from text files
-* mysqlshow::                   Showing databases, tables and columns
 * perror::                      Displaying error messages
+* mysqlshow::                   Showing databases, tables and columns
 * myisampack::                  The @strong{MySQL} compressed read-only table generator
 @end menu
 
@@ -29775,10 +29781,10 @@ isamchk --silent /path/to/datadir/*/*.ISM
 @code{myisamchk} supports the following options.
 
 @menu
-* myisamchk general options::
-* myisamchk check options::
-* myisamchk repair options::
-* myisamchk other options::
+* myisamchk general options::   
+* myisamchk check options::     
+* myisamchk repair options::    
+* myisamchk other options::     
 @end menu
 
 Note that if you get an error like:
@@ -32317,7 +32323,7 @@ sure that no other programs are using the dynamic libraries!
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::
+* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -33417,7 +33423,7 @@ Drop or rename @code{old_table}.
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::
+* Binary log::                  
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
@@ -37802,8 +37808,7 @@ and searching. Full-text index in @strong{MySQL} is an
 index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
 @code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added
 later with @code{ALTER TABLE} or @code{CREATE INDEX}. Full-text search is
-performed with the @code{MATCH}
-function:
+performed with the @code{MATCH} function:
 
 @example
 mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
@@ -37884,10 +37889,11 @@ with search engine), and, as such, has low semantical value in @strong{this
 particular dataset}.
 
 @menu
-* Fine-tuning::
+* Fine-tuning::                 
 @end menu
 
-@node Fine-tuning, Environment variables, MySQL internals, Top
+@node Fine-tuning,  , MySQL full-text search, MySQL full-text search
+@subsection Fine-tuning MySQL Full-text Search
 
 Unfortunately, full-text search has no user-tunable parameters yet
 (but adding some is very high in our TODO). But if one has @strong{MySQL}
@@ -39082,8 +39088,8 @@ The following persons have helped us make MySQL what it is today
 
 @cindex developers, list of
 @menu
-* Developers::
-* Contributors::
+* Developers::                  
+* Contributors::                
 @end menu
 
 @node Developers, Contributors, Credits, Credits
@@ -39555,7 +39561,7 @@ though, so Version 3.23 is not released as a stable version yet.
 @item
 Fixed a bug with @code{HEAP} type tables; the variable
 @code{max_heap_table_size} wasn't used. Now either @code{MAX_ROWS} or
-@code[max_heap_table_size} can be used to limit the size of a @code{HEAP}
+@code{max_heap_table_size} can be used to limit the size of a @code{HEAP}
 type table.
 @item
 Renamed variable @code{bdb_lock_max} to @code{bdb_max_lock}.
@@ -44622,7 +44628,7 @@ will ensure that your thread installation has even a remote chance to work!
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::
+* Locking methods::             
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 @end menu
