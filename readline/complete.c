@@ -241,7 +241,7 @@ Function *rl_ignore_some_completions_function = (Function *)NULL;
    and a pointer to the quoting character to be used, which the function can
    reset if desired. */
 CPFunction *rl_filename_quoting_function = rl_quote_filename;
-         
+
 /* Function to call to remove quoting characters from a filename.  Called
    before completion is attempted, so the embedded quotes do not interfere
    with matching names in the file system.  Readline doesn't do anything
@@ -1010,7 +1010,7 @@ display_matches (matches)
       (*rl_completion_display_matches_hook) (matches, len, max);
       return;
     }
-	
+
   /* If there are many items, then ask the user if she really wants to
      see them all. */
   if (len >= rl_completion_query_items)

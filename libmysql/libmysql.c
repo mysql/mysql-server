@@ -1,19 +1,18 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
 #if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
@@ -1055,7 +1054,7 @@ int STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 				   unsigned long length)
 {
   MYSQL* last_used_slave, *slave_to_use = 0;
-  
+
   if ((last_used_slave = mysql->last_used_slave))
     slave_to_use = last_used_slave->next_slave;
   else
@@ -1130,7 +1129,7 @@ static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
   MYSQL* master;
   if (mysql_num_fields(res) < 3)
     return 1; /* safety */
-  
+
   /* use the same username and password as the original connection */
   if (!(master = spawn_init(mysql, row[0], atoi(row[2]), 0, 0)))
     return 1;
@@ -1148,7 +1147,7 @@ static inline int get_slaves_from_master(MYSQL* mysql)
   int error = 1;
   int has_auth_info;
   int port_ind;
-  
+
   if (!mysql->net.vio && !mysql_real_connect(mysql,0,0,0,0,0,0,0))
   {
     expand_error(mysql, CR_PROBE_MASTER_CONNECT);
@@ -1195,7 +1194,7 @@ static inline int get_slaves_from_master(MYSQL* mysql)
     if (!(slave = spawn_init(mysql, row[1], atoi(row[port_ind]),
 			    tmp_user, tmp_pass)))
       goto err;
-      
+
     /* Now add slave into the circular linked list */
     slave->next_slave = mysql->next_slave;
     mysql->next_slave = slave;
@@ -1225,7 +1224,7 @@ int STDCALL mysql_rpl_probe(MYSQL* mysql)
     expand_error(mysql, CR_PROBE_SLAVE_STATUS);
     return 1;
   }
-  
+
   if (!(row = mysql_fetch_row(res)))
     goto err;
 
@@ -1857,7 +1856,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   if (mysql->options.rpl_probe && mysql_rpl_probe(mysql))
     goto error;
-  
+
   DBUG_PRINT("exit",("Mysql handler: %lx",mysql));
   reset_sigpipe(mysql);
   DBUG_RETURN(mysql);
@@ -2017,7 +2016,7 @@ mysql_close(MYSQL *mysql)
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
-    
+
     /* free/close slave list */
     if (mysql->rpl_pivot)
     {
@@ -2059,7 +2058,7 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
   MYSQL* child;
   if (!(child = mysql_init(0)))
     return 0;
-  
+
   child->options.user = my_strdup((user) ? user :
 				  (parent->user ? parent->user :
 				   parent->options.user), MYF(0));
@@ -2078,7 +2077,7 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
     child->options.db = my_strdup(parent->options.db, MYF(0));
 
   child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
-    
+
   return child;
 }
 
@@ -2151,7 +2150,7 @@ int STDCALL mysql_read_query_result(MYSQL *mysql)
      could differ from the original connection if we have slaves
    */
   mysql = mysql->last_used_con;
-  
+
   if ((length = net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(-1);
   free_old_query(mysql);			/* Free old result */
@@ -2199,7 +2198,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
   DBUG_PRINT("query",("Query = \"%s\"",query));
-  
+
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(-1);
   DBUG_RETURN(mysql_read_query_result(mysql));
@@ -2275,7 +2274,7 @@ mysql_store_result(MYSQL *mysql)
 
   /* read from the actually used connection */
   mysql = mysql->last_used_con;
-  
+
   if (!mysql->fields)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
@@ -2330,7 +2329,7 @@ mysql_use_result(MYSQL *mysql)
   DBUG_ENTER("mysql_use_result");
 
   mysql = mysql->last_used_con;
-  
+
   if (!mysql->fields)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)

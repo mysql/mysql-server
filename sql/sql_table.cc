@@ -171,7 +171,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
     }
   }
-  
+
   error = 0;
   if (wrong_tables.length())
   {

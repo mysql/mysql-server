@@ -61,7 +61,7 @@ bool lib_dispatch_command(enum enum_server_command command, NET *net,
   thd->store_globals();				// Fix if more than one connect
   thd->net.last_error[0]=0;			// Clear error message
   thd->net.last_errno=0;
-  
+
   net_new_transaction(&thd->net);
   return dispatch_command(command, thd, (char *) arg, length + 1);
 }
@@ -156,7 +156,7 @@ check_connections1(THD *thd)
 
   /* nasty, but any other way? */
   uint pkt_len = 0;
-  
+
     char buff[80],*end;
     int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
 	               CLIENT_TRANSACTIONS;
@@ -489,7 +489,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 	     LOG_BIN);
     using_update_log=1;
   }
-  
+
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);

@@ -1239,13 +1239,13 @@ mysql_execute_command(void)
     res = show_binlog_info(thd);
     break;
   }
-    
+
   case SQLCOM_LOAD_MASTER_DATA: // sync with master
     if (check_process_priv(thd))
       goto error;
     res = load_master_data(thd);
     break;
-    
+
   case SQLCOM_LOAD_MASTER_TABLE:
 
     if (!tables->db)
@@ -1681,7 +1681,7 @@ mysql_execute_command(void)
     TABLE_LIST *auxi;
     uint table_count=0;
     multi_delete *result;
- 
+
     /* sql_yacc guarantees that tables and aux_tables are not zero */
     if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
 	check_table_access(thd,SELECT_ACL, tables) || 
@@ -2241,7 +2241,7 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 
   if (db == any_db)
     return FALSE;				// Allow select on anything
-  
+
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
 		      thd->priv_user, db); /* purecov: inspected */
@@ -2911,7 +2911,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 
   SELECT_LEX *sl;
   TABLE_LIST **new_table_list= result, *aux;
-  
+
   *new_table_list=0;				// end result list
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {

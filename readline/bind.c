@@ -733,7 +733,7 @@ _rl_read_init_file (const char *filename, int include_level)
 
   if (buffer == 0)
     return (errno);
-  
+
   if (include_level == 0 && filename != last_readline_init_file)
     {
       FREE (last_readline_init_file);
@@ -935,7 +935,7 @@ parser_include (args)
 
   return r;
 }
-  
+
 /* Associate textual names with actual functions. */
 static struct {
   const char *name;
@@ -1370,7 +1370,7 @@ rl_variable_bind (name, value)
       _rl_isearch_terminators[end] = '\0';
       free (v);
     }
-      
+
   /* For the time being, unknown variable names are simply ignored. */
   return 0;
 }
@@ -1451,7 +1451,7 @@ rl_get_keymap_name (map)
       return (keymap_names[i].name);
   return ((char *)NULL);
 }
-  
+
 void
 rl_set_keymap (map)
      Keymap map;
@@ -1670,7 +1670,7 @@ rl_invoking_keyseqs_in_map (function, map)
 		    keyname[0] = (char) key;
 		    keyname[1] = '\0';
 		  }
-		
+
 		strcat (keyname, seqs[i]);
 		free (seqs[i]);
 

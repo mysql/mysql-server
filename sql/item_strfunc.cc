@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -285,7 +285,7 @@ String *Item_func_des_decrypt::val_str(String *str)
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  
+
   if(res->c_ptr()[0]=='1') // Skip decryption if not encrypted
   {
     str->set((const char*)0,(uint)0); 
@@ -294,7 +294,7 @@ String *Item_func_des_decrypt::val_str(String *str)
       str->append((ascii_to_bin(res->c_ptr()[i])) 
 		      | (ascii_to_bin(res->c_ptr()[i+1]) << 5 ));
     }
- 
+
     String *keystr=args[1]->val_str(&tmp_value);
     int32 mode=0; 
     if(arg_count == 3 && !args[2]->null_value) 
@@ -1854,7 +1854,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   // we handle the possibility of an 8-byte IP address
   // however, we do not want to confuse those who are just using
   // 4 byte ones
-  
+
   for (p= buf + 8; p > buf+4 && p[-1] == 0 ; p-- ) ;
   num[3]='.';
   while (p-- > buf)

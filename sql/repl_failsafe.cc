@@ -256,7 +256,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
   }
 
   linfo.index_file_offset = 0;
-  
+
 
   search_file_name[0] = 0;
 
@@ -364,7 +364,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   int i;
   bool slave_event_found = 0;
   LINT_INIT(ev);
-  
+
   for (i = 0; i < 2; i++)
   {
     if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*)0, 0)))
@@ -436,7 +436,7 @@ int update_slave_list(MYSQL* mysql)
   const char* error=0;
   bool have_auth_info;
   int port_ind;
-  
+
   if (mc_mysql_query(mysql,"SHOW SLAVE HOSTS",0) ||
       !(res = mc_mysql_store_result(mysql)))
   {
@@ -504,7 +504,7 @@ err:
 
 int find_recovery_captain(THD* thd, MYSQL* mysql)
 {
-  
+
   return 0;
 }
 
@@ -826,7 +826,3 @@ err:
 
   return error;
 }
-
-
-
-

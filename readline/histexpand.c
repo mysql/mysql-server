@@ -249,7 +249,7 @@ get_history_event (string, caller_index, delimiting_quote)
 	{
 	  entry = current_history ();
 	  history_offset = history_length;
-	
+
 	  /* If this was a substring search, then remember the
 	     string that we matched for word substitution. */
 	  if (substring_okay)
@@ -515,7 +515,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	quoted_search_delimiter = string[i - 1];
       event = get_history_event (string, &i, quoted_search_delimiter);
     }
-	  
+
   if (event == 0)
     {
       *ret_string = hist_error (string, start, i, EVENT_NOT_FOUND);
@@ -826,7 +826,7 @@ history_expand (hstring, output)
       *output = savestring (hstring);
       return (0);
     }
-    
+
   /* Prepare the buffer for printing error messages. */
   result = xmalloc (result_len = 256);
   result[0] = '\0';
@@ -905,7 +905,7 @@ history_expand (hstring, output)
 		i++;
 	    }
 	}
-	  
+
       if (string[i] != history_expansion_char)
 	{
 	  free (result);
@@ -1240,7 +1240,7 @@ history_tokenize_internal (string, wind, indp)
 	return (result);
 
       start = i;
-      
+
       if (member (string[i], "()\n"))
 	{
 	  i++;

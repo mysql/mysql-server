@@ -291,7 +291,7 @@ extern Function *rl_function_of_keyseq __P((const char *, Keymap, int *));
 extern void rl_list_funmap_names __P((void));
 extern char **rl_invoking_keyseqs_in_map __P((Function *, Keymap));
 extern char **rl_invoking_keyseqs __P((Function *));
- 
+
 extern void rl_function_dumper __P((int));
 extern void rl_macro_dumper __P((int));
 extern void rl_variable_dumper __P((int));
@@ -380,7 +380,7 @@ extern int rl_clear_signals __P((void));
 extern void rl_cleanup_after_signal __P((void));
 extern void rl_reset_after_signal __P((void));
 extern void rl_free_line_state __P((void));
- 
+
 /* Undocumented. */
 extern int rl_expand_prompt __P((char *));
 
@@ -448,7 +448,7 @@ extern Function *rl_startup_hook;
    readline_internal_setup () returns and readline_internal starts
    reading input characters. */
 extern Function *rl_pre_input_hook;
-      
+
 /* The address of a function to call periodically while Readline is
    awaiting character input, or NULL, for no event handling. */
 extern Function *rl_event_hook;
@@ -599,7 +599,7 @@ extern int rl_ignore_completion_duplicates;
 /* If this is non-zero, completion is (temporarily) inhibited, and the
    completion character will be inserted as any other. */
 extern int rl_inhibit_completion;
-   
+
 /* Definitions available for use by readline clients. */
 #define RL_PROMPT_START_IGNORE	'\001'
 #define RL_PROMPT_END_IGNORE	'\002'

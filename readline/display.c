@@ -218,7 +218,7 @@ expand_prompt (pmt, lp, lip)
 
   l = strlen (pmt);
   r = ret = xmalloc (l + 1);
-  
+
   for (rl = ignoring = last = 0, p = pmt; p && *p; p++)
     {
       /* This code strips the invisible character string markers
@@ -831,7 +831,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
       if (old[0] && new[0])
 	old[0] = new[0];
     }
-      
+
   /* Find first difference. */
   for (ofd = old, nfd = new;
        (ofd - old < omax) && *ofd && (*ofd == *nfd);

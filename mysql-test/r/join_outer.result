@@ -633,3 +633,22 @@ SELECT * FROM t1 LEFT JOIN t2 ON (t1.bug_id =  t2.bug_id AND  t2.who = 2) WHERE 
 bug_id	reporter	bug_id	who
 1	1	1	2
 drop table t1,t2;
+create table t1 (fooID smallint unsigned auto_increment, primary key (fooID));
+create table t2 (fooID smallint unsigned not null, barID smallint unsigned not null, primary key (fooID,barID));
+insert into t1 (fooID) values (10),(20),(30);
+insert into t2 values (10,1),(20,2),(30,3);
+explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	index	NULL	PRIMARY	4	NULL	3	Using index
+t1	eq_ref	PRIMARY	PRIMARY	2	const	1	where used; Using index
+select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
+fooID	barID	fooID
+10	1	NULL
+20	2	NULL
+30	3	30
+select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
+fooID	barID	fooID
+10	1	NULL
+20	2	NULL
+30	3	30
+drop table t1,t2;

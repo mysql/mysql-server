@@ -310,7 +310,7 @@ struct debug_write_fns
      visibility.  The type must be popped off the type stack.  */
   boolean (*class_static_member) PARAMS ((PTR, const char *, const char *,
 					  enum debug_visibility));
-  
+
   /* Add a baseclass to the class currently being built.  The type of
      the baseclass must be popped off the type stack.  The arguments
      are the bit position, whether the class is virtual, and the

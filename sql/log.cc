@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -112,7 +112,7 @@ void MYSQL_LOG::set_index_file_name(const char* index_file_name)
 
 
 int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
-{      
+{
   if (log_type == LOG_NORMAL)
     fn_format(new_name,log_name,mysql_data_home,"",4);
   else
@@ -166,11 +166,11 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   char buff[512];
   File file= -1;
   bool do_magic;
-  
+
   if (!inited && log_type_arg == LOG_BIN && *fn_ext(log_name))
       no_rotate = 1;
   init(log_type_arg);
-  
+
   if (!(name=my_strdup(log_name,MYF(MY_WME))))
     goto err;
   if (new_name)
@@ -180,11 +180,11 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
   if (log_type == LOG_BIN && !index_file_name[0])
     fn_format(index_file_name, name, mysql_data_home, ".index", 6);
-  
+
   db[0]=0;
   do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
 						&tmp_stat, MYF(0)));
-  
+
   if ((file=my_open(log_file_name,O_CREAT | O_APPEND | O_WRONLY | O_BINARY,
 		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
@@ -266,7 +266,7 @@ err:
   log_type=LOG_CLOSED;
 
   return;
-  
+
 }
 
 int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
@@ -322,7 +322,7 @@ err:
   pthread_mutex_unlock(&LOCK_index);
   end_io_cache(&io_cache);
   return error;
-     
+
 }
 
 
@@ -359,7 +359,7 @@ err:
   return error;
 }
 
- 
+
 int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
 {
   if (index_file < 0) return LOG_INFO_INVALID;
@@ -373,9 +373,9 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
   my_off_t purge_offset ;
   LINT_INIT(purge_offset);
   IO_CACHE io_cache;
-  
+
   pthread_mutex_lock(&LOCK_index);
-  
+
   if (init_io_cache(&io_cache,index_file, IO_SIZE*2, READ_CACHE, (my_off_t) 0,
 		    0, MYF(MY_WME)))
   {
@@ -388,7 +388,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
     goto err;
   }
   logs_to_purge_inited = 1;
-  
+
   if (init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
   {
     error = LOG_INFO_MEM;
@@ -396,7 +396,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
   }
   logs_to_keep_inited = 1;
 
-  
+
   for(;;)
   {
     my_off_t init_purge_offset= my_b_tell(&io_cache);
@@ -414,14 +414,14 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
       found_log = 1;
       purge_offset = init_purge_offset;
     }
-      
+
     // if one of the logs before the target is in use
     if(!found_log && log_in_use(fname))
     {
       error = LOG_INFO_IN_USE;
       goto err;
     }
-      
+
     if (!(p = sql_memdup(fname, fname_len+1)) ||
 	insert_dynamic(found_log ? &logs_to_keep : &logs_to_purge,
 		       (gptr) &p))
@@ -430,14 +430,14 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
       goto err;
     }
   }
-  
+
   end_io_cache(&io_cache);
   if(!found_log)
   {
     error = LOG_INFO_EOF;
     goto err;
   }
-  
+
   for(i = 0; i < logs_to_purge.elements; i++)
   {
     char* l;
@@ -445,7 +445,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
     if (my_delete(l, MYF(MY_WME)))
       sql_print_error("Error deleting %s during purge", l);
   }
-  
+
   // if we get killed -9 here, the sysadmin would have to do a small
   // vi job on the log index file after restart - otherwise, this should
   // be safe
@@ -471,7 +471,7 @@ during log purge for write");
     goto err;
   }
 #endif
-  
+
   for(i = 0; i < logs_to_keep.elements; i++)
   {
     char* l;
@@ -509,7 +509,7 @@ void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)
     int ident_len = (uint) strlen(log_ident);
     if (dir_len + ident_len + 1 > FN_REFLEN)
       return; // protection agains malicious buffer overflow
-      
+
     memcpy(buf, log_file_name, dir_len);
     // copy filename + end null
     memcpy(buf + dir_len, log_ident, ident_len + 1);
@@ -661,7 +661,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
   /* In most cases this is only called if 'is_open()' is true */
   bool error=0;
   bool should_rotate = 0;
-  
+
   if (!inited)					// Can't use mutex if not init
     return 0;
   VOID(pthread_mutex_lock(&LOCK_log));
@@ -761,7 +761,7 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
   bool error=1;
-  
+
   if (is_open())
   {
     uint length;
@@ -801,9 +801,9 @@ err:
     write_error=1;
   else
     VOID(pthread_cond_broadcast(&COND_binlog_update));
-    
+
   VOID(pthread_mutex_unlock(&LOCK_log));
-  
+
   return error;
 }
 
