@@ -38066,22 +38066,49 @@ constraints to guard the integrity of your data.
 The syntax of a foreign key constraint definition in InnoDB:
 @example
 FOREIGN KEY (index_col_name, ...)
-  REFERENCES table_name (index_col_name, ...)
-@end example
-Starting from version 3.23.50 the InnoDB parser allows you to
-use backquotes (`) around table and column names in the above
-definition.
-
-An example:
-@example
-CREATE TABLE parent(id INT NOT NULL, PRIMARY KEY (id)) TYPE=INNODB;
-CREATE TABLE child(id INT, parent_id INT, INDEX par_ind (parent_id),
-             FOREIGN KEY (parent_id) REFERENCES parent(id)) TYPE=INNODB;
+                  REFERENCES table_name (index_col_name, ...)
+                  [ON DELETE CASCADE | ON DELETE SET NULL]
 @end example
 Both tables have to be InnoDB type and @strong{there must be an index
 where the foreign key and the referenced key are listed as the first
 columns}. InnoDB does not auto-create indexes on foreign keys or
 referenced keys: you have to create them explicitly.
+
+Corresponding columns in the foreign key
+and the referenced key must have similar internal data types
+inside InnoDB so that they can be compared without a type
+conversion.
+The size and the signedness of integer types has to be the same.
+The length of string types need not be the same.
+
+Starting from version 3.23.50 you can also associate the
+@code{ON DELETE CASCADE} or @code{ON DELETE SET NULL}
+clause with the foreign key constraint.
+
+If @code{ON DELETE CASCADE} is specified, and a row in the parent
+table is deleted, then InnoDB automatically deletes also all those rows
+in the child table whose foreign key values are equal to
+the referenced key value in the parent row. If @code{ON DELETE SET NULL}
+is specified, the child rows are automatiaclly updated so that the
+columns in the foreign key are set to the SQL NULL value.
+
+Starting from version 3.23.50, InnoDB does not check foreign key
+constraints on those foreign key or referenced key values
+which contain a NULL column.
+
+Starting from version 3.23.50 the InnoDB parser allows you to
+use backquotes (`) around table and column names in the above
+definition but the InnoDB parser is not yet aware of possible
+variable @code{lower_case_table_names} you give in @file{my.cnf}.
+
+An example:
+@example
+CREATE TABLE parent(id INT NOT NULL, PRIMARY KEY (id)) TYPE=INNODB;
+CREATE TABLE child(id INT, parent_id INT, INDEX par_ind (parent_id),
+             FOREIGN KEY (parent_id) REFERENCES parent(id)
+             ON DELETE SET NULL
+) TYPE=INNODB;
+@end example
 
 If MySQL gives the error number 1005 from a @code{CREATE TABLE}
 statement, and the error message string refers to errno 150, then
@@ -38099,10 +38126,6 @@ ALTER TABLE yourtablename
 @end example
 Remember to create the required indexes first, though.
                            
-Starting from version 3.23.50, InnoDB does not check foreign key
-constraints on those foreign key or referenced key values
-which contain a NULL column.
-
 In InnoDB versions < 3.23.50 @code{ALTER TABLE}
 or @code{CREATE INDEX}
 should not be used in connection with tables which have foreign
@@ -38117,12 +38140,6 @@ foreign key costraints which refer to the table.
 A @code{CREATE INDEX} statement is in MySQL
 processed as an @code{ALTER TABLE}, and these
 restrictions apply also to it.
-
-Corresponding columns in the foreign key
-and the referenced key must have similar internal data types
-inside InnoDB so that they can be compared without a type
-conversion. The length of string types need not be the same.
-The size and the signedness of integer types has to be the same.
 
 When doing foreign key checks InnoDB sets shared row
 level locks on child or parent records it has to look at.
