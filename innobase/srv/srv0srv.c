@@ -2148,7 +2148,12 @@ srv_sprintf_innodb_monitor(
 
 	current_time = time(NULL);
 
-	time_elapsed = difftime(current_time, srv_last_monitor_time);
+	/* We add 0.001 seconds to time_elapsed to prevent division
+	by zero if two users happen to call SHOW INNODB STATUS at the same
+	time */
+	
+	time_elapsed = difftime(current_time, srv_last_monitor_time)
+			+ 0.001;
 
 	srv_last_monitor_time = time(NULL);
 
@@ -2443,13 +2448,13 @@ loop:
 	srv_error_monitor_active = TRUE;
 
 	os_thread_sleep(10000000);
-	/*
+
 	printf("Validating has index\n");
 
 	btr_search_validate();
 
 	printf("Hash index validated\n");
-	*/
+
 	sync_array_print_long_waits();
 
 	/* Flush stdout and stderr so that a database user gets their output
