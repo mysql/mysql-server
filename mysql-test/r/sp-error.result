@@ -237,7 +237,7 @@ begin
 declare x float;
 declare x int;
 end;
-ERROR HY000: Duplicate parameter: x
+ERROR HY000: Duplicate variable: x
 create procedure p()
 begin
 declare c condition for 1064;

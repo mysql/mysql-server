@@ -1155,7 +1155,7 @@ sp_fdparam:
 
 	    if (spc->find_pvar(&$1, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $1.str);
+	      net_printf(YYTHD, ER_SP_DUP_PARAM, $1.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$1, (enum enum_field_types)$2, sp_param_in);
@@ -1181,7 +1181,7 @@ sp_pdparam:
 
 	    if (spc->find_pvar(&$2, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $2.str);
+	      net_printf(YYTHD, ER_SP_DUP_PARAM, $2.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$2, (enum enum_field_types)$3,
@@ -1252,7 +1252,7 @@ sp_decl:
 
 	    if (spc->find_cond(&$2, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_THING, "condition", $2.str);
+	      net_printf(YYTHD, ER_SP_DUP_COND, $2.str);
 	      YYABORT;
 	    }
 	    YYTHD->lex->spcont->push_cond(&$2, $5);
@@ -1302,7 +1302,8 @@ sp_decl:
 
 	    if (spc->find_cursor(&$2, &offp, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_THING, "cursor", $2.str);
+	      net_printf(YYTHD, ER_SP_DUP_CURS, $2.str);
+	      delete $5;
 	      YYABORT;
 	    }
             i= new sp_instr_cpush(sp->instructions(), $5);
@@ -1432,7 +1433,7 @@ sp_decl_idents:
 
 	    if (spc->find_pvar(&$1, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $1.str);
+	      net_printf(YYTHD, ER_SP_DUP_VAR, $1.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$1, (enum_field_types)0, sp_param_in);
@@ -1445,7 +1446,7 @@ sp_decl_idents:
 
 	    if (spc->find_pvar(&$3, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $3.str);
+	      net_printf(YYTHD, ER_SP_DUP_VAR, $3.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$3, (enum_field_types)0, sp_param_in);

@@ -311,19 +311,22 @@ end|
 create function p(x int, x char(10))
 begin
 end|
---error 1307
+
+--error 1308
 create procedure p()
 begin
   declare x float;
   declare x int;
 end|
---error 1307
+
+--error 1309
 create procedure p()
 begin
   declare c condition for 1064;
   declare c condition for 1065;
 end|
---error 1307
+
+--error 1310
 create procedure p()
 begin
   declare c cursor for select * from t1;
