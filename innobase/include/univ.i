@@ -16,7 +16,10 @@ Created 1/20/1994 Heikki Tuuri
 
 /* When compiling for Itanium IA64, undefine the flag below to prevent use
 of 32-bit assembler */
+
+#ifndef WIN64
 #define UNIV_CAN_USE_X86_ASSEMBLER
+#endif
 
 /* If you want to check for errors with compiler level -W4,
 comment out the above include of windows.h and let the following defines
