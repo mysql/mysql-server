@@ -725,7 +725,7 @@ static void acl_insert_user(const char *user, const char *host,
 			    ulong privileges)
 {
   ACL_USER acl_user;
-  acl_user.user=strdup_root(&mem,user);
+  acl_user.user=*user ? strdup_root(&mem,user) : 0;
   update_hostname(&acl_user.host,strdup_root(&mem,host));
   acl_user.password=0;
   acl_user.access=privileges;

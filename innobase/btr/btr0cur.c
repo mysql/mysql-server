@@ -1107,6 +1107,10 @@ btr_cur_pessimistic_insert(
 
 		if (big_rec_vec == NULL) {
 		
+			if (n_extents > 0) {
+			        fil_space_release_free_extents(index->space,
+								n_extents);
+			}
 			return(DB_TOO_BIG_RECORD);
 		}
 	}
@@ -1784,21 +1788,6 @@ btr_cur_pessimistic_update(
 								trx->id);
 	}
 
-	page_cursor = btr_cur_get_page_cur(cursor);
-
-	/* Store state of explicit locks on rec on the page infimum record,
-	before deleting rec. The page infimum acts as a dummy carrier of the
-	locks, taking care also of lock releases, before we can move the locks
-	back on the actual record. There is a special case: if we are
-	inserting on the root page and the insert causes a call of
-	btr_root_raise_and_insert. Therefore we cannot in the lock system
-	delete the lock structs set on the root page even if the root
-	page carries just node pointers. */
-
-	lock_rec_store_on_page_infimum(rec);
-
-	btr_search_update_hash_on_delete(cursor);
-
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
 		/* We are in a transaction rollback undoing a row
 		update: we must free possible externally stored fields
@@ -1819,10 +1808,6 @@ btr_cur_pessimistic_update(
 	ext_vect = mem_heap_alloc(heap, sizeof(ulint) * rec_get_n_fields(rec));
 	n_ext_vect = btr_push_update_extern_fields(ext_vect, rec, update);
 	
-	page_cur_delete_rec(page_cursor, mtr);
-
-	page_cur_move_to_prev(page_cursor);
-
 	if ((rec_get_converted_size(new_entry) >=
 				page_get_free_space_of_empty() / 2)
 	    || (rec_get_converted_size(new_entry) >= REC_MAX_DATA_SIZE)) {
@@ -1833,9 +1818,30 @@ btr_cur_pessimistic_update(
 
 			mem_heap_free(heap);
 		
+			err = DB_TOO_BIG_RECORD;
+
 			goto return_after_reservations;
 		}
 	}
+
+	page_cursor = btr_cur_get_page_cur(cursor);
+
+	/* Store state of explicit locks on rec on the page infimum record,
+	before deleting rec. The page infimum acts as a dummy carrier of the
+	locks, taking care also of lock releases, before we can move the locks
+	back on the actual record. There is a special case: if we are
+	inserting on the root page and the insert causes a call of
+	btr_root_raise_and_insert. Therefore we cannot in the lock system
+	delete the lock structs set on the root page even if the root
+	page carries just node pointers. */
+
+	lock_rec_store_on_page_infimum(rec);
+
+	btr_search_update_hash_on_delete(cursor);
+
+	page_cur_delete_rec(page_cursor, mtr);
+
+	page_cur_move_to_prev(page_cursor);
 
 	rec = btr_cur_insert_if_possible(cursor, new_entry,
 						&dummy_reorganized, mtr);
