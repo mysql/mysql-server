@@ -204,7 +204,7 @@ sub trim_the_fat
                 open(CONFIGURE,">configure.in") or die "Unable to open configure.in for write: $!\n";
                 print CONFIGURE $configure;
                 close(CONFIGURE);
-                `autoconf`;
+                `aclocal && autoheader && aclocal && automake && autoconf`;
                 die "'./configure' was not produced!" unless (-f "configure");
                 chdir("$cwd");
         }
