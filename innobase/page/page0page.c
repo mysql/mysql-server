@@ -19,9 +19,6 @@ Created 2/2/1994 Heikki Tuuri
 #include "btr0sea.h"
 #include "buf0buf.h"
 
-/* A cached template page used in page_create */
-page_t*	page_template	= NULL;
-
 /*			THE INDEX PAGE
 			==============
 		
@@ -321,20 +318,6 @@ page_create(
 
 	fil_page_set_type(page, FIL_PAGE_INDEX);
 
-	/* If we have a page template, copy the page structure from there */
-
-	if (page_template) {
-		ut_memcpy(page + PAGE_HEADER,
-			  page_template + PAGE_HEADER, PAGE_HEADER_PRIV_END);
-		ut_memcpy(page + PAGE_DATA,
-			  page_template + PAGE_DATA,
-			  PAGE_SUPREMUM_END - PAGE_DATA);
-		ut_memcpy(page + UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START,
-			page_template + UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START,
-		  		PAGE_EMPTY_DIR_START - PAGE_DIR);
-		return(frame);
-	}
-	
 	heap = mem_heap_create(200);
 		
 	/* 3. CREATE THE INFIMUM AND SUPREMUM RECORDS */
@@ -409,17 +392,6 @@ page_create(
 	rec_set_next_offs(infimum_rec, (ulint)(supremum_rec - page)); 
 	rec_set_next_offs(supremum_rec, 0);
 
-#ifdef notdefined
-        /* Disable the use of page_template: there is a race condition here:
-	while one thread is creating page_template, another one can start
-	using it before the memcpy completes! */
-
-	if (page_template == NULL) {
-		page_template = mem_alloc(UNIV_PAGE_SIZE);
-
-		ut_memcpy(page_template, page, UNIV_PAGE_SIZE);
-	}
-#endif	
 	return(page);
 }
 

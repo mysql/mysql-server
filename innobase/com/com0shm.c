@@ -964,19 +964,6 @@ loop:
 
 	ut_ad(loop_count < 2);
 
-#ifdef notdefined
-	if (!com_shm_get_not_empty(map)) {
-
-		/* There was no datagram, give up the time slice
-		for some writer thread to insert a datagram */
-
-		com_shm_exit(ep);
-
-		os_thread_yield();
-
-		com_shm_enter(ep);
-	}
-#endif
 	com_shm_enter(ep);
 
 	if (!com_shm_get_not_empty(map)) {
@@ -1131,33 +1118,13 @@ loop:
 	ut_memcpy(com_shm_get_addr(map), com_shm_endpoint_get_addr(ep),
 					 			sender_len);
 	com_shm_set_not_empty(map, TRUE);
-#ifdef notdefined
-	com_shm_exit(ep2);
-
-	/* Now we give up our time slice voluntarily to give some reader
-	thread chance to fetch the datagram */
-
-	os_thread_yield();
-
-	com_shm_enter(ep2);
-
-	if (com_shm_get_not_empty(map)) {
-#endif
-		com_shm_system_call_count++;
-
-		com_shm_exit(ep2);
-
-		/* Signal the event */
-
-		os_event_set(com_shm_endpoint_get_not_empty(ep2));
-
-		return(0);
-
-#ifdef notdefined
-	}
+	com_shm_system_call_count++;
 
 	com_shm_exit(ep2);
-	
+
+	/* Signal the event */
+
+	os_event_set(com_shm_endpoint_get_not_empty(ep2));
+
 	return(0);
-#endif
 }

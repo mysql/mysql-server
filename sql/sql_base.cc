@@ -2038,7 +2038,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 	{
 	  if (!strcmp(item_field->table_name,table_name) &&
 	      (!db_name || (db_name && item_field->db_name &&
-			    !strcmp(item_field->table_name,table_name))))
+			    !strcmp(item_field->db_name, db_name))))
 	  {
 	    found= li.ref();
 	    *counter= i;

@@ -236,61 +236,6 @@ row_build(
 	return(row);
 }
 
-#ifdef notdefined
-/***********************************************************************
-An inverse function to dict_row_build_index_entry. Builds a row from a
-record in a clustered index. */
-
-void
-row_build_to_tuple(
-/*===============*/
-	dtuple_t*	row,	/* in/out: row built; see the NOTE below! */
-	dict_index_t*	index,	/* in: clustered index */
-	rec_t*		rec)	/* in: record in the clustered index;
-				NOTE: the data fields in the row will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the row dtuple is used!
-				NOTE 2: does not work with externally
-				stored fields! */
-{
-	dict_table_t*	table;
-	ulint		n_fields;
-	ulint		i;
-	dfield_t*	dfield;
-	byte*		field;
-	ulint		len;
-	ulint		row_len;
-	dict_col_t*	col;
-	
-	ut_ad(index && rec);
-	ut_ad(index->type & DICT_CLUSTERED);
-
-	table = index->table;
-	row_len = dict_table_get_n_cols(table);
-
-	dtuple_set_info_bits(row, rec_get_info_bits(rec));
-	
-	n_fields = dict_index_get_n_fields(index);
-
-	ut_ad(n_fields == rec_get_n_fields(rec));
-
-	dict_table_copy_types(row, table);
-
-	for (i = 0; i < n_fields; i++) {
-
-		col = dict_field_get_col(dict_index_get_nth_field(index, i));
-		dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-		field = rec_get_nth_field(rec, i, &len);
-
-		dfield_set_data(dfield, field, len);
-	}
-
-	ut_ad(dtuple_check_typed(row));
-}
-#endif
-
 /***********************************************************************
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap. */

@@ -330,10 +330,10 @@ rw_lock_x_lock_low(
 			lock->writer_count++;
 			lock->pass = pass;
 			
-			#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 			rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
 							file_name, line);
-			#endif
+#endif
 			lock->last_x_file_name = file_name;
 			lock->last_x_line = line;
 		
@@ -346,10 +346,10 @@ rw_lock_x_lock_low(
 			lock->pass = pass;
 			lock->writer_is_wait_ex = TRUE;
 
-			#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 			rw_lock_add_debug_info(lock, pass, RW_LOCK_WAIT_EX,
 							file_name, line);
-			#endif
+#endif
 
 			return(RW_LOCK_WAIT_EX);
 		}
@@ -365,11 +365,11 @@ rw_lock_x_lock_low(
 			lock->pass = pass;
 			lock->writer_is_wait_ex = FALSE;
 
-			#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 			rw_lock_remove_debug_info(lock, pass, RW_LOCK_WAIT_EX);
 			rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
 							file_name, line);
-			#endif
+#endif
 		
 			lock->last_x_file_name = file_name;
 			lock->last_x_line = line;
@@ -388,10 +388,10 @@ rw_lock_x_lock_low(
 
 		lock->writer_count++;
 
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, pass, RW_LOCK_EX, file_name,
 									line);
-		#endif
+#endif
 		
 		lock->last_x_file_name = file_name;
 		lock->last_x_line = line;
