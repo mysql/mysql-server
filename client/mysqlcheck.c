@@ -308,7 +308,8 @@ static int get_options(int *argc, char ***argv)
     else
       what_to_do = DO_CHECK;
   }
-  if (!(charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
+  if (!(charset_info= get_charset_by_csname(default_charset, 
+  					    MY_CS_PRIMARY, MYF(MY_WME))))
       exit(1);
   if (*argc > 0 && opt_alldbs)
   {
