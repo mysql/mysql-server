@@ -1,3 +1,5 @@
+#!/bin/sh
+
 if ! test -f sql/mysqld.cc
 then
   echo "You must run this script from the MySQL top-level directory"
@@ -49,6 +51,7 @@ max_configs="$max_no_es_configs --with-embedded-server"
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
 amd64_cflags="-DBIG_TABLES"
 pentium_cflags="-mcpu=pentiumpro"
+pentium64_cflags="-mcpu=nocona -m64"
 ppc_cflags="-mpowerpc -mcpu=powerpc"
 sparc_cflags=""
 
