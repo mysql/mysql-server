@@ -28,6 +28,12 @@ Created 10/21/1995 Heikki Tuuri
 #define POSIX_ASYNC_IO
 #endif
 
+#ifndef S_IRWXU
+#define S_IRWXU 00700
+#define S_IRWXG 00070
+#define S_IRWXO 00007
+#endif
+
 #endif
 
 #ifdef __WIN__

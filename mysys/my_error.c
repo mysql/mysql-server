@@ -65,6 +65,8 @@ int my_error(int nr,myf MyFlags, ...)
       /* Skipp if max size is used (to be compatible with printf) */
       while (isdigit(*tpos) || *tpos == '.' || *tpos == '-')
 	tpos++;
+      if (*tpos == 'l')				/* Skipp 'l' argument */
+	*tpos++;
       if (*tpos == 's')				/* String parameter */
       {
 	par = va_arg(ap, char *);

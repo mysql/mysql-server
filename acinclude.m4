@@ -849,6 +849,83 @@ dnl END OF MYSQL_CHECK_BDB SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_INNOBASE
+dnl Sets HAVE_INNOBASE_DB if --with-innobase-db is used
+dnl ---------------------------------------------------------------------------
+
+AC_DEFUN([MYSQL_CHECK_INNOBASE], [
+  AC_ARG_WITH([innobase-db],
+              [\
+  --with-innobase-db      Use Innobase DB],
+              [innobase="$withval"],
+              [innobase=no])
+
+  AC_MSG_CHECKING([for Innobase DB])
+
+  have_innobase_db=no
+  innobase_includes=
+  innobase_libs=
+  case "$innobase" in
+    yes )
+      AC_MSG_RESULT([Using Innobase DB])
+      AC_DEFINE(HAVE_INNOBASE_DB)
+      have_innobase_db="yes"
+      innobase_includes="-I../innobase/include"
+dnl Some libs are listed several times, in order for gcc to sort out
+dnl circular references.
+      innobase_libs="\
+ ../innobase/usr/libusr.a\
+ ../innobase/odbc/libodbc.a\
+ ../innobase/srv/libsrv.a\
+ ../innobase/que/libque.a\
+ ../innobase/dict/libdict.a\
+ ../innobase/ibuf/libibuf.a\
+ ../innobase/row/librow.a\
+ ../innobase/pars/libpars.a\
+ ../innobase/btr/libbtr.a\
+ ../innobase/trx/libtrx.a\
+ ../innobase/read/libread.a\
+ ../innobase/usr/libusr.a\
+ ../innobase/buf/libbuf.a\
+ ../innobase/ibuf/libibuf.a\
+ ../innobase/eval/libeval.a\
+ ../innobase/log/liblog.a\
+ ../innobase/fsp/libfsp.a\
+ ../innobase/fut/libfut.a\
+ ../innobase/fil/libfil.a\
+ ../innobase/lock/liblock.a\
+ ../innobase/mtr/libmtr.a\
+ ../innobase/page/libpage.a\
+ ../innobase/rem/librem.a\
+ ../innobase/thr/libthr.a\
+ ../innobase/com/libcom.a\
+ ../innobase/sync/libsync.a\
+ ../innobase/data/libdata.a\
+ ../innobase/mach/libmach.a\
+ ../innobase/ha/libha.a\
+ ../innobase/dyn/libdyn.a\
+ ../innobase/mem/libmem.a\
+ ../innobase/sync/libsync.a\
+ ../innobase/ut/libut.a\
+ ../innobase/os/libos.a\
+ ../innobase/ut/libut.a"
+
+      AC_CHECK_LIB(rt, aio_read, [innobase_libs="$innobase_libs -lrt"])
+      ;;
+    * )
+      AC_MSG_RESULT([Not using Innobase DB])
+      ;;
+  esac
+
+  AC_SUBST(innobase_includes)
+  AC_SUBST(innobase_libs)
+])
+
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_INNOBASE SECTION
+dnl ---------------------------------------------------------------------------
+
+dnl ---------------------------------------------------------------------------
 dnl Got this from the GNU tar 1.13.11 distribution
 dnl by Paul Eggert <eggert@twinsun.com>
 dnl ---------------------------------------------------------------------------

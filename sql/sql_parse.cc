@@ -214,7 +214,7 @@ static int check_for_max_user_connections(const char *user, int u_length,
 					 (byte*) temp_user, temp_len);
   if (uc) /* user found ; check for no. of connections */
   {
-    if (max_user_connections ==  uc->connections) 
+    if ((uint) max_user_connections ==  uc->connections) 
     {
       net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, temp_user);
       pthread_mutex_unlock(&LOCK_user_conn);
