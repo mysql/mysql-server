@@ -882,6 +882,11 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| CHARSET EQ DEFAULT
+	  {
+	    Lex->create_info.table_charset=NULL;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
 	| CHARSET EQ ident
 	  { 
 	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
