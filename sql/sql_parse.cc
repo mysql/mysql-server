@@ -3626,6 +3626,24 @@ unsent_create_error:
 		     first_table ? 0 : 1, 0))
       goto error;
 
+    if (thd->user)				// If not replication
+    {
+      LEX_USER *user;
+      List_iterator <LEX_USER> user_list(lex->users_list);
+      while ((user=user_list++))
+      {
+	if (user->password.str &&
+	    strcmp(thd->user, user->user.str) ||
+	    user->host.str &&
+	    my_strcasecmp(system_charset_info,
+			  user->host.str, thd->host_or_ip))
+	{
+	  if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 0))
+	    goto error;
+	  break;			// We are allowed to do changes
+	}
+      }
+    }
     if (specialflag & SPECIAL_NO_RESOLVE)
     {
       LEX_USER *user;
@@ -4381,6 +4399,8 @@ unsent_create_error:
     {
       if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 1)))
         my_error(ER_XAER_NOTA, MYF(0));
+      else
+        send_ok(thd);
       break;
     }
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
@@ -4389,9 +4409,7 @@ unsent_create_error:
       if ((r= ha_commit(thd)))
         my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
       else
-      {
         send_ok(thd);
-      }
     }
     else
     if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
@@ -4399,9 +4417,7 @@ unsent_create_error:
       if (ha_commit_one_phase(thd, 1))
         my_error(ER_XAER_RMERR, MYF(0));
       else
-      {
         send_ok(thd);
-      }
     }
     else
     {
@@ -4418,6 +4434,8 @@ unsent_create_error:
     {
       if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 0)))
         my_error(ER_XAER_NOTA, MYF(0));
+      else
+        send_ok(thd);
       break;
     }
     if (thd->transaction.xa_state != XA_IDLE &&
