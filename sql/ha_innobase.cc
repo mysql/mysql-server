@@ -3453,7 +3453,7 @@ ha_innobase::start_stmt(
   prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
   prebuilt->read_just_key = 0;
 
-  if (prebuilt->select_lock_type == LOCK_NONE) {
+  if (!prebuilt->mysql_has_locked) {
           /* This handle is for a temporary table created inside
           this same LOCK TABLES; since MySQL does NOT call external_lock
           in this case, we must use x-row locks inside InnoDB to be
@@ -3510,6 +3510,7 @@ ha_innobase::external_lock(
 
 		thd->transaction.all.innodb_active_trans = 1;
 		trx->n_mysql_tables_in_use++;
+		prebuilt->mysql_has_locked = TRUE;
 
 		if (thd->tx_isolation == ISO_SERIALIZABLE
 		    && prebuilt->select_lock_type == LOCK_NONE) {
@@ -3527,6 +3528,7 @@ ha_innobase::external_lock(
 		}
 	} else {
 		trx->n_mysql_tables_in_use--;
+		prebuilt->mysql_has_locked = FALSE;
 		auto_inc_counter_for_this_stat = 0;
 
 		if (trx->n_mysql_tables_in_use == 0) {
