@@ -719,6 +719,15 @@ public:
 
   LockMode getLockMode() const { return theLockMode; }
 
+  /**
+   * Set/get distribution/partition key
+   */
+  void setPartitionId(Uint32 id);
+  void setPartitionHash(Uint32 key);
+  void setPartitionHash(const Uint64 *, Uint32 len);
+  Uint32 getPartitionId() const;
+protected:
+  int handle_distribution_key(const Uint64 *, Uint32 len);
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -810,13 +819,12 @@ protected:
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   
   // Handle ATTRINFO signals   
-  int 	      insertATTRINFO(Uint32 aData);
-  int         insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
-
-  int 	      insertKEYINFO(const char* aValue,	
-			    Uint32 aStartPosition,	
-			    Uint32 aKeyLenInByte,	
-			    Uint32 anAttrBitsInLastWord);
+  int insertATTRINFO(Uint32 aData);
+  int insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
+  
+  int insertKEYINFO(const char* aValue,	
+		    Uint32 aStartPosition,	
+		    Uint32 aKeyLenInByte);
   
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
@@ -850,14 +858,18 @@ protected:
   Ndb*		   theNdb;	      	// Point back to the Ndb object.
   NdbConnection*   theNdbCon;	       	// Point back to the connection object.
   NdbOperation*	   theNext;	       	// Next pointer to operation.
-  NdbApiSignal*	   theTCREQ;		// The TC[KEY/INDX]REQ signal object
+
+  union {
+    NdbApiSignal* theTCREQ;		// The TC[KEY/INDX]REQ signal object
+    NdbApiSignal* theSCAN_TABREQ;
+  };
+
   NdbApiSignal*	   theFirstATTRINFO;	// The first ATTRINFO signal object 
   NdbApiSignal*	   theCurrentATTRINFO;	// The current ATTRINFO signal object  
   Uint32	   theTotalCurrAI_Len;	// The total number of attribute info
   		      			// words currently defined    
   Uint32	   theAI_LenInCurrAI;	// The number of words defined in the
 		      		     	// current ATTRINFO signal
-  NdbApiSignal*	   theFirstKEYINFO;	// The first KEYINFO signal object 
   NdbApiSignal*	   theLastKEYINFO;	// The first KEYINFO signal object 
 
   class NdbLabel*	    theFirstLabel;
@@ -874,8 +886,8 @@ protected:
   Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
   Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
 
-  const class NdbTableImpl* m_currentTable;      // The current table
-  const class NdbTableImpl* m_accessTable;
+  const class NdbTableImpl* m_currentTable; // The current table
+  const class NdbTableImpl* m_accessTable;  // Index table (== current for pk)
 
   // Set to TRUE when a tuple key attribute has been defined. 
   Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
@@ -883,18 +895,18 @@ protected:
   Uint32	    theTotalNrOfKeyWordInSignal;     // The total number of
   						     // keyword in signal.
 
-  Uint32	    theTupKeyLen;	   // Length of the tuple key in words
-  Uint32	    theNoOfTupKeyDefined;  // The number of tuple key attributes
-		       			   // currently defined   
-  OperationType	  theOperationType;        // Read Request, Update Req......   
-
+  Uint32	    theTupKeyLen;	// Length of the tuple key in words
+		       		        // left until done
+  Uint8	theNoOfTupKeyLeft;  // The number of tuple key attributes
+  OperationType	theOperationType;        // Read Request, Update Req......   
+  
   LockMode        theLockMode;	   // Can be set to WRITE if read operation 
   OperationStatus theStatus;	   // The status of the operation.	
+  
   Uint32         theMagicNumber;  // Magic number to verify that object 
                                    // is correct
   Uint32 theScanInfo;      	   // Scan info bits (take over flag etc)
-  Uint32 theDistrKeySize;         // Distribution Key size if used
-  Uint32 theDistributionGroup;    // Distribution Group if used
+  Uint32 theDistributionKey;       // Distribution Key size if used
 
   Uint32 theSubroutineSize;	   // Size of subroutines for interpretation
   Uint32 theInitialReadSize;	   // Size of initial reads for interpretation
@@ -902,14 +914,12 @@ protected:
   Uint32 theFinalUpdateSize;	   // Size of final updates for interpretation
   Uint32 theFinalReadSize;	   // Size of final reads for interpretation
 
-  Uint8  theStartIndicator;	   // Indicator of whether start operation
-  Uint8  theCommitIndicator;	   // Indicator of whether commit operation
-  Uint8  theSimpleIndicator;	   // Indicator of whether simple operation
-  Uint8  theDirtyIndicator;	   // Indicator of whether dirty operation
-  Uint8  theInterpretIndicator;   // Indicator of whether interpreted operation
-  Uint8  theDistrGroupIndicator;  // Indicates whether distribution grp is used
-  Uint8  theDistrGroupType;       // Type of distribution group used
-  Uint8  theDistrKeyIndicator;    // Indicates whether distr. key is used
+  Uint8  theStartIndicator;	 // Indicator of whether start operation
+  Uint8  theCommitIndicator;	 // Indicator of whether commit operation
+  Uint8  theSimpleIndicator;	 // Indicator of whether simple operation
+  Uint8  theDirtyIndicator;	 // Indicator of whether dirty operation
+  Uint8  theInterpretIndicator;  // Indicator of whether interpreted operation
+  Int8  theDistrKeyIndicator_;    // Indicates whether distr. key is used
 
   Uint16 m_tcReqGSN;
   Uint16 m_keyInfoGSN;
