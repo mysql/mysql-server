@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
   keyinfo[0].seg[0].flag=(uint8) pack_seg;
   keyinfo[0].seg[0].null_bit=0;
   keyinfo[0].seg[0].null_pos=0;
+  keyinfo[0].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[0].keysegs=1;
   keyinfo[0].flag = pack_type;
   keyinfo[1].seg= &glob_keyseg[1][0];
@@ -106,6 +107,7 @@ int main(int argc, char *argv[])
   keyinfo[1].seg[1].flag=HA_REVERSE_SORT;
   keyinfo[1].seg[1].null_bit=0;
   keyinfo[1].seg[1].null_pos=0;
+  keyinfo[1].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[1].keysegs=2;
   keyinfo[1].flag =0;
   keyinfo[2].seg= &glob_keyseg[2][0];
@@ -115,6 +117,7 @@ int main(int argc, char *argv[])
   keyinfo[2].seg[0].flag=HA_REVERSE_SORT;
   keyinfo[2].seg[0].null_bit=0;
   keyinfo[2].seg[0].null_pos=0;
+  keyinfo[2].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[2].keysegs=1;
   keyinfo[2].flag =HA_NOSAME;
   keyinfo[3].seg= &glob_keyseg[3][0];
@@ -125,6 +128,7 @@ int main(int argc, char *argv[])
   keyinfo[3].seg[0].flag=(uint8) pack_seg;
   keyinfo[3].seg[0].null_bit=0;
   keyinfo[3].seg[0].null_pos=0;
+  keyinfo[3].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[3].keysegs=1;
   keyinfo[3].flag = pack_type;
   keyinfo[4].seg= &glob_keyseg[4][0];
@@ -135,6 +139,7 @@ int main(int argc, char *argv[])
   keyinfo[4].seg[0].flag=0;
   keyinfo[4].seg[0].null_bit=0;
   keyinfo[4].seg[0].null_pos=0;
+  keyinfo[4].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[4].keysegs=1;
   keyinfo[4].flag = pack_type;
   keyinfo[5].seg= &glob_keyseg[5][0];
@@ -145,6 +150,7 @@ int main(int argc, char *argv[])
   keyinfo[5].seg[0].flag=pack_seg;
   keyinfo[5].seg[0].null_bit=0;
   keyinfo[5].seg[0].null_pos=0;
+  keyinfo[5].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[5].keysegs=1;
   keyinfo[5].flag = pack_type;
 

@@ -17,6 +17,8 @@
 /* Remove a row from a MyISAM table */
 
 #include "fulltext.h"
+#include "rt_index.h"
+
 #ifdef	__WIN__
 #include <errno.h>
 #endif
@@ -79,9 +81,9 @@ int mi_delete(MI_INFO *info,const byte *record)
       }
       else
       {
-	uint key_length=_mi_make_key(info,i,old_key,record,info->lastpos);
-	if (_mi_ck_delete(info,i,old_key,key_length))
-	  goto err;
+        if (info->s->keyinfo[i].ck_delete(info,i,old_key,
+        	_mi_make_key(info,i,old_key,record,info->lastpos)))
+          goto err;
       }
     }
   }
