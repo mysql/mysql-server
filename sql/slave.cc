@@ -874,6 +874,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	if(mysql_load(thd, &ex, &tables, fields, handle_dup, 1,
 		      TL_WRITE))
 	  thd->query_error = 1;
+	if(thd->cuted_fields)
+	  sql_print_error("Slave: load data infile at position %d in log \
+'%s' produced %d warning(s)", glob_mi.pos, RPL_LOG_NAME, thd->cuted_fields );
 	net->pkt_nr = thd->net.pkt_nr;
       }
       else // we will just ask the master to send us /dev/null if we do not want to
