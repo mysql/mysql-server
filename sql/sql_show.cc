@@ -1225,7 +1225,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_RPL_STATUS:
 	net_store_data(&packet2, rpl_status_type[(int)rpl_status]);
 	break;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
       case SHOW_SLAVE_RUNNING:
       {
 	LOCK_ACTIVE_MI;

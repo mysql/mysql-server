@@ -3562,7 +3562,7 @@ relay logs",
   {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
    "Don't print a stack trace on failure", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables",
+  {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Depricated option.  Use --skip-symbolic-links instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
    "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -3606,11 +3606,12 @@ replicating a LOAD DATA INFILE command",
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef USE_SYMDIR
-  {"use-symbolic-links", 's', "Enable symbolic link support",
+  {"use-symbolic-links", 's', "Enable symbolic link support. Depricated option; Use --symbolic-links instead",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
-#endif
+  {"--symbolic-links", 's', "Enable symbolic link support",
+   (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
+   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit", 0, 0, 0, GET_NO_ARG,
@@ -4424,9 +4425,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
     myisam_concurrent_insert=0;
     myisam_recover_options= HA_RECOVER_NONE;
-    my_disable_symlinks=1;
     my_use_symdir=0;
-    have_symlink=SHOW_OPTION_DISABLED;
     ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
 #ifdef HAVE_QUERY_CACHE
     query_cache_size=0;
@@ -4473,9 +4472,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     test_flags|=TEST_NO_STACKTRACE;
     break;
   case (int) OPT_SKIP_SYMLINKS:
-    my_disable_symlinks=1;
     my_use_symdir=0;
-    have_symlink=SHOW_OPTION_DISABLED;
     break;
   case (int) OPT_BIND_ADDRESS:
     if (argument && isdigit(argument[0]))
