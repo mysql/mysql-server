@@ -28,7 +28,7 @@ uint32 my_lwrite(int Filedes, const byte *Buffer, uint32 Count, myf MyFlags)
 		   Filedes, Buffer, Count, MyFlags));
 
   /* Temp hack to get count to int32 while write wants int */
-  if ((writenbytes = (uint32) write(Filedes, Buffer, (size_t) Count)) != Count)
+  if ((writenbytes = (uint32) write(Filedes, Buffer, (uint) Count)) != Count)
   {
     my_errno=errno;
     if (writenbytes == (uint32) -1 || MyFlags & (MY_NABP | MY_FNABP))

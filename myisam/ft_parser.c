@@ -140,7 +140,7 @@ TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
       if(word_char(*doc)) break;
     for(w.pos=doc; doc<end; doc++)
       if(!word_char(*doc)) break;
-    if((w.len=doc-w.pos) < MIN_WORD_LEN) continue;
+    if((w.len= (uint) (doc-w.pos)) < MIN_WORD_LEN) continue;
     if(!tree_insert(wtree, &w, 0))
     {
       delete_tree(wtree);

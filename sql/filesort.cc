@@ -192,7 +192,7 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
       memavl=MIN_SORT_MEMORY;
   }
   param.keys--;
-  maxbuffer+=10;				/* Some extra range */
+  maxbuffer+=10;			/* Some extra range */
 
   if (memavl < MIN_SORT_MEMORY)
   {
@@ -209,7 +209,7 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
 			     &tempfile, selected_records_file)) ==
       HA_POS_ERROR)
     goto err;
-  if (maxbuffer == 0)
+  if (maxbuffer == 0)			// The whole set is in memory
   {
     if (save_index(&param,sort_keys,(uint) records))
       goto err;

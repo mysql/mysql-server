@@ -831,7 +831,7 @@ bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
     alrm->crono=0;
     return 1;
   }
-  if (!(alrm->crono=SetTimer(NULL,0,(long) sec*1000L, (TIMERPROC) NULL)))
+  if (!(alrm->crono=SetTimer((HWND) NULL,0, sec*1000,(TIMERPROC) NULL)))
     return 1;
   return 0;
 }

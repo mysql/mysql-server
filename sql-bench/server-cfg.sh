@@ -535,23 +535,23 @@ sub new
   $limits{'group_functions'}	= 1;
   $limits{'group_distinct_functions'}= 1; # Have count(distinct)
   $limits{'having_with_alias'}  = 0;
-  $limits{'having_with_group'}	= 0;
+  $limits{'having_with_group'}	= 1;
   $limits{'left_outer_join'}	= 0;
   $limits{'like_with_column'}	= 1;
   $limits{'lock_tables'}	= 0;		# in ATIS gives this a problem
-  $limits{'max_column_name'} 	= 32;		# Is this true
-  $limits{'max_columns'}	= 300;		# 500 crashes pg 6.3
-  $limits{'max_tables'}		= 65000;	# Should be big enough
-  $limits{'max_conditions'}	= 9;		# This makes Pg real slow
-  $limits{'max_index'}		= 7;		# Is this true ?
-  $limits{'max_index_parts'}	= 16;		# Is this true ?
-  $limits{'max_text_size'}	= 7000;		# 8000 crashes pg 6.3
   $limits{'multi_drop'}		= 1;
   $limits{'order_by_position'}  = 1;
-  $limits{'query_size'}		= 8191;
   $limits{'select_without_from'}= 1;
   $limits{'subqueries'}		= 1;
   $limits{'table_wildcard'}	= 1;
+  $limits{'max_column_name'} 	= 32;		# Is this true
+  $limits{'max_columns'}	= 1000;		# 500 crashes pg 6.3
+  $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_conditions'}	= 30;		# This makes Pg real slow
+  $limits{'max_index'}		= 64;		# Is this true ?
+  $limits{'max_index_parts'}	= 16;		# Is this true ?
+  $limits{'max_text_size'}	= 7000;		# 8000 crashes pg 6.3
+  $limits{'query_size'}		= 8191;
 
   # the different cases per query ...
   $smds{'q1'} 	= 'b'; # with time

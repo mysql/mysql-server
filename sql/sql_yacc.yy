@@ -680,17 +680,7 @@ create3:
 	/* empty*/ {}
 	| opt_duplicate SELECT_SYM
           {
-            LEX *lex=Lex;
-            lex->where=lex->having=0;
-            lex->select_limit=current_thd->default_select_limit;
-            lex->offset_limit=0L;
-            lex->options=0;
-	    lex->exchange = 0;
-	    lex->order_list.elements=lex->group_list.elements=0;
-	    lex->order_list.first=0;
-	    lex->order_list.next= (byte**) &lex->order_list.first;
-	    lex->group_list.first=0;
-	    lex->group_list.next= (byte**) &lex->group_list.first;
+	    mysql_init_select(Lex);
           }
           select_options select_item_list opt_select_from {}
 
@@ -1149,17 +1139,8 @@ select:
 	SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  lex->where=lex->having=0;
-	  lex->select_limit=current_thd->default_select_limit;
-	  lex->offset_limit=0L;
-	  lex->options=0;
 	  lex->sql_command= SQLCOM_SELECT;
-	  lex->exchange = 0;
-	  lex->order_list.elements=lex->group_list.elements=0;
-	  lex->order_list.first=0;
-	  lex->order_list.next= (byte**) &lex->order_list.first;
-	  lex->group_list.first=0;
-	  lex->group_list.next= (byte**) &lex->group_list.first;
+	  mysql_init_select(lex);
 	}
 	select_options select_item_list select_into
 
@@ -1973,17 +1954,9 @@ insert_values:
 	| SELECT_SYM
 	  {
 	    LEX *lex=Lex;
-	    lex->where=lex->having=0;
-	    lex->select_limit=current_thd->default_select_limit;
-	    lex->offset_limit=0L;
-	    lex->options=0;
-            lex->order_list.elements=lex->group_list.elements=0;
-	    lex->order_list.first=0;
-	    lex->order_list.next= (byte**) &lex->order_list.first;
-	    lex->group_list.first=0;
-	    lex->group_list.next= (byte**) &lex->group_list.first;
 	    lex->sql_command = (lex->sql_command == SQLCOM_INSERT ?
 				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
+	    mysql_init_select(lex);
 	  }
 	  select_options select_item_list select_from {}
 

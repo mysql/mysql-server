@@ -25,7 +25,7 @@ WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = sprintf("%d.%02d", q$Revision$ =~ /(\d+)\.(\d+)/o);
+my $VERSION = "1.5";
 
 my $OPTIONS = <<"_OPTIONS";
 

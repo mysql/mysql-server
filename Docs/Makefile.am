@@ -1,5 +1,3 @@
-# Monty
-
 # Normally you do not need to remake the files here. But if you want
 # to you will need the GNU TeX-info utilities. To make a Postscript
 # files you also need TeX and dvips. To make the PDF file you will

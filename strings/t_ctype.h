@@ -9,8 +9,8 @@
     "as is" without express or implied warranty.
 */
 
-/* $Id$
-   LC_COLLATE category + Level information
+/*
+  LC_COLLATE category + Level information
 */
 
 #ifndef _t_ctype_h

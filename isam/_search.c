@@ -342,7 +342,7 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
           else
           {
             if ((flag = my_strnncoll(default_charset_info,
-				     a, (end-a), b, b_length)))
+				     a, (int) (end-a), b, b_length)))
               return (keyseg->base.flag & HA_REVERSE_SORT) ? -flag : flag;
             b+= (uint) (end-a);
             a=end;
@@ -393,7 +393,7 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
           else
           {
             if ((flag = my_strnncoll(default_charset_info,
-				     a, (end-a), b, (end-a))))
+				     a, (int) (end-a), b, (int) (end-a))))
               return (keyseg->base.flag & HA_REVERSE_SORT) ? -flag : flag;
             b+= (uint) (end-a);
             a=end;

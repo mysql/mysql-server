@@ -249,7 +249,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.7 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver 1.8 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage(void)

@@ -37,7 +37,7 @@ int heap_rnext(HP_INFO *info, byte *record)
       pos=0;					/* Read next after last */
       my_errno=HA_ERR_KEY_NOT_FOUND;
     }
-    else if (!info->current_ptr && (info->update & HA_STATE_PREV_FOUND))
+    else if (!info->current_ptr)		/* Deleted or first call */
       pos= _hp_search(info,share->keydef+info->lastinx, info->lastkey, 0);
     else
       pos= _hp_search(info,share->keydef+info->lastinx, info->lastkey, 1);
