@@ -85,7 +85,11 @@ slave stop;
 slave start;
 sync_with_master;
 show slave status;
+# because of concurrent insert, the table may not be up to date
+# if we do not lock
+lock tables t3 read;
 select count(*) from t3 where n = 4;
+unlock tables;
 #clean up
 connection master;
 drop table if exists t1,t2,t3;

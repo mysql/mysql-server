@@ -22,4 +22,13 @@ while ($1)
 
 connection con1;
 select * from t1;
+connection con2;
+flush tables with read lock;
+--error 1099;
 drop table t2;
+connection con1;
+send drop table t2;
+connection con2;
+unlock tables;
+connection con1;
+reap;
