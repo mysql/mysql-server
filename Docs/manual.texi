@@ -7582,14 +7582,29 @@ To compile on NetBSD you need GNU @code{make}. Otherwise the compile will crash
 when @code{make} tries to run @code{lint} on C++ files.
 
 @node OpenBSD, BSDI, NetBSD, Source install system issues
-@subsection OpenBSD 2.5 Notes
+@subsection OpenBSD Notes
 
+@menu
+* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD 2.8::                 OpenBSD 2.8 Notes
+@end menu
+
+@node OpenBSD 2.5
+@subsubsection OpenBSD 2.5 Notes
 On OpenBSD Version 2.5, you can compile @strong{MySQL} with native threads
 with the following options:
 
 @example
 CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
+
+@node OpenBSD 2.8
+@subsubsection OpenBSD 2.8 Notes
+Our users have reported that OpenBSD 2.8 has a threading bug which causes
+problems with MySQL.  The OpenBSD Developers have fixed the problem, but as
+of January 25th, 2001, it's only available in the ``-current'' branch.  The
+symptoms of this threading bug are: slow response, high load, high cpu usage,
+and crashes.
 
 @node BSDI, SCO, OpenBSD, Source install system issues
 @subsection BSD/OS Notes
