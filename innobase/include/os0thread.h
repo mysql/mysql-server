@@ -70,7 +70,9 @@ os_thread_create(
 	void*			arg,		/* in: argument to start
 						function */
 	os_thread_id_t*		thread_id);	/* out: id of created
-						thread */	
+						thread; currently this is
+						identical to the handle to
+						the thread */
 /*********************************************************************
 A thread calling this function ends its execution. */
 

@@ -63,6 +63,12 @@ Microsoft Visual C++ */
 #define HAVE_PWRITE
 #endif
 
+/* Apparently in some old SCO Unixes the return type of sprintf is not
+an integer as it should be according to the modern Posix standard. Because
+of that we define sprintf inside InnoDB code as our own function ut_sprintf */
+#undef  sprintf
+#define sprintf    ut_sprintf
+
 #endif
 
 /*			DEBUG VERSION CONTROL

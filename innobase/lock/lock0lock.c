@@ -2754,6 +2754,8 @@ lock_deadlock_occurs(
 		err_buf += sprintf(err_buf,
 		"*** WE ROLL BACK TRANSACTION (2)\n");
 
+		ut_a(strlen(lock_latest_err_buf) < 4100);
+
 		/*
 		sess_raise_error_low(trx, DB_DEADLOCK, lock->type_mode, table,
 						index, NULL, NULL, NULL);
