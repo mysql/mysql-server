@@ -1,0 +1,39 @@
+#see if queries that use both
+#auto_increment and LAST_INSERT_ID()
+#are replicated well
+source include/master-slave.inc;
+connection master;
+drop table if exists t1;
+create table t1(a int auto_increment, key(a));
+create table t2(b int auto_increment, c int, key(b));
+insert into t1 values (1),(2),(3);
+insert into t1 values (null);
+insert into t2 values (null,last_insert_id());
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+select * from t2;
+connection master;
+#check if multi-line inserts,
+#which set last_insert_id to the first id inserted,
+#are replicated the same way
+drop table t1;
+drop table t2;
+create table t1(a int auto_increment, key(a));
+create table t2(b int auto_increment, c int, key(b));
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 values (null,last_insert_id());
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+select * from t2;
+connection master;
+drop table t1;
+drop table t2;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -697,7 +697,7 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
     
     if (thd->last_insert_id_used)
     {
-      Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
+      Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->current_insert_id);
       if(thd->server_id)
 	e.server_id = thd->server_id;
       if (e.write(file))

@@ -522,26 +522,19 @@ void close_temporary_tables(THD *thd)
 {
   TABLE *table,*next;
   char *query, *end;
-  const uint init_query_buf_size = 11;		// "drop table "
   uint query_buf_size; 
   bool found_user_tables = 0;
-  
   LINT_INIT(end);
-  query_buf_size = init_query_buf_size;
 
-  for (table=thd->temporary_tables ; table ; table=table->next)
-  {
-    query_buf_size += table->key_length;
-  }
-
-  if (query_buf_size == init_query_buf_size)
+  if (!thd->temporary_tables)
     return; // no tables to close
 
+  query_buf_size= 11;				// "drop table "
+  for (table=thd->temporary_tables ; table ; table=table->next)
+    query_buf_size+= table->key_length +1;
+
   if ((query = alloc_root(&thd->mem_root, query_buf_size)))
-  {
-    memcpy(query, "drop table ", init_query_buf_size);
-    end = query + init_query_buf_size;
-  }
+    end= strmov(query, "drop table ");
 
   for (table=thd->temporary_tables ; table ; table=next)
   {
