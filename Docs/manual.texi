@@ -24782,16 +24782,33 @@ To demonstrate how extended regular expressions work, the @code{LIKE} queries
 shown above are rewritten below to use @code{REGEXP}.
 
 To find names beginning with @samp{b}, use @samp{^} to match the beginning of
-the name and @samp{[bB]} to match either lowercase or uppercase @samp{b}:
+the name:
 
 @example
-mysql> SELECT * FROM pet WHERE name REGEXP "^[bB]";
+mysql> SELECT * FROM pet WHERE name REGEXP "^b";
 +--------+--------+---------+------+------------+------------+
 | name   | owner  | species | sex  | birth      | death      |
 +--------+--------+---------+------+------------+------------+
 | Buffy  | Harold | dog     | f    | 1989-05-13 | NULL       |
 | Bowser | Diane  | dog     | m    | 1989-08-31 | 1995-07-29 |
 +--------+--------+---------+------+------------+------------+
+@end example
+
+Prior to MySQL 3.23.4, @code{REGEXP} is case sensitive, and the previous
+query will return no rows. To match either lowercase or uppercase @samp{b},
+use this query instead:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP "^[bB]";
+@end example
+
+From MySQL 3.23.4 on, to force a @code{REGEXP} comparison to be case
+sensitive, use the @code{BINARY} keyword to make one of the strings a
+binary string. This query will match only lowercase @samp{b} at the
+beginning of a name:
+
+@example
+mysql> SELECT * FROM pet WHERE name REGEXP BINARY "^b";
 @end example
 
 To find names ending with @samp{fy}, use @samp{$} to match the end of the
@@ -24807,11 +24824,10 @@ mysql> SELECT * FROM pet WHERE name REGEXP "fy$";
 +--------+--------+---------+------+------------+-------+
 @end example
 
-To find names containing a @samp{w}, use
-@samp{[wW]} to match either lowercase or uppercase @samp{w}:
+To find names containing a lowercase or uppercase @samp{w}, use this query:
 
 @example
-mysql> SELECT * FROM pet WHERE name REGEXP "[wW]";
+mysql> SELECT * FROM pet WHERE name REGEXP "w";
 +----------+-------+---------+------+------------+------------+
 | name     | owner | species | sex  | birth      | death      |
 +----------+-------+---------+------+------------+------------+
