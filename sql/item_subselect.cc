@@ -285,7 +285,7 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     Item *item;
     if (sl->item_list.elements > 1)
     {
-      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+      my_error(ER_CARDINALITY_COL, MYF(0), 1);
       item= 0; // Item_asterisk_remover must fail
     }
     else
@@ -297,7 +297,7 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     {
       sl->item_list.push_back(item);
       item= (*func)(left_expr, new Item_ref(sl->item_list.head_ref(),
-					    0, "<result>"));
+					    0, (char*)"<result>"));
       if (sl->having)
 	sl->having= new Item_cond_and(sl->having, item);
       else
