@@ -153,9 +153,9 @@ set -x
 
 # Check environment
 export MYSQL_BUILD_PATH="/usr/local/bin:/my/gnu/bin:/usr/bin:/bin"
-export MYSQL_BUILD_CFLAGS="-O6 -fno-omit-frame-pointer -mpentium"
+export MYSQL_BUILD_CFLAGS="-O6 -fno-omit-frame-pointer -mcpu=pentiumpro"
 export MYSQL_BUILD_CXXFLAGS="-O6 -fno-omit-frame-pointer \
-	          -felide-constructors -fno-exceptions -fno-rtti -mpentium"
+	          -felide-constructors -fno-exceptions -fno-rtti -mcpu=pentiumpro"
 gcc -v
 
 # Make RPM
