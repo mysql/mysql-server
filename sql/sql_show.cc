@@ -1270,11 +1270,11 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 #ifdef HAVE_REPLICATION
       case SHOW_SLAVE_RUNNING:
       {
-	LOCK_ACTIVE_MI;
+	pthread_mutex_lock(&LOCK_active_mi);
 	net_store_data(&packet2, (active_mi->slave_running &&
 				  active_mi->rli.slave_running)
 		        ? "ON" : "OFF");
-	UNLOCK_ACTIVE_MI;
+	pthread_mutex_unlock(&LOCK_active_mi);
 	break;
       }
 #endif
