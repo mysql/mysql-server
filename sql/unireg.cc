@@ -459,8 +459,7 @@ static bool pack_fields(File file,List<create_field> &create_fields)
     int2store(buff+8,field->unireg_check);
     buff[10]= (uchar) field->interval_id;
     buff[11]= (uchar) field->sql_type; 
-    buff[12]= (uchar) (field->charset ? field->charset->number :
-		       default_charset_info->number);
+    buff[12]= (uchar) field->charset->number;
     int2store(buff+13, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
