@@ -160,6 +160,10 @@ SOURCE=.\str2int.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\strnlen.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\Strings.asm
 
 !IF  "$(CFG)" == "strings - Win32 Release"
