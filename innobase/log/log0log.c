@@ -838,14 +838,18 @@ log_io_complete(
 		/* It was a checkpoint write */
 		group = (log_group_t*)((ulint)group - 1);
 
-		fil_flush(group->space_id);
-		
+		if (srv_unix_file_flush_method == SRV_UNIX_LITTLESYNC) {
+		        fil_flush(group->space_id);
+		}
+
 		log_io_complete_checkpoint(group);
 
 		return;
 	}
 
-	fil_flush(group->space_id);
+	if (srv_unix_file_flush_method == SRV_UNIX_LITTLESYNC) {
+	        fil_flush(group->space_id);
+	}
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -1474,7 +1478,9 @@ log_checkpoint(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
+	if (srv_unix_file_flush_method == SRV_UNIX_LITTLESYNC) {
+	        fil_flush_file_spaces(FIL_TABLESPACE);
+	}
 
 	mutex_enter(&(log_sys->mutex));
 

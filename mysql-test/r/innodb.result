@@ -252,7 +252,7 @@ id	ggid	email	passwd
 2	test2		yyy
 id	ggid	email	passwd
 1	this will work		
-3	test2		this will work
+4	test2		this will work
 id	ggid	email	passwd
 1	this will work		
 id	ggid	email	passwd
@@ -474,4 +474,4 @@ t1	CREATE TABLE `t1` (
 a
 1
 2
-3
+4
