@@ -274,6 +274,8 @@ char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 
 time_t	srv_last_monitor_time;
 
+mutex_t srv_innodb_monitor_mutex;
+
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
 	=========================================
@@ -1618,6 +1620,9 @@ srv_init(void)
 	kernel_mutex_temp = mem_alloc(sizeof(mutex_t));
 	mutex_create(&kernel_mutex);
 	mutex_set_level(&kernel_mutex, SYNC_KERNEL);
+
+	mutex_create(&srv_innodb_monitor_mutex);
+	mutex_set_level(&srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 	
 	srv_sys->threads = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_slot_t));
 
@@ -2146,6 +2151,8 @@ srv_sprintf_innodb_monitor(
 	double	time_elapsed;
 	time_t	current_time;
 
+	mutex_enter(&srv_innodb_monitor_mutex);
+
 	current_time = time(NULL);
 
 	/* We add 0.001 seconds to time_elapsed to prevent division
@@ -2256,6 +2263,7 @@ srv_sprintf_innodb_monitor(
 	buf += sprintf(buf, "----------------------------\n"
 		       "END OF INNODB MONITOR OUTPUT\n"
 		       "============================\n");
+	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
 /*************************************************************************
