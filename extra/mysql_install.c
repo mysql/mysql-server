@@ -18,7 +18,7 @@
 /* Install or upgrade MySQL server. By Sasha Pachev <sasha@mysql.com>
  */
 
-#define INSTALL_VERSION "1.1"
+#define INSTALL_VERSION "1.2"
 
 #define DONT_USE_RAID
 #include <my_global.h>
@@ -219,11 +219,8 @@ static int parse_args(int argc, char **argv)
   int ho_error;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   return 0;
 }
 

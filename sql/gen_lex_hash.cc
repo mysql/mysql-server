@@ -356,7 +356,7 @@ void print_arrays()
 
 static void usage(int version)
 {
-  printf("%s  Ver 3.4 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 3.5 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
@@ -394,11 +394,8 @@ static int get_options(int argc, char **argv)
   int ho_error;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (argc >= 1)
   {
     usage(0);

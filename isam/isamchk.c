@@ -335,7 +335,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 6.00 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 6.01 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -665,11 +665,7 @@ static void get_options(register int *argc, register char ***argv)
     testflag|=T_WRITE_LOOP;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   if (*argc == 0)
   {

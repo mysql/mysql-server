@@ -16,7 +16,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.3"
+#define SHOW_VERSION "9.4"
 
 #include <my_global.h>
 #include "client_priv.h"
@@ -241,11 +241,7 @@ get_options(int *argc,char ***argv)
   int ho_error;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
   
   if (tty_password)
     opt_password=get_tty_password(NullS);
