@@ -535,6 +535,8 @@ int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type,
 		pthread_mutex_t *mutex);
+int mysql_find_files(THD *thd,List<char> *files, const char *db,
+                const char *path, const char *wild, bool dir);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
