@@ -2308,7 +2308,7 @@ static struct option long_options[] = {
      (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
-  {"server-id",          required_argument, 0, (int)OPT_SERVER_ID},
+  {"server-id",		    required_argument, 0, (int)OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
 #ifdef HAVE_BERKELEY_DB
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},

@@ -156,7 +156,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
 						&tmp_stat, MYF(0)));
   
-  if ((file=my_open(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
+  if ((file=my_open(log_file_name,O_CREAT | O_APPEND | O_WRONLY | O_BINARY,
 		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE,
 		    my_tell(file,MYF(MY_WME)), 0, MYF(MY_WME | MY_NABP)))
@@ -194,28 +194,38 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
   else if (log_type == LOG_BIN)
   {
-    // Explanation of the boolean black magic:
-    //
-    // if we are supposed to write magic number try write
-    // clean up if failed
-    // then if index_file has not been previously opened, try to open it
-    // clean up if failed
-
+    /*
+      Explanation of the boolean black magic:
+      if we are supposed to write magic number try write
+      clean up if failed
+      then if index_file has not been previously opened, try to open it
+      clean up if failed
+    */
     if ((do_magic && my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4)) ||
 	(index_file < 0 && 
-	 (index_file = my_open(index_file_name,O_APPEND | O_BINARY | O_RDWR,
+	 (index_file = my_open(index_file_name, O_CREAT | O_APPEND |
+			       O_BINARY | O_RDWR,
 			       MYF(MY_WME))) < 0))
       goto err;
     Start_log_event s;
+    bool error;
     s.write(&log_file);
     pthread_mutex_lock(&LOCK_index);
-    my_write(index_file, log_file_name,strlen(log_file_name), MYF(0));
-    my_write(index_file, "\n",1, MYF(0));
+    error=(my_write(index_file, log_file_name,strlen(log_file_name),
+		    MYF(MY_NABP | MY_WME)) ||
+	   my_write(index_file, "\n", 1, MYF(MY_NABP | MY_WME)));
     pthread_mutex_unlock(&LOCK_index);
+    if (error)
+    {
+      my_close(index_file,MYF(0));
+      index_file= -1;
+      goto err;
+    }
   }
   return;
 
 err:
+  sql_print_error("Could not use %s for logging (error %d)", log_name,errno);
   if (file >= 0)
     my_close(file,MYF(0));
   end_io_cache(&log_file);
@@ -409,7 +419,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
 #ifdef HAVE_FTRUNCATE
   if (ftruncate(index_file,0))
   {
-    sql_print_error("Ouch! Could not truncate the binlog index file \
+    sql_print_error("Could not truncate the binlog index file \
 during log purge for write");
     error = LOG_INFO_FATAL;
     goto err;
@@ -418,10 +428,11 @@ during log purge for write");
 #else
   my_close(index_file, MYF(MY_WME));
   my_delete(index_file_name, MYF(MY_WME));
-  if(!(index_file = my_open(index_file_name, O_BINARY | O_RDWR | O_APPEND,
+  if(!(index_file = my_open(index_file_name,
+			    O_CREAT | O_BINARY | O_RDWR | O_APPEND,
 			    MYF(MY_WME))))
   {
-    sql_print_error("Ouch! Could not re-open the binlog index file \
+    sql_print_error("Could not re-open the binlog index file \
 during log purge for write");
     error = LOG_INFO_FATAL;
     goto err;
