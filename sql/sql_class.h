@@ -475,15 +475,6 @@ public:
     active_vio = 0;
     pthread_mutex_unlock(&LOCK_delete);
   }
-  inline void close_active_vio()
-  {
-    safe_mutex_assert_owner(&LOCK_delete); 
-    if (active_vio)
-    {
-      vio_close(active_vio);
-      active_vio = 0;
-    }
-  }
 #endif  
   void awake(bool prepare_to_die);
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
