@@ -148,7 +148,11 @@ select collation(left(_latin2'a',1)), coercibility(left(_latin2'a',1));
 select collation(right(_latin2'a',1)), coercibility(right(_latin2'a',1));
 select collation(substring(_latin2'a',1,1)), coercibility(substring(_latin2'a',1,1));
 select collation(concat(_latin2'a',_latin2'b')), coercibility(concat(_latin2'a',_latin2'b'));
+select collation(lpad(_latin2'a',4,_latin2'b')), coercibility(lpad(_latin2'a',4,_latin2'b'));
+select collation(rpad(_latin2'a',4,_latin2'b')), coercibility(rpad(_latin2'a',4,_latin2'b'));
 select collation(concat_ws(_latin2'a',_latin2'b')), coercibility(concat_ws(_latin2'a',_latin2'b'));
+select collation(make_set(255,_latin2'a',_latin2'b',_latin2'c')), coercibility(make_set(255,_latin2'a',_latin2'b',_latin2'c'));
+select collation(export_set(255,_latin2'y',_latin2'n',_latin2' ')), coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '));
 select collation(trim(_latin2' a ')), coercibility(trim(_latin2' a '));
 select collation(ltrim(_latin2' a ')), coercibility(ltrim(_latin2' a '));
 select collation(rtrim(_latin2' a ')), coercibility(rtrim(_latin2' a '));
@@ -177,7 +181,11 @@ select
   ucase(_latin2'a'),
   substring(_latin2'a',1,1),
   concat(_latin2'a',_latin2'b'),
+  lpad(_latin2'a',4,_latin2'b'),
+  rpad(_latin2'a',4,_latin2'b'),
   concat_ws(_latin2'a',_latin2'b'),
+  make_set(255,_latin2'a',_latin2'b',_latin2'c'),
+  export_set(255,_latin2'y',_latin2'n',_latin2' '),
   trim(_latin2' a '),
   ltrim(_latin2' a '),
   rtrim(_latin2' a '),
