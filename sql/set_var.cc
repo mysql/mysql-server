@@ -1655,6 +1655,34 @@ int set_var_password::update(THD *thd)
 	  1 : 0);
 }
 
+
+/*****************************************************************************
+  Functions to handle SET NAMES and SET CHARACTER SET
+*****************************************************************************/
+
+int set_var_client_collation::check(THD *thd)
+{
+  return 0;
+}
+
+int set_var_client_collation::update(THD *thd)
+{
+#if 0
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.thd_charset= var->save_result.charset;
+  else
+#endif
+  {
+    thd->variables.thd_charset= client_collation;
+    thd->variables.convert_result_charset= convert_result_charset;
+    thd->protocol_simple.init(thd);
+    thd->protocol_prep.init(thd);
+  }
+  return 0;
+}
+
+
+
 /****************************************************************************
   Used templates
 ****************************************************************************/

@@ -4409,19 +4409,13 @@ option_value:
 		         cl->name,cs->csname);
 	      YYABORT;
 	  }
-	  Item_string *csname= new Item_string(cl->name, 
-					       strlen(cl->name), 
-					       &my_charset_latin1);
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_collation"),
-					      csname));
+	  lex->var_list.push_back(new set_var_client_collation(cl,1));
 	}
 	| COLLATION_SYM collation_name_or_default
 	{
 	  THD* thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  system_variables *vars= &thd->variables;
-	  CHARSET_INFO *cs= vars->thd_charset;
+	  CHARSET_INFO *cs= thd->variables->vars->thd_charset;
 	  CHARSET_INFO *cl= $2;
 
 	  if (!cl)
@@ -4438,12 +4432,7 @@ option_value:
 		         cl->name,cs->csname);
 	      YYABORT;
 	  }
-	  Item_string *csname= new Item_string(cl->name, 
-					       strlen(cl->name), 
-					       &my_charset_latin1);
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_collation"),
-					      csname));
+	  lex->var_list.push_back(new set_var_client_collation(cl,1));
 	}
 	| PASSWORD equal text_or_password
 	  {
