@@ -1,0 +1,1008 @@
+# BASIC FUNCTIONALITY
+max-time: 500
+cmd: testBasic
+args: -n PkRead
+
+max-time: 500
+cmd: testBasic
+args: -n PkUpdate 
+
+max-time: 500
+cmd: testBasic
+args: -n PkDelete 
+
+max-time: 500
+cmd: testBasic
+args: -n PkInsert 
+
+max-time: 600
+cmd: testBasic
+args: -n UpdateAndRead 
+
+max-time: 500
+cmd: testBasic
+args: -n PkReadAndLocker T6 
+
+max-time: 500
+cmd: testBasic
+args: -n PkReadAndLocker2 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n PkReadUpdateAndLocker T6 
+
+max-time: 500
+cmd: testBasic
+args: -n ReadWithLocksAndInserts T6 
+
+max-time: 500
+cmd: testBasic
+args: -n PkInsertTwice T1 T6 T10 
+
+max-time: 1500
+cmd: testBasic
+args: -n Fill T13 
+
+max-time: 1500
+cmd: testBasic
+args: -n Fill T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitSleep T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommit626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitAndClose T6 
+
+max-time: 500
+cmd: testBasic
+args: -n Commit626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitTry626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitAsMuch626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommit626 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitRollback626 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n Commit630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitTry630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitAsMuch630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommit630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitRollback630 T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n NoCommitAndClose T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n RollbackUpdate T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n RollbackDeleteMultiple T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n ImplicitRollbackDelete T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n CommitDelete T1 T6 
+
+max-time: 500
+cmd: testBasic
+args: -n RollbackNothing T1 T6 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkInsertAsynch 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkReadAsynch 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkUpdateAsynch 
+
+max-time: 500
+cmd: testBasicAsynch
+args: -n PkDeleteAsynch 
+
+max-time: 500
+cmd: testBasic
+args: -n MassiveRollback T1 T6 T13 
+
+max-time: 500
+cmd: testBasic
+args: -n MassiveRollback2 T1 T6 T13 
+
+#-m 500 1: testBasic -n ReadConsistency T6
+max-time: 500
+cmd: testTimeout
+args: -n DontTimeoutTransaction T1 
+
+max-time: 500
+cmd: testTimeout 
+args: -n DontTimeoutTransaction5 T1 
+
+max-time: 500
+cmd: testTimeout
+args: -n TimeoutTransaction T1 
+
+max-time: 500
+cmd: testTimeout 
+args: -n TimeoutTransaction5 T1 
+
+max-time: 500
+cmd: testTimeout
+args: -n BuddyTransNoTimeout T1 
+
+max-time: 500
+cmd: testTimeout
+args: -n BuddyTransNoTimeout5 T1 
+
+max-time: 500
+cmd: testTimeout
+args: -n TimeoutRandTransaction T1
+
+# SCAN TESTS
+#
+max-time: 500
+cmd: testScan
+args: -n ScanRead16 
+
+max-time: 500
+cmd: testScan
+args: -n ScanRead240 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadCommitted240 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdate 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdate2 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanDelete 
+
+max-time: 500
+cmd: testScan
+args: -n ScanDelete2 T10 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdateAndScanRead T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAndLocker T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAndPkRead T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanRead488 -l 10 T6 
+
+max-time: 600
+cmd: testScan
+args: -n ScanRead40 -l 100 T2 
+
+max-time: 1800
+cmd: testScan
+args: -n ScanRead100 -l 100 T1 
+
+max-time: 600
+cmd: testScan
+args: -n ScanRead40 -l 100 T1 
+
+max-time: 1800
+cmd: testScan
+args: -n ScanRead40RandomTable -l 100 T1 
+
+max-time: 3600
+cmd: testScan
+args: -n ScanRead40RandomTable -l 1000 T2 
+
+max-time: 500
+cmd: testScan
+args: -n ScanWithLocksAndInserts T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAbort T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAbort15 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadAbort240 T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdateAbort16 T6 
+
+max-time: 3600
+cmd: testScan
+args: -n ScanReadRestart T1 T6 T13 
+
+max-time: 500
+cmd: testScan
+args: -n ScanUpdateRestart T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckGetValue T6 
+
+max-time: 500
+cmd: testScan
+args: -n CloseWithoutStop T6 
+
+max-time: 500
+cmd: testScan
+args: -n NextScanWhenNoMore T6 
+
+max-time: 500
+cmd: testScan
+args: -n ExecuteScanWithoutOpenScan T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOpenScanOnce T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOneOpInScanTrans T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOneOpBeforeOpenScan T6 
+
+max-time: 500
+cmd: testScan
+args: -n OnlyOneScanPerTrans T6 
+
+max-time: 500
+cmd: testScan
+args: -n NoCloseTransaction T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckInactivityTimeOut T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckInactivityBeforeClose T6 
+
+max-time: 500
+cmd: testScan
+args: -n CheckAfterTerror T6 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5021 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReaderror5022 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5023 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5024 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5025 T1 
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadError5030 T1 
+
+max-time: 500
+cmd: testScan
+args: -n InsertDelete T1 T6
+
+max-time: 500
+cmd: testScan
+args: -n CheckAfterTerror T1
+
+max-time: 500
+cmd: testScan
+args: -n ScanReadWhileNodeIsDown T1
+
+max-time: 500
+cmd: testScan
+args: -n ScanRestart T1
+
+# OLD FLEX
+max-time: 500
+cmd: flexBench
+args: -c 25 -t 10 
+
+max-time: 500
+cmd: flexHammer
+args: -r 5 -t 32 
+
+#
+# DICT TESTS
+max-time: 1500
+cmd: testDict
+args: -n CreateAndDrop 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateAndDropWithData 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateAndDropDuring T6 T10 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateInvalidTables 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateTableWhenDbIsFull T6 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateMaxTables T6 
+
+max-time: 500
+cmd: testDict
+args: -n FragmentTypeSingle T1 
+
+max-time: 1500
+cmd: testDict
+args: -n FragmentTypeAll T1 T6 T7 T8 
+
+max-time: 1500
+cmd: testDict
+args: -n FragmentTypeAllLarge T1 T6 T7 T8 
+
+max-time: 1500
+cmd: testDict
+args: -n TemporaryTables T1 T6 T7 T8 
+
+#
+# TEST NDBAPI
+#
+max-time: 500
+cmd: testDataBuffers
+args: 
+
+# Testsuite: testNdbApi
+# Number of tests: 5
+max-time: 500
+cmd: testNdbApi
+args: -n MaxNdb T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxTransactions T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxOperations T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxGetValue T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MaxEqual 
+
+max-time: 500
+cmd: testNdbApi
+args: -n DeleteNdb T1 T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n WaitUntilReady T1 T6 T7 T8 T13 
+
+max-time: 500
+cmd: testNdbApi
+args: -n GetOperationNoTab T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbErrorOperation T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n MissingOperation T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n GetValueInUpdate T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n UpdateWithoutKeys T6 
+
+max-time: 500
+cmd: testNdbApi
+args: -n UpdateWithoutValues T6 
+
+#max-time: 500
+#cmd: testInterpreter
+#args: T1 
+#
+max-time: 1500
+cmd: testOperations
+args: -n ReadRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadReadEx 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadInsert 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadUpdate 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadDelete 
+
+max-time: 1500
+cmd: testOperations
+args: -n FReadRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n FReadReadEx 
+
+max-time: 1500
+cmd: testOperations
+args: -n FReadInsert 
+
+max-time: 1500
+cmd: testOperations
+args: -n FReadUpdate 
+
+max-time: 1500
+cmd: testOperations
+args: -n FReadDelete 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadExRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadExReadEx 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadExInsert 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadExUpdate 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadExDelete 
+
+max-time: 1500
+cmd: testOperations
+args: -n InsertRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n InsertReadEx 
+
+max-time: 1500
+cmd: testOperations
+args: -n InsertInsert 
+
+max-time: 1500
+cmd: testOperations
+args: -n InsertUpdate 
+
+max-time: 1500
+cmd: testOperations
+args: -n InsertDelete 
+
+max-time: 1500
+cmd: testOperations
+args: -n UpdateRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n UpdateReadEx 
+
+max-time: 1500
+cmd: testOperations
+args: -n UpdateInsert 
+
+max-time: 1500
+cmd: testOperations
+args: -n UpdateUpdate 
+
+max-time: 1500
+cmd: testOperations
+args: -n UpdateDelete 
+
+max-time: 1500
+cmd: testOperations
+args: -n DeleteRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n DeleteReadEx 
+
+max-time: 1500
+cmd: testOperations
+args: -n DeleteInsert 
+
+max-time: 1500
+cmd: testOperations
+args: -n DeleteUpdate 
+
+max-time: 1500
+cmd: testOperations
+args: -n DeleteDelete 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadSimpleRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadDirtyRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n FReadSimpleRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n FReadDirtyRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadExSimpleRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n ReadExDirtyRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n InsertSimpleRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n InsertDirtyRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n UpdateSimpleRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n UpdateDirtyRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n DeleteSimpleRead 
+
+max-time: 1500
+cmd: testOperations
+args: -n DeleteDirtyRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadReadEx 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadInsert 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadUpdate 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadDelete 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExReadEx 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExInsert 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExUpdate 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExDelete 
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertReadEx 
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertInsert 
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertUpdate 
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertDelete 
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateReadEx 
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateInsert 
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateUpdate 
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateDelete 
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteReadEx 
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteInsert 
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteUpdate 
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteDelete 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadSimpleRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadDirtyRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExSimpleRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExDirtyRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertSimpleRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertDirtyRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateSimpleRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateDirtyRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteSimpleRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteDirtyRead 
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadScanEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanReadEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanSimpleRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanDirtyRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanInsert
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanUpdate
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanDelete
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanScanEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlReadEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlSimpleRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlDirtyRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlInsert
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlUpdate
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlDelete
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanHlScanEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExReadEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExSimpleRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExDirtyRead
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExInsert
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExUpdate
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExDelete
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n ScanExScanEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n ReadExScanEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n InsertScanEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n UpdateScanEx
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteScan
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteScanHl
+
+max-time: 1500
+cmd: testTransactions
+args: -n DeleteScanEx
+
+max-time: 1500
+cmd: testRestartGci
+args: T6 
+
+max-time: 600
+cmd: testBlobs
+args:
+
+max-time: 2500
+cmd: testOIBasic
+args: 
+
+#
+#
+# SYSTEM RESTARTS
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T8 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T7 
+

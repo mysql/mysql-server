@@ -14,20 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-/*****************************************************************************
- * Name:          NdbOperation.C
- * Include:
- * Link:
- * Author:        UABMNST Mona Natterkvist UAB/B/SD                         
- * Date:          970829
- * Version:       0.1
- * Description:   Interface between TIS and NDB
- * Documentation:
- * Adjust:  971022  UABMNST   First version.
- ****************************************************************************/
-#include "NdbConnection.hpp"
-#include "NdbOperation.hpp"
+#include <ndb_global.h>
+#include <NdbConnection.hpp>
+#include <NdbOperation.hpp>
 #include "NdbApiSignal.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
@@ -55,7 +44,6 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   //theTable(aTable),
   theNdbCon(NULL),
   theNext(NULL),
-  theNextScanOp(NULL),
   theTCREQ(NULL),
   theFirstATTRINFO(NULL),
   theCurrentATTRINFO(NULL),
@@ -63,8 +51,6 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   theAI_LenInCurrAI(0),
   theFirstKEYINFO(NULL),
   theLastKEYINFO(NULL),
-  theFirstRecAttr(NULL),
-  theCurrentRecAttr(NULL),
 
   theFirstLabel(NULL),
   theLastLabel(NULL),
@@ -77,10 +63,6 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   theNoOfLabels(0),
   theNoOfSubroutines(0),
 
-  theTotalRecAI_Len(0),
-  theCurrRecAI_Len(0),
-  theAI_ElementLen(0),
-  theCurrElemPtr(NULL),
   m_currentTable(NULL), //theTableId(0xFFFF),
   m_accessTable(NULL), //theAccessTableId(0xFFFF),
   //theSchemaVersion(0), 
@@ -96,14 +78,6 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   m_tcReqGSN(GSN_TCKEYREQ),
   m_keyInfoGSN(GSN_KEYINFO),
   m_attrInfoGSN(GSN_ATTRINFO),
-  theParallelism(0),
-  theScanReceiversArray(NULL),
-  theSCAN_TABREQ(NULL),
-  theFirstSCAN_TABINFO_Send(NULL),
-  theLastSCAN_TABINFO_Send(NULL),
-  theFirstSCAN_TABINFO_Recv(NULL),
-  theLastSCAN_TABINFO_Recv(NULL),
-  theSCAN_TABCONF_Recv(NULL),
   theBoundATTRINFO(NULL),
   theBlobList(NULL)
 {
@@ -167,7 +141,7 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   theNdbCon = myConnection;
   for (Uint32 i=0; i<NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; i++)
     for (int j=0; j<3; j++)
-      theTupleKeyDefined[i][j] = false;  
+      theTupleKeyDefined[i][j] = 0;
 
   theFirstATTRINFO    = NULL;
   theCurrentATTRINFO  = NULL;
@@ -177,13 +151,11 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
 
   theTupKeyLen		= 0;
   theNoOfTupKeyDefined	= 0;
-  theTotalCurrAI_Len	= 0;
-  theAI_LenInCurrAI	= 0;
-  theTotalRecAI_Len	= 0;
   theDistrKeySize	= 0;
   theDistributionGroup	= 0;
-  theCurrRecAI_Len	= 0;
-  theAI_ElementLen	= 0;
+
+  theTotalCurrAI_Len	= 0;
+  theAI_LenInCurrAI	= 0;
   theStartIndicator	= 0;
   theCommitIndicator	= 0;
   theSimpleIndicator	= 0;
@@ -193,9 +165,6 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   theDistrGroupType     = 0;
   theDistrKeyIndicator  = 0;
   theScanInfo        	= 0;
-  theFirstRecAttr       = NULL;
-  theCurrentRecAttr     = NULL;
-  theCurrElemPtr        = NULL;
   theTotalNrOfKeyWordInSignal = 8;
   theMagicNumber        = 0xABCDEF01;
   theBoundATTRINFO      = NULL;
@@ -215,6 +184,7 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
+  theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   return 0;
 }
 
@@ -229,8 +199,6 @@ NdbOperation::release()
 {
   NdbApiSignal* tSignal;
   NdbApiSignal* tSaveSignal;
-  NdbRecAttr*	tRecAttr;
-  NdbRecAttr*	tSaveRecAttr;
   NdbBranch*	tBranch;
   NdbBranch*	tSaveBranch;
   NdbLabel*	tLabel;
@@ -265,15 +233,6 @@ NdbOperation::release()
   }				
   theFirstKEYINFO = NULL;
   theLastKEYINFO = NULL;
-  tRecAttr = theFirstRecAttr;
-  while (tRecAttr != NULL)
-  {
-    tSaveRecAttr = tRecAttr;
-    tRecAttr = tRecAttr->next();
-    theNdb->releaseRecAttr(tSaveRecAttr);
-  }
-  theFirstRecAttr = NULL;
-  theCurrentRecAttr = NULL;
   if (theInterpretIndicator == 1)
   {
     tBranch = theFirstBranch;
@@ -321,19 +280,19 @@ NdbOperation::release()
     theNdb->releaseNdbBlob(tSaveBlob);
   }
   theBlobList = NULL;
-  releaseScan();
+  theReceiver.release();
 }
 
 NdbRecAttr*
 NdbOperation::getValue(const char* anAttrName, char* aValue)
 {
-  return getValue(m_currentTable->getColumn(anAttrName), aValue);
+  return getValue_impl(m_currentTable->getColumn(anAttrName), aValue);
 }
 
 NdbRecAttr*
 NdbOperation::getValue(Uint32 anAttrId, char* aValue)
 {
-  return getValue(m_currentTable->getColumn(anAttrId), aValue);
+  return getValue_impl(m_currentTable->getColumn(anAttrId), aValue);
 }
 
 int
@@ -439,18 +398,6 @@ int
 NdbOperation::write_attr(Uint32 anAttrId, Uint32 RegDest)
 {
   return write_attr(m_currentTable->getColumn(anAttrId), RegDest);
-}
-
-int
-NdbOperation::setBound(const char* anAttrName, int type, const void* aValue, Uint32 len)
-{
-  return setBound(m_accessTable->getColumn(anAttrName), type, aValue, len);
-}
-
-int
-NdbOperation::setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len)
-{
-  return setBound(m_accessTable->getColumn(anAttrId), type, aValue, len);
 }
 
 const char*

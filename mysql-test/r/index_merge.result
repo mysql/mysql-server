@@ -264,11 +264,11 @@ select * from t0,t1 where (t0.key1=t1.key1) and
 (t0.key1=3 or t0.key2<4) and t1.key1=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ref	i1,i2	i1	4	const	1	Using where
-1	SIMPLE	t1	ref	i1	i1	4	const	1	Using where
+1	SIMPLE	t1	ref	i1	i1	4	const	1	
 explain select * from t0,t1 where t0.key1 = 5 and 
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	ref	i1	i1	4	const	1	Using where
+1	SIMPLE	t0	ref	i1	i1	4	const	1	
 1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);

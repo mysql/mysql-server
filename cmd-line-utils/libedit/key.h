@@ -1,4 +1,4 @@
-/*	$NetBSD: key.h,v 1.5 2001/01/23 15:55:30 jdolecek Exp $	*/
+/*	$NetBSD: key.h,v 1.6 2002/03/18 16:00:55 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -62,22 +62,19 @@ typedef struct el_key_t {
 #define	XK_NOD	2
 #define	XK_EXE	3
 
-#undef key_end
-#undef key_clear
-#undef key_print
-
-protected int		 key_init(EditLine *);
-protected void		 key_end(EditLine *);
-protected key_value_t	*key_map_cmd(EditLine *, int);
-protected key_value_t	*key_map_str(EditLine *, char *);
-protected void		 key_reset(EditLine *);
-protected int		 key_get(EditLine *, char *, key_value_t *);
-protected void		 key_add(EditLine *, const char *, key_value_t *, int);
-protected void		 key_clear(EditLine *, el_action_t *, const char *);
-protected int		 key_delete(EditLine *, const char *);
-protected void		 key_print(EditLine *, const char *);
-protected void	         key_kprint(EditLine *, const char *, 
-				    key_value_t *, int);
-protected char		*key__decode_str(const char *, char *, const char *);
+protected int		 el_key_init(EditLine *);
+protected void		 el_key_end(EditLine *);
+protected key_value_t	*el_key_map_cmd(EditLine *, int);
+protected key_value_t	*el_key_map_str(EditLine *, char *);
+protected void		 el_key_reset(EditLine *);
+protected int		 el_key_get(EditLine *, char *, key_value_t *);
+protected void		 el_key_add(EditLine *, 
+                                    const char *, key_value_t *, int);
+protected void		 el_key_clear(EditLine *, el_action_t *, const char *);
+protected int		 el_key_delete(EditLine *, const char *);
+protected void		 el_key_print(EditLine *, const char *);
+protected void	         el_key_kprint(EditLine *, const char *, key_value_t *,
+    int);
+protected char		*el_key__decode_str(const char *, char *, const char *);
 
 #endif /* _h_el_key */

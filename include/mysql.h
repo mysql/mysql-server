@@ -99,7 +99,7 @@ typedef struct st_mysql_field {
   unsigned int flags;         /* Div flags */
   unsigned int decimals;      /* Number of decimals in field */
   unsigned int charsetnr;     /* Character set */
-  enum enum_field_types type; /* Type of field. Se mysql_com.h for types */
+  enum enum_field_types type; /* Type of field. See mysql_com.h for types */
 } MYSQL_FIELD;
 
 typedef char **MYSQL_ROW;		/* return data as array of strings */
@@ -175,7 +175,7 @@ struct st_mysql_options {
  */
   my_bool rpl_parse;
  /*
-   If set, never read from a master,only from slave, when doing
+   If set, never read from a master, only from slave, when doing
    a read that is replication-aware
  */
   my_bool no_master_reads;
@@ -454,7 +454,7 @@ int             STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 					const char* passwd);
 
 int		STDCALL mysql_shutdown(MYSQL *mysql,
-                                       enum enum_shutdown_level
+                                       enum mysql_enum_shutdown_level
                                        shutdown_level);
 int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,
@@ -538,7 +538,7 @@ enum enum_mysql_stmt_state
 typedef struct st_mysql_bind
 {
   unsigned long	*length;          /* output length pointer */
-  my_bool       *is_null;	  /* Pointer to null indicators */
+  my_bool       *is_null;	  /* Pointer to null indicator */
   void		*buffer;	  /* buffer to get/put data */
   enum enum_field_types buffer_type;	/* buffer type */
   unsigned long buffer_length;    /* buffer length, must be set for str/binary */  
@@ -587,7 +587,7 @@ typedef struct st_mysql_stmt
   */
   unsigned int   server_status;
   unsigned int	 last_errno;	       /* error code */
-  unsigned int   param_count;          /* inpute parameters count */
+  unsigned int   param_count;          /* input parameter count */
   unsigned int   field_count;          /* number of columns in result set */
   enum enum_mysql_stmt_state state;    /* statement state */
   char		 last_error[MYSQL_ERRMSG_SIZE]; /* error message */
@@ -638,6 +638,7 @@ typedef struct st_mysql_methods
   MYSQL_RES * (*use_result)(MYSQL *mysql);
   void (*fetch_lengths)(unsigned long *to, 
 			MYSQL_ROW column, unsigned int field_count);
+  void (*flush_use_result)(MYSQL *mysql);
 #if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
   MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
   my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);

@@ -322,10 +322,17 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
+          /*
+             Try character set name, and if it fails 
+             try collation name, probably it's an old
+             4.1.0 db.opt file, which didn't have
+             separate default-character-set and
+             default-collation commands.
+          */
 	  if (!(create->default_table_charset=
-		get_charset_by_csname(pos+1, 
-				      MY_CS_PRIMARY,
-				      MYF(0))))
+		get_charset_by_csname(pos+1, MY_CS_PRIMARY, MYF(0))) &&
+              !(create->default_table_charset=
+                get_charset_by_name(pos+1, MYF(0))))
 	  {
 	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
@@ -391,7 +398,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not create database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
+  if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;
@@ -492,7 +499,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not alter database if another thread is holding read lock
-  if ((error=wait_if_global_read_lock(thd,0)))
+  if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
 
   /* Check directory */
@@ -557,7 +564,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not drop database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
+  if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;

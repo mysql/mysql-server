@@ -56,7 +56,7 @@ class PropertiesImpl {
   PropertiesImpl(const PropertiesImpl &);           // Not implemented
   PropertiesImpl& operator=(const PropertiesImpl&); // Not implemented
 public:
-  PropertiesImpl(Properties *);
+  PropertiesImpl(Properties *, bool case_insensitive);
   PropertiesImpl(Properties *, const PropertiesImpl &);
   ~PropertiesImpl();
 
@@ -69,6 +69,7 @@ public:
   bool m_insensitive;
   int (* compare)(const char *s1, const char *s2);
   
+  void setCaseInsensitiveNames(bool value);
   void grow(int sizeToAdd);
   
   PropertyImpl * get(const char * name) const;
@@ -113,9 +114,9 @@ Property::~Property(){
 /**
  * Methods for Properties
  */
-Properties::Properties(){
+Properties::Properties(bool case_insensitive){
   parent = 0;
-  impl = new PropertiesImpl(this);
+  impl = new PropertiesImpl(this, case_insensitive);
 }
 
 Properties::Properties(const Properties & org){
@@ -124,7 +125,7 @@ Properties::Properties(const Properties & org){
 }
 
 Properties::Properties(const Property * anArray, int arrayLen){
-  impl = new PropertiesImpl(this);
+  impl = new PropertiesImpl(this, false);
 
   put(anArray, arrayLen);
 }
@@ -168,6 +169,7 @@ put(PropertiesImpl * impl, const char * name, T value, bool replace){
   }
   return tmp->put(new PropertyImpl(short_name, value));  
 }
+
 
 bool
 Properties::put(const char * name, Uint32 value, bool replace){
@@ -478,13 +480,12 @@ Properties::unpack(const Uint32 * buf, Uint32 bufLen){
 /**
  * Methods for PropertiesImpl
  */
-PropertiesImpl::PropertiesImpl(Properties * p){
+PropertiesImpl::PropertiesImpl(Properties * p, bool case_insensitive){
   this->properties = p;
   items = 0;
   size  = 25;
   content = new PropertyImpl * [size];
-  this->m_insensitive = false;
-  this->compare = strcmp;
+  setCaseInsensitiveNames(case_insensitive);
 }
 
 PropertiesImpl::PropertiesImpl(Properties * p, const PropertiesImpl & org){
@@ -505,6 +506,15 @@ PropertiesImpl::~PropertiesImpl(){
   delete [] content;
 }
 
+void
+PropertiesImpl::setCaseInsensitiveNames(bool value){
+  m_insensitive = value;
+  if(value)
+    compare = strcasecmp;
+  else
+    compare = strcmp;
+}
+
 void 
 PropertiesImpl::grow(int sizeToAdd){
   PropertyImpl ** newContent = new PropertyImpl * [size + sizeToAdd];
@@ -522,9 +532,11 @@ PropertiesImpl::get(const char * name) const {
     return 0;
   }
 
-  for(unsigned int i = 0; i<tmp->items; i++)
+  for(unsigned int i = 0; i<tmp->items; i++) {
     if((* compare)(tmp->content[i]->name, short_name) == 0)
       return tmp->content[i];
+  }
+
   return 0;
 }
 
@@ -1109,14 +1121,15 @@ Properties::getCopy(const char * name, Uint32 no, Properties ** value) const {
 
 void
 Properties::setCaseInsensitiveNames(bool value){
-  impl->m_insensitive = value;
-  if(value)
-    impl->compare = strcasecmp;
-  else
-    impl->compare = strcmp;
+  impl->setCaseInsensitiveNames(value);
 }
 
 bool
 Properties::getCaseInsensitiveNames() const {
   return impl->m_insensitive;
 }
+
+template bool put(PropertiesImpl *, const char *, Uint32, bool);
+template bool put(PropertiesImpl *, const char *, Uint64, bool);
+template bool put(PropertiesImpl *, const char *, const char *, bool);
+template bool put(PropertiesImpl *, const char *, const Properties*, bool);

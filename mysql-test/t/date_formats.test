@@ -132,16 +132,23 @@ insert into t1 values
 ('2003-01-02 11:11:12Pm', '%Y-%m-%d %h:%i:%S%p'),
 ('10:20:10', '%H:%i:%s'),
 ('10:20:10', '%h:%i:%s.%f'),
+('10:20:10', '%T'),
 ('10:20:10AM', '%h:%i:%s%p'),
+('10:20:10AM', '%r'),
 ('10:20:10.44AM', '%h:%i:%s.%f%p'),
 ('15-01-2001 12:59:58', '%d-%m-%Y %H:%i:%S'),
 ('15 September 2001', '%d %M %Y'),
 ('15 SEPTEMB 2001', '%d %M %Y'),
 ('15 MAY 2001', '%d %b %Y'),
+('15th May 2001', '%D %b %Y'),
 ('Sunday 15 MAY 2001', '%W %d %b %Y'),
 ('Sund 15 MAY 2001', '%W %d %b %Y'),
 ('Tuesday 00 2002', '%W %U %Y'),
 ('Thursday 53 1998', '%W %u %Y'),
+('Sunday 01 2001', '%W %v %x'),
+('Tuesday 52 2001', '%W %V %X'),
+('060 2004', '%j %Y'),
+('4 53 1998', '%w %u %Y'),
 ('15-01-2001', '%d-%m-%Y %H:%i:%S'),
 ('15-01-20', '%d-%m-%y'),
 ('15-2001-1', '%d-%Y-%c');
@@ -156,7 +163,7 @@ select date,format,DATE(str_to_date(date, format)) as date2 from t1;
 select date,format,TIME(str_to_date(date, format)) as time from t1;
 select date,format,concat(TIME(str_to_date(date, format))) as time2 from t1;
 
-# Test wrong dates
+# Test wrong dates or converion specifiers
 
 truncate table t1;
 insert into t1 values
@@ -169,10 +176,13 @@ insert into t1 values
 ('15 Septembei 2001', '%d %M %Y'),
 ('15 Ju 2001', '%d %M %Y'),
 ('Sund 15 MA', '%W %d %b %Y'),
-('Sunday 01 2001', '%W %V %X'),
 ('Thursdai 12 1998', '%W %u %Y'),
-(NULL, get_format(DATE,'USA')),
-('Tuesday 52 2001', '%W %V %X');
+('Sunday 01 2001', '%W %v %X'),
+('Tuesday 52 2001', '%W %V %x'),
+('Tuesday 52 2001', '%W %V %Y'),
+('Tuesday 52 2001', '%W %u %x'),
+('7 53 1998', '%w %u %Y'),
+(NULL, get_format(DATE,'USA'));
 select date,format,str_to_date(date, format) as str_to_date from t1;
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 
@@ -196,6 +206,7 @@ drop table t1;
 select get_format(DATE, 'USA') as a;
 select get_format(TIME, 'internal') as a;
 select get_format(DATETIME, 'eur') as a;
+select get_format(TIMESTAMP, 'eur') as a;
 select get_format(DATE, 'TEST') as a;
 select str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'));
 

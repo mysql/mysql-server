@@ -23,7 +23,14 @@
 #include <ieeefp.h>
 #endif
 
-#define CHECK_KEYS
+#define CHECK_KEYS                              /* Enable safety checks */
+
+#define FIX_LENGTH(cs, pos, length, char_length)                            \
+            do {                                                            \
+              if (length > char_length)                                     \
+                char_length= my_charpos(cs, pos, pos+length, char_length);  \
+              set_if_smaller(char_length,length);                           \
+            } while(0)
 
 static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
 
@@ -38,11 +45,12 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
   byte *pos,*end;
   uchar *start;
   reg1 HA_KEYSEG *keyseg;
+  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_make_key");
 
-  if(info->s->keyinfo[keynr].flag & HA_SPATIAL)
+  if (info->s->keyinfo[keynr].flag & HA_SPATIAL)
   {
-    /* 
+    /*
       TODO: nulls processing
     */
 #ifdef HAVE_SPATIAL
@@ -57,6 +65,8 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
   {
     enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
     uint length=keyseg->length;
+    uint char_length;
+    CHARSET_INFO *cs=keyseg->charset;
 
     if (keyseg->null_bit)
     {
@@ -67,6 +77,9 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       }
       *key++=1;					/* Not NULL */
     }
+
+    char_length= ((!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen :
+                  length);
 
     pos= (byte*) record+keyseg->start;
     if (keyseg->flag & HA_SPACE_PACK)
@@ -83,9 +96,10 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 	  pos++;
       }
       length=(uint) (end-pos);
-      store_key_length_inc(key,length);
-      memcpy((byte*) key,(byte*) pos,(size_t) length);
-      key+=length;
+      FIX_LENGTH(cs, pos, length, char_length);
+      store_key_length_inc(key,char_length);
+      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      key+=char_length;
       continue;
     }
     if (keyseg->flag & HA_VAR_LENGTH)
@@ -93,14 +107,22 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       uint tmp_length=uint2korr(pos);
       pos+=2;					/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
-      store_key_length_inc(key,length);
+      FIX_LENGTH(cs, pos, length, char_length);
+      store_key_length_inc(key,char_length);
+      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      key+= char_length;
+      continue;
     }
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length=_mi_calc_blob_length(keyseg->bit_start,pos);
       memcpy_fixed((byte*) &pos,pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
-      store_key_length_inc(key,length);
+      FIX_LENGTH(cs, pos, length, char_length);
+      store_key_length_inc(key,char_length);
+      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      key+= char_length;
+      continue;
     }
     else if (keyseg->flag & HA_SWAP_KEY)
     {						/* Numerical column */
@@ -112,7 +134,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 	if (isnan(nr))
 	{
 	  /* Replace NAN with zero */
- 	  bzero(key,length);
+	  bzero(key,length);
 	  key+=length;
 	  continue;
 	}
@@ -123,7 +145,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 	float8get(nr,pos);
 	if (isnan(nr))
 	{
- 	  bzero(key,length);
+	  bzero(key,length);
 	  key+=length;
 	  continue;
 	}
@@ -136,7 +158,10 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       }
       continue;
     }
-    memcpy((byte*) key, pos, length);
+    FIX_LENGTH(cs, pos, length, char_length);
+    memcpy((byte*) key, pos, char_length);
+    if (length > char_length)
+      cs->cset->fill(cs, key+char_length, length-char_length, ' ');
     key+= length;
   }
   _mi_dpointer(info,key,filepos);
@@ -164,38 +189,43 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
    RETURN
      length of packed key
 
-     last_use_keyseg 	Store pointer to the keyseg after the last used one
+     last_use_keyseg    Store pointer to the keyseg after the last used one
 */
 
 uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 		  uint k_length, HA_KEYSEG **last_used_keyseg)
 {
-  uint length;
-  uchar *pos,*end,*start_key=key;
-  reg1 HA_KEYSEG *keyseg;
-  enum ha_base_keytype type;
+  uchar *start_key=key;
+  HA_KEYSEG *keyseg;
+  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_pack_key");
 
-  start_key=key;
   for (keyseg=info->s->keyinfo[keynr].seg ;
        keyseg->type && (int) k_length > 0;
        old+=keyseg->length, keyseg++)
   {
-    length=min((uint) keyseg->length,(uint) k_length);
-    type=(enum ha_base_keytype) keyseg->type;
+    enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
+    uint length=min((uint) keyseg->length,(uint) k_length);
+    uint char_length;
+    uchar *pos;
+    CHARSET_INFO *cs=keyseg->charset;
+
     if (keyseg->null_bit)
     {
       k_length--;
       if (!(*key++= (char) 1-*old++))			/* Copy null marker */
       {
 	k_length-=length;
+        if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
+          k_length-=2;                                  /* Skip length */
 	continue;					/* Found NULL */
       }
     }
+    char_length= (!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length;
     pos=old;
     if (keyseg->flag & HA_SPACE_PACK)
     {
-      end=pos+length;
+      uchar *end=pos+length;
       if (type != HA_KEYTYPE_NUM)
       {
 	while (end > pos && end[-1] == ' ')
@@ -208,9 +238,10 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       }
       k_length-=length;
       length=(uint) (end-pos);
-      store_key_length_inc(key,length);
-      memcpy((byte*) key,pos,(size_t) length);
-      key+= length;
+      FIX_LENGTH(cs, pos, length, char_length);
+      store_key_length_inc(key,char_length);
+      memcpy((byte*) key,pos,(size_t) char_length);
+      key+= char_length;
       continue;
     }
     else if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
@@ -218,11 +249,13 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       /* Length of key-part used with mi_rkey() always 2 */
       uint tmp_length=uint2korr(pos);
       k_length-= 2+length;
+      pos+=2;
       set_if_smaller(length,tmp_length);	/* Safety */
-      store_key_length_inc(key,length);
+      FIX_LENGTH(cs, pos, length, char_length);
+      store_key_length_inc(key,char_length);
       old+=2;					/* Skip length */
-      memcpy((byte*) key, pos+2,(size_t) length);
-      key+= length;
+      memcpy((byte*) key, pos,(size_t) char_length);
+      key+= char_length;
       continue;
     }
     else if (keyseg->flag & HA_SWAP_KEY)
@@ -235,7 +268,10 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       }
       continue;
     }
-    memcpy((byte*) key,pos,(size_t) length);
+    FIX_LENGTH(cs, pos, length, char_length);
+    memcpy((byte*) key, pos, char_length);
+    if (length > char_length)
+      cs->cset->fill(cs,key+char_length, length-char_length, ' ');
     key+= length;
     k_length-=length;
   }

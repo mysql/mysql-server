@@ -42,7 +42,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_NDBCLUSTER_DB
   {"ndb", 0, "Ndbcluster storage engine specific error codes.",  (gptr*) &ndb_code,
-   (gptr*) &ndb_code, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   (gptr*) &ndb_code, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #ifdef HAVE_SYS_ERRLIST
   {"all", 'a', "Print all the error messages and the number.",
@@ -222,7 +222,7 @@ int main(int argc,char *argv[])
 #ifdef HAVE_NDBCLUSTER_DB
       if (ndb_code)
       {
-	if (ndb_error_string(code, ndb_string, 1024) < 0)
+	if (ndb_error_string(code, ndb_string,  sizeof(ndb_string)) < 0)
 	  msg= 0;
 	else
 	  msg= ndb_string;
