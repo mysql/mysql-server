@@ -218,17 +218,19 @@ grant select on test.* to drop_user3@localhost;
 grant select on *.* to drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
-ERROR HY000: Can't drop one or more of the requested users
 revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
+ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
+ERROR HY000: Operation DROP USER failed for 'drop_user1'@'localhost','drop_user2'@'localhost','drop_user3'@'localhost','drop_user4'@'localhost'
 drop table t1;
 grant usage on *.* to mysqltest_1@localhost identified by "password";
-grant select, update, insert on test.* to mysqltest@localhost;
+grant select, update, insert on test.* to mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' IDENTIFIED BY PASSWORD '*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19'
+GRANT SELECT, INSERT, UPDATE ON `test`.* TO 'mysqltest_1'@'localhost'
 drop user mysqltest_1@localhost;
 SET NAMES koi8r;
 CREATE DATABASE бд;
@@ -252,6 +254,7 @@ Grants for юзер@localhost
 GRANT USAGE ON *.* TO 'юзер'@'localhost'
 GRANT SELECT (кол) ON `бд`.`таб` TO 'юзер'@'localhost'
 REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
+DROP USER юзер@localhost;
 DROP DATABASE бд;
 SET NAMES latin1;
 USE test;

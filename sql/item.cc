@@ -112,7 +112,8 @@ void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
   DBUG_PRINT("info", ("Item: 0x%lx, Type: %d, name %s, original name %s",
-		      this, (int)type(), name, orig_name));
+		      this, (int)type(), name ? name : "(null)",
+                      orig_name ? orig_name : "null"));
   fixed=0;
   marker= 0;
   if (orig_name)
@@ -187,9 +188,12 @@ void Item_ident::cleanup()
 {
   DBUG_ENTER("Item_ident::cleanup");
   DBUG_PRINT("enter", ("b:%s(%s), t:%s(%s), f:%s(%s)",
-		       db_name, orig_db_name,
-		       table_name, orig_table_name,
-		       field_name, orig_field_name));
+		       db_name ? db_name : "(null)",
+                       orig_db_name ? orig_db_name : "(null)",
+		       table_name ? table_name : "(null)",
+                       orig_table_name ? orig_table_name : "(null)",
+		       field_name ? field_name : "(null)",
+                       orig_field_name ? orig_field_name : "(null)"));
   Item::cleanup();
   db_name= orig_db_name; 
   table_name= orig_table_name;

@@ -127,14 +127,23 @@ protected:
   NdbReceiver** m_receivers;      // All receivers
 
   Uint32* m_prepared_receivers;   // These are to be sent
-  
+
+  /**
+   * owned by API/user thread
+   */
   Uint32 m_current_api_receiver;
   Uint32 m_api_receivers_count;
   NdbReceiver** m_api_receivers;  // These are currently used by api
   
+  /**
+   * owned by receiver thread
+   */
   Uint32 m_conf_receivers_count;  // NOTE needs mutex to access
   NdbReceiver** m_conf_receivers; // receive thread puts them here
   
+  /**
+   * owned by receiver thread
+   */
   Uint32 m_sent_receivers_count;  // NOTE needs mutex to access
   NdbReceiver** m_sent_receivers; // receive thread puts them here
   

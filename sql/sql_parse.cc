@@ -1175,9 +1175,13 @@ end:
 
 void free_items(Item *item)
 {
+  Item *next;
   DBUG_ENTER("free_items");
-  for (; item ; item=item->next)
+  for (; item ; item=next)
+  {
+    next=item->next;
     item->delete_self();
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2327,10 +2331,24 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_PURGE_BEFORE:
   {
+    Item *it;
+
     if (check_global_access(thd, SUPER_ACL))
       goto error;
     /* PURGE MASTER LOGS BEFORE 'data' */
-    res = purge_master_logs_before_date(thd, lex->purge_time);
+    it= (Item *)lex->value_list.head();
+    if (it->check_cols(1) || it->fix_fields(lex->thd, 0, &it))
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
+      goto error;
+    }
+    it= new Item_func_unix_timestamp(it);
+    /*
+      it is OK only emulate fix_fieds, because we need only
+      value of constant
+    */
+    it->quick_fix_field();
+    res = purge_master_logs_before_date(thd, (ulong)it->val_int());
     break;
   }
 #endif
@@ -3370,6 +3388,21 @@ create_error:
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  case SQLCOM_CREATE_USER:
+  {
+    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
+      break;
+    if (!(res= mysql_create_user(thd, lex->users_list)))
+    {
+      if (mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
   case SQLCOM_DROP_USER:
   {
     if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
@@ -3378,8 +3411,23 @@ create_error:
     {
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
-	mysql_bin_log.write(&qinfo);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
+  case SQLCOM_RENAME_USER:
+  {
+    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
+      break;
+    if (!(res= mysql_rename_user(thd, lex->users_list)))
+    {
+      if (mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
     }
@@ -3505,8 +3553,18 @@ create_error:
     break;
   }
   case SQLCOM_KILL:
-    kill_one_thread(thd,lex->thread_id, lex->type & ONLY_KILL_QUERY);
+  {
+    Item *it= (Item *)lex->value_list.head();
+
+    if (it->fix_fields(lex->thd, 0, &it) || it->check_cols(1))
+    {
+      my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
+		 MYF(0));
+      goto error;
+    }
+    kill_one_thread(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
     break;
+  }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_SHOW_GRANTS:
     if ((thd->priv_user &&
@@ -3594,9 +3652,10 @@ create_error:
         message in the error log, so we don't send it.
       */
       if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-	send_warning(thd,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
-      else
-	send_ok(thd);
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
     }
     else
       res= TRUE;
@@ -3606,9 +3665,10 @@ create_error:
     if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
     {
       if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-	send_warning(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK, 0);
-      else
-	send_ok(thd);
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
     }
     else
       goto error;

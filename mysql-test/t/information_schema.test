@@ -110,24 +110,24 @@ select count(*) from information_schema.ROUTINES;
 #
 # Test for views
 #
-create view v0 (c) as select schema_name from information_schema.SCHEMATA;
+create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 --replace_column 3 #
 explain select * from v0;
-create view v1 (c) as select table_name from information_schema.TABLES
+create view v1 (c) as select table_name from information_schema.tables
 where table_name="v1";
 select * from v1;
-create view v2 (c) as select column_name from information_schema.COLUMNS
+create view v2 (c) as select column_name from information_schema.columns
 where table_name="v2";
 select * from v2;
-create view v3 (c) as select CHARACTER_SET_NAME from information_schema.CHARACTER_SETS
+create view v3 (c) as select CHARACTER_SET_NAME from information_schema.character_sets
 where CHARACTER_SET_NAME like "latin1%";
 select * from v3;
-create view v4 (c) as select COLLATION_NAME from information_schema.COLLATIONS
+create view v4 (c) as select COLLATION_NAME from information_schema.collations
 where COLLATION_NAME like "latin1%";
 select * from v4;
 show keys from v4;
-select * from information_schema.VIEWS where TABLE_NAME like "v%";
+select * from information_schema.views where TABLE_NAME like "v%";
 drop view v0, v1, v2, v3, v4;
 
 #
@@ -222,9 +222,9 @@ information_schema.tables) union select version from
 information_schema.tables;
 drop table t1;
 
-SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
+SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 set names latin2;
-SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
+SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 set names latin1;
 
 create table t1 select * from information_schema.CHARACTER_SETS
@@ -260,3 +260,16 @@ from information_schema.columns;  open c; open c; end;//
 call p108()//
 delimiter ;//
 drop procedure p108;
+
+create view v1 as select A1.table_name from information_schema.TABLES A1
+where table_name= "user";
+select * from v1;
+drop view v1;
+
+create view vo as select 'a' union select 'a';  
+show index from vo;
+select * from information_schema.TABLE_CONSTRAINTS where
+TABLE_NAME= "vo";
+select * from information_schema.KEY_COLUMN_USAGE where
+TABLE_NAME= "vo"; 
+drop view vo;

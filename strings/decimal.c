@@ -503,7 +503,7 @@ int decimal2ulonglong(decimal *from, ulonglong *to)
 {
   dec1 *buf=from->buf;
   ulonglong x=0;
-  int intg;
+  int intg, frac;
 
   if (from->sign)
   {
@@ -515,21 +515,24 @@ int decimal2ulonglong(decimal *from, ulonglong *to)
   {
     ulonglong y=x;
     x=x*DIG_BASE + *buf++;
-    if (unlikely(x < y))
+    if (unlikely(y > (ULONGLONG_MAX/DIG_BASE) || x < y))
     {
       *to=y;
       return E_DEC_OVERFLOW;
     }
   }
   *to=x;
-  return from->frac ? E_DEC_TRUNCATED : E_DEC_OK;
+  for (frac=from->frac; unlikely(frac > 0); frac-=DIG_PER_DEC1)
+    if (*buf++)
+      return E_DEC_TRUNCATED;
+  return E_DEC_OK;
 }
 
 int decimal2longlong(decimal *from, longlong *to)
 {
   dec1 *buf=from->buf;
   longlong x=0;
-  int intg;
+  int intg, frac;
 
   for (intg=from->intg; intg > 0; intg-=DIG_PER_DEC1)
   {
@@ -537,11 +540,11 @@ int decimal2longlong(decimal *from, longlong *to)
     /*
       Attention: trick!
       we're calculating -|from| instead of |from| here
-      because |MIN_LONGLONG| > MAX_LONGLONG
+      because |LONGLONG_MIN| > LONGLONG_MAX
       so we can convert -9223372036854775808 correctly
     */
     x=x*DIG_BASE - *buf++;
-    if (unlikely(x > y))
+    if (unlikely(y < (LONGLONG_MAX/DIG_BASE) || x > y))
     {
       *to= from->sign ? y : -y;
       return E_DEC_OVERFLOW;
@@ -555,7 +558,10 @@ int decimal2longlong(decimal *from, longlong *to)
   }
 
   *to=from->sign ? x : -x;
-  return from->frac ? E_DEC_TRUNCATED : E_DEC_OK;
+  for (frac=from->frac; unlikely(frac > 0); frac-=DIG_PER_DEC1)
+    if (*buf++)
+      return E_DEC_TRUNCATED;
+  return E_DEC_OK;
 }
 
 /*
@@ -867,7 +873,7 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
     error=E_DEC_TRUNCATED;
   }
 
-  if (scale+from->intg <0)
+  if (scale+from->intg <= 0)
   {
     decimal_make_zero(to);
     return E_DEC_OK;
@@ -1928,6 +1934,7 @@ main()
   test_d2ull("18446744073709551616");
   test_d2ull("-1");
   test_d2ull("1.23");
+  test_d2ull("9999999999999999999999999.000");
 
   printf("==== longlong2decimal ====\n");
   test_ll2d(LL(-12345));
