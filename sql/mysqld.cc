@@ -288,7 +288,7 @@ int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 */
 
 static bool kill_in_progress=FALSE;
-static struct rand_struct sql_rand;
+struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 static int cleanup_done;
 static char **defaults_argv;
 char glob_hostname[FN_REFLEN];
@@ -2423,15 +2423,7 @@ static void create_new_thread(THD *thd)
   for (uint i=0; i < 8 ; i++)			// Generate password teststring
     thd->scramble[i]= (char) (rnd(&sql_rand)*94+33);
   thd->scramble[8]=0;
-  /* 
-     We need good random number initialization for new thread
-     Just coping global one will not work 
-  */
-  {
-    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
-    randominit(&(thd->rand), tmp + (ulong) start_time,
-	       tmp + (ulong) thread_id);
-  }
+
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
