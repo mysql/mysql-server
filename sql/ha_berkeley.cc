@@ -237,7 +237,7 @@ int berkeley_show_logs(THD *thd)
     packet->length(0);
     net_store_data(packet,*a);
     net_store_data(packet,"BDB");
-    if (f && strcmp(*a, *f) == 0)
+    if (f && *f && strcmp(*a, *f) == 0)
     {
       net_store_data(packet, SHOW_LOG_STATUS_FREE);
       ++f;
