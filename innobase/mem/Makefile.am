@@ -19,6 +19,8 @@ include ../include/Makefile.i
 
 libs_LIBRARIES =	libmem.a
 
-libmem_a_SOURCES =	mem0mem.c mem0pool.c mem0dbg.c
+libmem_a_SOURCES =	mem0mem.c mem0pool.c
+
+EXTRA_DIST =		mem0dbg.c
 
 EXTRA_PROGRAMS =	
