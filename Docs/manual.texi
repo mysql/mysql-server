@@ -2539,7 +2539,7 @@ definitive standard for ODBC on the Linux platform. This is to include GUI
 support for KDE.
 
 @item @uref{http://www.sw-soft.com/products/BtrieveODBC/}@*
-A @strong{MySQL}-based ODBC drivers for Btrieve.
+A @strong{MySQL}-based ODBC drivers for Btrieve. From SWsoft.
 @end itemize
 
 @subheading @strong{API}-related Links
@@ -32355,6 +32355,10 @@ program.
 @strong{MySQL}.  @strong{MyODBC} works on Windows95, Windows98, NT, and
 on most Unix platforms.
 
+If you have problem with @strong{MyODBC} and your program also works
+with OLEDB, you should try the OLEDB driver that you can find in the
+Contrib section.  @xref{Contrib}.
+
 Normally you only need to install @strong{MyODBC} on Windows machines.
 You only need @strong{MyODBC} for Unix if you have a program like
 ColdFusion that is running on the Unix machine and uses ODBC to connect
@@ -39767,6 +39771,17 @@ private and educational use. (Not supported anymore.)
 @item @uref{http://www.mysql.com/Downloads/Contrib/pmdamysql.tgz,pmdamysql.tgz}
 A @strong{MySQL} PMDA. Provides @strong{MySQL} server status and configuration
 variables.
+@end itemize
+
+@cindex OLEDB
+@item OLEDB
+@itemize @bullet
+@item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe, MyOLEDB.exe}
+OLEDB handler for @code{MySQL}. By SWsoft.
+@item @uref{http://www.mysql.com/Downloads/Win32/MySamples.zip, MySamples.zip}
+Examples and documentation for MyOLEDB. By SWsoft.
+@item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip, Myoledb.zip}
+Source for MyOLEDB. By SWsoft.
 @end itemize
 
 @cindex C++
