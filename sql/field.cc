@@ -4061,6 +4061,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  uint copy_length;
 
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
@@ -4069,27 +4070,31 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     from= tmpstr.ptr();
     length=  tmpstr.length();
   }
-  if (length <= field_length)
-  {
-    memcpy(ptr,from,length);
-    if (length < field_length)
-      field_charset->cset->fill(field_charset,ptr+length,field_length-length,
-				' ');
-  }
-  else
-  {
-    memcpy(ptr,from,field_length);
-    if (current_thd->count_cuted_fields)
-    {						// Check if we loosed some info
-      const char *end=from+length;
-      from+= field_length;
-      from+= field_charset->cset->scan(field_charset, from, end,
-				       MY_SEQ_SPACES);
-      if (from != end)
-      {
-        set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-	error=1;
-      }
+
+  /* 
+    Make sure we don't break a multybite sequence
+    as well as don't copy a malformed data.
+  */
+  copy_length= field_charset->cset->wellformedlen(field_charset,
+						  from,from+length,
+						  field_length/
+						  field_charset->mbmaxlen);
+  memcpy(ptr,from,copy_length);
+  if (copy_length < field_length)	// Append spaces if shorter
+    field_charset->cset->fill(field_charset,ptr+copy_length,
+			      field_length-copy_length,' ');
+  
+  
+  if (current_thd->count_cuted_fields && (copy_length < length))
+  {					// Check if we loosed some info
+    const char *end=from+length;
+    from+= copy_length;
+    from+= field_charset->cset->scan(field_charset, from, end,
+				     MY_SEQ_SPACES);
+    if (from != end)
+    {
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
+      error=1;
     }
   }
   return error;
