@@ -1509,6 +1509,14 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
 }
 
 extern "C"
+void
+ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
+{
+  if (cfg)
+    delete (ConfigValues *)cfg;
+}
+
+extern "C"
 int
 ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, unsigned *pnodeid, int nodetype)
 {
