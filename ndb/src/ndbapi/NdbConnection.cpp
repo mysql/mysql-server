@@ -528,7 +528,6 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
         tLastOp->theCommitIndicator = 1;
       }//if
     } else {
-      if (aTypeOfExec == Commit) {
       if (aTypeOfExec == Commit && !theSimpleState) {
 	/**********************************************************************
 	 *   A Transaction have been started and no more operations exist. 
