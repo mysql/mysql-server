@@ -771,7 +771,6 @@ String *Item_param::query_val_str(String* str)
   case INT_RESULT:
   case REAL_RESULT:
     return val_str(str);
-    break;
   default:
     str->set("'", 1, default_charset());
     

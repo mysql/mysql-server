@@ -1143,7 +1143,6 @@ String *Item_func_min_max::val_str(String *str)
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
-
   }
   return 0;					// Keep compiler happy
 }
@@ -2442,7 +2441,6 @@ Item_func_set_user_var::check()
     save_result.vint= args[0]->val_int();
     break;
   }
-  break;
   case STRING_RESULT:
   {
     save_result.vstr= args[0]->val_str(&value);
@@ -2494,7 +2492,6 @@ Item_func_set_user_var::update()
 		     INT_RESULT, &my_charset_bin, DERIVATION_NONE);
     break;
   }
-  break;
   case STRING_RESULT:
   {
     if (!save_result.vstr)					// Null value
