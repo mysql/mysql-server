@@ -1235,6 +1235,7 @@ class select_insert :public select_result_interceptor {
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
+  virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
@@ -1262,7 +1263,7 @@ public:
     create_info(create_info_par), lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &values);
+  void store_values(List<Item> &values);
   bool send_eof();
   void abort();
 };
