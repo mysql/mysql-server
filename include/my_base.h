@@ -159,6 +159,7 @@ enum ha_base_keytype {
 #define HA_BLOB_PART		 32
 #define HA_SWAP_KEY		 64
 #define HA_REVERSE_SORT		 128	/* Sort key in reverse order */
+#define HA_NO_SORT               256 /* do not bother sorting on this keyseg */
 
 	/* optionbits for database */
 #define HA_OPTION_PACK_RECORD		1

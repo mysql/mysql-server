@@ -95,9 +95,6 @@ extern ulong collstat;
 #define FTB_NEG   '~'
 #define FTB_TRUNC '*'
 
-// #define FTB_MAX_SUBEXPR 255
-// #define FTB_MAX_DEPTH   16
-
 typedef struct st_ft_word {
   byte * pos;
   uint	 len;
@@ -116,7 +113,6 @@ typedef struct st_ftb_param {
 } FTB_PARAM;
 
 int is_stopword(char *word, uint len);
-int is_boolean(byte *q, uint len);
 
 uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
 
@@ -127,6 +123,21 @@ TREE * ft_parse(TREE *, byte *, int);
 FT_WORD * ft_linearize(MI_INFO *, uint, byte *, TREE *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint , byte *, const byte *);
 
-FT_DOCLIST * ft_nlq_search(MI_INFO *, uint, byte *, uint);
-FT_DOCLIST * ft_boolean_search(MI_INFO *, uint, byte *, uint);
+const struct _ft_vft _ft_vft_nlq;
+FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, my_bool);
+int ft_nlq_read_next(FT_INFO *, char *);
+float ft_nlq_find_relevance(FT_INFO *, my_off_t );
+void ft_nlq_close_search(FT_INFO *);
+float ft_nlq_get_relevance(FT_INFO *);
+my_off_t ft_nlq_get_docid(FT_INFO *);
+void ft_nlq_reinit_search(FT_INFO *);
+
+const struct _ft_vft _ft_vft_boolean;
+FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint, my_bool);
+int ft_boolean_read_next(FT_INFO *, char *);
+float ft_boolean_find_relevance(FT_INFO *, my_off_t );
+void ft_boolean_close_search(FT_INFO *);
+float ft_boolean_get_relevance(FT_INFO *);
+my_off_t ft_boolean_get_docid(FT_INFO *);
+void ft_boolean_reinit_search(FT_INFO *);
 

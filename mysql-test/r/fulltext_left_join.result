@@ -1,5 +1,5 @@
 match(t1.texte,t1.sujet,t1.motsclefs) against('droit')
 0
 0
-0.67003110026735
+0.67003107070923
 0

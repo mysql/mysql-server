@@ -73,6 +73,7 @@ static SYMBOL symbols[] = {
   { "BINLOG",		SYM(BINLOG_SYM),0,0},
   { "BLOB",		SYM(BLOB_SYM),0,0},
   { "BOOL",		SYM(BOOL_SYM),0,0},
+  { "BOOLEAN",		SYM(BOOLEAN_SYM),0,0},
   { "BOTH",		SYM(BOTH),0,0},
   { "BY",		SYM(BY),0,0},
   { "CASCADE",		SYM(CASCADE),0,0},

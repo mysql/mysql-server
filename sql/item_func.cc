@@ -1903,46 +1903,6 @@ err:
   return 0;
 }
 
-double Item_func_match_nl::val()
-{
-  if (ft_handler==NULL)
-    init_search(1);
-
-  if ((null_value= (ft_handler==NULL)))
-    return 0.0;
-
-  if (join_key)
-  {
-    if (table->file->ft_handler)
-      return ft_nlq_get_relevance(ft_handler);
-
-    join_key=0; // Magic here ! See ha_myisam::ft_read()
-  }
-
-  /* we'll have to find ft_relevance manually in ft_handler array */
-
-  int a,b,c;
-  FT_DOC  *docs=((FT_DOCLIST *)ft_handler)->doc;
-  my_off_t docid=table->file->row_position();
-
-  if ((null_value=(docid==HA_OFFSET_ERROR)))
-    return 0.0;
-
-  // Assuming docs[] is sorted by dpos...
-
-  for (a=0, b=((FT_DOCLIST *)ft_handler)->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
-  {
-    if (docs[c].dpos > docid)
-      b=c;
-    else
-      a=c;
-  }
-  if (docs[a].dpos == docid)
-    return docs[a].weight;
-  else
-    return 0.0;
-}
-
 void Item_func_match::init_search(bool no_order)
 {
   if (ft_handler)
@@ -2113,6 +2073,75 @@ bool Item_func_match::eq(const Item *item) const
   return 0;
 }
 
+#if 0
+double Item_func_match::val()
+{
+  if (ft_handler==NULL)
+    init_search(1);
+
+  if ((null_value= (ft_handler==NULL)))
+    return 0.0;
+
+  if (join_key)
+  {
+    if (table->file->ft_handler)
+      return ft_handler->please->get_relevance(ft_handler);
+
+    join_key=0;
+  }
+
+  my_off_t docid=table->file->row_position();
+
+  if ((null_value=(docid==HA_OFFSET_ERROR)))
+    return 0.0;
+  else
+    return ft_handler->please->find_relevance(ft_handler, docid);
+}
+#endif
+
+double Item_func_match_nl::val()
+{
+  if (ft_handler==NULL)
+    init_search(1);
+
+  if ((null_value= (ft_handler==NULL)))
+    return 0.0;
+
+  if (join_key)
+  {
+    if (table->file->ft_handler)
+      return ft_handler->please->get_relevance(ft_handler);
+
+    join_key=0;
+  }
+
+  my_off_t docid=table->file->row_position();
+
+  if ((null_value=(docid==HA_OFFSET_ERROR)))
+    return 0.0;
+  else
+    return ft_handler->please->find_relevance(ft_handler, docid);
+}
+
+double Item_func_match_bool::val()
+{
+  if (ft_handler==NULL)
+    init_search(1);
+
+  if ((null_value= (ft_handler==NULL)))
+    return 0.0;
+
+  if (join_key)
+  {
+    if (table->file->ft_handler)
+      return ft_handler->please->get_relevance(ft_handler);
+
+    join_key=0;
+  }
+
+  null_value=1;
+  return -1.0;
+}
 
 /***************************************************************************
   System variables

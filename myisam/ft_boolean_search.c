@@ -16,6 +16,7 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
+#define FT_CORE
 #include "ftdefs.h"
 #include <queues.h>
 
@@ -73,8 +74,9 @@ typedef struct {
   byte      word[1];
 } FTB_WORD;
 
-typedef struct st_ftb_handler {
-  MI_INFO   *info;
+typedef struct st_ft_info {
+  struct _ft_vft *please;
+  MI_INFO  *info;
   uint       keynr;
   int        ok;
   FTB_EXPR  *root;
@@ -85,10 +87,10 @@ typedef struct st_ftb_handler {
 int FTB_WORD_cmp(void *v, byte *a, byte *b)
 {
   /* ORDER BY docid, ndepth DESC */
-  int i=((FTB_WORD *)a)->docid-((FTB_WORD *)b)->docid;
+  int i=comp(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
   if (!i)
-    i=((FTB_WORD *)b)->ndepth-((FTB_WORD *)a)->ndepth;
-  return sgn(i);
+    i=comp(((FTB_WORD *)b)->ndepth,((FTB_WORD *)a)->ndepth);
+  return i;
 }
 
 void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
@@ -108,70 +110,71 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
   if (! ftb->ok)
     return;
 
-  while (res=ftb_get_word(&start,end,&w,&param))
+  param.prev=' ';
+  while (res=ft_get_word(start,end,&w,&param))
   {
     byte  r=param.plusminus;
     float weight=(param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
     switch (res) {
       case FTB_LBR:
-	ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
-	ftbe->yesno=param.yesno;
-	ftbe->weight=weight;
-	ftbe->up=up;
-	ftbe->ythresh=0;
-	ftbe->docid=HA_POS_ERROR;
-	if (ftbw->yesno > 0) up->ythresh++;
+        ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
+        ftbe->yesno=param.yesno;
+        ftbe->weight=weight;
+        ftbe->up=up;
+        ftbe->ythresh=0;
+        ftbe->docid=HA_POS_ERROR;
+        if (ftbw->yesno > 0) up->ythresh++;
         _ftb_parse_query(ftb, start, end, ftbe, depth+1,
-	                 (param.yesno<0 ? depth+1 : ndepth));
+                         (param.yesno<0 ? depth+1 : ndepth));
         break;
       case FTB_RBR:
         return;
       case 1:
-	ftbw=(FTB_WORD *)alloc_root(&ftb->mem_root,
+        ftbw=(FTB_WORD *)alloc_root(&ftb->mem_root,
             sizeof(FTB_WORD) + (param.trunc ? MI_MAX_KEY_BUFF : w.len+extra));
         ftbw->len=w.len + !param.trunc;
-	ftbw->yesno=param.yesno;
-	ftbw->trunc=param.trunc; /* 0 or 1 */
-	ftbw->weight=weight;
-	ftbw->up=up;
-	ftbw->docid=HA_POS_ERROR;
-	ftbw->ndepth= param.yesno<0 ? depth : ndepth;
+        ftbw->yesno=param.yesno;
+        ftbw->trunc=param.trunc; /* 0 or 1 */
+        ftbw->weight=weight;
+        ftbw->up=up;
+        ftbw->docid=HA_POS_ERROR;
+        ftbw->ndepth= param.yesno<0 ? depth : ndepth;
         memcpy(ftbw->word+1, w.pos, w.len);
         ftbw->word[0]=w.len;
-	if (ftbw->yesno > 0) up->ythresh++;
-	/*****************************************/
-	r=_mi_search(info, keyinfo, ftbw->word, ftbw->len,
-		     SEARCH_FIND | SEARCH_PREFIX, keyroot);
-	if (!r)
-	{
-	  r=_mi_compare_text(default_charset_info,
-			     info->lastkey+ftbw->trunc,ftbw->len,
-			     ftbw->word+ftbw->trunc,ftbw->len,0);
-	}
-	if (r) /* not found */
-	{
-	  if (ftbw->yesno>0 && ftbw->up->up==0)
-	  { /* this word MUST BE present in every document returned,
-	       so we can abort the search right now */
-	    ftb->ok=0;
-	    return;
-	  }
-	}
-	else
-	{
-	  memcpy(ftbw->word, info->lastkey, info->lastkey_length);
-	  ftbw->docid=info->lastpos;
-	  queue_insert(& ftb->queue, (byte *)ftbw);
-	}
-	/*****************************************/
+        if (ftbw->yesno > 0) up->ythresh++;
+        /*****************************************/
+        r=_mi_search(info, keyinfo, ftbw->word, ftbw->len,
+                     SEARCH_FIND | SEARCH_PREFIX, keyroot);
+        if (!r)
+        {
+          r=_mi_compare_text(default_charset_info,
+                             info->lastkey+ftbw->trunc,ftbw->len,
+                             ftbw->word+ftbw->trunc,ftbw->len,0);
+        }
+        if (r) /* not found */
+        {
+          if (ftbw->yesno>0 && ftbw->up->up==0)
+          { /* this word MUST BE present in every document returned,
+               so we can abort the search right now */
+            ftb->ok=0;
+            return;
+          }
+        }
+        else
+        {
+          memcpy(ftbw->word, info->lastkey, info->lastkey_length);
+          ftbw->docid=info->lastpos;
+          queue_insert(& ftb->queue, (byte *)ftbw);
+        }
+        /*****************************************/
         break;
     }
   }
   return;
 }
 
-FTB * ft_boolean_search_init(MI_INFO *info, uint keynr, byte *query,
-                               uint query_len)
+FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
+                    uint query_len, my_bool presort __attribute__((unused)))
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
@@ -179,11 +182,12 @@ FTB * ft_boolean_search_init(MI_INFO *info, uint keynr, byte *query,
 
   if (!(ftb=(FTB *)my_malloc(sizeof(FTB), MYF(MY_WME))))
     return 0;
+  ftb->please=& _ft_vft_boolean;
   ftb->ok=1;
   ftb->info=info;
   ftb->keynr=keynr;
 
-  init_alloc_root(&ftb->mem_root, query_len,0);
+  init_alloc_root(&ftb->mem_root, 1024, 1024);
 
   /* hack: instead of init_queue, we'll use reinit queue to be able
    * to alloc queue with alloc_root()
@@ -201,7 +205,7 @@ FTB * ft_boolean_search_init(MI_INFO *info, uint keynr, byte *query,
   return ftb;
 }
 
-int ft_boolean_search_next(FTB *ftb, char *record)
+int ft_boolean_read_next(FT_INFO *ftb, char *record)
 {
   FTB_EXPR  *ftbe, *up;
   FTB_WORD  *ftbw;
@@ -218,61 +222,64 @@ int ft_boolean_search_next(FTB *ftb, char *record)
     return my_errno;
   /* black magic OFF */
 
-  while(ftb->ok && ftb->queue.elements)
-  {
-    curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid;
+  if (!ftb->queue.elements)
+    return my_errno=HA_ERR_END_OF_FILE;
 
+  while(ftb->ok &&
+    (curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid) != HA_POS_ERROR)
+  {
     while (curdoc==(ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid)
     {
       float weight=ftbw->weight;
-      uint  yn=ftbw->yesno;
+      int  yn=ftbw->yesno;
       for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
       {
-	if (ftbe->docid != curdoc)
-	{
-	  ftbe->cur_weight=ftbe->yesses=ftbe->nos=0;
-	  ftbe->docid=curdoc;
-	}
-	if (yn>0)
-	{
-	  ftbe->cur_weight+=weight;
-	  if (++ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
-	  {
+        if (ftbe->docid != curdoc)
+        {
+          ftbe->cur_weight=ftbe->yesses=ftbe->nos=0;
+          ftbe->docid=curdoc;
+        }
+        if (yn>0)
+        {
+          ftbe->cur_weight+=weight;
+          if (++ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
+          {
             yn=ftbe->yesno;
-	    weight=ftbe->cur_weight*ftbe->weight;
-	  }
-	  else
-	    break;
-	}
-	else
-	if (yn<0)
-	{
-	  /* NOTE: special sort function of queue assures that all yn<0
-	   * events for every particular subexpression will happen
-	   * BEFORE all yn>=0 events. So no already matched expression
-	   * can become not-matched again.
-	   */
-	  ++ftbe->nos;
-	  break;
-	}
-	else
+            weight=ftbe->cur_weight*ftbe->weight;
+          }
+          else
+            break;
+        }
+        else
+        if (yn<0)
+        {
+         /* NOTE: special sort function of queue assures that all yn<0
+          * events for every particular subexpression will
+          * "auto-magically" happen BEFORE all yn>=0 events. So no
+          * already matched expression can become not-matched again.
+          */
+          ++ftbe->nos;
+          break;
+        }
+        else
      /* if (yn==0) */
-	{
-	  if (ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
-	  {
+        {
+          if (ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
+          {
             yn=ftbe->yesno;
-	    weight*=ftbe->weight;
-	  }
-	  else
-	  {
-	    ftbe->cur_weight+=weight;
-	    break;
-	  }
-	}
+            ftbe->cur_weight=weight;
+            weight*=ftbe->weight;
+          }
+          else
+          {
+            ftbe->cur_weight+=weight;
+            break;
+          }
+        }
       }
       /* update queue */
       r=_mi_search(info, keyinfo, ftbw->word, ftbw->len,
-                   SEARCH_FIND | SEARCH_PREFIX, keyroot);
+                   SEARCH_BIGGER , keyroot);
       if (!r)
       {
         r=_mi_compare_text(default_charset_info,
@@ -281,19 +288,19 @@ int ft_boolean_search_next(FTB *ftb, char *record)
       }
       if (r) /* not found */
       {
-	queue_remove(& ftb->queue, 0);
-	if (ftbw->yesno>0 && ftbw->up->up==0)
-	{ /* this word MUST BE present in every document returned,
-	     so we can stop the search right now */
-	  ftb->ok=0;
-	}
+        ftbw->docid=HA_POS_ERROR;
+        if (ftbw->yesno>0 && ftbw->up->up==0)
+        { /* this word MUST BE present in every document returned,
+             so we can stop the search right now */
+          ftb->ok=0;
+        }
       }
       else
       {
         memcpy(ftbw->word, info->lastkey, info->lastkey_length);
         ftbw->docid=info->lastpos;
-        queue_replaced(& ftb->queue);
       }
+      queue_replaced(& ftb->queue);
     }
 
     ftbe=ftb->root;
@@ -305,12 +312,39 @@ int ft_boolean_search_next(FTB *ftb, char *record)
       /* info->lastpos=curdoc; */ /* do I need this ? */
       if (!(*info->read_record)(info,curdoc,record))
       {
-	info->update|= HA_STATE_AKTIV;		/* Record is read */
-	return 0;
+        info->update|= HA_STATE_AKTIV;          /* Record is read */
+        return 0;
       }
       return my_errno;
     }
   }
   return my_errno=HA_ERR_END_OF_FILE;
+}
+
+float ft_boolean_find_relevance(FT_INFO *ftb, my_off_t docid)
+{
+  fprintf(stderr, "ft_boolean_find_relevance called!\n");
+  return -1.0; /* to be done via str scan */
+}
+
+void ft_boolean_close_search(FT_INFO *ftb)
+{
+  free_root(& ftb->mem_root, MYF(0));
+  my_free((gptr)ftb,MYF(0));
+}
+
+float ft_boolean_get_relevance(FT_INFO *ftb)
+{
+  return ftb->root->cur_weight;
+}
+
+my_off_t ft_boolean_get_docid(FT_INFO *ftb)
+{
+  return HA_POS_ERROR;
+}
+
+void ft_boolean_reinit_search(FT_INFO *ftb)
+{
+  fprintf(stderr, "ft_boolean_reinit_search called!\n");
 }
 
