@@ -3,7 +3,7 @@
 set -x
 p=`pwd`
 cd $MYSQL_BASE_DIR/mysql-test 
-./mysql-test-run --with-ndbcluster --ndbconnectstring=$NDB_CONNECTSTRING $* | tee $p/output.txt
+./mysql-test-run --with-ndbcluster --ndb-connectstring=$NDB_CONNECTSTRING $* | tee $p/output.txt
 
 f=`grep -c fail $p/output.txt`
 o=`grep -c pass $p/output.txt`
