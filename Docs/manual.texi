@@ -347,6 +347,7 @@ The MySQL Access Privilege System
 
 * General security::            General security
 * Security::                    How to make @strong{MySQL} secure against crackers
+* Privileges options::          
 * What Privileges::             What the privilege system does
 * User names::                  @strong{MySQL} user names and passwords
 * Connecting::                  Connecting to the @strong{MySQL} server
@@ -615,7 +616,7 @@ MySQL Utilites
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
-* mysqlhotcopy::                Copying @code{MySQL} Databases and Tables
+* mysqlhotcopy::                Copying @strong{MySQL} Databases and Tables
 * mysqlimport::                 Importing data from text files
 * perror::                      Displaying error messages
 * mysqlshow::                   Showing databases, tables and columns
@@ -2030,25 +2031,25 @@ Big changes made in @strong{MySQL} Version 3.22.12.
 @item @strong{MyODBC} (uses ODBC SDK 2.5) --- Gamma
 It seems to work well with some programs.
 
-@item Replication -- Alpha / Beta
+@item Replication -- Beta / Gamma
 We are still working on replication, so don't expect this to be rock
 solid yet.  On the other hand, some @strong{MySQL} users are already
 using this with good results.
 
-@item BDB Tables -- Alpha  / Beta
+@item BDB Tables -- Beta
 The Berkeley DB code is very stable, but we are still improving the interface
 between @strong{MySQL} and BDB tables, so it will take some time before this
 is as tested as the other table types.
 
-@item Automatic recovery of MyISAM tables - Alpha.
+@item Automatic recovery of MyISAM tables - Beta.
 This only affects the new code that checks if the table was closed properly
 on open and executes an automatic check/repair of the table if it wasn't.
 
-@item MERGE tables -- Alpha / Beta
+@item MERGE tables -- Beta / Gamma
 The usage of keys on @code{MERGE} tables is still not that tested.  The
 other part of the @code{MERGE} code is quite well tested.
 
-@item FULLTEXT -- Alpha / Beta
+@item FULLTEXT -- Beta
 Text search seams to work, but is still not widely used.
 
 @end table
@@ -8178,6 +8179,7 @@ On NT you can get the following service error messages:
 @multitable @columnfractions .3 .7
 @item Permission Denied @tab Means that it cannot find @code{mysqld-nt.exe}.
 @item Cannot Register   @tab Means that the path is incorrect.
+@item Failed to install service. @tab Means that the service is already installed or that the Service Control Manager is in bad state.
 @end multitable
 
 If you have problems installing @code{mysqld-nt} as a service, try starting
@@ -10901,6 +10903,7 @@ system.  This section describes how it works.
 @menu
 * General security::            General security
 * Security::                    How to make @strong{MySQL} secure against crackers
+* Privileges options::          
 * What Privileges::             What the privilege system does
 * User names::                  @strong{MySQL} user names and passwords
 * Connecting::                  Connecting to the @strong{MySQL} server
@@ -11087,7 +11090,7 @@ actually mean that it is encrypted. If you need high security, you should
 consult with a security expert.
 @end itemize
 
-@node Security, What Privileges, General security, Privilege system
+@node Security, Privileges options, General security, Privilege system
 @section How to Make MySQL Secure Against Crackers
 @cindex crackers, security against
 @cindex security, against crackers
@@ -11190,6 +11193,9 @@ careful about creating grant table entries using hostname values that
 contain wild cards!
 @end itemize
 
+@node Privileges options, What Privileges, Security, Privilege system
+@section Startup options to mysqld which concerns security
+
 The following @code{mysqld} options affect networking security:
 
 @table @code
@@ -11218,14 +11224,21 @@ Don't allow TCP/IP connections over the network.  All connections to
 @code{mysqld} must be made via Unix sockets. This option is unsuitable for
 systems that use MIT-pthreads, because the MIT-pthreads package doesn't
 support Unix sockets.
+
+@item --skip-show-database
+@code{SHOW DATABASE} command doesn't return anything.
+
+@item --safe-show-database
+@code{SHOW DATABASE} only returns databases for which the user have
+some kind of privilege.
+
 @end table
 
-@node What Privileges, User names, Security, Privilege system
+@node What Privileges, User names, Privileges options, Privilege system
 @section What the Privilege System Does
 @cindex system, privilege
 @cindex privilege system
 @cindex passwords, security
-
 
 The primary function of the @strong{MySQL} privilege system is to
 authenticate a user connecting from a given host, and to associate that user
@@ -22898,6 +22911,8 @@ client.  We plan to partly fix this in 4.0.
 tables.
 @item
 Optimize performance.
+@item
+Change to not use page locks at all when we are scanning tables.
 @end itemize
 
 @node BDB errors,  , BDB TODO, BDB
@@ -25690,7 +25705,7 @@ connect to the master.
 @cindex @code{my.cnf} file
 @cindex files,@code{my.cnf}
 @node Replication Features, Replication Options, Replication HOWTO, Replication
-@section Replication Features
+@section Replication Features and known problems
 
 Below is an explanation of what is supported and what is not:
 
@@ -25703,7 +25718,16 @@ Replication will be done correctly with @code{AUTO_INCREMENT},
 still resides on the master server at the time of update
 propagation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 @item
-Update queries that use user variables are not replication-safe (yet).
+The master and slave is not synchronizing @code{RAND()}.  This means
+that you should not use @code{RAND()} with any statement that updates a
+table.  As fixing this will require a change in the protocol, we will
+delay fixing this until 4.0. A workaround is using @code{RAND(#)}, where
+# is a random integer genearated by your application or by first
+executing @code{LAST_INSERT_ID(RAND())} and then using
+@code{LAST_INSERT_ID()} in the next statement.
+@item
+Update queries that use user variables (@code{@@variable}) are not yet
+replication-safe.
 @item
 Temporary tables starting in 3.23.29 are replicated properly with the
 exception of the case when you shut down slave server ( not just slave thread),
@@ -25718,6 +25742,12 @@ In earlier versions temporary tables are not being replicated properly - we
 recommend that you either upgrade, or execute @code{SET SQL_LOG_BIN=0} on
 your clients before all queries with temp tables.
 @item
+@strong{MySQL} only supports one master and many slaves. We will in 4.x
+add a voting algorithm to automaticly change master if something goes
+wrong with the current master. We will also introduce 'agent' processes
+to help doing load balancing by sending select queries to different
+slaves.
+@item
 Starting in Version 3.23.26, it is safe to connect servers in a circular
 master-slave relationship with @code{log-slave-updates} enabled.
 Note, however, that many queries will not work right in this kind of
@@ -25728,9 +25758,10 @@ so that pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
 terminate, and a message will appear in the @code{.err} file. You should
-then connect to the slave manually, fix the cause of the error
-(for example, non-existent table), and then run @code{SLAVE START} sql command (available starting in Version 3.23.16). In Version 3.23.15, you will have
-to restart the server.
+then connect to the slave manually, fix the cause of the error (for
+example, non-existent table), and then run @code{SLAVE START} sql
+command (available starting in Version 3.23.16). In Version 3.23.15, you
+will have to restart the server.
 @item
 If connection to the master is lost, the slave will retry immediately,
 and then in case of failure every @code{master-connect-retry} (default
@@ -28515,6 +28546,7 @@ Most of the options to @code{safe_mysqld} are the same as the options to
 @table @code
 @item --basedir=path
 @item --core-file-size=#
+Size of the core file @code{mysqld} should be able to create. Passed to @code{ulimit -c}.
 @item --datadir=path
 @item --defaults-extra-file=path
 @item --defaults-file=path
@@ -28525,10 +28557,8 @@ Path to @code{mysqld}
 @item --mysqld=mysqld-version
 Name of the mysqld version in the @code{ledir} directory you want to start.
 @item --no-defaults
-@item --open-files=#
-Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}.
-@item --open-files=#
-Size of the core file @code{mysqld} should be able to create. Passed to @code{ulimit -c}.
+@item --open-files-limit=#
+Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}. Not that you need to start @code{safe_mysqld} as root for this to work properly!
 @item --pid-file=path
 @item --port=#
 @item --socket=path
@@ -33494,9 +33524,12 @@ number 256 to affect the number of file descriptors available to
 
 @code{ulimit} (and @code{open-files-limit}) can increase the number of
 file descriptors, but only up to the limit imposed by the operating
-system.  If you need to increase the OS limit on the number of file
-descriptors available to each process, consult the documentation for
-your operating system.
+system. There is also a 'hard' limit that can only be overrided if you
+start @code{safe_mysqld} or @code{mysqld} as root (Just remember that
+you need to also use the @code{--user=..} option in this case).  If you
+need to increase the OS limit on the number of file descriptors
+available to each process, consult the documentation for your operating
+system.
 
 Note that if you run the @code{tcsh} shell, @code{ulimit} will not work!
 @code{tcsh} will also report incorrect values when you ask for the current
@@ -39376,8 +39409,8 @@ An open source client for exploring databases and executing SQL. Supports
 A query tool for @strong{MySQL} and PostgreSQL.
 @item @uref{http://dbman.linux.cz/,dbMan}
 A query tool written in Perl. Uses DBI and Tk.
-@item @uref{http://www.mysql.com/Downloads/Win32/Msc18.exe, Mascon 2000.1.8}
-@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc18.exe, Free Mascon 2000.1.8}
+@item @uref{http://www.mysql.com/Downloads/Win32/Msc110.exe, Mascon 2000.1.10.48}
+@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc110.exe, Free Mascon 2000.1.10.48}
 Mascon is a powerful Win32 GUI for the administering MySQL server
 databases. Mascon's features include visual table design, connections to
 multiple servers, data and blob editing of tables, security setting, SQL
@@ -40248,6 +40281,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @itemize @bullet
 @item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
+@item
+Added @code{SELECT .. WITH UPDATE} and @code{SELECT ... IN SHARE MODE} to
+get more locking options.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
@@ -40304,6 +40340,14 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.31, News-3.23.30, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
+@item
+Fixed security bug in something (please upgrade if you are using a earlier
+MySQL 3.23 version).
+@item
+Fixed buffer overflow bug when writing a certain error message.
+@item
+Added usage of @code{getrlimit()} on Linux to get @code{-O --open-files-limit=#}
+to work on Linux.
 @item
 Fixed bug when using expression of type
 @code{SELECT ... FROM t1 left join t2 on (t1.a=t2.a) WHERE t1.a=t2.a}. In this
@@ -45121,8 +45165,7 @@ The @code{mysqld} will support all standard @strong{MySQL} features and
 one can use it in a threaded client to run different queries in each
 thread.
 @item
-@code{SHOW DATABASES} should only show the database which you have some kind
-of access privilege to.
+Replication should work with @code{RAND()}.
 @item
 Online backup with very low performance penalty.  The online backup will
 make it easy to add a new replication slave without taking down the

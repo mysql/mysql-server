@@ -119,6 +119,8 @@ bool berkeley_init(void)
     berkeley_tmpdir=mysql_tmpdir;
   if (!berkeley_home)
     berkeley_home=mysql_real_data_home;
+  DBUG_PRINT("bdb",("berkeley_home: %s",mysql_real_data_home));
+
   /*
     If we don't set set_lg_bsize() we will get into trouble when
     trying to use many open BDB tables.
@@ -1674,6 +1676,34 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
   }
   DBUG_RETURN(error);
 }
+
+/*
+  The idea with handler::store_lock() is the following:
+
+  The statement decided which locks we should need for the table
+  for updates/deletes/inserts we get WRITE locks, for SELECT... we get
+  read locks.
+
+  Before adding the lock into the table lock handler (see thr_lock.c)
+  mysqld calls store lock with the requested locks.  Store lock can now
+  modify a write lock to a read lock (or some other lock), ignore the
+  lock (if we don't want to use MySQL table locks at all) or add locks
+  for many tables (like we do when we are using a MERGE handler).
+
+  Berkeley DB changes all WRITE locks to TL_WRITE_ALLOW_WRITE (which
+  signals that we are doing WRITES, but we are still allowing other
+  reader's and writer's.
+
+  When releasing locks, store_lock() are also called. In this case one
+  usually doesn't have to do anything.
+
+  In some exceptional cases MySQL may send a request for a TL_IGNORE;
+  This means that we are requesting the same lock as last time and this
+  should also be ignored. (This may happen when someone does a flush
+  table when we have opened a part of the tables, in which case mysqld
+  closes and reopens the tables and tries to get the same locks at last
+  time).  In the future we will probably try to remove this.
+*/
 
 
 THR_LOCK_DATA **ha_berkeley::store_lock(THD *thd, THR_LOCK_DATA **to,
