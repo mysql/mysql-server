@@ -127,11 +127,11 @@ load data from master;
 start slave;
 # see if replication coordinates were restored fine
 connection master;
-insert into bar.t1 values (5, 'five bar');
+insert into mysqltest.t1 values (5, 'five bar');
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from bar.t1;
+select * from mysqltest.t1;
 
 # Check that LOAD DATA FROM MASTER reports the error if it can't drop a
 # table to be overwritten.
