@@ -2547,6 +2547,7 @@ btr_estimate_n_rows_in_range(
 	btr_path_t*	slot1;
 	btr_path_t*	slot2;
 	ibool		diverged;
+	ibool           diverged_lot;
 	ulint           divergence_level;           
 	ib_longlong	n_rows;
 	ulint		i;
@@ -2589,10 +2590,13 @@ btr_estimate_n_rows_in_range(
 	/* We have the path information for the range in path1 and path2 */
 
 	n_rows = 1;
-	diverged = FALSE;
-	divergence_level = 1000000;
-	
-	for (i = 0; ; i++) {
+	diverged = FALSE;           /* This becomes true when the path is not
+				    the same any more */
+	diverged_lot = FALSE;       /* This becomes true when the paths are
+				    not the same or adjacent any more */
+	divergence_level = 1000000; /* This is the level where paths diverged
+				    a lot */ 
+       	for (i = 0; ; i++) {
 		ut_ad(i < BTR_PATH_ARRAY_N_SLOTS);
 	
 		slot1 = path1 + i;
@@ -2620,7 +2624,7 @@ btr_estimate_n_rows_in_range(
 				then we estimate all rows are in the range */
 			  
 			        if (n_rows == 0) {
-			                n_rows = index->table->stat_n_rows;
+				        n_rows = index->table->stat_n_rows / 2;
 			        }
 			}
 
@@ -2629,8 +2633,15 @@ btr_estimate_n_rows_in_range(
 
 		if (!diverged && slot1->nth_rec != slot2->nth_rec) {
 
+			diverged = TRUE;
+
 			if (slot1->nth_rec < slot2->nth_rec) {
 				n_rows = slot2->nth_rec - slot1->nth_rec;
+
+				if (n_rows > 1) {
+				          diverged_lot = TRUE;
+					  divergence_level = i;
+				}
 			} else {
 				/* Maybe the tree has changed between
 				searches */
@@ -2638,10 +2649,27 @@ btr_estimate_n_rows_in_range(
 				return(10);
 			}
 
-			divergence_level = i;
+		} else if (diverged && !diverged_lot) {
 
-			diverged = TRUE;
-		} else if (diverged) {
+		        if (slot1->nth_rec < slot1->n_recs
+		            || slot2->nth_rec > 1) {
+
+		                diverged_lot = TRUE;
+				divergence_level = i;
+
+				n_rows = 0;
+
+		                if (slot1->nth_rec < slot1->n_recs) {
+				        n_rows += slot1->n_recs
+					             - slot1->nth_rec;
+				}
+
+				if (slot2->nth_rec > 1) {
+				        n_rows += slot2->nth_rec - 1;
+				}
+      			}
+		} else if (diverged_lot) {
+
 			n_rows = (n_rows * (slot1->n_recs + slot2->n_recs))
 									/ 2;
 		}	
