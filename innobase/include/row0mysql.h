@@ -170,6 +170,14 @@ row_table_got_default_clust_index(
 /*==============================*/
 	dict_table_t*	table);
 /*************************************************************************
+Calculates the key number used inside MySQL for an Innobase index. We have
+to take into account if we generated a default clustered index for the table */
+
+ulint
+row_get_mysql_key_number_for_index(
+/*===============================*/
+	dict_index_t*	index);
+/*************************************************************************
 Does an update or delete of a row for MySQL. */
 
 int
