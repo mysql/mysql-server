@@ -269,7 +269,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s Ver 1.21 for %s on %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 1.22 for %s on %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -282,7 +282,7 @@ static void usage(void)
   puts("Pack a MyISAM-table to take much less space.");
   puts("Keys are not updated, you must run myisamchk -rq on the datafile");
   puts("afterwards to update the keys.");
-  puts("You should give the .MSI file as the filename argument.");
+  puts("You should give the .MYI file as the filename argument.");
 
   printf("\nUsage: %s [OPTIONS] filename...\n", my_progname);
   my_print_help(my_long_options);
