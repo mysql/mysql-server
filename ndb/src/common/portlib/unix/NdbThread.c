@@ -17,7 +17,7 @@
 
 #include <ndb_global.h>
 #include <NdbThread.h>
-#include <my_pthread.h>
+#include <pthread.h>
 
 #define MAX_THREAD_NAME 16
 

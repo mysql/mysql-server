@@ -78,10 +78,6 @@ NDB_MAIN(ndb_kernel){
   char homePath[255];
   NdbConfig_HomePath(homePath, 255);
 
-#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
-  /**
-   * This has only been tested with linux & solaris
-   */
   if (theConfig->getDaemonMode()) {
     // Become a daemon
     char lockfile[255], logfile[255];
@@ -134,7 +130,6 @@ NDB_MAIN(ndb_kernel){
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
-#endif
   
   systemInfo(* theConfig,
 	     theConfig->clusterConfigurationData().SizeAltData.logLevel);
