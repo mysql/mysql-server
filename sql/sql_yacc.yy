@@ -554,7 +554,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
-	using_list param_marker subselect subselect_init
+	using_list param_marker singleval_subselect singleval_subselect_init
+	exists_subselect exists_subselect_init
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -1745,7 +1746,8 @@ simple_expr:
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
-	| subselect             { $$= $1; }
+	| EXISTS exists_subselect { $$= $2; }
+	| singleval_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
           { Select->ftfunc_list.push_back((Item_func_match *)
@@ -3973,17 +3975,30 @@ union_option:
   /* empty */ {}
   | ALL {Lex->union_option=1;};
 
-subselect:
-  subselect_start subselect_init
+singleval_subselect:
+  subselect_start singleval_subselect_init
   subselect_end
   {
     $$= $2;
   };
 
-subselect_init:
+singleval_subselect_init:
   select_init
   {
-    $$= new Item_subselect(current_thd, Lex->select);
+    $$= new Item_singleval_subselect(current_thd, Lex->select);
+  };
+
+exists_subselect:
+  subselect_start exists_subselect_init
+  subselect_end
+  {
+    $$= $2;
+  };
+
+exists_subselect_init:
+  select_init
+  {
+    $$= new Item_exists_subselect(current_thd, Lex->select);
   };
 
 subselect_start:
