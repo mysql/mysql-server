@@ -22,9 +22,9 @@ done
 
 stop_default_ndbcluster() {
 
-if [ ! -f $pidfile ] ; then
-  exit 0
-fi
+#if [ ! -f $pidfile ] ; then
+#  exit 0
+#fi
 
 if [ ! -f $cfgfile ] ; then
   echo "$cfgfile missing"
@@ -43,8 +43,11 @@ echo "all stop" | $exec_mgmtclient
 
 sleep 5
 
-kill `cat $pidfile`
-rm $pidfile
+if [ -f $pidfile ] ; then
+  kill `cat $pidfile`
+  rm $pidfile
+fi
+
 }
 
 stop_default_ndbcluster
