@@ -532,7 +532,7 @@ bool Item_sum_sum_distinct::setup(THD *thd)
 void Item_sum_sum_distinct::clear()
 {
   DBUG_ENTER("Item_sum_sum_distinct::clear");
-  DBUG_ASSERT(tree);                            /* we always have a tree */
+  DBUG_ASSERT(tree != 0);                        /* we always have a tree */
   null_value= 1; 
   tree->reset();
   DBUG_VOID_RETURN;
@@ -554,7 +554,7 @@ bool Item_sum_sum_distinct::add()
     my_decimal value, *val= args[0]->val_decimal(&value);
     if (!args[0]->null_value)
     {
-      DBUG_ASSERT(tree);
+      DBUG_ASSERT(tree != 0);
       null_value= 0;
       my_decimal2binary(E_DEC_FATAL_ERROR, val, (char *) dec_bin_buff,
                         args[0]->max_length, args[0]->decimals);
@@ -567,7 +567,7 @@ bool Item_sum_sum_distinct::add()
     double val= args[0]->val_real();
     if (!args[0]->null_value)
     {
-      DBUG_ASSERT(tree);
+      DBUG_ASSERT(tree != 0);
       null_value= 0;
       DBUG_PRINT("info", ("real: %lg, tree 0x%lx", val, (ulong)tree));
       if (val)
@@ -853,7 +853,7 @@ Item *Item_sum_std::copy_or_same(THD* thd)
 
 Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
   Item_sum_num(thd, item), hybrid_type(item->hybrid_type),
-    cur_dec(item->cur_dec), count(item->count)
+    cur_dec(item->cur_dec), count(item->count), sample(item->sample)
 {
   if (hybrid_type == DECIMAL_RESULT)
   {
@@ -1001,7 +1001,7 @@ double Item_sum_variance::val_real()
   if (hybrid_type == DECIMAL_RESULT)
     return val_real_from_decimal();
 
-  if (!count)
+  if (count <= sample)
   {
     null_value=1;
     return 0.0;
@@ -1009,30 +1009,31 @@ double Item_sum_variance::val_real()
   null_value=0;
   /* Avoid problems when the precision isn't good enough */
   double tmp=ulonglong2double(count);
-  double tmp2=(sum_sqr - sum*sum/tmp)/tmp;
+  double tmp2= (sum_sqr - sum*sum/tmp)/(tmp - (double)sample);
   return tmp2 <= 0.0 ? 0.0 : tmp2;
 }
 
 
 my_decimal *Item_sum_variance::val_decimal(my_decimal *dec_buf)
 {
-  my_decimal count_buf, sum_sqr_buf;
+  my_decimal count_buf, count1_buf, sum_sqr_buf;
   DBUG_ASSERT(fixed ==1 );
   if (hybrid_type == REAL_RESULT)
     return val_decimal_from_real(dec_buf);
 
-  if (!count)
+  if (count <= sample)
   {
     null_value= 1;
     return 0;
   }
   null_value= 0;
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &count_buf);
+  int2my_decimal(E_DEC_FATAL_ERROR, count-sample, 0, &count1_buf);
   my_decimal_mul(E_DEC_FATAL_ERROR, &sum_sqr_buf,
                  dec_sum+cur_dec, dec_sum+cur_dec);
   my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &sum_sqr_buf, &count_buf, 2);
   my_decimal_sub(E_DEC_FATAL_ERROR, &sum_sqr_buf, dec_sqr+cur_dec, dec_buf);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &sum_sqr_buf, &count_buf, 2);
+  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &sum_sqr_buf, &count1_buf, 2);
   return dec_buf;
 }
 
@@ -1179,7 +1180,6 @@ double Item_sum_hybrid::val_real()
     DBUG_ASSERT(0);
     return 0;
   }
-  return 0;					// Keep compiler happy
 }
 
 longlong Item_sum_hybrid::val_int()
@@ -2004,6 +2004,7 @@ Item_variance_field::Item_variance_field(Item_sum_variance *item)
   max_length=item->max_length;
   field=item->result_field;
   maybe_null=1;
+  sample= item->sample;
   if ((hybrid_type= item->hybrid_type) == DECIMAL_RESULT)
   {
     f_scale0= item->f_scale0;
@@ -2028,11 +2029,11 @@ double Item_variance_field::val_real()
   float8get(sum_sqr,(field->ptr+sizeof(double)));
   count=sint8korr(field->ptr+sizeof(double)*2);
 
-  if ((null_value= !count))
+  if ((null_value= (count <= sample)))
     return 0.0;
 
   double tmp= (double) count;
-  double tmp2=(sum_sqr - sum*sum/tmp)/tmp;
+  double tmp2= (sum_sqr - sum*sum/tmp)/(tmp - (double)sample);
   return tmp2 <= 0.0 ? 0.0 : tmp2;
 }
 
@@ -2052,11 +2053,12 @@ my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
     return val_decimal_from_real(dec_buf);
 
   longlong count= sint8korr(field->ptr+dec_bin_size0+dec_bin_size1);
-  if ((null_value= !count))
+  if ((null_value= (count <= sample)))
     return 0;
 
-  my_decimal dec_count, dec_sum, dec_sqr, tmp;
+  my_decimal dec_count, dec1_count, dec_sum, dec_sqr, tmp;
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &dec_count);
+  int2my_decimal(E_DEC_FATAL_ERROR, count-sample, 0, &dec1_count);
   binary2my_decimal(E_DEC_FATAL_ERROR, field->ptr,
                     &dec_sum, f_precision0, f_scale0);
   binary2my_decimal(E_DEC_FATAL_ERROR, field->ptr+dec_bin_size0,
@@ -2064,7 +2066,7 @@ my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
   my_decimal_mul(E_DEC_FATAL_ERROR, &tmp, &dec_sum, &dec_sum);
   my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &tmp, &dec_count, 2);
   my_decimal_sub(E_DEC_FATAL_ERROR, &dec_sum, &dec_sqr, dec_buf);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &dec_sum, &dec_count, 2);
+  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &dec_sum, &dec1_count, 2);
   return dec_buf;
 }
 

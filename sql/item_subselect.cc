@@ -1514,7 +1514,7 @@ int subselect_indexsubquery_engine::exec()
 
 uint subselect_single_select_engine::cols()
 {
-  DBUG_ASSERT(select_lex->join); // should be called after fix_fields()
+  DBUG_ASSERT(select_lex->join != 0); // should be called after fix_fields()
   return select_lex->join->fields_list.elements;
 }
 

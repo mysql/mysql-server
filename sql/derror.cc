@@ -78,7 +78,6 @@ static bool read_texts(const char *file_name,const char ***point,
   char name[FN_REFLEN];
   const char *buff;
   uchar head[32],*pos;
-  CHARSET_INFO *cset;				// For future
   DBUG_ENTER("read_texts");
 
   *point=0;					// If something goes wrong
@@ -104,7 +103,7 @@ Please install the latest version of this file.",name);
   }
   
   /* TODO: Convert the character set to server system character set */
-  if (!(cset= get_charset(head[30],MYF(MY_WME))))
+  if (!get_charset(head[30],MYF(MY_WME)))
   {
     sql_print_error("Character set #%d is not supported for messagefile '%s'",
                     (int)head[30],name);

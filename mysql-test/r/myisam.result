@@ -516,16 +516,22 @@ Table	Checksum
 test.t1	2948697075
 test.t2	NULL
 test.t3	NULL
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3;
 Table	Checksum
 test.t1	2948697075
 test.t2	3092701434
 test.t3	NULL
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3 extended;
 Table	Checksum
 test.t1	3092701434
 test.t2	3092701434
 test.t3	NULL
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
 drop table t1,t2;
 create table t1 (a int, key (a));
 show keys from t1;
