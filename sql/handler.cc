@@ -178,7 +178,8 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
 #if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB)
-  if ((thd->options & OPTION_AUTO_COMMIT) && !thd->locked_tables)
+  if ((thd->options & OPTION_AUTO_COMMIT) && !(thd->options & OPTION_BEGIN)
+      && !thd->locked_tables)
   {
     if (!error)
     {
@@ -195,7 +196,7 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 int ha_commit(THD *thd)
 {
   int error=0;
-  DBUG_ENTER("commit");
+  DBUG_ENTER("ha_commit");
 #ifdef HAVE_BERKELEY_DB
   if (thd->transaction.bdb_tid)
   {
@@ -224,7 +225,7 @@ int ha_commit(THD *thd)
 int ha_rollback(THD *thd)
 {
   int error=0;
-  DBUG_ENTER("commit");
+  DBUG_ENTER("ha_rollback");
 #ifdef HAVE_BERKELEY_DB
   if (thd->transaction.bdb_tid)
   {
