@@ -884,7 +884,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   /* Check that we haven't forgot to reset the query cache variables */
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
-  if (thd->temporary_tables != 0 )
+  if (!thd->safe_to_cache_query)
   {
     DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
     goto err;
