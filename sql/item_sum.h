@@ -145,11 +145,12 @@ class Item_sum_count_distinct :public Item_sum_int
   table_map used_table_cache;
   bool fix_fields(THD *thd,TABLE_LIST *tables);
   TMP_TABLE_PARAM *tmp_table_param;
+  bool always_null;
 
   public:
   Item_sum_count_distinct(List<Item> &list)
     :Item_sum_int(list),table(0),used_table_cache(~(table_map) 0),
-    tmp_table_param(0)
+    tmp_table_param(0),always_null(0)
   { quick_group=0; }
   ~Item_sum_count_distinct();
   table_map used_tables() const { return used_table_cache; }
