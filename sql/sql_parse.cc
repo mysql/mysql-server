@@ -3770,6 +3770,7 @@ create_error:
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
       if (sp_automatic_privileges &&
           check_procedure_access(thd, DEFAULT_CREATE_PROC_ACLS,
@@ -3781,6 +3782,7 @@ create_error:
 	  	       ER_PROC_AUTO_GRANT_FAIL,
 		       ER(ER_PROC_AUTO_GRANT_FAIL));
       }
+#endif
       send_ok(thd);
       break;
     case SP_WRITE_ROW_FAILED:
@@ -3956,6 +3958,7 @@ create_error:
 	name= thd->strdup(sp->m_name.str);
 	if (check_procedure_access(thd, ALTER_PROC_ACL, db, name, 0))
           goto error;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (sp_automatic_privileges &&
 	    sp_revoke_privileges(thd, db, name))
 	{
@@ -3963,6 +3966,7 @@ create_error:
 		       ER_PROC_AUTO_REVOKE_FAIL,
 		       ER(ER_PROC_AUTO_REVOKE_FAIL));
 	}
+#endif
 	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
 	  result= sp_drop_procedure(thd, lex->spname);
 	else
@@ -4383,8 +4387,10 @@ check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
 			0, no_errors))
     return TRUE;
   
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (grant_option)
     return check_grant_procedure(thd, want_access, tables, no_errors);
+#endif
 
   return FALSE;
 }
