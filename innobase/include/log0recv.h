@@ -258,6 +258,7 @@ struct recv_sys_struct{
 extern recv_sys_t*	recv_sys;
 extern ibool		recv_recovery_on;
 extern ibool		recv_no_ibuf_operations;
+extern ibool		recv_needed_recovery;
 
 /* States of recv_addr_struct */
 #define RECV_NOT_PROCESSED	71

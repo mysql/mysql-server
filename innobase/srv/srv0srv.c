@@ -20,7 +20,7 @@ Windows 2000 will have something called thread pooling
 Another possibility could be to use some very fast user space
 thread library. This might confuse NT though.
 
-(c) 1995 InnoDB Oy
+(c) 1995 Innobase Oy
 
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
@@ -49,6 +49,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "srv0start.h"
+#include "row0mysql.h"
 
 /* Buffer which can be used in printing fatal error messages */
 char	srv_fatal_errbuf[5000];
@@ -1911,17 +1912,12 @@ srv_boot(void)
 
 	srv_init();
 
-	/* Reserve the first slot for the current thread, i.e., the master
-	thread */
-
-	srv_table_reserve_slot(SRV_MASTER);
-
 	return(DB_SUCCESS);
 }
 
 /*************************************************************************
 Reserves a slot in the thread table for the current MySQL OS thread.
-NOTE! The server mutex has to be reserved by the caller! */
+NOTE! The kernel mutex has to be reserved by the caller! */
 static
 srv_slot_t*
 srv_table_reserve_slot_for_mysql(void)
@@ -1930,6 +1926,8 @@ srv_table_reserve_slot_for_mysql(void)
 {
 	srv_slot_t*	slot;
 	ulint		i;
+
+	ut_ad(mutex_own(&kernel_mutex));
 
 	i = 0;
 	slot = srv_mysql_table + i;
@@ -2352,6 +2350,22 @@ srv_active_wake_master_thread(void)
 	}
 }
 
+/***********************************************************************
+Wakes up the master thread if it is suspended or being suspended. */
+
+void
+srv_wake_master_thread(void)
+/*========================*/
+{
+	srv_activity_count++;
+			
+	mutex_enter(&kernel_mutex);
+
+	srv_release_threads(SRV_MASTER, 1);
+
+	mutex_exit(&kernel_mutex);
+}
+
 /*************************************************************************
 The master thread controlling the server. */
 
@@ -2374,6 +2388,7 @@ srv_master_thread(
 	ulint		n_bytes_merged;
 	ulint		n_pages_flushed;
 	ulint		n_bytes_archived;
+	ulint		n_tables_to_drop;
 	ulint		n_ios;
 	ulint		n_ios_old;
 	ulint		n_ios_very_old;
@@ -2415,7 +2430,11 @@ loop:
 		can drop tables lazily after there no longer are SELECT
 		queries to them. */
 
-/*		row_drop_tables_for_mysql_in_background(); */
+		srv_main_thread_op_info = "doing background drop tables";
+
+		row_drop_tables_for_mysql_in_background();
+
+		srv_main_thread_op_info = "";
 
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 
@@ -2465,6 +2484,11 @@ loop:
 		printf("Master thread wakes up!\n");
 	}
 
+#ifdef MEM_PERIODIC_CHECK
+	/* Check magic numbers of every allocated mem block once in 10
+	seconds */
+	mem_validate_all_blocks();
+#endif	
 	/* If there were less than 200 i/os during the 10 second period,
 	we assume that there is free disk i/o capacity available, and it
 	makes sense to do a buffer pool flush. */
@@ -2521,6 +2545,12 @@ background_loop:
 	/* In this loop we run background operations when the server
 	is quiet and we also come here about once in 10 seconds */
 
+	srv_main_thread_op_info = "doing background drop tables";
+
+	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
+
+	srv_main_thread_op_info = "";
+	
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
 	/* Flush a few oldest pages to make the checkpoint younger */
@@ -2604,11 +2634,13 @@ background_loop:
 	log_archive_do(FALSE, &n_bytes_archived);
 
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
-		if (n_pages_flushed + n_bytes_archived != 0) {
+		if (n_tables_to_drop + n_pages_flushed
+				+ n_bytes_archived != 0) {
 
 			goto background_loop;
 		}
-	} else if (n_pages_purged + n_bytes_merged + n_pages_flushed
+	} else if (n_tables_to_drop +
+		n_pages_purged + n_bytes_merged + n_pages_flushed
 						+ n_bytes_archived != 0) {
 		goto background_loop;
 	}
@@ -2626,6 +2658,12 @@ suspend_thread:
 	srv_main_thread_op_info = "suspending";
 
 	mutex_enter(&kernel_mutex);
+
+	if (row_get_background_drop_list_len_low() > 0) {
+		mutex_exit(&kernel_mutex);
+
+		goto loop;
+	}
 
 	event = srv_suspend_thread();
 
