@@ -1069,7 +1069,21 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
 {
   const AccFragReq * const req = (AccFragReq*)&signal->theData[0];
   jamEntry();
+  if (ERROR_INSERTED(3001)) {
+    jam();
+    addFragRefuse(signal, 1);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
   tabptr.i = req->tableId;
+#ifndef VM_TRACE
+  // config mismatch - do not crash if release compiled
+  if (tabptr.i >= ctablesize) {
+    jam();
+    addFragRefuse(signal, 800);
+    return;
+  }
+#endif
   ptrCheckGuard(tabptr, ctablesize, tabrec);
   ndbrequire((req->reqInfo & 0xF) == ZADDFRAG);
   ndbrequire(!getrootfragmentrec(signal, rootfragrecptr, req->fragId));

@@ -35,6 +35,17 @@
 const char **ha_myisammrg::bas_ext() const
 { static const char *ext[]= { ".MRG", NullS }; return ext; }
 
+const char *ha_myisammrg::index_type(uint key_number)
+{
+  return ((table->key_info[key_number].flags & HA_FULLTEXT) ? 
+	  "FULLTEXT" :
+	  (table->key_info[key_number].flags & HA_SPATIAL) ?
+	  "SPATIAL" :
+	  (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
+	  "RTREE" :
+	  "BTREE");
+}
+
 
 int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 {

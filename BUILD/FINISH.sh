@@ -10,7 +10,7 @@ do
 done
 
 commands="\
-$make -k clean || true 
+$make -k distclean || true 
 /bin/rm -rf */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache bdb/dist/autom4te.cache autom4te.cache innobase/autom4te.cache;
 
 aclocal    || (echo \"Can't execute aclocal\"     && exit 1)

@@ -136,6 +136,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
   LEX_STRING dir, file;
   LEX_STRING *trg_def, *name;
+  Item_trigger_field *trg_field;
   List_iterator_fast<LEX_STRING> it(names_list);
 
   /* We don't allow creation of several triggers of the same type yet */
@@ -154,6 +155,31 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
       my_message(ER_TRG_ALREADY_EXISTS, ER(ER_TRG_ALREADY_EXISTS), MYF(0));
       return 1;
     }
+  }
+
+  /*
+    Let us check if all references to fields in old/new versions of row in
+    this trigger are ok.
+
+    NOTE: We do it here more from ease of use standpoint. We still have to
+    do some checks on each execution. E.g. we can catch privilege changes
+    only during execution. Also in near future, when we will allow access
+    to other tables from trigger we won't be able to catch changes in other
+    tables...
+
+    To simplify code a bit we have to create Fields for accessing to old row
+    values if we have ON UPDATE trigger.
+  */
+  if (!old_field && lex->trg_chistics.event == TRG_EVENT_UPDATE &&
+      prepare_old_row_accessors(table))
+    return 1;
+
+  for (trg_field= (Item_trigger_field *)(lex->trg_table_fields.first);
+       trg_field; trg_field= trg_field->next_trg_field)
+  {
+    trg_field->setup_field(thd, table, lex->trg_chistics.event);
+    if (trg_field->fix_fields(thd, (TABLE_LIST *)0, (Item **)0))
+      return 1;
   }
 
   /*
@@ -275,6 +301,44 @@ Table_triggers_list::~Table_triggers_list()
 
 
 /*
+  Prepare array of Field objects which will represent OLD.* row values in
+  ON UPDATE trigger (by referencing to record[1] instead of record[0]).
+
+  SYNOPSIS
+    prepare_old_row_accessors()
+      table - pointer to TABLE object for which we are creating fields.
+
+  RETURN VALUE
+    False - success
+    True  - error
+*/
+bool Table_triggers_list::prepare_old_row_accessors(TABLE *table)
+{
+  Field **fld, **old_fld;
+
+  if (!(old_field= (Field **)alloc_root(&table->mem_root,
+                                        (table->fields + 1) *
+                                        sizeof(Field*))))
+    return 1;
+
+  for (fld= table->field, old_fld= old_field; *fld; fld++, old_fld++)
+  {
+    /*
+      QQ: it is supposed that it is ok to use this function for field
+      cloning...
+    */
+    if (!(*old_fld= (*fld)->new_field(&table->mem_root, table)))
+      return 1;
+    (*old_fld)->move_field((my_ptrdiff_t)(table->record[1] -
+                                          table->record[0]));
+  }
+  *old_fld= 0;
+
+  return 0;
+}
+
+
+/*
   Check whenever .TRG file for table exist and load all triggers it contains.
 
   SYNOPSIS
@@ -317,7 +381,6 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
     if (!strncmp(triggers_file_type.str, parser->type()->str,
                  parser->type()->length))
     {
-      Field **fld, **old_fld;
       Table_triggers_list *triggers=
         new (&table->mem_root) Table_triggers_list();
 
@@ -330,30 +393,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       table->triggers= triggers;
 
-      /*
-        We have to prepare array of Field objects which will represent OLD.*
-        row values by referencing to record[1] instead of record[0]
-
-        TODO: This could be avoided if there is no ON UPDATE trigger.
-      */
-      if (!(triggers->old_field=
-              (Field **)alloc_root(&table->mem_root, (table->fields + 1) *
-                                                     sizeof(Field*))))
+      /* TODO: This could be avoided if there is no ON UPDATE trigger. */
+      if (triggers->prepare_old_row_accessors(table))
         DBUG_RETURN(1);
-
-      for (fld= table->field, old_fld= triggers->old_field; *fld;
-           fld++, old_fld++)
-      {
-        /*
-          QQ: it is supposed that it is ok to use this function for field
-              cloning...
-        */
-        if (!(*old_fld= (*fld)->new_field(&table->mem_root, table)))
-          DBUG_RETURN(1);
-        (*old_fld)->move_field((my_ptrdiff_t)(table->record[1] -
-                                              table->record[0]));
-      }
-      *old_fld= 0;
 
       List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
       LEX_STRING *trg_create_str, *trg_name_str;
@@ -365,7 +407,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       while ((trg_create_str= it++))
       {
         lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
-        lex.trg_table= table;
+
         if (yyparse((void *)thd) || thd->is_fatal_error)
         {
           /*
@@ -399,6 +441,21 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         if (triggers->names_list.push_back(trg_name_str, &table->mem_root))
           goto err_with_lex_cleanup;
+
+        /*
+          Let us bind Item_trigger_field objects representing access to fields
+          in old/new versions of row in trigger to Field objects in table being
+          opened.
+
+          We ignore errors here, because if even something is wrong we still will
+          be willing to open table to perform some operations (e.g. SELECT)...
+          Anyway some things can be checked only during trigger execution.
+        */
+        for (Item_trigger_field *trg_field=
+               (Item_trigger_field *)(lex.trg_table_fields.first);
+             trg_field;
+             trg_field= trg_field->next_trg_field)
+          trg_field->setup_field(thd, table, lex.trg_chistics.event);
 
         lex_end(&lex);
       }
