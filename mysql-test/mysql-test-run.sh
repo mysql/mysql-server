@@ -266,7 +266,6 @@ fi
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
-#DASH72=`$EXPR substr '------------------------------------------------------------------------' 1 $E`
 DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
