@@ -2394,8 +2394,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     strxmov(src_path, (*tmp_table)->s->path, reg_ext, NullS);
   else
   {
-    strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
-	    reg_ext, NullS);
+    fn_format( src_path, src_table, src_db, reg_ext, MYF(MY_UNPACK_FILENAME));
     if (access(src_path, F_OK))
     {
       my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
@@ -2422,8 +2421,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   }
   else
   {
-    strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
-	    reg_ext, NullS);
+    fn_format( dst_path, table_name, db, reg_ext, MYF(MY_UNPACK_FILENAME));
     if (!access(dst_path, F_OK))
       goto table_exists;
   }

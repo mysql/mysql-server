@@ -2505,8 +2505,15 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 
 bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
 {
-  /* We are using Time_zone object found during check() phase */
-  *get_tz_ptr(thd,var->type)= var->save_result.time_zone;
+  /* We are using Time_zone object found during check() phase. */
+  if (var->type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.time_zone= var->save_result.time_zone;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.time_zone= var->save_result.time_zone;
   return 0;
 }
 
@@ -2518,27 +2525,25 @@ byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
     We can use ptr() instead of c_ptr() here because String contaning
     time zone name is guaranteed to be zero ended.
   */
-  return (byte *)((*get_tz_ptr(thd,type))->get_name()->ptr());
-}
-
-
-Time_zone** sys_var_thd_time_zone::get_tz_ptr(THD *thd, 
-                                              enum_var_type type)
-{
   if (type == OPT_GLOBAL)
-    return &global_system_variables.time_zone;
+    return (byte *)(global_system_variables.time_zone->get_name()->ptr());
   else
-    return &thd->variables.time_zone;
+    return (byte *)(thd->variables.time_zone->get_name()->ptr());
 }
 
 
 void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
 {
+ pthread_mutex_lock(&LOCK_global_system_variables);
  if (type == OPT_GLOBAL)
  {
    if (default_tz_name)
    {
      String str(default_tz_name, &my_charset_latin1);
+     /*
+       We are guaranteed to find this time zone since its existence
+       is checked during start-up.
+     */
      global_system_variables.time_zone=
        my_tz_find(&str, thd->lex->time_zone_tables_used);
    }
@@ -2547,6 +2552,7 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
  }
  else
    thd->variables.time_zone= global_system_variables.time_zone;
+ pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 
