@@ -2,7 +2,7 @@ drop table if exists t1;
 set sql_mode="MySQL40";
 select @@sql_mode;
 @@sql_mode
-NO_FIELD_OPTIONS,MYSQL40,BROKEN_NOT
+NO_FIELD_OPTIONS,MYSQL40,HIGH_NOT_PRECEDENCE
 set @@sql_mode="ANSI";
 select @@sql_mode;
 @@sql_mode
