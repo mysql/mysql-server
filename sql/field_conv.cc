@@ -109,7 +109,7 @@ static void do_outer_field_to_null_str(Copy_field *copy)
 }
 
 
-bool
+int
 set_field_to_null(Field *field)
 {
   if (field->real_maybe_null())
@@ -149,7 +149,7 @@ set_field_to_null(Field *field)
 		If no_conversion was not set, an error message is printed
 */
 
-bool
+int
 set_field_to_null_with_conversions(Field *field, bool no_conversions)
 {
   if (field->real_maybe_null())

@@ -160,3 +160,11 @@ SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
 explain extended SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
 #select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6)),issimple(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),issimple(GeometryFromText('POINT(1 4)')), issimple(AsWKB(GeometryFromText('POINT(1 4)')));
 explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6));
+
+create table t1 (a geometry not null);
+insert into t1 values (GeomFromText('Point(1 2)'));
+-- error 1105
+insert into t1 values ('Garbage');
+alter table t1 add spatial index(a);
+
+drop table t1;
