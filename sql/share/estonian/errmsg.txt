@@ -233,3 +233,5 @@
 "Transaktsioone toetavate ning mittetoetavate tabelite kooskasutamine ei ole lubatud",
 "Määrangut '%s' on lauses kasutatud topelt",
 "User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"Subselect return more than 1 field",
+"Subselect return more than 1 record",

@@ -40,17 +40,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   DBUG_ENTER("mysql_union");
   st_select_lex_node * global;
 
-  /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-  for (sl= &lex->select_lex;
-       sl;
-       sl= (SELECT_LEX *) sl->next)
-  {
-    for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
-	 cursor;
-	 cursor=cursor->next)
-      cursor->table= cursor->table_list->table;
-  }
-
   /* Global option */
   if (((void*)(global= unit->global_parameters)) == ((void*)unit))
   {

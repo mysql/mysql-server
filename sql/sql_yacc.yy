@@ -544,7 +544,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
-	using_list
+	using_list subselect subselect_init
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -612,7 +612,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
-	precision union_option
+	precision union_option subselect_start subselect_end
 END_OF_INPUT
 
 %type <NONE>
@@ -1547,8 +1547,8 @@ optional_braces:
 	| '(' ')' {}
 
 /* all possible expressions */
-expr:	expr_expr	{$$ = $1; }
-	| simple_expr	{$$ = $1; }
+expr:	expr_expr	{ $$= $1; }
+	| simple_expr	{ $$= $1; }
 
 /* expressions that begin with 'expr' */
 expr_expr:
@@ -1688,6 +1688,7 @@ simple_expr:
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
+	| subselect             { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
           { Select->ftfunc_list.push_back((Item_func_match *)
@@ -3849,3 +3850,30 @@ optional_order_or_limit:
 union_option:
   /* empty */ {}
   | ALL {Lex->union_option=1;}
+
+subselect:
+  subselect_start subselect_init
+  subselect_end
+  {
+    $$= $2;
+  }
+
+subselect_init:
+  select_init
+  {
+    $$= new Item_subselect(current_thd, Lex->select);
+  }
+
+subselect_start:
+  '('
+  {
+    if (mysql_new_select(Lex, 1))
+      YYABORT;
+  }
+
+subselect_end:
+  ')'
+  {
+    LEX *lex=Lex;
+    lex->select = (SELECT_LEX*)lex->select->master->master;
+  }

@@ -685,6 +685,19 @@ class select_union :public select_result {
   bool flush();
 };
 
+/* Single value subselect interface class */
+class select_subselect :public select_result
+{
+  Item_subselect *item;
+public:
+  select_subselect(Item_subselect *item);
+  bool send_fields(List<Item> &list, uint flag) { return 0; };
+  bool send_data(List<Item> &items);
+  bool send_eof() { return 0; };
+  
+  friend class Ttem_subselect;
+};
+
 /* Structs used when sorting */
 
 typedef struct st_sort_field {
