@@ -1888,7 +1888,7 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   req->requestInfo = 0;
   req->savePointId = 0;
   ScanFragReq::setLockMode(req->requestInfo, 0);
-  ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
+  ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
