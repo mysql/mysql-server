@@ -99,3 +99,20 @@ ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 ALTER TABLE host
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
+
+#
+# Create proc table if it doesn't exists
+#
+
+CREATE TABLE IF NOT EXISTS proc (
+  name char(64) binary DEFAULT '' NOT NULL,
+  type enum('function','procedure') NOT NULL,
+  body blob DEFAULT '' NOT NULL,
+  creator char(77) binary DEFAULT '' NOT NULL,
+  modified timestamp,
+  created timestamp,
+  suid enum ('N', 'Y') DEFAULT 'Y' NOT NULL,
+  comment char(64) binary DEFAULT '' NOT NULL,
+  PRIMARY KEY (name,type)
+) comment='Stored Procedures';
+
