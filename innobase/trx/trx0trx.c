@@ -109,6 +109,9 @@ trx_create(
 	trx->mysql_log_offset = 0;
 	trx->mysql_master_log_file_name = "";
 	trx->mysql_master_log_pos = 0;
+
+	trx->repl_wait_binlog_name = NULL;
+	trx->repl_wait_binlog_pos = 0;
 	
 	mutex_create(&(trx->undo_mutex));
 	mutex_set_level(&(trx->undo_mutex), SYNC_TRX_UNDO);
@@ -269,6 +272,11 @@ trx_free(
 	
 	if (trx->undo_no_arr) {
 		trx_undo_arr_free(trx->undo_no_arr);
+	}
+
+	if (trx->repl_wait_binlog_name != NULL) {
+
+		mem_free(trx->repl_wait_binlog_name);
 	}
 
 	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
