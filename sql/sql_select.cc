@@ -933,7 +933,7 @@ JOIN::optimize()
       If having is not handled here, it will be checked before the row
       is sent to the client.
     */    
-    if (having && 
+    if (tmp_having && 
 	(sort_and_group || (exec_tmp_table1->distinct && !group_list)))
       having= tmp_having;
 
