@@ -371,7 +371,13 @@ bool send_old_password_request(THD *thd)
 #endif /* EMBEDDED_LIBRARY */
 
 /*
-  Faster net_store_length when we know length is a 32 bit integer
+  Faster net_store_length when we know that length is less than 65536.
+  We keep a separate version for that range because it's widely used in
+  libmysql.
+  uint is used as agrument type because of MySQL type conventions:
+  uint for 0..65536
+  ulong for 0..4294967296
+  ulonglong for bigger numbers.
 */
 
 char *net_store_length(char *pkg, uint length)
