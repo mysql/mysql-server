@@ -1072,7 +1072,8 @@ public:
     MEM_ROOT mem_root; // Transaction-life memory allocation pool
     void cleanup()
     {
-      changed_tables = 0;
+      changed_tables= 0;
+      savepoints= 0;
 #ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
