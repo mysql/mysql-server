@@ -593,6 +593,9 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_RENAME		32
 #define ALTER_ORDER		64
 #define ALTER_OPTIONS		128
+#define ALTER_CHANGE_COLUMN_DEFAULT 256
+#define ALTER_KEYS_ONOFF        512
+#define ALTER_CONVERT          1024
 
 typedef struct st_alter_info
 {
@@ -601,7 +604,6 @@ typedef struct st_alter_info
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
-  bool                        is_simple;
 
   st_alter_info(){clear();}
   void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
