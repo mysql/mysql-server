@@ -10699,10 +10699,10 @@ the following command:
 C:\mysql\bin> mysqladmin -u root shutdown
 @end example
 
-This calls the MySQL administation utility as user `root', which
-is the default Administrator in the MySQL grant system. Please
-note that the MySQL grant system is wholly independent from any
-login users under Windows.
+This calls the MySQL administation utility as user `@code{root}',
+which is the default @code{Administrator} in the MySQL grant system.
+Please note that the MySQL grant system is wholly independent from
+any login users under Windows.
 
 Now install the server service:
 
@@ -10711,32 +10711,34 @@ C:\mysql\bin> mysqld-max-nt --install
 @end example
 
 If any options are required, they must be specified as
-``Startup parameters'' in the SCM utility before you
-start the MySQL service.
+``@code{Start parameters}'' in the Windows @code{Services}
+utility before you start the MySQL service.
 
-The SCM Utility (Windows Service Control Manager) can
-be found in the Windows Control Panel.
+The @code{Services} utility
+(@code{Windows Service Control Manager}) can be found in the
+@code{Windows Control Panel} (under @code{Administrative Tools}
+on Windows 2000). It is advisable to close the Services utility
+while performing the @code{--install} or @code{--remove}
+operations, this prevents some odd errors.
 
 For information about which server binary to run, see
 @ref{Windows prepare environment}.
 
 Please note that from MySQL version 3.23.44, you have the choice
-of set up the service as Manual instead (if you don't wish the
-SCM to automatically start the server during the boot process):
+of set up the service as @code{Manual} instead (if you don't wish
+the service to be started automatically during the boot process):
 
 @example
 C:\mysql\bin> mysqld-max-nt --install-manual
 @end example
 
 The service is installed with the name @code{MySQL}. Once
-installed, it can be immediately started from the SCM utility,
-or by using the command @code{NET START MySQL}.
+installed, it can be immediately started from the @code{Services}
+utility, or by using the command @code{NET START MySQL}.
 
 Once running, @code{mysqld-max-nt} can be stopped using
-@code{mysqladmin}, from the SCM utility or by using the
+@code{mysqladmin}, from the Services utility or by using the
 command @code{NET STOP MySQL}.
-If you use SCM to stop @code{mysqld-max-nt}, there is a strange
-message from SCM about @code{mysqld shutdown normally}.
 
 Please note that when run as a service, @code{mysqld-max-nt}
 has no access to a console and so no messages can be seen.
@@ -10749,8 +10751,8 @@ service, try starting it with the full path:
 C:\> C:\mysql\bin\mysqld-max-nt --install
 @end example
 
-If this doesn't work, you can get @code{mysqld-max-nt} to start
-properly by fixing the path in the registry!
+If this doesn't work, you can get @code{mysqld-max-nt} to
+start properly by fixing the path in the registry!
 
 If you don't want to start @code{mysqld-max-nt} as a service,
 you can start it as follows:
@@ -10765,7 +10767,7 @@ or
 C:\> C:\mysql\bin\mysqld --standalone --debug
 @end example
 
-The last version gives you a debug trace in
+The last method gives you a debug trace in
 @file{C:\mysqld.trace}. @xref{Making trace files}.
 
 
