@@ -387,6 +387,7 @@ struct system_variables
   ulong tmp_table_size;
   ulong tx_isolation;
   ulong sql_mode;
+  ulong default_week_format;
 
   /*
     In slave thread we need to know in behalf of which

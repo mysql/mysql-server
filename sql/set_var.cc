@@ -311,6 +311,8 @@ static sys_var_slave_skip_counter sys_slave_skip_counter("sql_slave_skip_counter
 static sys_var_rand_seed1	sys_rand_seed1("rand_seed1");
 static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 
+static sys_var_thd_ulong        sys_default_week_format("default_week_format",
+					                &SV::default_week_format);
 
 /*
   List of all variables for initialisation and storage in hash
@@ -332,6 +334,7 @@ sys_var *sys_variables[]=
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_convert_charset,
+  &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
   &sys_delayed_insert_timeout,
@@ -438,6 +441,7 @@ struct show_var_st init_vars[]= {
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {sys_convert_charset.name,  (char*) &sys_convert_charset,	    SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
+  {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
