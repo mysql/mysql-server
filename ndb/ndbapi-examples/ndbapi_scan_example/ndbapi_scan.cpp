@@ -102,6 +102,12 @@ milliSleep(int milliseconds){
 
 struct Car 
 {
+  /**
+   * Note memset, so that entire char-fields are cleared
+   *   as all 20 bytes are significant (as type is char)
+   */
+  Car() { memset(this, 0, sizeof(* this)); }
+  
   unsigned int reg_no;
   char brand[20];
   char color[20];
@@ -791,8 +797,9 @@ int main()
     /**
      * Note! color needs to be of exact the same size as column defined
      */
-    char color[20] = "Pink";
-    if(scan_delete(&myNdb, column_color, color) > 0)
+    Car tmp;
+    sprintf(tmp.color, "Pink");
+    if(scan_delete(&myNdb, column_color, tmp.color) > 0)
       std::cout << "scan_delete: Success!" << std::endl  << std::endl;
   }
 
@@ -803,11 +810,12 @@ int main()
     /**
      * Note! color1 & 2 need to be of exact the same size as column defined
      */
-    char color1[20] = "Blue";
-    char color2[20] = "Black";
-    std::cout << "Going to update all " << color1 
-	      << " cars to " << color2 << " cars!" << std::endl;
-    if(scan_update(&myNdb, column_color, color1, color2) > 0) 
+    Car tmp1, tmp2;
+    sprintf(tmp1.color, "Blue");
+    sprintf(tmp2.color, "Black");
+    std::cout << "Going to update all " << tmp1.color 
+	      << " cars to " << tmp2.color << " cars!" << std::endl;
+    if(scan_update(&myNdb, column_color, tmp1.color, tmp2.color) > 0) 
       std::cout << "scan_update: Success!" << std::endl  << std::endl;
   }
   if(scan_print(&myNdb) > 0)
