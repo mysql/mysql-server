@@ -821,7 +821,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint 
                           const char *msg);
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...);
-void mysql_reset_errors(THD *thd);
+void mysql_reset_errors(THD *thd, bool force= false);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */

@@ -692,6 +692,10 @@ check_trx_exists(
 		trx->mysql_query_str = &(thd->query);
                 trx->active_trans = 0;
 
+		/* Update the info whether we should skip XA steps that eat
+		CPU time */
+		trx->support_xa = (ibool)(thd->variables.innodb_support_xa);
+
                 thd->ha_data[innobase_hton.slot] = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
@@ -1436,6 +1440,9 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
+	/* Update the info whether we should skip XA steps that eat CPU time */
+	trx->support_xa = (ibool)(thd->variables.innodb_support_xa);
+
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
@@ -1621,6 +1628,9 @@ innobase_rollback(
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	trx = check_trx_exists(thd);
+
+	/* Update the info whether we should skip XA steps that eat CPU time */
+	trx->support_xa = (ibool)(thd->variables.innodb_support_xa);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
@@ -6309,6 +6319,11 @@ innobase_xa_prepare(
 {
 	int error = 0;
         trx_t* trx;
+
+	if (!thd->variables.innodb_support_xa) {
+
+		return(0);
+	}
 
         trx = check_trx_exists(thd);
 
