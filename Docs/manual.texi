@@ -50440,6 +50440,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug in @code{MATCH ... AGAINST( ... IN BOOLEAN MODE)}
+used with @code{ORDER BY}.
+@item
 Added @code{LOCK TABLES} and @code{CREATE TEMPORARY TABLES} privilege on
 the database level.  One must run the @code{ mysql_fix_privilege_tables}
 script on old installations to activate these.
