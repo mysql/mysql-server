@@ -190,7 +190,7 @@ DISTRIBUTE_GROUP_DOC   = NO
 # The TAB_SIZE tag can be used to set the number of spaces in a tab. 
 # Doxygen uses this value to replace tabs by spaces in code fragments.
 
-TAB_SIZE               = 8
+TAB_SIZE               = 2
 
 # The GENERATE_TODOLIST tag can be used to enable (YES) or 
 # disable (NO) the todo list. This list is created by putting \todo 
@@ -245,7 +245,7 @@ OPTIMIZE_OUTPUT_FOR_C  = NO
 # at the bottom of the documentation of classes and structs. If set to YES the 
 # list will mention the files that were used to generate the documentation.
 
-SHOW_USED_FILES        = YES
+SHOW_USED_FILES        = NO
 
 #---------------------------------------------------------------------------
 # configuration options related to warning and progress messages
@@ -447,7 +447,7 @@ HTML_STYLESHEET        =
 # files or namespaces will be aligned in HTML using tables. If set to 
 # NO a bullet list will be used.
 
-HTML_ALIGN_MEMBERS     = YES
+HTML_ALIGN_MEMBERS     = NO
 
 # If the GENERATE_HTMLHELP tag is set to YES, additional index files 
 # will be generated that can be used as input for tools like the 
@@ -477,7 +477,7 @@ TOC_EXPAND             = NO
 # top of each HTML page. The value NO (the default) enables the index and 
 # the value YES disables it.
 
-DISABLE_INDEX          = NO
+DISABLE_INDEX          = YES
 
 # This tag can be used to set the number of enum values (range [1..20]) 
 # that doxygen will group on one line in the generated HTML documentation.

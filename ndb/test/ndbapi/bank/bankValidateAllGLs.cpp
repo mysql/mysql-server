@@ -44,7 +44,13 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  Bank bank;
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  Bank bank(con);
 
   if (bank.performValidateAllGLs() != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
