@@ -4815,9 +4815,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
+                                 tables);
+      make_global_read_lock_block_commit(thd);
     }
+    else
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
     my_dbopt_cleanup();
-    result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
