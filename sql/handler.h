@@ -465,7 +465,7 @@ public:
   { return min(MAX_REF_PARTS, max_supported_key_parts()); }
   uint max_key_length() const
   { return min(MAX_KEY_LENGTH, max_supported_key_length()); }
-  uint max_key_part_length()
+  uint max_key_part_length() const
   { return min(MAX_KEY_LENGTH, max_supported_key_part_length()); }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
