@@ -88,6 +88,12 @@ os_sync_free(void)
 	mutex = UT_LIST_GET_FIRST(os_mutex_list);
 
 	while (mutex) {
+	      if (mutex == os_sync_mutex) {
+		      /* Set the flag to FALSE so that we do not try to
+		      reserve os_sync_mutex any more in remaining freeing
+		      operations in shutdown */
+		      os_sync_mutex_inited = FALSE;
+	      }
 
 	      os_mutex_free(mutex);
 
@@ -517,13 +523,17 @@ os_mutex_free(
 {
 	ut_a(mutex);
 
-	os_mutex_enter(os_sync_mutex);
+	if (os_sync_mutex_inited) {
+		os_mutex_enter(os_sync_mutex);
+	}
 
 	UT_LIST_REMOVE(os_mutex_list, os_mutex_list, mutex);
 	
 	os_mutex_count--;
 
-	os_mutex_exit(os_sync_mutex);
+	if (os_sync_mutex_inited) {
+		os_mutex_exit(os_sync_mutex);
+	}
 
 #ifdef __WIN__
 	ut_a(CloseHandle(mutex->handle));
@@ -614,9 +624,16 @@ os_fast_mutex_free(
 #else
 	ut_a(0 == pthread_mutex_destroy(fast_mutex));
 #endif
-	os_mutex_enter(os_sync_mutex);
+	if (os_sync_mutex_inited) {
+		/* When freeing the last mutexes, we have
+		already freed os_sync_mutex */
+
+		os_mutex_enter(os_sync_mutex);
+	}
 
 	os_fast_mutex_count--;
 
-	os_mutex_exit(os_sync_mutex);
+	if (os_sync_mutex_inited) {
+		os_mutex_exit(os_sync_mutex);
+	}
 }
