@@ -166,6 +166,8 @@ class Item_sum_count_distinct :public Item_sum_int
 
 /* Item to get the value of a stored sum function */
 
+class Item_sum_avg;
+
 class Item_avg_field :public Item_result_field
 {
 public:
@@ -200,6 +202,7 @@ class Item_sum_avg :public Item_sum_num
   const char *func_name() const { return "avg"; }
 };
 
+class Item_sum_std;
 
 class Item_std_field :public Item_result_field
 {

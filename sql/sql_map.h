@@ -21,6 +21,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+class mapped_files;
+mapped_files *map_file(const my_string name,byte *magic,uint magic_length);
+void unmap_file(mapped_files *map);
+
 class mapped_files :public ilink {
   byte *map;
   ha_rows size;

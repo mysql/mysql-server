@@ -1411,8 +1411,8 @@ else
   os2*)
     hardcode_libdir_flag_spec='-L$libdir'
     hardcode_minus_L=yes
-    allow_undefined_flag=unsupported
-    archive_cmds='$echo "LIBRARY $libname INITINSTANCE" > $objdir/$libname.def~$echo "DESCRIPTION \"$libname\"" >> $objdir/$libname.def~$echo DATA >> $objdir/$libname.def~$echo " SINGLE NONSHARED" >> $objdir/$libname.def~$echo EXPORTS >> $objdir/$libname.def~emxexp $libobjs >> $objdir/$libname.def~$CC -Zdll -Zcrtdll -o $lib $libobjs $deplibs $linkopts $objdir/$libname.def'
+    allow_undefined_flag=" "
+    archive_cmds='$echo "LIBRARY $libname INITINSTANCE" > $objdir/$libname.def~$echo "DESCRIPTION \"$libname\"" >> $objdir/$libname.def~$echo DATA >> $objdir/$libname.def~$echo " SINGLE NONSHARED" >> $objdir/$libname.def~$echo EXPORTS >> $objdir/$libname.def~emxexp $libobjs >> $objdir/$libname.def~$CC -Zdll $linkflags -o $lib $libobjs $deplibs $objdir/$libname.def'
     old_archive_from_new_cmds='emximp -o $objdir/$libname.a $objdir/$libname.def'
     ;;
 
@@ -2036,6 +2036,7 @@ os2*)
   need_lib_prefix=no
   library_names_spec='$libname.dll $libname.a'
   dynamic_linker='OS/2 ld.exe'
+  deplibs_check_method=pass_all
   shlibpath_var=LIBPATH
   ;;
 
