@@ -199,10 +199,17 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
   {
     if (cs1 != cs2)
     {
-      CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
-      if (!bin)
-	return 1;
-      set_charset(bin, COER_NOCOLL);
+      if (co1 == COER_EXPLICIT)
+      {
+        return 1;
+      }
+      else
+      {
+        CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
+        if (!bin)
+	  return 1;
+        set_charset(bin, COER_NOCOLL);
+      }
     }
     else
       set_charset(cs2, co2);
@@ -987,6 +994,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
+  coercibility= COER_COERCIBLE;
 }
 
 longlong Item_varbinary::val_int()

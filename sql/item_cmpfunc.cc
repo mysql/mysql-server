@@ -111,7 +111,21 @@ bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
     if (cs1 == cs2)
       cmp_charset= cs1;
     else
-      return 1;
+    {
+      if (co1 == COER_COERCIBLE)
+      {
+        CHARSET_INFO *c= get_charset_by_csname(cs1->csname,MY_CS_PRIMARY,MYF(0));
+	if (c)
+	{
+	  cmp_charset= c;
+	  return 0;
+	}
+	else
+	  return 1;
+      }
+       else
+	return 1;
+    }
   }
   return 0;
 }
