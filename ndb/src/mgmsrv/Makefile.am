@@ -19,7 +19,6 @@ INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
 
 LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
 	    $(top_builddir)/ndb/src/common/editline/libeditline.a \
-            $(top_builddir)/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
             $(top_builddir)/strings/libmystrings.a

@@ -34,7 +34,6 @@ void Dblqh::initData()
   chostFileSize = MAX_NDB_NODES;
   clcpFileSize = ZNO_CONCURRENT_LCP;
   clcpLocrecFileSize = ZLCP_LOCREC_FILE_SIZE;
-  clogPageFileSize = ZLOG_PAGE_FILE_SIZE;
   clfoFileSize = ZLFO_FILE_SIZE;
   clogFileFileSize = 0;
   clogPartFileSize = ZLOG_PART_FILE_SIZE;
@@ -177,7 +176,24 @@ Dblqh::Dblqh(const class Configuration & conf):
   m_commitAckMarkerHash(m_commitAckMarkerPool),
   c_scanTakeOverHash(c_scanRecordPool)
 {
+  Uint32 log_page_size= 0;
   BLOCK_CONSTRUCTOR(Dblqh);
+
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,  
+			    &log_page_size);
+
+  /**
+   * Always set page size in half MBytes
+   */
+  clogPageFileSize= (log_page_size / sizeof(LogPageRecord));
+  Uint32 mega_byte_part= clogPageFileSize & 15;
+  if (mega_byte_part != 0) {
+    jam();
+    clogPageFileSize+= (16 - mega_byte_part);
+  }
 
   addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
   addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);

@@ -542,13 +542,11 @@ public:
       attrInfo(abp),
       expectedTransIdAI(0),
       transIdAI(abp),
-      tcIndxReq(new TcIndxReq()),
       indexReadTcConnect(RNIL)
     {}
 
     ~TcIndexOperation()
     {
-      delete tcIndxReq;    
     }
     
     // Index data
@@ -561,7 +559,7 @@ public:
     Uint32 expectedTransIdAI;
     AttributeBuffer transIdAI; // For accumulating TransId_AI
     
-    TcIndxReq* tcIndxReq;
+    TcIndxReq tcIndxReq;
     UintR connectionIndex;
     UintR indexReadTcConnect; //
     

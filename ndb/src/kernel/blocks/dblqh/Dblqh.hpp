@@ -64,25 +64,12 @@
 /*       CONSTANTS OF THE LOG PAGES                                          */
 /* ------------------------------------------------------------------------- */
 #define ZPAGE_HEADER_SIZE 32
-#if defined NDB_OSE
-/**
- * Set the fragment log file size to 2Mb in OSE
- * This is done in order to speed up the initial start
- */
-#define ZNO_MBYTES_IN_FILE 2
-#define ZPAGE_SIZE 2048
-#define ZPAGES_IN_MBYTE 128
-#define ZTWOLOG_NO_PAGES_IN_MBYTE 7
-#define ZTWOLOG_PAGE_SIZE 11
-#define ZMAX_MM_BUFFER_SIZE 32     // Main memory window during log execution
-#else
 #define ZNO_MBYTES_IN_FILE 16
 #define ZPAGE_SIZE 8192
 #define ZPAGES_IN_MBYTE 32
 #define ZTWOLOG_NO_PAGES_IN_MBYTE 5
 #define ZTWOLOG_PAGE_SIZE 13
 #define ZMAX_MM_BUFFER_SIZE 32     // Main memory window during log execution
-#endif
 
 #define ZMAX_PAGES_WRITTEN 8    // Max pages before writing to disk (=> config)
 #define ZMIN_READ_BUFFER_SIZE 2       // Minimum number of pages to execute log
@@ -1840,11 +1827,7 @@ public:
      * - There is no more information needed. 
      *   The next mbyte will always refer to the start of the next mbyte.
      */
-#ifdef NDB_OSE
-    UintR logPageWord[2048]; // Size 8 kbytes
-#else
     UintR logPageWord[8192]; // Size 32 kbytes
-#endif
   };  
   typedef Ptr<LogPageRecord> LogPageRecordPtr;
 
@@ -1866,8 +1849,8 @@ public:
       PREP_DROP_TABLE_DONE = 4
     };
     
-    UintR fragrec[NO_OF_FRAG_PER_NODE];
-    Uint16 fragid[NO_OF_FRAG_PER_NODE];
+    UintR fragrec[MAX_FRAG_PER_NODE];
+    Uint16 fragid[MAX_FRAG_PER_NODE];
     /**
      * Status of the table 
      */
@@ -2665,7 +2648,6 @@ private:
   UintR cfirstfreeLfo;
   UintR clfoFileSize;
 
-#define ZLOG_PAGE_FILE_SIZE 256   // 8 MByte 
   LogPageRecord *logPageRecord;
   LogPageRecordPtr logPagePtr;
   UintR cfirstfreeLogPage;

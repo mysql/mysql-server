@@ -289,7 +289,7 @@ Configuration::setupConfiguration(){
     if(pFileSystemPath[strlen(pFileSystemPath) - 1] == '/')
       _fsPath = strdup(pFileSystemPath);
     else {
-      _fsPath = (char *)malloc(strlen(pFileSystemPath) + 2);
+      _fsPath = (char *)NdbMem_Allocate(strlen(pFileSystemPath) + 2);
       strcpy(_fsPath, pFileSystemPath);
       strcat(_fsPath, "/");
     }
@@ -385,7 +385,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   char buf[255];
 
   unsigned int noOfTables = 0;
-  unsigned int noOfIndexes = 0;
+  unsigned int noOfUniqueHashIndexes = 0;
+  unsigned int noOfOrderedIndexes = 0;
   unsigned int noOfReplicas = 0;
   unsigned int noOfDBNodes = 0;
   unsigned int noOfAPINodes = 0;
@@ -393,33 +394,28 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfNodes = 0;
   unsigned int noOfAttributes = 0;
   unsigned int noOfOperations = 0;
+  unsigned int noOfLocalOperations = 0;
   unsigned int noOfTransactions = 0;
   unsigned int noOfIndexPages = 0;
   unsigned int noOfDataPages = 0;
   unsigned int noOfScanRecords = 0;
+  unsigned int noOfLocalScanRecords = 0;
+  unsigned int noBatchSize = 0;
   m_logLevel = new LogLevel();
   
-  /**
-   * {"NoOfConcurrentCheckpointsDuringRestart", &cd.ispValues[1][5] },
-   * {"NoOfConcurrentCheckpointsAfterRestart", &cd.ispValues[2][4] },
-   * {"NoOfConcurrentProcessesHandleTakeover", &cd.ispValues[1][7] },
-   * {"TimeToWaitAlive", &cd.ispValues[0][0] },
-   */
-  struct AttribStorage { int paramId; Uint32 * storage; };
+  struct AttribStorage { int paramId; Uint32 * storage; bool computable; };
   AttribStorage tmp[] = {
-    { CFG_DB_NO_SCANS, &noOfScanRecords },
-    { CFG_DB_NO_TABLES, &noOfTables },
-    { CFG_DB_NO_INDEXES, &noOfIndexes },
-    { CFG_DB_NO_REPLICAS, &noOfReplicas },
-    { CFG_DB_NO_ATTRIBUTES, &noOfAttributes },
-    { CFG_DB_NO_OPS, &noOfOperations },
-    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions }
-#if 0
-    { "NoOfDiskPagesToDiskDuringRestartTUP", &cd.ispValues[3][8] },
-    { "NoOfDiskPagesToDiskAfterRestartTUP", &cd.ispValues[3][9] },
-    { "NoOfDiskPagesToDiskDuringRestartACC", &cd.ispValues[3][10] },
-    { "NoOfDiskPagesToDiskAfterRestartACC", &cd.ispValues[3][11] },
-#endif
+    { CFG_DB_NO_SCANS, &noOfScanRecords, false },
+    { CFG_DB_NO_LOCAL_SCANS, &noOfLocalScanRecords, true },
+    { CFG_DB_BATCH_SIZE, &noBatchSize, false },
+    { CFG_DB_NO_TABLES, &noOfTables, false },
+    { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
+    { CFG_DB_NO_UNIQUE_HASH_INDEXES, &noOfUniqueHashIndexes, false },
+    { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
+    { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
+    { CFG_DB_NO_OPS, &noOfOperations, false },
+    { CFG_DB_NO_LOCAL_OPS, &noOfLocalOperations, true },
+    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false }
   };
 
   ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
@@ -427,8 +423,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   const int sz = sizeof(tmp)/sizeof(AttribStorage);
   for(int i = 0; i<sz; i++){
     if(ndb_mgm_get_int_parameter(&db, tmp[i].paramId, tmp[i].storage)){
-      snprintf(buf, sizeof(buf), "ConfigParam: %d not found", tmp[i].paramId);
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      if (tmp[i].computable) {
+        *tmp[i].storage = 0;
+      } else {
+        snprintf(buf, sizeof(buf),"ConfigParam: %d not found", tmp[i].paramId);
+        ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      }
     }
   }
 
@@ -512,37 +512,42 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     }
   }
   noOfNodes = nodeNo;
-  
+
+  noOfTables+= 2; // Add System tables
+  noOfAttributes += 9;  // Add System table attributes
+
+  ConfigValues::Iterator it2(*ownConfig, db.m_config);
+  it2.set(CFG_DB_NO_TABLES, noOfTables);
+  it2.set(CFG_DB_NO_ATTRIBUTES, noOfAttributes);
+
   /**
    * Do size calculations
    */
   ConfigValuesFactory cfg(ownConfig);
 
-  noOfTables++;         		 // Remove impact of system table
-  noOfTables += noOfIndexes; // Indexes are tables too
-  noOfAttributes += 2;  // ---"----
-  noOfTables *= 2;      // Remove impact of Dict need 2 ids for each table
-
-  if (noOfDBNodes > 15) {
-    noOfDBNodes = 15;
-  }//if
-  Uint32 noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 1;
+  if (noOfLocalScanRecords == 0) {
+    noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 1;
+  }
+  if (noOfLocalOperations == 0) {
+    noOfLocalOperations= (11 * noOfOperations) / 10;
+  }
   Uint32 noOfTCScanRecords = noOfScanRecords;
 
   {
+    Uint32 noOfAccTables= noOfTables + noOfUniqueHashIndexes;
     /**
      * Acc Size Alt values
      */
     // Can keep 65536 pages (= 0.5 GByte)
     cfg.put(CFG_ACC_DIR_RANGE, 
-	    4 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas); 
+	    4 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas); 
     
     cfg.put(CFG_ACC_DIR_ARRAY,
 	    (noOfIndexPages >> 8) + 
-	    4 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+	    4 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
     cfg.put(CFG_ACC_FRAGMENT,
-	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
     /*-----------------------------------------------------------------------*/
     // The extra operation records added are used by the scan and node 
@@ -552,25 +557,27 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     // The remainder are allowed for use by the scan processes.
     /*-----------------------------------------------------------------------*/
     cfg.put(CFG_ACC_OP_RECS,
-	    ((11 * noOfOperations) / 10 + 50) + 
-	    (noOfLocalScanRecords * MAX_PARALLEL_OP_PER_SCAN) +
+	    (noOfLocalOperations + 50) + 
+	    (noOfLocalScanRecords * noBatchSize) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
     cfg.put(CFG_ACC_OVERFLOW_RECS,
 	    noOfIndexPages + 
-	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
     cfg.put(CFG_ACC_PAGE8, 
 	    noOfIndexPages + 32);
     
     cfg.put(CFG_ACC_ROOT_FRAG, 
-	    NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
-    cfg.put(CFG_ACC_TABLE, noOfTables);
+    cfg.put(CFG_ACC_TABLE, noOfAccTables);
     
     cfg.put(CFG_ACC_SCAN, noOfLocalScanRecords);
   }
   
+  Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
+                           noOfUniqueHashIndexes;
   {
     /**
      * Dict Size Alt values
@@ -579,7 +586,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfAttributes);
 
     cfg.put(CFG_DICT_TABLE, 
-	    noOfTables);
+	    noOfMetaTables);
   }
   
   {
@@ -593,7 +600,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfOperations + noOfTransactions + 46);
     
     cfg.put(CFG_DIH_FRAG_CONNECT, 
-	    NO_OF_FRAG_PER_NODE *  noOfTables *  noOfDBNodes);
+	    NO_OF_FRAG_PER_NODE *  noOfMetaTables *  noOfDBNodes);
     
     int temp;
     temp = noOfReplicas - 2;
@@ -603,14 +610,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       temp++;
     cfg.put(CFG_DIH_MORE_NODES, 
 	    temp * NO_OF_FRAG_PER_NODE *
-	    noOfTables *  noOfDBNodes);
+	    noOfMetaTables *  noOfDBNodes);
     
     cfg.put(CFG_DIH_REPLICAS, 
-	    NO_OF_FRAG_PER_NODE * noOfTables *
+	    NO_OF_FRAG_PER_NODE * noOfMetaTables *
 	    noOfDBNodes * noOfReplicas);
 
     cfg.put(CFG_DIH_TABLE, 
-	    noOfTables);
+	    noOfMetaTables);
   }
   
   {
@@ -618,13 +625,13 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Lqh Size Alt values
      */
     cfg.put(CFG_LQH_FRAG, 
-	    NO_OF_FRAG_PER_NODE * noOfTables * noOfReplicas);
+	    NO_OF_FRAG_PER_NODE * noOfMetaTables * noOfReplicas);
     
     cfg.put(CFG_LQH_TABLE, 
-	    noOfTables);
+	    noOfMetaTables);
 
     cfg.put(CFG_LQH_TC_CONNECT, 
-	    (11 * noOfOperations) / 10 + 50);
+	    noOfLocalOperations + 50);
     
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
@@ -641,7 +648,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    (2 * noOfOperations) + 16 + noOfTransactions);
     
     cfg.put(CFG_TC_TABLE, 
-	    noOfTables);
+	    noOfMetaTables);
     
     cfg.put(CFG_TC_LOCAL_SCAN, 
 	    noOfLocalScanRecords);
@@ -655,23 +662,23 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Tup Size Alt values
      */
     cfg.put(CFG_TUP_FRAG, 
-	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+	    2 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
     cfg.put(CFG_TUP_OP_RECS, 
-	    (11 * noOfOperations) / 10 + 50);
+	    noOfLocalOperations + 50);
     
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);
     
     cfg.put(CFG_TUP_PAGE_RANGE, 
-	    4 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
+	    4 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
     cfg.put(CFG_TUP_TABLE, 
-	    noOfTables);
+	    noOfMetaTables);
     
     cfg.put(CFG_TUP_TABLE_DESC, 
 	    4 * NO_OF_FRAG_PER_NODE * noOfAttributes* noOfReplicas +
-	    12 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas );
+	    12 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas );
     
     cfg.put(CFG_TUP_STORED_PROC,
 	    noOfLocalScanRecords);
@@ -682,13 +689,13 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Tux Size Alt values
      */
     cfg.put(CFG_TUX_INDEX, 
-	    noOfTables);
+	    noOfOrderedIndexes);
     
     cfg.put(CFG_TUX_FRAGMENT, 
-	    2 * NO_OF_FRAG_PER_NODE * noOfTables * noOfReplicas);
+	    2 * NO_OF_FRAG_PER_NODE * noOfOrderedIndexes * noOfReplicas);
     
     cfg.put(CFG_TUX_ATTRIBUTE, 
-	    noOfIndexes * 4);
+	    noOfOrderedIndexes * 4);
 
     cfg.put(CFG_TUX_SCAN_OP, noOfLocalScanRecords); 
   }

@@ -6196,7 +6196,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
     }
     if(err)
       break;
-    
+   
     NodeGroupRecordPtr NGPtr;
     TabRecordPtr primTabPtr;
     if (primaryTableId == RNIL) {
