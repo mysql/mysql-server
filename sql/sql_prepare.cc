@@ -365,7 +365,7 @@ static int check_prepare_fields(THD *thd,TABLE *table, List<Item> &fields,
 
     thd->dupp_field=0;
     if (setup_tables(&table_list) ||
-	setup_fields(thd,&table_list,fields,1,0,0))
+	setup_fields(thd, 0, &table_list, fields, 1, 0, 0))
       return -1;
     if (thd->dupp_field)
     {
@@ -446,8 +446,9 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
   if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
     DBUG_RETURN(1);
 
-  if (setup_tables(table_list) || setup_fields(thd,table_list,fields,1,0,0) || 
-      setup_conds(thd,table_list,&conds))      
+  if (setup_tables(table_list) ||
+      setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
+      setup_conds(thd, table_list, &conds))      
     DBUG_RETURN(1);
 
   /* 
@@ -488,10 +489,11 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   
   thd->used_tables=0;	// Updated by setup_fields
   if (setup_tables(tables) ||
-      setup_fields(thd,tables,fields,1,&all_fields,1) ||
+      setup_fields(thd, 0, tables,fields,1,&all_fields,1) ||
       setup_conds(thd,tables,&conds) ||
-      setup_order(thd,tables,fields,all_fields,order) ||
-      setup_group(thd,tables,fields,all_fields,group,&hidden_group_fields))
+      setup_order(thd, 0, tables, fields, all_fields, order) ||
+      setup_group(thd, 0, tables, fields, all_fields, group,
+		  &hidden_group_fields))
     DBUG_RETURN(1);
 
   if (having)
@@ -502,7 +504,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 	|| thd->fatal_error)
       DBUG_RETURN(1);				
     if (having->with_sum_func)
-      having->split_sum_func(all_fields);
+      having->split_sum_func(0, all_fields);
   }
   if (setup_ftfuncs(&thd->lex.select_lex)) 
     DBUG_RETURN(1);

@@ -944,6 +944,7 @@ void st_select_lex_node::init_query()
   next= master= slave= link_next= 0;
   prev= link_prev= 0;
   dependent= 0;
+  ref_pointer_array= 0;
 }
 
 void st_select_lex_node::init_select()
@@ -967,6 +968,8 @@ void st_select_lex_unit::init_query()
   union_option= 0;
   prepared= optimized= executed= 0;
   item= 0;
+  union_result= 0;
+  table= 0;
 }
 
 void st_select_lex::init_query()
@@ -979,6 +982,7 @@ void st_select_lex::init_query()
   join= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
+  with_wild= 0;
 }
 
 void st_select_lex::init_select()
@@ -1105,12 +1109,12 @@ bool st_select_lex_node::add_item_to_list(THD *thd, Item *item)
 
 bool st_select_lex_node::add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return 1; 
+  return 1;
 }
 
 bool st_select_lex_node::add_order_to_list(THD *thd, Item *item, bool asc)
-{ 
-  return add_to_list(thd, order_list,item,asc);
+{
+  return add_to_list(thd, order_list, item, asc);
 }
 
 bool st_select_lex_node::add_ftfunc_to_list(Item_func_match *func)

@@ -288,6 +288,8 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 						 compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
+  THD *thd= current_thd;
+
   for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
   {
     Item *item;
@@ -301,12 +303,16 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 
     Item *expr= new Item_outer_select_context_saver(left_expr);
 
-    if (sl->having || sl->with_sum_func || sl->group_list.first ||
-	sl->order_list.first)
+    if (sl->having || sl->with_sum_func || sl->group_list.elements ||
+	sl->order_list.elements)
     {
       sl->item_list.push_back(item);
-      item= (*func)(expr, new Item_ref(sl->item_list.head_ref(),
-					    0, (char*)"<result>"));
+      setup_ref_array(thd, &sl->ref_pointer_array,
+		      1+ select_lex->with_sum_func +
+		      select_lex->order_list.elements +
+		      select_lex->group_list.elements);
+      item= (*func)(expr, new Item_ref(sl->ref_pointer_array,
+				       0, (char*)"<result>"));
       if (sl->having || sl->with_sum_func || sl->group_list.first)
 	if (sl->having)
 	  sl->having= new Item_cond_and(sl->having, item);
@@ -348,7 +354,6 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 	  // it is single select without tables => possible optimization
 	  item= (*func)(left_expr, item);
 	  substitution= item;
-	  THD *thd= current_thd;
 	  if (thd->lex.describe)
 	  {
 	    char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -424,8 +429,12 @@ int subselect_single_select_engine::prepare()
   prepared= 1;
   SELECT_LEX_NODE *save_select= thd->lex.current_select;
   thd->lex.current_select= select_lex;
-  if(join->prepare((TABLE_LIST*) select_lex->table_list.first,
+  if(join->prepare(&select_lex->ref_pointer_array,
+		   (TABLE_LIST*) select_lex->table_list.first,
+		   select_lex->with_wild,
 		   select_lex->where,
+		   select_lex->order_list.elements +
+		   select_lex->group_list.elements,
 		   (ORDER*) select_lex->order_list.first,
 		   (ORDER*) select_lex->group_list.first,
 		   select_lex->having,

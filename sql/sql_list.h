@@ -147,12 +147,20 @@ protected:
 
 class base_list_iterator
 {
+protected:
   base_list *list;
   list_node **el,**prev,*current;
+  void sublist(base_list &ls, uint elm)
+  {
+    ls.first= *el;
+    ls.last= list->last;
+    ls.elements= elm;
+  }
 public:
-  base_list_iterator(base_list &list_par) :list(&list_par),el(&list_par.first),
-    prev(0),current(0)
+  base_list_iterator(base_list &list_par) 
+    :list(&list_par), el(&list_par.first), prev(0), current(0)
   {}
+
   inline void *next(void)
   {
     prev=el;
@@ -212,7 +220,6 @@ public:
   friend class error_list_iterator;
 };
 
-
 template <class T> class List :public base_list
 {
 public:
@@ -260,6 +267,10 @@ public:
   List_iterator_fast(List<T> &a) : base_list_iterator(a) {}
   inline T* operator++(int) { return (T*) base_list_iterator::next_fast(); }
   inline void rewind(void)  { base_list_iterator::rewind(); }
+  void sublist(List<T> &list, uint el)
+  {
+    base_list_iterator::sublist(list, el);
+  }
 };
 
 

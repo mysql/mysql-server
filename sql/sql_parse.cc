@@ -1915,6 +1915,7 @@ mysql_execute_command(THD *thd)
 			       &lex->create_info,
 			       tables, lex->create_list,
 			       lex->key_list, lex->drop_list, lex->alter_list,
+			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
 			       lex->drop_primary, lex->duplicates,
 			       lex->alter_keys_onoff, lex->simple_alter);
@@ -2026,8 +2027,8 @@ mysql_execute_command(THD *thd)
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
-                             (ORDER *) 0,
-			     0,DUP_ERROR);
+                             0, (ORDER *) 0,
+			     0, DUP_ERROR);
     }
     else
       res = mysql_optimize_table(thd, tables, &lex->check_opt);
@@ -2047,6 +2048,7 @@ mysql_execute_command(THD *thd)
                       select_lex->item_list,
                       lex->value_list,
                       select_lex->where,
+		      select_lex->order_list.elements,
                       (ORDER *) select_lex->order_list.first,
                       select_lex->select_limit,
                       lex->duplicates);
@@ -2246,10 +2248,12 @@ mysql_execute_command(THD *thd)
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))
     {
-      res= mysql_select(thd,select_lex->get_table_list(),
+      res= mysql_select(thd, &select_lex->ref_pointer_array,
+			select_lex->get_table_list(),
+			select_lex->with_wild,
 			select_lex->item_list,
 			select_lex->where,
-			(ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
+			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
 			select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE,
@@ -2741,6 +2745,7 @@ mysql_execute_command(THD *thd)
     send_ok(thd);
     break;
   }
+  thd->free_tmp_tables();
   thd->proc_info="query end";			// QQ
   if (res < 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
@@ -2988,6 +2993,7 @@ mysql_init_query(THD *thd)
   LEX *lex=&thd->lex;
   lex->unit.init_query();
   lex->unit.init_select();
+  lex->unit.thd= thd;
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->param_list.empty();
@@ -3044,6 +3050,7 @@ mysql_new_select(LEX *lex, bool move_down)
       return 1;
     unit->init_query();
     unit->init_select();
+    unit->thd= lex->thd;
     unit->include_down(lex->current_select);
     select_lex->include_down(unit);
   }

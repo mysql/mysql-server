@@ -58,7 +58,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     
   if (!(res=open_and_lock_tables(thd,tables)))
   {
-    if (setup_fields(thd,tables,item_list,0,0,1))
+    if (setup_wild(thd, tables, item_list, 0, sl->with_wild) ||
+	setup_fields(thd, 0, tables, item_list, 0, 0, 1))
     {
       res=-1;
       goto exit;
@@ -87,9 +88,11 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 
       SELECT_LEX_NODE *save_current_select= lex->current_select;
       lex->current_select= sl;
-      res= mysql_select(thd, tables,  sl->item_list,
-			sl->where, (ORDER *) sl->order_list.first,
-			(ORDER*) sl->group_list.first,
+      res= mysql_select(thd, &sl->ref_pointer_array, tables, sl->with_wild,
+			sl->item_list, sl->where,
+			sl->order_list.elements+sl->group_list.elements,
+			(ORDER *) sl->order_list.first,
+			(ORDER *) sl->group_list.first,
 			sl->having, (ORDER*) NULL,
 			sl->options | thd->options | SELECT_NO_UNLOCK,
 			derived_result, unit, sl, 0);
@@ -122,6 +125,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     }
     if (res)
       free_tmp_table(thd,table);
+    else
+      thd->temporary_tables_should_be_free.push_front(table);
 exit:
     close_thread_tables(thd);
   }
