@@ -411,6 +411,8 @@ a	b
 0	10
 1	11
 2	12
+update t1 set b= (select b from t1);
+INSERT TABLE 't1' isn't allowed in FROM table list
 update t1 set b= (select b from t2 where t1.a = t2.a);
 select * from t1;
 a	b
@@ -430,6 +432,8 @@ a	b
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 a	b
 2	12
+delete from t1 where b = (select b from t1);
+INSERT TABLE 't1' isn't allowed in FROM table list
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
 select * from t1;
 a	b
@@ -453,6 +457,8 @@ a	b
 33	10
 22	11
 2	12
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
+INSERT TABLE 't12' isn't allowed in FROM table list
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
 select * from t11;
 a	b
@@ -466,6 +472,8 @@ drop table t11, t12, t2;
 CREATE TABLE t1 (x int);
 create table t2 (a int);
 insert into t2 values (1);
+INSERT INTO t1 (x) VALUES ((SELECT x FROM t1));
+INSERT TABLE 't1' isn't allowed in FROM table list
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
 select * from t1;
 x
@@ -485,20 +493,22 @@ x
 3
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 INSERT TABLE 't1' isn't allowed in FROM table list
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t1));
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 select * from t1;
 x
 1
 2
 3
 3
-9
+0
 drop table t1, t2;
 CREATE TABLE t1 (x int not null, y int, primary key (x));
 create table t2 (a int);
 insert into t2 values (1);
 select * from t1;
 x	y
+replace into t1 (x, y) VALUES ((SELECT x FROM t1), (SELECT a+1 FROM t2));
+INSERT TABLE 't1' isn't allowed in FROM table list
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
 select * from t1;
 x	y
@@ -559,4 +569,10 @@ id
 SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 2);
 id
 2
-drop table if exists t;
+INSERT INTO t VALUES ((SELECT * FROM t));
+INSERT TABLE 't' isn't allowed in FROM table list
+SELECT * FROM t;
+id
+1
+2
+drop table t;
