@@ -265,8 +265,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
        */
       List<Item> vals= thd->lex->value_list;
 
-      mysql_init_query(thd, TRUE);
-      lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+      mysql_init_query(thd, (uchar*)defstr.c_ptr(), defstr.length(), TRUE);
       thd->lex->value_list= vals;
     }
 

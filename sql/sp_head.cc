@@ -690,17 +690,18 @@ sp_head::reset_lex(THD *thd)
 
   (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
+
   /* Reset most stuff. The length arguments doesn't matter here. */
-  lex_start(thd, oldlex->buf, oldlex->end_of_query - oldlex->ptr);
-  sublex->yylineno= oldlex->yylineno;
+  mysql_init_query(thd,oldlex->buf, oldlex->end_of_query - oldlex->ptr, TRUE);
+
   /* We must reset ptr and end_of_query again */
   sublex->ptr= oldlex->ptr;
   sublex->end_of_query= oldlex->end_of_query;
   sublex->tok_start= oldlex->tok_start;
+  sublex->yylineno= oldlex->yylineno;
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
   sublex->spcont= oldlex->spcont;
-  mysql_init_query(thd, true);	// Only init lex
   sublex->sp_lex_in_use= FALSE;
   DBUG_VOID_RETURN;
 }

@@ -563,8 +563,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(&thd->mem_root) st_lex_local;
-  lex_start(thd, (uchar*)table->query.str, table->query.length);
-  mysql_init_query(thd, true);
+  mysql_init_query(thd, (uchar*)table->query.str, table->query.length, TRUE);
   lex->select_lex.select_number= ++thd->select_number;
   old_lex->derived_tables|= DERIVED_VIEW;
   {
