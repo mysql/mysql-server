@@ -16,7 +16,7 @@
 
 /* This file defines the InnoDB handler: the interface between MySQL and
 InnoDB */
-
+  
 /* TODO list for the InnoDB handler:
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in near future yes, but not yet.
@@ -85,7 +85,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
 char *innobase_data_home_dir, *innobase_data_file_path;
 char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 char *innobase_unix_file_flush_method;
-bool innobase_flush_log_at_trx_commit, innobase_log_archive,
+my_bool innobase_flush_log_at_trx_commit, innobase_log_archive,
   innobase_use_native_aio, innobase_fast_shutdown;
 
 /* innobase_data_file_path=ibdata:15,idata2:1,... */
@@ -229,7 +229,7 @@ convert_error_code_to_mysql(
 extern "C" {
 /*****************************************************************
 Prints info of a THD object (== user session thread) to the
-standatd output. NOTE that mysql/innobase/trx/trx0trx.c must contain
+standard output. NOTE that mysql/innobase/trx/trx0trx.c must contain
 the prototype for this function! */
 
 void
@@ -298,6 +298,8 @@ check_trx_exists(
 
 		thd->transaction.stmt.innobase_tid =
 		                  (void*)&innodb_dummy_stmt_trx_handle;
+	} else {
+		ut_a(trx->magic_n == TRX_MAGIC_N);
 	}
 
 	return(trx);
@@ -835,6 +837,7 @@ innobase_close_connection(
 			whose transaction should be rolled back */
 {
 	if (NULL != thd->transaction.all.innobase_tid) {
+
 	        trx_rollback_for_mysql((trx_t*)
 				(thd->transaction.all.innobase_tid));
 		trx_free_for_mysql((trx_t*)
@@ -978,7 +981,10 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
- 	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
+	ib_table = dict_table_get_and_increment_handle_count(
+				      		     norm_name, NULL);
+
+ 	if (NULL == ib_table) {
 
 	  fprintf(stderr,
 "InnoDB: Error: cannot find table %s from the internal data dictionary\n"
@@ -2435,44 +2441,6 @@ ha_innobase::position(
 	ref_stored_len = len;
 }
 
-/***********************************************************************
-Tells something additional to the handler about how to do things. */
-
-int
-ha_innobase::extra(
-/*===============*/
-			   /* out: 0 or error number */
-	enum ha_extra_function operation)
-                           /* in: HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE */
-{
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-
-	switch (operation) {
- 		case HA_EXTRA_RESET:
-  		case HA_EXTRA_RESET_STATE:
-	        	prebuilt->read_just_key = 0;
-	        	break;
-		case HA_EXTRA_NO_KEYREAD:
-    			prebuilt->read_just_key = 0;
-    			break;
-	        case HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE:
-			prebuilt->in_update_remember_pos = FALSE;
-			break;
-	        case HA_EXTRA_KEYREAD:
-	        	prebuilt->read_just_key = 1;
-	        	break;
-		default:/* Do nothing */
-			;
-	}
-
-	return(0);
-}
-
-int ha_innobase::reset(void)
-{
-  	return(0);
-}
-
 /*********************************************************************
 Creates a table definition to an InnoDB database. */
 static
@@ -2839,6 +2807,16 @@ innobase_drop_database(
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
 	
+#ifdef __WIN__
+	/* Put to lower case */
+
+	ptr = namebuf;
+
+	while (*ptr != '\0') {
+	        *ptr = tolower(*ptr);
+	        ptr++;
+	}
+#endif
 	trx = trx_allocate_for_mysql();
 
   	error = row_drop_database_for_mysql(namebuf, trx);
@@ -2953,9 +2931,9 @@ ha_innobase::records_in_range(
 
    	DBUG_ENTER("records_in_range");
 
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "estimating range size";
-	}
+	/* Warning: since it is not sure that MySQL calls external_lock
+	before calling this function, the trx field in prebuilt can be
+	obsolete! */
    	
 	active_index = keynr;
 
@@ -2989,10 +2967,6 @@ ha_innobase::records_in_range(
 
     	my_free((char*) key_val_buff2, MYF(0));
 
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
-	}
-   	
 	DBUG_RETURN((ha_rows) n_rows);
 }
 
@@ -3013,10 +2987,9 @@ ha_innobase::estimate_number_of_rows(void)
 	ulonglong	estimate;
 	ulonglong	data_file_length;
 	
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info =
-				"estimating upper bound of table size";
-	}   	
+	/* Warning: since it is not sure that MySQL calls external_lock
+	before calling this function, the trx field in prebuilt can be
+	obsolete! */
 
  	DBUG_ENTER("info");
 
@@ -3033,10 +3006,6 @@ ha_innobase::estimate_number_of_rows(void)
 
 	estimate = 2 * data_file_length / dict_index_calc_min_rec_len(index);
 	
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
-	}
-
 	return((ha_rows) estimate);
 }
 
@@ -3052,10 +3021,12 @@ ha_innobase::scan_time()
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	/* In the following formula we assume that scanning 10 pages
-	takes the same time as a disk seek: */
-
-	return((double) (prebuilt->table->stat_clustered_index_size / 10));
+	/* Since MySQL seems to favor table scans too much over index
+	searches, we pretend that a sequential read takes the same time
+	as a random disk read, that is, we do not divide the following
+	by 10, which would be physically realistic. */
+	
+	return((double) (prebuilt->table->stat_clustered_index_size));
 }
 
 /*************************************************************************
@@ -3076,10 +3047,10 @@ ha_innobase::info(
 
  	DBUG_ENTER("info");
 
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "calculating table stats";
-	}
-   	
+	/* Warning: since it is not sure that MySQL calls external_lock
+	before calling this function, the trx field in prebuilt can be
+	obsolete! */
+   	   	
  	ib_table = prebuilt->table;
 
  	if (flag & HA_STATUS_TIME) {
@@ -3126,6 +3097,13 @@ ha_innobase::info(
    				         index->stat_n_diff_key_vals[j + 1]);
 				}
 
+				/* Since MySQL seems to favor table scans
+				too much over index searches, we pretend
+				index selectivity is 2 times better than
+				our estimate: */
+
+				rec_per_key = rec_per_key / 2;
+
 				if (rec_per_key == 0) {
 					rec_per_key = 1;
 				}
@@ -3145,15 +3123,13 @@ ha_innobase::info(
 	pointer and cause a seg fault. */
 
   	if (flag & HA_STATUS_ERRKEY) {
+		ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+
 		errkey = (unsigned int) row_get_mysql_key_number_for_index(
 				       (dict_index_t*)
 				       trx_get_error_info(prebuilt->trx));
   	}
 
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
-	}
-   	
   	DBUG_VOID_RETURN;
 }
 
@@ -3173,7 +3149,9 @@ ha_innobase::check(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	ulint		ret;
-	
+	   	
+	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
 		in index scans done in checking */
@@ -3207,6 +3185,10 @@ ha_innobase::update_table_comment(
   	char*		str 	= my_malloc(length + 550, MYF(0));
   	char*		pos;
 
+	/* Warning: since it is not sure that MySQL calls external_lock
+	before calling this function, the trx field in prebuilt can be
+	obsolete! */
+   	
 	if (!str) {
     		return((char*)comment);
 	}
@@ -3226,6 +3208,53 @@ ha_innobase::update_table_comment(
   	dict_print_info_on_foreign_keys(pos, 500, prebuilt->table);
   
   	return(str);
+}
+
+/***********************************************************************
+Tells something additional to the handler about how to do things. */
+
+int
+ha_innobase::extra(
+/*===============*/
+			   /* out: 0 or error number */
+	enum ha_extra_function operation)
+                           /* in: HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE */
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	/* Warning: since it is not sure that MySQL calls external_lock
+	before calling this function, the trx field in prebuilt can be
+	obsolete! */
+
+	switch (operation) {
+ 		case HA_EXTRA_RESET:
+  		case HA_EXTRA_RESET_STATE:
+	        	prebuilt->read_just_key = 0;
+	        	break;
+		case HA_EXTRA_NO_KEYREAD:
+    			prebuilt->read_just_key = 0;
+    			break;
+	        case HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE:
+			prebuilt->in_update_remember_pos = FALSE;
+			break;
+	        case HA_EXTRA_KEYREAD:
+	        	prebuilt->read_just_key = 1;
+	        	break;
+		default:/* Do nothing */
+			;
+	}
+
+	return(0);
+}
+
+/**********************************************************************
+????????????? */
+
+int
+ha_innobase::reset(void)
+/*====================*/
+{
+  	return(0);
 }
 
 /**********************************************************************
@@ -3451,6 +3480,5 @@ ha_innobase::get_auto_increment()
 
   return(nr);
 }
-
 
 #endif /* HAVE_INNOBASE_DB */

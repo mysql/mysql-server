@@ -1,33 +1,49 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+/* Copyright (C) 2000 MySQL AB
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Common defines for all clients */
+/*
+  This is a replacement of new/delete operators to be used when compiling
+  with gcc 3.0.x to avoid including libstdc++
+*/
 
-#include <global.h>
-#include <my_sys.h> 
-#include <m_string.h>
-#include <mysql.h>
-#include <errmsg.h>
-#include <getopt.h>
+#include "mysys_priv.h"
 
-/* We have to define 'enum options' identical in all files to keep OS2 happy */
+#ifdef USE_MYSYS_NEW  
 
-enum options { OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
-	       OPT_PAGER, OPT_NOPAGER, OPT_TEE, OPT_NOTEE,
-	       OPT_LOW_PRIORITY, OPT_AUTO_REPAIR, OPT_COMPRESS,
-	       OPT_DROP, OPT_LOCKS, OPT_KEYWORDS, OPT_DELAYED, OPT_OPTIMIZE,
-	       OPT_FTB, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC, OPT_TABLES,
-	       OPT_MASTER_DATA, OPT_AUTOCOMMIT, OPT_LOCAL_INFILE};
+void *operator new (size_t sz)
+{
+  return (void *) malloc (sz ? sz+1 : sz);
+}
+
+void *operator new[] (size_t sz)
+{
+  return (void *) malloc (sz ? sz+1 : sz);
+}
+
+void operator delete (void *ptr)
+{
+  if (ptr)
+    free(ptr);
+}
+
+void operator delete[] (void *ptr) throw ()
+{
+  if (ptr)
+    free(ptr);
+}
+
+#endif /* USE_MYSYS_NEW */
+

@@ -14,8 +14,15 @@
    Leave the following blank line there!!  Autoheader needs it.  */
 
 
+#undef C_ALLOCA
+
+#undef CRAY_STACKSEG_END
+
 /* Version of .frm files */
 #undef DOT_FRM_VERSION
+
+/* If LOAD DATA LOCAL INFILE should be enabled by default */
+#undef ENABLED_LOCAL_INFILE
 
 /* READLINE: */
 #undef FIONREAD_IN_SYS_IOCTL
@@ -37,6 +44,9 @@
 
 /* atomic_sub() from <asm/atomic.h> (Linux only) */
 #undef HAVE_ATOMIC_SUB
+
+/* If we have a working alloca() implementation */
+#undef HAVE_ALLOCA
 
 /* bool is not defined by all C++ compilators */
 #undef HAVE_BOOL
@@ -211,6 +221,8 @@
 
 /* Needed to get large file supportat HPUX 10.20 */
 #undef __STDC_EXT__
+
+#undef STACK_DIRECTION
 
 #undef STRCOLL_BROKEN
 

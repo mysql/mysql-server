@@ -46833,6 +46833,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
 * News-3.23.47::                Changes in release 3.23.47
 * News-3.23.46::                Changes in release 3.23.46
@@ -46885,13 +46886,74 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.48, News-3.23.47, News-3.23.x, News-3.23.x
+@node News-3.23.49, News-3.23.48, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.49
+@itemize @bullet
+@item
+Don't give warning for statement that is only a comment;  This is needed for
+@code{mysqldump --disable-keys} to work.
+@item
+Fixed unlikely caching bug when doing a join without keys. In this case
+the last used field for a table always returned @code{NULL}.
+@item
+Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
+@item
+MySQL binary release 3.23.48 for Linux contained a new glibc library, which
+has serious problems under high load and RedHat 7.2.  The 3.23.49 binary
+release doesn't have this problem.
+@end itemize
+
+@node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x
 @appendixsubsec Changes in release 3.23.48
 @itemize @bullet
+@item
+Changed to use @code{autoconf} 2.52 (from @code{autoconf} 2.13)
 @item
 Fixed bug in complicated join with @code{const} tables.
 @item
 Added internal safety checks for InnoDB.
+@item
+Some InnoDB variables was always shown in @code{SHOW VARIABLES} as
+@code{OFF} on high-byte-first systems (like sparc).
+@item
+Fixed problem with one thread using an InnoDB table and another
+thread doing an @code{ALTER TABLE} on the same table. Before that,
+mysqld could crash with an assertion failure in row0row.c, line 474.
+@item
+Tuned the InnoDB SQL optimizer to favor more often index searches
+over table scans.
+@item
+Fixed a performance problem with InnoDB tables when several large SELECT
+queries are run concurrently on a multiprocessor Linux computer.  Large
+CPU-bound SELECT queries will now also generally run faster on all
+platforms.
+@item
+If MySQL binlogging is used, InnoDB now prints after crash recovery the
+latest MySQL binlog name and the offset InnoDB was able to recover
+to. This is useful, for example, when resynchronizing a master and a
+slave database in replication.
+@item
+Added better error messages to help in installation problems of InnoDB tables.
+@item
+One can now recover also MySQL temporary tables which have become
+orphaned inside the InnoDB tablespace.
+@item
+InnoDB now prevents a @code{FOREIGN KEY} declaration where the signedness
+is not the same in the referencing and referenced integer columns.
+@item
+Calling @code{SHOW CREATE TABLE} or @code{SHOW TABLE STATUS} could cause
+memory corruption and make mysqld to crash.  Especially at risk was
+@code{mysqldump}, because it calls frequently @code{SHOW CREATE TABLE}.
+@item
+If inserts to several tables containing an auto-inc column were wrapped
+inside one @code{LOCK TABLES}, InnoDB asserted in lock0lock.c.
+@item
+In 3.23.47 we allowed several @code{NULLS} in a @code{UNIQUE} secondary
+index for an InnoDB table.  But @code{CHECK TABLE} was not relaxed: it
+reports the table as corrupt.  @code{CHECK TABLE} no longer complains in
+this situation.
+@item
+@code{SHOW GRANTS} now shows @code{REFERENCES} instead of @code{REFERENCE}.
 @end itemize
 
 @node News-3.23.47, News-3.23.46, News-3.23.48, News-3.23.x

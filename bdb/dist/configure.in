@@ -21,9 +21,7 @@ AC_SUBST(ADDITIONAL_LANG)
 AC_SUBST(ADDITIONAL_LIBS)
 AC_SUBST(ADDITIONAL_OBJS)
 AC_SUBST(ADDITIONAL_PROGS)
-AC_SUBST(CFLAGS)
 AC_SUBST(CPPFLAGS)
-AC_SUBST(CXX)
 AC_SUBST(CXXFLAGS)
 AC_SUBST(DBS_LIBS)
 AC_SUBST(DEFAULT_INSTALL)
@@ -145,55 +143,6 @@ osf*)	   CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
 *qnx)	   AC_DEFINE(HAVE_QNX);;
 sco3.2v4*) CC=${CC-"cc -belf"}
 	   LIBS="-lsocket -lnsl_s $LIBS";;
-sco3.2v5*) if test "$GCC" != "yes"; then
-             CFLAGS="$CFLAGS"
-     	     LD='$(CC) $(CFLAGS)'
-	     LIBS="-lsocket -lnsl $LIBS"
-	     CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
-             case "$CFLAGS" in
-               *-belf*) 
-                 AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
-                 case "$LDFLAGS" in
-                   *-belf*) ;;
-                   *) echo "Adding -belf option to ldflags."
-                      LDFLAGS="$LDFLAGS -belf"
-                   ;;
-                 esac
-                 ])
-               ;;
-               *)
-                 AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
-                 case "$LDFLAGS" in
-                   *-belf*) ;;
-                   *)
-	             echo "Adding -belf option to ldflags."
-                     LDFLAGS="$LDFLAGS -belf"
-                   ;;
-                 esac
-                 ])
-               ;;
-             esac
-	   else
-	     CC="gcc"
-	     LIBS="-lsocket -lnsl $LIBS"
-	     CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
-	   fi
-	 ;;
-sysv5uw7*) LIBS="-lsocket -lnsl $LIBS"
-    if test "$GCC" != "yes"; then
-      # We are using built-in inline function
-      CC="cc -belf"
-      CXX="CC -belf"
-      CFLAGS="$CFLAGS -Kalloca -Kthread"
-      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
-      LIBS="-Kthread -lsocket -lnsl $LIBS"
-    else
-      CFLAGS="$CFLAGS -Kalloca -pthread"
-      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
-      CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
-      LIBS="-pthread -lsocket -lnsl $LIBS"
-    fi
-  ;;
 sco*)	   CC=${CC-"cc -belf"}
 	   LIBS="-lsocket -lnsl $LIBS";;
 solaris*)  CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
@@ -280,6 +229,59 @@ if test "$GXX" = "yes"; then
 	* )	CXXFLAGS="-fexceptions $CXXFLAGS";;
 	esac
 fi
+
+dnl Give the OS a last chance to override CFLAGS and LDFLAGS
+
+case "$host_os" in
+sco3.2v5*)
+    if test "$GCC" != "yes"; then
+      CFLAGS="$CFLAGS"
+      LD='$(CC) $(CFLAGS)'
+      LIBS="-lsocket -lnsl $LIBS"
+      CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
+      case "$CFLAGS" in
+        *-belf*) 
+          AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
+          case "$LDFLAGS" in
+            *-belf*) ;;
+            *) echo "Adding -belf option to ldflags."
+               LDFLAGS="$LDFLAGS -belf"
+            ;;
+          esac
+          ])
+        ;;
+        *)
+          AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
+          case "$LDFLAGS" in
+            *-belf*) ;;
+            *)
+              echo "Adding -belf option to ldflags."
+              LDFLAGS="$LDFLAGS -belf"
+            ;;
+          esac
+          ])
+        ;;
+      esac
+    else
+      CC="gcc"
+      LIBS="-lsocket -lnsl $LIBS"
+      CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
+    fi ;;
+sysv5uw7*) LIBS="-lsocket -lnsl $LIBS"
+    if test "$GCC" != "yes"; then
+      # We are using built-in inline function
+      CC="cc -belf"
+      CXX="CC -belf -DNO_CPLUSPLUS_ALLOCA"
+      CFLAGS="$CFLAGS -Kalloca -Kthread"
+      LIBS="-Kthread -lsocket -lnsl $LIBS"
+    else
+      CFLAGS="$CFLAGS -Kalloca -pthread"
+      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
+      CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
+      LIBS="-pthread -lsocket -lnsl $LIBS"
+    fi
+  ;;
+esac
 
 dnl Export our compiler preferences for the libtool configuration.
 export CC CCC
