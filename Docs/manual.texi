@@ -47448,7 +47448,7 @@ Changed @code{WEEK(#,0)} to match the calender in the USA.
 @item
 Speed up all internal list handling.
 @item
-Speed up @code{IS NULL()} and some other internal primitives.
+Speed up @code{IS NULL}, @code{ISNULL()} and some other internal primitives.
 @item
 Creating full text indexes are now much faster.
 @item
