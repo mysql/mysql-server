@@ -499,7 +499,7 @@ charset(load_file('../../std_data/words.dat')),
 collation(load_file('../../std_data/words.dat')),
 coercibility(load_file('../../std_data/words.dat'));
 charset(load_file('../../std_data/words.dat'))	collation(load_file('../../std_data/words.dat'))	coercibility(load_file('../../std_data/words.dat'))
-binary	binary	3
+binary	binary	4
 explain extended select 
 charset(load_file('../../std_data/words.dat')),
 collation(load_file('../../std_data/words.dat')),
