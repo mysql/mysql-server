@@ -849,7 +849,6 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
 
   List_iterator<LEX_STRING> var_it(varnames);
   String str;
-  const String *res;
   uint32 length= 0;
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);

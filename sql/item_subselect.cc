@@ -657,7 +657,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	!(select_lex->next_select()))
     {
       Item *item;
-      subs_type type= substype();
       if (func->l_op())
       {
 	/*
