@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 #include <ndb_limits.h>
 #include <ndb_version.h>
 
@@ -64,7 +65,8 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
 {
   ndbSetOwnVersion();
   clusterMgrThreadMutex = NdbMutex_Create();
-  noOfConnectedNodes = 0;
+  noOfConnectedNodes= 0;
+  theClusterMgrThread= 0;
 }
 
 ClusterMgr::~ClusterMgr(){
@@ -137,20 +139,21 @@ ClusterMgr::startThread() {
 
 void
 ClusterMgr::doStop( ){
+  DBUG_ENTER("ClusterMgr::doStop");
   NdbMutex_Lock(clusterMgrThreadMutex);
-
   if(theStop){
     NdbMutex_Unlock(clusterMgrThreadMutex);
-    return;
+    DBUG_VOID_RETURN;
   }
-  
   void *status;
   theStop = 1;
-
-  NdbThread_WaitFor(theClusterMgrThread, &status);  
-  NdbThread_Destroy(&theClusterMgrThread);
-
+  if (theClusterMgrThread) {
+    NdbThread_WaitFor(theClusterMgrThread, &status);  
+    NdbThread_Destroy(&theClusterMgrThread);
+    theClusterMgrThread= 0;
+  }
   NdbMutex_Unlock(clusterMgrThreadMutex);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -524,6 +527,7 @@ ArbitMgr::doChoose(const Uint32* theData)
 void
 ArbitMgr::doStop(const Uint32* theData)
 {
+  DBUG_ENTER("ArbitMgr::doStop");
   ArbitSignal aSignal;
   NdbMutex_Lock(theThreadMutex);
   if (theThread != NULL) {
@@ -540,6 +544,7 @@ ArbitMgr::doStop(const Uint32* theData)
     theState = StateInit;
   }
   NdbMutex_Unlock(theThreadMutex);
+  DBUG_VOID_RETURN;
 }
 
 // private methods
@@ -548,7 +553,9 @@ extern "C"
 void*
 runArbitMgr_C(void* me)
 {
+  my_thread_init();
   ((ArbitMgr*) me)->threadMain();
+  my_thread_end();
   NdbThread_Exit(0); 
   return NULL;
 }
