@@ -469,7 +469,6 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:         
   case MYSQL_TYPE_BIT:
-  case MYSQL_TYPE_NEWDECIMAL:
     return TRUE;
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
