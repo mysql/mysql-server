@@ -3044,12 +3044,12 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  best_record_count=current_record_count;
 	  best_read_time=current_read_time;
 	}
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
 	find_best(join,rest_tables & ~real_table_bit,idx+1,
 		  current_record_count,current_read_time);
         if (thd->killed)
           return;
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       if (join->select_options & SELECT_STRAIGHT_JOIN)
 	break;				// Don't test all combinations
@@ -4909,6 +4909,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
+  
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, path);
 
   if (group)
   {
@@ -9258,7 +9261,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             if (tmp1.length())
               tmp1.append(',');
-            tmp1.append(table->key_info[j].name, 0, system_charset_info);
+            tmp1.append(table->key_info[j].name, 
+			strlen(table->key_info[j].name),
+			system_charset_info);
           }
         }
       }
@@ -9278,7 +9283,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tmp2.length())
 	    tmp2.append(',');
-	  tmp2.append((*ref)->name(), 0, system_charset_info);
+	  tmp2.append((*ref)->name(), strlen((*ref)->name()),
+		      system_charset_info);
 	}
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
       }

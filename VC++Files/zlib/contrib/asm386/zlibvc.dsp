@@ -8,16 +8,16 @@
 CFG=zlibvc - Win32 Release
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "zlibvc.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "zlibvc.mak" CFG="zlibvc - Win32 Release"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "zlibvc - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "zlibvc - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "zlibvc - Win32 ReleaseAxp" (based on\
@@ -26,7 +26,7 @@ CFG=zlibvc - Win32 Release
  "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "zlibvc - Win32 ReleaseWithoutCrtdll" (based on\
  "Win32 (x86) Dynamic-Link Library")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP Scc_ProjName ""
@@ -191,7 +191,7 @@ LINK32=link.exe
 # ADD LINK32 gvmat32.obj kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib crtdll.lib /nologo /subsystem:windows /dll /map /machine:I386 /nodefaultlib /out:".\zlibvc_1\zlib.dll"
 # SUBTRACT LINK32 /pdb:none
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
@@ -216,13 +216,13 @@ SOURCE=.\adler32.c
 DEP_CPP_ADLER=\
 	".\zconf.h"\
 	".\zlib.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -238,13 +238,13 @@ SOURCE=.\compress.c
 DEP_CPP_COMPR=\
 	".\zconf.h"\
 	".\zlib.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -260,13 +260,13 @@ SOURCE=.\crc32.c
 DEP_CPP_CRC32=\
 	".\zconf.h"\
 	".\zlib.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -284,13 +284,13 @@ DEP_CPP_DEFLA=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -307,7 +307,7 @@ SOURCE=.\gvmat32c.c
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -324,13 +324,13 @@ DEP_CPP_GZIO_=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -351,13 +351,13 @@ DEP_CPP_INFBL=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -379,13 +379,13 @@ DEP_CPP_INFCO=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -407,13 +407,13 @@ DEP_CPP_INFFA=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -431,13 +431,13 @@ DEP_CPP_INFLA=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -455,13 +455,13 @@ DEP_CPP_INFTR=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -482,13 +482,13 @@ DEP_CPP_INFUT=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -506,13 +506,13 @@ DEP_CPP_TREES=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -528,13 +528,13 @@ SOURCE=.\uncompr.c
 DEP_CPP_UNCOM=\
 	".\zconf.h"\
 	".\zlib.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -551,7 +551,7 @@ SOURCE=.\unzip.c
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -568,7 +568,7 @@ SOURCE=.\zip.c
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
@@ -593,13 +593,13 @@ DEP_CPP_ZUTIL=\
 	".\zconf.h"\
 	".\zlib.h"\
 	".\zutil.h"\
-	
+
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutAsm"
 
 !ELSEIF  "$(CFG)" == "zlibvc - Win32 ReleaseWithoutCrtdll"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # End Group

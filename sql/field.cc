@@ -423,30 +423,11 @@ bool Field::get_time(TIME *ltime)
 
 void Field::store_time(TIME *ltime,timestamp_type type)
 {
-  char buff[25];
-  switch (type)  {
-  case TIMESTAMP_NONE:
-  case TIMESTAMP_DATETIME_ERROR:
-    store("",0,&my_charset_bin);	// Probably an error
-    break;
-  case TIMESTAMP_DATE:
-    sprintf(buff,"%04d-%02d-%02d", ltime->year,ltime->month,ltime->day);
-    store(buff,10,&my_charset_bin);
-    break;
-  case TIMESTAMP_DATETIME:
-    sprintf(buff,"%04d-%02d-%02d %02d:%02d:%02d",
-	    ltime->year,ltime->month,ltime->day,
-	    ltime->hour,ltime->minute,ltime->second);
-    store(buff,19,&my_charset_bin);
-    break;
-  case TIMESTAMP_TIME:
-  {
-    ulong length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-				    ltime->hour,ltime->minute,ltime->second));
-    store(buff,(uint) length, &my_charset_bin);
-    break;
-  }
-  }
+  char buff[MAX_DATE_REP_LENGTH];
+  String tmp;
+  tmp.set(buff, sizeof(buff), &my_charset_bin);
+  TIME_to_string(ltime, &tmp);
+  store(buff, tmp.length(), &my_charset_bin);
 }
 
 

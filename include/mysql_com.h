@@ -359,6 +359,6 @@ char *net_store_length(char *pkg, ulonglong length);
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 #define MYSQL_STMT_HEADER       4
-#define	MYSQL_LONG_DATA_HEADER	6
+#define MYSQL_LONG_DATA_HEADER  6
 
 #endif

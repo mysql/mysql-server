@@ -917,11 +917,7 @@ create:
 	  THD *thd= YYTHD;
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
-	  if (!lex->select_lex.add_table_to_list(thd,$5,
-						 ($2 &
-						  HA_LEX_CREATE_TMP_TABLE ?
-						  &tmp_table_alias :
-						  (LEX_STRING*) 0),
+	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING,
 						 (using_update_log ?
 						  TL_READ_NO_INSERT:
@@ -1459,25 +1455,25 @@ attribute:
 	  { 
 	    LEX *lex=Lex;
 	    lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; 
-	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
 	  }
 	| opt_primary KEY_SYM 
 	  {
 	    LEX *lex=Lex;
 	    lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; 
-	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
 	  }
 	| UNIQUE_SYM	  
 	  {
 	    LEX *lex=Lex;
 	    lex->type|= UNIQUE_FLAG; 
-	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
 	  }
 	| UNIQUE_SYM KEY_SYM 
 	  {
 	    LEX *lex=Lex;
 	    lex->type|= UNIQUE_KEY_FLAG; 
-	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
 	  }
 	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= &$2; }
 	| BINARY { Lex->type|= BINCMP_FLAG; }
@@ -1725,18 +1721,15 @@ alter:
 	  lex->create_list.empty();
 	  lex->key_list.empty();
 	  lex->col_list.empty();
-	  lex->drop_list.empty();
-	  lex->alter_list.empty();
           lex->select_lex.init_order();
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.default_table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-          lex->alter_keys_onoff=LEAVE_AS_IS;
-	  lex->tablespace_op=NO_TABLESPACE_OP;
-          lex->simple_alter=1;
-	  lex->alter_flags=0;
+	  lex->alter_info.clear();          
+	  lex->alter_info.is_simple= 1;
+	  lex->alter_info.flags= 0;
 	}
 	alter_list
 	{}
@@ -1749,8 +1742,8 @@ alter:
 
 
 alter_list:
-	| DISCARD TABLESPACE { Lex->tablespace_op=DISCARD_TABLESPACE; }
-	| IMPORT TABLESPACE { Lex->tablespace_op=IMPORT_TABLESPACE; }
+	| DISCARD TABLESPACE { Lex->alter_info.tablespace_op= DISCARD_TABLESPACE; }
+	| IMPORT TABLESPACE { Lex->alter_info.tablespace_op= IMPORT_TABLESPACE; }
         | alter_list_item
 	| alter_list ',' alter_list_item;
 
@@ -1759,24 +1752,24 @@ add_column:
 	{
 	  LEX *lex=Lex;
 	  lex->change=0; 
-	  lex->alter_flags|= ALTER_ADD_COLUMN; 
+	  lex->alter_info.flags|= ALTER_ADD_COLUMN; 
 	};
 
 alter_list_item:
-	add_column column_def opt_place { Lex->simple_alter=0; }
+	add_column column_def opt_place { Lex->alter_info.is_simple= 0; }
 	| ADD key_def 
 	  { 
 	    LEX *lex=Lex;
-	    lex->simple_alter=0; 
-	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	    lex->alter_info.is_simple= 0; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
 	  }
-	| add_column '(' field_list ')'      { Lex->simple_alter=0; }
+	| add_column '(' field_list ')'      { Lex->alter_info.is_simple= 0; }
 	| CHANGE opt_column field_ident
 	  {
 	     LEX *lex=Lex;
 	     lex->change= $3.str; 
-	     lex->simple_alter=0;
-	     lex->alter_flags|= ALTER_CHANGE_COLUMN;
+	     lex->alter_info.is_simple= 0;
+	     lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	  }
           field_spec opt_place
         | MODIFY_SYM opt_column field_ident
@@ -1786,8 +1779,8 @@ alter_list_item:
             lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
-            lex->simple_alter=0;
-	    lex->alter_flags|= ALTER_CHANGE_COLUMN;
+            lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
           }
           type opt_attribute
           {
@@ -1805,50 +1798,51 @@ alter_list_item:
 	| DROP opt_column field_ident opt_restrict
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
-        					    $3.str)); 
-	    lex->simple_alter=0;
-	    lex->alter_flags|= ALTER_DROP_COLUMN;
+	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
+	    			                               $3.str)); 
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_DROP_COLUMN;
 	  }
-	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
+	| DROP FOREIGN KEY_SYM opt_ident { Lex->alter_info.is_simple= 0; }
 	| DROP PRIMARY_SYM KEY_SYM
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-						    primary_key_name));
-	    lex->simple_alter=0;
-	    lex->alter_flags|= ALTER_DROP_INDEX;
+	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+				               primary_key_name));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_DROP_INDEX;
 	  }
 	| DROP key_or_index field_ident
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-						    $3.str));
-	    lex->simple_alter=0;
-	    lex->alter_flags|= ALTER_DROP_INDEX;
+	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+					                       $3.str));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_DROP_INDEX;
 	  }
-	| DISABLE_SYM KEYS { Lex->alter_keys_onoff=DISABLE; }
-	| ENABLE_SYM KEYS  { Lex->alter_keys_onoff=ENABLE; }
+	| DISABLE_SYM KEYS { Lex->alter_info.keys_onoff= DISABLE; }
+	| ENABLE_SYM KEYS  { Lex->alter_info.keys_onoff= ENABLE; }
 	| ALTER opt_column field_ident SET DEFAULT signed_literal
 	  {
 	    LEX *lex=Lex;
-	    lex->alter_list.push_back(new Alter_column($3.str,$6));
-	    lex->simple_alter=0;
-	    lex->alter_flags|= ALTER_CHANGE_COLUMN;
+	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,$6));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	  }
 	| ALTER opt_column field_ident DROP DEFAULT
 	  {
 	    LEX *lex=Lex;
-	    lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0));
-	    lex->simple_alter=0;
-	    lex->alter_flags|= ALTER_CHANGE_COLUMN;
+	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,
+                                                                  (Item*) 0));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	  }
 	| RENAME opt_to table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
-	    lex->alter_flags|= ALTER_RENAME;
+	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
 	  {
@@ -1869,19 +1863,19 @@ alter_list_item:
 	      lex->create_info.default_table_charset= $5;
 	    lex->create_info.used_fields|= (HA_CREATE_USED_CHARSET |
 					    HA_CREATE_USED_DEFAULT_CHARSET);
-	    lex->simple_alter= 0;
+	    lex->alter_info.is_simple= 0;
 	  }
         | create_table_options_space_separated 
 	  {
 	    LEX *lex=Lex;
-	    lex->simple_alter=0; 
-	    lex->alter_flags|= ALTER_OPTIONS;
+	    lex->alter_info.is_simple= 0; 
+	    lex->alter_info.flags|= ALTER_OPTIONS;
 	  }
 	| order_clause         
 	  {
 	    LEX *lex=Lex;
-	    lex->simple_alter=0; 
-	    lex->alter_flags|= ALTER_ORDER;
+	    lex->alter_info.is_simple= 0; 
+	    lex->alter_info.flags|= ALTER_ORDER;
 	  };
 
 opt_column:
@@ -3780,9 +3774,9 @@ drop:
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
-	     lex->drop_list.empty();
-	     lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-						     $3.str));
+	     lex->alter_info.drop_list.empty();
+	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+                                                                $3.str));
 	     if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
 							TL_OPTION_UPDATING))
 	      YYABORT;
