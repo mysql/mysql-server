@@ -60,7 +60,7 @@ typedef struct st_ndbcluster_share {
   pthread_mutex_t mutex;
   char *table_name;
   uint table_name_length,use_count;
-  uint commit_count;
+  ulonglong commit_count;
 } NDB_SHARE;
 
 /*

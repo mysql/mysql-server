@@ -5759,6 +5759,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
   delete thd;
   DBUG_PRINT("exit", ("ndb_util_thread"));
   my_thread_end();
+  pthread_exit(0);
   DBUG_RETURN(NULL);
 }
 
