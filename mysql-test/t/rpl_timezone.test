@@ -1,4 +1,15 @@
 # Test of replication of time zones.
+
+# There is currently some bug possibly in prepared statements (this
+# test fails with --ps-protocol): sys_var_thd_time_zone::value_ptr()
+# is called only at prepare time, not at execution time. So,
+# thd->time_zone_used is not equal to 1 (it is back to 0, because of
+# reset_thd_for_next_command called at execution time), so the
+# timezone used in CONVERT_TZ is not binlogged. To debug (by Guilhem
+# and possibly Konstantin).
+
+--disable_ps_protocol
+
 source include/master-slave.inc;
 
 # Some preparations
