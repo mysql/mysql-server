@@ -406,20 +406,45 @@ public:
 };
 
 
-class sys_var_client_collation :public sys_var_thd
+class sys_var_collation :public sys_var_thd
 {
 public:
-  sys_var_client_collation(const char *name_arg) :sys_var_thd(name_arg)
-  {}
+  sys_var_collation(const char *name_arg) :sys_var_thd(name_arg) {}
   bool check(THD *thd, set_var *var);
-  bool update(THD *thd, set_var *var);
-  SHOW_TYPE type() { return SHOW_CHAR; }
-  byte *value_ptr(THD *thd, enum_var_type type);
+SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
   {
     return type != STRING_RESULT;		/* Only accept strings */
   }
   bool check_default(enum_var_type type) { return 0; }
+  virtual void set_default(THD *thd, enum_var_type type)= 0;
+};
+
+class sys_var_client_collation :public sys_var_collation
+{
+public:
+  sys_var_client_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type);
+};
+
+class sys_var_literal_collation :public sys_var_collation
+{
+public:
+  sys_var_literal_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type);
+};
+
+class sys_var_result_collation :public sys_var_collation
+{
+public:
+  sys_var_result_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type);
 };
 
 
@@ -526,6 +551,26 @@ public:
 };
 
 
+/* For SET NAMES and SET CHARACTER SET */
+
+class set_var_client_collation: public set_var_base
+{
+  CHARSET_INFO *client_collation;
+  CHARSET_INFO *literal_collation;
+  CHARSET_INFO *result_collation;
+public:
+  set_var_client_collation(CHARSET_INFO *client_coll_arg,
+  			   CHARSET_INFO *literal_coll_arg,
+  			   CHARSET_INFO *result_coll_arg)
+    :client_collation(client_coll_arg),
+     literal_collation(literal_coll_arg),
+     result_collation(result_coll_arg)
+  {}
+  int check(THD *thd);
+  int update(THD *thd);
+};
+
+
 /*
   Prototypes for helper functions
 */
@@ -537,3 +582,4 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 
 extern sys_var_str sys_charset;
+CHARSET_INFO *get_old_charset_by_name(const char *old_name);

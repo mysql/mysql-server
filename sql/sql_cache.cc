@@ -2476,8 +2476,8 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	  tables_used->table->tmp_table != NO_TMP_TABLE ||
 	  (tables_used->db_length == 5 &&
 #ifdef FN_NO_CASE_SENCE
-	   my_strnncoll(system_charset_info, tables_used->db, 6,
-					     "mysql",6) == 0
+	   my_strnncoll(system_charset_info, (uchar*)tables_used->db, 6,
+					     (uchar*)"mysql",6) == 0
 #else
 	   tables_used->db[0]=='m' &&
 	   tables_used->db[1]=='y' &&

@@ -2211,7 +2211,7 @@ then
 else
     MYSQL_CHECK_LIBEDIT_INTERFACE
     MYSQL_CHECK_NEW_RL_INTERFACE
-    if ["$mysql_cv_new_rl_interface"="yes"] || [test "$mysql_cv_libedit_interface"="no"]
+    if [test "$mysql_cv_new_rl_interface" = "yes"] || [test "$mysql_cv_libedit_interface" = "no"]
     then
         readline_link="-lreadline"
     else

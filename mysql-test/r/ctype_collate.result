@@ -510,11 +510,11 @@ t1	CREATE TABLE `t1` (
 SHOW FIELDS FROM  t1;
 Field	Type	Collation	Null	Key	Default	Extra
 latin1_f	char(32)	latin1_bin	YES		NULL	
-SET NAMES 'latin1';
+SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	latin1_swedish_ci
-SET NAMES latin1;
+SET CHARACTER SET latin1;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	latin1_swedish_ci
@@ -524,51 +524,51 @@ client_collation	latin1_swedish_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
-SET NAMES latin1 COLLATE latin1_bin;
+SET CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	latin1_bin
-SET NAMES LATIN1 COLLATE Latin1_Bin;
+SET CHARACTER SET LATIN1 COLLATE Latin1_Bin;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	latin1_bin
-SET NAMES 'latin1' COLLATE 'latin1_bin';
+SET CHARACTER SET 'latin1' COLLATE 'latin1_bin';
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	latin1_bin
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-latin1	latin1_bin	3	0
-SET NAMES koi8r;
+latin1	latin1_swedish_ci	3	1
+SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	koi8r_general_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
-SET COLLATION koi8r_bin;
+SET CHARACTER SET koi8r COLLATE koi8r_bin;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	koi8r_bin
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
-SET COLLATION DEFAULT;
+SET CHARACTER SET koi8r COLLATE DEFAULT;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	koi8r_general_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
-SET NAMES DEFAULT;
+SET CHARACTER SET DEFAULT;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	latin1_swedish_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
-SET NAMES latin1 COLLATE koi8r;
+SET CHARACTER SET latin1 COLLATE koi8r;
 COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
-SET NAMES 'DEFAULT';
+SET CHARACTER SET 'DEFAULT';
 Unknown character set: 'DEFAULT'
 DROP TABLE t1;

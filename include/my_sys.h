@@ -118,8 +118,11 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_KEEP_PREALLOC	1
 #define MY_MARK_BLOCKS_FREE     2  /* move used to free list and reuse them */
 
-	/* defines when allocating data */
+	/* Internal error numbers (for assembler functions) */
+#define MY_ERRNO_EDOM		33
+#define MY_ERRNO_ERANGE		34
 
+	/* defines when allocating data */
 #ifdef SAFEMALLOC
 #define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
 #define my_malloc_ci(SZ,FLAG) _mymalloc((SZ), sFile, uLine, FLAG )
