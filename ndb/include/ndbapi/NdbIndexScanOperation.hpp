@@ -86,26 +86,25 @@ public:
   /**
    * Define bound on index key in range scan.
    *
-   * Each index key can have not null lower and/or upper bound, or can
-   * be set equal to not null value.  The bounds can be defined in any
-   * order but a duplicate definition is an error.
+   * Each index key can have lower and/or upper bound, or can be set
+   * equal to a value.  The bounds can be defined in any order but
+   * a duplicate definition is an error.
    *
-   * The scan is most effective when bounds are given for an initial
-   * sequence of non-nullable index keys, and all but the last one is an
-   * equality.  In this case the scan returns a contiguous range from
-   * each ordered index fragment.
+   * The bounds must specify a single range i.e. they are on an initial
+   * sequence of index keys and the condition is equality for all but
+   * (at most) the last key which has a lower and/or upper bound.
    *
-   * @note      This release implements only the case described above,
-   *            except for the non-nullable limitation.  Other sets of
-   *            bounds return error or empty result set.
+   * NULL is treated like a normal value which is less than any not-NULL
+   * value and equal to another NULL value.  To search for NULL use
+   * setBound with null pointer (0).
    *
-   * @note      In this release a null key value satisfies any lower
-   *            bound and no upper bound.  This may change.
+   * An index stores also all-NULL keys (this may become optional).
+   * Doing index scan with empty bound set returns all table tuples.
    *
    * @param attrName    Attribute name, alternatively:
-   * @param anAttrId    Index column id (starting from 0).
+   * @param anAttrId    Index column id (starting from 0)
    * @param type        Type of bound
-   * @param value       Pointer to bound value
+   * @param value       Pointer to bound value, 0 for NULL
    * @param len         Value length in bytes.
    *                    Fixed per datatype and can be omitted
    * @return            0 if successful otherwise -1

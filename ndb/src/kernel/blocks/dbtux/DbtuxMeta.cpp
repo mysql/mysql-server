@@ -85,6 +85,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragPtr.p->m_fragOff = req->fragOff;
     fragPtr.p->m_fragId = req->fragId;
     fragPtr.p->m_numAttrs = req->noOfAttr;
+    fragPtr.p->m_storeNullKey = true;  // not yet configurable
     fragPtr.p->m_tupIndexFragPtrI = req->tupIndexFragPtrI;
     fragPtr.p->m_tupTableFragPtrI[0] = req->tupTableFragPtrI[0];
     fragPtr.p->m_tupTableFragPtrI[1] = req->tupTableFragPtrI[1];
@@ -111,6 +112,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
       indexPtr.p->m_tableId = req->primaryTableId;
       indexPtr.p->m_fragOff = req->fragOff;
       indexPtr.p->m_numAttrs = req->noOfAttr;
+      indexPtr.p->m_storeNullKey = true;  // not yet configurable
       // allocate attribute descriptors
       if (! allocDescEnt(indexPtr)) {
         jam();

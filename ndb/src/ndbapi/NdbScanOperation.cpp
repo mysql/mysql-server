@@ -1125,7 +1125,6 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
   if (theOperationType == OpenRangeScanRequest &&
       theStatus == SetBound &&
       (0 <= type && type <= 4) &&
-      aValue != NULL &&
       len <= 8000) {
     // bound type
 
@@ -1136,20 +1135,22 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
       setErrorCodeAbort(4209);
       return -1;
     }
-    len = sizeInBytes;
+    len = aValue != NULL ? sizeInBytes : 0;
     Uint32 tIndexAttrId = tAttrInfo->m_attrId;
     Uint32 sizeInWords = (len + 3) / 4;
     AttributeHeader ah(tIndexAttrId, sizeInWords);
     insertATTRINFO(ah.m_value);
-    // attribute data
-    if ((UintPtr(aValue) & 0x3) == 0 && (len & 0x3) == 0)
-      insertATTRINFOloop((const Uint32*)aValue, sizeInWords);
-    else {
-      Uint32 temp[2000];
-      memcpy(temp, aValue, len);
-      while ((len & 0x3) != 0)
-        ((char*)temp)[len++] = 0;
-      insertATTRINFOloop(temp, sizeInWords);
+    if (len != 0) {
+      // attribute data
+      if ((UintPtr(aValue) & 0x3) == 0 && (len & 0x3) == 0)
+        insertATTRINFOloop((const Uint32*)aValue, sizeInWords);
+      else {
+        Uint32 temp[2000];
+        memcpy(temp, aValue, len);
+        while ((len & 0x3) != 0)
+          ((char*)temp)[len++] = 0;
+        insertATTRINFOloop(temp, sizeInWords);
+      }
     }
 
     /**
@@ -1236,7 +1237,7 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
     Uint32 * d2 = (Uint32*)r2->aRef();
     unsigned r1_null = r1->isNULL();
     if((r1_null ^ (unsigned)r2->isNULL())){
-      return (r1_null ? 1 : -1);
+      return (r1_null ? -1 : 1);
     }
     Uint32 type = NdbColumnImpl::getImpl(* r1->m_column).m_extType;
     Uint32 size = (r1->theAttrSize * r1->theArraySize + 3) / 4;
