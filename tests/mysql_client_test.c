@@ -11606,6 +11606,54 @@ static void test_bug7990()
 
 
 /*
+ Test mysql_real_escape_string() with gbk charset
+
+ The important part is that 0x27 (') is the second-byte in a invalid
+ two-byte GBK character here. But 0xbf5c is a valid GBK character, so
+ it needs to be escaped as 0x5cbf27
+*/
+#define TEST_BUG8378_IN  "\xef\xbb\xbf\x27\xbf\x10"
+#define TEST_BUG8378_OUT "\xef\xbb\x5c\xbf\x5c\x27\x5c\xbf\x10"
+
+static void test_bug8378()
+{
+  MYSQL *lmysql;
+  char out[9]; /* strlen(TEST_BUG8378)*2+1 */
+  int len;
+
+  myheader("test_bug8378");
+
+  if (!opt_silent)
+    fprintf(stdout, "\n Establishing a test connection ...");
+  if (!(lmysql= mysql_init(NULL)))
+  {
+    myerror("mysql_init() failed");
+    exit(1);
+  }
+  if (mysql_options(lmysql, MYSQL_SET_CHARSET_NAME, "gbk"))
+  {
+    myerror("mysql_options() failed");
+    exit(1);
+  }
+  if (!(mysql_real_connect(lmysql, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket, 0)))
+  {
+    myerror("connection failed");
+    exit(1);
+  }
+  if (!opt_silent)
+    fprintf(stdout, " OK");
+
+  len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
+
+  /* No escaping should have actually happened. */
+  DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
+
+  mysql_close(lmysql);
+}
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -11814,6 +11862,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug6761", test_bug6761 },
   { "test_bug8330", test_bug8330 },
   { "test_bug7990", test_bug7990 },
+  { "test_bug8378", test_bug8378 },
   { 0, 0 }
 };
 
