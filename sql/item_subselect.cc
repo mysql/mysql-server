@@ -36,7 +36,7 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex):
-  executed(0), optimized(0), error(0)
+  assigned(0), executed(0), optimized(0), error(0)
 {
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
@@ -141,7 +141,7 @@ int Item_subselect::exec()
       return 1;
     }
     assign_null();
-    executed= 0;
+    executed= assigned= 0;
   }
   if (!executed)
   {
@@ -149,6 +149,7 @@ int Item_subselect::exec()
     join->thd->lex.select= select_lex;
     join->exec();
     join->thd->lex.select= save_select;
+    executed= 1;
     return join->error;
   }
   return 0;

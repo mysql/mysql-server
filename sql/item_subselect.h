@@ -31,6 +31,7 @@ class Item_subselect :public Item
 protected:
   longlong int_value;
   double real_value;
+  my_bool assigned; /* value already assigned to subselect */
   my_bool executed; /* simple subselect is executed */
   my_bool optimized; /* simple subselect is optimized */
   my_bool error; /* error in query */
@@ -59,6 +60,7 @@ public:
     max_length= item->max_length;
     decimals= item->decimals;
     res_type= item->res_type;
+    assigned= item->assigned;
     executed= item->executed;
     select_lex= item->select_lex;
     join= item->join;
