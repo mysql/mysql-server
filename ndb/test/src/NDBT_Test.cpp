@@ -479,7 +479,6 @@ void *
 runStep_C(void * s)
 {
   runStep(s);
-  NdbThread_Exit(0);
   return NULL;
 }
 
