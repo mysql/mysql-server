@@ -510,6 +510,7 @@ start_master()
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
 	    --exit-info=256 \
+	    --core
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
