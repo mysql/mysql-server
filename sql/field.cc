@@ -3466,9 +3466,9 @@ int Field_string::pack_cmp(const char *b, uint length)
 }
 
 
-uint Field_string::packed_col_length(const char *ptr)
+uint Field_string::packed_col_length(const char *ptr, uint length)
 {
-  if (field_length > 255)
+  if (length > 255)
     return uint2korr(ptr)+2;
   else
     return (uint) ((uchar) *ptr)+1;
@@ -3476,7 +3476,7 @@ uint Field_string::packed_col_length(const char *ptr)
 
 uint Field_string::max_packed_col_length(uint max_length)
 {
-  return (field_length > 255 ? 2 : 1)+max_length;
+  return (max_length > 255 ? 2 : 1)+max_length;
 }
 
 
@@ -3685,9 +3685,9 @@ int Field_varstring::pack_cmp(const char *b, uint key_length)
   return my_sortncmp(a,a_length, b,b_length);
 }
 
-uint Field_varstring::packed_col_length(const char *ptr)
+uint Field_varstring::packed_col_length(const char *ptr, uint length)
 {
-  if (field_length > 255)
+  if (length > 255)
     return uint2korr(ptr)+2;
   else
     return (uint) ((uchar) *ptr)+1;
@@ -3695,7 +3695,7 @@ uint Field_varstring::packed_col_length(const char *ptr)
 
 uint Field_varstring::max_packed_col_length(uint max_length)
 {
-  return (field_length > 255 ? 2 : 1)+max_length;
+  return (max_length > 255 ? 2 : 1)+max_length;
 }
 
 /****************************************************************************
@@ -4225,6 +4225,18 @@ char *Field_blob::pack_key_from_key_image(char *to, const char *from,
   return to+length;
 }
 
+uint Field_blob::packed_col_length(const char *ptr, uint length)
+{
+  if (length > 255)
+    return uint2korr(ptr)+2;
+  else
+    return (uint) ((uchar) *ptr)+1;
+}
+
+uint Field_blob::max_packed_col_length(uint max_length)
+{
+  return (max_length > 255 ? 2 : 1)+max_length;
+}
 
 /****************************************************************************
 ** enum type.

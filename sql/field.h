@@ -176,10 +176,10 @@ public:
   {
     return pack(to,from,max_length);
   }
-  virtual uint packed_col_length(const char *to)
-  { return pack_length();}
+  virtual uint packed_col_length(const char *to, uint length)
+  { return length;}
   virtual uint max_packed_col_length(uint max_length)
-  { return pack_length();}
+  { return max_length;}
 
   virtual int pack_cmp(const char *a,const char *b, uint key_length_arg)
   { return cmp(a,b); }
@@ -748,7 +748,7 @@ public:
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a,const char *b,uint key_length);
   int pack_cmp(const char *b,uint key_length);
-  uint packed_col_length(const char *to);
+  uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
@@ -800,7 +800,7 @@ public:
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a, const char *b, uint key_length);
   int pack_cmp(const char *b, uint key_length);
-  uint packed_col_length(const char *to);
+  uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
@@ -901,11 +901,8 @@ public:
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length);
   int pack_cmp(const char *b, uint key_length);
-  uint packed_col_length(const char *col_ptr)
-  { return get_length(col_ptr)+packlength;}
-  virtual uint max_packed_col_length(uint max_length)
-  { return packlength+max_length; }
-
+  uint packed_col_length(const char *col_ptr, uint length);
+  uint max_packed_col_length(uint max_length);
   inline void free() { value.free(); }
   inline void clear_temporary() { bzero((char*) &value,sizeof(value)); }
   friend void field_conv(Field *to,Field *from);

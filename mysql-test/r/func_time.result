@@ -8,6 +8,8 @@ from_unixtime(unix_timestamp("1994-03-02 10:11:12"))	from_unixtime(unix_timestam
 1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112
 sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")	sec_to_time(time_to_sec("0:30:47")/6.21)
 02:30:01	23001	54742	00:04:57
+sec_to_time(time_to_sec('-838:59:59'))
+-838:59:59
 now()-curdate()*1000000-curtime()
 0
 strcmp(current_timestamp(),concat(current_date()," ",current_time()))

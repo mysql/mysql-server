@@ -28,8 +28,8 @@
   - Get a more accurate count of the number of rows (estimate_number_of_rows()).
     We could store the found number of rows when the table is scanned and
     then increment the counter for each attempted write.
-  - We will need a manager thread that calls flush_logs, removes old
-    logs and makes checkpoints at given intervals.
+  - We will need to extend the manager thread to makes checkpoints at
+     given intervals.
   - When not using UPDATE IGNORE, don't make a sub transaction but abort
     the main transaction on errors.
   - Handling of drop table during autocommit=0 ?
@@ -90,7 +90,7 @@ const char *berkeley_lock_names[] =
 { "DEFAULT", "OLDEST","RANDOM","YOUNGEST",0 };
 u_int32_t berkeley_lock_types[]=
 { DB_LOCK_DEFAULT, DB_LOCK_OLDEST, DB_LOCK_RANDOM };
-TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names),"",
+TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names)-1,"",
 				berkeley_lock_names};
 
 static void berkeley_print_error(const char *db_errpfx, char *buffer);
@@ -372,10 +372,12 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
     if ((cmp=key_part->field->pack_cmp(new_key_ptr,saved_key_ptr,
 				       key_part->length)))
       return cmp;
-    uint length=key_part->field->packed_col_length(new_key_ptr);
+    uint length=key_part->field->packed_col_length(new_key_ptr,
+						   key_part->length);
     new_key_ptr+=length;
     key_length-=length;
-    saved_key_ptr+=key_part->field->packed_col_length(saved_key_ptr);
+    saved_key_ptr+=key_part->field->packed_col_length(saved_key_ptr,
+						      key_part->length);
   }
   return key->handler.bdb_return_if_eq;
 }
@@ -433,7 +435,7 @@ berkeley_key_cmp(TABLE *table, KEY *key_info, const char *key, uint key_length)
     }
     if ((cmp=key_part->field->pack_cmp(key,key_part->length)))
       return cmp;
-    uint length=key_part->field->packed_col_length(key);
+    uint length=key_part->field->packed_col_length(key,key_part->length);
     key+=length;
     key_length-=length;
   }
@@ -1552,7 +1554,7 @@ DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
     KEY_PART_INFO *end=key_part+table->key_info[primary_key].key_parts;
 
     for ( ; key_part != end ; key_part++)
-      pos+=key_part->field->packed_col_length((char*) pos);
+      pos+=key_part->field->packed_col_length((char*) pos,key_part->length);
     to->size= (uint) (pos- (byte*) to->data);
   }
   return to;
