@@ -99,7 +99,7 @@ typedef struct st_mysql_field {
   unsigned int flags;         /* Div flags */
   unsigned int decimals;      /* Number of decimals in field */
   unsigned int charsetnr;     /* Character set */
-  enum enum_field_types type; /* Type of field. Se mysql_com.h for types */
+  enum enum_field_types type; /* Type of field. See mysql_com.h for types */
 } MYSQL_FIELD;
 
 typedef char **MYSQL_ROW;		/* return data as array of strings */
@@ -175,7 +175,7 @@ struct st_mysql_options {
  */
   my_bool rpl_parse;
  /*
-   If set, never read from a master,only from slave, when doing
+   If set, never read from a master, only from slave, when doing
    a read that is replication-aware
  */
   my_bool no_master_reads;
@@ -538,7 +538,7 @@ enum enum_mysql_stmt_state
 typedef struct st_mysql_bind
 {
   unsigned long	*length;          /* output length pointer */
-  my_bool       *is_null;	  /* Pointer to null indicators */
+  my_bool       *is_null;	  /* Pointer to null indicator */
   void		*buffer;	  /* buffer to get/put data */
   enum enum_field_types buffer_type;	/* buffer type */
   unsigned long buffer_length;    /* buffer length, must be set for str/binary */  
@@ -581,7 +581,7 @@ typedef struct st_mysql_stmt
                                   unsigned char **row);
   unsigned long	 stmt_id;	       /* Id for prepared statement */
   unsigned int	 last_errno;	       /* error code */
-  unsigned int   param_count;          /* inpute parameters count */
+  unsigned int   param_count;          /* input parameter count */
   unsigned int   field_count;          /* number of columns in result set */
   enum enum_mysql_stmt_state state;    /* statement state */
   char		 last_error[MYSQL_ERRMSG_SIZE]; /* error message */
