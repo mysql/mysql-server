@@ -267,7 +267,7 @@ struct st_myisam_info {
   my_bool quick_mode;
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
-  my_bool use_packed_key;		/* For MYISAMMRG */
+  my_bool once_flags;           /* For MYISAMMRG */
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
@@ -287,6 +287,10 @@ struct st_myisam_info {
 
 #define WRITEINFO_UPDATE_KEYFILE	1
 #define WRITEINFO_NO_UNLOCK		2
+
+        /* once_flags */
+#define USE_PACKED_KEYS         1
+#define RRND_PRESERVE_LASTINX   2
 
 	/* bits in state.changed */
 
