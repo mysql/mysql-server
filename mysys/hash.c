@@ -87,7 +87,7 @@ void hash_free(HASH *hash)
   handle inline functions that are not defined as native types
 */
 
-inline char*
+static inline char*
 hash_key(HASH *hash,const byte *record,uint *length,my_bool first)
 {
   if (hash->get_key)
@@ -183,8 +183,8 @@ uint calc_hashnr_caseup(const byte *key, uint len)
 
 
 /* for compilers which can not handle inline */
-#if !defined(__SUNPRO_C) && !defined(__USLC__) && !defined(__sgi)
-inline
+#if !defined(__USLC__) && !defined(__sgi)
+static inline
 #endif
 unsigned int rec_hashnr(HASH *hash,const byte *record)
 {
