@@ -83,7 +83,7 @@ character-set=latin2
 "Kolumna typu Blob '%-.64s' nie mo¿e byæ u¿yta w specyfikacji klucza",
 "Zbyt du¿a d³ugo?æ kolumny '%-.64s' (maks. = %d). W zamian u¿yj typu BLOB",
 "W tabeli mo¿e byæ tylko jedno pole auto i musi ono byæ zdefiniowane jako klucz",
-"%s: gotowe do po³?czenia\n",
+"%s: gotowe do po³?czenia",
 "%s: Standardowe zakoñczenie dzia³ania\n",
 "%s: Otrzymano sygna³ %d. Koñczenie dzia³ania!\n",
 "%s: Zakoñczenie dzia³ania wykonane\n",

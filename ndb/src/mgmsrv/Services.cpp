@@ -1271,3 +1271,7 @@ MgmApiSession::setParameter(Parser_t::Context &,
   m_output->println("result: %d", ret);
   m_output->println("");
 }
+
+template class MutexVector<int>;
+template class Vector<ParserRow<MgmApiSession> const*>;
+template class Vector<unsigned short>;
