@@ -1370,8 +1370,8 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
     current_row.data=0;
     if (!--thd->transaction.bdb_lock_count)
     {
-      if (thd->transaction.bdb_tid && (thd->options &
-				       (OPTION_AUTO_COMMIT | OPTION_BEGIN)))
+      if (thd->transaction.bdb_tid && (thd->options & OPTION_AUTO_COMMIT)
+          && !(thd->options & OPTION_BEGIN))
       {
 	/* 
 	   F_UNLOCK is done without a transaction commit / rollback. This
