@@ -1312,7 +1312,6 @@ type:
 					  $$=FIELD_TYPE_GEOMETRY;
 #else
 	                                  net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			                             ER(ER_FEATURE_DISABLED),
 			                             sym_group_geom.name,
 	                                             sym_group_geom.needed_define);
 					  YYABORT;
@@ -1630,7 +1629,6 @@ key_type:
 	    $$= Key::SPATIAL;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 		       sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -1664,7 +1662,6 @@ opt_unique_or_fulltext:
 	    $$= Key::SPATIAL;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -2676,7 +2673,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -2688,7 +2684,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -2700,7 +2695,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -2712,7 +2706,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -2809,7 +2802,6 @@ simple_expr:
 	    $$= $1;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif

@@ -530,18 +530,18 @@ ibuf_data_init_for_space(
 	
 	table = dict_mem_table_create(buf, space, 2);
 
-	dict_mem_table_add_col(table,(char *) "PAGE_NO", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table,(char *) "TYPES", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0, 0);
 
 	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
 	dict_table_add_to_cache(table);
 
-	index = dict_mem_index_create(buf, (char *) "CLUST_IND", space,
+	index = dict_mem_index_create(buf, "CLUST_IND", space,
 				DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,2);
 
-	dict_mem_index_add_field(index, (char *) "PAGE_NO", 0, 0);
-	dict_mem_index_add_field(index, (char *) "TYPES", 0, 0);
+	dict_mem_index_add_field(index, "PAGE_NO", 0, 0);
+	dict_mem_index_add_field(index, "TYPES", 0, 0);
 
 	index->page_no = FSP_IBUF_TREE_ROOT_PAGE_NO;
 	

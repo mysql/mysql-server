@@ -42,13 +42,14 @@ extern
 void
 innobase_invalidate_query_cache(
 /*============================*/
-	trx_t*	trx,		/* in: transaction which modifies the table */
-	char*	full_name,	/* in: concatenation of database name, null
-				char '\0', table name, null char'\0';
-				NOTE that in Windows this is always
-				in LOWER CASE! */
-	ulint	full_name_len);	/* in: full name length where also the null
-				chars count */
+	trx_t*		trx,		/* in: transaction which modifies
+					the table */
+	const char*	full_name,	/* in: concatenation of database name,
+					null char '\0', table name, null char
+					'\0'; NOTE that in Windows this is
+					always in LOWER CASE! */
+	ulint		full_name_len);	/* in: full name length where also the
+					null chars count */
 
 
 /*************************************************************************
@@ -518,7 +519,7 @@ static
 void
 row_ins_foreign_report_err(
 /*=======================*/
-	char*		errstr,		/* in: error string from the viewpoint
+	const char*	errstr,		/* in: error string from the viewpoint
 					of the parent table */
 	que_thr_t*	thr,		/* in: query thread whose run_node
 					is an update node */
@@ -651,25 +652,23 @@ row_ins_foreign_check_on_constraint(
 	ulint		n_to_update;
 	ulint		err;
 	ulint		i;
-	char*		ptr;
-	char		table_name_buf[1000];
+	const char*	ptr;
+	char*		table_name;
 	
 	ut_a(thr && foreign && pcur && mtr);
 
+#ifndef UNIV_HOTBACKUP
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table */
 
-	ut_a(ut_strlen(table->name) < 998);
-	strcpy(table_name_buf, table->name);
-
-	ptr = strchr(table_name_buf, '/');
+	ptr = strchr(table->name, '/');
 	ut_a(ptr);
-	*ptr = '\0';
+	table_name = mem_strdupl(table->name, ptr - table->name);
 	
 	/* We call a function in ha_innodb.cc */
-#ifndef UNIV_HOTBACKUP
-	innobase_invalidate_query_cache(thr_get_trx(thr), table_name_buf,
-						ut_strlen(table->name) + 1);
+	innobase_invalidate_query_cache(thr_get_trx(thr), table_name,
+						ptr - table->name + 1);
+	mem_free(table_name);
 #endif
 	node = thr->run_node;
 
@@ -677,7 +676,7 @@ row_ins_foreign_check_on_constraint(
 			(DICT_FOREIGN_ON_DELETE_CASCADE
 			 | DICT_FOREIGN_ON_DELETE_SET_NULL))) {
 
-		row_ins_foreign_report_err((char*)"Trying to delete",
+		row_ins_foreign_report_err("Trying to delete",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);
 
@@ -690,7 +689,7 @@ row_ins_foreign_check_on_constraint(
 
 		/* This is an UPDATE */
 			 
-		row_ins_foreign_report_err((char*)"Trying to update",
+		row_ins_foreign_report_err("Trying to update",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);
 
@@ -751,7 +750,7 @@ row_ins_foreign_check_on_constraint(
 	        err = DB_ROW_IS_REFERENCED;
 
 		row_ins_foreign_report_err(
-(char*)"Trying an update, possibly causing a cyclic cascaded update\n"
+"Trying an update, possibly causing a cyclic cascaded update\n"
 "in the child table,", thr, foreign, btr_pcur_get_rec(pcur), entry);
 
 		goto nonstandard_exit_func;
@@ -876,7 +875,7 @@ row_ins_foreign_check_on_constraint(
 		        err = DB_ROW_IS_REFERENCED;
 
 			row_ins_foreign_report_err(
-(char*)"Trying a cascaded update where the updated value in the child\n"
+"Trying a cascaded update where the updated value in the child\n"
 "table would not fit in the length of the column, or the value would\n"
 "be NULL and the column is declared as not NULL in the child table,",
 			thr, foreign, btr_pcur_get_rec(pcur), entry);
@@ -1194,7 +1193,7 @@ run_again:
 					}
 				} else {
 					row_ins_foreign_report_err(
-					(char*)"Trying to delete or update",
+						"Trying to delete or update",
 						thr, foreign, rec, entry);
 
 					err = DB_ROW_IS_REFERENCED;
