@@ -116,7 +116,7 @@ int Ndb_cluster_connection::connect(int reconnect)
     if(props == 0)
       break;
     m_facade->start_instance(nodeId, props);
-    free(props);
+    ndb_mgm_destroy_configuration(props);
     m_facade->connected();
     DBUG_RETURN(0);
   } while(0);

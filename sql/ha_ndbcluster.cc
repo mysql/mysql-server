@@ -3196,6 +3196,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   bulk_insert_rows(1024),
   bulk_insert_not_flushed(false),
   ops_pending(0),
+  blobs_pending(0),
   skip_auto_increment(true),
   blobs_buffer(0),
   blobs_buffer_size(0),
