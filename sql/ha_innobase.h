@@ -185,6 +185,11 @@ bool innobase_flush_logs(void);
 uint innobase_get_free_space(void);
 
 int innobase_commit(THD *thd, void* trx_handle);
+int innobase_report_binlog_offset_and_commit(
+        THD*    thd,
+	void*	trx_handle,
+        char*   log_file_name,
+        my_off_t end_offset);
 int innobase_rollback(THD *thd, void* trx_handle);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
