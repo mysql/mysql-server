@@ -1410,7 +1410,8 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    my_message(err, ER(err), MYF(0));
+    if (err)
+      my_message(err, ER(err), MYF(0));
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()
