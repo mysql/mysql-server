@@ -1610,7 +1610,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
       char buff[NAME_LEN*2+1];
       if (db)
       {
-	strxmov(buff,db,".",table_name,NullS);
+	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
       }
       my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),table_name,
