@@ -419,7 +419,9 @@ btr_search_update_hash_ref(
 	    && (block->curr_n_fields == info->n_fields)
 	    && (block->curr_n_bytes == info->n_bytes)
 	    && (block->curr_side == info->side)) {
-		mem_heap_t*	heap;
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
+
 	    	rec = btr_cur_get_rec(cursor);
 
 	    	if (!page_rec_is_user_rec(rec)) {
@@ -428,11 +430,13 @@ btr_search_update_hash_ref(
 	    	}
 	    
 		tree_id = ((cursor->index)->tree)->id;
-		heap = mem_heap_create(100);
 		fold = rec_fold(rec, rec_get_offsets(rec, cursor->index,
-				ULINT_UNDEFINED, heap), block->curr_n_fields,
+				offsets_, ULINT_UNDEFINED, &heap),
+				block->curr_n_fields,
 				block->curr_n_bytes, tree_id);
-		mem_heap_free(heap);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -547,8 +551,10 @@ btr_search_check_guess(
 	ulint		match;
 	ulint		bytes;
 	int		cmp;
-	mem_heap_t*	heap	= mem_heap_create(100);
-	ulint*		offsets	= NULL;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
+	ibool		success		= FALSE;
 
 	n_unique = dict_index_get_n_unique_in_tree(cursor->index);
 	
@@ -560,47 +566,43 @@ btr_search_check_guess(
 	match = 0;
 	bytes = 0;
 
-	offsets = rec_get_offsets(rec, cursor->index, n_unique, heap);
+	offsets = rec_get_offsets(rec, cursor->index, offsets,
+						n_unique, &heap);
 	cmp = page_cmp_dtuple_rec_with_match(tuple, rec,
 						offsets, &match, &bytes);
 
 	if (mode == PAGE_CUR_GE) {
 		if (cmp == 1) {
-			mem_heap_free(heap);
-			return(FALSE);
+			goto exit_func;
 		}
 
 		cursor->up_match = match;
 
 		if (match >= n_unique) {
-			mem_heap_free(heap);
-			return(TRUE);
+			success = TRUE;
+			goto exit_func;
 		}	
 	} else if (mode == PAGE_CUR_LE) {
 		if (cmp == -1) {
-			mem_heap_free(heap);
-			return(FALSE);
+			goto exit_func;
 		}
 
 		cursor->low_match = match;
 
 	} else if (mode == PAGE_CUR_G) {
 		if (cmp != -1) {
-			mem_heap_free(heap);
-			return(FALSE);
+			goto exit_func;
 		}
 	} else if (mode == PAGE_CUR_L) {
 		if (cmp != 1) {
-			mem_heap_free(heap);
-			return(FALSE);
+			goto exit_func;
 		}
 	}
 
 	if (can_only_compare_to_cursor_rec) {
 	        /* Since we could not determine if our guess is right just by
 	        looking at the record under the cursor, return FALSE */
-		mem_heap_free(heap);
-	        return(FALSE);
+		goto exit_func;
 	}
 
 	match = 0;
@@ -613,28 +615,21 @@ btr_search_check_guess(
 		prev_rec = page_rec_get_prev(rec);
 
 		if (prev_rec == page_get_infimum_rec(page)) {
-			mem_heap_free(heap);
-	    		return(btr_page_get_prev(page, mtr) == FIL_NULL);
+			success = btr_page_get_prev(page, mtr) == FIL_NULL;
+			goto exit_func;
 		}
 
-		offsets = rec_reget_offsets(prev_rec, cursor->index,
-						offsets, n_unique, heap);
+		offsets = rec_get_offsets(prev_rec, cursor->index, offsets,
+						n_unique, &heap);
 		cmp = page_cmp_dtuple_rec_with_match(tuple, prev_rec,
 					offsets, &match, &bytes);
-		mem_heap_free(heap);
 		if (mode == PAGE_CUR_GE) {
-			if (cmp != 1) {
-
-				return(FALSE);
-			}
+			success = cmp == 1;
 		} else {
-			if (cmp == -1) {
-
-				return(FALSE);
-			}
+			success = cmp != -1;
 		}
 
-		return(TRUE);
+		goto exit_func;
 	}
 		
 	ut_ad(rec != page_get_supremum_rec(page));
@@ -642,39 +637,30 @@ btr_search_check_guess(
 	next_rec = page_rec_get_next(rec);
 
 	if (next_rec == page_get_supremum_rec(page)) {
-		mem_heap_free(heap);
-
     		if (btr_page_get_next(page, mtr) == FIL_NULL) {
 
 			cursor->up_match = 0;
-
-			return(TRUE);
+			success = TRUE;
 		}
 
-		return(FALSE);
+		goto exit_func;
 	}
 
-	offsets = rec_reget_offsets(next_rec, cursor->index,
-						offsets, n_unique, heap);
+	offsets = rec_get_offsets(next_rec, cursor->index, offsets,
+						n_unique, &heap);
 	cmp = page_cmp_dtuple_rec_with_match(tuple, next_rec,
 					offsets, &match, &bytes);
-	mem_heap_free(heap);
-
 	if (mode == PAGE_CUR_LE) {
-		if (cmp != -1) {
-
-			return(FALSE);
-		}
-
+		success = cmp == -1;
 		cursor->up_match = match;
 	} else {
-		if (cmp == 1) {
-
-			return(FALSE);
-		}
+		success = cmp != 1;
 	}
-
-	return(TRUE);
+exit_func:
+	if (heap) {
+		mem_heap_free(heap);
+	}
+	return(success);
 }
 
 /**********************************************************************
@@ -997,14 +983,14 @@ btr_search_drop_page_hash_index(
 	
 	prev_fold = 0;
 
-	heap = mem_heap_create(100);
+	heap = NULL;
 	offsets = NULL;
 
 	while (rec != sup) {
 		/* FIXME: in a mixed tree, not all records may have enough
 		ordering fields: */
-		offsets = rec_reget_offsets(rec, block->index,
-				offsets, n_fields + (n_bytes > 0), heap);
+		offsets = rec_get_offsets(rec, block->index,
+				offsets, n_fields + (n_bytes > 0), &heap);
 		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
 
 		if (fold == prev_fold && prev_fold != 0) {
@@ -1022,7 +1008,9 @@ next_rec:
 		prev_fold = fold;
 	}
 
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	rw_lock_x_lock(&btr_search_latch);
 
@@ -1109,8 +1097,9 @@ btr_search_build_page_hash_index(
 	ulint*		folds;
 	rec_t**		recs;
 	ulint		i;
-	mem_heap_t*	heap;
-	ulint*		offsets;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	ut_ad(index);
 
@@ -1161,7 +1150,6 @@ btr_search_build_page_hash_index(
 
 	folds = mem_alloc(n_recs * sizeof(ulint));
 	recs = mem_alloc(n_recs * sizeof(rec_t*));
-	heap = mem_heap_create(100);
 
 	n_cached = 0;
 
@@ -1172,7 +1160,8 @@ btr_search_build_page_hash_index(
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next(rec);
 
-	offsets = rec_get_offsets(rec, index, n_fields + (n_bytes > 0), heap);
+	offsets = rec_get_offsets(rec, index, offsets,
+					n_fields + (n_bytes > 0), &heap);
 
 	if (rec != sup) {
 		ut_a(n_fields <= rec_offs_n_fields(offsets));
@@ -1208,8 +1197,8 @@ btr_search_build_page_hash_index(
 		 	break;
 		}
 
-		offsets = rec_reget_offsets(next_rec, index,
-				offsets, n_fields + (n_bytes > 0), heap);
+		offsets = rec_get_offsets(next_rec, index, offsets,
+					n_fields + (n_bytes > 0), &heap);
 		next_fold = rec_fold(next_rec, offsets, n_fields,
 						n_bytes, tree_id);
 
@@ -1260,7 +1249,9 @@ exit_func:
 
 	mem_free(folds);
 	mem_free(recs);
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 }
 
 /************************************************************************
@@ -1350,7 +1341,8 @@ btr_search_update_hash_on_delete(
 	ulint		fold;
 	dulint		tree_id;
 	ibool		found;
-	mem_heap_t*	heap;
+	ulint		offsets_[100]	= { 100, };
+	mem_heap_t*	heap		= NULL;
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -1371,11 +1363,12 @@ btr_search_update_hash_on_delete(
 	table = btr_search_sys->hash_index;
 
 	tree_id = cursor->index->tree->id;
-	heap = mem_heap_create(100);
-	fold = rec_fold(rec, rec_get_offsets(rec, cursor->index,
-				ULINT_UNDEFINED, heap), block->curr_n_fields,
+	fold = rec_fold(rec, rec_get_offsets(rec, cursor->index, offsets_,
+				ULINT_UNDEFINED, &heap), block->curr_n_fields,
 				block->curr_n_bytes, tree_id);
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	rw_lock_x_lock(&btr_search_latch);
 
 	found = ha_search_and_delete_if_found(table, fold, rec);
@@ -1457,9 +1450,10 @@ btr_search_update_hash_on_insert(
 	ulint		n_fields;
 	ulint		n_bytes;
 	ulint		side;
-	ibool		locked	= FALSE;
-	mem_heap_t*	heap;
-	ulint*		offsets;
+	ibool		locked		= FALSE;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	table = btr_search_sys->hash_index;
 
@@ -1490,21 +1484,20 @@ btr_search_update_hash_on_insert(
 	next_rec = page_rec_get_next(ins_rec);
 
 	page = buf_frame_align(rec);
-	heap = mem_heap_create(100);
-	offsets = rec_get_offsets(ins_rec, cursor->index,
-					ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(ins_rec, cursor->index, offsets,
+					ULINT_UNDEFINED, &heap);
 	ins_fold = rec_fold(ins_rec, offsets, n_fields, n_bytes, tree_id);
 
 	if (next_rec != page_get_supremum_rec(page)) {
-		offsets = rec_reget_offsets(next_rec, cursor->index,
-				offsets, n_fields + (n_bytes > 0), heap);
+		offsets = rec_get_offsets(next_rec, cursor->index, offsets,
+					n_fields + (n_bytes > 0), &heap);
 		next_fold = rec_fold(next_rec, offsets, n_fields,
 							n_bytes, tree_id);
 	}
 
 	if (rec != page_get_infimum_rec(page)) {
-		offsets = rec_reget_offsets(rec, cursor->index,
-				offsets, n_fields + (n_bytes > 0), heap);
+		offsets = rec_get_offsets(rec, cursor->index, offsets,
+					n_fields + (n_bytes > 0), &heap);
 		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
 	} else {
 		if (side == BTR_SEARCH_LEFT_SIDE) {
@@ -1575,7 +1568,9 @@ check_next_rec:
 	}	
 		
 function_exit:
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	if (locked) {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
@@ -1595,8 +1590,9 @@ btr_search_validate(void)
 	ulint		n_page_dumps	= 0;
 	ibool		ok		= TRUE;
 	ulint		i;
-	mem_heap_t*	heap		= mem_heap_create(100);
-	ulint*		offsets		= NULL;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 	
 	rw_lock_x_lock(&btr_search_latch);
 
@@ -1606,10 +1602,10 @@ btr_search_validate(void)
 		while (node != NULL) {
 			block = buf_block_align(node->data);
 			page = buf_frame_align(node->data);
-			offsets = rec_reget_offsets((rec_t*) node->data,
+			offsets = rec_get_offsets((rec_t*) node->data,
 					block->index, offsets,
 					block->curr_n_fields
-					+ (block->curr_n_bytes > 0), heap);
+					+ (block->curr_n_bytes > 0), &heap);
 
 			if (!block->is_hashed
 			    || node->fold != rec_fold((rec_t*)(node->data),
@@ -1635,7 +1631,8 @@ btr_search_validate(void)
 					  		  btr_page_get_index_id(page)));
 
 				fputs("InnoDB: Record ", stderr);
-				rec_print(stderr, (rec_t*)node->data, offsets);
+				rec_print_new(stderr, (rec_t*)node->data,
+						offsets);
 				fprintf(stderr, "\nInnoDB: on that page."
 "Page mem address %p, is hashed %lu, n fields %lu, n bytes %lu\n"
 "side %lu\n",
@@ -1659,7 +1656,9 @@ btr_search_validate(void)
 	}
 
 	rw_lock_x_unlock(&btr_search_latch);
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	return(ok);
 }

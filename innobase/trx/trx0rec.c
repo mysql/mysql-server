@@ -1010,8 +1010,9 @@ trx_undo_report_row_operation(
 	ibool		is_insert;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
-	mem_heap_t*	heap;
-	ulint*		offsets		= NULL;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	ut_a(index->type & DICT_CLUSTERED);
 
@@ -1066,8 +1067,6 @@ trx_undo_report_row_operation(
 	
 	mtr_start(&mtr);
 
-	heap = mem_heap_create(100);
-
 	for (;;) {
 		undo_page = buf_page_get_gen(undo->space, page_no,
 						RW_X_LATCH, undo->guess_page,
@@ -1084,8 +1083,8 @@ trx_undo_report_row_operation(
 							index, clust_entry,
 							&mtr);
 		} else {
-			offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+			offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 			offset = trx_undo_page_report_modify(undo_page, trx,
 				index, rec, offsets, update, cmpl_info, &mtr);
 		}
@@ -1129,7 +1128,9 @@ trx_undo_report_row_operation(
 
 			mutex_exit(&(trx->undo_mutex));
 			mtr_commit(&mtr);
-			mem_heap_free(heap);
+			if (heap) {
+				mem_heap_free(heap);
+			}
 			return(DB_OUT_OF_FILE_SPACE);
 		}
 	}
@@ -1146,7 +1147,9 @@ trx_undo_report_row_operation(
 
 	*roll_ptr = trx_undo_build_roll_ptr(is_insert, rseg->id, page_no,
 								offset);
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(DB_SUCCESS);
 }
 
@@ -1266,7 +1269,6 @@ trx_undo_prev_version_build(
 	ibool		dummy_extern;
 	byte*		buf;
 	ulint		err;
-	ulint*		index_offsets	= NULL;
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1282,12 +1284,10 @@ trx_undo_prev_version_build(
 			"InnoDB: Submit a detailed bug report to"
 			" http://bugs.mysql.com\n"
 			"InnoDB: index record ", index->name);
-		index_offsets = rec_get_offsets(index_rec, index,
-						ULINT_UNDEFINED, heap);
-		rec_print(stderr, index_rec, index_offsets);
+		rec_print(stderr, index_rec, index);
 		fputs("\n"
 			"InnoDB: record version ", stderr);
-		rec_print(stderr, rec, offsets);
+		rec_print_new(stderr, rec, offsets);
 		putc('\n', stderr);
    		return(DB_ERROR);
    	}	
@@ -1353,12 +1353,10 @@ trx_undo_prev_version_build(
 		ut_print_buf(stderr, undo_rec, 150);
 		fputs("\n"
 			"InnoDB: index record ", stderr);
-		index_offsets = rec_get_offsets(index_rec, index,
-						ULINT_UNDEFINED, heap);
-		rec_print(stderr, index_rec, index_offsets);
+		rec_print(stderr, index_rec, index);
 		fputs("\n"
 			"InnoDB: record version ", stderr);
-		rec_print(stderr, rec, offsets);
+		rec_print_new(stderr, rec, offsets);
 		fprintf(stderr, "\n"
 	"InnoDB: Record trx id %lu %lu, update rec trx id %lu %lu\n"
 	"InnoDB: Roll ptr in rec %lu %lu, in update rec %lu %lu\n",
