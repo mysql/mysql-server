@@ -40137,7 +40137,7 @@ database type. For MySQL, this driver is called
 For more information on the Perl5 DBI, please visit the @code{DBI} web
 page and read the documentation:
 @example
-@uref{http://www.symbolstone.org/technology/perl/DBI/}
+@uref{http://dbi.perl.org/}
 @end example
 For more information on Object Oriented Programming
 (OOP) as defined in Perl5, see the Perl OOP page:
