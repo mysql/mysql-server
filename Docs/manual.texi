@@ -15172,7 +15172,8 @@ mysql> select BIT_COUNT(29);
 @node Logical functions, Comparison functions, Bit functions, Functions
 @subsection Logical Operations
 
-All logical functions return @code{1} (TRUE) or @code{0} (FALSE):
+All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
+@code{NULL} (unknown, which is in most cases the same as FALSE):
 
 @table @code
 @findex NOT, logical
@@ -18416,7 +18417,7 @@ swap two tables names, you have to:
 @example
 RENAME TABLE old_table    TO backup_table,
              new_table    TO old_table,
-             backup_table TO old_table;
+             backup_table TO new_table;
 @end example
 
 As long as two databases are on the same disk you can also rename
@@ -24566,7 +24567,8 @@ mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
 +-----------+---------------+
 @end example
 
-In @strong{MySQL}, 0 means false and 1 means true.
+In @strong{MySQL}, 0 or @code{NULL} means false and anything else means true.
+The default trueth value from a boolean operation is 1.
 
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
@@ -40639,6 +40641,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Allow @code{SELECT expression LIMIT ...}.
+@item
+Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like SyBase).
+@item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
 Added @code{SELECT .. WITH UPDATE} and @code{SELECT ... IN SHARE MODE} to
@@ -45638,6 +45644,9 @@ New key cache
 When using @code{SET CHARACTER SET} we should translate the whole query
 at once and not only strings. This will enable users to use the translated
 characters in database, table and column names.
+@item
+Add a portable interface over @code{gethostbyaddr_r()} so that we can change
+@code{ip_to_hostname()} to not block other threads while doing DNS lookups.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
