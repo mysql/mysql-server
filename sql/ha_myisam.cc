@@ -236,10 +236,12 @@ int ha_myisam::write_row(byte * buf)
 int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
-  int error ;
+  int error;
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
+  const char *old_proc_info=thd->proc_info;
 
+  thd->proc_info="Checking table";
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*)"check";
@@ -306,6 +308,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   }
   check_opt->retry_without_quick=param.retry_without_quick;
 
+  thd->proc_info=old_proc_info;
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 

@@ -18,6 +18,7 @@
 #define USES_TYPES
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include <my_dir.h>
 #include <errno.h>
 #if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
 #include <share.h>
@@ -36,9 +37,11 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 		   FileName, Flags, MyFlags));
 #if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
   if (Flags & O_SHARE)
-    fd = sopen((my_string) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO);
+    fd = sopen((my_string) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
+	       MY_S_IREAD | MY_S_IWRITE);
   else
-    fd = open((my_string) FileName, Flags | O_BINARY);
+    fd = open((my_string) FileName, Flags | O_BINARY,
+	      MY_S_IREAD | MY_S_IWRITE);
 #elif !defined(NO_OPEN_3)
   fd = open(FileName, Flags, my_umask);	/* Normal unix */
 #else

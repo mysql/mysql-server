@@ -1,18 +1,13 @@
-/* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
-   This file is public domain and comes with NO WARRANTY of any kind */
-
-/* Modifikoval Petr -B¹najdr, snajdr@pvt.net, snajdr@cpress.cz v.0.01 -A
-      ISO LATIN-8852-2
-   Upravil Jan Pazdziora, adelton@fi.muni.cz
-      Tue Nov 18 17:53:55 MET 1997 verze 0.02
-   Roz-B¹íøeno podle 3.21.15c Jan Pazdziora, adelton@fi.muni.cz-A
-      Tue Dec  2 19:08:54 MET 1997 verze 0.03
-   Roz-B¹íøeno podle 3.21.29 Jan Pazdziora, adelton@fi.muni.cz-A
-      Thu May  7 17:40:49 MET DST 1998 verze 0.04
-   Podle verze 3.22.20 upravil Jan Pazdziora, adelton@fi.muni.cz
-      Thu Apr  1 20:49:57 CEST 1999
-   Podle verze 3.23.2 upravil Jan Pazdziora, adelton@fi.muni.cz
-      Mon Aug  9 13:30:09 MET DST 1999
+/*
+   Modifikoval Petr -B©najdr, snajdr@pvt.net, snajdr@cpress.cz v.0.01 -A
+	ISO LATIN-8852-2
+   Dal-B¹í verze Jan Pazdziora, adelton@fi.muni.cz-A
+	Tue Nov 18 17:53:55 MET 1997
+	Tue Dec  2 19:08:54 MET 1997		podle 3.21.15c
+	Thu May  7 17:40:49 MET DST 1998	podle 3.21.29
+	Thu Apr  1 20:49:57 CEST 1999		podle 3.22.20
+	Mon Aug  9 13:30:09 MET DST 1999	podle 3.23.2
+	Thu Nov 30 14:02:52 MET 2000		podle 3.23.28
 */
 
 "hashchk",
@@ -207,8 +202,8 @@
 "S-Bí»ová chyba pøi ètení z masteru",-A
 "S-Bí»ová chyba pøi zápisu na master",-A
 "-B®ádný sloupec nemá vytvoøen fulltextový index",-A
-"Can't execute the given command because you have active locked tables or an active transaction",
-"Unknown system variable '%-.64'",
-"Table '%-.64s' is marked as crashed and should be repaired",
-"Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
+"Nemohu prov-Bést zadaný pøíkaz, proto¾e existují aktivní zamèené tabulky nebo aktivní transakce",-A
+"Nezn-Bámá systémová promìnná '%-.64'",-A
+"Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a mìla by být opravena",-A
+"Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a poslední (automatická?) oprava se nezdaøila",-A
 "Warning:  Some non-transactional changed tables couldn't be rolled back",
