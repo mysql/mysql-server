@@ -333,14 +333,14 @@ rec_get_offsets_func(
 		n = n_fields;
 	}
 
-	size = (n + (1 + REC_OFFS_HEADER_SIZE)) * sizeof(ulint);
+	size = n + (1 + REC_OFFS_HEADER_SIZE);
 
 	if (!offsets || rec_offs_get_n_alloc(offsets) < size) {
 		if (!*heap) {
-			*heap = mem_heap_create_func(size,
+			*heap = mem_heap_create_func(size * sizeof(ulint),
 				NULL, MEM_HEAP_DYNAMIC, file, line);
 		}
-		offsets = mem_heap_alloc(*heap, size);
+		offsets = mem_heap_alloc(*heap, size * sizeof(ulint));
 		rec_offs_set_n_alloc(offsets, size);
 	}
 
