@@ -14,209 +14,242 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// 
-//  ndbapi_example1.cpp: Using synchronous transactions in NDB API
-//
-//  Correct output from this program is:
-//
-//  ATTR1 ATTR2
-//    0    10
-//    1     1
-//    2    12
-//  Detected that deleted tuple doesn't exist!
-//    4    14
-//    5     5
-//    6    16
-//    7     7
-//    8    18
-//    9     9
+/* 
+ *  ndbapi_example1.cpp: Using synchronous transactions in NDB API
+ *
+ *  Correct output from this program is:
+ *
+ *  ATTR1 ATTR2
+ *    0    10
+ *    1     1
+ *    2    12
+ *  Detected that deleted tuple doesn't exist!
+ *    4    14
+ *    5     5
+ *    6    16
+ *    7     7
+ *    8    18
+ *    9     9
+ *
+ */
 
+#include <mysql.h>
 #include <NdbApi.hpp>
-
 // Used for cout
 #include <stdio.h>
 #include <iostream>
 
-#define APIERROR(error) \
-  { std::cout << "Error in " << __FILE__ << ", line:" << __LINE__ << ", code:" \
-              << error.code << ", msg: " << error.message << "." << std::endl; \
-    exit(-1); }
+static void run_application(MYSQL &, Ndb_cluster_connection &);
+
+#define PRINT_ERROR(code,msg) \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code \
+            << ", msg: " << msg << "." << std::endl
+#define MYSQLERROR(mysql) { \
+  PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
+  exit(-1); }
+#define APIERROR(error) { \
+  PRINT_ERROR(error.code,error.message); \
+  exit(-1); }
 
 int main()
 {
+  // ndb_init must be called first
   ndb_init();
 
-  Ndb_cluster_connection *cluster_connection=
-    new Ndb_cluster_connection(); // Object representing the cluster
-
-  int r= cluster_connection->connect(5 /* retries               */,
-				     3 /* delay between retries */,
-				     1 /* verbose               */);
-  if (r > 0)
+  // connect to mysql server and cluster and run application
   {
-    std::cout
-      << "Cluster connect failed, possibly resolved with more retries.\n";
-    exit(-1);
-  }
-  else if (r < 0)
-  {
-    std::cout
-      << "Cluster connect failed.\n";
-    exit(-1);
-  }
-					   
+    // Object representing the cluster
+    Ndb_cluster_connection cluster_connection;
 
-  if (cluster_connection->wait_until_ready(30,30))
-  {
-    std::cout << "Cluster was not ready within 30 secs." << std::endl;
-    exit(-1);
-  }
+    // Connect to cluster management server (ndb_mgmd)
+    if (cluster_connection.connect(4 /* retries               */,
+				   5 /* delay between retries */,
+				   1 /* verbose               */))
+    {
+      std::cout << "Cluster management server was not ready within 30 secs.\n";
+      exit(-1);
+    }
 
-  Ndb* myNdb = new Ndb( cluster_connection,
-			"TEST_DB_1" );  // Object representing the database
-  NdbDictionary::Table myTable;
-  NdbDictionary::Column myColumn;
+    // Optionally connect and wait for the storage nodes (ndbd's)
+    if (cluster_connection.wait_until_ready(30,30))
+    {
+      std::cout << "Cluster was not ready within 30 secs.\n";
+      exit(-1);
+    }
 
-  NdbConnection	 *myConnection;         // For other transactions
-  NdbOperation	 *myOperation;          // For other operations
-  NdbRecAttr     *myRecAttr;            // Result of reading attribute value
-  
-  /********************************************
-   * Initialize NDB and wait until it's ready *
-   ********************************************/
-  if (myNdb->init()) { 
-    APIERROR(myNdb->getNdbError());
-    exit(-1);
-  }
-
-  NdbDictionary::Dictionary* myDict = myNdb->getDictionary();
-  
-  /*********************************************************
-   * Create a table named MYTABLENAME if it does not exist *
-   *********************************************************/
-  if (myDict->getTable("MYTABLENAME") != NULL) {
-    std::cout << "NDB already has example table: MYTABLENAME." << std::endl; 
-    exit(-1);
-  } 
-
-  myTable.setName("MYTABLENAME");
-  
-  myColumn.setName("ATTR1");
-  myColumn.setType(NdbDictionary::Column::Unsigned);
-  myColumn.setLength(1);
-  myColumn.setPrimaryKey(true);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-  myColumn.setName("ATTR2");
-  myColumn.setType(NdbDictionary::Column::Unsigned);
-  myColumn.setLength(1);
-  myColumn.setPrimaryKey(false);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-  if (myDict->createTable(myTable) == -1) 
-      APIERROR(myDict->getNdbError());
-
-  /**************************************************************************
-   * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *
-   **************************************************************************/
-  for (int i = 0; i < 5; i++) {
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+    // connect to mysql server
+    MYSQL mysql;
+    if ( !mysql_init(&mysql) ) {
+      std::cout << "mysql_init failed\n";
+      exit(-1);
+    }
+    if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
+			     3306, "/tmp/mysql.sock", 0) )
+      MYSQLERROR(mysql);
     
-    myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myConnection->getNdbError());
+    // run the application code
+    run_application(mysql, cluster_connection);
+  }
+
+  // ndb_end should not be called until all "Ndb" objects are deleted
+  ndb_end(0);
+
+  std::cout << "\nTo drop created table use:\n"
+	    << "echo \"drop table MYTABLENAME\" | mysql TEST_DB_1 -u root\n";
+
+  return 0;
+}
+
+static void create_table(MYSQL &);
+static void do_insert(Ndb &);
+static void do_update(Ndb &);
+static void do_delete(Ndb &);
+static void do_read(Ndb &);
+
+static void run_application(MYSQL &mysql,
+			    Ndb_cluster_connection &cluster_connection)
+{
+  /********************************************
+   * Connect to database via mysql-c          *
+   ********************************************/
+  mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
+  if (mysql_query(&mysql, "USE TEST_DB_1") != 0) MYSQLERROR(mysql);
+  create_table(mysql);
+
+  /********************************************
+   * Connect to database via NdbApi           *
+   ********************************************/
+  // Object representing the database
+  Ndb myNdb( &cluster_connection, "TEST_DB_1" );
+  if (myNdb.init()) APIERROR(myNdb.getNdbError());
+
+  /*
+   * Do different operations on database
+   */
+  do_insert(myNdb);
+  do_update(myNdb);
+  do_delete(myNdb);
+  do_read(myNdb);
+}
+
+/*********************************************************
+ * Create a table named MYTABLENAME if it does not exist *
+ *********************************************************/
+static void create_table(MYSQL &mysql)
+{
+  if (mysql_query(&mysql, 
+		  "CREATE TABLE"
+		  "  MYTABLENAME"
+		  "    (ATTR1 INT UNSIGNED PRIMARY KEY,"
+		  "     ATTR2 INT UNSIGNED)"
+		  "  ENGINE=NDB"))
+    MYSQLERROR(mysql);
+}
+
+/**************************************************************************
+ * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *
+ **************************************************************************/
+static void do_insert(Ndb &myNdb)
+{
+  for (int i = 0; i < 5; i++) {
+    NdbTransaction *myTransaction= myNdb.startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+    
+    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->insertTuple();
     myOperation->equal("ATTR1", i);
     myOperation->setValue("ATTR2", i);
 
-    myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myConnection->getNdbError());
+    myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
 
     myOperation->insertTuple();
     myOperation->equal("ATTR1", i+5);
     myOperation->setValue("ATTR2", i+5);
     
-    if (myConnection->execute( Commit ) == -1)
-      APIERROR(myConnection->getNdbError());
+    if (myTransaction->execute( Commit ) == -1)
+      APIERROR(myTransaction->getNdbError());
     
-    myNdb->closeTransaction(myConnection);
+    myNdb.closeTransaction(myTransaction);
   }
-  
-  /*****************************************************************
-   * Update the second attribute in half of the tuples (adding 10) *
-   *****************************************************************/
+}
+ 
+/*****************************************************************
+ * Update the second attribute in half of the tuples (adding 10) *
+ *****************************************************************/
+static void do_update(Ndb &myNdb)
+{
   for (int i = 0; i < 10; i+=2) {
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+    NdbTransaction *myTransaction= myNdb.startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
     
-    myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myConnection->getNdbError());
+    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->updateTuple();
     myOperation->equal( "ATTR1", i );
     myOperation->setValue( "ATTR2", i+10);
     
-    if( myConnection->execute( Commit ) == -1 ) 
-      APIERROR(myConnection->getNdbError());
+    if( myTransaction->execute( Commit ) == -1 ) 
+      APIERROR(myTransaction->getNdbError());
     
-    myNdb->closeTransaction(myConnection);
+    myNdb.closeTransaction(myTransaction);
   }
+}
   
-  /*************************************************
-   * Delete one tuple (the one with primary key 3) *
-   *************************************************/
-  myConnection = myNdb->startTransaction();
-  if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+/*************************************************
+ * Delete one tuple (the one with primary key 3) *
+ *************************************************/
+static void do_delete(Ndb &myNdb)
+{
+  NdbTransaction *myTransaction= myNdb.startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
   
-  myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-  if (myOperation == NULL) 
-    APIERROR(myConnection->getNdbError());
+  NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+  if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
   
   myOperation->deleteTuple();
   myOperation->equal( "ATTR1", 3 );
   
-  if (myConnection->execute(Commit) == -1) 
-    APIERROR(myConnection->getNdbError());
+  if (myTransaction->execute(Commit) == -1) 
+    APIERROR(myTransaction->getNdbError());
   
-  myNdb->closeTransaction(myConnection);
-  
-  /*****************************
-   * Read and print all tuples *
-   *****************************/
+  myNdb.closeTransaction(myTransaction);
+}
+
+/*****************************
+ * Read and print all tuples *
+ *****************************/
+static void do_read(Ndb &myNdb)
+{
   std::cout << "ATTR1 ATTR2" << std::endl;
   
   for (int i = 0; i < 10; i++) {
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+    NdbTransaction *myTransaction= myNdb.startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
     
-    myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myConnection->getNdbError());
+    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->readTuple();
     myOperation->equal("ATTR1", i);
+
+    NdbRecAttr *myRecAttr= myOperation->getValue("ATTR2", NULL);
+    if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
-    myRecAttr = myOperation->getValue("ATTR2", NULL);
-    if (myRecAttr == NULL) APIERROR(myConnection->getNdbError());
-    
-    if(myConnection->execute( Commit ) == -1)
+    if(myTransaction->execute( Commit ) == -1)
       if (i == 3) {
 	std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
       } else {
-	APIERROR(myConnection->getNdbError());
+	APIERROR(myTransaction->getNdbError());
       }
     
     if (i != 3) {
       printf(" %2d    %2d\n", i, myRecAttr->u_32_value());
     }
-    myNdb->closeTransaction(myConnection);
+    myNdb.closeTransaction(myTransaction);
   }
-
-  delete myNdb;
-  delete cluster_connection;
-
-  ndb_end(0);
-  return 0;
 }
