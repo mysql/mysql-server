@@ -38,7 +38,8 @@ typedef struct st_ft_docstat {
   byte *keybuf;
 } FT_DOCSTAT;
 
-static int FT_WORD_cmp(FT_WORD *w1, FT_WORD *w2)
+static int FT_WORD_cmp(void* cmp_arg __attribute__((unused)),
+		       FT_WORD *w1, FT_WORD *w2)
 {
   return _mi_compare_text(default_charset_info,
 			  (uchar*) w1->pos,w1->len,
@@ -225,7 +226,7 @@ TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
 
   if (!is_tree_inited(wtree))
   {
-    init_tree(wtree,0,sizeof(FT_WORD),(qsort_cmp)&FT_WORD_cmp,0,NULL);
+    init_tree(wtree,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL);
   }
 
   while (ft_simple_get_word(&doc,end,&w))

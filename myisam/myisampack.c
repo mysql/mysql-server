@@ -124,7 +124,8 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
 					   uint trees,
 					   HUFF_COUNTS *huff_counts,
 					   uint fields);
-static int compare_tree(const uchar *s,const uchar *t);
+static int compare_tree(void* cmp_arg __attribute__((unused)),
+			const uchar *s,const uchar *t);
 static int get_statistic(MRG_INFO *mrg,HUFF_COUNTS *huff_counts);
 static void check_counts(HUFF_COUNTS *huff_counts,uint trees,
 			 my_off_t records);
@@ -673,7 +674,7 @@ static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records)
 	  (type == FIELD_NORMAL ||
 	   type == FIELD_SKIPP_ZERO))
 	count[i].max_zero_fill= count[i].field_length;
-      init_tree(&count[i].int_tree,0,-1,(qsort_cmp) compare_tree,0,NULL);
+      init_tree(&count[i].int_tree,0,-1,(qsort_cmp2) compare_tree,0,NULL);
       if (records && type != FIELD_BLOB && type != FIELD_VARCHAR)
 	count[i].tree_pos=count[i].tree_buff =
 	  my_malloc(count[i].field_length > 1 ? tree_buff_length : 2,
@@ -1289,7 +1290,8 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   return 0;
 }
 
-static int compare_tree(register const uchar *s, register const uchar *t)
+static int compare_tree(void* cmp_arg __attribute__((unused)),
+			register const uchar *s, register const uchar *t)
 {
   uint length;
   for (length=global_count->field_length; length-- ;)

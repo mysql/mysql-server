@@ -349,6 +349,7 @@ typedef int	pshort;		/* Mixed prototypes can't take short int */
 typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
 typedef int	(*qsort_cmp)(const void *,const void *);
+typedef int	(*qsort_cmp2)(void*, const void *,const void *);
 #ifdef HAVE_mit_thread
 #define qsort_t void
 #undef QSORT_TYPE_IS_VOID

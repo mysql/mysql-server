@@ -63,7 +63,7 @@ static void rb_delete_fixup(TREE *tree,TREE_ELEMENT ***parent);
 	/* The actuall code for handling binary trees */
 
 void init_tree(TREE *tree, uint default_alloc_size, int size,
-	       qsort_cmp compare, my_bool with_delete,
+	       qsort_cmp2 compare, my_bool with_delete,
 	       void (*free_element) (void *))
 {
   DBUG_ENTER("init_tree");
@@ -77,6 +77,7 @@ void init_tree(TREE *tree, uint default_alloc_size, int size,
   tree->size_of_element=size > 0 ? (uint) size : 0;
   tree->free=free_element;
   tree->elements_in_tree=0;
+  tree->cmp_arg = 0;
   tree->null_element.colour=BLACK;
   tree->null_element.left=tree->null_element.right=0;
   if (!free_element && size >= 0 &&
@@ -152,7 +153,8 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
   for (;;)
   {
     if (element == &tree->null_element ||
-	(cmp=(*tree->compare)(ELEMENT_KEY(tree,element),key)) == 0)
+	(cmp=(*tree->compare)(tree->cmp_arg,
+			      ELEMENT_KEY(tree,element),key)) == 0)
       break;
     if (cmp < 0)
     {
@@ -212,7 +214,8 @@ int tree_delete(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return 1;				/* Was not in tree */
-    if ((cmp=(*tree->compare)(ELEMENT_KEY(tree,element),key)) == 0)
+    if ((cmp=(*tree->compare)(tree->cmp_arg,
+			      ELEMENT_KEY(tree,element),key)) == 0)
       break;
     if (cmp < 0)
     {
@@ -266,7 +269,8 @@ void *tree_search(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return (void*) 0;
-    if ((cmp=(*tree->compare)(ELEMENT_KEY(tree,element),key)) == 0)
+    if ((cmp=(*tree->compare)(tree->cmp_arg,
+			      ELEMENT_KEY(tree,element),key)) == 0)
       return ELEMENT_KEY(tree,element);
     if (cmp < 0)
       element=element->right;
