@@ -45,6 +45,13 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#else
+
+#include <stdio.h>
+#define uchar unsigned char
+
+#endif
+
 #ifdef HAVE_CHARSET_cp1250
 
 
@@ -253,12 +260,6 @@ static uchar NEAR to_upper_win1250ch[] = {
 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xff
 };
 
-#else
-
-#include <stdio.h>
-#define uchar unsigned char
-
-#endif
 
 
 static uchar NEAR sort_order_win1250ch[] = {
