@@ -91,7 +91,11 @@ private:
 	   ; \
   }
 
-#define ERR(error) ERR_OUT(g_err, error)
+#define ERR(error) \
+{ \
+  const NdbError &_error= (error); \
+  ERR_OUT(g_err, _error); \
+}
 #define ERR_INFO(error) ERR_OUT(g_info, error)
 
 #endif

@@ -592,11 +592,11 @@ public:
   
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
-  Uint32 err;
   union { // Haven't decide what to call it
     Uint32 senderData;
     Uint32 subscriberData;
   };
+  Uint32 err;
 };
 
 class SumaStartMe {

@@ -1300,3 +1300,152 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
     return 0;
   }
 }
+
+#include <HugoOperations.hpp>
+
+int 
+UtilTransactions::compare(Ndb* pNdb, const char* tab_name2, int flags){
+
+
+  NdbError err;
+  int return_code= -1, row_count= 0;
+  int retryAttempt = 0, retryMax = 10;
+
+  HugoCalculator calc(tab);
+  NDBT_ResultRow row(tab);
+  NdbTransaction* pTrans= 0;
+  const NdbDictionary::Table* tmp= pNdb->getDictionary()->getTable(tab_name2);
+  if(tmp == 0)
+  {
+    g_err << "Unable to lookup table: " << tab_name2
+	  << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return -1;
+  }
+  const NdbDictionary::Table& tab2= *tmp;
+
+  HugoOperations cmp(tab2);
+  UtilTransactions count(tab2);
+
+  while (true){
+    
+    if (retryAttempt++ >= retryMax){
+      g_info << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!" << endl;
+      return -1;
+    }
+
+    NdbScanOperation *pOp= 0;
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL) {
+      err = pNdb->getNdbError();
+      goto error;
+    }
+
+    pOp= pTrans->getNdbScanOperation(tab.getName());	
+    if (pOp == NULL) {
+      ERR(err= pTrans->getNdbError());
+      goto error;
+    }
+
+    if( pOp->readTuples(NdbScanOperation::LM_Read) ) {
+      ERR(err= pTrans->getNdbError());
+      goto error;
+    }
+
+    if( pOp->interpret_exit_ok() == -1 ) {
+      ERR(err= pTrans->getNdbError());
+      goto error;
+    }  
+
+    // Read all attributes
+    {
+      for (int a = 0; a < tab.getNoOfColumns(); a++){
+	if ((row.attributeStore(a) = 
+	     pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	  ERR(err= pTrans->getNdbError());
+	  goto error;
+	}
+      }
+    }
+    
+    if( pTrans->execute(NoCommit) == -1 ) {
+      ERR(err= pTrans->getNdbError());
+      goto error;
+    }
+  
+    {
+      int eof;
+      while((eof = pOp->nextResult(true)) == 0)
+      {
+	do {
+	  row_count++;
+	  if(cmp.startTransaction(pNdb) != NDBT_OK)
+	  {
+	    ERR(err= pNdb->getNdbError());
+	    goto error;
+	  }
+	  int rowNo= calc.getIdValue(&row);
+	  if(cmp.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK)
+	  {
+	    ERR(err= cmp.getTransaction()->getNdbError());
+	    goto error;
+	  }
+	  if(cmp.execute_Commit(pNdb) != NDBT_OK)
+	  {
+	    ERR(err= cmp.getTransaction()->getNdbError());
+	    goto error;
+	  }
+	  if(row != cmp.get_row(0))
+	  {
+	    g_err << "COMPARE FAILED" << endl;
+	    g_err << row << endl;
+	    g_err << cmp.get_row(0) << endl;
+	    return_code= 1;
+	    goto close;
+	  }
+	  retryAttempt= 0;
+	  cmp.closeTransaction(pNdb);
+	} while((eof = pOp->nextResult(false)) == 0);
+      }
+      if (eof == -1) 
+      {
+	err = pTrans->getNdbError();
+	goto error;
+      }
+    }
+    
+    pTrans->close(); pTrans= 0;
+    
+    g_info << row_count << " rows compared" << endl;
+    {
+      int row_count2;
+      if(count.selectCount(pNdb, 0, &row_count2) != NDBT_OK)
+      {
+	g_err << "Failed to count rows in tab_name2" << endl;
+	return -1;
+      }
+      
+      g_info << row_count2 << " rows in tab_name2" << endl;
+      return (row_count == row_count2 ? 0 : 1);
+    }
+error:
+    if(err.status == NdbError::TemporaryError)
+    {
+      NdbSleep_MilliSleep(50);
+      if(pTrans != 0)
+      {
+	pTrans->close();
+	pTrans= 0;
+      }
+      if(cmp.getTransaction())
+	cmp.closeTransaction(pNdb);
+      continue; 
+    }
+    break;
+  }
+
+close:
+  if(pTrans != 0) pTrans->close();
+  
+  return return_code;
+}

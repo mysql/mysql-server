@@ -14,11 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "NDBT_Test.hpp"
-#include "NDBT_ReturnCodes.h"
-#include "HugoTransactions.hpp"
-#include "UtilTransactions.hpp"
-#include "TestNdbEventOperation.hpp"
+#include <NDBT_Test.hpp>
+#include <NDBT_ReturnCodes.h>
+#include <HugoTransactions.hpp>
+#include <UtilTransactions.hpp>
+#include <TestNdbEventOperation.hpp>
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
@@ -206,15 +206,10 @@ int runVerify(NDBT_Context* ctx, NDBT_Step* step)
   char buf[1024];
 
   sprintf(buf, "%s_SHADOW", table->getName());
-  const NdbDictionary::Table * table_shadow;
-  if ((table_shadow = GETNDB(step)->getDictionary()->getTable(buf)) == 0)
-  {
-    g_err << "Unable to get table " << buf << endl;
-    return NDBT_FAILED;
-  }
 
-  HugoTransactions hugoTrans(*table_shadow);
-  if (hugoTrans.pkReadRecords(GETNDB(step), records) != 0){
+  HugoTransactions hugoTrans(*table);
+  if (hugoTrans.compare(GETNDB(step), buf, 0))
+  {
     return NDBT_FAILED;
   }
 
@@ -268,7 +263,10 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     //printf("now waiting for event...\n");
     res= GETNDB(step)->pollEvents(1000); // wait for event or 1000 ms
     if (res <= 0)
+    {
+      ndbout_c("********************");
       continue;
+    }
 
     //printf("got data! %d\n", r);
     int overrun= 0;
@@ -337,12 +335,36 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	    DBUG_RETURN(NDBT_FAILED);
 	  }
 	  break;
-	case NdbDictionary::Event::TE_ALL:
+	default:
 	  abort();
 	}
 
 	for (i= 0; i < n_columns; i++)
 	{
+	  if (recAttr[i]->isNULL())
+	  {
+	    if (table->getColumn(i)->getPrimaryKey())
+	    {
+	      g_err << "internal error: primary key isNull()="
+		    << recAttr[i]->isNULL() << endl;
+	      DBUG_RETURN(NDBT_FAILED);
+	    }
+	    switch (pOp->getEventType()) {
+	    case NdbDictionary::Event::TE_INSERT:
+	      if (recAttr[i]->isNULL() < 0)
+	      {
+		g_err << "internal error: missing value for insert\n";
+		DBUG_RETURN(NDBT_FAILED);
+	      }
+	      break;
+	    case NdbDictionary::Event::TE_DELETE:
+	      break;
+	    case NdbDictionary::Event::TE_UPDATE:
+	      break;
+	    default:
+	      abort();
+	    }
+	  }
 	  if (table->getColumn(i)->getPrimaryKey() &&
 	      op->equal(i,recAttr[i]->aRef()))
 	  {
@@ -358,7 +380,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	  for (i= 0; i < n_columns; i++)
 	  {
 	    if (!table->getColumn(i)->getPrimaryKey() &&
-		op->setValue(i,recAttr[i]->aRef()))
+		op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
 	    {
 	      g_err << "setValue(insert) " << i << " "
 		    << op->getNdbError().code << " "
@@ -374,7 +396,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	  {
 	    if (!table->getColumn(i)->getPrimaryKey() &&
 		recAttr[i]->isNULL() >= 0 &&
-		op->setValue(i,recAttr[i]->aRef()))
+		op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
 	    {
 	      g_err << "setValue(update) " << i << " "
 		    << op->getNdbError().code << " "
