@@ -2779,4 +2779,14 @@ a
 3.2000
 drop procedure bug8937|
 delete from t1|
+drop procedure if exists bug9566|
+create procedure bug9566()
+begin
+select * from t1;
+end|
+lock table t1 read|
+call bug9566()|
+ERROR HY000: Table 'proc' was not locked with LOCK TABLES
+unlock tables|
+drop procedure bug9566|
 drop table t1,t2;
