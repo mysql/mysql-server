@@ -38,7 +38,10 @@ drop table t1;
 
 #
 # Bug #5497: a problem with large strings
+# note that when LOW_MEMORY is set the "test" below is meaningless
 #
 
 set @@max_allowed_packet=1048576*100;
-select compress(repeat('aaaaaaaaaa', 10000000)) is null;
+--replace_result "''" XXX "'1'" XXX
+eval select compress(repeat('aaaaaaaaaa', IF('$LOW_MEMORY', 10, 10000000))) is null;
+

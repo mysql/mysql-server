@@ -74,9 +74,9 @@ safe_query("revoke select(user) on mysql.user from $user");
 
 safe_query("grant select on *.* to $user");
 safe_query("set password FOR ${opt_user}2\@$opt_host = password('test')",1);
-safe_query("set password FOR $opt_user=password('test')");
+safe_query("set password FOR $opt_user\@$opt_host=password('test')");
 user_connect(1);
-safe_query("set password FOR $opt_user=''");
+safe_query("set password FOR $opt_user\@$opt_host=''");
 user_connect(0);
 user_query("select * from mysql.user where user = '$opt_user'");
 user_query("select * from mysql.db where user = '$opt_user'");

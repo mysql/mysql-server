@@ -87,8 +87,6 @@ protected:
   
   bool connected;
   BaseString addr;
-  BaseString host;
-  int port;
   NdbMgmHandle handle;
   ndb_mgm_configuration * m_config;
 protected:

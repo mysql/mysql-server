@@ -69,6 +69,17 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 noOfAttributeGroups = signal->theData[12];
   Uint32 globalCheckpointIdIndicator = signal->theData[13];
 
+#ifndef VM_TRACE
+  // config mismatch - do not crash if release compiled
+  if (regTabPtr.i >= cnoOfTablerec) {
+    ljam();
+    signal->theData[0] = userptr;
+    signal->theData[1] = 800;
+    sendSignal(userblockref, GSN_TUPFRAGREF, signal, 2, JBB);
+    return;
+  }
+#endif
+
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
   if (cfirstfreeFragopr == RNIL) {
     ljam();

@@ -155,6 +155,8 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       // did we changed top item of WHERE condition
       if (unit->outer_select()->where == (*ref))
 	unit->outer_select()->where= substitution; // correct WHERE for PS
+      else if (unit->outer_select()->having == (*ref))
+	unit->outer_select()->having= substitution; // correct HAVING for PS
 
       (*ref)= substitution;
       substitution->name= name;
@@ -271,7 +273,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
 Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
 					     st_select_lex *select_lex,
 					     bool max_arg)
-  :Item_singlerow_subselect()
+  :Item_singlerow_subselect(), was_values(TRUE)
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
@@ -290,11 +292,30 @@ Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
   DBUG_VOID_RETURN;
 }
 
+void Item_maxmin_subselect::cleanup()
+{
+  DBUG_ENTER("Item_maxmin_subselect::cleanup");
+  Item_singlerow_subselect::cleanup();
+
+  /*
+    By default it is TRUE to avoid TRUE reporting by
+    Item_func_not_all/Item_func_nop_all if this item was never called.
+
+    Engine exec() set it to FALSE by reset_value_registration() call.
+    select_max_min_finder_subselect::send_data() set it back to TRUE if some
+    value will be found.
+  */
+  was_values= TRUE;
+  DBUG_VOID_RETURN;
+}
+
+
 void Item_maxmin_subselect::print(String *str)
 {
   str->append(max?"<max>":"<min>", 5);
   Item_singlerow_subselect::print(str);
 }
+
 
 void Item_singlerow_subselect::reset()
 {
@@ -302,6 +323,7 @@ void Item_singlerow_subselect::reset()
   if (value)
     value->null_value= 1;
 }
+
 
 Item_subselect::trans_res
 Item_singlerow_subselect::select_transformer(JOIN *join)
@@ -519,7 +541,7 @@ bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect(), transformed(0), upper_not(0)
+  Item_exists_subselect(), transformed(0), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -680,7 +702,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     NULL/IS NOT NULL functions). If so, we rewrite ALL/ANY with NOT EXISTS
     later in this method.
   */
-  if ((abort_on_null || (upper_not && upper_not->top_level())) &&
+  if ((abort_on_null || (upper_item && upper_item->top_level())) &&
       !select_lex->master_unit()->uncacheable && !func->eqne_op())
   {
     if (substitution)
@@ -694,7 +716,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	!select_lex->with_sum_func &&
 	!(select_lex->next_select()))
     {
-      Item *item;
+      Item_sum_hybrid *item;
       if (func->l_op())
       {
 	/*
@@ -711,6 +733,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	*/
 	item= new Item_sum_min(*select_lex->ref_pointer_array);
       }
+      if (upper_item)
+        upper_item->set_sum_test(item);
       *select_lex->ref_pointer_array= item;
       {
 	List_iterator<Item> it(select_lex->item_list);
@@ -731,15 +755,19 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     }
     else
     {
+      Item_maxmin_subselect *item;
       // remove LIMIT placed  by ALL/ANY subquery
       select_lex->master_unit()->global_parameters->select_limit=
 	HA_POS_ERROR;
-      subs= new Item_maxmin_subselect(this, select_lex, func->l_op());
+      subs= item= new Item_maxmin_subselect(this, select_lex, func->l_op());
+      if (upper_item)
+        upper_item->set_sub_test(item);
     }
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex->current_select, *up;
     thd->lex->current_select= up= current->return_after_parsing();
-    if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
+    if (!left_expr->fixed && 
+        left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
     {
       thd->lex->current_select= current;
       goto err;
@@ -770,9 +798,9 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
       we can use same item for all selects.
     */
-    expr= new Item_ref((Item**)optimizer->get_cache(),
-		       (char *)"<no matter>",
-		       (char *)in_left_expr_name);
+    expr= new Item_direct_ref((Item**)optimizer->get_cache(),
+			      (char *)"<no matter>",
+			      (char *)in_left_expr_name);
 
     unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
@@ -966,9 +994,10 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 					   (char *) "<no matter>",
 					   (char *) "<list ref>");
       func=
-	eq_creator.create(new Item_ref((*optimizer->get_cache())->addr(i),
-				       (char *)"<no matter>",
-				     (char *)in_left_expr_name),
+	eq_creator.create(new Item_direct_ref((*optimizer->get_cache())->
+					      addr(i),
+					      (char *)"<no matter>",
+					      (char *)in_left_expr_name),
 			  func);
       item= and_items(item, func);
     }
@@ -1041,8 +1070,8 @@ Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
   transformed= 1;
-  if (upper_not)
-    upper_not->show= 1;
+  if (upper_item)
+    upper_item->show= 1;
   return single_value_transformer(join, func);
 }
 
@@ -1247,6 +1276,7 @@ int subselect_single_select_engine::exec()
   }
   if (!executed)
   {
+    item->reset_value_registration();
     join->exec();
     executed= 1;
     join->thd->where= save_where;

@@ -41,6 +41,13 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
   {
     HP_KEYDEF *keyinfo;
     DBUG_PRINT("info",("Initializing new table"));
+    
+    /*
+      We have to store sometimes byte* del_link in records,
+      so the record length should be at least sizeof(byte*)
+    */
+    set_if_bigger(reclength, sizeof (byte*));
+    
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
       bzero((char*) &keyinfo->block,sizeof(keyinfo->block));

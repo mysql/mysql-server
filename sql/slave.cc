@@ -161,7 +161,7 @@ int init_slave()
   }
     
   if (init_master_info(active_mi,master_info_file,relay_log_info_file,
-		       !master_host))
+		       !master_host, (SLAVE_IO | SLAVE_SQL)))
   {
     sql_print_error("Failed to initialize the master info structure");
     goto err;
@@ -545,7 +545,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
 int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 			   pthread_mutex_t *cond_lock,
 			   pthread_cond_t* term_cond,
-			   volatile bool* slave_running)
+			   volatile uint *slave_running)
 {
   if (term_lock)
   {
@@ -583,7 +583,7 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
 		       pthread_mutex_t *cond_lock,
 		       pthread_cond_t *start_cond,
-		       volatile bool *slave_running,
+		       volatile uint *slave_running,
 		       volatile ulong *slave_run_id,
 		       MASTER_INFO* mi,
                        bool high_priority)
@@ -759,7 +759,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     1           should be logged/replicated                  
 */
 
-int tables_ok(THD* thd, TABLE_LIST* tables)
+bool tables_ok(THD* thd, TABLE_LIST* tables)
 {
   bool some_tables_updating= 0;
   DBUG_ENTER("tables_ok");
@@ -963,7 +963,7 @@ void end_slave()
 static bool io_slave_killed(THD* thd, MASTER_INFO* mi)
 {
   DBUG_ASSERT(mi->io_thd == thd);
-  DBUG_ASSERT(mi->slave_running == 1); // tracking buffer overrun
+  DBUG_ASSERT(mi->slave_running); // tracking buffer overrun
   return mi->abort_slave || abort_loop || thd->killed;
 }
 
@@ -1767,17 +1767,11 @@ void init_master_info_with_options(MASTER_INFO* mi)
     strmake(mi->ssl_key, master_ssl_key, sizeof(mi->ssl_key)-1);
 }
 
-static void clear_slave_error(RELAY_LOG_INFO* rli)
+void clear_slave_error(RELAY_LOG_INFO* rli)
 {
   /* Clear the errors displayed by SHOW SLAVE STATUS */
   rli->last_slave_error[0]= 0;
   rli->last_slave_errno= 0;
-}
-
-void clear_slave_error_timestamp(RELAY_LOG_INFO* rli)
-{
-  rli->last_master_timestamp= 0;
-  clear_slave_error(rli);
 }
 
 /*
@@ -1799,7 +1793,8 @@ void clear_until_condition(RELAY_LOG_INFO* rli)
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
-		     bool abort_if_no_master_info_file)
+		     bool abort_if_no_master_info_file,
+		     int thread_mask)
 {
   int fd,error;
   char fname[FN_REFLEN+128];
@@ -1813,8 +1808,16 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
       last time. If this case pos_in_file would be set and we would
       get a crash when trying to read the signature for the binary
       relay log.
+      
+      We only rewind the read position if we are starting the SQL
+      thread. The handle_slave_sql thread assumes that the read
+      position is at the beginning of the file, and will read the
+      "signature" and then fast-forward to the last position read.
     */
-    my_b_seek(mi->rli.cur_log, (my_off_t) 0);
+    if (thread_mask & SLAVE_SQL)
+    {
+      my_b_seek(mi->rli.cur_log, (my_off_t) 0);
+    }
     DBUG_RETURN(0);
   }
 
@@ -2157,6 +2160,11 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     String *packet= &thd->packet;
     protocol->prepare_for_resend();
   
+    /*
+      TODO: we read slave_running without run_lock, whereas these variables
+      are updated under run_lock and not data_lock. In 5.0 we should lock
+      run_lock on top of data_lock (with good order).
+    */
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
 
@@ -2217,7 +2225,12 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->ssl_cipher, &my_charset_bin);
     protocol->store(mi->ssl_key, &my_charset_bin);
 
-    if (mi->rli.last_master_timestamp)
+    /*
+      Seconds_Behind_Master: if SQL thread is running and I/O thread is
+      connected, we can compute it otherwise show NULL (i.e. unknown).
+    */
+    if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
+        mi->rli.slave_running)
     {
       long tmp= (long)((time_t)time((time_t*) 0)
                                - mi->rli.last_master_timestamp)
@@ -2237,9 +2250,13 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
         slave is 2. At SHOW SLAVE STATUS time, assume that the difference
         between timestamp of slave and rli->last_master_timestamp is 0
         (i.e. they are in the same second), then we get 0-(2-1)=-1 as a result.
-        This confuses users, so we don't go below 0.
+        This confuses users, so we don't go below 0: hence the max().
+
+        last_master_timestamp == 0 (an "impossible" timestamp 1970) is a
+        special marker to say "consider we have caught up".
       */
-      protocol->store((longlong)(max(0, tmp)));
+      protocol->store((longlong)(mi->rli.last_master_timestamp ? max(0, tmp)
+                                 : 0));
     }
     else
       protocol->store_null();
@@ -3032,6 +3049,8 @@ slave_begin:
 
 connected:
 
+  // TODO: the assignment below should be under mutex (5.0)
+  mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   thd->slave_net = &mysql->net;
   thd->proc_info = "Checking master version";
   if (get_master_version_and_clock(mysql, mi))
@@ -3063,6 +3082,7 @@ dump");
 	goto err;
       }
 	  
+      mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
       thd->proc_info= "Waiting to reconnect after a failed binlog dump request";
 #ifdef SIGNAL_WITH_VIO_CLOSE
       thd->clear_active_vio();
@@ -3139,6 +3159,7 @@ max_allowed_packet",
 			  mysql_error(mysql));
 	  goto err;
 	}
+        mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
 	thd->proc_info = "Waiting to reconnect after a failed master event read";
 #ifdef SIGNAL_WITH_VIO_CLOSE
         thd->clear_active_vio();
@@ -3314,6 +3335,14 @@ slave_begin:
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
+  /*
+    We are going to set slave_running to 1. Assuming slave I/O thread is
+    alive and connected, this is going to make Seconds_Behind_Master be 0
+    i.e. "caught up". Even if we're just at start of thread. Well it's ok, at
+    the moment we start we can think we are caught up, and the next second we
+    start receiving data so we realize we are not caught up and
+    Seconds_Behind_Master grows. No big deal.
+  */
   rli->slave_running = 1;
   rli->abort_slave = 0;
   pthread_mutex_unlock(&rli->run_lock);
@@ -4160,6 +4189,21 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
       */
       if (hot_log)
       {
+        /*
+          We say in Seconds_Behind_Master that we have "caught up". Note that
+          for example if network link is broken but I/O slave thread hasn't
+          noticed it (slave_net_timeout not elapsed), then we'll say "caught
+          up" whereas we're not really caught up. Fixing that would require
+          internally cutting timeout in smaller pieces in network read, no
+          thanks. Another example: SQL has caught up on I/O, now I/O has read
+          a new event and is queuing it; the false "0" will exist until SQL
+          finishes executing the new event; it will be look abnormal only if
+          the events have old timestamps (then you get "many", 0, "many").
+          Transient phases like this can't really be fixed.
+        */
+        time_t save_timestamp= rli->last_master_timestamp;
+        rli->last_master_timestamp= 0;
+
 	DBUG_ASSERT(rli->relay_log.get_open_count() == rli->cur_log_old_open_count);
 	/*
 	  We can, and should release data_lock while we are waiting for
@@ -4206,6 +4250,7 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
         rli->relay_log.wait_for_update(rli->sql_thd, 1);
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
+        rli->last_master_timestamp= save_timestamp;
 	continue;
       }
       /*

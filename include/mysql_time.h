@@ -33,6 +33,18 @@ enum enum_mysql_timestamp_type
 };
 
 
+/*
+  Structure which is used to represent datetime values inside MySQL.
+
+  We assume that values in this structure are normalized, i.e. year <= 9999,
+  month <= 12, day <= 31, hour <= 23, hour <= 59, hour <= 59. Many functions
+  in server such as my_system_gmt_sec() or make_time() family of functions
+  rely on this (actually now usage of make_*() family relies on a bit weaker
+  restriction). Also functions that produce MYSQL_TIME as result ensure this.
+  There is one exception to this rule though if this structure holds time
+  value (time_type == MYSQL_TIMESTAMP_TIME) days and hour member can hold
+  bigger values.
+*/
 typedef struct st_mysql_time
 {
   unsigned int  year, month, day, hour, minute, second;

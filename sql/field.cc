@@ -1860,9 +1860,9 @@ int Field_long::store(double nr)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > (double) (ulong) ~0L)
+    else if (nr > (double) UINT_MAX32)
     {
-      res=(int32) (uint32) ~0L;
+      res= UINT_MAX32;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
@@ -2145,7 +2145,7 @@ int Field_longlong::store(double nr)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr >= (double) LONGLONG_MAX)
+    else if (nr >= (double) (ulonglong) LONGLONG_MAX)
     {
       res=(longlong) LONGLONG_MAX;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -4086,6 +4086,10 @@ int Field_datetime::store(longlong nr)
 void Field_datetime::store_time(TIME *ltime,timestamp_type type)
 {
   longlong tmp;
+  /*
+    We don't perform range checking here since values stored in TIME
+    structure always fit into DATETIME range.
+  */
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
     tmp=((ltime->year*10000L+ltime->month*100+ltime->day)*LL(1000000)+
 	 (ltime->hour*10000L+ltime->minute*100+ltime->second));
@@ -5525,8 +5529,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   }
 
   /* Remove end space */
-  while (length > 0 && my_isspace(system_charset_info,from[length-1]))
-    length--;
+  length= field_charset->cset->lengthsp(field_charset, from, length);
   uint tmp=find_type2(typelib, from, length, field_charset);
   if (!tmp)
   {
@@ -5628,7 +5631,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
     val_ptr->set("", 0, field_charset);
   else
     val_ptr->set((const char*) typelib->type_names[tmp-1],
-		 (uint) strlen(typelib->type_names[tmp-1]),
+		 typelib->type_lengths[tmp-1],
 		 field_charset);
   return val_ptr;
 }
@@ -5665,13 +5668,14 @@ void Field_enum::sql_type(String &res) const
   res.append("enum(");
 
   bool flag=0;
-  for (const char **pos= typelib->type_names; *pos; pos++)
+  uint *len= typelib->type_lengths;
+  for (const char **pos= typelib->type_names; *pos; pos++, len++)
   {
     uint dummy_errors;
     if (flag)
       res.append(',');
     /* convert to res.charset() == utf8, then quote */
-    enum_item.copy(*pos, strlen(*pos), charset(), res.charset(), &dummy_errors);
+    enum_item.copy(*pos, *len, charset(), res.charset(), &dummy_errors);
     append_unescaped(&res, enum_item.ptr(), enum_item.length());
     flag= 1;
   }
@@ -5750,14 +5754,15 @@ String *Field_set::val_str(String *val_buffer,
   uint bitnr=0;
 
   val_buffer->length(0);
+  val_buffer->set_charset(field_charset);
   while (tmp && bitnr < (uint) typelib->count)
   {
     if (tmp & 1)
     {
       if (val_buffer->length())
-	val_buffer->append(field_separator);
+	val_buffer->append(&field_separator, 1, &my_charset_latin1);
       String str(typelib->type_names[bitnr],
-		 (uint) strlen(typelib->type_names[bitnr]),
+		 typelib->type_lengths[bitnr],
 		 field_charset);
       val_buffer->append(str);
     }
@@ -5777,13 +5782,14 @@ void Field_set::sql_type(String &res) const
   res.append("set(");
 
   bool flag=0;
-  for (const char **pos= typelib->type_names; *pos; pos++)
+  uint *len= typelib->type_lengths;
+  for (const char **pos= typelib->type_names; *pos; pos++, len++)
   {
     uint dummy_errors;
     if (flag)
       res.append(',');
     /* convert to res.charset() == utf8, then quote */
-    set_item.copy(*pos, strlen(*pos), charset(), res.charset(), &dummy_errors);
+    set_item.copy(*pos, *len, charset(), res.charset(), &dummy_errors);
     append_unescaped(&res, set_item.ptr(), set_item.length());
     flag= 1;
   }
@@ -5838,25 +5844,24 @@ bool Field_num::eq_def(Field *field)
 
 void create_field::create_length_to_internal_length(void)
 {
-  switch (sql_type)
-  {
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-      length*= charset->mbmaxlen;
-      pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
-				    FIELD_TYPE_STRING : sql_type, length);
-      break;
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-      length*= charset->mbmaxlen;
-      break;
-    default:
-      /* do nothing */
-      break;
+  switch (sql_type) {
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    length*= charset->mbmaxlen;
+    pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
+                                  FIELD_TYPE_STRING : sql_type, length);
+    break;
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+    length*= charset->mbmaxlen;
+    break;
+  default:
+    /* do nothing */
+    break;
   }
 }
 
@@ -6081,6 +6086,8 @@ create_field::create_field(Field *old_field,Field *orig_field)
       }
       length=(length+charset->mbmaxlen-1)/charset->mbmaxlen; // QQ: Probably not needed
       break;
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
     case FIELD_TYPE_STRING:
     case FIELD_TYPE_VAR_STRING:
       length=(length+charset->mbmaxlen-1)/charset->mbmaxlen;

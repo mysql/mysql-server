@@ -44,7 +44,7 @@ public:
    *   Constructor
    *   @param mgmtSrvr: Management server to use when executing commands
    */
-  CommandInterpreter(const char *);
+  CommandInterpreter(const char *, int verbose);
   ~CommandInterpreter();
   
   /**
@@ -54,10 +54,11 @@ public:
    *
    *   @return true until quit/bye/exit has been typed
    */
-  int execute(const char *_line, int _try_reconnect=-1);
+  int execute(const char *_line, int _try_reconnect=-1, int *error= 0);
 
 private:
   void printError();
+  int execute_impl(const char *_line);
 
   /**
    *   Analyse the command line, after the first token.
@@ -94,8 +95,9 @@ private:
    */
   void executeHelp(char* parameters);
   void executeShow(char* parameters);
+  void executeConnect(char* parameters);
   void executePurge(char* parameters);
-  void executeShutdown(char* parameters);
+  int  executeShutdown(char* parameters);
   void executeRun(char* parameters);
   void executeInfo(char* parameters);
   void executeClusterLog(char* parameters);
@@ -120,7 +122,7 @@ public:
   void executeStatus(int processId, const char* parameters, bool all);
   void executeEventReporting(int processId, const char* parameters, bool all);
   void executeDumpState(int processId, const char* parameters, bool all);
-  void executeStartBackup(char * parameters);
+  int executeStartBackup(char * parameters);
   void executeAbortBackup(char * parameters);
 
   void executeRep(char* parameters);
@@ -152,14 +154,17 @@ private:
 		     const char * param);
 
   NdbMgmHandle m_mgmsrv;
-  bool connected;
-  const char *host;
+  NdbMgmHandle m_mgmsrv2;
+  bool m_connected;
+  int m_verbose;
   int try_reconnect;
+  int m_error;
 #ifdef HAVE_GLOBAL_REPLICATION  
   NdbRepHandle m_repserver;
   const char *rep_host;
   bool rep_connected;
 #endif
+  struct NdbThread* m_event_thread;
 };
 
 
@@ -170,17 +175,17 @@ private:
 #include "ndb_mgmclient.hpp"
 #include "ndb_mgmclient.h"
 
-Ndb_mgmclient::Ndb_mgmclient(const char *host)
+Ndb_mgmclient::Ndb_mgmclient(const char *host,int verbose)
 {
-  m_cmd= new CommandInterpreter(host);
+  m_cmd= new CommandInterpreter(host,verbose);
 }
 Ndb_mgmclient::~Ndb_mgmclient()
 {
   delete m_cmd;
 }
-int Ndb_mgmclient::execute(const char *_line, int _try_reconnect)
+int Ndb_mgmclient::execute(const char *_line, int _try_reconnect, int *error)
 {
-  return m_cmd->execute(_line,_try_reconnect);
+  return m_cmd->execute(_line,_try_reconnect,error);
 }
 int
 Ndb_mgmclient::disconnect()
@@ -226,7 +231,7 @@ extern "C" {
 #include <util/InputStream.hpp>
 #include <util/OutputStream.hpp>
 
-int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect)
+int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect, int *error)
 {
   if (argc <= 0)
     return 0;
@@ -235,7 +240,7 @@ int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect)
   {
     _line.appfmt(" %s", argv[i]);
   }
-  return m_cmd->execute(_line.c_str(),_try_reconnect);
+  return m_cmd->execute(_line.c_str(),_try_reconnect, error);
 }
 
 /*****************************************************************************
@@ -258,12 +263,13 @@ static const char* helpText =
 "SHOW CONFIG                            Print configuration\n"
 "SHOW PARAMETERS                        Print configuration parameters\n"
 #endif
-"START BACKUP                           Start backup\n"
+"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"                                       Start backup (default WAIT COMPLETED)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
-"SHUTDOWN                               Shutdown all processes in cluster and quit\n"
-"CLUSTERLOG ON                          Enable Cluster logging\n"
-"CLUSTERLOG OFF                         Disable Cluster logging\n"
-"CLUSTERLOG FILTER <severity>           Toggle severity filter on/off\n"
+"SHUTDOWN                               Shutdown all processes in cluster\n"
+"CLUSTERLOG ON [<severity>] ...         Enable Cluster logging\n"
+"CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
+"CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
 "CLUSTERLOG INFO                        Print cluster log information\n"
 "<id> START                             Start DB node (started with -n)\n"
 "<id> RESTART [-n] [-i]                 Restart DB node\n"
@@ -276,6 +282,7 @@ static const char* helpText =
 "REP CONNECT <host:port>                Connect to REP server on host:port\n"
 #endif
 "PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
+"CONNECT [<connectstring>]              Connect to management server (reconnect if already connected)\n"
 "QUIT                                   Quit management client\n"
 ;
 
@@ -374,20 +381,28 @@ convert(const char* s, int& val) {
 /*
  * Constructor
  */
-CommandInterpreter::CommandInterpreter(const char *_host) 
+CommandInterpreter::CommandInterpreter(const char *_host,int verbose) 
+  : m_verbose(verbose)
 {
   m_mgmsrv = ndb_mgm_create_handle();
   if(m_mgmsrv == NULL) {
     ndbout_c("Cannot create handle to management server.");
+    exit(-1);
+  }
+  m_mgmsrv2 = ndb_mgm_create_handle();
+  if(m_mgmsrv2 == NULL) {
+    ndbout_c("Cannot create handle to management server.");
+    exit(-1);
+  }
+  if (ndb_mgm_set_connectstring(m_mgmsrv, _host))
+  {
     printError();
+    exit(-1);
   }
 
-  connected = false;
+  m_connected= false;
+  m_event_thread= 0;
   try_reconnect = 0;
-  if (_host)
-    host= my_strdup(_host,MYF(MY_WME));
-  else
-    host= 0;
 #ifdef HAVE_GLOBAL_REPLICATION
   rep_host = NULL;
   m_repserver = NULL;
@@ -400,10 +415,9 @@ CommandInterpreter::CommandInterpreter(const char *_host)
  */
 CommandInterpreter::~CommandInterpreter() 
 {
-  connected = false;
+  disconnect();
   ndb_mgm_destroy_handle(&m_mgmsrv);
-  my_free((char *)host,MYF(MY_ALLOW_ZERO_PTR));
-  host = NULL;
+  ndb_mgm_destroy_handle(&m_mgmsrv2);
 }
 
 static bool 
@@ -425,6 +439,11 @@ emptyString(const char* s)
 void
 CommandInterpreter::printError() 
 {
+  if (ndb_mgm_check_connection(m_mgmsrv))
+  {
+    m_connected= false;
+    disconnect();
+  }
   ndbout_c("* %5d: %s", 
 	   ndb_mgm_get_latest_error(m_mgmsrv),
 	   ndb_mgm_get_latest_error_msg(m_mgmsrv));
@@ -434,34 +453,109 @@ CommandInterpreter::printError()
 //*****************************************************************************
 //*****************************************************************************
 
-bool 
+static int do_event_thread;
+static void*
+event_thread_run(void* m)
+{
+  NdbMgmHandle handle= *(NdbMgmHandle*)m;
+
+  my_thread_init();
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+  int fd = ndb_mgm_listen_event(handle, filter);
+  if (fd > 0)
+  {
+    do_event_thread= 1;
+    char *tmp= 0;
+    char buf[1024];
+    SocketInputStream in(fd,10);
+    do {
+      if (tmp == 0) NdbSleep_MilliSleep(10);
+      if((tmp = in.gets(buf, 1024)))
+	ndbout << tmp;
+    } while(do_event_thread);
+  }
+  else
+  {
+    do_event_thread= -1;
+  }
+
+  my_thread_end();
+  NdbThread_Exit(0);
+  return 0;
+}
+
+bool
 CommandInterpreter::connect() 
 {
-  if(!connected) {
-    int tries = try_reconnect; // tries == 0 => infinite
-    while(!connected) {
-      if(ndb_mgm_connect(m_mgmsrv, host) == -1) {
-	ndbout << "Cannot connect to management server (" << host << ").";
-	tries--;
-	if (tries == 0)
-	  break;
-	ndbout << "Retrying in 5 seconds." << endl;
-	NdbSleep_SecSleep(5);
-      } else
-	connected = true;
+  if(!m_connected)
+  {
+    if(!ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
+    {
+      const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
+      unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
+      if(!ndb_mgm_set_connectstring(m_mgmsrv2,
+				    BaseString(host).appfmt(":%d",port).c_str())
+	 &&
+	 !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
+      {
+	assert(m_event_thread == 0);
+	assert(do_event_thread == 0);
+	do_event_thread= 0;
+	m_event_thread = NdbThread_Create(event_thread_run,
+					  (void**)&m_mgmsrv2,
+					  32768,
+					  "CommandInterpreted_event_thread",
+					  NDB_THREAD_PRIO_LOW);
+	if (m_event_thread != 0)
+	{
+	  int iter= 1000; // try for 30 seconds
+	  while(do_event_thread == 0 &&
+		iter-- > 0)
+	    NdbSleep_MilliSleep(30);
+	}
+	if (m_event_thread == 0 ||
+	    do_event_thread == 0 ||
+	    do_event_thread == -1)
+	{
+	  printf("Warning, event thread startup failed, degraded printouts as result\n");
+	  do_event_thread= 0;
+	}
+      }
+      else
+      {
+	printf("Warning, event connect failed, degraded printouts as result\n");
+      }
+      m_connected= true;
+      if (m_verbose)
+      {
+	printf("Connected to Management Server at: %s:%d\n",
+	       host, port);
+      }
     }
   }
-  return connected;
+  return m_connected;
 }
 
 bool 
 CommandInterpreter::disconnect() 
 {
-  if (ndb_mgm_disconnect(m_mgmsrv) == -1) {
-    ndbout_c("Could not disconnect from management server");
-    printError();
+  if (m_event_thread) {
+    void *res;
+    do_event_thread= 0;
+    NdbThread_WaitFor(m_event_thread, &res);
+    NdbThread_Destroy(&m_event_thread);
+    m_event_thread= 0;
+    ndb_mgm_disconnect(m_mgmsrv2);
   }
-  connected = false;
+  if (m_connected)
+  {
+    if (ndb_mgm_disconnect(m_mgmsrv) == -1) {
+      ndbout_c("Could not disconnect from management server");
+      printError();
+    }
+    m_connected= false;
+  }
   return true;
 }
 
@@ -469,92 +563,136 @@ CommandInterpreter::disconnect()
 //*****************************************************************************
 
 int 
-CommandInterpreter::execute(const char *_line, int _try_reconnect) 
+CommandInterpreter::execute(const char *_line, int _try_reconnect,
+			    int *error) 
 {
   if (_try_reconnect >= 0)
     try_reconnect=_try_reconnect;
+  int result= execute_impl(_line);
+  if (error)
+    *error= m_error;
+  return result;
+}
+
+static void
+invalid_command(const char *cmd)
+{
+  ndbout << "Invalid command: " << cmd << endl;
+  ndbout << "Type HELP for help." << endl << endl;
+}
+
+int 
+CommandInterpreter::execute_impl(const char *_line) 
+{
+  DBUG_ENTER("CommandInterpreter::execute_impl");
+  DBUG_PRINT("enter",("line=\"%s\"",_line));
+  m_error= 0;
+
   char * line;
   if(_line == NULL) {
-    //   ndbout << endl;
-    return false;
+    DBUG_RETURN(false);
   }
   line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
-  
-  if (emptyString(line)) {
-    return true;
-  }
-  
-  for (unsigned int i = 0; i < strlen(line); ++i) {
-    line[i] = toupper(line[i]);
-  }
 
+  int do_continue;
+  do {
+    do_continue= 0;
+    BaseString::trim(line," \t");
+    if (line[0] == 0 ||
+	line[0] == '#')
+    {
+      DBUG_RETURN(true);
+    }
+    // for mysql client compatability remove trailing ';'
+    {
+      unsigned last= strlen(line)-1;
+      if (line[last] == ';')
+      {
+	line[last]= 0;
+	do_continue= 1;
+      }
+    }
+  } while (do_continue);
   // if there is anything in the line proceed
   char* firstToken = strtok(line, " ");
   char* allAfterFirstToken = strtok(NULL, "");
   
-  if (strcmp(firstToken, "HELP") == 0 ||
-      strcmp(firstToken, "?") == 0) {
+  if (strcasecmp(firstToken, "HELP") == 0 ||
+      strcasecmp(firstToken, "?") == 0) {
     executeHelp(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
-  else if (strcmp(firstToken, "SHOW") == 0) {
+  else if (strcasecmp(firstToken, "CONNECT") == 0) {
+    executeConnect(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if (strcasecmp(firstToken, "SLEEP") == 0) {
+    if (allAfterFirstToken)
+      sleep(atoi(allAfterFirstToken));
+    DBUG_RETURN(true);
+  }
+  else if((strcasecmp(firstToken, "QUIT") == 0 ||
+	  strcasecmp(firstToken, "EXIT") == 0 ||
+	  strcasecmp(firstToken, "BYE") == 0) && 
+	  allAfterFirstToken == NULL){
+    DBUG_RETURN(false);
+  }
+
+  if (!connect())
+    DBUG_RETURN(true);
+
+  if (strcasecmp(firstToken, "SHOW") == 0) {
     executeShow(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
-  else if (strcmp(firstToken, "SHUTDOWN") == 0) {
-    executeShutdown(allAfterFirstToken);
-    return true;
+  else if (strcasecmp(firstToken, "SHUTDOWN") == 0) {
+    m_error= executeShutdown(allAfterFirstToken);
+    DBUG_RETURN(true);
   }
-  else if (strcmp(firstToken, "CLUSTERLOG") == 0){
+  else if (strcasecmp(firstToken, "CLUSTERLOG") == 0){
     executeClusterLog(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
-  else if(strcmp(firstToken, "START") == 0 &&
+  else if(strcasecmp(firstToken, "START") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
-    executeStartBackup(allAfterFirstToken);
-    return true;
+	  strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
+    m_error= executeStartBackup(allAfterFirstToken);
+    DBUG_RETURN(true);
   }
-  else if(strcmp(firstToken, "ABORT") == 0 &&
+  else if(strcasecmp(firstToken, "ABORT") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
+	  strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
     executeAbortBackup(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
-  else if (strcmp(firstToken, "PURGE") == 0) {
+  else if (strcasecmp(firstToken, "PURGE") == 0) {
     executePurge(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   } 
 #ifdef HAVE_GLOBAL_REPLICATION
-  else if(strcmp(firstToken, "REPLICATION") == 0 ||
-	  strcmp(firstToken, "REP") == 0) {
+  else if(strcasecmp(firstToken, "REPLICATION") == 0 ||
+	  strcasecmp(firstToken, "REP") == 0) {
     executeRep(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
 #endif // HAVE_GLOBAL_REPLICATION
-  else if(strcmp(firstToken, "ENTER") == 0 &&
+  else if(strcasecmp(firstToken, "ENTER") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncmp(allAfterFirstToken, "SINGLE USER MODE ", 
+	  strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
     executeEnterSingleUser(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
-  else if(strcmp(firstToken, "EXIT") == 0 &&
+  else if(strcasecmp(firstToken, "EXIT") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncmp(allAfterFirstToken, "SINGLE USER MODE ", 
+	  strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
     executeExitSingleUser(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
-  else if (strcmp(firstToken, "ALL") == 0) {
+  else if (strcasecmp(firstToken, "ALL") == 0) {
     analyseAfterFirstToken(-1, allAfterFirstToken);
-  } 
-  else if((strcmp(firstToken, "QUIT") == 0 ||
-	  strcmp(firstToken, "EXIT") == 0 ||
-	  strcmp(firstToken, "BYE") == 0) && 
-	  allAfterFirstToken == NULL){
-    return false;
   } else {
     /**
      * First token should be a digit, node ID
@@ -562,20 +700,19 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect)
     int nodeId;
 
     if (! convert(firstToken, nodeId)) {
-      ndbout << "Invalid command: " << line << endl;
-      ndbout << "Type HELP for help." << endl << endl;
-      return true;
+      invalid_command(_line);
+      DBUG_RETURN(true);
     }
 
-    if (nodeId < 0) {
+    if (nodeId <= 0) {
       ndbout << "Invalid node ID: " << firstToken << "." << endl;
-      return true;
+      DBUG_RETURN(true);
     }
     
     analyseAfterFirstToken(nodeId, allAfterFirstToken);
     
   }
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -612,12 +749,8 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
 					   char* allAfterFirstToken) {
   
   if (emptyString(allAfterFirstToken)) {
-    if (processId == -1) {
-      ndbout << "Expected a command after ALL." << endl;
-    }
-    else {
-      ndbout << "Expected a command after node ID." << endl;
-    }
+    ndbout << "Expected a command after "
+	   << ((processId == -1) ? "ALL." : "node ID.") << endl;
     return;
   }
   
@@ -628,7 +761,7 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   ExecuteFunction fun = 0;
   const char * command = 0;
   for(int i = 0; i<tmpSize; i++){
-    if(strcmp(secondToken, commands[i].command) == 0){
+    if(strcasecmp(secondToken, commands[i].command) == 0){
       fun = commands[i].executeFunction;
       command = commands[i].command;
       break;
@@ -636,19 +769,16 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   }
   
   if(fun == 0){
-    ndbout << "Invalid command: " << secondToken << endl;
-    ndbout << "Type HELP for help." << endl << endl;
+    invalid_command(secondToken);
     return;
   }
   
   if(processId == -1){
     executeForAll(command, fun, allAfterSecondToken);
   } else {
-    if(strcmp(command, "STATUS") != 0)
-      ndbout_c("Executing %s on node %d.", command, processId);
     (this->*fun)(processId, allAfterSecondToken, false);
-    ndbout << endl;
   }
+  ndbout << endl;
 }
 
 /**
@@ -694,17 +824,16 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
 				  const char * allAfterSecondToken)
 {
   int nodeId = 0;
-  if(strcmp(cmd, "STOP") == 0) {
+  if(strcasecmp(cmd, "STOP") == 0) {
     ndbout_c("Executing STOP on all nodes.");
     (this->*fun)(nodeId, allAfterSecondToken, true);
-  } else if(strcmp(cmd, "RESTART") == 0) {
+  } else if(strcasecmp(cmd, "RESTART") == 0) {
     ndbout_c("Executing RESTART on all nodes.");
     ndbout_c("Starting shutdown. This may take a while. Please wait...");
     (this->*fun)(nodeId, allAfterSecondToken, true);
     ndbout_c("Trying to start all nodes of system.");
     ndbout_c("Use ALL STATUS to see the system start-up phases.");
   } else {
-    connect();
     struct ndb_mgm_cluster_state *cl= ndb_mgm_get_status(m_mgmsrv);
     if(cl == 0){
       ndbout_c("Unable get status from management server");
@@ -712,12 +841,8 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
       return;
     }
     NdbAutoPtr<char> ap1((char*)cl);
-    while(get_next_nodeid(cl, &nodeId, NDB_MGM_NODE_TYPE_NDB)) {
-      if(strcmp(cmd, "STATUS") != 0)
-	ndbout_c("Executing %s on node %d.", cmd, nodeId);
+    while(get_next_nodeid(cl, &nodeId, NDB_MGM_NODE_TYPE_NDB))
       (this->*fun)(nodeId, allAfterSecondToken, true);
-      ndbout << endl;
-    } // while
   }
 }
 
@@ -741,7 +866,7 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
     firstTokenAfterLog[i] = toupper(firstTokenAfterLog[i]);
   }
   
-  if (strcmp(firstTokenAfterLog, "BLOCK") != 0) {
+  if (strcasecmp(firstTokenAfterLog, "BLOCK") != 0) {
     ndbout << "Unexpected value: " << firstTokenAfterLog 
 	   << ". Expected BLOCK." << endl;
     return false;
@@ -754,7 +879,7 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   }
 
   char* secondTokenAfterLog = strtok(allAfterFirstToken, " ");
-  if (strcmp(secondTokenAfterLog, "=") != 0) {
+  if (strcasecmp(secondTokenAfterLog, "=") != 0) {
     ndbout << "Unexpected value: " << secondTokenAfterLog 
 	   << ". Expected =." << endl;
     return false;
@@ -762,7 +887,7 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
 
   char* blockName = strtok(NULL, " ");
   bool all = false;
-  if (blockName != NULL && (strcmp(blockName, "ALL") == 0)) {
+  if (blockName != NULL && (strcasecmp(blockName, "ALL") == 0)) {
     all = true;
   }
   while (blockName != NULL) {
@@ -813,20 +938,19 @@ CommandInterpreter::executeHelp(char* parameters)
     ndbout << "<level>    = " << "0 - 15" << endl;
     ndbout << "<id>       = " << "ALL | Any database node id" << endl;
     ndbout << endl;
-  } else if (strcmp(parameters, "SHOW") == 0) {
+  } else if (strcasecmp(parameters, "SHOW") == 0) {
     ndbout << helpTextShow;
 #ifdef HAVE_GLOBAL_REPLICATION
-  } else if (strcmp(parameters, "REPLICATION") == 0 ||
-	     strcmp(parameters, "REP") == 0) {
+  } else if (strcasecmp(parameters, "REPLICATION") == 0 ||
+	     strcasecmp(parameters, "REP") == 0) {
     ndbout << helpTextRep;
 #endif // HAVE_GLOBAL_REPLICATION
 #ifdef VM_TRACE // DEBUG ONLY
-  } else if (strcmp(parameters, "DEBUG") == 0) {
+  } else if (strcasecmp(parameters, "DEBUG") == 0) {
     ndbout << helpTextDebug;
 #endif
   } else {
-    ndbout << "Invalid argument: " << parameters << endl;
-    ndbout << "Type HELP for help." << endl << endl;
+    invalid_command(parameters);
   }
 }
 
@@ -835,25 +959,23 @@ CommandInterpreter::executeHelp(char* parameters)
  * SHUTDOWN
  *****************************************************************************/
 
-void
+int
 CommandInterpreter::executeShutdown(char* parameters) 
 { 
-  connect();
-
   ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
   if(state == NULL) {
     ndbout_c("Could not get status");
     printError();
-    return;
+    return 1;
   }
   NdbAutoPtr<char> ap1((char*)state);
 
   int result = 0;
   result = ndb_mgm_stop(m_mgmsrv, 0, 0);
   if (result < 0) {
-    ndbout << "Shutdown failed." << endl;
+    ndbout << "Shutdown off NDB Cluster storage node(s) failed." << endl;
     printError();
-    return;
+    return result;
   }
 
   ndbout << result << " NDB Cluster storage node(s) have shutdown." << endl;
@@ -868,21 +990,24 @@ CommandInterpreter::executeShutdown(char* parameters)
 	ndbout << "Unable to locate management server, "
 	       << "shutdown manually with <id> STOP"
 	       << endl;
-	return;
+	return 1;
       }
     }
   }
 
-  result = 0;
   result = ndb_mgm_stop(m_mgmsrv, 1, &mgm_id);
   if (result <= 0) {
-    ndbout << "Shutdown failed." << endl;
+    ndbout << "Shutdown of NDB Cluster management server failed." << endl;
     printError();
-    return;
+    if (result == 0)
+      return 1;
+    return result;
   }
 
+  m_connected= false;
+  disconnect();
   ndbout << "NDB Cluster management server shutdown." << endl;
-  exit(0);
+  return 0;
 }
 
 /*****************************************************************************
@@ -931,7 +1056,7 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	const char *hostname= node_state->connect_address;
 	if (hostname == 0
 	    || strlen(hostname) == 0
-	    || strcmp(hostname,"0.0.0.0") == 0)
+	    || strcasecmp(hostname,"0.0.0.0") == 0)
 	  ndbout << " ";
 	else
 	  ndbout << "\t@" << hostname;
@@ -976,9 +1101,9 @@ CommandInterpreter::executePurge(char* parameters)
       break;
     char* firstToken = strtok(parameters, " ");
     char* nextToken = strtok(NULL, " \0");
-    if (strcmp(firstToken,"STALE") == 0 &&
+    if (strcasecmp(firstToken,"STALE") == 0 &&
 	nextToken &&
-	strcmp(nextToken, "SESSIONS") == 0) {
+	strcasecmp(nextToken, "SESSIONS") == 0) {
       command_ok= 1;
       break;
     }
@@ -991,7 +1116,6 @@ CommandInterpreter::executePurge(char* parameters)
 
   int i;
   char *str;
-  connect();
   
   if (ndb_mgm_purge_stale_sessions(m_mgmsrv, &str)) {
     ndbout_c("Command failed");
@@ -1011,11 +1135,7 @@ void
 CommandInterpreter::executeShow(char* parameters) 
 { 
   int i;
-  connect();
   if (emptyString(parameters)) {
-    ndbout << "Cluster Configuration" << endl
-	   << "---------------------" << endl;
-    
     ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
     if(state == NULL) {
       ndbout_c("Could not get status");
@@ -1075,22 +1195,24 @@ CommandInterpreter::executeShow(char* parameters)
       }
     }
 
+    ndbout << "Cluster Configuration" << endl
+	   << "---------------------" << endl;
     print_nodes(state, it, "ndbd",     ndb_nodes, NDB_MGM_NODE_TYPE_NDB, master_id);
     print_nodes(state, it, "ndb_mgmd", mgm_nodes, NDB_MGM_NODE_TYPE_MGM, 0);
     print_nodes(state, it, "mysqld",   api_nodes, NDB_MGM_NODE_TYPE_API, 0);
     //    ndbout << helpTextShow;
     return;
-  } else if (strcmp(parameters, "PROPERTIES") == 0 ||
-	     strcmp(parameters, "PROP") == 0) {
+  } else if (strcasecmp(parameters, "PROPERTIES") == 0 ||
+	     strcasecmp(parameters, "PROP") == 0) {
     ndbout << "SHOW PROPERTIES is not yet implemented." << endl;
     //  ndbout << "_mgmtSrvr.getConfig()->print();" << endl; /* XXX */
-  } else if (strcmp(parameters, "CONFIGURATION") == 0 ||
-	     strcmp(parameters, "CONFIG") == 0){
+  } else if (strcasecmp(parameters, "CONFIGURATION") == 0 ||
+	     strcasecmp(parameters, "CONFIG") == 0){
     ndbout << "SHOW CONFIGURATION is not yet implemented." << endl;
     //nbout << "_mgmtSrvr.getConfig()->printConfigFile();" << endl; /* XXX */
-  } else if (strcmp(parameters, "PARAMETERS") == 0 ||
-	     strcmp(parameters, "PARAMS") == 0 ||
-	     strcmp(parameters, "PARAM") == 0) {
+  } else if (strcasecmp(parameters, "PARAMETERS") == 0 ||
+	     strcasecmp(parameters, "PARAMS") == 0 ||
+	     strcasecmp(parameters, "PARAM") == 0) {
     ndbout << "SHOW PARAMETERS is not yet implemented." << endl;
     //    ndbout << "_mgmtSrvr.getConfig()->getConfigInfo()->print();" 
     //           << endl; /* XXX */
@@ -1099,151 +1221,150 @@ CommandInterpreter::executeShow(char* parameters)
   }
 }
 
+void
+CommandInterpreter::executeConnect(char* parameters) 
+{
+  disconnect();
+  if (!emptyString(parameters)) {
+    if (ndb_mgm_set_connectstring(m_mgmsrv,
+				  BaseString(parameters).trim().c_str()))
+    {
+      printError();
+      return;
+    }
+  }
+  connect();
+}
 
 //*****************************************************************************
 //*****************************************************************************
 void 
 CommandInterpreter::executeClusterLog(char* parameters) 
 {
+  DBUG_ENTER("CommandInterpreter::executeClusterLog");
   int i;
-  connect();
-  if (parameters != 0 && strlen(parameters) != 0) {
-    enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
-    int isOk = true;
-    char name[12]; 
-    bool noArgs = false;
-    
-    char * tmpString = my_strdup(parameters,MYF(MY_WME));
-    My_auto_ptr<char> ap1(tmpString);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, " ", &tmpPtr);
-    
-    /********************
-     * CLUSTERLOG FILTER 
-     ********************/
-    if (strcmp(item, "FILTER") == 0) {
-      
-      item = strtok_r(NULL, " ", &tmpPtr);
-      if (item == NULL) {
-	noArgs = true;
-      }
-      while (item != NULL) {
-	snprintf(name, sizeof(name), item);
-
-	if (strcmp(item, "ALL") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_ALL;	
-	} else if (strcmp(item, "ALERT") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_ALERT;
-	} else if (strcmp(item, "CRITICAL") == 0) { 
-	  severity = NDB_MGM_CLUSTERLOG_CRITICAL;
-	} else if (strcmp(item, "ERROR") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_ERROR;
-	} else if (strcmp(item, "WARNING") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_WARNING;
-	} else if (strcmp(item, "INFO") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_INFO;
-	} else if (strcmp(item, "DEBUG") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_DEBUG;
-	} else if (strcmp(item, "OFF") == 0) {
-	  severity = NDB_MGM_CLUSTERLOG_OFF;
-	} else {
-	  isOk = false;
-	}      
-	
-	item = strtok_r(NULL, " ", &tmpPtr);	
-      } //  while(item != NULL){
-
-      if (noArgs) {
-	ndbout << "Missing argument(s)." << endl;
-      } else if (isOk) {
-	if(ndb_mgm_filter_clusterlog(m_mgmsrv, severity, NULL)) {
-	  if(strcmp(name, "ALL") == 0 || strcmp(name, "all") == 0) {
-	    ndbout << "All severities levels enabled." << endl;
-	  } else if(strcmp(name, "OFF") == 0 || strcmp(name, "off") == 0) {
-	    ndbout << "Cluster logging enabled." << endl;
-	  } else {
-	    ndbout << name << " events disabled." << endl;
-	  }
-	} else {
-	  if(strcmp(name, "ALL") == 0) {
-	    ndbout << "All severities levels disabled." << endl;
-	  } else if(strcmp(name, "OFF") == 0) {
-	    ndbout << "Cluster logging disabled." << endl;
-	  } else {
-	    ndbout << name << " events enabled." << endl;
-	  }
-	}      
-      } else {
-	ndbout << "Invalid severity level." << endl;
-      }
-
-    /********************
-     * CLUSTERLOG INFO
-     ********************/
-    } else if (strcmp(item, "INFO") == 0) {
-      Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
-      if(enabled == NULL) {
-	ndbout << "Couldn't get status" << endl;
-	printError();
-	return;
-      }
-      const char* names[] = {"ENABLED", "DEBUG", "INFO", "WARNING", "ERROR", 
-			     "CRITICAL", "ALERT"};
-      if(enabled[0])
-	ndbout << "Cluster logging is disabled." << endl;
-
-      
-      for(i = 0; i<7;i++)
-	printf("enabled[%d] = %d\n", i, enabled[i]);
-      ndbout << "Severities enabled: ";
-      for(i = 1; i < 7; i++) {
-	if(enabled[i])
-	  ndbout << names[i] << " ";
-      }
-      ndbout << endl;
-
-      /********************
-       * CLUSTERLOG OFF
-       ********************/
-    } else if (strcmp(item, "OFF") == 0) {
-      Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
-      if(enabled == NULL) {
-	ndbout << "Couldn't get status" << endl;
-	printError();
-	return;
-      }
-      if(!enabled[0]) {
-	ndb_mgm_filter_clusterlog(m_mgmsrv, NDB_MGM_CLUSTERLOG_OFF, NULL);
-	ndbout << "Cluster logging is disabled." << endl;	
-      } else {
-	ndbout << "Cluster logging is already disabled." << endl;	
-	
-      }
-      
-      /********************
-       * CLUSTERLOG ON
-       ********************/
-    } else if (strcmp(item, "ON") == 0) {
-      Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
-      if(enabled == NULL) {
-	ndbout << "Could not get status" << endl;
-	printError();
-	return;
-      }
-      if(enabled[0]) {
-	ndb_mgm_filter_clusterlog(m_mgmsrv, NDB_MGM_CLUSTERLOG_OFF, NULL);
-	ndbout << "Cluster logging is enabled." << endl;	
-      } else {
-	ndbout << "Cluster logging is already enabled." << endl;	
-	
-      }
-    } else {
-      ndbout << "Invalid argument." << endl;
-    }
-    
-  } else {
+  if (emptyString(parameters))
+  {
     ndbout << "Missing argument." << endl;
+    DBUG_VOID_RETURN;
   }
+
+  enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
+    
+  char * tmpString = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(tmpString);
+  char * tmpPtr = 0;
+  char * item = strtok_r(tmpString, " ", &tmpPtr);
+  int enable;
+
+  Uint32 *enabled = ndb_mgm_get_logfilter(m_mgmsrv);
+  if(enabled == NULL) {
+    ndbout << "Couldn't get status" << endl;
+    printError();
+    DBUG_VOID_RETURN;
+  }
+
+  /********************
+   * CLUSTERLOG INFO
+   ********************/
+  if (strcasecmp(item, "INFO") == 0) {
+    DBUG_PRINT("info",("INFO"));
+    if(enabled[0] == 0)
+    {
+      ndbout << "Cluster logging is disabled." << endl;
+      DBUG_VOID_RETURN;
+    }
+#if 0 
+    for(i = 0; i<7;i++)
+      printf("enabled[%d] = %d\n", i, enabled[i]);
+#endif
+    ndbout << "Severities enabled: ";
+    for(i = 1; i < (int)NDB_MGM_CLUSTERLOG_ALL; i++) {
+      const char *str= ndb_mgm_get_clusterlog_level_string((ndb_mgm_clusterlog_level)i);
+      if (str == 0)
+      {
+	DBUG_ASSERT(false);
+	continue;
+      }
+      if(enabled[i])
+	ndbout << BaseString(str).ndb_toupper() << " ";
+    }
+    ndbout << endl;
+    DBUG_VOID_RETURN;
+
+  } 
+  else if (strcasecmp(item, "FILTER") == 0 ||
+	   strcasecmp(item, "TOGGLE") == 0)
+  {
+    DBUG_PRINT("info",("TOGGLE"));
+    enable= -1;
+  } 
+  else if (strcasecmp(item, "OFF") == 0) 
+  {
+    DBUG_PRINT("info",("OFF"));
+    enable= 0;
+  } else if (strcasecmp(item, "ON") == 0) {
+    DBUG_PRINT("info",("ON"));
+    enable= 1;
+  } else {
+    ndbout << "Invalid argument." << endl;
+    DBUG_VOID_RETURN;
+  }
+
+  int res_enable;
+  item = strtok_r(NULL, " ", &tmpPtr);
+  if (item == NULL) {
+    res_enable= ndb_mgm_filter_clusterlog(m_mgmsrv,
+					  NDB_MGM_CLUSTERLOG_ON, enable, NULL);
+    if (res_enable < 0)
+    {
+      ndbout << "Couldn't set filter" << endl;
+      printError();
+      DBUG_VOID_RETURN;
+    }
+    ndbout << "Cluster logging is " << (res_enable ? "enabled.":"disabled") << endl;
+    DBUG_VOID_RETURN;
+  }
+
+  do {
+    severity= NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL;
+    if (strcasecmp(item, "ALL") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_ALL;	
+    } else if (strcasecmp(item, "ALERT") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_ALERT;
+    } else if (strcasecmp(item, "CRITICAL") == 0) { 
+      severity = NDB_MGM_CLUSTERLOG_CRITICAL;
+    } else if (strcasecmp(item, "ERROR") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_ERROR;
+    } else if (strcasecmp(item, "WARNING") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_WARNING;
+    } else if (strcasecmp(item, "INFO") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_INFO;
+    } else if (strcasecmp(item, "DEBUG") == 0) {
+      severity = NDB_MGM_CLUSTERLOG_DEBUG;
+    } else if (strcasecmp(item, "OFF") == 0 ||
+	       strcasecmp(item, "ON") == 0) {
+      if (enable < 0) // only makes sense with toggle
+	severity = NDB_MGM_CLUSTERLOG_ON;
+    }
+    if (severity == NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL) {
+      ndbout << "Invalid severity level: " << item << endl;
+      DBUG_VOID_RETURN;
+    }
+
+    res_enable = ndb_mgm_filter_clusterlog(m_mgmsrv, severity, enable, NULL);
+    if (res_enable < 0)
+    {
+      ndbout << "Couldn't set filter" << endl;
+      printError();
+      DBUG_VOID_RETURN;
+    }
+    ndbout << BaseString(item).ndb_toupper().c_str() << " " << (res_enable ? "enabled":"disabled") << endl;
+
+    item = strtok_r(NULL, " ", &tmpPtr);	
+  } while(item != NULL);
+
+  DBUG_VOID_RETURN;
 } 
 
 //*****************************************************************************
@@ -1252,7 +1373,6 @@ CommandInterpreter::executeClusterLog(char* parameters)
 void
 CommandInterpreter::executeStop(int processId, const char *, bool all) 
 {
-  connect();
   int result = 0;
   if(all) {
     result = ndb_mgm_stop(m_mgmsrv, 0, 0);
@@ -1274,7 +1394,6 @@ CommandInterpreter::executeStop(int processId, const char *, bool all)
 void
 CommandInterpreter::executeEnterSingleUser(char* parameters) 
 {
-  connect();
   strtok(parameters, " ");
   struct ndb_mgm_reply reply;
   char* id = strtok(NULL, " ");
@@ -1301,7 +1420,6 @@ CommandInterpreter::executeEnterSingleUser(char* parameters)
 void 
 CommandInterpreter::executeExitSingleUser(char* parameters) 
 {
-  connect();
   int result = ndb_mgm_exit_single_user(m_mgmsrv, 0);
   if (result != 0) {
     ndbout_c("Exiting single user mode failed.");
@@ -1316,7 +1434,6 @@ void
 CommandInterpreter::executeStart(int processId, const char* parameters,
 				 bool all) 
 {
-  connect();
   int result;
   if(all) {
     result = ndb_mgm_start(m_mgmsrv, 0, 0);
@@ -1340,7 +1457,6 @@ void
 CommandInterpreter::executeRestart(int processId, const char* parameters,
 				   bool all) 
 {
-  connect();
   int result;
   int nostart = 0;
   int initialstart = 0;
@@ -1352,11 +1468,11 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
     char * tmpPtr = 0;
     char * item = strtok_r(tmpString, " ", &tmpPtr);
     while(item != NULL){
-      if(strcmp(item, "-N") == 0)
+      if(strcasecmp(item, "-N") == 0)
 	nostart = 1;
-      if(strcmp(item, "-I") == 0)
+      if(strcasecmp(item, "-I") == 0)
 	initialstart = 1;
-      if(strcmp(item, "-A") == 0)
+      if(strcasecmp(item, "-A") == 0)
 	abort = 1;
       item = strtok_r(NULL, " ", &tmpPtr);
     }
@@ -1378,7 +1494,7 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
       if(all)
 	ndbout << "NDB Cluster is being restarted." << endl;
       else
-	ndbout_c("Database node %d is being restarted.", processId);
+	ndbout_c("Node %d is being restarted.", processId);
     }
 }
 
@@ -1386,11 +1502,10 @@ void
 CommandInterpreter::executeDumpState(int processId, const char* parameters,
 				     bool all) 
 {
-  if(parameters == 0 || strlen(parameters) == 0){
+  if(emptyString(parameters)){
     ndbout << "Expected argument" << endl;
     return;
   }
-  connect();
 
   Uint32 no = 0;
   int pars[25];
@@ -1426,11 +1541,10 @@ CommandInterpreter::executeStatus(int processId,
 				  const char* parameters, bool all) 
 {
   if (! emptyString(parameters)) {
-    ndbout << "No parameters expected to this command." << endl;
+    ndbout_c("No parameters expected to this command.");
     return;
   }
 
-  connect();
   ndb_mgm_node_status status;
   Uint32 startPhase, version;
   bool system;
@@ -1458,7 +1572,7 @@ CommandInterpreter::executeStatus(int processId,
   ndbout << "Node " << processId << ": " << status_string(status);
   switch(status){
   case NDB_MGM_NODE_STATUS_STARTING:
-    ndbout << " (Phase " << startPhase << ")" ;
+    ndbout << " (Phase " << startPhase << ")";
     break;
   case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
     ndbout << " (Phase " << startPhase << ")";
@@ -1471,6 +1585,8 @@ CommandInterpreter::executeStatus(int processId,
 	     getMajor(version) ,
 	     getMinor(version),
 	     getBuild(version));
+  else
+    ndbout << endl;
 }
 
 
@@ -1481,9 +1597,11 @@ void
 CommandInterpreter::executeLogLevel(int processId, const char* parameters, 
 				    bool all) 
 {
-  connect();
   (void) all;
-  
+  if (emptyString(parameters)) {
+    ndbout << "Expected argument" << endl;
+    return;
+  } 
   BaseString tmp(parameters);
   Vector<BaseString> spec;
   tmp.split(spec, "=");
@@ -1509,6 +1627,8 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
     return;
   }
   
+  ndbout << "Executing LOGLEVEL on node " << processId << flush;
+
   struct ndb_mgm_reply reply;
   int result;
   result = ndb_mgm_set_loglevel_node(m_mgmsrv, 
@@ -1518,11 +1638,10 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
 				     &reply);
   
   if (result < 0) {
-    ndbout_c("Executing LOGLEVEL on node %d failed.", processId);
+    ndbout_c(" failed.");
     printError();
   } else {
-    ndbout << "Executing LOGLEVEL on node " << processId << " OK!" 
-	   << endl;
+    ndbout_c(" OK!");
   }  
   
 }
@@ -1537,7 +1656,6 @@ void CommandInterpreter::executeError(int processId,
     return;
   }
 
-  connect();
   // Copy parameters since strtok will modify it
   char* newpar = my_strdup(parameters,MYF(MY_WME)); 
   My_auto_ptr<char> ap1(newpar);
@@ -1589,7 +1707,7 @@ CommandInterpreter::executeTrace(int /*processId*/,
 
   int result = _mgmtSrvr.setTraceNo(processId, traceNo);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
   }
 #endif
 }
@@ -1601,7 +1719,6 @@ void
 CommandInterpreter::executeLog(int processId,
 			       const char* parameters, bool all) 
 {
-  connect();
   struct ndb_mgm_reply reply;
   Vector<const char *> blocks;
   if (! parseBlockSpecification(parameters, blocks)) {
@@ -1669,7 +1786,6 @@ CommandInterpreter::executeTestOn(int processId,
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-  connect();
   struct ndb_mgm_reply reply;
   int result = ndb_mgm_start_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
@@ -1688,7 +1804,6 @@ CommandInterpreter::executeTestOff(int processId,
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-  connect();
   struct ndb_mgm_reply reply;
   int result = ndb_mgm_stop_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
@@ -1752,7 +1867,7 @@ CommandInterpreter::executeSet(int /*processId*/,
     }
   }
   else {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
     if (configBackupFileUpdated && configPrimaryFileUpdated) {
       ndbout << "The configuration files are however updated and "
 	     << "the value will be used next time the process is restarted." 
@@ -1787,7 +1902,7 @@ void CommandInterpreter::executeGetStat(int /*processId*/,
   MgmtSrvr::Statistics statistics;
   int result = _mgmtSrvr.getStatistics(processId, statistics);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout << get_error_text(result) << endl;
     return;
   }
 #endif
@@ -1806,8 +1921,10 @@ CommandInterpreter::executeEventReporting(int processId,
 					  const char* parameters, 
 					  bool all) 
 {
-  connect();
-
+  if (emptyString(parameters)) {
+    ndbout << "Expected argument" << endl;
+    return;
+  }
   BaseString tmp(parameters);
   Vector<BaseString> spec;
   tmp.split(spec, "=");
@@ -1819,59 +1936,105 @@ CommandInterpreter::executeEventReporting(int processId,
   spec[0].trim().ndb_toupper();
   int category = ndb_mgm_match_event_category(spec[0].c_str());
   if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
-    category = atoi(spec[0].c_str());
-    if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+    if(!convert(spec[0].c_str(), category) ||
+       category < NDB_MGM_MIN_EVENT_CATEGORY ||
        category > NDB_MGM_MAX_EVENT_CATEGORY){
       ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
       return;
     }
   }
-  
-  int level = atoi(spec[1].c_str());
-  if(level < 0 || level > 15){
+
+  int level;
+  if (!convert(spec[1].c_str(),level))
+  {
     ndbout << "Invalid level: " << spec[1].c_str() << endl;
     return;
   }
-  
+
+  ndbout << "Executing CLUSTERLOG on node " << processId << flush;
 
   struct ndb_mgm_reply reply;
   int result;
-
   result = ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
-					   processId, // fast fix - pekka
+					   processId,
 					   (ndb_mgm_event_category)category,
 					   level, 
 					   &reply);
   
   if (result != 0) {
-    ndbout_c("Executing CLUSTERLOG on node %d failed", processId);
+    ndbout_c(" failed."); 
     printError();
   } else {
-    ndbout << "Executing CLUSTERLOG on node " << processId << " OK!" 
-	   << endl;
+    ndbout_c(" OK!"); 
   }  
 }
 
 /*****************************************************************************
  * Backup
  *****************************************************************************/
-void
-CommandInterpreter::executeStartBackup(char* /*parameters*/) 
+int
+CommandInterpreter::executeStartBackup(char* parameters)
 {
-  connect();
   struct ndb_mgm_reply reply;
   unsigned int backupId;
-
+#if 0
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
   int fd = ndb_mgm_listen_event(m_mgmsrv, filter);
-  int result = ndb_mgm_start_backup(m_mgmsrv, &backupId, &reply);
+  if (fd < 0)
+  {
+    ndbout << "Initializing start of backup failed" << endl;
+    printError();
+    return fd;
+  }
+#endif
+  Vector<BaseString> args;
+  {
+    BaseString(parameters).split(args);
+    for (unsigned i= 0; i < args.size(); i++)
+      if (args[i].length() == 0)
+	args.erase(i--);
+      else
+	args[i].ndb_toupper();
+  }
+  int sz= args.size();
+
+  int result;
+  if (sz == 2 &&
+      args[1] == "NOWAIT")
+  {
+    result = ndb_mgm_start_backup(m_mgmsrv, 0, &backupId, &reply);
+  }
+  else if (sz == 1 ||
+	   (sz == 3 &&
+	    args[1] == "WAIT" &&
+	    args[2] == "COMPLETED"))
+  {
+    ndbout_c("Waiting for completed, this may take several minutes");
+    result = ndb_mgm_start_backup(m_mgmsrv, 2, &backupId, &reply);
+  }
+  else if (sz == 3 &&
+	   args[1] == "WAIT" &&
+	   args[2] == "STARTED")
+  {
+    ndbout_c("Waiting for started, this may take several minutes");
+    result = ndb_mgm_start_backup(m_mgmsrv, 1, &backupId, &reply);
+  }
+  else
+  {
+    invalid_command(parameters);
+    return -1;
+  }
+
   if (result != 0) {
     ndbout << "Start of backup failed" << endl;
     printError();
+#if 0
     close(fd);
-    return;
+#endif
+    return result;
   }
-
+#if 0
+  ndbout_c("Waiting for completed, this may take several minutes");
   char *tmp;
   char buf[1024];
   {
@@ -1898,29 +2061,39 @@ CommandInterpreter::executeStartBackup(char* /*parameters*/)
       ndbout << tmp;
     }
   } while(tmp && tmp[0] != 0);
-  
+
   close(fd);
+#endif  
+  return 0;
 }
 
 void
 CommandInterpreter::executeAbortBackup(char* parameters) 
 {
-  connect();
-  strtok(parameters, " ");
-  struct ndb_mgm_reply reply;
-  char* id = strtok(NULL, "\0");
   int bid = -1;
-  if(id == 0 || sscanf(id, "%d", &bid) != 1){
-    ndbout << "Invalid arguments: expected <BackupId>" << endl;
-    return;
+  struct ndb_mgm_reply reply;
+  if (emptyString(parameters))
+    goto executeAbortBackupError1;
+
+  {
+    strtok(parameters, " ");
+    char* id = strtok(NULL, "\0");
+    if(id == 0 || sscanf(id, "%d", &bid) != 1)
+      goto executeAbortBackupError1;
   }
-  int result = ndb_mgm_abort_backup(m_mgmsrv, bid, &reply);
-  if (result != 0) {
-    ndbout << "Abort of backup " << bid << " failed" << endl;
-    printError();
-  } else {
-    ndbout << "Abort of backup " << bid << " ordered" << endl;
+  {
+    int result= ndb_mgm_abort_backup(m_mgmsrv, bid, &reply);
+    if (result != 0) {
+      ndbout << "Abort of backup " << bid << " failed" << endl;
+      printError();
+    } else {
+      ndbout << "Abort of backup " << bid << " ordered" << endl;
+    }
   }
+  return;
+ executeAbortBackupError1:
+  ndbout << "Invalid arguments: expected <BackupId>" << endl;
+  return;
 }
 
 #ifdef HAVE_GLOBAL_REPLICATION
@@ -1959,7 +2132,6 @@ CommandInterpreter::executeRep(char* parameters)
     return;
   }
 
-  connect();
   char * line = my_strdup(parameters,MYF(MY_WME));
   My_auto_ptr<char> ap1((char*)line);
   char * firstToken = strtok(line, " ");
@@ -1968,7 +2140,7 @@ CommandInterpreter::executeRep(char* parameters)
   unsigned int          repId;
 
 
-  if (!strcmp(firstToken, "CONNECT")) {
+  if (!strcasecmp(firstToken, "CONNECT")) {
     char * host = strtok(NULL, "\0");
     for (unsigned int i = 0; i < strlen(host); ++i) {
       host[i] = tolower(host[i]);
@@ -2003,30 +2175,30 @@ CommandInterpreter::executeRep(char* parameters)
   /********
    * START 
    ********/
-  if (!strcmp(firstToken, "START")) {
+  if (!strcasecmp(firstToken, "START")) {
     
     unsigned int          req;
     char *startType = strtok(NULL, "\0");
     
     if (startType == NULL) {                
       req = GrepReq::START;
-    } else if (!strcmp(startType, "SUBSCRIPTION")) {  
+    } else if (!strcasecmp(startType, "SUBSCRIPTION")) {  
       req = GrepReq::START_SUBSCR;
-    } else if (!strcmp(startType, "METALOG")) { 
+    } else if (!strcasecmp(startType, "METALOG")) { 
       req = GrepReq::START_METALOG;
-    } else if (!strcmp(startType, "METASCAN")) {
+    } else if (!strcasecmp(startType, "METASCAN")) {
       req = GrepReq::START_METASCAN;
-    } else if (!strcmp(startType, "DATALOG")) {
+    } else if (!strcasecmp(startType, "DATALOG")) {
       req = GrepReq::START_DATALOG;
-    } else if (!strcmp(startType, "DATASCAN")) {
+    } else if (!strcasecmp(startType, "DATASCAN")) {
       req = GrepReq::START_DATASCAN;
-    } else if (!strcmp(startType, "REQUESTOR")) {
+    } else if (!strcasecmp(startType, "REQUESTOR")) {
       req = GrepReq::START_REQUESTOR;
-    } else if (!strcmp(startType, "TRANSFER")) {
+    } else if (!strcasecmp(startType, "TRANSFER")) {
       req = GrepReq::START_TRANSFER;
-    } else if (!strcmp(startType, "APPLY")) {
+    } else if (!strcasecmp(startType, "APPLY")) {
       req = GrepReq::START_APPLY;
-    } else if (!strcmp(startType, "DELETE")) {
+    } else if (!strcasecmp(startType, "DELETE")) {
       req = GrepReq::START_DELETE;
     } else {
       ndbout_c("Illegal argument to command 'REPLICATION START'");
@@ -2046,7 +2218,7 @@ CommandInterpreter::executeRep(char* parameters)
   /********
    * STOP
    ********/
-  if (!strcmp(firstToken, "STOP")) {    
+  if (!strcasecmp(firstToken, "STOP")) {    
     unsigned int          req;
     char *startType = strtok(NULL, " ");
     unsigned int epoch = 0;
@@ -2056,7 +2228,7 @@ CommandInterpreter::executeRep(char* parameters)
        * Stop immediately
        */
       req = GrepReq::STOP;
-    } else if (!strcmp(startType, "EPOCH")) {  
+    } else if (!strcasecmp(startType, "EPOCH")) {  
       char *strEpoch = strtok(NULL, "\0");
       if(strEpoch == NULL) {
 	ndbout_c("Epoch expected!");
@@ -2064,23 +2236,23 @@ CommandInterpreter::executeRep(char* parameters)
       }
       req = GrepReq::STOP;
       epoch=atoi(strEpoch);      
-    } else if (!strcmp(startType, "SUBSCRIPTION")) {  
+    } else if (!strcasecmp(startType, "SUBSCRIPTION")) {  
       req = GrepReq::STOP_SUBSCR;
-    } else if (!strcmp(startType, "METALOG")) { 
+    } else if (!strcasecmp(startType, "METALOG")) { 
       req = GrepReq::STOP_METALOG;
-    } else if (!strcmp(startType, "METASCAN")) {
+    } else if (!strcasecmp(startType, "METASCAN")) {
       req = GrepReq::STOP_METASCAN;
-    } else if (!strcmp(startType, "DATALOG")) {
+    } else if (!strcasecmp(startType, "DATALOG")) {
       req = GrepReq::STOP_DATALOG;
-    } else if (!strcmp(startType, "DATASCAN")) {
+    } else if (!strcasecmp(startType, "DATASCAN")) {
       req = GrepReq::STOP_DATASCAN;
-    } else if (!strcmp(startType, "REQUESTOR")) {
+    } else if (!strcasecmp(startType, "REQUESTOR")) {
       req = GrepReq::STOP_REQUESTOR;
-    } else if (!strcmp(startType, "TRANSFER")) {
+    } else if (!strcasecmp(startType, "TRANSFER")) {
       req = GrepReq::STOP_TRANSFER;
-    } else if (!strcmp(startType, "APPLY")) {
+    } else if (!strcasecmp(startType, "APPLY")) {
       req = GrepReq::STOP_APPLY;
-    } else if (!strcmp(startType, "DELETE")) {
+    } else if (!strcasecmp(startType, "DELETE")) {
       req = GrepReq::STOP_DELETE;
     } else {
       ndbout_c("Illegal argument to command 'REPLICATION STOP'");
@@ -2099,7 +2271,7 @@ CommandInterpreter::executeRep(char* parameters)
   /*********
    * STATUS
    *********/
-  if (!strcmp(firstToken, "STATUS")) {
+  if (!strcasecmp(firstToken, "STATUS")) {
     struct rep_state repstate;
     int result = 
       ndb_rep_get_status(m_repserver, &repId, &reply, &repstate);
@@ -2119,7 +2291,7 @@ CommandInterpreter::executeRep(char* parameters)
   /*********
    * QUERY (see repapi.h for querable counters)
    *********/
-  if (!strcmp(firstToken, "QUERY")) {
+  if (!strcasecmp(firstToken, "QUERY")) {
     char *query = strtok(NULL, "\0");
     int queryCounter=-1;
     if(query != NULL) {

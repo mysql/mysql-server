@@ -228,6 +228,7 @@ static int add_collation(CHARSET_INFO *cs)
       }
       else
       {
+        uchar *sort_order= all_charsets[cs->number]->sort_order;
         simple_cs_init_functions(all_charsets[cs->number]);
         new->mbminlen= 1;
         new->mbmaxlen= 1;
@@ -236,6 +237,16 @@ static int add_collation(CHARSET_INFO *cs)
           all_charsets[cs->number]->state |= MY_CS_LOADED;
         }
         all_charsets[cs->number]->state|= MY_CS_AVAILABLE;
+        
+        /*
+          Check if case sensitive sort order: A < a < B.
+          We need MY_CS_FLAG for regex library, and for
+          case sensitivity flag for 5.0 client protocol,
+          to support isCaseSensitive() method in JDBC driver 
+        */
+        if (sort_order && sort_order['A'] < sort_order['a'] &&
+                          sort_order['a'] < sort_order['B'])
+          all_charsets[cs->number]->state|= MY_CS_CSSORT; 
       }
     }
     else

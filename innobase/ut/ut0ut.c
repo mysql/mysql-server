@@ -235,13 +235,18 @@ ut_get_year_month_day(
   	*month = (ulint)cal_tm.wMonth;
   	*day = (ulint)cal_tm.wDay;
 #else
+	struct tm  cal_tm;
   	struct tm* cal_tm_ptr;
   	time_t     tm;
 
   	time(&tm);
 
+#ifdef HAVE_LOCALTIME_R
+  	localtime_r(&tm, &cal_tm);
+  	cal_tm_ptr = &cal_tm;
+#else
   	cal_tm_ptr = localtime(&tm);
-
+#endif
   	*year = (ulint)cal_tm_ptr->tm_year + 1900;
   	*month = (ulint)cal_tm_ptr->tm_mon + 1;
   	*day = (ulint)cal_tm_ptr->tm_mday;

@@ -350,7 +350,6 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 class user_var_entry;
 #include "item.h"
-#include "tztime.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -363,7 +362,6 @@ bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 int multi_update_precheck(THD *thd, TABLE_LIST *tables);
 int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
-int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 int update_precheck(THD *thd, TABLE_LIST *tables);
 int delete_precheck(THD *thd, TABLE_LIST *tables);
 int insert_precheck(THD *thd, TABLE_LIST *tables);
@@ -371,6 +369,8 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
+#include "sql_acl.h"
+#include "tztime.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
@@ -688,7 +688,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
 		       LEX_STRING *comment,
-		       char *change, TYPELIB *interval,CHARSET_INFO *cs,
+		       char *change, List<String> *interval_list,
+		       CHARSET_INFO *cs,
 		       uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
@@ -1196,6 +1197,23 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+}
+
+
+/*
+  SYNOPSYS
+    hexchar_to_int()
+    convert a hex digit into number
+*/
+
+inline int hexchar_to_int(char c)
+{
+  if (c <= '9' && c >= '0')
+    return c-'0';
+  c|=32;
+  if (c <= 'f' && c >= 'a')
+    return c-'a'+10;
+  return -1;
 }
 
 

@@ -32,7 +32,6 @@
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_acl.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include <myisam.h>
@@ -609,7 +608,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_constraint constraint
+	opt_constraint constraint ident_or_empty
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -1361,7 +1360,7 @@ field_spec:
 	field_ident
 	 {
 	   LEX *lex=Lex;
-	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+	   lex->length=lex->dec=0; lex->type=0;
 	   lex->default_value= lex->on_update_value= 0;
 	   lex->comment=0;
 	   lex->charset=NULL;
@@ -1374,7 +1373,7 @@ field_spec:
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->on_update_value, 
                                 lex->comment,
-				lex->change,lex->interval,lex->charset,
+				lex->change,&lex->interval_list,lex->charset,
 				lex->uint_geom_type))
 	    YYABORT;
 	};
@@ -1471,17 +1470,9 @@ type:
 	| FIXED_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  {
-	    LEX *lex=Lex;
-	    lex->interval=typelib(lex->interval_list);
-	    $$=FIELD_TYPE_ENUM;
-	  }
+	  { $$=FIELD_TYPE_ENUM; }
 	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  {
-	    LEX *lex=Lex;
-	    lex->interval=typelib(lex->interval_list);
-	    $$=FIELD_TYPE_SET;
-	  }
+	  { $$=FIELD_TYPE_SET; }
 	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| SERIAL_SYM
 	  {
@@ -1878,7 +1869,7 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident
+	| ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
             Lex->create_info.used_fields= 0;
@@ -1887,8 +1878,13 @@ alter:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
-	    lex->name=$3.str;
+	    lex->name= $3;
 	  };
+
+
+ident_or_empty:
+	/* empty */  { $$= 0; }
+	| ident      { $$= $1.str; };
 
 
 alter_list:
@@ -1925,7 +1921,7 @@ alter_list_item:
         | MODIFY_SYM opt_column field_ident
           {
             LEX *lex=Lex;
-            lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+            lex->length=lex->dec=0; lex->type=0;
             lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
@@ -1940,7 +1936,7 @@ alter_list_item:
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->on_update_value,
                                   lex->comment,
-				  $3.str, lex->interval, lex->charset,
+				  $3.str, &lex->interval_list, lex->charset,
 				  lex->uint_geom_type))
 	       YYABORT;
           }
@@ -4165,21 +4161,8 @@ expr_or_default:
 
 opt_insert_update:
         /* empty */
-        | ON DUPLICATE_SYM
-          { 
-            LEX *lex= Lex;
-            /*
-              For simplicity, let's forget about INSERT ... SELECT ... UPDATE
-              for a moment.
-            */
-	    if (lex->sql_command != SQLCOM_INSERT)
-            {
-	      yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-            lex->duplicates= DUP_UPDATE;
-          }
-          KEY_SYM UPDATE_SYM update_list
+        | ON DUPLICATE_SYM	{ Lex->duplicates= DUP_UPDATE; }
+          KEY_SYM UPDATE_SYM insert_update_list
         ;
 
 /* Update rows in a table */
@@ -4215,16 +4198,28 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident equal expr_or_default
+	update_list ',' update_elem
+	| update_elem;
+
+update_elem:
+	simple_ident equal expr_or_default
 	{
-	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
+	  if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	    YYABORT;
-	}
-	| simple_ident equal expr_or_default
-	  {
-	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
-	      YYABORT;
-	  };
+	};
+
+insert_update_list:
+	insert_update_list ',' insert_update_elem
+	| insert_update_elem;
+
+insert_update_elem:
+	simple_ident equal expr_or_default
+	{
+	  LEX *lex= Lex;
+	  if (lex->update_list.push_back($1) || 
+	      lex->value_list.push_back($3))
+	    YYABORT;
+	};
 
 opt_low_priority:
 	/* empty */	{ $$= YYTHD->update_lock_default; }

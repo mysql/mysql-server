@@ -117,10 +117,9 @@ LogHandler::parseParams(const BaseString &_params) {
   _params.split(v_args, ",");
   for(size_t i=0; i < v_args.size(); i++) {
     Vector<BaseString> v_param_value;
-
-    v_args[i].split(v_param_value, "=", 2);
-    if(v_param_value.size() == 2 &&
-       !setParam(v_param_value[0], v_param_value[1]))
+    if(v_args[i].split(v_param_value, "=", 2) != 2)
+      ret = false;
+    else if (!setParam(v_param_value[0], v_param_value[1]))
       ret = false;
   }
 

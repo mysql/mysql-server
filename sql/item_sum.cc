@@ -218,16 +218,13 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   hybrid_type= item->result_type();
   if (hybrid_type == INT_RESULT)
   {
-    cmp_charset= &my_charset_bin;
     max_length=20;
   }
   else if (hybrid_type == REAL_RESULT)
   {
-    cmp_charset= &my_charset_bin;
     max_length=float_length(decimals);
   }else
   {
-    cmp_charset= item->collation.collation;
     max_length=item->max_length;
   }
   decimals=item->decimals;
@@ -540,7 +537,22 @@ void Item_sum_hybrid::cleanup()
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
   used_table_cache= ~(table_map) 0;
+
+  /*
+    by default it is TRUE to avoid TRUE reporting by
+    Item_func_not_all/Item_func_nop_all if this item was never called.
+
+    no_rows_in_result() set it to FALSE if was not results found.
+    If some results found it will be left unchanged.
+  */
+  was_values= TRUE;
   DBUG_VOID_RETURN;
+}
+
+void Item_sum_hybrid::no_rows_in_result()
+{
+  Item_sum::no_rows_in_result();
+  was_values= FALSE;
 }
 
 
@@ -557,7 +569,7 @@ bool Item_sum_min::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value || sortcmp(&value,result,cmp_charset) > 0))
+	(null_value || sortcmp(&value,result,collation.collation) > 0))
     {
       value.copy(*result);
       null_value=0;
@@ -610,7 +622,7 @@ bool Item_sum_max::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value || sortcmp(&value,result,cmp_charset) < 0))
+	(null_value || sortcmp(&value,result,collation.collation) < 0))
     {
       value.copy(*result);
       null_value=0;
@@ -921,7 +933,7 @@ Item_sum_hybrid::min_max_update_str_field()
     result_field->val_str(&tmp_value);
 
     if (result_field->is_null() ||
-	(cmp_sign * sortcmp(res_str,&tmp_value,cmp_charset)) < 0)
+	(cmp_sign * sortcmp(res_str,&tmp_value,collation.collation)) < 0)
       result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     result_field->set_notnull();
   }
@@ -1906,7 +1918,9 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
   for (i=0 ; i < arg_count ; i++)  
   {
-    if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
+    if ((!args[i]->fixed && 
+         args[i]->fix_fields(thd, tables, args + i)) ||
+        args[i]->check_cols(1))
       return 1;
     if (i < arg_count_field)
       maybe_null|= args[i]->maybe_null;

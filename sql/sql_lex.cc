@@ -123,6 +123,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->unit.thd= thd;
   lex->select_lex.init_query();
   lex->value_list.empty();
+  lex->update_list.empty();
   lex->param_list.empty();
   lex->unit.next= lex->unit.master=
     lex->unit.link_next= lex->unit.return_to= 0;
@@ -135,7 +136,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->select_lex.options= 0;
   lex->describe= 0;
-  lex->derived_tables= FALSE;
+  lex->subqueries= lex->derived_tables= FALSE;
   lex->lock_option= TL_READ;
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
@@ -157,6 +158,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
   lex->duplicates= DUP_ERROR;
+  lex->proc_list.first= 0;
 }
 
 void lex_end(LEX *lex)
