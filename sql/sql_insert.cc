@@ -319,13 +319,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       error=ha_autocommit_or_rollback(thd,error);
 
     /*
-      Only invalidate the query cache if something changed or if we
-      didn't commit the transacion (query cache is automaticly
-      invalidated on commit)
+      Store table for future invalidation  or invalidate it in
+      the query cache if something changed
     */
-    if ((info.copied || info.deleted) &&
-	(!transactional_table ||
-	 thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+    if (info.copied || info.deleted)
     {
       query_cache_invalidate3(thd, table_list, 1);
     }
