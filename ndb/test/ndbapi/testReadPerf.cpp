@@ -242,14 +242,6 @@ void err(NdbError e){
   ndbout << e << endl;
 }
 
-static 
-void
-do_work(){
-  int sz = 10 * 1024;
-  int pos= rand() % (sizeof(g_buffer) - sz);
-  memset(g_buffer+pos, rand(), sz);
-}
-
 int
 run_read(){
   int iter = g_paramters[P_LOOPS].value;
@@ -374,7 +366,6 @@ run_read(){
     assert(check == 0);
     if(g_paramters[P_OPER].value >= 4){
       while((check = rs->nextResult(true)) == 0){
-	do_work();
 	cnt++;
       }
 	
@@ -384,12 +375,6 @@ run_read(){
       }
       assert(check == 1);
       rs->close();
-    } else {
-      if(start_row != stop_row)
-	do_work();
-      else
-	for(int j = 0; j<range; j++)
-	  do_work();
     }
   }
   assert(g_paramters[P_OPER].value < 4 || (cnt == range));
