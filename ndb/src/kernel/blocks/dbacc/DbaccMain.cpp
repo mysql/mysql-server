@@ -46,13 +46,17 @@ Dbacc::remainingUndoPages(){
   ndbrequire(HeadPage>=TailPage);
 
   Uint32 UsedPages = HeadPage - TailPage;
-  Uint32 Remaining = cundopagesize - UsedPages;
+  Int32 Remaining = cundopagesize - UsedPages;
 
   // There can not be more than cundopagesize remaining
-  ndbrequire(Remaining<=cundopagesize);
-
+  if (Remaining <= 0){
+    // No more undolog, crash node
+    progError(__LINE__,
+	      ERR_NO_MORE_UNDOLOG,
+	      "There are more than 1Mbyte undolog writes outstanding");
+  }
   return Remaining;
-}//Dbacc::remainingUndoPages()
+}
 
 void
 Dbacc::updateLastUndoPageIdWritten(Signal* signal, Uint32 aNewValue){
@@ -193,6 +197,17 @@ void Dbacc::execCONTINUEB(Signal* signal)
     return;
   }
 
+  case ZLCP_OP_WRITE_RT_BREAK:
+  {
+    operationRecPtr.i= signal->theData[1];
+    fragrecptr.i= signal->theData[2];
+    lcpConnectptr.i= signal->theData[3];
+    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+    ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    ptrCheckGuard(lcpConnectptr, clcpConnectsize, lcpConnectrec);
+    lcp_write_op_to_undolog(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -7697,32 +7712,70 @@ void Dbacc::execACC_LCPREQ(Signal* signal)
   fragrecptr.p->lcpMaxOverDirIndex = fragrecptr.p->lastOverIndex;
   fragrecptr.p->createLcp = ZTRUE;
   operationRecPtr.i = fragrecptr.p->lockOwnersList;
-  while (operationRecPtr.i != RNIL) {
-    jam();
-    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  lcp_write_op_to_undolog(signal);
+}
 
-    if ((operationRecPtr.p->operation == ZINSERT) ||
-	(operationRecPtr.p->elementIsDisappeared == ZTRUE)){
+void
+Dbacc::lcp_write_op_to_undolog(Signal* signal)
+{
+  bool delay_continueb= false;
+  Uint32 i, j;
+  for (i= 0; i < 16; i++) {
+    jam();
+    if (remainingUndoPages() <= ZMIN_UNDO_PAGES_AT_COMMIT) {
+      jam();
+      delay_continueb= true;
+      break;
+    }
+    for (j= 0; j < 32; j++) {
+      if (operationRecPtr.i == RNIL) {
+        jam();
+        break;
+      }
+      jam();
+      ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+
+      if ((operationRecPtr.p->operation == ZINSERT) ||
+          (operationRecPtr.p->elementIsDisappeared == ZTRUE)){
       /*******************************************************************
        * Only log inserts and elements that are marked as dissapeared.
        * All other operations update the element header and that is handled
        * when pages are written to disk
        ********************************************************************/
-      undopageptr.i = (cundoposition>>ZUNDOPAGEINDEXBITS) & (cundopagesize-1);
-      ptrAss(undopageptr, undopage);
-      theadundoindex = cundoposition & ZUNDOPAGEINDEX_MASK;
-      tundoindex = theadundoindex + ZUNDOHEADSIZE;
+        undopageptr.i = (cundoposition>>ZUNDOPAGEINDEXBITS) & (cundopagesize-1);
+        ptrAss(undopageptr, undopage);
+        theadundoindex = cundoposition & ZUNDOPAGEINDEX_MASK;
+        tundoindex = theadundoindex + ZUNDOHEADSIZE;
 
-      writeUndoOpInfo(signal);/* THE INFORMATION ABOUT ELEMENT HEADER, STORED*/
-                              /* IN OP REC, IS WRITTEN AT UNDO PAGES */
-      cundoElemIndex = 0;/* DEFAULT VALUE USED BY WRITE_UNDO_HEADER SUBROTINE */
-      writeUndoHeader(signal, RNIL, UndoHeader::ZOP_INFO); /* WRITE THE HEAD OF THE UNDO ELEMENT */
-      checkUndoPages(signal);	/* SEND UNDO PAGE TO DISK WHEN A GROUP OF  */
+        writeUndoOpInfo(signal);/* THE INFORMATION ABOUT ELEMENT HEADER, STORED*/
+                                /* IN OP REC, IS WRITTEN AT UNDO PAGES */
+        cundoElemIndex = 0;/* DEFAULT VALUE USED BY WRITE_UNDO_HEADER SUBROTINE */
+        writeUndoHeader(signal, RNIL, UndoHeader::ZOP_INFO); /* WRITE THE HEAD OF THE UNDO ELEMENT */
+        checkUndoPages(signal);	/* SEND UNDO PAGE TO DISK WHEN A GROUP OF  */
                                 /* UNDO PAGES,CURRENTLY 8, IS FILLED */
-    }//if
-
-    operationRecPtr.i = operationRecPtr.p->nextLockOwnerOp;
-  }//while
+      }
+      operationRecPtr.i = operationRecPtr.p->nextLockOwnerOp;
+    }
+    if (operationRecPtr.i == RNIL) {
+      jam();
+      break;
+    }
+  }
+  if (operationRecPtr.i != RNIL) {
+    jam();
+    signal->theData[0]= ZLCP_OP_WRITE_RT_BREAK;
+    signal->theData[1]= operationRecPtr.i;
+    signal->theData[2]= fragrecptr.i;
+    signal->theData[3]= lcpConnectptr.i;
+    if (delay_continueb) {
+      jam();
+      sendSignalWithDelay(cownBlockref, GSN_CONTINUEB, signal, 10, 4);
+    } else {
+      jam();
+      sendSignal(cownBlockref, GSN_CONTINUEB, signal, 4, JBB);
+    }
+    return;
+  }
 
   signal->theData[0] = fragrecptr.p->lcpLqhPtr;
   sendSignal(lcpConnectptr.p->lcpUserblockref, GSN_ACC_LCPSTARTED, 
@@ -7735,8 +7788,7 @@ void Dbacc::execACC_LCPREQ(Signal* signal)
   signal->theData[0] = lcpConnectptr.i;
   signal->theData[1] = fragrecptr.i;
   sendSignal(cownBlockref, GSN_ACC_SAVE_PAGES, signal, 2, JBB);
-  return;
-}//Dbacc::execACC_LCPREQ()
+}
 
 /* ******************--------------------------------------------------------------- */
 /* ACC_SAVE_PAGES           A GROUP OF PAGES IS ALLOCATED. THE PAGES AND OVERFLOW    */
@@ -8595,12 +8647,6 @@ void Dbacc::checkUndoPages(Signal* signal)
    * RECORDS IN
    */
   Uint16 nextUndoPageId = tundoPageId + 1;
-  if (nextUndoPageId > (clastUndoPageIdWritten + cundopagesize)){
-    // No more undolog, crash node
-    progError(__LINE__,
-	      ERR_NO_MORE_UNDOLOG,
-	      "There are more than 1Mbyte undolog writes outstanding");
-  }
   updateUndoPositionPage(signal, nextUndoPageId << ZUNDOPAGEINDEXBITS);
 
   if ((tundoPageId & (ZWRITE_UNDOPAGESIZE - 1)) == (ZWRITE_UNDOPAGESIZE - 1)) {
