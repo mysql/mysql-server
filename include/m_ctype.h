@@ -131,6 +131,7 @@ typedef struct my_charset_handler_st
   int     (*mbcharlen)(struct charset_info_st *, uint);
   uint    (*numchars)(struct charset_info_st *, const char *b, const char *e);
   uint    (*charpos)(struct charset_info_st *, const char *b, const char *e, uint pos);
+  uint    (*lengthsp)(struct charset_info_st *, const char *ptr, uint length);
   
   /* Unicode convertion */
   int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
@@ -239,6 +240,8 @@ extern int  my_strnncollsp_simple(CHARSET_INFO *, const uchar *, uint,
 extern void my_hash_sort_simple(CHARSET_INFO *cs,
 				const uchar *key, uint len,
 				ulong *nr1, ulong *nr2); 
+
+extern uint my_lengthsp_8bit(CHARSET_INFO *cs, const char *ptr, uint length);
 
 
 /* Functions for 8bit */

@@ -280,6 +280,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     NULL,			/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_lengthsp_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
     my_caseup_str_bin,

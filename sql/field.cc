@@ -3975,12 +3975,8 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 			      String *val_ptr)
 {
   char *end=ptr+field_length;
-#ifdef WANT_TRUE_BINARY_STRINGS
-  if (!binary)
-#endif
-    while (end > ptr && end[-1] == ' ')
-      end--;
-  val_ptr->set((const char*) ptr,(uint) (end - ptr),field_charset);
+  uint length= field_charset->cset->lengthsp(field_charset, ptr, field_length);
+  val_ptr->set((const char*) ptr, length, field_charset);
   return val_ptr;
 }
 
