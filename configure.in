@@ -2701,12 +2701,6 @@ then
 fi
 AC_SUBST([ndb_port])
 
-if test X"$ndb_port_base" = Xdefault
-then
-  ndb_port_base="2202"
-fi
-AC_SUBST([ndb_port_base])
-
 ndb_transporter_opt_objs=""
 if test "$ac_cv_func_shmget" = "yes" &&
    test "$ac_cv_func_shmat" = "yes" &&

@@ -1023,10 +1023,8 @@ sub ndbcluster_install () {
   }
   mtr_report("Install ndbcluster");
   my $ndbcluster_opts=  $opt_bench ? "" : "--small";
-  my $ndbcluster_port_base= $opt_ndbcluster_port + 2;
   if (  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 		["--port=$opt_ndbcluster_port",
-		 "--port-base=$ndbcluster_port_base",
 		 "--data-dir=$glob_mysql_test_dir/var",
 		 $ndbcluster_opts,
 		 "--initial"],
@@ -1067,7 +1065,6 @@ sub ndbcluster_stop () {
   {
     return;
   }
-  my $ndbcluster_port_base= $opt_ndbcluster_port + 2;
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
   mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
           ["--port=$opt_ndbcluster_port",
