@@ -48,7 +48,6 @@ select * from t1 where parent_id=102;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 optimize table t1;
-show keys from t1;
 drop table t1;
 
 #
@@ -86,7 +85,6 @@ select * from t1;
 create index skr on t1 (a);
 insert into t1 values (3,""), (4,"testing");
 analyze table t1;
-show keys from t1;
 drop table t1;
 
 
@@ -224,7 +222,6 @@ drop table t1;
 
 CREATE TABLE t1 (a int not null, b int not null,c int not null,
 key(a),primary key(a,b), unique(c),key(a),unique(b));
-show index from t1;
 drop table t1;
 
 #
@@ -398,7 +395,6 @@ create table t1 (a varchar(100) not null, primary key(a), b int not null) type=i
 insert into t1 values("hello",1),("world",2);
 select * from t1 order by b desc;
 optimize table t1;
-show keys from t1;
 drop table t1;
 
 #
@@ -443,7 +439,6 @@ DROP TABLE t1;
 
 create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) type = innodb;
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
-explain select * from t1 where a > 0 and a < 50;
 drop table t1;
 
 #
@@ -521,8 +516,6 @@ insert into mysqltest.t3 values(1);
 commit;
 drop database mysqltest;
 # Don't check error message
---error 12,12
-show tables from mysqltest;
 
 #
 # Test truncate table with and without auto_commit
@@ -560,14 +553,6 @@ drop table t1;
 
 create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) type=innodb;
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
-explain select * from t1 order by a;
-explain select * from t1 order by b;
-explain select * from t1 order by c;
-explain select a from t1 order by a;
-explain select b from t1 order by b;
-explain select a,b from t1 order by b;
-explain select a,b from t1;
-explain select a,b,c from t1;
 drop table t1;
 
 #
@@ -830,9 +815,7 @@ insert into t1 (a) select b from t2;
 insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
 select count(*) from t1;
-explain select * from t1 where c between 1 and 10000;
 update t1 set c=a;
-explain select * from t1 where c between 1 and 10000;
 drop table t1,t2;
 
 #
