@@ -531,6 +531,7 @@ i
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
+update t1 set i=(select distinct 1 from (select * from t2) a);
 drop table t1, t2, t3;
 use mysql;
 select * from db;
