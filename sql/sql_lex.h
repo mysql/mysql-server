@@ -480,8 +480,18 @@ typedef struct st_lex
   inline void uncacheable()
   {
     safe_to_cache_query= 0;
-    current_select->uncacheable = 
-      current_select->master_unit()->uncacheable= 1;
+
+    /*
+      There are no sense to mark select_lex and union fields of LEX,
+      but we should merk all subselects as uncacheable from current till
+      most upper
+    */
+    for (SELECT_LEX_NODE *sl= current_select;
+	 sl != &select_lex;
+	 sl= sl->outer_select())
+    {
+      sl->uncacheable = sl->master_unit()->uncacheable= 1;
+    }
   }
 } LEX;
 

@@ -2527,7 +2527,7 @@ static int bootstrap(FILE *file)
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-  error= thd->fatal_error;
+  error= thd->is_fatal_error;
   net_end(&thd->net);
   thd->cleanup();
   delete thd;

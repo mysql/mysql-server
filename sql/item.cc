@@ -544,7 +544,7 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
 		tb->used_fields= tb->fields;
 	      }
 	      else
-		thd->fatal_error= 1; // can't create Item => out of memory
+		thd->fatal_error(); // can't create Item => out of memory
 	    }
 	    else
 	      my_error(ER_CARDINALITY_COL, MYF(0), 1);
@@ -560,7 +560,7 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
     else
       res= item->fix_fields(thd, list, &item);
   else
-    thd->fatal_error= 1; // no item given => out of memory
+    thd->fatal_error(); // no item given => out of memory
   DBUG_RETURN(res);
 }
 

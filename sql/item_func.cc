@@ -2010,7 +2010,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
   return;
 
  err:
-  current_thd->fatal_error=1;			// Probably end of memory
+  current_thd->fatal_error();			// Probably end of memory
   null_value=1;
   return;
 }
@@ -2038,7 +2038,7 @@ Item_func_set_user_var::update()
     DBUG_ASSERT(0);
     break;
   }
-  return current_thd->fatal_error;
+  return current_thd->is_fatal_error;
 }
 
 

@@ -114,7 +114,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  if (!(open_list=list_open_tables(thd,wild)) && thd->fatal_error)
+  if (!(open_list=list_open_tables(thd,wild)) && thd->is_fatal_error)
     DBUG_RETURN(-1);
 
   for (; open_list ; open_list=open_list->next)

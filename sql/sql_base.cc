@@ -1962,7 +1962,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       item->split_sum_func(ref_pointer_array, *sum_func_list);
     thd->used_tables|=item->used_tables();
   }
-  DBUG_RETURN(test(thd->fatal_error || thd->net.report_error));
+  DBUG_RETURN(test(thd->net.report_error));
 }
 
 /*
@@ -2182,7 +2182,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	table->on_expr=and_conds(table->on_expr,cond_and);
     }
   }
-  DBUG_RETURN(test(thd->fatal_error || thd->net.report_error));
+  DBUG_RETURN(test(thd->net.report_error));
 }
 
 

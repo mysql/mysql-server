@@ -16,6 +16,15 @@
 
 #include "mysql_priv.h"
 
+/*
+  Row items used for comparing rows and IN operations on rows:
+
+  (a, b, c) > (10, 10, 30)
+  (a, b, c) = (select c, d, e, from t1 where x=12)
+  (a, b, c) IN ((1,2,2), (3,4,5), (6,7,8)
+  (a, b, c) IN (select c, d, e, from t1)
+*/
+
 Item_row::Item_row(List<Item> &arg):
   Item(), used_tables_cache(0), array_holder(1), const_item_cache(1)
 {

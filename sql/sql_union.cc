@@ -203,7 +203,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 		       (ORDER*) NULL,
 		       sl, this, 0, tables_OK);
     tables_OK= 0;
-    if (res | thd->fatal_error)
+    if (res | thd->is_fatal_error)
       goto err;
   }
   item_list.empty();
@@ -220,7 +220,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     }
   }
 
-  DBUG_RETURN(res | thd->fatal_error);
+  DBUG_RETURN(res | thd->is_fatal_error);
 err:
   thd->lex.current_select= lex_select_save;
   DBUG_RETURN(-1);
@@ -293,7 +293,7 @@ int st_select_lex_unit::exec()
     thd->lex.select_lex.ftfunc_list= &empty_list;
 #endif
 
-    if (!thd->fatal_error)			// Check if EOM
+    if (!thd->is_fatal_error)			// Check if EOM
     {
       SELECT_LEX *sl=thd->lex.current_select->master_unit()->first_select();
       offset_limit_cnt= (sl->braces) ? global_parameters->offset_limit : 0;
