@@ -1196,3 +1196,14 @@ create view v1 as select cast(1 as char(3));
 show create view v1;
 select * from v1;
 drop view v1;
+
+#
+# bug handlimg from VIEWs
+#
+create view v1 as select 'a',1;
+create view v2 as select * from v1 union all select * from v1;
+create view v3 as select * from v2 where 1 = (select `1` from v2);
+create view v4 as select * from v3;
+-- error 1242
+select * from v4;
+drop view v4, v3, v2, v1;
