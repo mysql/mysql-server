@@ -223,8 +223,21 @@ user_query("update $opt_database.test set b=b+1",1);
 safe_query("grant SELECT on *.* to $user");
 user_connect(0);
 user_query("update $opt_database.test set b=b+1");
+user_query("update $opt_database.test set b=b+1 where a > 0");
 safe_query("revoke SELECT on *.* from $user");
+safe_query("grant SELECT on $opt_database.* to $user");
 user_connect(0);
+user_query("update $opt_database.test set b=b+1");
+user_query("update $opt_database.test set b=b+1 where a > 0");
+safe_query("grant UPDATE on *.* to $user");
+user_connect(0);
+user_query("update $opt_database.test set b=b+1");
+user_query("update $opt_database.test set b=b+1 where a > 0");
+safe_query("revoke UPDATE on *.* from $user");
+safe_query("revoke SELECT on $opt_database.* from $user");
+user_connect(0);
+user_query("update $opt_database.test set b=b+1 where a > 0",1);
+user_query("update $opt_database.test set b=b+1",1);
 
 # Add one privilege at a time until the user has all privileges
 user_query("select * from test",1);
