@@ -1136,7 +1136,11 @@ find_acl_user(const char *host, const char *user)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
     DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
-		       user,acl_user->user,(host),(acl_user->host)));
+		       user,
+		       acl_user->user ? acl_user->user : "",
+		       host,
+		       acl_user->host.hostname ? acl_user->host.hostname :
+		       ""));
     if (!acl_user->user && !user[0] ||
 	acl_user->user && !strcmp(user,acl_user->user))
     {
