@@ -20,6 +20,10 @@
 #include <basestring_vsnprintf.h>
 #include <my_config.h>
 
+
+/*
+  #define SNPRINTF_RETURN_TRUNC
+*/
 int
 basestring_snprintf(char *str, size_t size, const char *format, ...)
 {
@@ -47,13 +51,27 @@ static char basestring_vsnprintf_buf[16*1024];
 int
 basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 {
-  int ret= BASESTRING_VSNPRINTF_FUNC(str, size, format, ap);
+  if (size == 0)
+  {
 #ifdef SNPRINTF_RETURN_TRUNC
-  if (ret == size-1 || ret == -1) {
-    ret= BASESTRING_VSNPRINTF_FUNC(basestring_vsnprintf_buf,
-				   sizeof(basestring_vsnprintf_buf),
-				   format, ap);
-  }
+    return BASESTRING_VSNPRINTF_FUNC(basestring_vsnprintf_buf,
+				     sizeof(basestring_vsnprintf_buf),
+				     format, ap);
+#else
+    char buf[1];
+    return BASESTRING_VSNPRINTF_FUNC(buf, 1, format, ap);
 #endif
-  return ret;
+  }
+  {
+    int ret= BASESTRING_VSNPRINTF_FUNC(str, size, format, ap);
+#ifdef SNPRINTF_RETURN_TRUNC
+    if (ret == size-1 || ret == -1)
+    {
+      ret= BASESTRING_VSNPRINTF_FUNC(basestring_vsnprintf_buf,
+				     sizeof(basestring_vsnprintf_buf),
+				     format, ap);
+    }
+#endif
+    return ret;
+  }
 }
