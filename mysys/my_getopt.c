@@ -75,7 +75,7 @@ int handle_options(int *argc, char ***argv,
   uint opt_found, argvpos= 0, length, i;
   my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used,
           option_is_loose;
-  char *progname= *(*argv), **pos, *optend, *prev_found;
+  char *progname= *(*argv), **pos, **pos_end, *optend, *prev_found;
   const struct my_option *optp;
   int error;
 
@@ -84,7 +84,7 @@ int handle_options(int *argc, char ***argv,
   (*argv)++; /*      --- || ----      */
   init_variables(longopts);
 
-  for (pos= *argv; *pos; pos++)
+  for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
     char *cur_arg= *pos;
     if (cur_arg[0] == '-' && cur_arg[1] && !end_of_options) /* must be opt */
