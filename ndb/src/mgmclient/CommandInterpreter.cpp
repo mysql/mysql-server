@@ -673,8 +673,10 @@ CommandInterpreter::executeShutdown(char* parameters)
       if (mgm_id == 0)
 	mgm_id= state->node_states[i].node_id;
       else {
-	ndbout << "Unable to locate management server, shutdown manually with #STOP"
+	ndbout << "Unable to locate management server, "
+	       << "shutdown manually with <id> STOP"
 	       << endl;
+	return;
       }
     }
   }
@@ -721,11 +723,13 @@ const char *status_string(ndb_mgm_node_status status)
 
 static void
 print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
-	    const char *proc_name, int no_proc, ndb_mgm_node_type type, int master_id)
+	    const char *proc_name, int no_proc, ndb_mgm_node_type type,
+	    int master_id)
 { 
   int i;
   ndbout << "[" << proc_name
-	 << "(" << ndb_mgm_get_node_type_string(type) << ")]\t" << no_proc << " node(s)" << endl;
+	 << "(" << ndb_mgm_get_node_type_string(type) << ")]\t"
+	 << no_proc << " node(s)" << endl;
   for(i=0; i < state->no_of_nodes; i++) {
     struct ndb_mgm_node_state *node_state= &(state->node_states[i]);
     if(node_state->node_type == type) {
@@ -733,7 +737,9 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
       ndbout << "id=" << node_id;
       if(node_state->version != 0) {
 	const char *hostname= node_state->connect_address;
-	if (hostname == 0 || strlen(hostname) == 0 || strcmp(hostname,"0.0.0.0") == 0)
+	if (hostname == 0
+	    || strlen(hostname) == 0
+	    || strcmp(hostname,"0.0.0.0") == 0)
 	  ndbout << " ";
 	else
 	  ndbout << "\t@" << hostname;
@@ -761,7 +767,8 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
 	if (config_hostname == 0 || config_hostname[0] == 0)
 	  config_hostname= "any host";
-	ndbout << " (not connected, accepting connect from " << config_hostname << ")" << endl;
+	ndbout << " (not connected, accepting connect from "
+	       << config_hostname << ")" << endl;
       }
     }
   }

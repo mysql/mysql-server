@@ -104,9 +104,9 @@
 #define CFG_CONNECTION_NODE_1_SYSTEM  404
 #define CFG_CONNECTION_NODE_2_SYSTEM  405
 #define CFG_CONNECTION_SERVER_PORT    406
+#define CFG_CONNECTION_HOSTNAME_1     407
+#define CFG_CONNECTION_HOSTNAME_2     408
 
-#define CFG_TCP_HOSTNAME_1            450
-#define CFG_TCP_HOSTNAME_2            451
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454
 #define CFG_TCP_RECEIVE_BUFFER_SIZE   455
@@ -128,8 +128,6 @@
 #define CFG_SCI_NODE2_ADAPTER0        555
 #define CFG_SCI_NODE2_ADAPTER1        556
 
-#define CFG_OSE_HOSTNAME_1            600
-#define CFG_OSE_HOSTNAME_2            601
 #define CFG_OSE_PRIO_A_SIZE           602
 #define CFG_OSE_PRIO_B_SIZE           603
 #define CFG_OSE_RECEIVE_ARRAY_SIZE    604

@@ -62,6 +62,7 @@
 #endif
 
 extern int global_flag_send_heartbeat_now;
+extern int g_no_nodeid_checks;
 
 static
 void
@@ -591,9 +592,25 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _props = NULL;
 
   _ownNodeId= 0;
+  char my_hostname[256];
+  struct sockaddr_in tmp_addr;
+  SOCKET_SIZE_TYPE addrlen= sizeof(tmp_addr);
+  if (!g_no_nodeid_checks) {
+    if (gethostname(my_hostname, sizeof(my_hostname))) {
+      ndbout << "error: gethostname() - " << strerror(errno) << endl;
+      exit(-1);
+    }
+    if (Ndb_getInAddr(&(((sockaddr_in*)&tmp_addr)->sin_addr),my_hostname)) {
+      ndbout << "error: Ndb_getInAddr(" << my_hostname << ") - " 
+	     << strerror(errno) << endl;
+      exit(-1);
+    }
+  }
   NodeId tmp= nodeId;
   BaseString error_string;
-  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0, error_string)){
+  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM,
+		     (struct sockaddr *)&tmp_addr,
+		     &addrlen, error_string)){
     ndbout << "Unable to obtain requested nodeid: "
 	   << error_string.c_str() << endl;
     exit(-1);
@@ -1020,36 +1037,38 @@ int
 MgmtSrvr::versionNode(int processId, bool abort, 
 		      VersionCallback callback, void * anyData)
 {
+  int version;
+
   if(m_versionRec.inUse)
     return OPERATION_IN_PROGRESS;
 
   m_versionRec.callback = callback;
   m_versionRec.inUse = true ;
-  ClusterMgr::Node node;
-  int version;
-  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_MGM) {
-    if(m_versionRec.callback != 0)
-      m_versionRec.callback(processId, NDB_VERSION, this,0);
-  }
 
-  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_NDB) {
-    node = theFacade->theClusterMgr->getNodeInfo(processId);
-    version = node.m_info.m_version;
-    if(theFacade->theClusterMgr->getNodeInfo(processId).connected)
-      if(m_versionRec.callback != 0)
-	m_versionRec.callback(processId, version, this,0);
-      else
-	if(m_versionRec.callback != 0)
-	  m_versionRec.callback(processId, 0, this,0);
-    
+  if (getOwnNodeId() == processId)
+  {
+    version= NDB_VERSION;
   }
-  
-  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_API) {
+  else if (getNodeType(processId) == NDB_MGM_NODE_TYPE_NDB)
+  {
+    ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(processId);
+    if(node.connected)
+      version= node.m_info.m_version;
+    else
+      version= 0;
+  }
+  else if (getNodeType(processId) == NDB_MGM_NODE_TYPE_API ||
+	   getNodeType(processId) == NDB_MGM_NODE_TYPE_MGM)
+  {
     return sendVersionReq(processId);
   }
+  if(m_versionRec.callback != 0)
+    m_versionRec.callback(processId, version, this,0);
   m_versionRec.inUse = false ;
-  return 0;
 
+  m_versionRec.version[processId]= version;
+
+  return 0;
 }
 
 int 
@@ -1460,15 +1479,12 @@ MgmtSrvr::status(int processId,
 		 Uint32 * nodegroup,
 		 Uint32 * connectCount)
 {
-  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_API) {
+  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_API ||
+      getNodeType(processId) == NDB_MGM_NODE_TYPE_MGM) {
     if(versionNode(processId, false,0,0) ==0)
       * version = m_versionRec.version[processId];
     else
       * version = 0;
-  }
-
-  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_MGM) {
-    * version = NDB_VERSION;
   }
 
   const ClusterMgr::Node node = 
@@ -2337,12 +2353,19 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			SOCKET_SIZE_TYPE *client_addr_len,
 			BaseString &error_string)
 {
+  DBUG_ENTER("MgmtSrvr::alloc_node_id");
+  DBUG_PRINT("enter", ("nodeid=%d, type=%d, client_addr=%d",
+		       *nodeId, type, client_addr));
+  if (g_no_nodeid_checks) {
+    if (*nodeId == 0) {
+      error_string.appfmt("no-nodeid-ckecks set in manegment server.\n"
+			  "node id must be set explicitly in connectstring");
+      DBUG_RETURN(false);
+    }
+    DBUG_RETURN(true);
+  }
   Guard g(&f_node_id_mutex);
-#if 0
-  ndbout << "MgmtSrvr::getFreeNodeId type=" << type
-	 << " *nodeid=" << *nodeId << endl;
-#endif
-
+  int no_mgm= 0;
   NodeBitmask connected_nodes(m_reserved_nodes);
   if (theFacade && theFacade->theClusterMgr) {
     for(Uint32 i = 0; i < MAX_NODES; i++)
@@ -2350,19 +2373,21 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
 	if (node.connected)
 	  connected_nodes.bitOR(node.m_state.m_connected_nodes);
-      }
+      } else if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
+	no_mgm++;
   }
 
   bool found_matching_id= false;
   bool found_matching_type= false;
   bool found_free_node= false;
-  const char *config_hostname = 0;
+  unsigned id_found= 0;
+  const char *config_hostname= 0;
   struct in_addr config_addr= {0};
   int r_config_addr= -1;
   unsigned type_c= 0;
 
-  ndb_mgm_configuration_iterator iter(*(ndb_mgm_configuration *)_config->m_configValues,
-				      CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator
+    iter(*(ndb_mgm_configuration *)_config->m_configValues, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()) {
     unsigned tmp= 0;
     if(iter.get(CFG_NODE_ID, &tmp)) abort();
@@ -2377,8 +2402,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       continue;
     found_free_node= true;
     if(iter.get(CFG_NODE_HOST, &config_hostname)) abort();
-
-    if (config_hostname && config_hostname[0] != 0 && client_addr) {
+    if (config_hostname && config_hostname[0] == 0)
+      config_hostname= 0;
+    else if (client_addr) {
       // check hostname compatability
       const void *tmp_in= &(((sockaddr_in*)client_addr)->sin_addr);
       if((r_config_addr= Ndb_getInAddr(&config_addr, config_hostname)) != 0
@@ -2388,8 +2414,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	   || memcmp(&tmp_addr, tmp_in, sizeof(config_addr)) != 0) {
 	  // not localhost
 #if 0
-	  ndbout << "MgmtSrvr::getFreeNodeId compare failed for \"" << config_hostname
-		<< "\" id=" << tmp << endl;
+	  ndbout << "MgmtSrvr::getFreeNodeId compare failed for \""
+		 << config_hostname
+		 << "\" id=" << tmp << endl;
 #endif
 	  continue;
 	}
@@ -2405,22 +2432,59 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	}
       }
     }
-    *nodeId= tmp;
-    if (client_addr)
-      m_connect_address[tmp]= ((struct sockaddr_in *)client_addr)->sin_addr;
-    else
-      Ndb_getInAddr(&(m_connect_address[tmp]), "localhost");
-    m_reserved_nodes.set(tmp);
-#if 0
-    ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
-	   << " *nodeid=" << *nodeId << endl;
-#endif
-    return true;
+    if (*nodeId != 0 ||
+	type != NDB_MGM_NODE_TYPE_MGM ||
+	no_mgm == 1) { // any match is ok
+      id_found= tmp;
+      break;
+    }
+    if (id_found) { // mgmt server may only have one match
+      error_string.appfmt("Ambiguous node id's %d and %d.\n"
+			  "Suggest specifying node id in connectstring,\n"
+			  "or specifying unique host names in config file.",
+			  id_found, tmp);
+      DBUG_RETURN(false);
+    }
+    if (config_hostname == 0) {
+      error_string.appfmt("Ambiguity for node id %d.\n"
+			  "Suggest specifying node id in connectstring,\n"
+			  "or specifying unique host names in config file,\n",
+			  "or specifying just one mgmt server in config file.",
+			  tmp);
+      DBUG_RETURN(false);
+    }
+    id_found= tmp; // mgmt server matched, check for more matches
+  }
+
+  if (id_found)
+  {
+    *nodeId= id_found;
+    DBUG_PRINT("info", ("allocating node id %d",*nodeId));
+    {
+      int r= 0;
+      if (client_addr)
+	m_connect_address[id_found]=
+	  ((struct sockaddr_in *)client_addr)->sin_addr;
+      else if (config_hostname)
+	r= Ndb_getInAddr(&(m_connect_address[id_found]), config_hostname);
+      else {
+	char name[256];
+	r= gethostname(name, sizeof(name));
+	if (r == 0) {
+	  name[sizeof(name)-1]= 0;
+	  r= Ndb_getInAddr(&(m_connect_address[id_found]), name);
+	}
+      }
+      if (r)
+	m_connect_address[id_found].s_addr= 0;
+    }
+    m_reserved_nodes.set(id_found);
+    DBUG_RETURN(true);
   }
 
   if (found_matching_type && !found_free_node) {
-    // we have a temporary error which might be due to that we have got the latest
-    // connect status from db-nodes.  Force update.
+    // we have a temporary error which might be due to that 
+    // we have got the latest connect status from db-nodes.  Force update.
     global_flag_send_heartbeat_now= 1;
   }
 
@@ -2429,7 +2493,8 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     const char *alias, *str;
     alias= ndb_mgm_get_node_type_alias_string(type, &str);
     type_string.assfmt("%s(%s)", alias, str);
-    alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)type_c, &str);
+    alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)type_c,
+					      &str);
     type_c_string.assfmt("%s(%s)", alias, str);
   }
 
@@ -2440,9 +2505,11 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	  error_string.appfmt("Connection done from wrong host ip %s.",
 			      inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr));
 	else
-	  error_string.appfmt("No free node id found for %s.", type_string.c_str());
+	  error_string.appfmt("No free node id found for %s.",
+			      type_string.c_str());
       else
-	error_string.appfmt("No %s node defined in config file.", type_string.c_str());
+	error_string.appfmt("No %s node defined in config file.",
+			    type_string.c_str());
     else
       error_string.append("No nodes defined in config file.");
   } else {
@@ -2451,19 +2518,23 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	if (found_free_node) {
 	  // have to split these into two since inet_ntoa overwrites itself
 	  error_string.appfmt("Connection with id %d done from wrong host ip %s,",
-			      *nodeId, inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr));
+			      *nodeId, inet_ntoa(((struct sockaddr_in *)
+						  (client_addr))->sin_addr));
 	  error_string.appfmt(" expected %s(%s).", config_hostname,
-			      r_config_addr ? "lookup failed" : inet_ntoa(config_addr));
+			      r_config_addr ?
+			      "lookup failed" : inet_ntoa(config_addr));
 	} else
-	  error_string.appfmt("Id %d already allocated by another node.", *nodeId);
+	  error_string.appfmt("Id %d already allocated by another node.",
+			      *nodeId);
       else
 	error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
-			    *nodeId, type_c_string.c_str(), type_string.c_str());
+			    *nodeId, type_c_string.c_str(),
+			    type_string.c_str());
     else
-      error_string.appfmt("No node defined with id=%d in config file.", *nodeId);
+      error_string.appfmt("No node defined with id=%d in config file.",
+			  *nodeId);
   }
-
-  return false;
+  DBUG_RETURN(false);
 }
 
 bool
