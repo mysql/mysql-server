@@ -374,6 +374,7 @@ $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
   my $flags= "";
+  my $force= "";
   $flags.= " --with-ndbcluster" if ($opt_with_cluster);
   $flags.= " --force" if (!$opt_one_error);
   log_timestamp();

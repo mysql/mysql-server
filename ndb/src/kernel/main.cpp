@@ -19,7 +19,6 @@
 
 #include <ndb_version.h>
 #include "Configuration.hpp"
-#include <LocalConfig.hpp>
 #include <TransporterRegistry.hpp>
 
 #include "vm/SimBlockList.hpp"
@@ -69,16 +68,9 @@ int main(int argc, char** argv)
     return NRT_Default;
   }
   
-  LocalConfig local_config;
-  if (!local_config.init(theConfig->getConnectString(),0)){
-    local_config.printError();
-    local_config.printUsage();
-    return NRT_Default;
-  }
-
   { // Do configuration
     signal(SIGPIPE, SIG_IGN);
-    theConfig->fetch_configuration(local_config);
+    theConfig->fetch_configuration();
   }
   
   chdir(NdbConfig_get_path(0));
@@ -141,7 +133,7 @@ int main(int argc, char** argv)
       exit(0);
     }
     g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
-    theConfig->fetch_configuration(local_config);
+    theConfig->fetch_configuration();
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
