@@ -51044,7 +51044,7 @@ able to choose the right index when there is many to choose from. We should
 also extend the info interface to get the key distribution for each index,
 of @code{analyze} is run on all sub tables.
 @item
-@code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | GEMINI | HEAP]}.
+@code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | HEAP]}.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
