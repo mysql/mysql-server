@@ -1392,6 +1392,7 @@ simple_expr:
 	| literal
 	| '@' ident_or_text SET_VAR expr { $$= new Item_func_set_user_var($2,$4); }
 	| '@' ident_or_text	 { $$= new Item_func_get_user_var($2); }
+	| '@' '@' ident_or_text	 { if (!($$= get_system_var($3))) YYABORT; }
 	| sum_expr
 	| '-' expr %prec NEG	{ $$= new Item_func_neg($2); }
 	| '~' expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
@@ -1700,14 +1701,23 @@ join_table_list:
 	  USING '(' using_list ')'
 	  { add_join_on($4,$8); $$=$4; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table ON expr
-	  { add_join_on($5,$7); $5->outer_join=1; $$=$5; }
+	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table
 	  { Lex->db1=$1->db; Lex->table1=$1->name;
 	    Lex->db2=$5->db; Lex->table2=$5->name; }
 	  USING '(' using_list ')'
-	  { add_join_on($5,$9); $5->outer_join=1; $$=$5; }
+	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list NATURAL LEFT opt_outer JOIN_SYM join_table
-	  { add_join_natural($1,$6); $6->outer_join=1; $$=$6; }
+	  { add_join_natural($1,$6); $6->outer_join|=JOIN_TYPE_LEFT; $$=$6; }
+	| join_table_list RIGHT opt_outer JOIN_SYM join_table ON expr
+	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	| join_table_list RIGHT opt_outer JOIN_SYM join_table
+	  { Lex->db1=$1->db; Lex->table1=$1->name;
+	    Lex->db2=$5->db; Lex->table2=$5->name; }
+	  USING '(' using_list ')'
+	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table
+	  { add_join_natural($6,$1); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
 	| join_table_list NATURAL JOIN_SYM join_table
 	  { add_join_natural($1,$4); $$=$4; }
 
@@ -1722,7 +1732,7 @@ join_table:
 	{ if (!($$=add_table_to_list($2,$3,TL_UNLOCK, Lex->use_index_ptr,
 	                             Lex->ignore_index_ptr))) YYABORT; }
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
-	  { add_join_on($7,$9); $7->outer_join=1; $$=$7; }
+	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
 
 opt_outer:
 	/* empty */	{}

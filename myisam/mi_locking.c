@@ -392,7 +392,7 @@ int _mi_test_if_changed(register MI_INFO *info)
 } /* _mi_test_if_changed */
 
 
-/* Put a mark in the .ISM file that someone is updating the table */
+/* Put a mark in the .MYI file that someone is updating the table */
 
 int _mi_mark_file_changed(MI_INFO *info)
 {

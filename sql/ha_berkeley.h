@@ -87,7 +87,7 @@ class ha_berkeley: public handler
   bool fast_key_read()	   { return 1;}
   bool has_transactions()  { return 1;}
 
-  int open(const char *name, int mode, int test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked);
   void initialize(void);
   int close(void);
   double scan_time();

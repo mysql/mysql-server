@@ -581,7 +581,7 @@ Speed of queries that access or update data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
+* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN} and ${RIGHT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
 * Update speed::                Speed of @code{UPDATE} queries
@@ -9049,7 +9049,7 @@ almost always sorted.  In 3.23, you must use @code{GROUP BY} or
 @code{SUM()} now returns @code{NULL}, instead of 0, if there is no matching
 rows. This is according to ANSI SQL.
 @item
-New restricted words: @code{CASE, THEN, WHEN, ELSE and END}
+New restricted words: @code{CASE, THEN, WHEN, ELSE, END and RIGHT}
 @item An @code{AND} or @code{OR} with @code{NULL} values will now return
 @code{NULL} instead of 0. This mostly affects queries that uses @code{NOT}
 on an @code{AND/OR} expression as @code{NOT NULL} = @code{NULL}.
@@ -16504,10 +16504,22 @@ DROP DATABASE [IF EXISTS] db_name
 @code{DROP DATABASE} drops all tables in the database and deletes the
 database.  @strong{Be VERY careful with this command!}
 
-@code{DROP DATABASE} returns the number of files that were removed from the
-database directory.  Normally, this is three times the number of tables,
-because each table corresponds to a @file{.MYD} file, a @file{.MYI} file and a
-@file{.frm} file.
+@code{DROP DATABASE} returns the number of files that were removed from
+the database directory.  Normally, this is three times the number of
+tables, because normally each table corresponds to a @file{.MYD} file, a
+@file{.MYI} file and a @file{.frm} file.
+
+The @code{DROP DATABASE} command removes from the given database
+directory all files with the following extensions:
+
+@multitable @columnfractions .25 .25 .25 .25
+@item .BAK @tab .DAT @tab .HSH @tab .ISD
+@item .ISM @tab .ISM @tab .MRG @tab .MYD
+@item .MYI @tab .db  @tab .frm
+@end multitable
+
+All sub directories that consists of 2 digits (@code{RAID} directories)
+are also removed.
 
 In @strong{MySQL} 3.22 or later, you can use the keywords @code{IF EXISTS} to
 prevent an error from occurring if the database doesn't exist.
@@ -17712,6 +17724,10 @@ store a blob in a file.
 @findex LEFT OUTER JOIN
 @findex NATURAL LEFT JOIN
 @findex NATURAL LEFT OUTER JOIN
+@findex RIGHT JOIN
+@findex RIGHT OUTER JOIN
+@findex NATURAL RIGHT JOIN
+@findex NATURAL RIGHT OUTER JOIN
 @findex STRAIGHT_JOIN
 @node JOIN, INSERT, SELECT, Reference
 @section @code{JOIN} syntax
@@ -17728,6 +17744,9 @@ table_reference LEFT [OUTER] JOIN table_reference join_condition
 table_reference LEFT [OUTER] JOIN table_reference
 table_reference NATURAL [LEFT [OUTER]] JOIN table_reference
 @{ oj table_reference LEFT OUTER JOIN table_reference ON conditional_expr @}
+table_reference RIGHT [OUTER] JOIN table_reference join_condition
+table_reference RIGHT [OUTER] JOIN table_reference
+table_reference NATURAL [RIGHT [OUTER]] JOIN table_reference
 @end example
 
 Where @code{table_reference} is defined as
@@ -17784,7 +17803,7 @@ mysql> select table1.* from table1
 This example finds all rows in @code{table1} with an @code{id} value that is
 not present in @code{table2} (i.e., all rows in @code{table1} with no
 corresponding row in @code{table2}).  This assumes that @code{table2.id} is
-declared @code{NOT NULL}, of course.
+declared @code{NOT NULL}, of course. @xref{LEFT JOIN optimization}.
 
 @item
 The @code{USING} @code{(column_list)} clause names a list of columns that must
@@ -17806,6 +17825,11 @@ The @code{NATURAL [LEFT] JOIN} of two tables is defined to be
 semantically equivalent to a @code{INNER JOIN} or a @code{LEFT JOIN}
 with a @code{USING} clause that names all columns that exist in both
 tables.
+
+@item
+@code{RIGHT JOIN} works analogously as @code{LEFT JOIN}.  To keep code
+portable across databases, it's recommended to use @code{LEFT JOIN}
+instead of @code{RIGHT JOIN}.
 
 @item
 @code{STRAIGHT_JOIN} is identical to @code{JOIN}, except that the left table
@@ -18151,9 +18175,11 @@ files directly, because the contents of the file must travel from the client
 host to the server host.  On the other hand, you do not need the
 @strong{file} privilege to load local files.
 
-Note that you can't read from a FIFO with @code{LOAD DATA INFILE}; If
-you need to read from a FIFO (for example the output from gunzip), use
-@code{LOAD DATA LOCAL INFILE} instead.
+@c old version
+If you are using @strong{MySQL} before 3.23.24 you can't read from a
+FIFO with @code{LOAD DATA INFILE}; If you need to read from a FIFO (for
+example the output from gunzip), use @code{LOAD DATA LOCAL INFILE}
+instead.
 
 @cindex @code{mysqlimport}
 You can also load data files by using the @code{mysqlimport} utility; it
@@ -18567,7 +18593,7 @@ well.  If you get warnings and want to know exactly why you got them, one way
 to do this is to use @code{SELECT ... INTO OUTFILE} into another file and
 compare this to your original input file.
 
-If you need @code{LOAD DATA INFILE} to read from a pipe, you can use the
+If you need @code{LOAD DATA} to read from a pipe, you can use the
 following trick:
 
 @example
@@ -18576,6 +18602,9 @@ chmod 666 /mysql/db/x/x
 cat < /dev/tcp/10.1.1.12/4711 > /nt/mysql/db/x/x
 mysql -e "LOAD DATA INFILE 'x' INTO TABLE x" x
 @end example
+
+If you are using and older @strong{MySQL} version than 3.23.25
+you can only do the above with @code{LOAD DATA LOCAL INFILE}.
 
 For more information about the efficiency of @code{INSERT} versus
 @code{LOAD DATA INFILE} and speeding up @code{LOAD DATA INFILE},
@@ -25566,7 +25595,7 @@ mysql> SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,...
 @end example
 
 @node LEFT JOIN optimization, LIMIT optimization, Where optimizations, Query Speed
-@subsection How MySQL optimizes @code{LEFT JOIN}
+@subsection How MySQL optimizes @code{LEFT JOIN} and @code{RIGHT JOIN}
 
 @code{A LEFT JOIN B} is in @strong{MySQL} implemented as follows:
 
@@ -25598,9 +25627,12 @@ table and you have the following test: @code{column_name IS NULL} in the
 matches the @code{LEFT JOIN} condition.
 @end itemize
 
-The table read order forced by @code{LEFT JOIN} and @code{STRAIGHT JOIN} will help
-the join optimizer (which calculates in which order tables should be joined) to do
-its work much more quickly as there are fewer table permutations to check.
+@code{RIGHT JOIN} is implemented analogously as @code{LEFT JOIN}.
+
+The table read order forced by @code{LEFT JOIN} and @code{STRAIGHT JOIN}
+will help the join optimizer (which calculates in which order tables
+should be joined) to do its work much more quickly as there are fewer
+table permutations to check.
 
 Note that the above means that if you do a query of type:
 
@@ -25608,8 +25640,8 @@ Note that the above means that if you do a query of type:
 SELECT * FROM a,b LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key) WHERE b.key=d.key
 @end example
 
-Then @strong{MySQL} will do a full scan on @code{b} as the @code{LEFT JOIN} will
-force it to be read before @code{d}.
+Then @strong{MySQL} will do a full scan on @code{b} as the @code{LEFT
+JOIN} will force it to be read before @code{d}.
 
 The fix in this case is to change the query to:
 
@@ -36741,6 +36773,16 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.25, News-3.23.24, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
+@item
+Added @code{RIGHT JOIN}. This makes @code{RIGHT} a reserved word.
+@item
+Added @code{@@@@IDENTITY} as a synonym for @code{LAST_INSERT_ID()}.
+(for Visual Basic)
+@item
+Fixed bug in myisamchk and @code{REPAIR} when using @code{FULLTEXT} index.
+@item
+@code{LOAD DATA INFILE} now works for FIFO's.
+(Patch by Toni L. Harbaugh-Blackford).
 @item
 Fixed a bug in MyISAM with packed multi-part keys.
 @item

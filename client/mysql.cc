@@ -1409,19 +1409,20 @@ print_table_data_html(MYSQL_RES *result)
   MYSQL_FIELD *field;
 
   mysql_field_seek(result,0);
-  printf("<TABLE BORDER=1>\n");
-  printf("<TR>\n");
+  fputs("<TABLE BORDER=1><TR>",stdout);
   if (!skip_column_names)
   {
     while((field = mysql_fetch_field(result)))
     {
-      printf("<TH>%s</TH>",field->name ? (field->name[0] ? field->name:" &nbsp; "):"NULL");
+      printf("<TH>%s</TH>", (field->name ? (field->name[0] ? field->name : 
+					    " &nbsp; ") :
+			     "NULL"));
     }
-    puts("\n</TR>");
+    puts("</TR>");
   }
   while ((cur = mysql_fetch_row(result)))
   {
-    puts("<TR>");
+    fputs("<TR>",stdout);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       ulong *lengths=mysql_fetch_lengths(result);
@@ -1429,7 +1430,7 @@ print_table_data_html(MYSQL_RES *result)
       safe_put_field(cur[i],lengths[i]);
       fputs("</TD>",stdout);
     }
-    puts("\n</TR>");
+    puts("</TR>");
   }
   puts("</TABLE>");
 }

@@ -16,7 +16,7 @@
 
 /* Descript, check and repair of ISAM tables */
 
-#include "myisamdef.h"
+#include "fulltext.h"
 
 #include <m_ctype.h>
 #include <stdarg.h>
@@ -123,6 +123,7 @@ int main(int argc, char **argv)
 	   llstr(check_param.total_deleted,buff2));
   }
   free_defaults(default_argv);
+  ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
 #ifndef _lint
@@ -151,13 +152,14 @@ enum options {OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS};
 
 static struct option long_options[] =
 {
-  {"analyze",	       no_argument,	  0, 'a'},
-  {"block-search",     required_argument, 0, 'b'},
+  {"analyze",		no_argument,	  0, 'a'},
+  {"block-search",      required_argument,0, 'b'},
+  {"backup",		no_argument,	  0, 'B'},
   {"character-sets-dir",required_argument,0,  OPT_CHARSETS_DIR},
-  {"check",	       no_argument,	  0, 'c'},
+  {"check",	        no_argument,	  0, 'c'},
   {"check-only-changed",no_argument,	  0, 'C'},
 #ifndef DBUG_OFF
-  {"debug",	       required_argument, 0, '#'},
+  {"debug",	       optional_argument, 0, '#'},
 #endif
   {"description",      no_argument,	  0, 'd'},
   {"data-file-length", required_argument, 0, 'D'},
@@ -232,6 +234,7 @@ static void usage(void)
   -T, --read-only     Don't mark table as checked\n");
 
   puts("Repair options (When using -r or -o) \n\
+  -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
                       file when it's full)\n\
   -e, --extend-check  Try to recover every possible row from the data file\n\
@@ -296,7 +299,7 @@ static void get_options(register int *argc,register char ***argv)
   set_all_changeable_vars(changeable_vars);
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
-  while ((c=getopt_long(*argc,*argv,"acCdeifF?lqrmosSTuUvVw#:b:D:k:O:R:A::t:",
+  while ((c=getopt_long(*argc,*argv,"aBcCdeifF?lqrmosSTuUvVw#:b:D:k:O:R:A::t:",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -312,6 +315,9 @@ static void get_options(register int *argc,register char ***argv)
       break;
     case 'b':
       check_param.search_after_block=strtoul(optarg,NULL,10);
+      break;
+    case 'B':
+      check_param.testflag|= T_BACKUP_DATA;
       break;
     case 'c':
       check_param.testflag|= T_CHECK;
@@ -406,7 +412,7 @@ static void get_options(register int *argc,register char ***argv)
       check_param.testflag|= T_UPDATE_STATE;
       break;
     case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o,/tmp/isamchk");
+      DBUG_PUSH(optarg ? optarg : "d:t:o,/tmp/myisamchk.trace");
       break;
     case 'V':
       print_version();
@@ -520,7 +526,6 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   share->r_locks=0;
   raid_chunks=share->base.raid_chunks;
 
-
   /*
     Skipp the checking of the file if:
     We are using --fast and the table is closed properly
@@ -587,7 +592,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     recreate=1;
     if (!(param->testflag & (T_REP | T_REP_BY_SORT)))
     {
-      param->testflag|=T_REP_BY_SORT;			/* if only STATISTICS */
+      param->testflag|=T_REP_BY_SORT;		/* if only STATISTICS */
       if (!(param->testflag & T_SILENT))
 	printf("- '%s' has old table-format. Recreating index\n",filename);
       if (!rep_quick)
@@ -606,6 +611,9 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   }
   else
   {
+    if (share->fulltext_index)
+      ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
+
     if (!(param->testflag & T_READONLY))
       lock_type = F_WRLCK;			/* table is changed */
     else
@@ -649,9 +657,10 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       }
       if (!error)
       {
-	if (param->testflag & T_REP_BY_SORT &&
+	if ((param->testflag & T_REP_BY_SORT) &&
 	    (share->state.key_map ||
-	     (rep_quick && !param->keys_in_use && !recreate)))
+	     (rep_quick && !param->keys_in_use && !recreate)) &&
+	    mi_test_if_sort_rep(info, info->state->records, 1))
 	  error=mi_repair_by_sort(&check_param,info,fixed_name,rep_quick);
 	else if (param->testflag & (T_REP | T_REP_BY_SORT))
 	  error=mi_repair(&check_param, info,fixed_name,rep_quick);
@@ -662,7 +671,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	{			/* Change temp file to org file */
 	  VOID(my_close(info->dfile,MYF(MY_WME))); /* Close new file */
 	  error|=change_to_newfile(fixed_name,MI_NAME_DEXT,DATA_TMP_EXT,
-				   raid_chunks);
+				   raid_chunks,
+				   MYF(0));
 #ifdef USE_RAID
 	  if (share->base.raid_type)
 	  {
@@ -811,9 +821,12 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=change_to_newfile(fixed_name,MI_NAME_DEXT,DATA_TMP_EXT,
-			       raid_chunks);
+			       raid_chunks,
+			       ((param->testflag & T_BACKUP_DATA) ?
+				MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
     if (param->out_flag & O_NEW_INDEX)
-      error|=change_to_newfile(fixed_name,MI_NAME_IEXT,INDEX_TMP_EXT,0);
+      error|=change_to_newfile(fixed_name,MI_NAME_IEXT,INDEX_TMP_EXT,0,
+			       MYF(0));
   }
   VOID(fflush(stdout)); VOID(fflush(stderr));
   if (param->error_printed)
@@ -1381,6 +1394,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
     if (param->testflag & T_SILENT)
       fprintf(stderr,"%s: MyISAM file %s\n",my_progname,
 	      param->isam_file_name);
+    param->out_flag|= O_DATA_LOST;
   }
   param->warning_printed=1;
   va_start(args,fmt);
@@ -1405,6 +1419,7 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
   {
     if (param->testflag & T_SILENT)
       fprintf(stderr,"%s: ISAM file %s\n",my_progname,param->isam_file_name);
+    param->out_flag|= O_DATA_LOST;
   }
   param->error_printed|=1;
   va_start(args,fmt);

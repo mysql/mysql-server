@@ -57,16 +57,14 @@ static MI_INFO *test_if_reopen(char *filename)
 
 
 /******************************************************************************
-  open a isam database.
-  if handle_locking is 0 then exit with error if database is locked
-  if handle_locking is 1 then wait if database is locked
-  if handle_locking is 2 then continue, but count-vars in st_i_info
-  may be wrong. count-vars are automaticly fixed after next isam
-  request.
+  open a MyISAM database.
+  See my_base.h for the handle_locking argument
+  if handle_locking and HA_OPEN_ABORT_IF_CRASHED then abort if the table
+  is marked crashed or if we are not using locking and the table doesn't
+  have an open count of 0.
 ******************************************************************************/
 
-
-MI_INFO *mi_open(const char *name, int mode, uint handle_locking)
+MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 {
   int lock_error,kfile,open_mode,save_errno;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,extra,keys,
@@ -139,12 +137,12 @@ MI_INFO *mi_open(const char *name, int mode, uint handle_locking)
     errpos=2;
 
     VOID(my_seek(kfile,0L,MY_SEEK_SET,MYF(0)));
-    if (!(handle_locking & HA_OPEN_TMP_TABLE))
+    if (!(open_flags & HA_OPEN_TMP_TABLE))
     {
       if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
-			      MYF(handle_locking & HA_OPEN_WAIT_IF_LOCKED ?
+			      MYF(open_flags & HA_OPEN_WAIT_IF_LOCKED ?
 				  0 : MY_DONT_WAIT))) &&
-	  !(handle_locking & HA_OPEN_IGNORE_IF_LOCKED))
+	  !(open_flags & HA_OPEN_IGNORE_IF_LOCKED))
 	goto err;
     }
     errpos=3;
@@ -176,6 +174,14 @@ MI_INFO *mi_open(const char *name, int mode, uint handle_locking)
     disk_pos=my_n_base_info_read(disk_cache+base_pos, &share->base);
     share->state.state_length=base_pos;
 
+    if ((open_flags & HA_OPEN_ABORT_IF_CRASHED) &&
+	((share->state.changed & STATE_CRASHED) ||
+	 (my_disable_locking && share->state.open_count)))
+    {
+      my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
+		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED);
+      goto err;
+    }
     /* Correct max_file_length based on length of sizeof_t */
     max_data_file_length=
       (share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ?
@@ -273,7 +279,10 @@ MI_INFO *mi_open(const char *name, int mode, uint handle_locking)
 	  }
 	}
 	if (share->keyinfo[i].flag & HA_FULLTEXT)		    /* SerG */
+	{
 	  share->keyinfo[i].seg=pos-FT_SEGS;			    /* SerG */
+	  share->fulltext_index=1;
+	}
 	share->keyinfo[i].end=pos;
 	pos->type=HA_KEYTYPE_END;			/* End */
 	pos->length=share->base.rec_reflength;
@@ -401,7 +410,7 @@ MI_INFO *mi_open(const char *name, int mode, uint handle_locking)
 	((share->options & (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |
 			   HA_OPTION_COMPRESS_RECORD |
 			   HA_OPTION_TEMP_COMPRESS_RECORD)) ||
-	 (handle_locking & HA_OPEN_TMP_TABLE)) ? 0 : 1;
+	 (open_flags & HA_OPEN_TMP_TABLE)) ? 0 : 1;
       if (share->concurrent_insert)
       {
 	share->lock.get_status=mi_get_status;
@@ -484,7 +493,7 @@ MI_INFO *mi_open(const char *name, int mode, uint handle_locking)
     info.lock_type=F_RDLCK;
     share->r_locks++;
   }
-  if ((handle_locking & HA_OPEN_TMP_TABLE) ||
+  if ((open_flags & HA_OPEN_TMP_TABLE) ||
       (share->options & HA_OPTION_TMP_TABLE))
   {
     share->temporary=share->delay_key_write=1;
@@ -492,7 +501,7 @@ MI_INFO *mi_open(const char *name, int mode, uint handle_locking)
     share->w_locks++;			/* We don't have to update status */
     info.lock_type=F_WRLCK;
   }
-  if (((handle_locking & HA_OPEN_DELAY_KEY_WRITE) ||
+  if (((open_flags & HA_OPEN_DELAY_KEY_WRITE) ||
       (share->options & HA_OPTION_DELAY_KEY_WRITE)) &&
       myisam_delay_key_write)
     share->delay_key_write=1;

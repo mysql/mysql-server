@@ -24,7 +24,12 @@
 #include <myisam.h>
 #include <ft_global.h>
 
+enum myisam_recover_types { HA_RECOVER_NONE, HA_RECOVER_DEFAULT,
+			    HA_RECOVER_BACKUP};
+
 extern ulong myisam_sort_buffer_size;
+extern TYPELIB myisam_recover_typelib;
+extern myisam_recover_types myisam_recover_type;
 
 class ha_myisam: public handler
 {
@@ -49,7 +54,7 @@ class ha_myisam: public handler
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return MAX_KEY_LENGTH; }
 
-  int open(const char *name, int mode, int test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);

@@ -66,8 +66,10 @@ static int send_file(THD *thd)
   }
 
   fn_format(fname, (char*)net->read_pos + 1, "", "", 4);
-  if(!strcmp(fname,"/dev/null")) goto end; // this is needed to make replicate-ignore-db
-  // work on the well-known system that does not have a /dev/null :-)
+  // this is needed to make replicate-ignore-db
+  if (!strcmp(fname,"/dev/null"))
+    goto end;
+  // TODO: work on the well-known system that does not have a /dev/null :-)
 
   if ((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
   {
@@ -1951,6 +1953,22 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   /* Check if we are using outer joins */
   for (TABLE_LIST *table=tables ; table ; table=table->next)
   {
+    if (table->on_expr)
+    {
+      /* Make a join an a expression */
+      thd->where="on clause";
+      if (table->on_expr->fix_fields(thd,tables))
+	DBUG_RETURN(1);
+      thd->cond_count++;
+
+      /* If it's a normal join, add the ON/USING expression to the WHERE */
+      if (!table->outer_join)
+      {
+	if (!(*conds=and_conds(*conds, table->on_expr)))
+	  DBUG_RETURN(1);
+	table->on_expr=0;
+      }
+    }
     if (table->natural_join)
     {
       /* Make a join of all fields with have the same name */
@@ -1990,23 +2008,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	  DBUG_RETURN(1);
       }
       else
-	table->on_expr=cond_and;
-    }
-    else if (table->on_expr)
-    {
-      /* Make a join an a expression */
-      thd->where="on clause";
-      if (table->on_expr->fix_fields(thd,tables))
-	DBUG_RETURN(1);
-      thd->cond_count++;
-
-      /* If it's a normal join, add the ON/USING expression to the WHERE */
-      if (!table->outer_join)
-      {
-	if (!(*conds=and_conds(*conds, table->on_expr)))
-	  DBUG_RETURN(1);
-	table->on_expr=0;
-      }
+	table->on_expr=and_conds(table->on_expr,cond_and);
     }
   }
   DBUG_RETURN(test(thd->fatal_error));

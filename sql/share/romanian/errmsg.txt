@@ -198,3 +198,4 @@
 "Net error writing to master",
 "Can't find FULLTEXT index matching the column list",
 "Can't execute the given command because you have active locked tables or an active transaction",
+"Unknown system variable '%-.64'",

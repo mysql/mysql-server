@@ -810,7 +810,10 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       }
       s->key_dependent=s->dependent=
 	s->on_expr->used_tables() & ~(table->map);
-      s->dependent|=stat_vector[i-1]->dependent | table_vector[i-1]->map;
+      if (table->outer_join & JOIN_TYPE_LEFT)
+	s->dependent|=stat_vector[i-1]->dependent | table_vector[i-1]->map;
+      if (tables->outer_join & JOIN_TYPE_RIGHT)
+	s->dependent|=tables->next->table->map;
       outer_join|=table->map;
       continue;
     }
