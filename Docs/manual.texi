@@ -8158,7 +8158,7 @@ The following SQL variables have changed name.
 @item @code{SQL_MAX_JOIN_SIZE} @tab @code{MAX_JOIN_SIZE}
 @item @code{SQL_QUERY_CACHE_TYPE} @tab @code{QUERY_CACHE_TYPE}
 @end multitable
-The old names still work in MySQL 4.0 but are depricated.
+The old names still work in MySQL 4.0 but are deprecated.
 @item
 You have to use @code{SET GLOBAL SQL_SLAVE_SKIP_COUNTER=#} instead of
 @code{SET SQL_SLAVE_SKIP_COUNTER=#}.
@@ -14306,7 +14306,7 @@ If you want to restrict the maximum value a startup option can be set to
 with @code{SET}, you can define this by using the
 @code{--maximum-variable-name} command line option. @xref{SET OPTION}.
 
-Note that when setting a variable to a value, MySQL may automaticly
+Note that when setting a variable to a value, MySQL may automatically
 correct it to stay within a given range and also adjusts the value a
 little to fix for the used algorithm.
 
