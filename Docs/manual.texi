@@ -407,6 +407,7 @@ MySQL Language Reference
 * COMMIT::                      @code{BEGIN/COMMIT/ROLLBACK} syntax
 * LOCK TABLES::                 @code{LOCK TABLES/UNLOCK TABLES} syntax
 * SET OPTION::                  @code{SET OPTION} syntax
+* SET TRANSACTION::             @code{SET TRANSACTION} syntax
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
@@ -420,7 +421,7 @@ Literals: How to Write Strings and Numbers
 * Number syntax::               Numbers
 * Hexadecimal values::          Hexadecimal values
 * NULL values::                 @code{NULL} values
-* Legal names::                 Database, table, index, column and alias names
+* Legal names::                 Database, Table, Index, Column, and Alias Names
 
 Database, Table, Index, Column, and Alias Names
 
@@ -898,6 +899,8 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.37::                
+* News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
 * News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34
@@ -42376,6 +42379,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
+* News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
 * News-3.23.34a::               Changes in release 3.23.34a
@@ -42416,7 +42420,17 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.36, News-3.23.35, News-3.23.x, News-3.23.x
+@node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.37
+@itemize @bullet
+@item
+Fixed bug in @code{ALTER TABLE} and @code{LOAD DATA INFILE} that disabled
+key-sorting. These command should now be faster in most cases.
+@item
+Initialize signals early to avoid problem with signals in Innobase..
+@end itemize
+
+@node News-3.23.36, News-3.23.35, News-3.23.37, News-3.23.x
 @appendixsubsec Changes in release 3.23.36
 @itemize @bullet
 @item
@@ -42429,8 +42443,8 @@ of connections in a short time).
 Don't free the key cache on @code{FLUSH TABLES} as this will cause problems
 with temporary tables.
 @item
-Fixed problem in Innobase with with other character sets than latin1,
-alarms on Solaris and many columns.
+Fixed a problem in Innobase with with other character sets than
+latin1 and another problem when using many columns.
 @item
 Fixed a core-dump bug when using very complex query involving
 @code{DISTINCT} and summary functions.
