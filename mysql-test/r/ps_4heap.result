@@ -12,7 +12,7 @@ c1  tinyint, c2  smallint, c3  mediumint, c4  int,
 c5  integer, c6  bigint, c7  float, c8  double,
 c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
 c13 date, c14 datetime, c15 timestamp(14), c16 time,
-c17 year, c18 bit, c19 bool, c20 char,
+c17 year, c18 tinyint, c19 bool, c20 char,
 c21 char(10), c22 varchar(30), c23 varchar(100), c24 varchar(100),
 c25 varchar(100), c26 varchar(100), c27 varchar(100), c28 varchar(100),
 c29 varchar(100), c30 varchar(100), c31 enum('one', 'two', 'three'),
@@ -67,7 +67,7 @@ def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
 def	test	t9	t9	c15	c15	7	19	19	N	1249	0	63
 def	test	t9	t9	c16	c16	11	8	8	Y	128	0	63
 def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
-def	test	t9	t9	c18	c18	1	1	1	Y	32768	0	63
+def	test	t9	t9	c18	c18	1	4	1	Y	32768	0	63
 def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
 def	test	t9	t9	c20	c20	254	1	1	Y	0	0	8
 def	test	t9	t9	c21	c21	254	10	10	Y	0	0	8
