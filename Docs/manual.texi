@@ -275,7 +275,7 @@ Is there anything special to do when upgrading/downgrading MySQL?
 How standards-compatible is MySQL?
 
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Runnning @strong{MySQL} in ANSI mode
+* Ansi mode::                   Running @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
@@ -326,7 +326,7 @@ MySQL language reference
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
-* ANALYZE TABLE::               
+* ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
 * SELECT::                      @code{SELECT} syntax
@@ -608,7 +608,7 @@ Using @code{MySQL} with some common programs
 
 Problems and common errors
 
-* What is crashing::            How to determinate what is causing problems
+* What is crashing::            How to determine what is causing problems
 * Crashing::                    What to do if @strong{MySQL} keeps crashing
 * Link errors::                 Problems when linking with the @strong{MySQL} client library
 * Common errors::               Some common errors when using @strong{MySQL}
@@ -647,7 +647,7 @@ Some common errors when using MySQL
 
 Solving some common problems with MySQL
 
-* Log Replication::             Database replication with  update log
+* Log Replication::             Database replication with update log
 * Backup::                      Database backups
 * Update log::                  The update log
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
@@ -720,7 +720,7 @@ C API function descriptions
 * mysql_store_result::          @code{mysql_store_result()}
 * mysql_thread_id::             @code{mysql_thread_id()}
 * mysql_use_result::            @code{mysql_use_result()}
-* NULL mysql_store_result::     Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL?}
+* NULL mysql_store_result::     Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL}?
 * Query results::               What results can I get from a query?
 * Getting unique ID::           How can I get the unique ID for the last inserted row?
 * C API linking problems::      Problems linking with the C API
@@ -759,7 +759,7 @@ MySQL change history
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 
-Changes in release 3.23.x  (Released as alpha)
+Changes in release 3.23.x  (Released as beta)
 
 * News-3.23.22::                Changes in release 3.23.22
 * News-3.23.21::                Changes in release 3.23.21
@@ -922,11 +922,11 @@ Comments on porting to other systems
 
 This is the @strong{MySQL} reference manual; it documents @strong{MySQL}
 version @value{mysql_version}. As @strong{MySQL} is work in progress,
-the manual gets updated frequently. So there is a very good chance that
-this version is out of date, unless you are looking at it on-line. The
+the manual gets updated frequently. There is a very good chance that
+this version is out of date, unless you are looking at it online. The
 most recent version of this manual is available at
 @uref{http://www.mysql.com/documentation/} in many different formats. If you
-have a hard time finding the information in the manual, you can try its
+have a hard time finding information in the manual, you can try the
 searchable PHP version at @uref{http://www.mysql.com/documentation/manual.php} .
 
 @strong{MySQL} is a very fast, multi-threaded, multi-user and robust SQL
@@ -947,7 +947,7 @@ For a discussion of @strong{MySQL}'s capabilities, see @ref{Features}.
 
 @item
 For installation instructions, see @ref{Installing}. For tips on porting
-@strong{MySQL} to new machines or operating systems, see @ref{Porting}.
+@strong{MySQL} to new architectures or operating systems, see @ref{Porting}.
 
 @item
 For information about upgrading from a 3.21 release, see
@@ -976,7 +976,6 @@ For a list of all the contributors to this project, see @ref{Credits}.
 
 @strong{IMPORTANT:}
 
-@c if the @email is at the beginning of a line the texi2html fails
 Reports of errors (often called bugs), as well as questions and comments
 should be sent to the mailing list at @email{mysql@@lists.mysql.com}.
 @xref{Bug reports}.
@@ -986,7 +985,6 @@ For source distributions, the @code{mysqlbug} script can be found in the
 @file{scripts} directory.  For binary distributions, @code{mysqlbug} can
 be found in the @file{bin} directory.
 
-@c FIX! Remeber to create the alias!
 If you have any suggestions concerning additions or corrections to this
 manual, please send them to the manual team at
 (@email{docs@@mysql.com}).
@@ -1010,7 +1008,7 @@ information in a corporate network. To add, access and process data
 stored in a computer database, you need a database management system
 such as @strong{MySQL}. Since computers are very good at handling large
 amounts of data, database management plays a central role in computing,
-as stand-alone utilities or as parts of other applications.
+as stand-alone utilities, or as parts of other applications.
 
 @item @strong{MySQL} is a relational database management system.
 
@@ -1023,11 +1021,11 @@ language used to access databases.
 
 @item @strong{MySQL} is Open Source Software
 
-Open source means that it is possible to use and modify for
-anyone. Anybody can download @strong{MySQL} from the Internet and use it
+Open source means that it is possible for anyone to use and modify.  
+Anybody can download @strong{MySQL} from the Internet and use it
 without paying anything. Anybody so inclined can study the source code
 and change it to fit their needs. @strong{MySQL} uses the GPL (GNU
-General Public License) @uref{http://www.gnu.org}, to define what You
+General Public License) @uref{http://www.gnu.org}, to define what you
 may and may not do with the software in different situations. If you
 feel uncomfortable with the GPL or need to embed @strong{MySQL} into a
 commercial application you can buy a commercially licensed version from
@@ -1036,7 +1034,7 @@ us.
 @item Why use @strong{MySQL}?
 
 @strong{MySQL} is very fast, reliable and easy to use. If that is what
-You are looking for you should give it a try. @strong{MySQL} also has a
+you are looking for, you should give it a try. @strong{MySQL} also has a
 very practical set of features developed in very close cooperation with
 our users. You can find a performance comparison of @strong{MySQL}
 to some other database managers on our benchmark page. @xref{Benchmarks}.
@@ -1050,14 +1048,14 @@ useful set of functions. The connectivity, speed and security makes
 
 @item The technical features of @strong{MySQL} 
 
-For advanced technical information, @ref{Reference}.  @strong{MySQL} is
-a client/server system that consists of an multi-threaded SQL server
+For advanced technical information, see @ref{Reference}.  @strong{MySQL} is
+a client/server system that consists of a multithreaded SQL server
 that supports different backends, several different client programs and
-libraries, administrative tools and a programming interface.
+libraries, administrative tools, and a programming interface.
 
 @item @strong{MySQL} has a lot of contributed software available. 
 
-This makes it much more likely that you will find that your favorite
+It is very likely that you will find that your favorite
 application/language already supports @strong{MySQL}.
 
 @end table
@@ -1065,7 +1063,7 @@ application/language already supports @strong{MySQL}.
 @cindex How to pronounce @strong{MySQL}
 @cindex @strong{MySQL}, how to pronounce
 The official way to pronounce @strong{MySQL} is ``My Ess Que Ell'' (not
-MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL
+MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
 
 @strong{MySQL} core values
 
@@ -1079,7 +1077,7 @@ Available to all and affordable for all
 @item
 Easy to use
 @item
-Continuously improved while remaining fast and safe
+Continuously improving while remaining fast and safe
 @item
 Fun to use and fun to improve
 @item
@@ -1092,13 +1090,13 @@ Free from bugs
 @item
 Promote Open Source Philosophy and support the Open Source Community
 @item
-Aims to be good citizens
+Aim to be good citizens
 @item
 Prefer partners that share our values and mind-set
 @item
 Answer mail and give support
 @item
-Is a virtual company networking with others
+Are a virtual company, networking with others
 @item
 Work against software patents
 @end itemize
@@ -1124,7 +1122,8 @@ version is produced using @code{texi2dvi} and @code{dvips}. The PDF
 version is produced with @code{pdftex}.
 
 This manual is written and maintained by David Axmark, Michael (Monty)
-Widenius and Paul DuBois. For other contributors, see @ref{Credits}.
+Widenius, Jeremy Cole, and Paul DuBois. For other contributors, 
+see @ref{Credits}.
 
 @node Manual conventions,  , Manual-info, Manual-info
 @subsection Conventions used in this manual
@@ -1158,7 +1157,7 @@ Boldface font is used for access privilege names (e.g., ``do not grant the
 @end table
 
 When commands are shown that are meant to be executed by a particular
-program, the program is indicated by the prompt shown with the command.  For
+program, the program is indicated by a prompt shown before the command.  For
 example, @code{shell>} indicates a command that you execute from your login
 shell, and @code{mysql>} indicates a command that you execute from the
 @code{mysql} client program:
@@ -1184,7 +1183,7 @@ shell> setenv VARNAME value
 shell> some_command
 @end example
 
-Database, table and column names often must be substituted into commands.  To
+Often, database, table, and column names must be substituted into commands.  To
 indicate that such substitution is necessary, this manual uses
 @code{db_name}, @code{tbl_name} and @code{col_name}.  For example, you might
 see a statement like this:
@@ -1229,15 +1228,15 @@ DROP TABLE [IF EXISTS] tbl_name
 
 When a syntax element consists of a number of alternatives, the alternatives
 are separated by vertical bars (@samp{|}).  When one member from a set of
-choices may be chosen, the alternatives are listed within square brackets
-(@samp{[} and @samp{]}):
+choices @strong{may} be chosen, the alternatives are listed within square 
+brackets (@samp{[} and @samp{]}):
 
 @example
 TRIM([[BOTH | LEADING | TRAILING] [remstr] FROM] str)
 @end example
 
-When one member from a set of choices must be chosen, the alternatives are
-listed within braces (@samp{@{} and @samp{@}}):
+When one member from a set of choices @strong{must} be chosen, the 
+alternatives are listed within braces (@samp{@{} and @samp{@}}):
 
 @example
 @{DESCRIBE | DESC@} tbl_name @{col_name | wild@}
@@ -1249,7 +1248,7 @@ listed within braces (@samp{@{} and @samp{@}}):
 
 We once started out with the intention of using @code{mSQL} to connect to our
 tables using our own fast low-level (ISAM) routines. However, after some
-testing we came to the conclusion that @code{mSQL} was not fast enough or
+testing we came to the conclusion that @code{mSQL} was not fast enough nor
 flexible enough for our needs. This resulted in a new SQL interface to our
 database but with almost the same API interface as @code{mSQL}. This API was
 chosen to ease porting of third-party code.
@@ -1265,9 +1264,9 @@ still a mystery, even for us.
 
 While this manual is still the right place for up to date techical
 information, its primary goal is to contain everything there is to know
-about @strong{MySQL}. And it is sometimes nice to have a bound book to read
+about @strong{MySQL}. It is sometimes nice to have a bound book to read
 in bed or while you travel. Here is a list of books about @strong{MySQL} (in
-English).
+English):
 
 @multitable @columnfractions .3 .7
 @item Title	@tab		@uref{http://www2.newriders.com/cfm/prod_book.cfm?RecordID=584,MySQL}
@@ -1352,7 +1351,7 @@ material.
 @item Authors   @tab            Mark Maslakowski and Tony Butcher
 @item Pub Date  @tab            June 2000
 @item ISBN      @tab            0672319144
-@item Pages     @tab            N/A
+@item Pages     @tab            650
 @item Price     @tab            $39.99
 @end multitable
 
@@ -1366,9 +1365,9 @@ hands-on examples to follow.
 
 @multitable @columnfractions .3 .7
 @item Title     @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0761524452,E-Commerce Solutions with MySQL}
-@item Publisher @tab            Prima
+@item Publisher @tab            Prima Communications, Inc.
 @item Authors   @tab            N/A
-@item Pub Date  @tab            September 2000
+@item Pub Date  @tab            January 2000
 @item ISBN      @tab            0761524452
 @item Pages     @tab            500
 @item Price     @tab            $39.99
@@ -1378,7 +1377,7 @@ No description available.
 
 @multitable @columnfractions .3 .7
 @item Title     @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861004281,Professional MySQL Programming}
-@item Publisher @tab            Wrox
+@item Publisher @tab            Wrox Press, Inc.
 @item Authors   @tab            N/A
 @item Pub Date  @tab            July 2000
 @item ISBN      @tab            1861004281
@@ -1393,9 +1392,9 @@ No description available.
 @item Publisher @tab            N/A
 @item Authors   @tab            William Jason Gilmore
 @item Pub Date  @tab            October 2000
-@item ISBN      @tab            672317842
+@item ISBN      @tab            0672317842
 @item Pages     @tab            N/A
-@item Price     @tab            $39.99
+@item Price     @tab            $49.99
 @end multitable
 
 No description available.
@@ -1411,7 +1410,7 @@ of @strong{MySQL}:
 @c with max limits (from crash-me) and so on.
 @itemize @bullet
 @item
-Fully multi-threaded using kernel threads. That means it easily can
+Fully multi-threaded using kernel threads. That means it can easily
 use multiple CPUs if available.
 
 @item
@@ -1463,17 +1462,17 @@ password traffic when connecting to a server is encrypted.
 
 @item
 ODBC (Open-DataBase-Connectivity) support for Windows95 (with source). All
-ODBC 2.5 functions and many others.  For example, you can use Access to
+ODBC 2.5 functions and many others.  For example, you can use MS Access to
 connect to your @strong{MySQL} server. @xref{ODBC}.
 
 @item
 Very fast B-tree disk tables with index compression.
 
 @item
-16 indexes per table are allowed. Each index may consist of 1 to 16 columns
-or parts of columns. The maximum index length is 256 bytes (this may be
-changed when compiling @strong{MySQL}). An index may use a prefix of a
-@code{CHAR} or @code{VARCHAR} field.
+Up to 16 indexes per table are allowed. Each index may consist of 1 to 16 
+columns or parts of columns. The maximum index length is 256 bytes (this 
+may be changed when compiling @strong{MySQL}). An index may use a prefix 
+of a @code{CHAR} or @code{VARCHAR} field.
 
 @item
 Fixed-length and variable-length records.
@@ -1548,8 +1547,8 @@ The server can provide error messages to clients in many
 languages. @xref{Languages}.
 
 @item
-Clients may connect to the @strong{MySQL} server using TCP/IP connections or
-Unix sockets, or named pipes under NT.
+Clients may connect to the @strong{MySQL} server using TCP/IP Sockets,
+Unix Sockets (Unixes), or Named Pipes (Windows NT).
 
 @item
 The @strong{MySQL}-specific @code{SHOW} command can be used to retrieve
@@ -1563,7 +1562,7 @@ can be used to determine how the optimizer resolves a query.
 
 This section addresses the questions, ``How stable is
 @strong{MySQL}?'' and, ``Can I depend on @strong{MySQL} in this project?''
-Here we will try to clarify some issues and to answer some of the more
+We will try to clarify some issues and to answer some of the more
 important questions that seem to concern many people.  This section has been
 put together from information gathered from the mailing list (which is very
 active in reporting bugs).
@@ -1576,10 +1575,12 @@ release has had fewer portability problems than the previous one (even though
 each has had many new features), and we hope that it will be possible to label
 one of the next releases ``stable''.
 
-Each release of @strong{MySQL} has been usable and there have been problems
+@c FIX We've been stable for quite a while now. :) (jcole)
+
+Each release of @strong{MySQL} has been usable, and there have been problems
 only when users start to use code from ``the gray zones''. Naturally, outside
 users can't know what the gray zones are; this section attempts to indicate
-those that are currently known.  The descriptions deal with the 3.22.x
+those that are currently known.  The descriptions deal with the 3.23.x
 version of @strong{MySQL}. All known and reported bugs are fixed in the
 latest version, with the exception of the bugs listed in the bugs section,
 which are things that are ``design''-related.  @xref{Bugs}.
@@ -1596,7 +1597,7 @@ single (reported) bug in this code. The only known way to get a
 corrupted table is to kill the server in the middle of an update.  Even
 that is unlikely to destroy any data beyond rescue, because all data are
 flushed to disk between each query.  There hasn't been a single bug
-report about lost data because of bugs in @strong{MySQL}, either.
+report about lost data because of bugs in @strong{MySQL}.
 
 @item The MyISAM table handler --- Beta
 This is new in @strong{MySQL} 3.23. It's largely based on the ISAM table code
@@ -1628,7 +1629,7 @@ handling. Not a single reported bug in this system.
 This is very system-dependent. On some systems there are big problems
 using standard OS locking (@code{fcntl()}).  In these cases, you should run the
 @strong{MySQL} daemon with the @code{--skip-locking} flag.  Problems are known
-to occur on some Linux systems and on SunOS when using NFS-mounted file
+to occur on some Linux systems, and on SunOS when using NFS-mounted file
 systems.
 
 @item Linux threads --- Gamma
@@ -1637,8 +1638,8 @@ fixed by using the @w{@code{--skip-locking}} option to
 @code{mysqld}. Some people have reported lockup problems with the 0.5
 release. LinuxThreads will need to be recompiled if you plan to use
 1000+ concurrent connections. Although it is possible to run that many
-connections with the default LinuxThreads ( however, you will never go
-above 1021 ), the default stack spacing of 2 MB makes the application
+connections with the default LinuxThreads (however, you will never go
+above 1021), the default stack spacing of 2 MB makes the application
 unstable, and we have been able to reproduce a coredump after creating
 1021 idle connections. See Linux Notes for more details.
 
@@ -1802,8 +1803,9 @@ Alameda, CA USA
 A SQL tutorial is available on the net at
 http://www.geocities.com/SiliconValley/Vista/2207/sql1.html
 
-SQL in 21 Tagen (online book in German language):
-http://www.mut.de/leseecke/buecher/sql/inhalt.htm
+@c A nice german 404 error. (jcole)
+@c SQL in 21 Tagen (online book in German language):
+@c http://www.mut.de/leseecke/buecher/sql/inhalt.htm
 
 @node Useful Links,  , General-SQL, Introduction
 @section Useful MySQL-related links
@@ -1815,8 +1817,9 @@ Apart from the following links, you can find and download a lot of
 @subheading Tutorials
 @itemize @bullet
 
-@item @uref{http://www.devshed.com/resource/advanced/mysql/index.html, A
-beginner's tutorial of how to start using @strong{MySQL}}
+@c just forwards to the devshed link below.. (jcole)
+@c @item @uref{http://www.devshed.com/resource/advanced/mysql/index.html, A
+@c beginner's tutorial of how to start using @strong{MySQL}}
 
 @item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}
 Beginners @strong{MySQL} Tutorial on how to install and set up
@@ -1840,7 +1843,7 @@ Setting Up a @strong{MySQL}-Based Website}
 @itemize @bullet
 @item @uref{http://xclave.macnn.com/MySQL/,The MacOS Xclave}.
 Running @strong{MySQL} on MacOSX
-@item @uref{http://www.prnet.de/RegEx/mysql.html, MySql for MacOSX Server}
+@item @uref{http://www.prnet.de/RegEx/mysql.html, MySQL for MacOSX Server}
 @item @uref{http://www.lilback.com/macsql/, Client libraries for the Macintosh}
 @end itemize
 
@@ -1848,7 +1851,9 @@ Running @strong{MySQL} on MacOSX
 @itemize @bullet
 @item
 @c Added 991122
-@uref{http://haven.e-cactus.com/dbi_mysql, Perl DBI with @strong{MySQL} FAQ}
+@c forwards to new url (jcole)
+@c @uref{http://haven.e-cactus.com/dbi_mysql, Perl DBI with @strong{MySQL} FAQ}
+@uref{http://dbimysql.photoflux.com/, Perl DBI with @strong{MySQL} FAQ}
 @end itemize
 
 @subheading MySQL discussion forums
@@ -1917,6 +1922,8 @@ different formats (SQL, HTML, CVS, text, ZIP, GZIP...)
 
 @subheading Distributions that include MySQL
 
+@c FIX add the rest (at least a couple more Linuxes)
+
 @itemize @bullet
 @item
 @uref{http://www.suse.com/, SuSE Linux (Suse 6.1 and above)}
@@ -1938,7 +1945,7 @@ powerful Web development environment based on @strong{MySQL} and PHP}
 HTML embedded tag language written in Java (previously known as XTAGS)}
 @item
 @uref{http://www.dbServ.de/, dbServ} is an extension to a web server to
-integrate databases output into your HTML code. You may use any HTML
+integrate database output into your HTML code. You may use any HTML
 function in your output. Only the client will stop you. It works as
 standalone server or as JAVA servlet.
 @item
@@ -2063,9 +2070,10 @@ A @strong{MySQL}-based ODBC drivers for Btrieve
 
 @itemize @bullet
 @item
+@c FIX i get no route on this host on 7/31/2k, check later (jcole)
 @uref{http://www.amedea.cz/mysqlx/index.html, MySQL COM extension}
-With this COM objects You can use MySQL also on Windows platform with ASP
-pages or Delphi, Visual Basic, Visual C++, ... languages.
+With this COM object you can use MySQL also on Windows with ASP
+pages or with Delphi, Visual Basic, Visual C++, ... languages.
 @item
 @uref{http://www.jppp.com, www.jppp.com}
 Partially implemented TDataset-compatible components for @strong{MySQL}.
@@ -2078,6 +2086,7 @@ any MTA to deliver to users in a @strong{MySQL} database.
 @uref{http://www.pbc.ottawa.on.ca,Visual Basic class generator for Active X}
 @item
 @uref{http://www.lilback.com/macsql/, Client libraries for the Macintosh}
+@c 404 not found
 @c @item
 @c @uref{http://tfdec1.fys.kuleuven.ac.be/~michael/fpc-linux/mysql,
 @c @strong{MySQL} binding to Free Pascal}
@@ -2146,6 +2155,8 @@ which mentions @strong{MySQL} in the right company}
 @item
 @uref{http://www.lightlink.com/hessling/rexxsql.html, A REXX interface to SQL databases}
 @item
+@uref{http://www.mytcl.cx/, Tcl interface, based on tcl-sql, many bugfixes.}
+@item
 @uref{http://www.binevolve.com/~tdarugar/tcl-sql, Tcl interface}
 @end itemize
 
@@ -2188,7 +2199,7 @@ A Contact Database using @strong{MySQL} and PHP}
 @item
 @uref{http://www.ooc.com/, Object Oriented Concepts Inc; CORBA applications with examples in source}
 @item
-@uref{http://www.pbc.ottawa.on.ca/,DBWiz; Includes an example of how to manage own cursors in VB}
+@uref{http://www.pbc.ottawa.on.ca/,DBWiz; Includes an example of how to manage cursors in VB}
 @item
 @uref{http://keilor.cs.umass.edu/pluribus/, Pluribus}
 Pluribus, is a free search engine that learns to improve
@@ -2474,7 +2485,7 @@ the version number of the platform.
 Remember also to provide information about your compiler, if it is related to
 the problem.  Often people find bugs in compilers and think the problem is
 @strong{MySQL} related. Most compilers are under development all the time and
-become better version by version, too.  To determine whether or not your
+become better version by version.  To determine whether or not your
 problem depends on your compiler, we need to know what compiler is used.
 Note that every compiling problem should be regarded as a bug report and
 reported accordingly.
@@ -2536,7 +2547,7 @@ file where the error occurred.
 
 @item
 If any database table is related to the problem, include the output from
-@code{mysqldump --no-data db_name tbl_name1 tbl_name2 ...} This is very easy
+@code{mysqldump --no-data db_name tbl_name1 tbl_name2 ...}.  This is very easy
 to do and is a powerful way to get information about any table in a database
 that will help us create a situation matching the one you have.
 
@@ -2555,9 +2566,9 @@ otherwise exceed that of an 80-column display device):
 @example
 mysql> SHOW VARIABLES;
 mysql> SHOW COLUMNS FROM ...\G
-       <output-from-SHOW-COLUMNS>
+       <output from SHOW COLUMNS>
 mysql> EXPLAIN SELECT ...\G
-       <output-from-EXPLAIN>
+       <output from EXPLAIN>
 mysql> FLUSH STATUS;
 mysql> SELECT ...;
        <A short version of the output from SELECT,
@@ -2589,8 +2600,8 @@ etc.!  These cases are rare, perhaps, but it is better to be safe than
 sorry.  After all, it should be easier for you to provide an example that
 uses your actual situation and it is by all means better for us.  In case you
 have data you don't want to show to others, you can use @code{ftp} to
-transfer it to @uref{ftp://support.mysql.com/pub/mysql/secret/}.  If the data are
-really top secret and you don't want to show them even to us, then go ahead
+transfer it to @uref{ftp://support.mysql.com/pub/mysql/secret/}.  If the data 
+are really top secret and you don't want to show them even to us, then go ahead
 and provide an example using other names, but please regard this as the last
 choice.
 
@@ -2625,8 +2636,8 @@ program that gives you trouble.  @code{mysqlaccess} can be found in the
 
 @item
 If you have a patch for a bug, that is good, but don't assume the patch is
-all we need, or that we will use it even if you don't provide some necessary
-information such as test cases showing the bug that your patch fixes.  We
+all we need, or that we will use it, if you don't provide some necessary
+information, such as test cases showing the bug that your patch fixes.  We
 might find problems with your patch or we might not understand it at all; if
 so, we can't use it.
 
@@ -2637,8 +2648,8 @@ where the patch won't work, the patch may be useless.
 
 @item
 Guesses about what the bug is, why it occurs, or what it depends on,
-are usually wrong. Even we can't guess such things without first
-using a debugger to determine the real cause of a bug.
+are usually wrong. Even the MySQL team can't guess such things without 
+first using a debugger to determine the real cause of a bug.
 
 @item
 Indicate in your mail message that you have checked the reference manual
@@ -2650,9 +2661,9 @@ If you get a @code{parse error}, please check your syntax closely! If
 you can't find something wrong with it, it's extremely likely that your
 current version of @strong{MySQL} doesn't support the query you are
 using.  If you are using the current version and the manual at
-@uref{http://www.mysql.com/documentation/manual.php} doesn't cover the syntax you are
-using, @strong{MySQL} doesn't support your query.  In this case, your
-only options are to implement the syntax yourself or email
+@uref{http://www.mysql.com/documentation/manual.php} doesn't cover the 
+syntax you are using, @strong{MySQL} doesn't support your query.  In this 
+case, your only options are to implement the syntax yourself or email
 @email{mysql-licensing@@mysql.com} and ask for an offer to implement it!
 
 If the manual covers the syntax you are using, but you have an older version
@@ -2663,7 +2674,8 @@ option of upgrading to a newer version of @strong{MySQL}.
 @item
 If you have a problem such that your data appears corrupt or you get
 errors when you access some particular table, you should first check and then
-try repairing your tables with @code{myisamchk}.
+try repairing your tables with @code{myisamchk} or @code{CHECK TABLE}/
+@code{REPAIR TABLE}.
 @xref{Maintenance}.
 
 @item
@@ -2778,7 +2790,8 @@ You have a commercial application that ONLY works with @strong{MySQL}
 and ships the application with the @strong{MySQL} server. This is
 because we view this a linking even if it is done over the network.
 
-@item You have a distribute @code{MySQL} and you don't provide the
+@item 
+You have a distribution of @code{MySQL} and you don't provide the
 source code for your copy of the @strong{MySQL} server, as defined in
 the GPL license.
 @end itemize
@@ -2843,12 +2856,13 @@ programs in the @file{client} directory is GPL. Each file has a header
 that shows which copyright is used for that file.
 
 @item The client library and the (GNU @code{getopt}) library are covered
-by the ``GNU LIBRARY LIBRARY GENERAL PUBLIC LICENSE''.
+by the ``GNU LIBRARY GENERAL PUBLIC LICENSE''.
 
 @item Some parts of the source (the @code{regexp} library) are covered
-by a Berkeley style copyright.
+by a Berkeley-style copyright.
 
-@item All the source in the server and the (GNU @code{readline}) library
+@item 
+All the source in the server and the (GNU @code{readline}) library
 is covered by the ``GNU GENERAL PUBLIC LICENSE''. @xref{GPL
 license}. This is also available as the file @file{COPYING} in the
 distributions.
@@ -2860,8 +2874,8 @@ so that it is possible to add @strong{MySQL} support in commercial products
 without any license. So in this case we choose the LGPL license.
 
 This means that you can use @strong{MySQL} for free with any program that uses
-any of the free software licences.  @strong{MySQL} is also free for any end user
-for his own/company usage.
+any of the free software licences.  @strong{MySQL} is also free for any end 
+user for his own or company usage.
 
 But if you use @strong{MySQL} for something important to you, you may
 want to help secure its development by purchasing licenses or a support
@@ -2870,7 +2884,7 @@ contract, @ref{Support}.
 @node Copyright changes,  , Copyright, Copyright
 @subsection Copyright changes
 
-The stable versions are of @strong{MySQL} are still using a more strict
+The stable versions of @strong{MySQL} are still using a more strict
 license. See the documatation for that version for more information.
 
 @node Licensing examples, Cost, Copyright, Licensing and Support
@@ -2887,15 +2901,15 @@ must license the @strong{MySQL} server.  Generally these examples
 involve providing @strong{MySQL} as a integrated part of a product.
 
 Note that a single @strong{MySQL} license covers any number of CPUs and
-@code{mysqld} servers on a machine! It also has not limit on the number
-of clients that connect to one server in any way.
+@code{mysqld} servers on a machine! It also has no limit on the number
+of clients that connect to the server in any way.
 
 @node Products that use MySQL, ISP, Licensing examples, Licensing examples
 @subsection Selling products that use @strong{MySQL}
 
 To determine whether or not you need a @strong{MySQL} license when
 selling your application, you should ask whether the proper functioning
-of your application is depentent on the use of @strong{MySQL} and
+of your application is dependent on the use of @strong{MySQL} and
 whether you include the @strong{MySQL} server with your product.  There
 are several cases to consider:
 
@@ -2936,17 +2950,17 @@ don't need a license.
 Internet Service Providers (ISPs) often host @strong{MySQL} servers for
 their customers. With the GPL license this does not require a license.
 
-On the other hand, we do encourage people to use ISP:s that has
+On the other hand, we do encourage people to use ISPs that have
 @strong{MySQL} support as this will give them the confidence that if
-they get some problem with their @strong{MySQL} installation, their ISP
+they have some problem with their @strong{MySQL} installation, their ISP
 will be able to solve the problem for them (in some cases with the help
 from the @strong{MySQL} development team).
 
-All @code{ISPs} that wants to keep themself up to date should subscribe
+All ISPs that wants to keep themself up to date should subscribe
 to our announce mailing list so that they can be aware of fatal issues
 that may be relevant for their @code{MySQL} installations.
 
-Note that if the @code{ISP} doesn't have a license for @code{MySQL},
+Note that if the ISP doesn't have a license for @code{MySQL},
 they should give their customers at least read access to the source of
 the @code{MySQL} installation so that their customer can verify that
 it's patched correctly.
@@ -3081,7 +3095,7 @@ to:
 
 If you want us to bill you, you can use the license form and write ``bill
 us'' in the comment field.  You can also mail a message to
-@email{sales@@mysql.com} (@strong{not} @email{mysql@@lists.mysql.com}!)
+@email{sales@@mysql.com} (@strong{not} @code{mysql@@lists.mysql.com}!)
 with your company information and ask us to bill you.
 
 @cindex Contact information
@@ -3121,9 +3135,9 @@ Voice Phone +46-18-10 22 80
 
 Basic email support is a very inexpensive support option and should be
 thought of more as a way to support our development of @strong{MySQL}
-than as a real support option.  We at @strong{MySQL} do give a lot of free support
-in all the different @strong{MySQL} lists and the money we get from
-basic eamil support is largely used to make this possible.
+than as a real support option.  We at @strong{MySQL} do give a lot of free 
+support in all the different @strong{MySQL} lists and the money we get from
+basic email support is largely used to make this possible.
 
 At this support level, the @strong{MySQL} mailing lists are the preferred
 means of communication.  Questions normally should be mailed to the primary
@@ -3147,7 +3161,7 @@ expiration date when you send a message to
 Note that if you have encountered a critical repeatable bug and follow
 the rules outlined in the manual section of how to report bugs and send
 it to @email{bugs@@lists.mysql.com} we promise to try to fix this as
-soon as possible, independent of your support level! @xref{Bug reports}.
+soon as possible, regardless of your support level! @xref{Bug reports}.
 
 Basic email support includes the following types of service:
 
@@ -3173,7 +3187,7 @@ platforms are those for which @strong{MySQL} is known to work.
 We will help you with bugs and missing features. Any bugs that are found are
 fixed for the next @strong{MySQL} release. If the bug is critical for
 you, we will mail you a patch for it as soon the bug is fixed.  Critical
-bugs always have the highest priority for us, to ensure that they are
+bugs always have the highest priority for us, and we ensure that they are
 fixed as soon as possible.
 
 @item
@@ -3186,12 +3200,6 @@ more input, upgrade to a higher level of support.
 If you want us to help optimize your system, you must upgrade to a
 higher level of support.
 
-@item
-@cindex @code{myisampack}
-We include a binary version of the @code{myisampack} packing tool for
-creating fast compressed read-only databases. The current server includes
-support for reading such databases but not the packing tool used to
-create them.
 @end itemize
 
 @node Extended email support, Login support, Basic email support, Support
@@ -3368,7 +3376,7 @@ source distribution.
 Check the @uref{http://www.mysql.com/, @strong{MySQL} home page} for
 information about the current version and for downloading instructions.
 
-If you have problems downloading from our main site, try using on of the
+If you have problems downloading from our main site, try using one of the
 mirrors listed below.
 
 Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
@@ -3378,152 +3386,181 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @strong{Europe:}
 
 @itemize @bullet
+
 @item
 @c EMAIL: sl@iuinfo.tuwien.ac.at (Tony Sprinzl)
 @image{Flags/austria} Austria [Univ. of Technology/Vienna] @ 
 @uref{http://gd.tuwien.ac.at/db/mysql/, WWW}
 @uref{ftp://gd.tuwien.ac.at/db/mysql/, FTP}
+
 @item
 @c EMAIL: delian@naturella.com (Delian Delchev)
 @image{Flags/bulgaria} Bulgaria [Naturella] @ 
 @uref{http://archive.nat.bg/pub/mirror/mysql/, WWW}
 @uref{ftp://ftp.ntrl.net/pub/mirror/mysql/, FTP}
+
 @item
 @c Added: 990614
 @c EMAIL: vuksan@veus.hr (Vladimir Vuksan)
 @image{Flags/croatia} Croatia [HULK] @ 
 @uref{http://ftp.linux.hr/pub/mysql/, WWW}
 @uref{ftp://ftp.linux.hr/pub/mysql/, FTP}
+
 @item
 @c Added: 990614
 @c EMAIL: kas@informatics.muni.cz (Jan Kasprzak)
 @image{Flags/czech-republic} Czech Republic [Masaryk University in Brno] @ 
 @uref{http://mysql.linux.cz/index.html, WWW}
 @uref{ftp://ftp.fi.muni.cz/pub/mysql/, FTP}
+
 @item
 @c Added: 990920
 @c EMAIL: <radek@sopik.cz> (Radek Libovicky) 
 @image{Flags/czech-republic} Czech Republic [www.sopik.cz] @ 
 @uref{http://www.mysql.cz/, WWW}
+
 @item
 @c Added: 000418
 @c EMAIL: <feela@ipex.cz> (Ondrej Feela Filip)
 @image{Flags/czech-republic} Czech Republic [www.gin.cz] @
 @uref{http://mysql.gin.cz/, WWW}
 @uref{ftp://ftp.gin.cz/pub/MIRRORS/www.mysql.com/, FTP}
+
 @item
 @c removed 991020 (no DNS entry). New name 991026. Added 991121
 @c Statistics at http://mirror.borsen.dk/
 @c EMAIL: mirrorman@borsen.dk  (Michael Kyed)
 @image{Flags/denmark} Denmark [Borsen] @ 
 @uref{ http://mysql.borsen.dk/, WWW}
+
 @item
 @c EMAIL: mkp@socsci.auc.dk (Martin Kasper Petersen)
 @image{Flags/denmark} Denmark [SunSITE] @ 
 @uref{http://SunSITE.auc.dk/mysql/, WWW}
 @uref{ftp://SunSITE.auc.dk/pub/databases/mysql/, FTP}
+
 @c @item
 @c Tõnu does not work there anymore :-) 990720
 @c EMAIL: tonu@tradenet.ee (Tõnu Samuel)
 @c @image{Flags/estonia} Estonia [Tradenet] @ 
 @c @uref{http://mysql.tradenet.ee, WWW}
+
 @item
 @c EMAIL: tonu@spamm.ee (Tõnu Samuel)
 @image{Flags/estonia} Estonia [OKinteractive] @ 
 @uref{http://mysql.mirror.ok.ee, WWW}
+
 @item
 @c Changed 990531
 @c EMAIL: Steeve.Devergne@minet.net (Steeve Devergne)
 @image{Flags/france} France [minet] @ 
 @uref{http://www.minet.net/devel/mysql/, WWW}
+
 @item
 @c EMAIL: Jaakko.Hyvatti@eunet.fi
 @image{Flags/finland} Finland [EUnet] @
 @uref{http://mysql.eunet.fi/, WWW}
+
 @item
 @c Added 990829
 @c EMAIL: tomi.hakala@clinet.fi (Tomi Hakala)
 @image{Flags/finland} Finland [clinet] @
 @uref{ftp://ftp.clinet.fi/mirrors/ftp.mysql.org/pub/mysql/, FTP}
+
 @item
 @c Added 981208
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
 @image{Flags/germany} Germany [Bonn University, Bonn] @ 
 @uref{http://www.wipol.uni-bonn.de/MySQL//, WWW}
 @uref{ftp://ftp.wipol.uni-bonn.de/pub/mirror/MySQL/, FTP}
+
 @item
 @c EMAIL: th@rz.fh-wolfenbuettel.de (Thorsten Ludewig)
 @image{Flags/germany} Germany [Wolfenbuettel] @ 
 @uref{http://www.fh-wolfenbuettel.de/ftp/pub/database/mysql/, WWW}
 @uref{ftp://ftp.fh-wolfenbuettel.de/pub/database/mysql/, FTP}
+
 @item
 @c Ok 980114. Removed 981208 (down > 3 days) ok 981214
 @c EMAIL: straub@gks.de (Hans-Peter Straub)
 @image{Flags/germany} Germany [Staufen] @ 
 @uref{http://mysql.staufen.de/, WWW}
+
 @item
 @c Added 990614
 @c EMAIL: thomas.rohde@ecrc.de (Thomas Rohde)
 @image{Flags/germany} Germany [Cable & Wireless] @ 
 @uref{ftp://ftp.ecrc.net/pub/database/mysql/, FTP}
+
 @item
 @c Added 981208
 @c EMAIL: christias@noc.ntua.gr (Panagiotis Christias)
 @image{Flags/greece} Greece [NTUA, Athens] @ 
 @uref{http://www.ntua.gr/mysql/, WWW}
 @uref{ftp://ftp.ntua.gr/pub/databases/mysql/, FTP}
+
 @c @item
 @c File not found 990730
 @c EMAIL: torlasz@xenia.sote.hu (Laszlo L. Tornoc)
 @c @image{Flags/hungary} Hungary [Xenia] @ 
 @c @uref{http://xenia.sote.hu/ftp/mirrors/www.mysql.com/, WWW}
 @c @uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/,FTP}
+
 @item
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
 @image{Flags/iceland} Island [GM] @ 
 @uref{http://mysql.gm.is/, WWW}
 @uref{ftp://ftp.gm.is/pub/mysql, WWW}
+
 @c @item
 @c Out of date 990906
 @c EMAIL: bourbon@netvision.net.il (Zeev Suraski)
 @c @image{Flags/israel} Israel [Netvision] @ 
 @c @uref{http://mysql.netvision.net.il/, WWW}
+
 @c @item
 @c Not working 99.03.06
 @c EMAIL: maruzz@matrice.it (Giovanni Maruzzelli)
 @c @image{Flags/italy} Italy [Matrice] @ 
 @c @uref{http://www.matrice.it/risorse/mysql/, WWW}
+
 @item
 @c EMAIL: irena@yacc.it
 @image{Flags/italy} Italy [Teta Srl] @ 
 @uref{http://www.teta.it/mysql/, WWW}
+
 @item
 @c Added 991121
 @c EMAIL: nick@iol.ie (Nick Hilliard)
 @image{Flags/ireland} Ireland [Ireland On-Line/Dublin] @ 
 @uref{http://mysql.iol.ie, WWW}
 @uref{ftp://ftp.iol.ie/pub/mysql, FTP}
+
 @item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
 @c mirroring nightly at 05:25
 @image{Flags/poland} Poland [Sunsite] @ 
 @uref{http://sunsite.icm.edu.pl/mysql/, WWW}
 @uref{ftp://sunsite.icm.edu.pl/pub/unix/mysql/, FTP}
+
 @c @item
 @c EMAIL: melo@co.telenet.pt (Pedro Melo)
 @c Temp out of service (email from Pedro)
 @c @image{Flags/portugal} Portugal [IP] @ 
 @c @uref{http://mysql.ip.pt, WWW}
+
 @item
 @c EMAIL: Equipa de suporte do Leirianet <support@leirianet.pt>
 @image{Flags/portugal} Portugal [lerianet] @ 
 @uref{http://mysql.leirianet.pt, WWW}
 @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
+
 @item
 @c EMAIL: kuzmin@dn.ru (Roma Kuzmin)
 @image{Flags/russia} Russia [DirectNet] @ 
 @uref{http://mysql.directnet.ru, WWW}
 @uref{ftp://ftp.dn.ru/pub/MySQL, FTP}
+
 @c @item
 @c down 990113
 @c EMAIL: nikkic@cityline.ru (Nikki Chumakov)
@@ -3531,20 +3568,24 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{ftp://mysql.cityline.ru/pub/mysql, FTP}
 @c @uref{http://mysql.cityline.ru, WWW}
 @c EMAIL: bar@izhcom.ru (Alexander I Barkov)
+
 @item
 @image{Flags/russia} Russia [IZHCOM] @ 
 @uref{http://mysql.udm.net/, WWW}
 @uref{ftp://ftp.izhcom.ru/pub/mysql/,FTP}
+
 @item
 @c Added 990507
 @c EMAIL: demon@gpad.ac.ru (Dima Sivachenko)
 @image{Flags/russia} Russia [Scientific Center/Chernogolovka] @ 
 @uref{ftp://ftp.chg.ru/pub/databases/mysql/, FTP}
+
 @item
 @c EMAIL: sebi@dnttm.ro (Sebastian DEAC)
 @image{Flags/romania} Romania [Timisoara] @ 
 @uref{http://www.dnttm.ro/mysql, WWW}
 @uref{ftp://ftp.dnttm.ro/pub/mysql, FTP}
+
 @item
 @c EMAIL: tim@lbi.ro (Bogdan Surdu)
 @image{Flags/romania} Romania [Bucharest] @ 
@@ -3586,6 +3627,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/great-britain} UK [PLiG/UK] @ 
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
+
 @c @item
 @c unknown
 @c @image{Flags/great-britain} UK [MicroMuse] @ 
@@ -3719,6 +3761,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: gaiser@matrix.com.br (Roberto Gaiser)
 @image{Flags/brazil} Brazil [Matrix] @ 
 @uref{http://mysql.matrix.com.br, WWW}
+
 @item
 @c jpabuyer@vision.cl
 @image{Flags/chile} Chile [Vision] @ 
@@ -3811,6 +3854,7 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: tby@ccca.nctu.edu.tw (Bao-Yi Tuang)
 @c @image{Flags/taiwan} Taiwan [NCTU] @ 
 @c @uref{http://mysql.taconet.com.tw, WWW}
+
 @c @item
 @c Out of date 990905 (~2 months)
 @c @item @c **********************************
@@ -3818,11 +3862,13 @@ Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
 @c EX: WolfySu@acer.net (Wolfy Su)
 @c @image{Flags/taiwan} Taiwan [Acer] @ 
 @c @uref{http://mysql.acer.net/, WWW}
+
 @c @item @c **********************************
 @c files to delete
 @c EX: service@wownet.net
 @c @image{Flags/taiwan} Taiwan [Wownet] @ 
 @c @uref{ftp://ftp.wownet.net/mysql/, FTP}
+
 @c @item @c **********************************
 @c No conntact 980106
 @c EX: serge@oneway.net
@@ -3915,11 +3961,13 @@ FreeBSD 2.x with the included MIT-pthreads package. @xref{FreeBSD}.
 @item
 FreeBSD 3.x with native threads. @xref{BSDI}.
 @item
+FreeBSD 4.x with native threads.
+@item
 HP-UX 10.20 with the included MIT-pthreads package. @xref{HP-UX 10.20}.
 @item
 HP-UX 11.x with the native threads. @xref{HP-UX 11.x}.
 @item
-Linux 2.0+ with LinuxThreads 0.7.1 or @code{glibc} 2.0.7 . @xref{Linux}.
+Linux 2.0+ with LinuxThreads 0.7.1+ or @code{glibc} 2.0.7+ . @xref{Linux}.
 @item
 MacOS X Server. @xref{MacOSX}. 
 @item
@@ -4083,7 +4131,7 @@ to share this with other @strong{MySQL} users. We try to make a release
 when we have very useful features that others seem to have a need for.
 
 We also try to help out users who request features that are easy to
-implement. We also take note of what our licensed users want to have and
+implement. We take note of what our licensed users want to have and
 we especially take note of what our extended email supported customers
 want and try to help them out.
 
@@ -4210,7 +4258,7 @@ GNU @code{gunzip} to uncompress the distribution.
 
 @item
 A reasonable @code{tar} to unpack the distribution. GNU @code{tar} is
-known to work.
+known to work. Sun @code{tar} is known to have problems.
 @end itemize
 
 @cindex RPM
@@ -4422,7 +4470,7 @@ After installing the RPM file(s), the @file{mysqld} daemon should be running
 and you should now be able to start using @strong{MySQL}.
 @xref{Post-installation}.
 
-If something goes wrong, can find more information in the binary
+If something goes wrong, you can find more information in the binary
 installation chapter. @xref{Installing binary}.
 
 
@@ -4493,7 +4541,7 @@ You can solve this problem one of the following ways:
 
 @itemize @bullet
 @item
-Get a @strong{MySQL} source distribution (an RPM or the @code{tar}
+Get a @strong{MySQL} source distribution (an RPM or the @code{tar.gz}
 distribution) and install this instead.
 @item
 Execute @code{mysql_install_db --force}; This will not execute the
@@ -4582,7 +4630,8 @@ The depot places binaries and libraries in @file{/opt/mysql} and data in
 @file{/sbin/init.d} and @file{/sbin/rc2.d} to start the server automatically
 at boot time. Obviously, this entails being @code{root} to install.
 
-To install the HP-UX tar distribution, you must have a copy of GNU @code{tar}.
+To install the HP-UX tar.gz distribution, you must have a copy of GNU 
+@code{tar}.
 
 @node Installing source, Compilation problems, Installing binary, Installing
 @section Installing a MySQL source distribution
@@ -4595,7 +4644,7 @@ GNU @code{gunzip} to uncompress the distribution.
 
 @item
 A reasonable @code{tar} to unpack the distribution. GNU @code{tar} is
-known to work.
+known to work.  Sun @code{tar} is known to have problems.
 
 @item
 A working ANSI C++ compiler. @code{gcc} >= 2.8.1, @code{egcs} >=
@@ -4604,6 +4653,8 @@ work.  @code{libg++} is not needed when using @code{gcc}.  @code{gcc}
 2.7.x has a bug that makes it impossible to compile some perfectly legal
 C++ files, such as @file{sql/sql_base.cc}. If you only have @code{gcc} 2.7.x,
 you must upgrade your @code{gcc} to be able to compile @strong{MySQL}.
+
+@code{gcc} >= 2.95.2 should be used when compiling @strong{MySQL} 3.23.x.
 
 @item
 A good @code{make} program.  GNU @code{make} is always recommended and is
@@ -4814,6 +4865,8 @@ not the server, use the @code{--without-server} option:
 @example
 shell> ./configure --without-server
 @end example
+
+@c FIX incorrect..
 
 If you don't have a C++ compiler, @code{mysql} will not compile (it is the
 one client program that requires C++).  In this case,
@@ -5647,8 +5700,8 @@ include the libraries that @code{libwrap.a} needs:
 --with-libwrap="/opt/NUtcpwrapper-7.6/lib/libwrap.a -lnsl -lsocket
 @end example
 
-If you have problems with that configure or @strong{MySQL} tries to link
-with @code{-lz} and you don't have this installed, you have two options:
+If you have problems with configure trying to link with @code{-lz} and 
+you don't have @code{zlib} installed, you have two options:
 
 @itemize @bullet
 @item
@@ -35297,7 +35350,7 @@ find on the
 this means that the version has not yet been released!
 
 @menu
-* News-3.23.x::                 Changes in release 3.23.x (Released as alpha)
+* News-3.23.x::                 Changes in release 3.23.x (Released as beta)
 * News-3.22.x::                 Changes in release 3.22.x (Recommended version)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
@@ -35305,7 +35358,7 @@ this means that the version has not yet been released!
 @end menu
 
 @node News-3.23.x, News-3.22.x, News, News
-@appendixsec Changes in release 3.23.x  (Released as alpha)
+@appendixsec Changes in release 3.23.x  (Released as beta)
 
 The major difference between release 3.23 and releases 3.22 and 3.21 is that
 3.23 contains a new ISAM library (MyISAM), which is more tuned for SQL
@@ -39579,7 +39632,8 @@ Oracle like @code{CONNECT BY PRIOR ...} to search hierarchy structures.
 @item
 @code{RENAME DATABASE}
 @item
-@code{mysqladmin copy database new-database}.
+@code{mysqladmin copy database new-database}. -- Requires COPY command to be
+added to @code{mysqld}
 @item
 Processlist should show number of queries/thread.
 @item
