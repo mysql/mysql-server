@@ -687,6 +687,8 @@ private:
 
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
+
+  friend int runOperations(class NDBT_Context*, class NDBT_Step*);
 };
 
 inline
