@@ -4672,6 +4672,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   uint32 not_used, copy_length;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
 
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
@@ -4696,11 +4697,24 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     *ptr= (uchar) copy_length;
   else
     int2store(ptr, copy_length);
-  
-  if (copy_length < length)
+
+  // Check if we lost something other than just trailing spaces
+  if ((copy_length < length) && table->in_use->count_cuted_fields)
+  {
+    const char *end= from + length;
+    from+= copy_length;
+    from+= field_charset->cset->scan(field_charset, from, end, MY_SEQ_SPACES);
+    /*
+      If we lost only spaces then produce a NOTE, not a WARNING.
+      But if we have already had errors (e.g with charset conversion),
+      then don't reset level to NOTE.
+    */
+    if (from == end && !error)
+      level= MYSQL_ERROR::WARN_LEVEL_NOTE;
     error= 1;
+  }
   if (error)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
+    set_warning(level, ER_WARN_DATA_TRUNCATED, 1);
   return error;
 }
 
