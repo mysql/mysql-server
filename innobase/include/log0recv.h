@@ -313,6 +313,10 @@ struct recv_sys_struct{
 				this lsn */
 	dulint		limit_lsn;/* recovery should be made at most up to this
 				lsn */
+	ibool		found_corrupt_log;
+				/* this is set to TRUE if we during log
+				scan find a corrupt log block, or a corrupt
+				log record */
 	log_group_t*	archive_group;
 				/* in archive recovery: the log group whose
 				archive is read */
@@ -327,6 +331,8 @@ extern recv_sys_t*	recv_sys;
 extern ibool		recv_recovery_on;
 extern ibool		recv_no_ibuf_operations;
 extern ibool		recv_needed_recovery;
+
+extern ibool		recv_is_making_a_backup;
 
 /* Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */ 

@@ -578,7 +578,7 @@ fil_read_flushed_lsn_and_arch_log_no(
 	ulint	arch_log_no;
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
-	/* Align the memory for a possibel read from a raw device */
+	/* Align the memory for a possible read from a raw device */
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 	
 	os_file_read(data_file, buf, 0, 0, UNIV_PAGE_SIZE);

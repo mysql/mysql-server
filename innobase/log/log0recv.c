@@ -63,7 +63,7 @@ log scan */
 ulint	recv_scan_print_counter	= 0;
 
 ibool	recv_is_from_backup	= FALSE;
-
+ibool	recv_is_making_a_backup = FALSE;
 
 /************************************************************
 Creates the recovery system. */
@@ -124,6 +124,8 @@ recv_sys_init(
 
 	recv_sys->last_block = ut_align(recv_sys->last_block_buf_start,
 						OS_FILE_LOG_BLOCK_SIZE);
+	recv_sys->found_corrupt_log = FALSE;
+
 	mutex_exit(&(recv_sys->mutex));
 }
 
@@ -569,9 +571,9 @@ recv_read_cp_info_for_backup(
 }
 
 /**********************************************************
-Checks the 1-byte checksum to the trailer checksum field of a log block.
-We also accept a log block in the old format where the checksum field
-contained the highest byte of the log block number. */
+Checks the 4-byte checksum to the trailer checksum field of a log block.
+We also accept a log block in the old format < InnoDB-3.23.52 where the
+checksum field contains the log block number. */
 static
 ibool
 log_block_checksum_is_ok_or_old_format(
@@ -580,29 +582,12 @@ log_block_checksum_is_ok_or_old_format(
 			format of InnoDB version < 3.23.52 */
 	byte*	block)	/* in: pointer to a log block */
 {
-	ulint	i;
-	ulint	sum;
-
-	sum = 1;
-
-	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
-		sum += (ulint)(*(block + i));
-	}
-
-/*	printf("Checksum %lu, byte %lu\n", 0xFF & sum,
-		mach_read_from_1(block + OS_FILE_LOG_BLOCK_SIZE
-						- LOG_BLOCK_TRL_CHECKSUM));
-*/
-	if (mach_read_from_1(block + OS_FILE_LOG_BLOCK_SIZE
-						- LOG_BLOCK_TRL_CHECKSUM)
-	    == (0xFF & sum)) {
+	if (log_block_calc_checksum(block) == log_block_get_checksum(block)) {
 
 		return(TRUE);
 	}
 
-	if (((0xFF000000 & log_block_get_hdr_no(block)) >> 24)
-		== mach_read_from_1(block + OS_FILE_LOG_BLOCK_SIZE
-						- LOG_BLOCK_TRL_CHECKSUM)) {
+	if (log_block_get_hdr_no(block) == log_block_get_checksum(block)) {
 
 		/* We assume the log block is in the format of
 		InnoDB version < 3.23.52 and the block is ok */
@@ -649,23 +634,20 @@ recv_scan_log_seg_for_backup(
 
 /*		fprintf(stderr, "Log block header no %lu\n", no); */
 
-		if ((no & 0xFFFFFF) != log_block_get_trl_no(log_block)
-		    || no != log_block_convert_lsn_to_no(*scanned_lsn)
+		if (no != log_block_convert_lsn_to_no(*scanned_lsn)
 		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
 /*
 			printf(
-"Log block n:o %lu, trailer n:o %lu, scanned lsn n:o %lu\n",
-			no, log_block_get_trl_no(log_block),
-			log_block_convert_lsn_to_no(*scanned_lsn));
+"Log block n:o %lu, scanned lsn n:o %lu\n",
+			no, log_block_convert_lsn_to_no(*scanned_lsn));
 */
 			/* Garbage or an incompletely written log block */
 
 			log_block += OS_FILE_LOG_BLOCK_SIZE;
 /*
 			printf(
-"Next log block n:o %lu, trailer n:o %lu\n",
-			log_block_get_hdr_no(log_block),
-			log_block_get_trl_no(log_block));
+"Next log block n:o %lu\n",
+			log_block_get_hdr_no(log_block));
 */			
 			break;
 		}
@@ -713,7 +695,7 @@ byte*
 recv_parse_or_apply_log_rec_body(
 /*=============================*/
 			/* out: log record end, NULL if not a complete
-			record */
+			record, or a corrupt record */
 	byte	type,	/* in: type */
 	byte*	ptr,	/* in: pointer to a buffer */
 	byte*	end_ptr,/* in: pointer to the buffer end */
@@ -794,8 +776,11 @@ recv_parse_or_apply_log_rec_body(
 		 "InnoDB: is possible that the log scan did not proceed\n"
 		 "InnoDB: far enough in recovery. Please run CHECK TABLE\n"
 		 "InnoDB: on your InnoDB tables to check that they are ok!\n"
-		 "InnoDB: Corrupt log record type %lu\n",
-			                                  (ulint)type);
+		 "InnoDB: Corrupt log record type %lu\n, lsn %lu %lu\n",
+		(ulint)type, ut_dulint_get_high(recv_sys->recovered_lsn),
+		ut_dulint_get_low(recv_sys->recovered_lsn));
+		 
+		recv_sys->found_corrupt_log = TRUE;
 	}
 
 	ut_ad(!page || new_ptr);
@@ -1399,18 +1384,30 @@ recv_apply_log_recs_for_backup(
 							OS_FILE_OPEN,
 							OS_FILE_READ_WRITE,
 							&success);
-			ut_a(success);
+			if (!success) {
+				printf(
+"InnoDB: Error: cannot open %lu'th data file %s\n", nth_file);
+
+				exit(1);
+			}
 		}
 		
 		recv_addr = recv_get_fil_addr_struct(0, i);
 
 		if (recv_addr != NULL) {
-			os_file_read(data_file, page,
+			success = os_file_read(data_file, page,
 			  (nth_page_in_file << UNIV_PAGE_SIZE_SHIFT)
 				& 0xFFFFFFFF,
 			  nth_page_in_file >> (32 - UNIV_PAGE_SIZE_SHIFT), 
 				UNIV_PAGE_SIZE);
+			if (!success) {
+				printf(
+"InnoDB: Error: cannot read page no %lu from %lu'th data file %s\n",
+				nth_page_in_file, nth_file);
 
+				exit(1);
+			}
+				
 			/* We simulate a page read made by the buffer pool,
 			to make sure recovery works ok. We must init the
 			block corresponding to buf_pool->frame_zero
@@ -1425,12 +1422,19 @@ recv_apply_log_recs_for_backup(
 				mach_read_from_8(page + FIL_PAGE_LSN),
 				0, i);
 
-			os_file_write(data_files[nth_file],
+			success = os_file_write(data_files[nth_file],
 			  data_file, page,
 			  (nth_page_in_file << UNIV_PAGE_SIZE_SHIFT)
 				& 0xFFFFFFFF,
 			  nth_page_in_file >> (32 - UNIV_PAGE_SIZE_SHIFT), 
 				UNIV_PAGE_SIZE);
+			if (!success) {
+				printf(
+"InnoDB: Error: cannot write page no %lu to %lu'th data file %s\n",
+				nth_page_in_file, nth_file);
+
+				exit(1);
+			}
 		}
 
 		if ((100 * i) / n_pages_total
@@ -1647,7 +1651,7 @@ ulint
 recv_parse_log_rec(
 /*===============*/
 			/* out: length of the record, or 0 if the record was
-			not complete */
+			not complete or it was corrupt */
 	byte*	ptr,	/* in: pointer to a buffer */
 	byte*	end_ptr,/* in: pointer to the buffer end */
 	byte*	type,	/* out: type */
@@ -1679,16 +1683,8 @@ recv_parse_log_rec(
 
 	new_ptr = mlog_parse_initial_log_record(ptr, end_ptr, type, space,
 								page_no);
-
-	/* If the operating system writes to the log complete 512-byte
-	blocks, we should not get the warnings below in recovery.
-        A warning means that the header and the trailer appeared ok
-	in a 512-byte block, but in the middle there was something wrong.
-	TODO: (1) add similar warnings in the case there is an incompletely
-	written log record which does not extend to the boundary of a
-	512-byte block. (2) Add a checksum to a log block. */
-
 	if (!new_ptr) {
+
 	        return(0);
 	}
 
@@ -1696,12 +1692,17 @@ recv_parse_log_rec(
 
 	if (*space != 0 || *page_no > 0x8FFFFFFF) {
 	        fprintf(stderr,
-		 "InnoDB: WARNING: the log file may have been corrupt and it\n"
-		 "InnoDB: is possible that the log scan did not proceed\n"
-		 "InnoDB: far enough in recovery. Please run CHECK TABLE\n"
-		 "InnoDB: on your InnoDB tables to check that they are ok!\n"
-	   "InnoDB: Corrupt log record type %lu, space id %lu, page no %lu\n",
-			(ulint)(*type), *space, *page_no);
+	"InnoDB: WARNING: the log file may have been corrupt and it\n"
+	"InnoDB: is possible that the log scan did not proceed\n"
+	"InnoDB: far enough in recovery. Please run CHECK TABLE\n"
+	"InnoDB: on your InnoDB tables to check that they are ok!\n"
+	"InnoDB: Corrupt log record type %lu, space id %lu, page no %lu\n",
+	"InnoDB: lsn %lu %lu\n",
+			(ulint)(*type), *space, *page_no,
+		ut_dulint_get_high(recv_sys->recovered_lsn),
+		ut_dulint_get_low(recv_sys->recovered_lsn));
+
+		recv_sys->found_corrupt_log = TRUE;
 
 		return(0);
 	}
@@ -1790,6 +1791,7 @@ recv_parse_log_recs(
 	ulint	page_no;
 	byte*	body;
 	ulint	n_recs;
+	char	err_buf[2500];
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
 	ut_ad(!ut_dulint_is_zero(recv_sys->parse_start_lsn));
@@ -1813,7 +1815,18 @@ loop:
 		len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
 							&page_no, &body);
 		if (len == 0) {
-
+			if (recv_sys->found_corrupt_log) {
+				
+				ut_sprintf_buf(err_buf,
+				  recv_sys->buf + ut_calc_align_down(
+						recv_sys->recovered_offset,
+						OS_FILE_LOG_BLOCK_SIZE) - 8,
+				  OS_FILE_LOG_BLOCK_SIZE + 16);
+				
+				fprintf(stderr,
+"InnoDB: hex dump of a corrupt log segment: %s\n", err_buf);
+			}
+		
 			return(FALSE);
 		}
 
@@ -1851,9 +1864,10 @@ loop:
 #ifdef UNIV_LOG_DEBUG
 			recv_check_incomplete_log_recs(ptr, len);
 #endif	
-			recv_update_replicate(type, space, page_no, body,
+/*			recv_update_replicate(type, space, page_no, body,
 								ptr + len);
 			recv_compare_replicate(space, page_no);
+*/
 		}
 	} else {
 		/* Check that all the records associated with the single mtr
@@ -1867,7 +1881,18 @@ loop:
 							&page_no, &body);
 			if (len == 0) {
 
-				return(FALSE);
+			    if (recv_sys->found_corrupt_log) {
+				ut_sprintf_buf(err_buf,
+				  recv_sys->buf + ut_calc_align_down(
+						recv_sys->recovered_offset,
+						OS_FILE_LOG_BLOCK_SIZE) - 8,
+				  OS_FILE_LOG_BLOCK_SIZE + 16);
+				
+				fprintf(stderr,
+"InnoDB: hex dump of a corrupt log segment: %s\n", err_buf);
+			    }
+
+			    return(FALSE);
 			}
 
 			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
@@ -1876,8 +1901,10 @@ loop:
 #ifdef UNIV_LOG_DEBUG
 				recv_check_incomplete_log_recs(ptr, len);
 #endif	
+/*
 				recv_update_replicate(type, space, page_no,
 							body, ptr + len);
+*/
 			}
 			
 			if (log_debug_writes) {
@@ -1941,7 +1968,7 @@ loop:
 				page has become identical with the original
 				page */
 
-				recv_compare_replicate(space, page_no);
+/*				recv_compare_replicate(space, page_no); */
 			}
 			
 			ptr += len;
@@ -2095,32 +2122,19 @@ recv_scan_log_recs(
 
 		/* fprintf(stderr, "Log block header no %lu\n", no); */
 
-		if ((no & 0xFFFFFF) != log_block_get_trl_no(log_block)
-		    || no != log_block_convert_lsn_to_no(scanned_lsn)
+		if (no != log_block_convert_lsn_to_no(scanned_lsn)
 		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
 
-			if ((no & 0xFFFFFF) == log_block_get_trl_no(log_block)
-		    	    && no == log_block_convert_lsn_to_no(scanned_lsn)
+			if (no == log_block_convert_lsn_to_no(scanned_lsn)
 			    && !log_block_checksum_is_ok_or_old_format(
 								log_block)) {
 				fprintf(stderr,
 "InnoDB: Log block no %lu at lsn %lu %lu has\n"
-"InnoDB: ok header and trailer, but checksum field contains %lu\n",
+"InnoDB: ok header, but checksum field contains %lu, should be %lu\n",
 				no, ut_dulint_get_high(scanned_lsn),
 				ut_dulint_get_low(scanned_lsn),
-				mach_read_from_1(log_block
-						+ OS_FILE_LOG_BLOCK_SIZE
-						- LOG_BLOCK_TRL_CHECKSUM));
-			}
-
-			if ((no & 0xFFFFFF)
-					!= log_block_get_trl_no(log_block)) {
-				fprintf(stderr,
-"InnoDB: Log block with header no %lu at lsn %lu %lu has\n"
-"InnoDB: trailer no %lu\n",
-				no, ut_dulint_get_high(scanned_lsn),
-				ut_dulint_get_low(scanned_lsn),
-				log_block_get_trl_no(log_block));
+				log_block_get_checksum(log_block),
+				log_block_calc_checksum(log_block));
 			}
 
 			/* Garbage or an incompletely written log block */
@@ -2213,7 +2227,8 @@ recv_scan_log_recs(
 
 	*group_scanned_lsn = scanned_lsn;
 
-	if (recv_needed_recovery || recv_is_from_backup) {
+	if (recv_needed_recovery
+	    || (recv_is_from_backup && !recv_is_making_a_backup)) {
 		recv_scan_print_counter++;
 
 		if (finished || (recv_scan_print_counter % 80 == 0)) {
