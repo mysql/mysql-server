@@ -899,16 +899,18 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
     DBUG_RETURN(-1);
   }
+  if (wait_if_global_read_lock(thd, 0))
+    DBUG_RETURN(error);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
     {
-      VOID(pthread_mutex_unlock(&LOCK_open));
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-	DBUG_RETURN(0);
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      DBUG_RETURN(-1);
+	error= 0;
+      else
+	my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+      goto end;
     }
   }
 
@@ -946,6 +948,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   error=0;
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
+  start_waiting_global_read_lock(thd);
   thd->proc_info="After create";
   DBUG_RETURN(error);
 }

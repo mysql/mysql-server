@@ -43,3 +43,13 @@ drop database mysqltest;
 show databases;
 --error 1008
 drop database mysqltest;
+
+# test create table and FLUSH TABLES WITH READ LOCK
+drop table t1;
+flush tables with read lock;
+--error 1223;
+create table t1(n int);
+unlock tables;
+create table t1(n int);
+show tables;
+drop table t1;
