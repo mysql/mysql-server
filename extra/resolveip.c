@@ -36,6 +36,10 @@
 extern int h_errno;
 #endif
 
+#ifndef HAVE_IN_ADDR_T
+#define in_addr_t u_long
+#endif
+
 
 static int silent=0;
 
