@@ -27,6 +27,12 @@
 #include "protocol.h"
 #include "guardian.h"
 
+typedef struct st_instance_cond
+{
+  pthread_mutex_t LOCK_pid;
+  pthread_cond_t COND_pid;
+} CHILD_COND;
+
 class Instance;
 extern int load_all_groups(char ***groups, const char *filename);
 extern void free_groups(char **groups);
@@ -83,6 +89,8 @@ public:
   const char *user;
   const char *password;
   Guardian_thread *guardian;
+  /* structure used for syncronization reasons in the stop command */
+  CHILD_COND pid_cond;
 
 private:
   enum { START_HASH_SIZE = 16 };
