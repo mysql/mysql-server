@@ -840,25 +840,32 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   case COM_QUERY:
   {
-    char *pos=packet-1+packet_length;		// Point at end null
-    /* Remove garage at end of query */
+    packet_length--;				// Remove end null
+    /* Remove garage at start and end of query */
+    while (isspace(packet[0]) && packet_length > 0)
+    {
+      packet++;
+      packet_length--;
+    }
+    char *pos=packet+packet_length;		// Point at end null
     while (packet_length > 0 && (pos[-1] == ';' || isspace(pos[-1])))
     {
       pos--;
       packet_length--;
     }
-    thd->query_length= packet_length;
+    /* We must allocate some extra memory for query cache */
     if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
-						packet_length+1,
-						thd->db_length+1)))
+						packet_length,
+						thd->db_length+2)))
       break;
     thd->query[packet_length]=0;
     thd->packet.shrink(net_buffer_length);	// Reclaim some memory
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
     mysql_log.write(thd,command,"%s",thd->query);
-    DBUG_PRINT("query",("%s",thd->query));
-    mysql_parse(thd,thd->query,packet_length-1);
+    DBUG_PRINT("query",("'%s'",thd->query));
+    /* thd->query_length is set by mysql_parse() */
+    mysql_parse(thd,thd->query,packet_length);
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),WAIT_PRIOR);
     DBUG_PRINT("info",("query ready"));

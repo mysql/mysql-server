@@ -558,9 +558,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
     }
     key_info->key_length=(uint16) key_length;
-    if (key_length > file->max_key_length() && key->type != Key::FULLTEXT)
+    uint max_key_length= max(file->max_key_length(), MAX_KEY_LENGTH);
+    if (key_length > max_key_length && key->type != Key::FULLTEXT)
     {
-      my_error(ER_TOO_LONG_KEY,MYF(0),file->max_key_length());
+      my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(-1);
     }
   }
