@@ -20,8 +20,6 @@
 
 #define FT_CORE
 #include "ftdefs.h"
-#include <queues.h>
-#include <assert.h> /* for DBUG_ASSERT() */
 
 /* search with boolean queries */
 
@@ -340,8 +338,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 
 
 FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
-				 uint query_len,
-				 uint flags __attribute__((unused)))
+				 uint query_len)
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;

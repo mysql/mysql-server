@@ -51,18 +51,18 @@ extern const char *ft_precompiled_stopwords[];
 
 extern ulong ft_min_word_len;
 extern ulong ft_max_word_len;
-extern ulong ft_max_word_len_for_sort;
+extern ulong ft_query_expansion_limit;
 extern const char *ft_boolean_syntax;
 
 int ft_init_stopwords(void);
 void ft_free_stopwords(void);
 
-#define FT_NL     0   /* this MUST be 0, see ft_init_search() */
-#define FT_BOOL   1   /* this MUST be 1, see ft_init_search() */
+#define FT_NL     0
+#define FT_BOOL   1
 #define FT_SORTED 2
 #define FT_EXPAND 4   /* query expansion */
 
-FT_INFO *ft_init_search(uint,void *, uint, byte *, uint);
+FT_INFO *ft_init_search(uint,void *, uint, byte *, uint, byte *);
 
 #ifdef  __cplusplus
 }

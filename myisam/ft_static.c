@@ -20,7 +20,7 @@
 
 ulong ft_min_word_len=4;
 ulong ft_max_word_len=HA_FT_MAXLEN;
-ulong ft_max_word_len_for_sort=20;
+ulong ft_query_expansion_limit=5;
 const char *ft_boolean_syntax="+ -><()~*:\"\"&|";
 
 const HA_KEYSEG ft_keysegs[FT_SEGS]={
@@ -53,14 +53,13 @@ const struct _ft_vft _ft_vft_boolean = {
   ft_boolean_get_relevance,  ft_boolean_reinit_search
 };
 
-FT_INFO *(*_ft_init_vft[2])(MI_INFO *, uint, byte *, uint, uint) =
-{ ft_init_nlq_search, ft_init_boolean_search };
-
 FT_INFO *ft_init_search(uint flags, void *info, uint keynr,
-                        byte *query, uint query_len)
+                        byte *query, uint query_len, byte *record)
 {
-  return (*_ft_init_vft[ flags&1 ])((MI_INFO *)info, keynr,
-          query, query_len, flags);
+  if (flags & FT_BOOL)
+    ft_init_boolean_search((MI_INFO *)info, keynr, query, query_len);
+  else
+    ft_init_nlq_search((MI_INFO *)info, keynr, query, query_len, flags, record);
 }
 
 const char *ft_stopword_file = 0;

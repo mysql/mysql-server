@@ -20,9 +20,11 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 select * from t1 where MATCH(a,b) AGAINST ("only");
 
-# UNION of fulltext's
-select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+# query expansion
 
+select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # add_ft_keys() tests
 
@@ -66,7 +68,6 @@ select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 select * from t1 where MATCH b AGAINST ("sear*" IN BOOLEAN MODE);
 
 # UNION of fulltext's
-
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
 #update/delete with fulltext index

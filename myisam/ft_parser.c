@@ -183,7 +183,7 @@ void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
   DBUG_VOID_RETURN;
 }
 
-int ft_parse(TREE *wtree, byte *doc, int doclen)
+int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc)
 {
   byte   *end=doc+doclen;
   FT_WORD w;
@@ -191,6 +191,15 @@ int ft_parse(TREE *wtree, byte *doc, int doclen)
 
   while (ft_simple_get_word(wtree->custom_arg, &doc,end,&w))
   {
+    if (with_alloc)
+    {
+      byte *ptr;
+      /* allocating the data in the tree - to avoid mallocs and frees */
+      DBUG_ASSERT(wtree->with_delete==0);
+      ptr=(byte *)alloc_root(& wtree->mem_root,w.len);
+      memcpy(ptr, w.pos, w.len);
+      w.pos=ptr;
+    }
     if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
       goto err;
   }

@@ -90,7 +90,7 @@ class ha_myisam: public handler
     return 0;
   }
   FT_INFO *ft_init_ext(uint flags, uint inx,const byte *key, uint keylen)
-  { return ft_init_search(flags,file,inx,(byte*) key,keylen); }
+  { return ft_init_search(flags,file,inx,(byte*) key,keylen, table->record[0]); }
   int ft_read(byte *buf);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
