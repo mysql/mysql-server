@@ -2918,11 +2918,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     exit(1);
 
 #ifdef __WIN__
-#define MYSQL_ERR_FILE "mysql.err"
   if (!opt_console)
   {
-    freopen(MYSQL_ERR_FILE,"a+",stdout);
-    freopen(MYSQL_ERR_FILE,"a+",stderr);
+    freopen(log_error_file,"a+",stdout);
+    freopen(log_error_file,"a+",stderr);
     FreeConsole();				// Remove window
   }
 #endif
