@@ -1420,6 +1420,8 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
   bzero((char*) &row,sizeof(row));
   if (key_len == key_info->key_length)
   {
+    if (find_flag == HA_READ_AFTER_KEY)
+      key_info->handler.bdb_return_if_eq= 1;
     error=read_row(cursor->c_get(cursor, pack_key(&last_key,
 						  active_index,
 						  key_buff,
@@ -1428,6 +1430,7 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
 				 (find_flag == HA_READ_KEY_EXACT ?
 				  DB_SET : DB_SET_RANGE)),
 		   (char*) buf, active_index, &row, (DBT*) 0, 0);
+    key_info->handler.bdb_return_if_eq= 0;
   }
   else
   {
