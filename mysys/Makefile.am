@@ -26,7 +26,7 @@ noinst_HEADERS =	mysys_priv.h my_static.h \
 			my_os2cond.c my_os2dirsrch.c my_os2dirsrch.h \
 			my_os2dlfcn.c my_os2file64.c my_os2mutex.c \
 			my_os2thread.c my_os2tls.c
-libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c \
+libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
 			my_pread.c my_write.c \
