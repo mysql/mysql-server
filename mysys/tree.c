@@ -439,14 +439,14 @@ void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs,
   Expected that tree is fully balanced
   (each path from root to leaf has the same length)
 */
-uint tree_record_pos(TREE *tree, const void *key, 
+ha_rows tree_record_pos(TREE *tree, const void *key, 
                      enum ha_rkey_function flag, void *custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element= tree->root;
   double left= 1;
   double right= tree->elements_in_tree;
-  uint last_equal_pos= HA_POS_ERROR;
+  ha_rows last_equal_pos= HA_POS_ERROR;
 
   while (element != &tree->null_element)
   {
