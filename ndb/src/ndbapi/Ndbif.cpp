@@ -304,8 +304,8 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
       localCon->theCommitStatus = NdbConnection::Aborted;
       localCon->theReleaseOnClose = true;
       completedTransaction(localCon);
-    } 
-    else if(localCon->report_node_failure(aNodeId));
+    }
+    else if(localCon->report_node_failure(aNodeId))
     {
       completedTransaction(localCon);
     }
