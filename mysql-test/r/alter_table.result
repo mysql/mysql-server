@@ -468,5 +468,5 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t1 DROP PRIMARY KEY;
-ERROR 42000: Can't DROP 'PRIMARY'. Check that column/key exists
+ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
 DROP TABLE t1;
