@@ -730,7 +730,7 @@ create3:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
           }
-          select_options select_item_list opt_select_from {}
+          select_options select_item_list opt_select_from union {}
 
 opt_as:
 	/* empty */ {}
@@ -1319,7 +1319,7 @@ select:
 	SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  lex->sql_command= SQLCOM_SELECT;
+	  if (lex->sql_command == SQLCOM_NONE) lex->sql_command= SQLCOM_SELECT;
 	  lex->lock_option=TL_READ;
 	  mysql_init_select(lex);
 	}
@@ -2207,7 +2207,7 @@ insert_values:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
 	  }
-	  select_options select_item_list select_from select_lock_type {}
+	  select_options select_item_list select_from select_lock_type union {}
 
 values_list:
 	values_list ','  no_braces
@@ -3418,7 +3418,9 @@ union_list:
   } 
   select
   {
-    Lex->sql_command=SQLCOM_UNION_SELECT;
+		LEX *lex=Lex;			
+    if (lex->sql_command == SQLCOM_SELECT)
+			lex->sql_command=SQLCOM_UNION_SELECT;
   }
 
 

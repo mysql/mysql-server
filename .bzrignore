@@ -376,3 +376,6 @@ support-files/mysql.spec
 tags
 tmp/*
 vio/viotest-ssl
+innobase/conftest.s1
+innobase/conftest.subs
+sql/sql_select.cc.orig
