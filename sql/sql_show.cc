@@ -1565,11 +1565,11 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
   buff->append("CREATE ", 7);
-  if(!foreign_db_mode && (table->algorithm == VIEW_ALGORITHM_MERGE ||
-                          table->algorithm == VIEW_ALGORITHM_TMEPTABLE))
+  if (!foreign_db_mode && (table->algorithm == VIEW_ALGORITHM_MERGE ||
+                           table->algorithm == VIEW_ALGORITHM_TMPTABLE))
   {
     buff->append("ALGORITHM=", 10);
-    if (table->algorithm == VIEW_ALGORITHM_TMEPTABLE)
+    if (table->algorithm == VIEW_ALGORITHM_TMPTABLE)
       buff->append("TMPTABLE ", 9);
     else
       buff->append("MERGE ", 6);

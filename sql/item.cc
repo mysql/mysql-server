@@ -1143,8 +1143,27 @@ bool Item_param::convert_str_value(THD *thd)
   return rc;
 }
 
-/* End of Item_param related */
 
+void Item_param::print(String *str)
+{
+  if (state == NO_VALUE)
+  {
+    str->append('?');
+  }
+  else
+  {
+    char buffer[80];
+    String tmp(buffer, sizeof(buffer), &my_charset_bin);
+    const String *res;
+    res= query_val_str(&tmp);
+    str->append(*res);
+  }
+}
+
+
+/****************************************************************************
+  Item_copy_string
+****************************************************************************/
 
 void Item_copy_string::copy()
 {
