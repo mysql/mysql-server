@@ -287,7 +287,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
 
   if (ftb->state != INDEX_SEARCH && ftb->state != INDEX_DONE)
     return -1;
-  
+
   /* black magic ON */
   if ((int) _mi_check_index(info, ftb->keynr) < 0)
     return my_errno;
@@ -440,4 +440,3 @@ void ft_boolean_reinit_search(FT_INFO *ftb)
 {
   _ftb_init_index_search(ftb);
 }
-

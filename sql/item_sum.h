@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -159,7 +159,7 @@ class Item_sum_count_distinct :public Item_sum_int
   // are just markers for deleted and NULLs. We want to skip them since
   // they will just bloat the tree without providing any valuable info
   int rec_offset;
-  
+
   // If there are no blobs, we can use a tree, which
   // is faster than heap table. In that case, we still use the table
   // to help get things set up, but we insert nothing in it
@@ -167,7 +167,7 @@ class Item_sum_count_distinct :public Item_sum_int
   bool always_null;		// Set to 1 if the result is always NULL
 
   int tree_to_myisam();
-  
+
   friend int composite_key_cmp(void* arg, byte* key1, byte* key2);
   friend int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 		       Item_sum_count_distinct* item);

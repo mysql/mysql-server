@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -175,7 +175,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
 	DBUG_RETURN(-1);
-      
+
       // if we are not in slave thread, the file must be:
       if (!thd->slave_thread &&
 	  !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
@@ -292,7 +292,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   // on the slave thd->query is never initialized
   if(!thd->slave_thread)
     mysql_update_log.write(thd,thd->query,thd->query_length);
-  
+
   if (!using_transactions)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   if (mysql_bin_log.is_open())
@@ -547,7 +547,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
       */
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
-      
+
       need_end_io_cache = 1;
       if (!opt_old_rpl_compat && mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
@@ -748,7 +748,7 @@ found_eof:
 /*
 ** One can't use fixed length with multi-byte charset **
 */
- 
+
 int READ_INFO::read_fixed_length()
 {
   int chr;
@@ -872,4 +872,3 @@ bool READ_INFO::find_start_of_fields()
   }
   return 0;
 }
-

@@ -110,7 +110,7 @@ void db_show_result(MYSQL* sock, char *b, struct format *f)
 
    buffptr=b;
    OUTPUT(f->tablestart)
-   
+
    OUTPUT_TOP(f->leftuppercorner);
    OUTPUT_MIDDLE(f->leftcross);
    OUTPUT_BOTTOM(f->leftdowncorner);
@@ -136,7 +136,7 @@ void db_show_result(MYSQL* sock, char *b, struct format *f)
 
       sprintf(hdrptr,"%-*s",field->max_length,field->name);
       //num_flag[off]= IS_NUM(field->type);
-      
+
       topptr+=field->max_length;
       midptr+=field->max_length;
       botptr+=field->max_length;
@@ -161,7 +161,7 @@ void db_show_result(MYSQL* sock, char *b, struct format *f)
    OUTPUT(middleseparator);
    while(row=mysql_fetch_row(result)) {
       mysql_field_seek(result,0);
-           
+
       OUTPUT(f->contentrowstart);
       for(i=0 ; i < mysql_field_count(sock); ++i) {
          field = mysql_fetch_field(result);
@@ -242,7 +242,7 @@ int db_show_field(char *b,const char *database,const char *table, const char *fi
    /* We cant output fields when one of these variables is missing */
    if (!(database[0] && table[0] && field[0]))
       DBUG_RETURN(-1);
-   
+
    init_dynamic_array(&field_array, sizeof(buff), 4096, 1024);
 
    if (mysql_select_db(sock,database))
@@ -459,7 +459,7 @@ db_show_databases(char *b,int size)
    MYSQL_ROW  row;
    char buff[BUFLEN];
    int i=0;
-    
+
    DBUG_ENTER("db_show_databases");
    DBUG_PRINT("enter",("buffer: '%s', size: '%d'", b, size));
    result=mysql_list_dbs(sock,NULL);
@@ -481,7 +481,7 @@ void db_load_formats()
 
    /* HTML output */
    HTML.tablestart="<table>\n";     
-      
+
    HTML.headerrowstart="<tr>";       
    HTML.headercellstart="<th>";
    HTML.headercellseparator="</th><th>";
@@ -499,7 +499,7 @@ void db_load_formats()
    HTML.leftcross="";
    HTML.rightcross="";
    HTML.bottomcross="";
-  
+
    HTML.contentrowstart="<tr>";
    HTML.contentcellstart="<td>";
    HTML.contentcellseparator="</td><td>";
@@ -517,16 +517,16 @@ void db_load_formats()
    HTML.tableend="</table>\n";
 
 /* Nice to look mysql client like output */
-   
+
    Human.tablestart="\n";
-      
+
    Human.headerrowstart="| ";       
    Human.headercellstart="";
    Human.headercellseparator=" | ";
    Human.headercellend=" |";
    Human.headerrowend="\n";
    Human.headerformat=1;
-      
+
    Human.leftuppercorner="/=";
    Human.rightuppercorner="=\\\n";
    Human.leftdowncorner="\\=";
@@ -554,9 +554,9 @@ void db_load_formats()
    Human.tableend="\n";
 
 /* Comma-separated format. For machine reading */
-  
+
    /* XML */
-   
+
 /*
   tee_fprintf(PAGER,"<?xml version=\"1.0\"?>\n\n<resultset statement=\"%s\">", statement);
     (void) tee_fputs("\n  <row>\n", PAGER);
@@ -626,4 +626,3 @@ gptr db_load_functions()
    }
    DBUG_RETURN((gptr)&functions_array);
 }
-

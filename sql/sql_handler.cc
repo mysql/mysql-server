@@ -23,17 +23,17 @@
 
 /* TODO:
   HANDLER blabla OPEN [ AS foobar ] [ (column-list) ]
-  
+
   the most natural (easiest, fastest) way to do it is to
   compute List<Item> field_list not in mysql_ha_read
   but in mysql_ha_open, and then store it in TABLE structure.
-  
+
   The problem here is that mysql_parse calls free_item to free all the
   items allocated at the end of every query. The workaround would to
   keep two item lists per THD - normal free_list and handler_items.
   The second is to be freeed only on thread end. mysql_ha_open should
   then do { handler_items=concat(handler_items, free_list); free_list=0; }
-  
+
   But !!! do_cammand calls free_root at the end of every query and frees up
   all the sql_alloc'ed memory. It's harder to work around...
  */
@@ -53,7 +53,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
   HANDLER_TABLES_HACK(thd);
   if (err)
     return -1;
-  
+
   send_ok(&thd->net);
   return 0;
 }
@@ -68,14 +68,14 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
     close_thread_table(thd, ptr);
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
-  
+
   send_ok(&thd->net);
   return 0;
 }
 
 static enum enum_ha_read_modes rkey_to_rnext[]= 
     { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
-    
+
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     enum enum_ha_read_modes mode, char *keyname, List<Item> *key_expr,
     enum ha_rkey_function ha_rkey_mode, Item *cond,
@@ -93,7 +93,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   if (cond && cond->fix_fields(thd,tables))
     return -1;
-  
+
   if (keyname)
   {
     if ((keyno=find_type(keyname, &table->keynames, 1+2)-1)<0)
@@ -115,7 +115,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   select_limit+=offset_limit;
   send_fields(thd,list,1);
-  
+
   MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);
 
   for (uint num_rows=0; num_rows < select_limit; )
@@ -241,12 +241,12 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
 {
   int dblen;
   TABLE **ptr;
-  
+
   if (!db || ! *db)
     db= thd->db ? thd->db : "";
   dblen=strlen(db)+1;  
   ptr=&(thd->handler_tables);
-  
+
   for (TABLE *table=*ptr; table ; table=*ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&

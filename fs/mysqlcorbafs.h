@@ -153,7 +153,5 @@ static struct format {
       char *middlecross;
       char *bottomcross;
 
-      
+
 } Human, HTML, CSF, XML;
-
-

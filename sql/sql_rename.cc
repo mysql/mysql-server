@@ -34,7 +34,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   bool error=1,got_all_locks=1;
   TABLE_LIST *lock_table,*ren_table=0;
   DBUG_ENTER("mysql_rename_tables");
-  
+
   /* Avoid problems with a rename on a table that we have locked or
      if the user is trying to to do this in a transcation context */
 
@@ -43,7 +43,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION,MYF(0));
     DBUG_RETURN(1);
   }
-      
+
   VOID(pthread_mutex_lock(&LOCK_open));
   for (lock_table=table_list ; lock_table ; lock_table=lock_table->next)
   {
@@ -53,13 +53,13 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     if (got_lock)
       got_all_locks=0;
   }
-  
+
   if (!got_all_locks && wait_for_locked_table_names(thd,table_list))
     goto end;
 
   if (!(ren_table=rename_tables(thd,table_list,0)))
     error=0;
-  
+
 end:
   if (ren_table)
   {

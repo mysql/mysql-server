@@ -1445,7 +1445,7 @@ longlong Item_master_pos_wait::val_int()
   THD* thd = current_thd;
   String *log_name = args[0]->val_str(&value);
   int event_count;
-  
+
   null_value=0;
   if (thd->slave_thread || !log_name || !log_name->length())
   {

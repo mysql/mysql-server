@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -97,7 +97,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 {
   uint i;
   const char* key_end = key + len;
-  
+
   for(i = 0; i < a->elements; i++)
     {
       TABLE_RULE_ENT* e ;
@@ -106,7 +106,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 			    (const char*)(e->db + e->key_len),'\\'))
 	return e;
     }
-  
+
   return 0;
 }
 
@@ -205,7 +205,7 @@ void end_slave()
       pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
   }
   pthread_mutex_unlock(&LOCK_slave);
-  
+
   end_master_info(&glob_mi);
   if(do_table_inited)
     hash_free(&replicate_do_table);
@@ -287,7 +287,7 @@ int db_ok(const char* db, I_List<i_string> &do_list,
 	  if(!strcmp(tmp->ptr, db))
 	    return 0; // match
 	}
-      
+
       return 1;
     }
 }
@@ -321,7 +321,7 @@ static int init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
 static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 {
   char buf[32];
-  
+
   if (my_b_gets(f, buf, sizeof(buf))) 
   {
     *var = atoi(buf);
@@ -341,7 +341,7 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
   MYSQL_ROW row;
   const char* version;
   const char* errmsg = 0;
-  
+
   if (mc_mysql_query(mysql, "SELECT VERSION()", 0)
       || !(res = mc_mysql_store_result(mysql)))
   {
@@ -359,7 +359,7 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
     errmsg = "Master reported NULL for the version";
     goto err;
   }
-  
+
   switch (*version)
   {
   case '3':
@@ -394,7 +394,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   int error= 1;
   handler *file;
   uint save_options;
-  
+
   if (packet_len == packet_error)
   {
     send_error(&thd->net, ER_MASTER_NET_READ);
@@ -419,7 +419,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
-  
+
   /* we do not want to log create table statement */
   save_options = thd->options;
   thd->options &= ~OPTION_BIN_LOG;
@@ -430,7 +430,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
   thd->options = save_options;
-  
+
   if (thd->query_error)
     goto err;			// mysql_parse took care of the error send
 
@@ -445,7 +445,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
     sql_print_error("create_table_from_dump: could not open created table");
     goto err;
   }
-  
+
   file = tables.table->file;
   thd->proc_info = "Reading master dump table data";
   if (file->net_read_dump(net))
@@ -516,7 +516,7 @@ int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
     sql_print_error("fetch_nx_table: failed on create table ");
     goto err;
   }
-  
+
   error = 0;
 
  err:
@@ -555,7 +555,7 @@ int init_master_info(MASTER_INFO* mi)
   pthread_mutex_lock(&mi->lock);
   mi->pending = 0;
   fd = mi->fd;
-  
+
   // we do not want any messages if the file does not exist
   if (!my_stat(fname, &stat_area, MYF(0)))
   {
@@ -575,7 +575,7 @@ int init_master_info(MASTER_INFO* mi)
     mi->log_file_name[0] = 0;
     mi->pos = 4; // skip magic number
     mi->fd = fd;
-      
+
     if (master_host)
       strmake(mi->host, master_host, sizeof(mi->host) - 1);
     if (master_user)
@@ -598,7 +598,7 @@ int init_master_info(MASTER_INFO* mi)
       pthread_mutex_unlock(&mi->lock);
       return 1;
     }
-      
+
     if ((length=my_b_gets(&mi->file, mi->log_file_name,
 			   sizeof(mi->log_file_name))) < 1)
     {
@@ -632,7 +632,7 @@ int init_master_info(MASTER_INFO* mi)
       goto error;
     }
   }
-  
+
   mi->inited = 1;
   // now change the cache from READ to WRITE - must do this
   // before flush_master_info
@@ -656,7 +656,7 @@ int register_slave_on_master(MYSQL* mysql)
 
   if(!report_host)
     return 0;
-  
+
   int4store(buf, server_id);
   packet.append(buf, 4);
 
@@ -665,7 +665,7 @@ int register_slave_on_master(MYSQL* mysql)
     net_store_data(&packet, report_user);
   else
     packet.append((char)0);
-  
+
   if(report_password)
     net_store_data(&packet, report_user);
   else
@@ -716,7 +716,7 @@ int show_master_info(THD* thd)
   String* packet = &thd->packet;
   uint32 last_log_seq;
   packet->length(0);
-  
+
   pthread_mutex_lock(&glob_mi.lock);
   net_store_data(packet, glob_mi.host);
   net_store_data(packet, glob_mi.user);
@@ -735,7 +735,7 @@ int show_master_info(THD* thd)
   net_store_data(packet, last_slave_error);
   net_store_data(packet, slave_skip_counter);
   net_store_data(packet, last_log_seq);
-  
+
   if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
     DBUG_RETURN(-1);
 
@@ -748,7 +748,7 @@ int flush_master_info(MASTER_INFO* mi)
   IO_CACHE* file = &mi->file;
   char lbuf[22];
   char lbuf1[22];
-  
+
   my_b_seek(file, 0L);
   my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n",
 	      mi->log_file_name, llstr(mi->pos, lbuf), mi->host, mi->user,
@@ -782,11 +782,11 @@ int st_master_info::wait_for_pos(THD* thd, String* log_name, ulonglong log_pos)
     }
     else
       cmp_result = 0;
-      
+
     pos_reached = ((!cmp_result && pos >= log_pos) || cmp_result > 0);
     if (pos_reached || thd->killed)
       break;
-    
+
     const char* msg = thd->enter_cond(&cond, &lock,
 				      "Waiting for master update");
     pthread_cond_wait(&cond, &lock);
@@ -868,7 +868,7 @@ static int safe_sleep(THD* thd, int sec)
     // so it will not wake up the wife and kids :-)
     if (thr_alarm_in_use(&alarmed))
       thr_end_alarm(&alarmed);
-    
+
     if (slave_killed(thd))
       return 1;
     start_time=time((time_t*) 0);
@@ -912,13 +912,13 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
       sql_print_error("request_table_dump: Buffer overrun");
       return 1;
     } 
-  
+
   *p++ = db_len;
   memcpy(p, db, db_len);
   p += db_len;
   *p++ = table_len;
   memcpy(p, table, table_len);
-  
+
   if (mc_simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
   {
     sql_print_error("request_table_dump: Error sending the table dump \
@@ -943,7 +943,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
   if (disconnect_slave_event_count && !(events_till_disconnect--))
     return packet_error;      
 #endif
-  
+
   while (!abort_loop && !abort_slave && len == packet_error &&
 	 read_errno == EINTR )
   {
@@ -967,7 +967,7 @@ server_errno=%d)",
 		     mc_mysql_error(mysql), read_errno);
      return packet_error;
   }
-  
+
   DBUG_PRINT("info",( "len=%u, net->read_pos[4] = %d\n",
 		      len, mysql->net.read_pos[4]));
   return len - 1;   
@@ -1010,7 +1010,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     {
       if(type_code == LOAD_EVENT)
 	skip_load_data_infile(net);
-	
+
       mi->inc_pos(event_len, ev->log_seq);
       flush_master_info(mi);
       if(slave_skip_counter && /* protect against common user error of
@@ -1023,7 +1023,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       delete ev;     
       return 0;					// avoid infinite update loops
     }
-  
+
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();				// time the query
     if(!thd->log_seq)
@@ -1044,7 +1044,7 @@ This may also be a network problem, or just a bug in the master or slave code.\
     return 1;
   }
 }
-      
+
 // slave thread
 
 pthread_handler_decl(handle_slave,arg __attribute__((unused)))
@@ -1064,7 +1064,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     sql_print_error("Server id not set, will not start slave");
     pthread_exit((void*)1);
   }
-  
+
   if(slave_running)
     {
       pthread_cond_broadcast(&COND_slave_start);
@@ -1078,11 +1078,11 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 #endif  
   pthread_cond_broadcast(&COND_slave_start);
   pthread_mutex_unlock(&LOCK_slave);
-  
+
   // int error = 1;
   bool retried_once = 0;
   ulonglong last_failed_pos = 0;
-  
+
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   slave_thd = thd = new THD; // note that contructor of THD uses DBUG_ !
@@ -1099,17 +1099,17 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   threads.append(thd);
   glob_mi.pending = 0;  //this should always be set to 0 when the slave thread
   // is started
-  
+
   DBUG_PRINT("info",("master info: log_file_name=%s, position=%s",
 		     glob_mi.log_file_name, llstr(glob_mi.pos,llbuff)));
 
-  
+
   if (!(mysql = mc_mysql_init(NULL)))
   {
     sql_print_error("Slave thread: error in mc_mysql_init()");
     goto err;
   }
-  
+
   thd->proc_info = "connecting to master";
 #ifndef DBUG_OFF  
   sql_print_error("Slave thread initialized");
@@ -1144,7 +1144,7 @@ connected:
     if (register_slave_on_master(mysql) ||  update_slave_list(mysql))
       goto err;
   }
-  
+
   while (!slave_killed(thd))
   {
       thd->proc_info = "Requesting binlog dump";
@@ -1157,7 +1157,7 @@ connected:
 dump");
               goto err;
 	    }
-	  
+
 	  thd->proc_info = "Waiiting to reconnect after a failed dump request";
 	  if(mysql->net.vio)
 	    vio_close(mysql->net.vio);
@@ -1168,7 +1168,7 @@ dump");
 	    safe_sleep(thd, glob_mi.connect_retry);
 	  else
 	    retried_once = 1;
-	  
+
 	  if(slave_killed(thd))
 	    {
 	      sql_print_error("Slave thread killed while retrying master \
@@ -1201,7 +1201,7 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 	      goto err;
 	    }
 
-	  	  
+
 	  if (event_len == packet_error)
 	  {
 	    if(mc_mysql_errno(mysql) == ER_NET_PACKET_TOO_LARGE)
@@ -1212,7 +1212,7 @@ really supposed to be that long, restart the server with a higher value of \
 max_allowed_packet. The current value is %ld", max_allowed_packet);
 		goto err;
 	      }
-	    
+
 	    thd->proc_info = "Waiting to reconnect after a failed read";
 	    if(mysql->net.vio)
  	      vio_close(mysql->net.vio);
@@ -1220,7 +1220,7 @@ max_allowed_packet. The current value is %ld", max_allowed_packet);
 	      safe_sleep(thd, glob_mi.connect_retry);
 	    else
 	      retried_once = 1; 
-	    
+
 	    if(slave_killed(thd))
 	      {
 		sql_print_error("Slave thread killed while waiting to \
@@ -1238,10 +1238,10 @@ reconnecting to retry, log '%s' position %s", RPL_LOG_NAME,
 reconnect done to recover from failed read");
 	        goto err;
 	      }
-	    
+
 	    goto connected;
 	  } // if(event_len == packet_error)
-	  
+
 	  thd->proc_info = "Processing master log event"; 
 	  if(exec_event(thd, &mysql->net, &glob_mi, event_len))
 	    {
@@ -1262,7 +1262,7 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
 	      goto err;
 	    }
 #endif	  
-	  
+
 	  // successful exec with offset advance,
 	  // the slave repents and his sins are forgiven!
 	  if(glob_mi.pos > last_failed_pos)

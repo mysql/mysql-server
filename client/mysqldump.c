@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1158,7 +1158,7 @@ static void dumpTable(uint numFields, char *table)
 	  if (row_break && !opt_xml)
 	    fputs(";\n", md_result_file);
 	  row_break=1;				/* This is first row */
-	  
+
 	  if (!opt_xml)
 	  {
 	    fputs(insert_pat,md_result_file);
@@ -1170,7 +1170,7 @@ static void dumpTable(uint numFields, char *table)
       else if (!opt_xml)
 	fputs(");\n", md_result_file);
     }
-    
+
     //XML - close table tag and supress regular output
     if (opt_xml)
 	fprintf(md_result_file, "\t</%s>\n", table); 
@@ -1201,7 +1201,7 @@ static void dumpTable(uint numFields, char *table)
 static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
 {
   const char *end;
- 
+
   fprintf(output, "\t\t<%s>", fname);
   for (end = str + len; str != end; str++)
   {

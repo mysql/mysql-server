@@ -1,15 +1,15 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+/* Copyright (C) 2000 MySQL AB
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -337,7 +337,7 @@ static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
       }
       return 0;
     }
-  
+
     if (!wait)
     {
       if (!option_silent)
@@ -649,7 +649,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       else
 	print_top(res);
-	
+
       ex_status_printed = 1; /* From now on the output will be relative */
       mysql_free_result(res);
       break;
@@ -745,7 +745,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       else
 	puts("Slave stopped");
       break;
-      
+
     case ADMIN_PING:
       mysql->reconnect=0;	/* We want to know of reconnects */
       if (!mysql_ping(mysql))
@@ -1000,7 +1000,7 @@ static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
   uint length;
   ulonglong tmp;
   char buff[22];
-  
+
   if (!row)
     putchar('|');
 
@@ -1079,7 +1079,7 @@ static void truncate_names()
   *ptr++='+';
   *ptr=0;
   puts(top_line);
-  
+
   for (i = 0 ; i < ex_var_count; i++)
   {
     uint sfx=1,j;

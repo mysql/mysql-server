@@ -1,19 +1,18 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifndef _my_sys_h
 #define _my_sys_h
@@ -125,7 +124,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 	/* root_alloc flags */
 #define MY_KEEP_PREALLOC	1
 #define MY_MARK_BLOCKS_FREE     2  /* move used to free list and reuse them */
-  
+
 	/* defines when allocating data */
 
 #ifdef SAFEMALLOC
@@ -351,7 +350,7 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
   (memcpy((info)->write_pos, (Buffer), (size_t)(Count)),\
    ((info)->write_pos+=(Count)),0) : \
    (*(info)->write_function)((info),(Buffer),(Count)))
- 
+
 
 #define my_b_get(info) \
   ((info)->read_pos != (info)->read_end ?\
@@ -655,11 +654,3 @@ extern my_bool have_tcpip;		/* Is set if tcpip is used */
 #endif
 #include "raid.h"
 #endif /* _my_sys_h */
-
-
-
-
-
-
-
-
