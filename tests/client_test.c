@@ -5332,6 +5332,44 @@ static void test_open_direct()
 
   myassert(2 == my_process_result_set(result));
   mysql_stmt_close(stmt);
+
+  /* run a direct query in the middle of a fetch */
+  stmt= mysql_prepare(mysql,"SELECT * FROM test_open_direct",100);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_query(mysql,"INSERT INTO test_open_direct(id) VALUES(20)");
+  myquery_r(rc);
+
+  rc = mysql_stmt_close(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_query(mysql,"INSERT INTO test_open_direct(id) VALUES(20)");
+  myquery(rc);
+
+  /* run a direct query with store result */
+  stmt= mysql_prepare(mysql,"SELECT * FROM test_open_direct",100);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_query(mysql,"drop table test_open_direct");
+  myquery(rc);
+
+  rc = mysql_stmt_close(stmt);
+  mystmt(stmt, rc);
 }
 
 /*
@@ -5378,10 +5416,10 @@ static void test_fetch_nobuffs()
   while (mysql_fetch(stmt) != MYSQL_NO_DATA)
   {
     rc++;
-    fprintf(stdout, "\n CURRENT_DATABASE(): %s(%ld)", str[0]);
-    fprintf(stdout, "\n CURRENT_USER()    : %s(%ld)", str[1]);
-    fprintf(stdout, "\n CURRENT_DATE()    : %s(%ld)", str[2]);
-    fprintf(stdout, "\n CURRENT_TIME()    : %s(%ld)", str[3]);
+    fprintf(stdout, "\n CURRENT_DATABASE(): %s", str[0]);
+    fprintf(stdout, "\n CURRENT_USER()    : %s", str[1]);
+    fprintf(stdout, "\n CURRENT_DATE()    : %s", str[2]);
+    fprintf(stdout, "\n CURRENT_TIME()    : %s", str[3]);
   }
   fprintf(stdout, "\n total rows: %d", rc);
   myassert(rc == 1);
