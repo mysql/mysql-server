@@ -2758,7 +2758,6 @@ row_search_for_mysql(
 	ulint		cnt				= 0;
 	ulint		next_offs;
 	mtr_t		mtr;
-	char		err_buf[1000];
 	
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -2775,7 +2774,8 @@ row_search_for_mysql(
 	}
 
 	if (trx->n_mysql_tables_in_use == 0) {
-	
+		char	err_buf[1000];
+
 		trx_print(err_buf, trx);
 
 		fprintf(stderr,
@@ -3086,6 +3086,8 @@ shortcut_fails_too_big_rec:
 
 		if (trx->read_view == NULL
 		    && prebuilt->select_lock_type == LOCK_NONE) {
+			char	err_buf[1000];
+
 			trx_print(err_buf, trx);
 
 			fprintf(stderr,
