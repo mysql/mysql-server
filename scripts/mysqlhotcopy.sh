@@ -36,7 +36,7 @@ WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.10";
+my $VERSION = "1.11";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -65,6 +65,8 @@ Usage: $0 db_name [new_db_name | directory]
   --suffix=#           suffix for names of copied databases
   --checkpoint=#       insert checkpoint entry into specified db.table
   --flushlog           flush logs once all tables are locked 
+  --resetmaster        reset the binlog once all tables are locked
+  --resetslave         reset the master.info once all tables are locked
   --tmpdir=#	       temporary directory (instead of $opt_tmpdir)
 
   Try 'perldoc $0 for more complete documentation'
@@ -100,6 +102,8 @@ GetOptions( \%opt,
     "suffix=s",
     "checkpoint=s",
     "flushlog",
+    "resetmaster",
+    "resetslave",
     "tmpdir|t=s",
     "dryrun|n",
 ) or usage("Invalid option");
@@ -369,6 +373,8 @@ if ( $opt{dryrun} ) {
     print "LOCK TABLES $hc_locks\n";
     print "FLUSH TABLES /*!32323 $hc_tables */\n";
     print "FLUSH LOGS\n" if ( $opt{flushlog} );
+    print "RESET MASTER\n" if ( $opt{resetmaster} );
+    print "RESET SLAVE\n" if ( $opt{resetslave} );
 }
 else {
     my $start = time;
@@ -381,6 +387,8 @@ else {
     $dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
     printf "Flushed tables ($hc_tables) in %d seconds.\n", time-$start unless $opt{quiet};
     $dbh->do( "FLUSH LOGS" ) if ( $opt{flushlog} );
+    $dbh->do( "RESET MASTER" ) if ( $opt{resetmaster} );
+    $dbh->do( "RESET SLAVE" ) if ( $opt{resetslave} );
 }
 
 my @failed = ();
@@ -658,6 +666,18 @@ of keeping the backup directory after the copy successfully completes.
 Rotate the log files by executing "FLUSH LOGS" after all tables are
 locked, and before they are copied.
 
+=item --resetmaster
+
+Reset the bin-log by executing "RESET MASTER" after all tables are
+locked, and before they are copied. Usefull if you are recovering a
+slave in a replication setup.
+
+=item --resetslave
+
+Reset the master.info by executing "RESET SLAVE" after all tables are
+locked, and before they are copied. Usefull if you are recovering a
+server in a mutual replication setup.
+
 =item --regexp pattern
 
 Copy all databases with names matching the pattern
@@ -742,6 +762,7 @@ Study the code inside this script and only rely on it if I<you> believe
 that it does the right thing for you.
 
 Patches adding bug fixes, documentation and new features are welcome.
+Please send these to internals@mysql.com.
 
 =head1 TO DO
 
@@ -780,3 +801,6 @@ Monty - working --noindex (copy only first 2048 bytes of index file)
         Fixes for --method=scp
 
 Ask Bjoern Hansen - Cleanup code to fix a few bugs and enable -w again.
+
+Emil S. Hansen - Added resetslave and resetmaster.
+

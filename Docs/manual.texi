@@ -9738,7 +9738,7 @@ uses:
 @cindex options, command-line
 @cindex mysqld options
 @node Command-line options, Option files, Automatic start, Post-installation
-@subsection Command-line Options
+@subsection mysqld Command-line Options
 
 @code{mysqld} accepts the following command-line options:
 
@@ -9951,6 +9951,9 @@ Disable using thread priorities for faster response time.
 @item --socket=path
 Socket file to use for local connections instead of default
 @code{/tmp/mysql.sock}.
+
+@item transaction-isolation= @{ READ-UNCOMMITTED | READ-COMMITTED | REPEATABLE-READ | SERIALIZABLE @}
+Sets the default transaction isolation level. @xref{SET TRANSACTION}.
 
 @item -t, --tmpdir=path
 Path for temporary files. It may be useful if your default @code{/tmp}
@@ -10816,6 +10819,9 @@ This forces all function names to be treated as reserved words.
 @item
 @code{REAL} will be a synonym for @code{FLOAT} instead of a synonym of
 @code{DOUBLE}.
+@item
+The default transaction isolation level is @code{SERIALIZABLE}.
+@xref{SET TRANSACTION}.
 @end itemize
 
 @node Differences from ANSI, Missing functions, ANSI mode, Compatibility
@@ -13463,6 +13469,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * COMMIT::                      @code{BEGIN/COMMIT/ROLLBACK} syntax
 * LOCK TABLES::                 @code{LOCK TABLES/UNLOCK TABLES} syntax
 * SET OPTION::                  @code{SET OPTION} syntax
+* SET TRANSACTION::             
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
@@ -13485,7 +13492,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * Number syntax::               Numbers
 * Hexadecimal values::          Hexadecimal values
 * NULL values::                 @code{NULL} values
-* Legal names::                 Database, table, index, column and alias names
+* Legal names::                 Database, Table, Index, Column, and Alias Names
 @end menu
 
 @node String syntax, Number syntax, Literals, Literals
@@ -19327,7 +19334,8 @@ SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
         [HAVING where_definition]
         [ORDER BY @{unsigned_integer | col_name | formula@} [ASC | DESC] ,...]
         [LIMIT [offset,] rows]
-        [PROCEDURE procedure_name] ]
+        [PROCEDURE procedure_name]
+        [FOR UPDATE | IN SHARE MODE]]
 @end example
 @c help end
 
@@ -19570,6 +19578,17 @@ If you use @code{INTO DUMPFILE} instead of @code{INTO OUTFILE}, @strong{MySQL}
 will only write one row into the file, without any column or line
 terminations and without any escaping.  This is useful if you want to
 store a blob in a file.
+
+@item
+Note that any file created by @code{INTO OUTFILE} and @code{INTO
+DUMPFILE} is going to be readable for all users!  The reason is that the
+@strong{MySQL} server can't create a file that is owned by anyone else
+than the user it's running as (you should never run @code{mysqld} as root),
+the file has to be word readable so that you can retrieve the rows.
+
+@item
+If you are using @code{FOR UPDATE} on a table handler with page/row locks,
+the examined rows will be write locked.
 @end itemize
 
 @findex JOIN
@@ -20739,6 +20758,9 @@ write is aborted with an disk full error message.
 @findex SHOW TABLE STATUS
 @findex SHOW GRANTS
 @findex SHOW CREATE TABLE
+@findex SHOW MASTER STATUS
+@findex SHOW MASTER LOGS
+@findex SHOW SLAVE STATUS
 @node SHOW, EXPLAIN, KILL, Reference
 @section @code{SHOW} Syntax (Get Information About Tables, Columns,...)
 
@@ -22042,7 +22064,7 @@ table you will get an error (@code{ER_WARNING_NOT_COMPLETE_ROLLBACK}) as
 a warning.  All transactional safe tables will be restored but any
 non-transactional table will not change.
 
-If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you
+If you are using @code{BEGIN} or @code{SET AUTOCOMMIT=0}, you
 should use the @strong{MySQL} binary log for backups instead of the
 old update log;  The transaction is stored in the binary log
 in one chunk, during @code{COMMIT}, the to ensure and @code{ROLLBACK}:ed
@@ -22056,6 +22078,9 @@ a @code{COMMIT} before executing the command):
 @item @code{DROP DATABASE} @tab @code{DROP TABLE} @tab @code{RENAME TABLE}
 @item @code{TRUNCATE}
 @end multitable
+
+You can change the isolation level for transactions with
+@code{SET TRANSACTION ISOLATION LEVEL ...}. @xref{SET TRANSACTION}.
 
 @findex LOCK TABLES
 @findex UNLOCK TABLES
@@ -22162,7 +22187,7 @@ automaticly commit any active transactions before attempting to lock the
 tables.
 
 @findex SET OPTION
-@node SET OPTION, GRANT, LOCK TABLES, Reference
+@node SET OPTION, SET TRANSACTION, LOCK TABLES, Reference
 @section @code{SET} Syntax
 
 @example
@@ -22303,6 +22328,30 @@ command when inserting an @code{AUTO_INCREMENT} value.  This is mainly used
 with the update log.
 @end table
 
+@findex ISOLATION LEVEL
+@node SET TRANSACTION, GRANT, SET OPTION, Reference
+@section @code{SET TRANSACTION} Syntax
+
+@example
+SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
+[READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SERIALIZABLE]
+@end example
+
+Sets the transaction isolation level for the global, whole session or
+the next transaction.
+
+The default behaveour is to set the isolation level for the next (not started)
+isolation level.
+
+If you set the @code{GLOBAL} privilege it will affect all new created threads.
+You will need the @code{PROCESS} privilege to do do this.
+
+Setting the @code{SESSION} privilege will affect the following and all
+future transactions.
+
+You can set the default isolation level for @code{mysqld} with
+@code{--transaction-isolation=...}. @xref{Command-line options}.
+
 @cindex privileges, granting
 @cindex privileges, revoking
 @cindex global privileges
@@ -22311,7 +22360,7 @@ with the update log.
 
 @findex GRANT
 @findex REVOKE
-@node GRANT, CREATE INDEX, SET OPTION, Reference
+@node GRANT, CREATE INDEX, SET TRANSACTION, Reference
 @section @code{GRANT} and @code{REVOKE} Syntax
 
 @example
@@ -36053,7 +36102,7 @@ direct from a remote mysql server!
 @code{mysqlbinlog --help} will give you more information of how to use
 this program!
 
-If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you must use
+If you are using @code{BEGIN} or @code{SET AUTOCOMMIT=0}, you must use
 the @strong{MySQL} binary log for backups instead of the old update log.
 
 The binary logging is done immediately after a query completes but before
@@ -42245,8 +42294,6 @@ Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like SyBase).
 @item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
-Added @code{SELECT ... WITH UPDATE} and @code{SELECT ... IN SHARE MODE} to
-get more locking options.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
@@ -42278,6 +42325,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
+* News-3.23.36::                
 * News-3.23.35::                Changes in release 3.23.35
 * News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34
@@ -42317,7 +42365,15 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.35, News-3.23.34a, News-3.23.x, News-3.23.x
+@node News-3.23.36, News-3.23.35, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.36
+@itemize @bullet
+Added @code{SET TRANSACTION ISOLATION LEVEL ...}
+@item
+Added @code{SELECT ... FOR UPDATE}.
+@end itemize
+
+@node News-3.23.35, News-3.23.34a, News-3.23.36, News-3.23.x
 @appendixsubsec Changes in release 3.23.35
 @itemize @bullet
 @item

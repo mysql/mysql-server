@@ -79,50 +79,59 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	   insert_id_used(0),in_lock_tables(0),
 	   global_read_lock(0),bootstrap(0)
 {
-  proc_info="login";
-  where="field list";
   host=user=priv_user=db=query=ip=0;
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=0;
   query_length=col_access=0;
   query_error=0;
-#ifdef SIGNAL_WITH_VIO_CLOSE
-  active_vio = 0;
-  pthread_mutex_init(&active_vio_lock, NULL);
-#endif  
-  server_id = ::server_id;
-  server_status=SERVER_STATUS_AUTOCOMMIT;
   next_insert_id=last_insert_id=0;
   open_tables=temporary_tables=0;
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
+  gemini_spin_retries=0;
   cuted_fields=sent_row_count=0L;
-  options=thd_startup_options;
-  update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
   slave_proxy_id = 0;
   last_nx_table = last_nx_db = 0;
+  cond_count=0;
+  convert_set=0;
+  mysys_var=0;
+  net.vio=0;
+  ull=0;
+  system_thread=0;
+#ifdef	__WIN__
+  real_id = 0;
+#endif
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  active_vio = 0;
+  pthread_mutex_init(&active_vio_lock, NULL);
+#endif  
+
+  /* Variables with default values */
+  proc_info="login";
+  where="field list";
+  server_id = ::server_id;
+  server_status=SERVER_STATUS_AUTOCOMMIT;
+  update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
+  options=thd_startup_options;
   inactive_timeout=net_wait_timeout;
   open_options=ha_open_options;
-  cond_count=0;
+  tx_isolation=session_tx_isolation=default_tx_isolation;
   command=COM_CONNECT;
   set_query_id=1;
   default_select_limit= HA_POS_ERROR;
   max_join_size=  ((::max_join_size != ~ (ulong) 0L) ? ::max_join_size :
 		   HA_POS_ERROR);
-  convert_set=0;
-  mysys_var=0;
   db_access=NO_ACCESS;
+
+  /* Initialize sub structures */
+  bzero((char*) &mem_root,sizeof(mem_root));
   hash_init(&user_vars, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (void (*)(void*)) free_var,0);
-  net.vio=0;
-  ull=0;
-  system_thread=0;
-  bzero((char*) &mem_root,sizeof(mem_root));
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
@@ -133,10 +142,6 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
       killed=1;
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
-#endif
-
-#ifdef	__WIN__
-  real_id = 0 ;
 #endif
 }
 

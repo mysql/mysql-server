@@ -284,7 +284,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 5.15 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 5.16 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -1793,6 +1793,9 @@ my_string name;
     if (share->base.options & HA_OPTION_COMPRESS_RECORD)
       printf("                         Huff tree  Bits");
     VOID(putchar('\n'));
+    if (verbose > 2 && share->base.pack_bits)
+      printf("-           %-7d%-35s\n",share->base.pack_bits,"bit field");
+
     start=1;
     for (field=0 ; field < share->base.fields ; field++)
     {
@@ -2805,6 +2808,11 @@ static int sort_get_next_record()
 	  }
 	}
 	DBUG_RETURN(0);
+      }
+      if (!searching)
+      {
+	print_info("Found wrong packed record at %lu",
+		   (ulong) sort_info.start_recpos);
       }
     try_next:
       pos=sort_info.start_recpos+1;

@@ -54,6 +54,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   Key::Keytype key_type;
   enum db_type db_type;
   enum row_type row_type;
+  enum enum_tx_isolation tx_isolation;
   String *string;
   key_part_spec *key_part;
   TABLE_LIST *table_list;
@@ -141,6 +142,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CASCADE
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
+%token	COMMITTED_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
 %token	CONSTRAINT
@@ -166,6 +168,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FROM
 %token	FULL
 %token  FULLTEXT_SYM
+%token  GEMINI_SYM
+%token	GEMINI_SPIN_RETRIES
+%token  GLOBAL_SYM
 %token	GRANT
 %token	GRANTS
 %token	GREATEST_SYM
@@ -183,12 +188,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INNOBASE_SYM
 %token	INTO
 %token	IN_SYM
+%token  ISOLATION
 %token	ISAM_SYM
 %token	JOIN_SYM
 %token	KEYS
 %token	KEY_SYM
 %token	LEADING
 %token	LEAST_SYM
+%token  LEVEL_SYM
 %token	LEX_HOSTNAME
 %token	LIKE
 %token	LINES
@@ -244,6 +251,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	REGEXP
 %token	RELOAD
 %token	RENAME
+%token	REPEATABLE_SYM
 %token  RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
@@ -251,6 +259,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ROW_FORMAT_SYM
 %token	ROW_SYM
 %token	SET
+%token	SERIALIZABLE_SYM
+%token	SESSION_SYM
 %token	SHUTDOWN
 %token	STARTING
 %token	STATUS_SYM
@@ -262,6 +272,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	TEXT_STRING
 %token	TO_SYM
 %token	TRAILING
+%token	TRANSACTION_SYM
 %token	TYPE_SYM
 %token	FUNC_ARG0
 %token	FUNC_ARG1
@@ -270,6 +281,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UDF_RETURNS_SYM
 %token	UDF_SONAME_SYM
 %token	UDF_SYM
+%token  UNCOMMITTED_SYM
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
@@ -361,6 +373,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MAKE_SET_SYM
 %token	MINUTE_SECOND_SYM
 %token	MINUTE_SYM
+%token  MODE_SYM
 %token	MODIFY_SYM
 %token	MONTH_SYM
 %token	NOW_SYM
@@ -372,6 +385,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RIGHT
 %token	ROUND
 %token	SECOND_SYM
+%token	SHARE_SYM
 %token	SUBSTRING
 %token	SUBSTRING_INDEX
 %token	TRIM
@@ -483,6 +497,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <db_type> table_types
 
 %type <row_type> row_types
+
+%type <tx_isolation> tx_isolation isolation_types
 
 %type <udf_type> udf_func_type
 
@@ -749,7 +765,8 @@ table_types:
 	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
-	| INNOBASE_SYM   { $$= DB_TYPE_INNOBASE; }
+	| INNOBASE_SYM  { $$= DB_TYPE_INNOBASE; }
+	| GEMINI_SYM    { $$= DB_TYPE_GEMINI; }
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
@@ -1216,9 +1233,10 @@ select:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_SELECT;
+	  lex->lock_option=TL_READ;
 	  mysql_init_select(lex);
 	}
-	select_options select_item_list select_into
+	select_options select_item_list select_into select_lock_type
 
 select_into:
 	/* empty */
@@ -1240,12 +1258,19 @@ select_option_list:
 
 select_option:
 	STRAIGHT_JOIN { Lex->options|= SELECT_STRAIGHT_JOIN; }
-	| HIGH_PRIORITY { Lex->options|= SELECT_HIGH_PRIORITY; }
+	| HIGH_PRIORITY { Lex->lock_option= TL_READ_HIGH_PRIORITY; }
 	| DISTINCT	{ Lex->options|= SELECT_DISTINCT; }
 	| SQL_SMALL_RESULT { Lex->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Lex->options|= SELECT_BIG_RESULT; }
 	| SQL_BUFFER_RESULT { Lex->options|= OPTION_BUFFER_RESULT; }
 	| ALL		{}
+
+select_lock_type:
+	/* empty */
+	| FOR_SYM UPDATE_SYM
+	  { Lex->lock_option= TL_WRITE; }
+	| IN_SYM SHARE_SYM MODE_SYM
+	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; }
 
 select_item_list:
 	  select_item_list ',' select_item
@@ -2124,8 +2149,10 @@ opt_low_priority:
 
 delete:
 	DELETE_SYM
-	{ Lex->sql_command= SQLCOM_DELETE; Lex->options=0;
-	  Lex->lock_option= current_thd->update_lock_default; }
+	{
+	  Lex->sql_command= SQLCOM_DELETE; Lex->options=0;
+	  Lex->lock_option= current_thd->update_lock_default;
+	}
         opt_delete_options FROM table
 	where_clause delete_limit_clause
 
@@ -2479,6 +2506,7 @@ keyword:
 	| AGAINST		{}
 	| AGGREGATE_SYM		{}
 	| AUTOCOMMIT		{}
+	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
 	| BACKUP_SYM		{}
@@ -2491,6 +2519,7 @@ keyword:
 	| CHECK_SYM		{}
 	| COMMENT_SYM		{}
 	| COMMIT_SYM		{}
+	| COMMITTED_SYM		{}
 	| COMPRESSED_SYM	{}
 	| DATA_SYM		{}
 	| DATETIME		{}
@@ -2510,12 +2539,16 @@ keyword:
 	| FIXED_SYM		{}
 	| FLUSH_SYM		{}
 	| GRANTS                {}
+	| GEMINI_SYM		{}
+	| GLOBAL_SYM		{}
 	| HEAP_SYM		{}
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
+	| ISOLATION		{}
 	| ISAM_SYM		{}
 	| INNOBASE_SYM		{}
+	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}
 	| LOGS_SYM		{}
 	| MAX_ROWS		{}
@@ -2532,6 +2565,7 @@ keyword:
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
 	| MODIFY_SYM		{}
+	| MODE_SYM		{}
 	| MONTH_SYM		{}
 	| MYISAM_SYM		{}
 	| NATIONAL_SYM		{}
@@ -2550,6 +2584,7 @@ keyword:
 	| RAID_TYPE		{}
 	| RELOAD		{}
 	| REPAIR		{}
+	| REPEATABLE_SYM	{}
 	| RESET_SYM		{}
 	| RESTORE_SYM		{}
 	| ROLLBACK_SYM		{}
@@ -2557,6 +2592,9 @@ keyword:
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
 	| SECOND_SYM		{}
+	| SERIALIZABLE_SYM	{}
+	| SESSION_SYM		{}
+	| SHARE_SYM		{}
 	| SHUTDOWN		{}
 	| START_SYM		{}
 	| STATUS_SYM		{}
@@ -2564,11 +2602,13 @@ keyword:
 	| STRING_SYM		{}
 	| TEMPORARY		{}
 	| TEXT_SYM		{}
+	| TRANSACTION_SYM	{}
 	| TRUNCATE_SYM		{}
 	| TIMESTAMP		{}
 	| TIME_SYM		{}
 	| TYPE_SYM		{}
 	| UDF_SYM		{}
+	| UNCOMMITTED_SYM	{}
 	| VARIABLES		{}
 	| WORK_SYM		{}
 	| YEAR_SYM		{}
@@ -2579,9 +2619,12 @@ keyword:
 set:
 	SET opt_option
 	{
+	  THD *thd=current_thd;
 	  Lex->sql_command= SQLCOM_SET_OPTION;
-	  Lex->options=current_thd->options;
-	  Lex->select_limit=current_thd->default_select_limit;
+	  Lex->options=thd->options;
+	  Lex->select_limit=thd->default_select_limit;
+	  Lex->gemini_spin_retries=thd->gemini_spin_retries;
+	  Lex->tx_isolation=thd->tx_isolation;
 	}
 	option_value_list
 
@@ -2601,6 +2644,7 @@ option_value:
 	  else
 	    Lex->options|= $1;
 	}
+	| set_isolation
 	| AUTOCOMMIT equal NUM
 	{
 	  if (atoi($3.str) != 0)	/* Test NOT AUTOCOMMIT */
@@ -2640,6 +2684,14 @@ option_value:
 	| INSERT_ID equal ULONGLONG_NUM
 	{
 	  current_thd->next_insert_id=$3;
+	}
+	| GEMINI_SPIN_RETRIES equal ULONG_NUM
+	{
+	  Lex->gemini_spin_retries= $3;
+	}
+	| GEMINI_SPIN_RETRIES equal DEFAULT
+	{
+	  Lex->gemini_spin_retries= 1;
 	}
 	| CHAR_SYM SET IDENT
 	{
@@ -2702,7 +2754,7 @@ text_or_password:
 	  }
 
 set_option:
-       	SQL_BIG_TABLES	        { $$= OPTION_BIG_TABLES; }
+	SQL_BIG_TABLES	        { $$= OPTION_BIG_TABLES; }
 	| SQL_BIG_SELECTS	{ $$= OPTION_BIG_SELECTS; }
 	| SQL_LOG_OFF		{ $$= OPTION_LOG_OFF; }
 	| SQL_LOG_UPDATE
@@ -2723,6 +2775,28 @@ set_option:
 	| SQL_SAFE_UPDATES	{ $$= OPTION_SAFE_UPDATES; }
 	| SQL_BUFFER_RESULT	{ $$= OPTION_BUFFER_RESULT; }
 	| SQL_QUOTE_SHOW_CREATE { $$= OPTION_QUOTE_SHOW_CREATE; }
+
+
+set_isolation:
+	GLOBAL_SYM tx_isolation
+	{
+	  if (check_process_priv())
+	    YYABORT;
+	  default_tx_isolation= $2;
+        }
+	| SESSION_SYM tx_isolation
+	{ current_thd->session_tx_isolation= $2; }
+	| tx_isolation
+	{ Lex->tx_isolation= $1; }
+
+tx_isolation:
+	TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types { $$=$4; }
+
+isolation_types:
+	READ_SYM UNCOMMITTED_SYM	{ $$= ISO_READ_UNCOMMITTED; }
+	| READ_SYM COMMITTED_SYM	{ $$= ISO_READ_COMMITTED; }
+	| REPEATABLE_SYM READ_SYM	{ $$= ISO_REPEATABLE_READ; }
+	| SERIALIZABLE_SYM		{ $$= ISO_SERIALIZABLE; }
 
 /* Lock function */
 

@@ -2342,6 +2342,9 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	}
 	DBUG_RETURN(0);
       }
+      if (!searching)
+	mi_check_print_info(param,"Found wrong stored record at %s",
+			    llstr(sort_info->start_recpos,llbuff));
     try_next:
       pos=(sort_info->start_recpos+=MI_DYN_ALIGN_SIZE);
       searching=1;

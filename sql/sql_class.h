@@ -268,7 +268,8 @@ public:
   long  dbug_thread_id;
   pthread_t  real_id;
   uint	current_tablenr,tmp_table,cond_count,col_access,query_length;
-  uint  server_status,open_options;
+  uint  server_status,open_options, gemini_spin_retries;
+  enum_tx_isolation tx_isolation, session_tx_isolation;
   char	     scramble[9];
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;

@@ -251,6 +251,7 @@ void kill_mysql(void);
 void close_connection(NET *net,uint errcode=0,bool lock=1);
 bool check_access(THD *thd,uint access,const char *db=0,uint *save_priv=0,
 		  bool no_grant=0);
+bool check_process_priv(THD *thd=0);
 
 int generate_table(THD *thd, TABLE_LIST *table_list,
 		   TABLE *locked_table);
@@ -538,6 +539,7 @@ extern String empty_string;
 extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];
 extern enum db_type default_table_type;
+extern enum enum_tx_isolation default_tx_isolation;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

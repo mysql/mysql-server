@@ -59,6 +59,10 @@ const char *ha_row_type[] = {
 TYPELIB ha_table_typelib= {array_elements(ha_table_type)-4,"",
 			   ha_table_type+1};
 
+const char *tx_isolation_names[] =
+{ "READ-UNCOMMITTED", "READ-COMMITTED", "REPEATABLE-READ", "SERIALIZABLE"};
+TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names),"",
+			       tx_isolation_names};
 
 	/* Use other database handler if databasehandler is not incompiled */
 
@@ -203,6 +207,7 @@ int ha_autocommit_or_rollback(THD *thd, int error)
     }
     else
       (void) ha_rollback_stmt(thd);
+    thd->tx_isolation=thd->session_tx_isolation;
   }
 #endif
   DBUG_RETURN(error);
@@ -248,6 +253,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #endif
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
+    thd->tx_isolation=thd->session_tx_isolation;
   }
 #endif // using transactions
   DBUG_RETURN(error);
@@ -286,9 +292,20 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
     thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+    thd->tx_isolation=thd->session_tx_isolation;
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
+}
+
+void ha_set_spin_retries(uint retries)
+{
+#ifdef HAVE_GEMINI_DB
+  if (!gemini_skip)
+  {
+    gemini_set_option_long(GEM_OPTID_SPIN_RETRIES, retries);
+  }
+#endif /* HAVE_GEMINI_DB */
 }
 
 

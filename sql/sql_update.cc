@@ -20,8 +20,6 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 
-#define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
-
 /* Return 0 if row hasn't changed */
 
 static bool compare_record(TABLE *table, ulong query_id)

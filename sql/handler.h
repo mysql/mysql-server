@@ -108,7 +108,7 @@ enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
 	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
 	       DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
-	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNOBASE,
+	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNOBASE, DB_TYPE_GEMINI,
 	       DB_TYPE_DEFAULT };
 
 enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
@@ -126,6 +126,9 @@ typedef struct st_thd_trans {
   void *innobase_tid;
   void *gemini_tid;
 } THD_TRANS;
+
+enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
+			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
 typedef struct st_ha_create_information
 {
@@ -310,7 +313,7 @@ public:
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
-extern TYPELIB ha_table_typelib;
+extern TYPELIB ha_table_typelib, tx_isolation_typelib;
 
 	/* Wrapper functions */
 #define ha_commit_stmt(thd) (ha_commit_trans((thd), &((thd)->transaction.stmt)))
@@ -332,5 +335,6 @@ void ha_key_cache(void);
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);
+void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
 
