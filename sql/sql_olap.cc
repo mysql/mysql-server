@@ -62,7 +62,7 @@ static int make_new_olap_select(LEX *lex, SELECT_LEX *select_lex, List<Item> new
   List_iterator<Item> list_it(select_lex->item_list);
   List_iterator<Item> new_it(new_fields);
     
-  while((item=list_it++))
+  while ((item=list_it++))
   {
     bool not_found=true;
     if (item->type()==Item::FIELD_ITEM)
@@ -109,15 +109,15 @@ static int  olap_combos(List<Item> old_fields, List<Item> new_fields, Item *item
 			      int num_new_fields)
 {
   int sl_return = 0;
-  if(position == num_new_fields)
+  if (position == num_new_fields)
   {
-    if(item)
+    if (item)
       new_fields.push_front(item);
     sl_return = make_new_olap_select(lex, select_lex, new_fields);
   }
   else
   {
-    if(item)
+    if (item)
       new_fields.push_front(item);
     while ((num_fields - num_new_fields >= selection - position) && !sl_return)
     {
@@ -170,12 +170,12 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
 
   if (select_lex->olap == CUBE_TYPE)
   {
-    for( int i=count-1; i>=0 && !sl_return; i--)
+    for ( int i=count-1; i>=0 && !sl_return; i--)
       sl_return=olap_combos(item_list_copy, new_item_list, (Item *)0, lex, select_lex, 0, 0, count, i);
   }
   else if (select_lex->olap == ROLLUP_TYPE)
   {
-    for( int i=count-1; i>=0 && !sl_return; i--)
+    for ( int i=count-1; i>=0 && !sl_return; i--)
     {
       Item *item;
       item_list_copy.pop();

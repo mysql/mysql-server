@@ -63,6 +63,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   TMP_TABLE_PARAM tmp_table_param;
   bool is_union=sl->next_select() && sl->next_select()->linkage == UNION_TYPE;
   DBUG_ENTER("mysql_derived");
+  SELECT_LEX_NODE *save_current_select= lex->current_select;
   
 
 /*
@@ -111,6 +112,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       }
     }
 
+    lex->current_select= sl;
     if (setup_fields(thd,tables,item_list,0,0,1))
     {
       res=-1;
@@ -119,7 +121,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count=item_list.elements;
     if (!(table=create_tmp_table(thd, &tmp_table_param, item_list,
-			         (ORDER*) 0, is_union && !unit->union_option, 1,
+			         (ORDER*) 0, 
+				 is_union && !unit->union_option, 1,
 			         (sl->options | thd->options |
 				  TMP_TABLE_ALL_COLUMNS),
                                  HA_POS_ERROR)))
@@ -138,8 +141,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       if (unit->select_limit_cnt == HA_POS_ERROR)
 	sl->options&= ~OPTION_FOUND_ROWS;
 
-      SELECT_LEX_NODE *save_current_select= lex->current_select;
-      lex->current_select= sl;
       if (is_union)
 	res=mysql_union(thd,lex,derived_result,unit);
       else
@@ -149,7 +150,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 			sl->having, (ORDER*) NULL,
 			sl->options | thd->options  | SELECT_NO_UNLOCK,
 			derived_result, unit, sl, 0);
-      lex->current_select= save_current_select;
 
       if (!res)
       {
@@ -179,6 +179,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     if (res)
       free_tmp_table(thd,table);
 exit:
+    lex->current_select= save_current_select;
     close_thread_tables(thd);
   }
   DBUG_RETURN(res);

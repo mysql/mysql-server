@@ -32,6 +32,11 @@ SUBSELECT TODO:
 #include "mysql_priv.h"
 #include "sql_select.h"
 
+inline Item * and_items(Item* cond, Item *item)
+{
+  return (cond? (new Item_cond_and(cond, item)) : item);
+}
+
 Item_subselect::Item_subselect():
   Item_result_field(), engine_owner(1), value_assigned(0), substitution(0),
   have_to_be_excluded(0)
@@ -51,7 +56,7 @@ void Item_subselect::init(THD *thd, st_select_lex *select_lex,
   DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
 
-  select_transformer(select_lex->master_unit());
+  select_transformer(thd, select_lex->master_unit());
   if (select_lex->next_select())
     engine= new subselect_union_engine(thd, select_lex->master_unit(), result,
 				       this);
@@ -67,7 +72,7 @@ Item_subselect::~Item_subselect()
     delete engine;
 }
 
-void Item_subselect::select_transformer(st_select_lex_unit *unit) 
+void Item_subselect::select_transformer(THD *thd, st_select_lex_unit *unit) 
 {
   DBUG_ENTER("Item_subselect::select_transformer");
   DBUG_VOID_RETURN;
@@ -146,6 +151,46 @@ void Item_singlerow_subselect::reset()
     value->null_value= 1;
 }
 
+void Item_singlerow_subselect::select_transformer(THD *thd,
+						  st_select_lex_unit *unit)
+{
+  SELECT_LEX *select_lex= unit->first_select();
+  
+  if (!select_lex->next_select() && !select_lex->table_list.elements &&
+      select_lex->item_list.elements == 1)
+  {
+    
+    have_to_be_excluded= 1;
+    if (thd->lex.describe)
+    {
+      char warn_buff[MYSQL_ERRMSG_SIZE];
+      sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		   ER_SELECT_REDUCED, warn_buff);
+    }
+    substitution= select_lex->item_list.head();
+    substitution->set_outer_resolving();
+    if (substitution->type() == FIELD_ITEM ||
+	substitution->type() == REF_ITEM)
+      name= substitution->name; // Save name for correct resolving
+     
+    if (select_lex->where || select_lex->having)
+    {
+      Item *cond;
+      if (!select_lex->having)
+	cond= select_lex->where;
+      else if (!select_lex->where)
+	cond= select_lex->having;
+      else
+	if (!(cond= new Item_cond_and(select_lex->having, select_lex->where)))
+	  return;
+      if (!(substitution= new Item_func_if(cond, substitution,
+					   new Item_null())))
+	return;
+    }
+  }
+}
+
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
@@ -162,21 +207,13 @@ void Item_singlerow_subselect::fix_length_and_dec()
   {
     engine->fix_length_and_dec(row= &value);
     if (!(value= Item_cache::get_cache(engine->type())))
-    {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      current_thd->fatal_error= 1;
       return;
-    }  
   }
   else
   {
     THD *thd= current_thd;
     if (!(row= (Item_cache**)thd->alloc(sizeof(Item_cache*)*max_columns)))
-    {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      thd->fatal_error= 1;
       return;
-    }
     engine->fix_length_and_dec(row);
     value= *row;
   }
@@ -395,7 +432,8 @@ Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
   func= item->func;
 }
 
-void Item_in_subselect::single_value_transformer(st_select_lex_unit *unit,
+void Item_in_subselect::single_value_transformer(THD *thd,
+						 st_select_lex_unit *unit,
 						 Item *left_expr,
 						 compare_func_creator func)
 {
@@ -409,10 +447,8 @@ void Item_in_subselect::single_value_transformer(st_select_lex_unit *unit,
   Item_in_optimizer *optimizer;
   substitution= optimizer= new Item_in_optimizer(left_expr, this);
   if (!optimizer)
-  {
-    current_thd->fatal_error= 1;
     DBUG_VOID_RETURN;
-  }
+
   /*
     As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
     we can use same item for all selects.
@@ -449,15 +485,9 @@ void Item_in_subselect::single_value_transformer(st_select_lex_unit *unit,
 						   (char *)"<no matter>",
 						   (char*)"<result>"));
       if (sl->having || sl->with_sum_func || sl->group_list.first)
-	if (sl->having)
-	  sl->having= new Item_cond_and(sl->having, item);
-	else
-	  sl->having= item;
+	sl->having= and_items(sl->having, item);
       else
-	if (sl->where)
-	  sl->where= new Item_cond_and(sl->where, item);
-	else
-	  sl->where= item;
+	sl->where= and_items(sl->where, item);
     }
     else
     {
@@ -468,10 +498,7 @@ void Item_in_subselect::single_value_transformer(st_select_lex_unit *unit,
 	item= (*func)(expr, new Item_asterisk_remover(this, item,
 						      (char *)"<no matter>",
 						      (char*)"<result>"));
-	if (sl->where)
-	  sl->where= new Item_cond_and(sl->where, item);
-	else
-	  sl->where= item;
+	sl->where= and_items(sl->where, item);
       }
       else
       {
@@ -498,7 +525,6 @@ void Item_in_subselect::single_value_transformer(st_select_lex_unit *unit,
 	  item= (*func)(left_expr, item);
 	  substitution= item;
 	  have_to_be_excluded= 1;
-	  THD *thd= current_thd;
 	  if (thd->lex.describe)
 	  {
 	    char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -513,7 +539,8 @@ void Item_in_subselect::single_value_transformer(st_select_lex_unit *unit,
   DBUG_VOID_RETURN;
 }
 
-void Item_in_subselect::row_value_transformer(st_select_lex_unit *unit,
+void Item_in_subselect::row_value_transformer(THD *thd,
+					      st_select_lex_unit *unit,
 					      Item *left_expr)
 {
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
@@ -527,10 +554,8 @@ void Item_in_subselect::row_value_transformer(st_select_lex_unit *unit,
   Item_in_optimizer *optimizer;
   substitution= optimizer= new Item_in_optimizer(left_expr, this);
   if (!optimizer)
-  {
-    current_thd->fatal_error= 1;
     DBUG_VOID_RETURN;
-  }
+
   unit->dependent= 1;
   uint n= left_expr->cols();
   if (optimizer->preallocate_row() || (*optimizer->get_cache())->allocate(n))
@@ -560,40 +585,32 @@ void Item_in_subselect::row_value_transformer(st_select_lex_unit *unit,
 						 (char *)"<no matter>",
 						 (char *)"<left expr>"),
 				    func);
-      if (!item)
-	item= func;
-      else
-	item= new Item_cond_and(item, func);
+      item= and_items(item, func);
     }
 
     if (sl->having || sl->with_sum_func || sl->group_list.first ||
 	!sl->table_list.elements)
-      if (sl->having)
-	sl->having= new Item_cond_and(sl->having, item);
-      else
-	sl->having= item;
+      sl->having= and_items(sl->having, item);
     else
-      if (sl->where)
-	sl->where= new Item_cond_and(sl->where, item);
-      else
-	sl->where= item;
+      sl->where= and_items(sl->where, item);
   }
   DBUG_VOID_RETURN;
 }
 
 
-void Item_in_subselect::select_transformer(st_select_lex_unit *unit)
+void Item_in_subselect::select_transformer(THD *thd, st_select_lex_unit *unit)
 {
   if (left_expr->cols() == 1)
-    single_value_transformer(unit, left_expr,
+    single_value_transformer(thd, unit, left_expr,
 			     &Item_bool_func2::eq_creator);
   else
-    row_value_transformer(unit, left_expr);
+    row_value_transformer(thd, unit, left_expr);
 }
 
-void Item_allany_subselect::select_transformer(st_select_lex_unit *unit)
+void Item_allany_subselect::select_transformer(THD *thd,
+					       st_select_lex_unit *unit)
 {
-  single_value_transformer(unit, left_expr, func);
+  single_value_transformer(thd, unit, left_expr, func);
 }
 
 subselect_single_select_engine::subselect_single_select_engine(THD *thd, 
@@ -630,7 +647,7 @@ subselect_union_engine::subselect_union_engine(THD *thd,
   subselect_engine(thd, item, result)
 {
   unit= u;
-  if( !result)
+  if (!result)
   {
     //out of memory
     thd->fatal_error= 1;
@@ -646,13 +663,13 @@ int subselect_single_select_engine::prepare()
   prepared= 1;
   SELECT_LEX_NODE *save_select= thd->lex.current_select;
   thd->lex.current_select= select_lex;
-  if(join->prepare((TABLE_LIST*) select_lex->table_list.first,
-		   select_lex->where,
-		   (ORDER*) select_lex->order_list.first,
-		   (ORDER*) select_lex->group_list.first,
-		   select_lex->having,
-		   (ORDER*) 0, select_lex, 
-		   select_lex->master_unit(), 0))
+  if (join->prepare((TABLE_LIST*) select_lex->table_list.first,
+		    select_lex->where,
+		    (ORDER*) select_lex->order_list.first,
+		    (ORDER*) select_lex->group_list.first,
+		    select_lex->having,
+		    (ORDER*) 0, select_lex, 
+		    select_lex->master_unit(), 0))
     return 1;
   thd->lex.current_select= save_select;
   return 0;
@@ -678,11 +695,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
     if (row)
     {
       if (!(row[i]= Item_cache::get_cache(res_type)))
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	current_thd->fatal_error= 1;
 	return STRING_RESULT; // we should return something
-      }
       row[i]->set_len_n_dec(sel_item->max_length, sel_item->decimals);
     }
   }
@@ -715,7 +728,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
 	mlen= len;
       if (!sel_item)
 	sel_item= s_item;
-      maybe_null!= s_item->maybe_null;
+      maybe_null= s_item->maybe_null;
     }
     item->max_length= mlen;
     res_type= sel_item->result_type();
@@ -723,11 +736,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
     if (row)
     {
       if (!(row[0]= Item_cache::get_cache(res_type)))
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	current_thd->fatal_error= 1;
 	return;
-      }
       row[0]->set_len_n_dec(mlen, sel_item->decimals);
     }
   }
@@ -736,7 +745,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
     SELECT_LEX *sl= unit->first_select();
     bool fake= 0;
     res_type= set_row(sl, item, row, &fake);
-    for(sl= sl->next_select(); sl; sl->next_select())
+    for (sl= sl->next_select(); sl; sl->next_select())
     {
       List_iterator_fast<Item> li(sl->item_list);
       Item *sel_item;

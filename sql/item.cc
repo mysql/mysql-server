@@ -502,18 +502,17 @@ bool Item_ref_on_list_position::fix_fields(THD *thd,
 					   struct st_table_list *tables,
 					   Item ** reference)
 {
-  ref= 0;
   List_iterator<Item> li(list);
   Item *item;
-  uint i= 0;
-  for (; (item= li++) && i < pos; i++);
-  if (i == pos)
+  for (uint i= 0; (item= li++) && i < pos; i++);
+  if (item)
   {
     ref= li.ref();
     return Item_ref_null_helper::fix_fields(thd, tables, reference);
   }
   else
   {
+    ref= 0;
     my_error(ER_CARDINALITY_COL, MYF(0), pos);
     return 1;
   }
@@ -546,8 +545,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
   {
-    Field *tmp;
-    if ((tmp= find_field_in_tables(thd, this, tables, 0)) == not_found_field)
+    TABLE_LIST *where= 0;
+    Field *tmp= (Field *)not_found_field;
+    if (outer_resolving || 
+	(tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
+	not_found_field)
     {
       /*
 	We can't find table field in table list of current select, 
@@ -564,12 +566,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
-	for (SELECT_LEX *sl=cursel->outer_select();
+	for (SELECT_LEX *sl=(outer_resolving?cursel:cursel->outer_select());
 	     sl;
 	     sl= sl->outer_select())
 	{
 	  if ((tmp= find_field_in_tables(thd, this,
-					 (last= sl)->get_table_list(),
+					 (last= sl)->get_table_list(), &where,
 					 0)) != not_found_field)
 	    break;
 	  if ((refer= find_item_in_list(this, sl->item_list,
@@ -587,7 +589,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       else if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	// call to return error code
-	find_field_in_tables(thd, this, tables, 1);
+	find_field_in_tables(thd, this, tables, &where, 1);
 	return -1;
       }
       else if (refer != (Item **)not_found_item)
@@ -612,6 +614,17 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  found table as depended (of select where was found table)
 	*/
 	thd->lex.current_select->mark_as_dependent(last);
+	if (depended_from->having_fix_field)
+	{
+	  Item_ref *rf;
+	  *ref= rf= new Item_ref((where->db[0]?where->db:0), 
+				 (char *)where->alias,
+				 (char *)field_name);
+	  if (!rf)
+	    return 1;
+	  (rf)->outer_resolving= outer_resolving;
+	  return rf->check_cols(1) || rf->fix_fields(thd, tables, ref);
+	}
       }
     } 
     else if (!tmp)
@@ -626,14 +639,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     field->query_id=thd->query_id;
     table->used_fields++;
     table->used_keys&=field->part_of_key;
-  }
-  if (depended_from != 0 && depended_from->having_fix_field)
-  {
-    *ref= new Item_ref((char *)db_name, (char *)table_name,
-		       (char *)field_name);
-    if (!*ref)
-      return 1;
-    return (*ref)->check_cols(1) || (*ref)->fix_fields(thd, tables, ref);
   }
   fixed= 1;
   return 0;
@@ -1005,13 +1010,17 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-    SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    TABLE_LIST *where= 0;
+    SELECT_LEX *sl= (outer_resolving?
+		     thd->lex.current_select->select_lex():
+		     thd->lex.current_select->outer_select());
     /*
       Finding only in current select will be performed for selects that have 
       not outer one and for derived tables (which not support using outer 
       fields for now)
     */
-    if ((ref= find_item_in_list(this, 
+    if (outer_resolving ||
+	(ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
 				((sl && 
 				  thd->lex.current_select->master_unit()->
@@ -1039,7 +1048,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	   (Item **)not_found_item)
 	  break;
 	if ((tmp= find_field_in_tables(thd, this,
-				       sl->get_table_list(),
+				       sl->get_table_list(), &where,
 				       0)) != not_found_field);
 	if (sl->master_unit()->first_select()->linkage ==
 	    DERIVED_TABLE_TYPE)
@@ -1268,29 +1277,20 @@ longlong Item_cache_str::val_int()
 
 bool Item_cache_row::allocate(uint num)
 {
-  n= num;
+  item_count= num;
   THD *thd= current_thd;
-  if (!(values= (Item_cache **) thd->calloc(sizeof(Item_cache *)*n)))
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    thd->fatal_error= 1;
-    return 1;
-  }
-  return 0;
+  return (!(values= 
+	    (Item_cache **) thd->calloc(sizeof(Item_cache *)*item_count)));
 }
 
 bool Item_cache_row::setup(Item * item)
 {
   if (!values && allocate(item->cols()))
     return 1;
-  for(uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
   {
     if (!(values[i]= Item_cache::get_cache(item->el(i)->result_type())))
-    {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      current_thd->fatal_error= 1;
       return 1;
-    }
     values[i]->setup(item->el(i));
   }
   return 0;
@@ -1300,7 +1300,7 @@ void Item_cache_row::store(Item * item)
 {
   null_value= 0;
   item->bring_value();
-  for(uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
   {
     values[i]->store(item->el(i));
     null_value|= values[i]->null_value;
@@ -1318,7 +1318,7 @@ void Item_cache_row::illegal_method_call(const char *method)
 
 bool Item_cache_row::check_cols(uint c)
 {
-  if (c != n)
+  if (c != item_count)
   {
     my_error(ER_CARDINALITY_COL, MYF(0), c);
     return 1;
@@ -1328,7 +1328,7 @@ bool Item_cache_row::check_cols(uint c)
 
 bool Item_cache_row::null_inside()
 {
-  for (uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
   {
     if (values[i]->cols() > 1)
     {
@@ -1347,7 +1347,7 @@ bool Item_cache_row::null_inside()
 
 void Item_cache_row::bring_value()
 {
-  for (uint i= 0; i < n; i++)
+  for (uint i= 0; i < item_count; i++)
     values[i]->bring_value();
   return;
 }
