@@ -299,12 +299,6 @@ ERROR 42S22: Unknown column 'valname' in 'order clause'
 drop procedure bug1965|
 select 1 into a|
 ERROR 42000: Undeclared variable: a
-create procedure bug336(id char(16))
-begin
-declare x int;
-set x = (select sum(t.data) from test.t2 t);
-end|
-ERROR 0A000: Subselect value not supported
 create function bug1654()
 returns int
 return (select sum(t.data) from test.t2 t)|
