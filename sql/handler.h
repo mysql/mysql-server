@@ -131,6 +131,13 @@ enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
 	       DB_TYPE_DEFAULT };
 
+struct show_table_type_st {
+  const char *type;
+  SHOW_COMP_OPTION *value;
+  const char *comment;
+  enum db_type db_type;
+};
+
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED};
 
@@ -372,8 +379,9 @@ public:
 
 	/* Some extern variables used with handlers */
 
+extern struct show_table_type_st sys_table_types[];
 extern const char *ha_row_type[];
-extern TYPELIB ha_table_typelib, tx_isolation_typelib;
+extern TYPELIB tx_isolation_typelib;
 
 	/* Wrapper functions */
 #define ha_commit_stmt(thd) (ha_commit_trans((thd), &((thd)->transaction.stmt)))
@@ -383,6 +391,8 @@ extern TYPELIB ha_table_typelib, tx_isolation_typelib;
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB)
 
+enum db_type ha_resolve_by_name(const char *name, uint namelen);
+const char *ha_get_table_type(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
 my_off_t ha_get_ptr(byte *ptr, uint pack_length);
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos);

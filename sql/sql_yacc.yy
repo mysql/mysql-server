@@ -241,7 +241,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	GROUP
 %token	HAVING
 %token	HASH_SYM
-%token	HEAP_SYM
 %token	HEX_NUM
 %token	HIGH_PRIORITY
 %token	HOSTS_SYM
@@ -257,7 +256,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INTO
 %token	IN_SYM
 %token	ISOLATION
-%token	ISAM_SYM
 %token	JOIN_SYM
 %token	KEYS
 %token	KEY_SYM
@@ -296,10 +294,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MAX_QUERIES_PER_HOUR
 %token	MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
-%token	MERGE_SYM
-%token	MEMORY_SYM
 %token	MIN_ROWS
-%token	MYISAM_SYM
 %token	NAMES_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
@@ -598,7 +593,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape
+	opt_escape opt_constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -631,7 +626,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	expr_list udf_expr_list when_list ident_list ident_list_arg
 
 %type <key_type>
-	key_type opt_unique_or_fulltext
+	key_type opt_unique_or_fulltext constraint_key_type
 
 %type <key_alg>
 	key_alg opt_btree_or_rtree
@@ -1126,13 +1121,14 @@ create_table_option:
 	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
 
 table_types:
-	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
-	| MYISAM_SYM	{ $$= DB_TYPE_MYISAM; }
-	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
-	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
-	| MEMORY_SYM	{ $$= DB_TYPE_HEAP; }
-	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
-	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; };
+	ident_or_text
+	{
+	  $$ = ha_resolve_by_name($1.str,$1.length);
+	  if ($$ == DB_TYPE_UNKNOWN) {
+	    net_printf(YYTHD, ER_UNKNOWN_TABLE_ENGINE, $1.str);
+	    YYABORT;
+	  }
+	};
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
@@ -1189,6 +1185,13 @@ key_def:
 	    lex->key_list.push_back(new Key($1,$2, $3, lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
+	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
+	  {
+	    LEX *lex=Lex;
+	    const char *key_name= $3 ? $3:$1;
+	    lex->key_list.push_back(new Key($2, key_name, $4, lex->col_list));
+	    lex->col_list.empty();		/* Alloced by sql_alloc */
+	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    LEX *lex=Lex;
@@ -1212,8 +1215,8 @@ check_constraint:
 	;
 
 opt_constraint:
-	/* empty */
-	| CONSTRAINT opt_ident;
+	/* empty */		{ $$=(char*) 0; }
+	| CONSTRAINT opt_ident	{ $$=$2; };
 
 field_spec:
 	field_ident
@@ -1575,14 +1578,16 @@ delete_option:
 	| SET DEFAULT    { $$= (int) foreign_key::FK_OPTION_DEFAULT;  };
 
 key_type:
-	opt_constraint PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
-	| key_or_index			    { $$= Key::MULTIPLE; }
+	key_or_index			    { $$= Key::MULTIPLE; }
 	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
 	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
 	| SPATIAL_SYM			    { $$= Key::SPATIAL; }
-	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; }
-	| opt_constraint UNIQUE_SYM	    { $$= Key::UNIQUE; }
-	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
+	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; };
+
+constraint_key_type:
+	PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
+	| UNIQUE_SYM	    { $$= Key::UNIQUE; }
+	| UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
 
 key_or_index:
 	KEY_SYM {}
@@ -4633,7 +4638,6 @@ keyword:
 	| GLOBAL_SYM		{}
 	| HANDLER_SYM		{}
 	| HASH_SYM		{}
-	| HEAP_SYM		{}
 	| HELP_SYM		{}
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
@@ -4641,7 +4645,6 @@ keyword:
 	| IMPORT		{}
 	| INDEXES		{}
 	| ISOLATION		{}
-	| ISAM_SYM		{}
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
@@ -4672,8 +4675,6 @@ keyword:
 	| MAX_QUERIES_PER_HOUR	{}
 	| MAX_UPDATES_PER_HOUR	{}
 	| MEDIUM_SYM		{}
-	| MERGE_SYM		{}
-	| MEMORY_SYM		{}
 	| MICROSECOND_SYM	{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
@@ -4683,7 +4684,6 @@ keyword:
 	| MULTILINESTRING	{}
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
-	| MYISAM_SYM		{}
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
