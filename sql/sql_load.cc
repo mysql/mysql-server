@@ -336,6 +336,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
     else
     {
+      /*
+        As already explained above, we need to call end_io_cache() or the last
+        block will be logged only after Execute_load_log_event (which is wrong),
+        when read_info is destroyed.
+      */
       read_info.end_io_cache(); 
       if (lf_info.wrote_create_file)
       {
