@@ -6284,11 +6284,7 @@ uint my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
   const char *emb= e - 1; /* Last possible end of an MB character */
   while (pos && b < e)
   {
-    /*
-      Cast to int8 for extra safety. "char" can be unsigned
-      by default on some platforms.
-    */
-    if (((int8)b[0]) >= 0)
+    if ((uchar) b[0] < 128)
     {
       /* Single byte ascii character */
       b++;
