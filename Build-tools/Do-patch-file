@@ -7,7 +7,7 @@ case $# in
 esac
 
 PVER=$1;
-VER=`grep SERVER_VERSION include/mysql_version.h  | cut -d'"' -f2`
+VER=`grep SERVER_VERSION /my/tmp/BUILD/include/mysql_version.h  | cut -d'"' -f2`
 NEWDIR="binary"
 NEW="mysql-$VER.tar.gz"
 OLD="mysql-$PVER.tar.gz"
@@ -37,4 +37,6 @@ cd ../..
 /bin/rm -rf patch
 chmod a+r,o-w $RESULT binary/*
 mv $RESULT $PATCH_DIR
+cp binary/mysqlcom-* /net/web/home/production/data/nweb/customer/
+rm binary/mysqlcom-*
 cp binary/* $RESULT_DIR

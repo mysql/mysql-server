@@ -56,6 +56,9 @@ manual.txt:	manual.texi include.texi
 manual.html:	manual.texi include.texi $(srcdir)/Support/texi2html
 	cd $(srcdir) && @PERL@ $(srcdir)/Support/texi2html $(TEXI2HTML_FLAGS) $<
 
+manual_toc.html: manual.html
+
+
 # Fix: add --output-comment with some interesting info?
 # Fix: @image worked with a older version of pdftex. 
 # Note: @image will work if we first convert all images to pdf ...

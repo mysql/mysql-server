@@ -159,6 +159,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
             --infodir=/usr/info \
             --includedir=/usr/include \
             --mandir=/usr/man \
+	    --without-berkeley-db \
 	    --with-comment=\"Official MySQL RPM\";
 	    # Add this for more debugging support
 	    # --with-debug
