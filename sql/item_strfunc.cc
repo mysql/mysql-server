@@ -2587,6 +2587,7 @@ String *Item_func_quote::val_str(String *str)
   *to= '\'';
   str->length(new_length);
   str->set_charset(collation.collation);
+  null_value= 0;
   return str;
 
 null:

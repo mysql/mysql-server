@@ -22,8 +22,6 @@
 #include <m_ctype.h>
 #include <hash.h>
 
-LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
-
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)

@@ -2486,14 +2486,10 @@ unsent_create_error:
 	res= mysql_alter_table(thd, select_lex->db, lex->name,
 			       &lex->create_info,
 			       tables, lex->create_list,
-			       lex->key_list, lex->drop_list, lex->alter_list,
+			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->alter_flags,
-			       lex->duplicates,
-			       lex->alter_keys_onoff,
-                               lex->tablespace_op,
-			       lex->simple_alter);
+			       lex->duplicates, &lex->alter_info);
       }
       break;
     }
@@ -2632,17 +2628,15 @@ unsent_create_error:
       lex->create_list.empty();
       lex->key_list.empty();
       lex->col_list.empty();
-      lex->drop_list.empty();
-      lex->alter_list.empty();
+      lex->alter_info.reset();
       bzero((char*) &create_info,sizeof(create_info));
       create_info.db_type=DB_TYPE_DEFAULT;
       create_info.row_type=ROW_TYPE_DEFAULT;
       create_info.default_table_charset=default_charset_info;
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
-			     lex->key_list, lex->drop_list, lex->alter_list,
-                             0, (ORDER *) 0, 0,
-			     DUP_ERROR);
+			     lex->key_list, 0, (ORDER *) 0,
+			     DUP_ERROR, &lex->alter_info);
     }
     else
       res = mysql_optimize_table(thd, tables, &lex->check_opt);
@@ -2872,7 +2866,7 @@ unsent_create_error:
     if (end_active_trans(thd))
       res= -1;
     else
-      res = mysql_drop_index(thd, tables, lex->drop_list);
+      res = mysql_drop_index(thd, tables, &lex->alter_info);
     break;
   case SQLCOM_SHOW_DATABASES:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
@@ -5021,8 +5015,9 @@ Item * all_any_subquery_creator(Item *left_expr,
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
 {
   List<create_field> fields;
-  List<Alter_drop> drop;
-  List<Alter_column> alter;
+  ALTER_INFO alter_info;
+  alter_info.flags= ALTER_ADD_INDEX;
+  alter_info.is_simple= 0;
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
@@ -5030,25 +5025,27 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				ALTER_ADD_INDEX, DUP_ERROR));
+				fields, keys, 0, (ORDER*)0,
+				DUP_ERROR, &alter_info));
 }
 
 
-int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
+int mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
 {
   List<create_field> fields;
   List<Key> keys;
-  List<Alter_column> alter;
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.default_table_charset= thd->variables.collation_database;
+  alter_info->clear();
+  alter_info->flags= ALTER_DROP_INDEX;
+  alter_info->is_simple= 0;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				ALTER_DROP_INDEX, DUP_ERROR));
+				fields, keys, 0, (ORDER*)0,
+				DUP_ERROR, alter_info));
 }
 
 
