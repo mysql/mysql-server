@@ -8,7 +8,13 @@ libtransporter_la_SOURCES = \
 	TransporterRegistry.cpp \
         Packer.cpp
 
-#	SHM_Transporter.cpp
+if HAVE_NDB_SHM
+  libtransporter_la_SOURCES += SHM_Transporter.cpp SHM_Transporter.unix.cpp
+endif
+
+if HAVE_NDB_SCI
+  libtransporter_la_SOURCES += SCI_Transporter.cpp
+endif
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel -I$(top_srcdir)/ndb/include/transporter
 
