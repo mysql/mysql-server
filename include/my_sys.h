@@ -607,8 +607,6 @@ extern my_string my_path(my_string to,const char *progname,
 extern my_string my_load_path(my_string to, const char *path,
 			      const char *own_path_prefix);
 extern int wild_compare(const char *str,const char *wildstr);
-extern int my_sortcmp(CHARSET_INFO *cs, const char *s,const char *t,uint length);
-extern int my_sortncmp(CHARSET_INFO *cs, const char *s,uint s_len, const char *t,uint t_len);
 extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
