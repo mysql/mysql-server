@@ -2249,14 +2249,14 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     TABLE *show_table= tables->table;
     handler *file= show_table->file;
     file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
-    if (table->tmp_table == TMP_TABLE)
+    if (show_table->tmp_table == TMP_TABLE)
       table->field[3]->store("TEMPORARY", 9, cs);
     else
       table->field[3]->store("BASE TABLE", 10, cs);
 
     for (int i= 4; i < 20; i++)
     {
-      if ((i > 12 && i < 17) || i == 18)
+      if (i == 7 || (i > 12 && i < 17) || i == 18)
         continue;
       table->field[i]->set_notnull();
     }
@@ -2268,7 +2268,11 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
                (show_table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
                "Dynamic" : "Fixed");
     table->field[6]->store(tmp_buff, strlen(tmp_buff), cs);
-    table->field[7]->store((longlong) file->records);
+    if (!tables->schema_table)
+    {
+      table->field[7]->store((longlong) file->records);
+      table->field[7]->set_notnull();
+    }
     table->field[8]->store((longlong) file->mean_rec_length);
     table->field[9]->store((longlong) file->data_file_length);
     if (file->max_data_file_length)
@@ -3481,7 +3485,7 @@ ST_FIELD_INFO tables_fields_info[]=
   {"CREATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Create_time"},
   {"UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Update_time"},
   {"CHECK_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Check_time"},
-  {"COLLATION", 60, MYSQL_TYPE_STRING, 0, 1, "Collation"},
+  {"TABLE_COLLATION", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
   {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
   {"CREATE_OPTIONS", 255, MYSQL_TYPE_STRING, 0, 1, "Create_options"},
   {"TABLE_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment"},

@@ -653,3 +653,11 @@ where table_schema="information_schema" and table_name="COLUMNS" and
 column_type
 varchar(64)
 varchar(64)
+select TABLE_ROWS from information_schema.tables where 
+table_schema="information_schema" and table_name="COLUMNS";
+TABLE_ROWS
+NULL
+select table_type from information_schema.tables
+where table_schema="mysql" and table_name="user";
+table_type
+BASE TABLE
