@@ -37,15 +37,9 @@
 #define ONE_THREAD
 #endif
 
-#ifdef SAFEMALLOC
-#define SHUTDOWN_THD shutdown_th=pthread_self();
-#define MAIN_THD main_th=pthread_self();
-#define SIGNAL_THD signal_th=pthread_self();
-#else
 #define SHUTDOWN_THD
 #define MAIN_THD
 #define SIGNAL_THD
-#endif
 
 #ifdef PURIFY
 #define IF_PURIFY(A,B) (A)
@@ -763,7 +757,6 @@ static void __cdecl kill_server(int sig_ptr)
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
 #if defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2)
-  SHUTDOWN_THD;
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();

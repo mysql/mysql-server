@@ -1026,6 +1026,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 
   if (value->save_in_field(field))
   {
+    // TODO; Check if we can we remove the following block.
     if (type == Item_func::EQUAL_FUNC)
     {
       /* convert column_name <=> NULL -> column_name IS NULL */

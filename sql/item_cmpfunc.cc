@@ -42,13 +42,13 @@ static bool convert_constant_item(Field *field, Item **item)
 {
   if ((*item)->const_item())
   {
-    (*item)->save_in_field(field);
-    if (!((*item)->null_value))
+    if (!(*item)->save_in_field(field) &&
+	!((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item);
       if (tmp)
 	*item=tmp;
-      return 1;
+      return 1;					// Item was replaced
     }
   }
   return 0;
@@ -57,7 +57,7 @@ static bool convert_constant_item(Field *field, Item **item)
 
 void Item_bool_func2::fix_length_and_dec()
 {
-  max_length=1;
+  max_length=1;					// Function returns 0 or 1
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -69,7 +69,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
-    if (field->store_for_compare() || field->result_type() == INT_RESULT)
+    if (field->store_for_compare())
     {
       if (convert_constant_item(field,&args[1]))
       {
@@ -81,7 +81,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (args[1]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[1])->field;
-    if (field->store_for_compare() || field->result_type() == INT_RESULT)
+    if (field->store_for_compare())
     {
       if (convert_constant_item(field,&args[0]))
       {

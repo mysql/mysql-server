@@ -485,3 +485,9 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+sql-bench/innotest1
+sql-bench/innotest1a
+sql-bench/innotest1b
+sql-bench/innotest2
+sql-bench/innotest2a
+sql-bench/innotest2b

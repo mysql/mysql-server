@@ -71,16 +71,11 @@
 
 ulonglong safemalloc_mem_limit = ~(ulonglong)0;
 
-#ifdef THREAD
-pthread_t shutdown_th,main_th,signal_th;
-#endif
-
 #define pNext		tInt._pNext
 #define pPrev		tInt._pPrev
 #define sFileName	tInt._sFileName
 #define uLineNum	tInt._uLineNum
 #define uDataSize	tInt._uDataSize
-#define thread_id       tInt.thread_id
 #define lSpecialValue	tInt._lSpecialValue
 
 #ifndef PEDANTIC_SAFEMALLOC
@@ -148,7 +143,7 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
     {
        /* Allocate the physical memory */
        pTmp = (struct remember *) malloc (
-		sizeof (struct irem)			/* remember data  */
+		ALIGN_SIZE(sizeof(struct irem))		/* remember data  */
 		+ sf_malloc_prehunc
 		+ uSize					/* size requested */
 		+ 4					/* overrun mark   */
@@ -187,9 +182,6 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
     pTmp -> sFileName = (my_string) sFile;
     pTmp -> uLineNum = uLine;
     pTmp -> uDataSize = uSize;
-#ifdef THREAD
-    pTmp->thread_id = pthread_self();
-#endif
     pTmp -> pPrev = NULL;
 
     /* Add this remember structure to the linked list */
@@ -244,7 +236,7 @@ gptr _myrealloc (register gptr pPtr, register uint uSize,
   if (check_ptr("Reallocating",(byte*) pPtr,sFile,uLine))
     DBUG_RETURN((gptr) NULL);
 
-  pRec = (struct remember *) ((char*) pPtr - sizeof (struct irem)-
+  pRec = (struct remember *) ((char*) pPtr - ALIGN_SIZE(sizeof(struct irem))-
 			      sf_malloc_prehunc);
   if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
@@ -290,7 +282,7 @@ void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
     DBUG_VOID_RETURN;
 
   /* Calculate the address of the remember structure */
-  pRec = (struct remember *) ((byte*) pPtr-sizeof(struct irem)-
+  pRec = (struct remember *) ((byte*) pPtr- ALIGN_SIZE(sizeof(struct irem))-
 			      sf_malloc_prehunc);
 
   /*
@@ -352,7 +344,7 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
     return 1;
   }
 #ifndef _MSC_VER
-  if ((long) ptr & (MY_ALIGN(1,sizeof(char *))-1))
+  if ((long) ptr & (ALIGN_SIZE(1)-1))
   {
     fprintf (stderr, "%s wrong aligned pointer at line %d, '%s'\n",
 	     where,uLine, sFile);
@@ -375,18 +367,6 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
 }
 
 
-#if !defined(PEDANTIC_SAFEMALLOC) && defined(THREAD)
-static int legal_leak(struct remember* pPtr)
-{
-  /* TODO: This code needs to be made more general */
-  return (pthread_equal(pthread_self(), pPtr->thread_id) ||
-	  pthread_equal(main_th, pPtr->thread_id) ||
-	  pthread_equal(shutdown_th,pPtr->thread_id) ||
-	  pthread_equal(signal_th,pPtr->thread_id));
-}
-#endif /* THREAD */
-
-
 /*
   TERMINATE(FILE *file)
     Report on all the memory pieces that have not been
@@ -405,48 +385,6 @@ void TERMINATE (FILE *file)
     NEWs than FREEs.  <0, etc.
   */
 
-#if !defined(PEDANTIC_SAFEMALLOC) && defined(THREAD)
-  /*
-    Avoid false alarms for blocks that we cannot free before my_end()
-    This does miss some positives, but that is ok. This will only miss
-    failures to free things allocated in the main thread which 
-    performs only one-time allocations. If you really need to
-    debug memory allocations in the main thread,
-    #define PEDANTIC_SAFEMALLOC
-  */
-  if ((pPtr=pRememberRoot))
-  {
-    while (pPtr)
-    {
-      if (legal_leak(pPtr))
-      {
-	sf_malloc_tampered=1;
-	cNewCount--;
-	lCurMemory -= pPtr->uDataSize;
-	if (pPtr->pPrev)
-	{
-	  struct remember* tmp;
-	  tmp = pPtr->pPrev->pNext = pPtr->pNext;
-	  if (tmp)
-	   tmp->pPrev = pPtr->pPrev; 
-	  pPtr->pNext = pPtr->pPrev = 0;
-	  pPtr = tmp;
-	}
-	else
-	{
-	  pRememberRoot = pPtr->pNext;
-	  pPtr->pNext = pPtr->pPrev = 0;
-	  pPtr = pRememberRoot;
-	  if (pPtr)
-	    pPtr->pPrev=0;
-	}
-      }
-      else
-	pPtr = pPtr->pNext;
-    }
-  }
-#endif  
-  
   if (cNewCount)
   {
     if (file)
@@ -479,9 +417,6 @@ void TERMINATE (FILE *file)
 		 pPtr -> uDataSize,
 		 (ulong) &(pPtr -> aData[sf_malloc_prehunc]),
 		 pPtr -> uLineNum, pPtr -> sFileName);
-#ifdef THREAD
-	fprintf(file, " in thread %ld", pPtr->thread_id);
-#endif
 	fprintf(file, "\n");
 	(void) fflush(file);
       }

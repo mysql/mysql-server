@@ -32,16 +32,22 @@ struct st_remember {
   sig_handler (*func)(int number);
 };
 
-struct irem {
-    struct remember *_pNext;		/* Linked list of structures	   */
-    struct remember *_pPrev;		/* Other link			   */
-    my_string _sFileName;		/* File in which memory was new'ed */
-    uint _uLineNum;			/* Line number in above file	   */
-    uint _uDataSize;			/* Size requested		   */
-#ifdef THREAD
-    pthread_t thread_id;
+/*
+  The size of the following structure MUST be dividable by 8 to not cause
+  alignment problems on some cpu's
+*/
+
+struct irem
+{
+  struct remember *_pNext;	/* Linked list of structures	   */
+  struct remember *_pPrev;	/* Other link			   */
+  char *_sFileName;		/* File in which memory was new'ed */
+  uint32 _uLineNum;		/* Line number in above file	   */
+  uint32 _uDataSize;		/* Size requested		   */
+#if SIZEOF_CHARP == 8
+  long _filler;			/* For alignment */
 #endif
-    long _lSpecialValue;		/* Underrun marker value	   */
+  long _lSpecialValue;		/* Underrun marker value	   */
 };
 
 struct remember {
@@ -58,14 +64,6 @@ extern const char *soundex_map;
 
 extern USED_MEM* my_once_root_block;
 extern uint	 my_once_extra;
-
-#ifdef THREAD
-/*
-  These threads are exempt from safemalloc leak scrutiny unless
-  PEDANTIC_SAFEMALLOC is defined
-*/
-extern pthread_t signal_th, kill_th, main_th;
-#endif
 
 #ifndef HAVE_TEMPNAM
 extern int	_my_tempnam_used;
