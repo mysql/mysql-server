@@ -650,15 +650,17 @@ Item_in_subselect::row_value_transformer(JOIN *join,
   uint n= left_expr->cols();
 
   select_lex->dependent= 1;
-
+  select_lex->setup_ref_array(thd,
+			      select_lex->order_list.elements +
+			      select_lex->group_list.elements);
   Item *item= 0;
   List_iterator_fast<Item> li(select_lex->item_list);
   for (uint i= 0; i < n; i++)
   {
-    Item *func=
-      new Item_ref_on_list_position(this, select_lex, i,
-				    (char *) "<no matter>",
-				    (char *) "<list ref>");
+    Item *func= new Item_ref_null_helper(this, 
+					 select_lex->ref_pointer_array+i,
+					 (char *) "<no matter>",
+					 (char *) "<list ref>");
     func=
       Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
 					       addr(i), 

@@ -449,6 +449,7 @@ public:
     init_query();
     init_select();
   }
+  bool setup_ref_array(THD *thd, uint order_group_num);
 };
 typedef class st_select_lex SELECT_LEX;
 

@@ -638,33 +638,6 @@ public:
 };
 
 /*
-  Used to find item in list of select items after '*' items processing.
-
-  Because item '*' can be used in item list. when we create
-  Item_ref_on_list_position we do not know how item list will be changed, but
-  we know number of item position (I mean queries like "select * from t").
-*/
-class Item_ref_on_list_position: public Item_ref_null_helper
-{
-protected:
-  /* 
-     select_lex used for:
-     1) receiving expanded variant of item list (to check max possible 
-        number of elements);
-     2) to have access to  ref_pointer_array, via wich item will refered.
-  */
-  st_select_lex *select_lex;
-  uint pos;
-public:
-  Item_ref_on_list_position(Item_in_subselect* master,
-			    st_select_lex *sl, uint num,
-			    char *table_name, char *field_name):
-    Item_ref_null_helper(master, 0, table_name, field_name),
-    select_lex(sl), pos(num) {}
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-/*
   The following class is used to optimize comparing of date columns
   We need to save the original item, to be able to set the field to the
   original value in 'opt_range'.
