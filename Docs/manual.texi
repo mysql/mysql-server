@@ -50393,6 +50393,13 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug, that caused MySQL to create unusable MyISAM tables, when key
+length (in @code{CREATE TABLE}) exceeded 500 bytes.
+@item
+Fixed a bug with constant expression (e.g. field of a one-row table, or field
+from a table, referenced by a @code{UNIQUE} key) appeared in @code{ORDER BY}
+part of @code{SELECT DISTINCT}.
+@item
 @code{--log-binary=a.b.c} now properly strips of @code{.b.c}.
 @item
 @code{FLUSH LOGS} removed numerical extension for all future update logs.
