@@ -194,11 +194,13 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
  MYSQL_TEST="$BASEDIR/client/mysqltest"
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ MYSQL="$BASEDIR/client/mysql"
  INSTALL_DB="./install_test_db"
 else
  MYSQLD="$BASEDIR/bin/mysqld"
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
+ MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
 fi
 
@@ -235,6 +237,11 @@ SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 #++
 # Function Definitions
 #--
+wait_for_server_start ()
+ {
+   $MYSQL -e "select 1" --silent -w1 --host=127.0.0.1 --port=$1 \
+    >/dev/null
+ }
 
 prompt_user ()
 {
@@ -325,6 +332,7 @@ gcov_collect () {
     $ECHO "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
 }
 
+
 start_master()
 {
     [ x$MASTER_RUNNING = 1 ] && return
@@ -359,6 +367,7 @@ start_master()
     else	    
       $MYSQLD $master_args  >> $MASTER_MYERR 2>&1 &
     fi  
+  wait_for_server_start $MASTER_MYPORT
   MASTER_RUNNING=1
 }
 
@@ -404,6 +413,7 @@ start_slave()
     else
       $SLAVE_MYSQLD $slave_args  >> $SLAVE_MYERR 2>&1 &
     fi
+    wait_for_server_start $SLAVE_MYPORT
     SLAVE_RUNNING=1
 }
 
@@ -412,7 +422,6 @@ mysql_start () {
     start_master
     start_slave
     cd $MYSQL_TEST_DIR
-    sleep $SLEEP_TIME    # Give mysqld time to start properly
     return 1
 }
 
@@ -435,7 +444,6 @@ stop_slave ()
      fi
     fi
     SLAVE_RUNNING=0
-    sleep $SLEEP_TIME	# Give mysqld time to go down properly
   fi  
 }
 
@@ -458,7 +466,6 @@ stop_master ()
      fi
     fi
     MASTER_RUNNING=0
-    sleep $SLEEP_TIME	# Give mysqld time to go down properly
   fi
 }
 
@@ -468,7 +475,10 @@ mysql_stop ()
  $ECHO  "Shutting-down MySQL daemon"
  $ECHO  ""
  stop_master
+ $ECHO "Master shutdown finished"
  stop_slave
+ $ECHO "Slave shutdown finished"
+ 
  return 1
 }
 

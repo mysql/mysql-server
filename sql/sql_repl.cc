@@ -26,6 +26,36 @@
 
 extern const char* any_db;
 extern pthread_handler_decl(handle_slave,arg);
+static int fake_rotate_event(NET* net, String* packet,
+			     const char* log_file_name);
+
+static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
+			     const char**errmsg)
+{
+  char header[LOG_EVENT_HEADER_LEN];
+  memset(header, 0, 4); // when does not matter
+  header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
+  char* p = strrchr(log_file_name, FN_LIBCHAR);
+  // find the last slash
+  if(p)
+    p++;
+  else
+    p = log_file_name;
+
+  uint ident_len = (uint) strlen(p);
+  ulong event_len = ident_len + sizeof(header);
+  int4store(header + EVENT_TYPE_OFFSET + 1, server_id);
+  int4store(header + EVENT_LEN_OFFSET, event_len);
+  packet->append(header, sizeof(header));
+  packet->append(p,ident_len);
+  if(my_net_write(net, (char*)packet->ptr(), packet->length()))
+    {
+      *errmsg = "failed on my_net_write()";
+      return -1;
+    }
+  return 0;
+}
+
 
 static int send_file(THD *thd)
 {
@@ -281,6 +311,15 @@ sweepstakes if you report the bug";
   // we need to start a packet with something other than 255
   // to distiquish it from error
 
+  if(pos == 4) // tell the client log name with a fake rotate_event
+    // if we are at the start of the log
+    {
+      if(fake_rotate_event(net, packet, log_file_name, &errmsg))
+	goto err;
+      packet->length(0);
+      packet->append("\0", 1);
+    }
+
   while(!net->error && net->vio != 0 && !thd->killed)
   {
     pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
@@ -437,36 +476,15 @@ sweepstakes if you report the bug";
 
       end_io_cache(&log);
       (void) my_close(file, MYF(MY_WME));
-      if ((file=open_log(&log, log_file_name, &errmsg)) < 0)
-	goto err;
-
+      
       // fake Rotate_log event just in case it did not make it to the log
       // otherwise the slave make get confused about the offset
-      {
-	char header[LOG_EVENT_HEADER_LEN];
-	memset(header, 0, 4); // when does not matter
-	header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
-	char* p = strrchr(log_file_name, FN_LIBCHAR);
-	// find the last slash
-	if(p)
-	  p++;
-	else
-	  p = log_file_name;
+      if ((file=open_log(&log, log_file_name, &errmsg)) < 0 ||
+	  fake_rotate_event(net, packet, log_file_name, &errmsg))
+	goto err;
 
-	uint ident_len = (uint) strlen(p);
-	ulong event_len = ident_len + sizeof(header);
-	int4store(header + EVENT_TYPE_OFFSET + 1, server_id);
-	int4store(header + EVENT_LEN_OFFSET, event_len);
-	packet->append(header, sizeof(header));
-	packet->append(p,ident_len);
-	if(my_net_write(net, (char*)packet->ptr(), packet->length()))
-	{
-	  errmsg = "failed on my_net_write()";
-	  goto err;
-	}
-	packet->length(0);
-	packet->append("\0",1);
-      }
+      packet->length(0);
+      packet->append("\0",1);
     }
   }
 

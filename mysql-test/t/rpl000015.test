@@ -18,8 +18,13 @@ connection master;
 drop table if exists foo;
 create table foo (n int);
 insert into foo values (10),(45),(90);
+save_master_pos;
 connection slave;
-sleep 2;
+sync_with_master;
 select * from foo;
 connection master;
 drop table foo;
+save_master_pos;
+connection slave;
+sync_with_master;
+
