@@ -4162,13 +4162,10 @@ Disable with --skip-innodb (will save memory).",
 Disable with --skip-isam.",
    (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
-#ifdef HAVE_NDBCLUSTER_DB
-  {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL
-supports it). \
+  {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL supports it). \
 Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
-#endif
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
