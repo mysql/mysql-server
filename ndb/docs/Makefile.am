@@ -9,7 +9,7 @@ DOXYOUT =	.doxyout
 
 NDB_RELEASE = @NDB_VERSION_MAJOR@.@NDB_VERSION_MINOR@.@NDB_VERSION_BUILD@-@NDB_VERSION_STATUS@
 
-clean:
+clean-local:
 	rm -rf ndbapi.pdf ndbapi.html mgmapi.pdf mgmapi.html
 	rm -rf $(DOXYTMP) $(DOXYOUT)
 

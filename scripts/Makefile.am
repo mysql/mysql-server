@@ -90,7 +90,7 @@ CLEANFILES =		@server_scripts@ \
 			fill_help_tables \
 			mysql_create_system_tables
 
-SUPERCLEANFILES =	mysqlbug
+DISTCLEANFILES =        mysqlbug
 
 # We want the right version and configure comand line in mysqlbug
 mysqlbug: ${top_builddir}/config.status mysqlbug.sh
