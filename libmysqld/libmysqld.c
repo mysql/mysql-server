@@ -221,7 +221,7 @@ static TYPELIB option_types={array_elements(default_options)-1,
 
 static int add_init_command(struct st_mysql_options *options, const char *cmd)
 {
-  char **ptr, *tmp;
+  char *tmp;
 
   if (!options->init_commands)
   {
@@ -231,7 +231,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   }
 
   if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
-      insert_dynamic(options->init_commands, &tmp))
+      insert_dynamic(options->init_commands, (gptr)&tmp))
   {
     my_free(tmp, MYF(MY_ALLOW_ZERO_PTR));
     return 1;
@@ -516,11 +516,24 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
-  if (mysql->options.init_command)
+  if (mysql->options.init_commands)
   {
-    if (mysql_query(mysql,mysql->options.init_command))
-      goto error;
-    mysql_free_result(mysql_use_result(mysql));
+    DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
+    char **ptr= (char**)init_commands->buffer;
+    char **end= ptr + init_commands->elements;
+
+    for (; ptr<end; ptr++)
+    {
+      MYSQL_RES *res;
+      if (mysql_query(mysql,*ptr))
+	goto error;
+      if (mysql->fields)
+      {
+	if (!(res= mysql_use_result(mysql)))
+	  goto error;
+	mysql_free_result(res);
+      }
+    }
   }
 
   DBUG_PRINT("exit",("Mysql handler: %lx",mysql));
