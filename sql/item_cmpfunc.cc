@@ -26,9 +26,9 @@
 
 
 /*
-** Test functions
-** These returns 0LL if false and 1LL if true and null if some arg is null
-** 'AND' and 'OR' never return null
+  Test functions
+  These returns 0LL if false and 1LL if true and null if some arg is null
+  'AND' and 'OR' never return null
 */
 
 longlong Item_func_not::val_int()
@@ -46,8 +46,8 @@ static bool convert_constant_item(Field *field, Item **item)
     (*item)->save_in_field(field);
     if (!((*item)->null_value))
     {
-      Item *tmp=new Item_int(field->val_int());
-      if ((tmp))
+      Item *tmp=new Item_int_with_ref(field->val_int(), *item);
+      if (tmp)
 	*item=tmp;
       return 1;
     }
@@ -60,8 +60,10 @@ void Item_bool_func2::fix_length_and_dec()
 {
   max_length=1;
 
-  /* As some compare functions are generated after sql_yacc,
-     we have to check for out of memory conditons here */
+  /*
+    As some compare functions are generated after sql_yacc,
+    we have to check for out of memory conditons here
+  */
   if (!args[0] || !args[1])
     return;
   // Make a special case of compare with fields to get nicer DATE comparisons
@@ -337,8 +339,10 @@ void Item_func_between::fix_length_and_dec()
 {
    max_length=1;
 
-  /* As some compare functions are generated after sql_yacc,
-     we have to check for out of memory conditons here */
+  /*
+    As some compare functions are generated after sql_yacc,
+    we have to check for out of memory conditons here
+  */
   if (!args[0] || !args[1] || !args[2])
     return;
   cmp_type=args[0]->result_type();
@@ -390,7 +394,7 @@ longlong Item_func_between::val_int()
   {
     longlong value=args[0]->val_int(),a,b;
     if ((null_value=args[0]->null_value))
-      return 0; /* purecov: inspected */
+      return 0;					/* purecov: inspected */
     a=args[1]->val_int();
     b=args[2]->val_int();
     if (!args[1]->null_value && !args[2]->null_value)
@@ -410,7 +414,7 @@ longlong Item_func_between::val_int()
   {
     double value=args[0]->val(),a,b;
     if ((null_value=args[0]->null_value))
-      return 0; /* purecov: inspected */
+      return 0;					/* purecov: inspected */
     a=args[1]->val();
     b=args[2]->val();
     if (!args[1]->null_value && !args[2]->null_value)
@@ -491,8 +495,12 @@ Item_func_if::fix_length_and_dec()
   decimals=max(args[1]->decimals,args[2]->decimals);
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
+  binary=1;
   if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
+  {
     cached_result_type = STRING_RESULT;
+    binary=args[1]->binary | args[2]->binary;
+  }
   else if (arg1_type == REAL_RESULT || arg2_type == REAL_RESULT)
     cached_result_type = REAL_RESULT;
   else
@@ -591,10 +599,9 @@ Item_func_nullif::val_str(String *str)
 }
 
 /*
-** CASE expression 
+  CASE expression 
+  Return the matching ITEM or NULL if all compares (including else) failed
 */
-
-/* Return the matching ITEM or NULL if all compares (including else) failed */
 
 Item *Item_func_case::find_item(String *str)
 {
@@ -783,7 +790,7 @@ void Item_func_case::print(String *str)
 }
 
 /*
-** Coalesce - return first not NULL argument.
+  Coalesce - return first not NULL argument.
 */
 
 String *Item_func_coalesce::val_str(String *str)
@@ -839,7 +846,7 @@ void Item_func_coalesce::fix_length_and_dec()
 }
 
 /****************************************************************************
-** classes and function for the IN operator
+ Classes and function for the IN operator
 ****************************************************************************/
 
 static int cmp_longlong(longlong *a,longlong *b)
@@ -915,7 +922,7 @@ byte *in_longlong::get_value(Item *item)
 {
   tmp=item->val_int();
   if (item->null_value)
-    return 0; /* purecov: inspected */
+    return 0;					/* purecov: inspected */
   return (byte*) &tmp;
 }
 
@@ -933,7 +940,7 @@ byte *in_double::get_value(Item *item)
 {
   tmp=item->val();
   if (item->null_value)
-    return 0; /* purecov: inspected */
+    return 0;					/* purecov: inspected */
   return (byte*) &tmp;
 }
 
@@ -1171,9 +1178,11 @@ longlong Item_cond_and::val_int()
   {
     if (item->val_int() == 0)
     {
-      /* TODO: In case of NULL, ANSI would require us to continue evaluation
-	 until we get a FALSE value or run out of values; This would
-	 require a lot of unnecessary evaluation, which we skip for now */
+      /*
+	TODO: In case of NULL, ANSI would require us to continue evaluation
+	until we get a FALSE value or run out of values; This would
+	require a lot of unnecessary evaluation, which we skip for now
+      */
       null_value=item->null_value;
       return 0;
     }
@@ -1202,6 +1211,12 @@ longlong Item_cond_or::val_int()
 
 longlong Item_func_isnull::val_int()
 {
+  /*
+    Handle optimization if the argument can't be null
+    This has to be here because of the test in update_used_tables().
+  */
+  if (!used_tables_cache)
+    return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
 
@@ -1217,23 +1232,23 @@ void Item_func_like::fix_length_and_dec()
   //  cmp_type=STRING_RESULT;			// For quick select
 }
 
-
 longlong Item_func_like::val_int()
 {
-  String *res,*res2;
-  res=args[0]->val_str(&tmp_value1);
+  String* res = args[0]->val_str(&tmp_value1);
   if (args[0]->null_value)
   {
     null_value=1;
     return 0;
   }
-  res2=args[1]->val_str(&tmp_value2);
+  String* res2 = args[1]->val_str(&tmp_value2);
   if (args[1]->null_value)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
+  if (canDoTurboBM)
+    return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
   if (binary)
     return wild_compare(*res,*res2,escape) ? 0 : 1;
   else
@@ -1255,6 +1270,54 @@ Item_func::optimize_type Item_func_like::select_optimize() const
     }
   }
   return OPTIMIZE_NONE;
+}
+
+bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
+{
+  if (Item_bool_func2::fix_fields(thd, tlist))
+    return 1;
+
+  /*
+    TODO--we could do it for non-const, but we'd have to
+    recompute the tables for each row--probably not worth it.
+  */
+  if (args[1]->const_item() && !(specialflag & SPECIAL_NO_NEW_FUNC))
+  {
+    String* res2 = args[1]->val_str(&tmp_value2);
+    if (!res2)
+      return 0;					// Null argument
+
+    const size_t len   = res2->length();
+    const char*  first = res2->ptr();
+    const char*  last  = first + len - 1;
+    /*
+      len must be > 2 ('%pattern%')
+      heuristic: only do TurboBM for pattern_len > 2
+    */
+
+    if (len > MIN_TURBOBM_PATTERN_LEN + 2 &&
+	*first == wild_many &&
+	*last  == wild_many)
+    {
+      const char* tmp = first + 1;
+      for ( ; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
+      canDoTurboBM = tmp == last;
+    }
+
+    if (canDoTurboBM)
+    {
+      pattern     = first + 1;
+      pattern_len = len - 2;
+      DBUG_PRINT("TurboBM", ("Initializing pattern: '%s'...", first));
+      int* suff = (int*)thd->alloc(sizeof(int[pattern_len + 1]));
+      bmGs      = (int*)thd->alloc(sizeof(int[pattern_len + 1]));
+      bmBc      = (int*)thd->alloc(sizeof(int[alphabet_size]));
+      turboBM_compute_good_suffix_shifts(suff);
+      turboBM_compute_bad_character_shifts();
+      DBUG_PRINT("turboBM",("done"));
+    }
+  }
+  return 0;
 }
 
 #ifdef USE_REGEX
@@ -1296,7 +1359,6 @@ Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
     maybe_null=1;
   return 0;
 }
-
 
 longlong Item_func_regex::val_int()
 {
@@ -1356,6 +1418,217 @@ Item_func_regex::~Item_func_regex()
 
 #endif /* USE_REGEX */
 
+
+#ifdef LIKE_CMP_TOUPPER
+#define likeconv(A) (uchar) toupper(A)
+#else
+#define likeconv(A) (uchar) my_sort_order[(uchar) (A)]
+#endif
+
+
+/**********************************************************************
+  turboBM_compute_suffixes()
+  Precomputation dependent only on pattern_len.
+**********************************************************************/
+
+void Item_func_like::turboBM_compute_suffixes(int* suff)
+{
+  const int   plm1 = pattern_len - 1;
+  int            f = 0;
+  int            g = plm1;
+  int* const splm1 = suff + plm1;
+
+  *splm1 = pattern_len;
+
+  if (binary)
+  {
+    int i;
+    for (i = pattern_len - 2; i >= 0; i--)
+    {
+      int tmp = *(splm1 + i - f);
+      if (g < i && tmp < i - g)
+	suff[i] = tmp;
+      else
+      {
+	if (i < g)
+	  g = i; // g = min(i, g)
+	f = i;
+	while (g >= 0 && pattern[g] == pattern[g + plm1 - f])
+	  g--;
+	suff[i] = f - g;
+      }
+    }
+  }
+  else
+  {
+    int i;
+    for (i = pattern_len - 2; 0 <= i; --i)
+    {
+      int tmp = *(splm1 + i - f);
+      if (g < i && tmp < i - g)
+	suff[i] = tmp;
+      else
+      {
+	if (i < g)
+	  g = i; // g = min(i, g)
+	f = i;
+	while (g >= 0 && likeconv(pattern[g]) == likeconv(pattern[g + plm1 - f]))
+	  g--;
+	suff[i] = f - g;
+      }
+    }
+  }
+}
+
+
+/**********************************************************************
+   turboBM_compute_good_suffix_shifts()
+   Precomputation dependent only on pattern_len.
+**********************************************************************/
+
+void Item_func_like::turboBM_compute_good_suffix_shifts(int* suff)
+{
+  turboBM_compute_suffixes(suff);
+
+  int* end = bmGs + pattern_len;
+  int* k;
+  for (k = bmGs; k < end; k++)
+    *k = pattern_len;
+
+  int tmp;
+  int i;
+  int j          = 0;
+  const int plm1 = pattern_len - 1;
+  for (i = plm1; i > -1; i--)
+  {
+    if (suff[i] == i + 1)
+    {
+      for (tmp = plm1 - i; j < tmp; j++)
+      {
+	int* tmp2 = bmGs + j;
+	if (*tmp2 == pattern_len)
+	  *tmp2 = tmp;
+      }
+    }
+  }
+
+  int* tmp2;
+  for (tmp = plm1 - i; j < tmp; j++)
+  {
+    tmp2 = bmGs + j;
+    if (*tmp2 == pattern_len)
+      *tmp2 = tmp;
+  }
+
+  tmp2 = bmGs + plm1;
+  for (i = 0; i <= pattern_len - 2; i++)
+    *(tmp2 - suff[i]) = plm1 - i;
+}
+
+
+/**********************************************************************
+   turboBM_compute_bad_character_shifts()
+   Precomputation dependent on pattern_len.
+**********************************************************************/
+
+void Item_func_like::turboBM_compute_bad_character_shifts()
+{
+  int*   i;
+  int* end = bmBc + alphabet_size;
+  for (i = bmBc; i < end; i++)
+    *i = pattern_len;
+
+  int j;
+  const int plm1 = pattern_len - 1;
+  if (binary)
+    for (j = 0; j < plm1; j++)
+      bmBc[pattern[j]] = plm1 - j;
+  else
+    for (j = 0; j < plm1; j++)
+      bmBc[likeconv(pattern[j])] = plm1 - j;
+}
+
+
+/**********************************************************************
+  turboBM_matches()
+  Search for pattern in text, returns true/false for match/no match
+**********************************************************************/
+
+bool Item_func_like::turboBM_matches(const char* text, int text_len) const
+{
+  register int bcShift;
+  register int turboShift;
+  int shift = pattern_len;
+  int j     = 0;
+  int u     = 0;
+
+  const int plm1  = pattern_len - 1;
+  const int tlmpl =    text_len - pattern_len;
+
+  /* Searching */
+  if (binary)
+  {
+    while (j <= tlmpl)
+    {
+      register int i = plm1;
+      while (i >= 0 && pattern[i] == text[i + j])
+      {
+	i--;
+	if (i == plm1 - shift)
+	  i -= u;
+      }
+      if (i < 0)
+	return true;
+
+      register const int v = plm1 - i;
+      turboShift = u - v;
+      bcShift    = bmBc[text[i + j]] - plm1 + i;
+      shift      = max(turboShift, bcShift);
+      shift      = max(shift, bmGs[i]);
+      if (shift == bmGs[i])
+	u = min(pattern_len - shift, v);
+      else
+      {
+	if (turboShift < bcShift)
+	  shift = max(shift, u + 1);
+	u = 0;
+      }
+      j += shift;
+    }
+    return false;
+  }
+  else
+  {
+    while (j <= tlmpl)
+    {
+      register int i = plm1;
+      while (i >= 0 && likeconv(pattern[i]) == likeconv(text[i + j]))
+      {
+	i--;
+	if (i == plm1 - shift)
+	  i -= u;
+      }
+      if (i < 0)
+	return true;
+
+      register const int v = plm1 - i;
+      turboShift = u - v;
+      bcShift    = bmBc[likeconv(text[i + j])] - plm1 + i;
+      shift      = max(turboShift, bcShift);
+      shift      = max(shift, bmGs[i]);
+      if (shift == bmGs[i])
+	u = min(pattern_len - shift, v);
+      else
+      {
+	if (turboShift < bcShift)
+	  shift = max(shift, u + 1);
+	u = 0;
+      }
+      j += shift;
+    }
+    return false;
+  }
+}
 
 /****************************************************************
  Classes and functions for spatial relations

@@ -1023,12 +1023,4 @@ typedef union {
 #define C_MODE_END
 #endif
 
-/* 
-   Now if query is taken off then tests with query cache fails
-   SANJA TODO: remove this when problem with mysql-test will be solved
-*/
-#if defined(MYSQL_SERVER) && !defined(HAVE_QUERY_CACHE)
-#define HAVE_QUERY_CACHE
-#endif
-
 #endif /* _global_h */

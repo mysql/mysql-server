@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Definefile for errormessagenumbers */
+/* Definefile for error messagenumbers */
 
 #define ER_HASHCHK 1000
 #define ER_NISAMCHK 1001

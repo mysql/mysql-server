@@ -608,6 +608,9 @@ int show_slave_hosts(THD* thd)
 
 int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
 {
+  if (!mi->host || !*mi->host)			/* empty host */
+    return 1;
+
   if (!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 		   mi->port, 0, 0))
   {

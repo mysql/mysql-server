@@ -37,6 +37,7 @@ struct st_ft_info {
 typedef struct st_all_in_one {
   MI_INFO    *info;
   uint	      keynr;
+  CHARSET_INFO *charset;
   uchar      *keybuff;
   MI_KEYDEF  *keyinfo;
   my_off_t    key_root;
@@ -93,9 +94,10 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   while(!r)
   {
-    if (mi_compare_text(default_charset_info,
+    if (mi_compare_text(aio->charset,
 			aio->info->lastkey,keylen,
-			aio->keybuff,keylen,0)) break;
+			aio->keybuff,keylen,0))
+     break;
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
 #ifdef EVAL_RUN
@@ -184,8 +186,9 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
 
   aio.info=info;
   aio.keynr=keynr;
-  aio.keybuff=info->lastkey+info->s->base.max_key_length;
   aio.keyinfo=info->s->keyinfo+keynr;
+  aio.charset=aio.keyinfo->seg->charset;
+  aio.keybuff=info->lastkey+info->s->base.max_key_length;
   aio.key_root=info->s->state.key_root[keynr];
 
   bzero(&allocated_wtree,sizeof(allocated_wtree));
@@ -193,6 +196,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
             NULL, NULL);
 
+  ft_parse_init(&allocated_wtree, aio.charset);
   if(ft_parse(&allocated_wtree,query,query_len))
     goto err;
 

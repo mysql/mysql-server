@@ -202,7 +202,7 @@
 "Net error writing to master",
 "Can't find FULLTEXT index matching the column list",
 "Can't execute the given command because you have active locked tables or an active transaction",
-"Unknown system variable '%-.64'",
+"Unknown system variable '%-.64s'",
 "Table '%-.64s' is marked as crashed and should be repaired",
 "Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
 "Warning:  Some non-transactional changed tables couldn't be rolled back",

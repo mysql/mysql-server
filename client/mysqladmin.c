@@ -19,12 +19,11 @@
 
 #include "client_priv.h"
 #include <signal.h>
-#include <my_getopt.h>
 #ifdef THREAD
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.30"
+#define ADMIN_VERSION "8.35"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -124,25 +123,27 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, 
-   GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &tcp_port,
+   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relative", 'r',
    "Show difference between current and previous values when used with -i. Currently works only with extended-status.",
    (gptr*) &opt_relative, (gptr*) &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Silently exit if one can't connect to server",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &unix_port, (gptr*) &unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
   {"sleep", 'i', "Execute commands again and again with a sleep between.",
-   0, 0, 0, GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &interval, (gptr*) &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
 #include "sslopt-longopts.h"
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
-   (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v', "Write more information.", (gptr*) &opt_verbose,
    (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -155,10 +156,10 @@ static struct my_option my_long_options[] =
   {"wait", 'w', "Wait and retry if connection is down", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
-   (gptr*) &opt_connect_timeout, 0, GET_LONG, REQUIRED_ARG, 3600*12, 0,
+   (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600*12, 0,
    3600*12, 0, 1, 0},
   {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", (gptr*) &opt_shutdown_timeout,
-   (gptr*) &opt_shutdown_timeout, 0, GET_LONG, REQUIRED_ARG,
+   (gptr*) &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
    SHUTDOWN_DEF_TIMEOUT, 0, 3600*12, 0, 1, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -173,10 +174,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   int error = 0;
 
   switch(optid) {
-  case 'h':
-    host = argument;
-    break;
-  case 'q':					/* Allow old 'q' option */
   case 'p':
     if (argument)
     {
@@ -190,22 +187,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password=1;
     break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    user= my_strdup(argument,MYF(0));
-    break;
-#endif
-  case 'i':
-    interval=atoi(argument);
-    break;
-  case 'P':
-    tcp_port= (unsigned int) atoi(argument);
-    break;
   case 's':
     option_silent++;
-    break;
-  case 'S':
-    unix_port= argument;
     break;
   case 'W':
 #ifdef __WIN__
@@ -264,11 +247,8 @@ int main(int argc,char *argv[])
      free_defaults()
   */
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (argc == 0)
   {
     usage();

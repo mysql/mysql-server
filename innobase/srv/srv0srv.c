@@ -2026,15 +2026,18 @@ srv_suspend_mysql_thread(
 /*=====================*/
 				/* out: TRUE if the lock wait timeout was
 				exceeded */
-	que_thr_t*	thr)	/* in: query thread associated with
-				the MySQL OS thread */
+	que_thr_t*	thr)	/* in: query thread associated with the MySQL
+				OS thread */
 {
 	srv_slot_t*	slot;
 	os_event_t	event;
 	double		wait_time;
-
+	trx_t*		trx;
+	
 	ut_ad(!mutex_own(&kernel_mutex));
 
+	trx = thr_get_trx(thr);
+	
 	os_event_set(srv_lock_timeout_thread_event);
 
 	mutex_enter(&kernel_mutex);
@@ -2070,9 +2073,20 @@ srv_suspend_mysql_thread(
 	
 	srv_conc_force_exit_innodb(thr_get_trx(thr));
 
+	/* Release possible foreign key check latch */
+	if (trx->has_dict_foreign_key_check_lock) {
+
+		rw_lock_s_unlock(&dict_foreign_key_check_lock);
+	}
+
 	/* Wait for the release */
 	
 	os_event_wait(event);
+
+	if (trx->has_dict_foreign_key_check_lock) {
+
+		rw_lock_s_lock(&dict_foreign_key_check_lock);
+	}
 
 	/* Return back inside InnoDB */
 	

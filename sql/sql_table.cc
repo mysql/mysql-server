@@ -1002,20 +1002,19 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
   else
   {
 
-    char from[FN_REFLEN],to[FN_REFLEN];
+    char from[FN_REFLEN],tmp[FN_REFLEN];
     char* db = thd->db ? thd->db : table->db;
 
     sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->name);
     fn_format(from, from, "", MI_NAME_DEXT, 4);
-    sprintf(to,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+    sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
 
-
-    my_rename(to, from, MYF(MY_WME));
+    close_cached_table(thd,table->table);
 
     if (lock_and_wait_for_table_name(thd,table))
       DBUG_RETURN(-1);
 
-    if (my_rename(from, to, MYF(MY_WME)))
+    if (my_rename(from, tmp, MYF(MY_WME)))
     {
       unlock_table_name(thd, table);
       DBUG_RETURN(send_check_errmsg(thd, table, "repair",
@@ -1027,7 +1026,7 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
       DBUG_RETURN(send_check_errmsg(thd, table, "repair",
 				    "Failed generating table from .frm file"));
     }
-    if (my_rename(to, from, MYF(MY_WME)))
+    if (my_rename(tmp, from, MYF(MY_WME)))
     {
       unlock_table_name(thd, table);
       DBUG_RETURN(send_check_errmsg(thd, table, "repair",
@@ -1188,8 +1187,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (fatal_error)
       table->table->version=0;			// Force close of table
     else if (open_for_modify)
+    {
       remove_table_from_cache(thd, table->table->table_cache_key,
 			      table->table->real_name);
+      /* May be something modified consequently we have to invalidate cache */
+      query_cache_invalidate3(thd, table->table, 0);
+    }
     close_thread_tables(thd);
     table->table=0;				// For query cache
     if (my_net_write(&thd->net, (char*) packet->ptr(),
