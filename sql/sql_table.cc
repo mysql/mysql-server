@@ -19,6 +19,9 @@
 
 #include "mysql_priv.h"
 #include <hash.h>
+#ifdef HAVE_BERKELEY_DB
+#include <ha_berkeley.h>
+#endif
 #include <myisam.h>
 
 #ifdef __WIN__
@@ -1675,11 +1678,18 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
 #ifdef HAVE_BERKELEY_DB
-  extern bool berkeley_flush_logs(void);
   if (old_db_type == DB_TYPE_BERKELEY_DB)
   {
-    (void)berkeley_flush_logs();
-    table=open_ltable(thd,table_list,TL_READ);
+    (void) berkeley_flush_logs();
+    /*
+      For the alter table to be properly flushed to the logs, we
+      have to open the new table.  If not, we get a problem on server
+      shutdown.
+    */
+    if (!open_tables(thd, table_list))		// Should always succeed
+    {
+      close_thread_table(thd, &table_list->table);
+    }
   }
 #endif
 
