@@ -2736,6 +2736,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 
 bool not_all_support_one_shot(List<set_var_base> *var_list)
 {
+#if MYSQL_VERSION_ID < 50000
   List_iterator_fast<set_var_base> it(*var_list);
   set_var_base *var;
   while ((var= it++))
@@ -2743,6 +2744,7 @@ bool not_all_support_one_shot(List<set_var_base> *var_list)
     if (var->no_support_one_shot())
       return 1;
   }
+#endif
   return 0;
 }
 

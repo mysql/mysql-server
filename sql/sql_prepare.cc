@@ -1868,7 +1868,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
     thd->stmt_backup.set_statement(thd);
     thd->set_statement(stmt);
   }
-  reset_stmt_for_execute(stmt);
+  reset_stmt_for_execute(thd, stmt->lex);
 
   if (expanded_query->length() &&
       alloc_query(thd, (char *)expanded_query->ptr(),

@@ -8839,7 +8839,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	}
 	else
 	{
-          select->quick->file->ha_index_end();
+          select->quick->head->file->ha_index_end();
           /* 
             We have verified above that select->quick is not 
             index_merge quick select. 
