@@ -45,3 +45,17 @@ create table t1 (a enum(0xE4, '1', '2') not null default 0xE4);
 show columns from t1;
 show create table t1;
 drop table t1;
+
+
+#
+# Bug #5628 German characters in field-defs will be '?'
+# with some table definitions
+#
+set names latin1;
+CREATE TABLE t1 (
+  a INT  default 1,
+  b ENUM('value','๖ไü_value','สรี') character set latin1 NOT NULL
+);
+show create table t1;
+show columns from t1;
+drop table t1;
