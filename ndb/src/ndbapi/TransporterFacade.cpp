@@ -944,6 +944,8 @@ TransporterFacade::isConnected(NodeId aNodeId){
 NodeId
 TransporterFacade::get_an_alive_node()
 {
+  DBUG_ENTER("TransporterFacade::get_an_alive_node");
+  DBUG_PRINT("enter", ("theStartNodeId: %d", theStartNodeId));
 #ifdef VM_TRACE
   const char* p = NdbEnv_GetEnv("NDB_ALIVE_NODE_ID", (char*)0, 0);
   if (p != 0 && *p != 0)
@@ -952,17 +954,19 @@ TransporterFacade::get_an_alive_node()
   NodeId i;
   for (i = theStartNodeId; i < MAX_NDB_NODES; i++) {
     if (get_node_alive(i)){
+      DBUG_PRINT("info", ("Node %d is alive", i));
       theStartNodeId = ((i + 1) % MAX_NDB_NODES);
-      return i;
+      DBUG_RETURN(i);
     }
   }
   for (i = 1; i < theStartNodeId; i++) {
     if (get_node_alive(i)){
+      DBUG_PRINT("info", ("Node %d is alive", i));
       theStartNodeId = ((i + 1) % MAX_NDB_NODES);
-      return i;
+      DBUG_RETURN(i);
     }
   }
-  return (NodeId)0;
+  DBUG_RETURN((NodeId)0);
 }
 
 TransporterFacade::ThreadData::ThreadData(Uint32 size){
