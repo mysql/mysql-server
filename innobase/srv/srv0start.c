@@ -1168,7 +1168,10 @@ innobase_start_or_create_for_mysql(void)
 		and restore them from the doublewrite buffer if
 		possible */
 		
-		trx_sys_doublewrite_restore_corrupt_pages();
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+		
+			trx_sys_doublewrite_restore_corrupt_pages();
+		}
 	}
 
 	srv_normalize_path_for_win(srv_arch_dir);
