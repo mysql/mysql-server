@@ -1120,12 +1120,41 @@ void handler::print_error(int error, myf errflag)
     break;
   default:
     {
-      my_error(ER_GET_ERRNO,errflag,error);
+      /* The error was "unknown" to this function.
+	 Ask handler if it has got a message for this error */
+      bool temporary= FALSE;
+      const char* msg= get_error_message(&error, &temporary);
+      if (msg)
+      {
+	const char* engine= ha_get_storage_engine(table->db_type);
+	if (temporary)
+	  my_error(ER_GET_TEMPORARY_ERRMSG,error,msg,engine);
+	else
+	  my_error(ER_GET_ERRMSG,error,msg,engine);
+      }
+      else       
+	my_error(ER_GET_ERRNO,errflag,error);
       DBUG_VOID_RETURN;
     }
   }
   my_error(textno,errflag,table->table_name,error);
   DBUG_VOID_RETURN;
+}
+
+
+/* 
+   Return an error message specific to this handler
+   
+   SYNOPSIS
+   error        [in/out] error code previously returned by handler
+   temporary    [out] temporary error, transaction should be retried if true
+   
+   The returned pointer to error message should not be freed.
+ */
+
+const char* handler::get_error_message(int *error, bool *temporary)
+{
+  return NULL;
 }
 
 

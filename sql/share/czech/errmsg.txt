@@ -310,3 +310,5 @@ character-set=latin2
 "This command is not supported in the prepared statement protocol yet",
 "Got NDB error %d '%-.100s'",
 "Got temporary NDB error %d '%-.100s'",
+"Got error %d '%-.100s' from %s",
+"Got temporary error %d '%-.100s' from %s",

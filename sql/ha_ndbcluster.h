@@ -81,7 +81,7 @@ class ha_ndbcluster: public handler
 		       bool sorted);
   int read_range_next(bool eq_range);
 
-  void print_error(int error, myf errflag);
+  const char* get_error_message(int *error, bool *temporary);
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
