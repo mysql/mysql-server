@@ -3118,9 +3118,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 {
   Uint32 db_nodes = 0;
   Uint32 replicas = 0;
-  if (!ctx.m_userProperties.get("DB", &db_nodes)) {
-    return true;
-  }
+  ctx.m_userProperties.get("DB", &db_nodes);
   ctx.m_userProperties.get("NoOfReplicas", &replicas);
   if((db_nodes % replicas) != 0){
     ctx.reportError("Invalid no of db nodes wrt no of replicas.\n"
