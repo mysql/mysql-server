@@ -45,8 +45,8 @@ static bool convert_constant_item(Field *field, Item **item)
     (*item)->save_in_field(field);
     if (!((*item)->null_value))
     {
-      Item *tmp=new Item_int(field->val_int());
-      if ((tmp))
+      Item *tmp=new Item_int_with_ref(field->val_int(), *item);
+      if (tmp)
 	*item=tmp;
       return 1;
     }
