@@ -39,7 +39,6 @@
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
-#include <new>
 
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
