@@ -238,7 +238,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result)
     /*
       If we have real error reported erly then this will be ignored
     */
-    result->send_error(ER_UNKNOWN_ERROR, NullS);
+    result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
   }
   DBUG_RETURN(res);
@@ -2632,11 +2632,7 @@ add_key_field(KEY_FIELD **key_fields, uint and_level, COND *cond,
 
       bool is_const=1;
       for (uint i=0; i<num_values; i++)
-        /*
-          TODO: This looks like a bug. It should be
-          is_const&= (value[i])->const_item();
-        */
-        is_const&= (*value)->const_item();
+        is_const&= value[i]->const_item();
       if (is_const)
         stat[0].const_keys.merge(possible_keys);
       /*
@@ -12905,8 +12901,9 @@ void st_table_list::print(THD *thd, String *str)
       str->append('.');
       if (schema_table)
       {
-        append_identifier(thd, str, alias, strlen(alias));
-        cmp_name= alias;
+        append_identifier(thd, str, schema_table_name,
+                          strlen(schema_table_name));
+        cmp_name= schema_table_name;
       }
       else
       {

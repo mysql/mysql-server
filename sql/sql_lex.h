@@ -754,11 +754,13 @@ typedef struct st_lex
   /* Characterstics of trigger being created */
   st_trg_chistics trg_chistics;
   /*
-    Points to table being opened when we are parsing trigger definition
-    while opening table. 0 if we are parsing user provided CREATE TRIGGER
-    or any other statement. Used for NEW/OLD row field lookup in trigger.
+    List of all items (Item_trigger_field objects) representing fields in
+    old/new version of row in trigger. We use this list for checking whenever
+    all such fields are valid at trigger creation time and for binding these
+    fields to TABLE object at table open (altough for latter pointer to table
+    being opened is probably enough).
   */
-  TABLE *trg_table;
+  SQL_LIST trg_table_fields;
 
   st_lex() :result(0)
   {
@@ -804,6 +806,7 @@ typedef struct st_lex
   bool can_use_merged();
   bool can_not_use_merged();
   bool only_view_structure();
+  bool need_correct_ident();
 } LEX;
 
 extern TABLE_LIST fake_time_zone_tables_list;

@@ -174,3 +174,14 @@ CREATE TABLE t1 (a INT NOT NULL, B INT, KEY(B)) ENGINE=HEAP;
 INSERT INTO t1 VALUES(1,1), (1,NULL);
 SELECT * FROM t1 WHERE B is not null;
 DROP TABLE t1;
+
+#
+# Bug #6748
+# heap_rfirst() doesn't work (and never did!)
+#
+CREATE TABLE t1 (pseudo char(35) PRIMARY KEY, date int(10) unsigned NOT NULL) ENGINE=HEAP;
+INSERT INTO t1 VALUES ('massecot',1101106491),('altec',1101106492),('stitch+',1101106304),('Seb Corgan',1101106305),('beerfilou',1101106263),('flaker',1101106529),('joce8',5),('M4vrick',1101106418),('gabay008',1101106525),('Vamp irX',1101106291),('ZoomZip',1101106546),('rip666',1101106502),('CBP ',1101106397),('guezpard',1101106496);
+DELETE FROM t1 WHERE date<1101106546;
+SELECT * FROM t1;
+DROP TABLE t1;
+

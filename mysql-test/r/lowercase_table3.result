@@ -6,5 +6,5 @@ drop table t1;
 flush tables;
 CREATE TABLE t1 (a int) ENGINE=INNODB;
 SELECT * from T1;
-ERROR HY000: Can't open file: 'T1.InnoDB' (errno: 1)
+ERROR HY000: Can't open file: 'T1.ibd' (errno: 1)
 drop table t1;

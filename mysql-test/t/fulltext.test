@@ -98,6 +98,8 @@ select * from t1 where match a against ("+aaa* +bbb*" in boolean mode);
 select * from t1 where match a against ("+aaa* +bbb1*" in boolean mode);
 select * from t1 where match a against ("+aaa* +ccc*" in boolean mode);
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
+select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
+select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
 drop table t1;
 
 #

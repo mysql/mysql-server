@@ -1154,7 +1154,6 @@ sp_change_db(THD *thd, char *name, bool no_access_check)
   int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
-  ulong db_access;
   HA_CREATE_INFO create;
   DBUG_ENTER("sp_change_db");
   DBUG_PRINT("enter", ("db: %s, no_access_check: %d", name, no_access_check));
@@ -1175,6 +1174,8 @@ sp_change_db(THD *thd, char *name, bool no_access_check)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (! no_access_check)
     {
+      ulong db_access;
+
       if (test_all_bits(thd->master_access,DB_ACLS))
 	db_access=DB_ACLS;
       else

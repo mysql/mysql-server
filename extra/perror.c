@@ -69,7 +69,7 @@ static HA_ERRORS ha_errlist[]=
 {
   { 120,"Didn't find key on read or update" },
   { 121,"Duplicate key on write or update" },
-  { 123,"Someone has changed the row since it was read; Update with is recoverable" },
+  { 123,"Someone has changed the row since it was read (while the table was locked to prevent it)" },
   { 124,"Wrong index given to function" },
   { 126,"Index file is crashed" },
   { 127,"Record-file is crashed" },
