@@ -1419,6 +1419,11 @@ bool select_create::send_eof()
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     VOID(pthread_mutex_lock(&LOCK_open));
     mysql_unlock_tables(thd, lock);
+    /*
+      TODO:
+      Check if we can remove the following two rows.
+      We should be able to just keep the table in the table cache.
+    */
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
     lock=0; table=0;

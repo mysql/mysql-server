@@ -46935,6 +46935,9 @@ Fixed problem with privilege tables when downgrading from 4.0.2 to 3.23.
 @item
 Fixed thread bug in @code{SLAVE START} and @code{SLAVE STOP}.
 @item
+Fixed possible thread related key-cache-corruption problem with
+@code{OPTIMIZE TABLE} and @code{REPAIR TABLE}.
+@item
 Added name of 'administrator command' logs.
 @item
 Fixed bug with creating an auto-increment value on second part of a
