@@ -2171,6 +2171,7 @@ String *Item_func_conv::val_str(String *str)
     return 0;
   }
   null_value=0;
+  unsigned_flag= !(from_base < 0);
   if (from_base < 0)
     dec= my_strntoll(res->charset(),res->ptr(),res->length(),-from_base,&endptr,&err);
   else
