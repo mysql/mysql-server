@@ -455,7 +455,7 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 
   if(db && last_db)
     {
-      if(!(same_db = !memcmp(last_db, db, db_len)))
+      if(!(same_db = !memcmp(last_db, db, db_len + 1)))
         memcpy(last_db, db, db_len + 1);
     }
   
@@ -646,7 +646,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 
   if(db && last_db)
     {
-      if(!(same_db = !memcmp(last_db, db, db_len)))
+      if(!(same_db = !memcmp(last_db, db, db_len + 1)))
         memcpy(last_db, db, db_len + 1);
     }
   
