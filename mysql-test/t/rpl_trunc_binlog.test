@@ -22,5 +22,3 @@ start slave;
 sleep 3;
 --replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
-connection master;
-reset master;
