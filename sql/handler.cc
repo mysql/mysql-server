@@ -697,7 +697,10 @@ void handler::update_auto_increment()
   longlong nr;
   THD *thd;
   DBUG_ENTER("update_auto_increment");
-  if (table->next_number_field->val_int() != 0)
+  if (table->auto_increment_field_is_null)
+    table->auto_increment_field_is_null= false;
+  else if (table->next_number_field->val_int() != 0 ||
+	   current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
     auto_increment_column_changed=0;
     DBUG_VOID_RETURN;
