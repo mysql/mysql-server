@@ -938,10 +938,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
       pthread_mutex_lock(&LOCK_server_id);
+      thd->server_id=0; /* avoid suicide */
       kill_zombie_dump_threads(slave_server_id = uint4korr(packet+6));
       thd->server_id = slave_server_id;
       pthread_mutex_unlock(&LOCK_server_id);
       mysql_binlog_send(thd, thd->strdup(packet + 10), pos, flags);
+      unregister_slave(thd,1,1);
       // fake COM_QUIT -- if we get here, the thread needs to terminate
       error = TRUE;
       net->error = 0;

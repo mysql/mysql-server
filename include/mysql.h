@@ -238,7 +238,7 @@ typedef struct st_mysql_res {
   
 typedef struct st_mysql_manager
 {
-  Vio* vio;
+  NET net;
   char *host,*user,*passwd;
   unsigned int port;
   my_bool free_me;
