@@ -48162,6 +48162,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Made same changes in multi table updates as in multi table delete
+@item
 Fixed bug in multi table delete.
 @item
 Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
