@@ -259,3 +259,14 @@ execute `ü`;
 1234
 1234
 set names default;
+create table t1 (a varchar(10)) charset=utf8;
+insert into t1 (a) values ('yahoo');
+set character_set_connection=latin1;
+prepare stmt from 'select a from t1 where a like ?';
+set @var='google';
+execute stmt using @var;
+a
+execute stmt using @var;
+a
+deallocate prepare stmt;
+drop table t1;
