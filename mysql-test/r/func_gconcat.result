@@ -285,6 +285,15 @@ insert into t2 values (1, 5), (2, 4), (3, 3), (3,3);
 select group_concat(c) from t1;
 group_concat(c)
 2,3,4,5
+select group_concat(c order by (select c from t2 where t2.a=t1.a limit 1)) as grp from t1;
+grp
+5,4,3,2
+select group_concat(c order by (select mid(group_concat(c order by a),1,5) from t2 where t2.a=t1.a)) as grp from t1;
+grp
+5,4,3,2
+select group_concat(c order by (select mid(group_concat(c order by a),1,5) from t2 where t2.a=t1.a) desc) as grp from t1;
+grp
+2,4,3,5
 select t1.a, group_concat(c order by (select c from t2 where t2.a=t1.a limit 1)) as grp from t1 group by 1;
 a	grp
 1	2
