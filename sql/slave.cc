@@ -1297,7 +1297,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     goto err;
   }
   
-  mysql->net = thd->net;
+  mysql->net.timeout=slave_net_timeout;
   thd->proc_info = "connecting to master";
 #ifndef DBUG_OFF  
   sql_print_error("Slave thread initialized");
