@@ -1668,6 +1668,7 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 
 static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row);
+static int stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
 
 /*
@@ -2387,7 +2388,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  buff[4]= (char) 0;                            /* no flags */
+  buff[4]= (char) stmt->flags;
   int4store(buff+5, 1);                         /* iteration count */
   if (cli_advanced_command(mysql, COM_EXECUTE, buff, sizeof(buff),
                            packet, length, 1) ||
@@ -2397,6 +2398,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
     DBUG_RETURN(1);
   }
   stmt->affected_rows= mysql->affected_rows;
+  stmt->server_status= mysql->server_status;
   stmt->insert_id= mysql->insert_id;
   DBUG_RETURN(0);
 }
@@ -2552,6 +2554,59 @@ error:
   return rc;
 }
 
+
+/*
+  Fetch statement row using server side cursor.
+
+  SYNOPSIS
+    stmt_read_row_from_cursor()
+
+  RETURN VALUE
+    0            success
+    1            error
+  MYSQL_NO_DATA  end of data
+*/
+
+static int
+stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
+{
+  if (stmt->data_cursor)
+    return stmt_read_row_buffered(stmt, row);
+  if (stmt->server_status & SERVER_STATUS_LAST_ROW_SENT)
+    stmt->server_status &= ~SERVER_STATUS_LAST_ROW_SENT;
+  else
+  {
+    MYSQL *mysql= stmt->mysql;
+    NET *net= &mysql->net;
+    MYSQL_DATA *result= &stmt->result;
+    char buff[4 /* statement id */ +
+              4 /* number of rows to fetch */];
+
+    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+    result->data= NULL;
+    result->rows= 0;
+    /* Send row request to the server */
+    int4store(buff, stmt->stmt_id);
+    int4store(buff + 4, 1); /* number of rows to fetch */
+    if (cli_advanced_command(mysql, COM_FETCH, buff, sizeof(buff),
+                             NullS, 0, 1))
+    {
+      set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
+      return 1;
+    }
+    stmt->server_status= mysql->server_status;
+    if (cli_read_binary_rows(stmt))
+      return 1;
+    stmt->server_status= mysql->server_status;
+
+    stmt->data_cursor= result->data;
+    return stmt_read_row_buffered(stmt, row);
+  }
+  *row= 0;
+  return MYSQL_NO_DATA;
+}
+
+
 /*
   Default read row function to not SIGSEGV in client in
   case of wrong sequence of API calls.
@@ -2593,6 +2648,9 @@ my_bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
   case STMT_ATTR_UPDATE_MAX_LENGTH:
     stmt->update_max_length= value ? *(const my_bool*) value : 0;
     break;
+  case STMT_ATTR_CURSOR_TYPE:
+    stmt->flags= value ? *(const unsigned long *) value : 0;
+    break;
   default:
     return TRUE;
   }
@@ -2608,6 +2666,9 @@ my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
   case STMT_ATTR_UPDATE_MAX_LENGTH:
     *(unsigned long *) value= stmt->update_max_length;
     break;
+  case STMT_ATTR_CURSOR_TYPE:
+    *(unsigned long *) value= stmt->flags;
+      break;
   default:
     return TRUE;
   }
@@ -2711,9 +2772,17 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
   stmt->state= MYSQL_STMT_EXECUTE_DONE;
   if (stmt->field_count)
   {
-    stmt->mysql->unbuffered_fetch_owner= &stmt->unbuffered_fetch_cancelled;
-    stmt->unbuffered_fetch_cancelled= FALSE;
-    stmt->read_row_func= stmt_read_row_unbuffered;
+    if (stmt->server_status & SERVER_STATUS_CURSOR_EXISTS)
+    {
+      mysql->status= MYSQL_STATUS_READY;
+      stmt->read_row_func= stmt_read_row_from_cursor;
+    }
+    else
+    {
+      stmt->mysql->unbuffered_fetch_owner= &stmt->unbuffered_fetch_cancelled;
+      stmt->unbuffered_fetch_cancelled= FALSE;
+      stmt->read_row_func= stmt_read_row_unbuffered;
+    }
   }
   DBUG_RETURN(0);
 }

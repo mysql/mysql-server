@@ -75,6 +75,8 @@ Long data handling:
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
+#else
+#include <mysql_com.h>
 #endif
 
 /******************************************************************************
@@ -107,7 +109,7 @@ public:
 };
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt,
-                         String *expanded_query, bool set_context);
+                         String *expanded_query);
 
 /******************************************************************************
   Implementation
@@ -166,7 +168,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   return my_net_write(net, buff, sizeof(buff)) || 
          (stmt->param_count &&
           stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                 &stmt->lex->param_list, 0)) ||
+                                                 &stmt->lex->param_list,
+                                                 Protocol::SEND_EOF)) ||
          net_flush(net);
   return 0;
 }
@@ -1098,7 +1101,8 @@ static int mysql_test_select(Prepared_statement *stmt,
     if (!text_protocol)
     {
       if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
-        thd->protocol_simple.send_fields(&lex->select_lex.item_list, 0)
+        thd->protocol_simple.send_fields(&lex->select_lex.item_list,
+                                         Protocol::SEND_EOF)
 #ifndef EMBEDDED_LIBRARY
           || net_flush(&thd->net)
 #endif
@@ -1476,6 +1480,12 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   case SQLCOM_SHOW_GRANTS:
   case SQLCOM_DROP_TABLE:
   case SQLCOM_RENAME_TABLE:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_COMMIT:
+  case SQLCOM_CREATE_INDEX:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_ROLLBACK:
+  case SQLCOM_TRUNCATE:
     break;
 
   default:
@@ -1756,6 +1766,7 @@ static void reset_stmt_params(Prepared_statement *stmt)
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
+  ulong flags= (ulong) ((uchar) packet[4]);
   /*
     Query text for binary log, or empty string if the query is not put into
     binary log.
@@ -1782,6 +1793,28 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
+  if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
+  {
+    if (stmt->lex->result)
+    {
+      /*
+        If lex->result is set in the parser, this is not a SELECT
+        statement: we can't open a cursor for it.
+      */
+      flags= 0;
+    }
+    else
+    {
+      if (!stmt->cursor &&
+          !(stmt->cursor= new (&stmt->mem_root) Cursor()))
+      {
+        send_error(thd, ER_OUT_OF_RESOURCES);
+        DBUG_VOID_RETURN;
+      }
+      /* If lex->result is set, mysql_execute_command will use it */
+      stmt->lex->result= &stmt->cursor->result;
+    }
+  }
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
@@ -1800,16 +1833,55 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
+  thd->stmt_backup.set_statement(thd);
+  thd->set_statement(stmt);
   thd->current_arena= stmt;
+  reset_stmt_for_execute(thd, stmt->lex);
+  /* From now cursors assume that thd->mem_root is clean */
+  if (expanded_query.length() &&
+      alloc_query(thd, (char *)expanded_query.ptr(),
+                  expanded_query.length()+1))
+  {
+    my_error(ER_OUTOFMEMORY, 0, expanded_query.length());
+    goto err;
+  }
+
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
-  execute_stmt(thd, stmt, &expanded_query, true);
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  mysql_execute_command(thd);
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
+
+  if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
+  {
+    if (stmt->cursor->is_open())
+      stmt->cursor->init_from_thd(thd);
+    thd->set_item_arena(&thd->stmt_backup);
+  }
+  else
+  {
+    thd->lex->unit.cleanup();
+    cleanup_items(stmt->free_list);
+    reset_stmt_params(stmt);
+    close_thread_tables(thd);                   /* to close derived tables */
+    /*
+      Free items that were created during this execution of the PS by
+      query optimizer.
+    */
+    free_items(thd->free_list);
+    thd->free_list= 0;
+  }
+
+  thd->set_statement(&thd->stmt_backup);
   thd->current_arena= 0;
   DBUG_VOID_RETURN;
 
 set_params_data_err:
   reset_stmt_params(stmt);
   my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_execute");
+err:
   send_error(thd);
   DBUG_VOID_RETURN;
 }
@@ -1845,7 +1917,6 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     DBUG_VOID_RETURN;
   }
 
-  thd->free_list= NULL;
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
   if (stmt->set_params_from_vars(stmt,
@@ -1856,7 +1927,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     send_error(thd);
   }
   thd->current_arena= stmt;
-  execute_stmt(thd, stmt, &expanded_query, false);
+  execute_stmt(thd, stmt, &expanded_query);
   thd->current_arena= 0;
   DBUG_VOID_RETURN;
 }
@@ -1872,20 +1943,13 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
                      placeholders replaced with actual values. Otherwise empty
                      string.
   NOTES
-  Caller must set parameter values and thd::protocol.
-  thd->free_list is assumed to be garbage.
+    Caller must set parameter values and thd::protocol.
 */
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt,
-                         String *expanded_query, bool set_context)
+                         String *expanded_query)
 {
   DBUG_ENTER("execute_stmt");
-  if (set_context)
-  {
-    thd->free_list= NULL;
-    thd->stmt_backup.set_statement(thd);
-    thd->set_statement(stmt);
-  }
   reset_stmt_for_execute(thd, stmt->lex);
 
   if (expanded_query->length() &&
@@ -1899,17 +1963,72 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
   mysql_execute_command(thd);
-  thd->lex->unit.cleanup();
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
+  thd->lex->unit.cleanup();
   cleanup_items(stmt->free_list);
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
   /* Free Items that were created during this execution of the PS. */
   free_items(thd->free_list);
+  /*
+    In the rest of prepared statements code we assume that free_list
+    never points to garbage: keep this predicate true.
+  */
   thd->free_list= 0;
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  COM_FETCH handler: fetches requested amount of rows from cursor
+  SYNOPSIS
+*/
+
+void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
+{
+  /* assume there is always place for 8-16 bytes */
+  ulong stmt_id= uint4korr(packet);
+  ulong num_rows= uint4korr(packet+=4);
+  Statement *stmt;
+  int error;
+
+  DBUG_ENTER("mysql_stmt_fetch");
+
+  if (!(stmt= thd->stmt_map.find(stmt_id)) ||
+      !stmt->cursor ||
+      !stmt->cursor->is_open())
+  {
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_id, "fetch");
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+
+  thd->stmt_backup.set_statement(thd);
+  thd->stmt_backup.set_item_arena(thd);
+  thd->set_statement(stmt);
+  stmt->cursor->init_thd(thd);
+
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(), QUERY_PRIOR);
+
+  thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
+  error= stmt->cursor->fetch(num_rows);
+  thd->protocol= &thd->protocol_simple;         // Use normal protocol
+
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
+
+  /* Restore THD state */
+  stmt->cursor->reset_thd(thd);
+  thd->set_statement(&thd->stmt_backup);
+  thd->set_item_arena(&thd->stmt_backup);
+
+  if (error && error != -4)
+    send_error(thd, ER_OUT_OF_RESOURCES);
+
   DBUG_VOID_RETURN;
 }
 
@@ -2084,8 +2203,11 @@ void Prepared_statement::setup_set_params()
   }
 }
 
+
 Prepared_statement::~Prepared_statement()
 {
+  if (cursor)
+    cursor->Cursor::~Cursor();
   free_items(free_list);
 }
 

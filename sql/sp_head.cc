@@ -902,7 +902,8 @@ sp_head::show_create_procedure(THD *thd)
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Create Procedure",
 					     max(buffer.length(), 1024)));
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                         Protocol::SEND_EOF))
   {
     res= 1;
     goto done;
@@ -968,7 +969,8 @@ sp_head::show_create_function(THD *thd)
     field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   field_list.push_back(new Item_empty_string("Create Function",
 					     max(buffer.length(),1024)));
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     res= 1;
     goto done;

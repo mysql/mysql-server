@@ -31,7 +31,13 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
   int res, res_cln;
   if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK)))
     res= unit->exec();
-  res_cln= unit->cleanup();
+  if (res == 0 && thd->cursor && thd->cursor->is_open())
+  {
+    thd->cursor->set_unit(unit);
+    res_cln= 0;
+  }
+  else
+    res_cln= unit->cleanup();
   DBUG_RETURN(res?res:res_cln);
 }
 

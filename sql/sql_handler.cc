@@ -252,7 +252,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   insert_fields(thd, tables, tables->db, tables->alias, &it, 0);
 
   select_limit+=offset_limit;
-  protocol->send_fields(&list,1);
+  protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 
   HANDLER_TABLES_HACK(thd);
   MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);
