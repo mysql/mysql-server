@@ -1,17 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test051.tcl,v 11.14 2000/08/25 14:21:57 sue Exp $
+# $Id: test051.tcl,v 11.21 2002/05/24 13:43:24 sue Exp $
 #
-# Test51:
-#	Test of the fixed recno method.
-#		0. Test various flags (legal and illegal) to open
-#		1. Test partial puts where dlen != size (should fail)
-#		2. Partial puts for existent record -- replaces at beg, mid, and
-#			end of record, as well as full replace
-#
+# TEST	test051
+# TEST	Fixed-length record Recno test.
+# TEST		0. Test various flags (legal and illegal) to open
+# TEST		1. Test partial puts where dlen != size (should fail)
+# TEST		2. Partial puts for existent record -- replaces at beg, mid, and
+# TEST			end of record, as well as full replace
 proc test051 { method { args "" } } {
 	global fixed_len
 	global errorInfo
@@ -28,6 +27,7 @@ proc test051 { method { args "" } } {
 	}
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -41,19 +41,23 @@ proc test051 { method { args "" } } {
 		set testfile1 test051a.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	cleanup $testdir $env
-	set oflags "-create -truncate -mode 0644 $args"
+	set oflags "-create -mode 0644 $args"
 
 	# Test various flags (legal and illegal) to open
 	puts "\tTest051.a: Test correct flag behavior on open."
 	set errorCode NONE
 	foreach f { "-dup" "-dup -dupsort" "-recnum" } {
 		puts "\t\tTest051.a: Test flag $f"
-		error_check_good dbopen:flagtest:catch \
-		    [catch {set db \
-		    [eval {berkdb_open_noerr} $oflags $f $omethod \
-		    $testfile]} ret] 1
+		set stat [catch {eval {berkdb_open_noerr} $oflags $f $omethod \
+		    $testfile} ret]
+		error_check_good dbopen:flagtest:catch $stat 1
 		error_check_good \
 		    dbopen:flagtest:$f [is_substr $errorCode EINVAL] 1
 		set errorCode NONE
@@ -66,24 +70,28 @@ proc test051 { method { args "" } } {
 		$db close
 	} else {
 		error_check_good \
-		    dbopen:flagtest:catch [catch {set db [eval \
-			{berkdb_open_noerr} $oflags $f \
-			$omethod $testfile]} ret] 1
+		    dbopen:flagtest:catch [catch {eval {berkdb_open_noerr}\
+			$oflags $f $omethod $testfile} ret] 1
 		error_check_good \
 		    dbopen:flagtest:$f [is_substr $errorCode EINVAL] 1
 	}
-
 
 	# Test partial puts where dlen != size (should fail)
 	# it is an error to specify a partial put w/ different
 	# dlen and size in fixed length recno/queue
 	set key 1
 	set data ""
+	set txn ""
 	set test_char "a"
 
 	set db [eval {berkdb_open_noerr} $oflags $omethod $testfile1]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	puts "\tTest051.b: Partial puts with dlen != size."
 	foreach dlen { 1 16 20 32 } {
 		foreach doff { 0 10 20 32 } {
@@ -91,8 +99,8 @@ proc test051 { method { args "" } } {
 			puts "\t\tTest051.e: dlen: $dlen, doff: $doff, \
 			    size: [expr $dlen+1]"
 			set data [repeat $test_char [expr $dlen + 1]]
-			error_check_good catch:put 1 [catch {$db \
-			    put -partial [list $doff $dlen] $key $data} ret]
+			error_check_good catch:put 1 [catch {eval {$db put -partial \
+			    [list $doff $dlen]} $txn {$key $data}} ret]
 			#
 			# We don't get back the server error string just
 			# the result.
@@ -109,8 +117,8 @@ proc test051 { method { args "" } } {
 			puts "\t\tTest051.e: dlen: $dlen, doff: $doff, \
 			    size: [expr $dlen-1]"
 			set data [repeat $test_char [expr $dlen - 1]]
-			error_check_good catch:put 1 [catch {$db \
-			    put -partial [list $doff $dlen] $key $data} ret]
+			error_check_good catch:put 1 [catch {eval {$db put -partial \
+			    [list $doff $dlen]} $txn {$key $data}} ret]
 			if { $eindex == -1 } {
 				error_check_good "dbput:partial: dlen > size" \
 				    [is_substr $errorInfo "Length improper"] 1
@@ -121,6 +129,9 @@ proc test051 { method { args "" } } {
 		}
 	}
 
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	$db close
 
 	# Partial puts for existent record -- replaces at beg, mid, and
@@ -132,14 +143,24 @@ proc test051 { method { args "" } } {
 	puts "\t\tTest051.f: First try a put and then a full replace."
 	set data [repeat "a" $fixed_len]
 
-	set ret [$db put 1 $data]
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set ret [eval {$db put} $txn {1 $data}]
 	error_check_good dbput $ret 0
-	error_check_good dbget $data [lindex [lindex [$db get -recno 1] 0] 1]
+	set ret [eval {$db get} $txn {-recno 1}]
+	error_check_good dbget $data [lindex [lindex $ret 0] 1]
 
 	set data [repeat "b" $fixed_len]
-	set ret [$db put -partial [list 0 $fixed_len] 1 $data]
+	set ret [eval {$db put -partial [list 0 $fixed_len]} $txn {1 $data}]
 	error_check_good dbput $ret 0
-	error_check_good dbget $data [lindex [lindex [$db get -recno 1] 0] 1]
+	set ret [eval {$db get} $txn {-recno 1}]
+	error_check_good dbget $data [lindex [lindex $ret 0] 1]
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 
 	set data "InitialData"
 	set pdata "PUT"
@@ -154,12 +175,21 @@ proc test051 { method { args "" } } {
 	puts "\t\tTest051.g: Now replace at different offsets ($offlist)."
 	foreach doff $offlist {
 		incr key
-		set ret [$db put $key $data]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$key $data}]
 		error_check_good dbput:init $ret 0
 
 		puts "\t\t  Test051.g: Replace at offset $doff."
-		set ret [$db put -partial [list $doff $dlen] $key $pdata]
+		set ret [eval {$db put -partial [list $doff $dlen]} $txn \
+		    {$key $pdata}]
 		error_check_good dbput:partial $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 
 		if { $doff == 0} {
 			set beg ""
@@ -186,6 +216,4 @@ proc test051 { method { args "" } } {
 	}
 
 	$db close
-
-	puts "\tTest051 complete."
 }

@@ -1,11 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test050.tcl,v 11.15 2000/08/25 14:21:57 sue Exp $
+# $Id: test050.tcl,v 11.21 2002/05/24 14:15:13 bostic Exp $
 #
-# Test050: Overwrite test of small/big key/data with cursor checks for RECNO
+# TEST	test050
+# TEST	Overwrite test of small/big key/data with cursor checks for Recno.
 proc test050 { method args } {
 	global alphabet
 	global errorInfo
@@ -30,6 +31,7 @@ proc test050 { method args } {
 	set flags ""
 
 	puts "\tTest$tstn: Create $method database."
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -41,17 +43,18 @@ proc test050 { method args } {
 		set testfile test0$tstn.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	cleanup $testdir $env
 
-	set oflags "-create -truncate -mode 0644 $args $omethod"
+	set oflags "-create -mode 0644 $args $omethod"
 	set db [eval {berkdb_open_noerr} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
-
-	# open curs to db
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
 
 	# keep nkeys even
 	set nkeys 20
@@ -60,9 +63,26 @@ proc test050 { method args } {
 	#
 	puts "\tTest$tstn: Fill page with $nkeys small key/data pairs."
 	for { set i 1 } { $i <= $nkeys } { incr i } {
-			set ret [$db put $i [chop_data $method $data$i]]
-			error_check_good dbput $ret 0
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$i [chop_data $method $data$i]}]
+		error_check_good dbput $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
+
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	# open curs to db
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 	# get db order of keys
 	for {set i 0; set ret [$dbc get -first]} { [llength $ret] != 0} { \
@@ -83,8 +103,16 @@ proc test050 { method args } {
 	puts "\t\tTest$tstn.a.1:\
 	    Insert with uninitialized cursor (should fail)."
 	error_check_good dbc_close [$dbc close] 0
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 	catch {$dbc put -before DATA1} ret
 	error_check_good dbc_put:before:uninit [is_substr $errorCode EINVAL] 1
 
@@ -169,8 +197,8 @@ proc test050 { method args } {
 			if { [string compare $type by_key] == 0 } {
 				puts "\t\tTest$tstn.b.$i:\
 				    Overwrite:($pair):$type"
-				set ret [$db put \
-				    1 OVER$pair$data[lindex $pair 1]]
+				set ret [eval {$db put} $txn \
+				    1 {OVER$pair$data[lindex $pair 1]}]
 				error_check_good dbput:over:($pair) $ret 0
 			} else {
 				# This is a cursor overwrite
@@ -185,7 +213,9 @@ proc test050 { method args } {
 
 	puts "\tTest$tstn.c: Cleanup and close cursor."
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest$tstn complete."
 }

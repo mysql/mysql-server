@@ -1,17 +1,19 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: rpc001.tcl,v 11.23 2001/01/02 20:04:56 sue Exp $
+# $Id: rpc001.tcl,v 11.33 2002/07/25 22:57:32 mjc Exp $
 #
-# Test RPC specifics, primarily that unsupported functions return
-# errors and such.
-#
+# TEST	rpc001
+# TEST	Test RPC server timeouts for cursor, txn and env handles.
+# TEST	Test RPC specifics, primarily that unsupported functions return
+# TEST	errors and such.
 proc rpc001 { } {
 	global __debug_on
 	global __debug_print
 	global errorInfo
+	global rpc_svc
 	source ./include.tcl
 
 	#
@@ -21,10 +23,10 @@ proc rpc001 { } {
 	set itime 10
 	puts "Rpc001: Server timeouts: resource $ttime sec, idle $itime sec"
 	if { [string compare $rpc_server "localhost"] == 0 } {
-	       set dpid [exec $util_path/berkeley_db_svc \
+	       set dpid [exec $util_path/$rpc_svc \
 		   -h $rpc_testdir -t $ttime -I $itime &]
 	} else {
-	       set dpid [exec rsh $rpc_server $rpc_path/berkeley_db_svc \
+	       set dpid [exec rsh $rpc_server $rpc_path/$rpc_svc \
 		   -h $rpc_testdir -t $ttime -I $itime&]
 	}
 	puts "\tRpc001.a: Started server, pid $dpid"
@@ -36,14 +38,14 @@ proc rpc001 { } {
 	set testfile "rpc001.db"
 	set home [file tail $rpc_testdir]
 
-	set env [eval {berkdb env -create -mode 0644 -home $home \
+	set env [eval {berkdb_env -create -mode 0644 -home $home \
 	    -server $rpc_server -client_timeout 10000 -txn}]
 	error_check_good lock_env:open [is_valid_env $env] TRUE
 
 	puts "\tRpc001.c: Opening a database"
 	#
 	# NOTE: the type of database doesn't matter, just use btree.
-	set db [eval {berkdb_open -create -btree -mode 0644} \
+	set db [eval {berkdb_open -auto_commit -create -btree -mode 0644} \
 	    -env $env $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
@@ -230,9 +232,10 @@ proc rpc001 { } {
 
 	#
 	# We need a 2nd env just to do an op to timeout the env.
+	# Make the flags different so we don't end up sharing a handle.
 	#
-	set env1 [eval {berkdb env -create -mode 0644 -home $home \
-	    -server $rpc_server -client_timeout 10000 -txn}]
+	set env1 [eval {berkdb_env -create -mode 0644 -home $home \
+	    -server $rpc_server -client_timeout 10000}]
 	error_check_good lock_env:open [is_valid_env $env1] TRUE
 
 	puts "\tRpc001.l: Timeout idle env handle"
@@ -247,7 +250,7 @@ proc rpc001 { } {
 	error_check_good env_timeout \
 	    [is_substr $errorInfo "DB_NOSERVER_ID"] 1
 
-	exec $KILL $dpid
+	tclkill $dpid
 }
 
 proc rpc_timeoutjoin {env msg sleeptime use_txn} {
@@ -257,8 +260,10 @@ proc rpc_timeoutjoin {env msg sleeptime use_txn} {
 	puts -nonewline "\t$msg: Test join cursors and timeouts"
 	if { $use_txn } {
 		puts " (using txns)"
+		set txnflag "-auto_commit"
 	} else {
 		puts " (without txns)"
+		set txnflag ""
 	}
 	#
 	# Set up a simple set of join databases
@@ -278,32 +283,32 @@ proc rpc_timeoutjoin {env msg sleeptime use_txn} {
 	    {apple pie} {raspberry pie} {lemon pie}
 	}
 	set fdb [eval {berkdb_open -create -btree -mode 0644} \
-	    -env $env -dup fruit.db]
+	    $txnflag -env $env -dup fruit.db]
 	error_check_good dbopen [is_valid_db $fdb] TRUE
 	set pdb [eval {berkdb_open -create -btree -mode 0644} \
-	    -env $env -dup price.db]
+	    $txnflag -env $env -dup price.db]
 	error_check_good dbopen [is_valid_db $pdb] TRUE
 	set ddb [eval {berkdb_open -create -btree -mode 0644} \
-	    -env $env -dup dessert.db]
+	    $txnflag -env $env -dup dessert.db]
 	error_check_good dbopen [is_valid_db $ddb] TRUE
 	foreach kd $fruit {
 		set k [lindex $kd 0]
 		set d [lindex $kd 1]
-		set ret [$fdb put $k $d]
+		set ret [eval {$fdb put} $txnflag {$k $d}]
 		error_check_good fruit_put $ret 0
 	}
 	error_check_good sync [$fdb sync] 0
 	foreach kd $price {
 		set k [lindex $kd 0]
 		set d [lindex $kd 1]
-		set ret [$pdb put $k $d]
+		set ret [eval {$pdb put} $txnflag {$k $d}]
 		error_check_good price_put $ret 0
 	}
 	error_check_good sync [$pdb sync] 0
 	foreach kd $dessert {
 		set k [lindex $kd 0]
 		set d [lindex $kd 1]
-		set ret [$ddb put $k $d]
+		set ret [eval {$ddb put} $txnflag {$k $d}]
 		error_check_good dessert_put $ret 0
 	}
 	error_check_good sync [$ddb sync] 0
@@ -326,7 +331,7 @@ proc rpc_join {env msg sleep fdb pdb ddb use_txn op} {
 	#
 	set curs_list {}
 	set txn_list {}
-	set msgnum [expr $op * 2 + 1] 
+	set msgnum [expr $op * 2 + 1]
 	if { $use_txn } {
 		puts "\t$msg$msgnum: Set up txns and join cursor"
 		set txn [$env txn]
@@ -346,7 +351,7 @@ proc rpc_join {env msg sleep fdb pdb ddb use_txn op} {
 
 	#
 	# Start a cursor, (using txn child0 in the fruit and price dbs, if
-	# needed).  # Just pick something simple to join on.  
+	# needed).  # Just pick something simple to join on.
 	# Then call join on the dessert db.
 	#
 	set fkey yellow
@@ -372,7 +377,7 @@ proc rpc_join {env msg sleep fdb pdb ddb use_txn op} {
 	set ret [$jdbc get]
 	error_check_bad jget [llength $ret] 0
 
-	set msgnum [expr $op * 2 + 2] 
+	set msgnum [expr $op * 2 + 2]
 	if { $op == 1 } {
 		puts -nonewline "\t$msg$msgnum: Timeout all cursors"
 		if { $use_txn } {

@@ -1,27 +1,28 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: ex_lock.c,v 11.6 2001/01/04 14:23:29 dda Exp $
+ * $Id: ex_lock.c,v 11.18 2002/04/10 21:48:20 bostic Exp $
  */
 
-#include "db_config.h"
-
-#ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+extern int getopt(int, char * const *, const char *);
+#else
 #include <unistd.h>
 #endif
 
 #include <db.h>
 
-void	db_init __P((char *, u_int32_t, int));
-int	main __P((int, char *[]));
-void	usage __P((void));
+int db_init __P((const char *, u_int32_t, int));
+int main __P((int, char *[]));
+int usage __P((void));
 
 DB_ENV	 *dbenv;
 const char
@@ -41,7 +42,8 @@ main(argc, argv)
 	long held;
 	u_int32_t len, locker, maxlocks;
 	int ch, do_unlink, did_get, i, lockid, lockcount, ret;
-	char *home, opbuf[16], objbuf[1024], lockbuf[16];
+	const char *home;
+	char opbuf[16], objbuf[1024], lockbuf[16];
 
 	home = "TESTDIR";
 	maxlocks = 0;
@@ -53,7 +55,7 @@ main(argc, argv)
 			break;
 		case 'm':
 			if ((i = atoi(optarg)) <= 0)
-				usage();
+				return (usage());
 			maxlocks = (u_int32_t)i;  /* XXX: possible overflow. */
 			break;
 		case 'u':
@@ -61,16 +63,17 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			usage();
+			return (usage());
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc != 0)
-		usage();
+		return (usage());
 
 	/* Initialize the database environment. */
-	db_init(home, maxlocks, do_unlink);
+	if ((ret = db_init(home, maxlocks, do_unlink)) != 0)
+		return (ret);
 
 	locks = 0;
 	lockcount = 0;
@@ -78,10 +81,10 @@ main(argc, argv)
 	/*
 	 * Accept lock requests.
 	 */
-	if ((ret = lock_id(dbenv, &locker)) != 0) {
+	if ((ret = dbenv->lock_id(dbenv, &locker)) != 0) {
 		dbenv->err(dbenv, ret, "unable to get locker id");
 		(void)dbenv->close(dbenv, 0);
-		exit (1);
+		return (EXIT_FAILURE);
 	}
 	lockid = -1;
 
@@ -117,7 +120,7 @@ main(argc, argv)
 
 			lock_dbt.data = objbuf;
 			lock_dbt.size = strlen(objbuf);
-			ret = lock_get(dbenv, locker,
+			ret = dbenv->lock_get(dbenv, locker,
 			    DB_LOCK_NOWAIT, &lock_dbt, lock_type, &lock);
 			if (ret == 0) {
 				did_get = 1;
@@ -145,7 +148,7 @@ main(argc, argv)
 				continue;
 			}
 			lock = locks[lockid];
-			ret = lock_put(dbenv, &lock);
+			ret = dbenv->lock_put(dbenv, &lock);
 			did_get = 0;
 		}
 		switch (ret) {
@@ -165,7 +168,7 @@ main(argc, argv)
 			dbenv->err(dbenv, ret,
 			    "lock_%s", did_get ? "get" : "put");
 			(void)dbenv->close(dbenv, 0);
-			exit (1);
+			return (EXIT_FAILURE);
 		}
 	}
 
@@ -177,18 +180,18 @@ main(argc, argv)
 	if ((ret = dbenv->close(dbenv, 0)) != 0) {
 		fprintf(stderr,
 		    "%s: dbenv->close: %s\n", progname, db_strerror(ret));
-		return (1);
+		return (EXIT_FAILURE);
 	}
-	return (0);
+	return (EXIT_SUCCESS);
 }
 
 /*
  * db_init --
  *	Initialize the environment.
  */
-void
+int
 db_init(home, maxlocks, do_unlink)
-	char *home;
+	const char *home;
 	u_int32_t maxlocks;
 	int do_unlink;
 {
@@ -197,19 +200,19 @@ db_init(home, maxlocks, do_unlink)
 	if ((ret = db_env_create(&dbenv, 0)) != 0) {
 		fprintf(stderr, "%s: db_env_create: %s\n",
 		    progname, db_strerror(ret));
-		exit (1);
+		return (EXIT_FAILURE);
 	}
 
 	if (do_unlink) {
 		if ((ret = dbenv->remove(dbenv, home, DB_FORCE)) != 0) {
 			fprintf(stderr, "%s: dbenv->remove: %s\n",
 			    progname, db_strerror(ret));
-			exit (1);
+			return (EXIT_FAILURE);
 		}
 		if ((ret = db_env_create(&dbenv, 0)) != 0) {
 			fprintf(stderr, "%s: db_env_create: %s\n",
 			    progname, db_strerror(ret));
-			exit (1);
+			return (EXIT_FAILURE);
 		}
 	}
 
@@ -222,14 +225,15 @@ db_init(home, maxlocks, do_unlink)
 	    dbenv->open(dbenv, home, DB_CREATE | DB_INIT_LOCK, 0)) != 0) {
 		dbenv->err(dbenv, ret, NULL);
 		(void)dbenv->close(dbenv, 0);
-		exit(1);
+		return (EXIT_FAILURE);
 	}
+	return (0);
 }
 
-void
+int
 usage()
 {
 	(void)fprintf(stderr,
 	    "usage: %s [-u] [-h home] [-m maxlocks]\n", progname);
-	exit(1);
+	return (EXIT_FAILURE);
 }

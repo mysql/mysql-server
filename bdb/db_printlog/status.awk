@@ -1,14 +1,17 @@
-# $Id: status.awk,v 10.2 1999/11/21 18:01:43 bostic Exp $
+# $Id: status.awk,v 10.3 2002/04/11 01:35:24 margo Exp $
 #
 # Read through db_printlog output and list all the transactions encountered
 # and whether they commited or aborted.
 #
 # 1 = started
 # 2 = commited
+# 3 = explicitly aborted
+# 4 = other
 BEGIN {
 	cur_txn = 0
 }
 /^\[/{
+	in_regop = 0
 	if (status[$5] == 0) {
 		status[$5] = 1;
 		txns[cur_txn] = $5;
@@ -16,11 +19,28 @@ BEGIN {
 	}
 }
 /txn_regop/ {
-	status[$5] = 2
+	txnid = $5
+	in_regop = 1
+}
+/opcode:/ {
+	if (in_regop == 1) {
+		if ($2 == 1)
+			status[txnid] = 2
+		else if ($2 == 3)
+			status[txnid] = 3
+		else
+			status[txnid] = 4
+	}
 }
 END {
 	for (i = 0; i < cur_txn; i++) {
-		printf("%s\t%s\n",
-		    txns[i], status[txns[i]] == 1 ? "ABORT" : "COMMIT");
+		if (status[txns[i]] == 1)
+			printf("%s\tABORT\n", txns[i]);
+		if (status[txns[i]] == 2)
+			printf("%s\tCOMMIT\n", txns[i]);
+		if (status[txns[i]] == 3)
+			printf("%s\tABORT\n", txns[i]);
+		if (status[txns[i]] == 4)
+			printf("%s\tOTHER\n", txns[i]);
 	}
 }

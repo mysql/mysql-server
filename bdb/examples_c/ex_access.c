@@ -1,87 +1,69 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: ex_access.c,v 11.7 2000/05/22 15:17:03 sue Exp $
+ * $Id: ex_access.c,v 11.22 2002/09/03 12:54:26 bostic Exp $
  */
 
-#include "db_config.h"
-
-#ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+extern int getopt(int, char * const *, const char *);
+#else
 #include <unistd.h>
 #endif
 
 #include <db.h>
 
-#ifdef HAVE_VXWORKS
-#include "stdio.h"
-#define	DATABASE	"/vxtmp/vxtmp/access.db"
-#define	ERROR_RETURN	ERROR
-#else
 #define	DATABASE	"access.db"
-#define	ERROR_RETURN	1
-int	main __P((int, char *[]));
-void	usage __P((char *));
-#endif
+int main __P((int, char *[]));
+int usage __P((void));
 
-int	ex_access __P((void));
-
-#ifndef HAVE_VXWORKS
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
 	extern int optind;
-	int ch;
-
-	while ((ch = getopt(argc, argv, "")) != EOF)
-		switch (ch) {
-		case '?':
-		default:
-			usage(argv[0]);
-		}
-	argc -= optind;
-	argv += optind;
-
-	return (ex_access());
-}
-
-void
-usage(progname)
-	char *progname;
-{
-	(void)fprintf(stderr, "usage: %s\n", progname);
-	exit(1);
-}
-#endif
-
-int
-ex_access()
-{
 	DB *dbp;
 	DBC *dbcp;
 	DBT key, data;
 	u_int32_t len;
-	int ret;
-	char *p, *t, buf[1024], rbuf[1024];
+	int ch, ret, rflag;
+	char *database, *p, *t, buf[1024], rbuf[1024];
 	const char *progname = "ex_access";		/* Program name. */
 
-	/* Remove the previous database. */
-	(void)unlink(DATABASE);
+	rflag = 0;
+	while ((ch = getopt(argc, argv, "r")) != EOF)
+		switch (ch) {
+		case 'r':
+			rflag = 1;
+			break;
+		case '?':
+		default:
+			return (usage());
+		}
+	argc -= optind;
+	argv += optind;
+
+	/* Accept optional database name. */
+	database = *argv == NULL ? DATABASE : argv[0];
+
+	/* Optionally discard the database. */
+	if (rflag)
+		(void)remove(database);
 
 	/* Create and initialize database object, open the database. */
 	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
 		fprintf(stderr,
 		    "%s: db_create: %s\n", progname, db_strerror(ret));
-		return (ERROR_RETURN);
+		return (EXIT_FAILURE);
 	}
 	dbp->set_errfile(dbp, stderr);
 	dbp->set_errpfx(dbp, progname);
@@ -93,9 +75,9 @@ ex_access()
 		dbp->err(dbp, ret, "set_cachesize");
 		goto err1;
 	}
-	if ((ret =
-	    dbp->open(dbp, DATABASE, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
-		dbp->err(dbp, ret, "%s: open", DATABASE);
+	if ((ret = dbp->open(dbp,
+	    NULL, database, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp->err(dbp, ret, "%s: open", database);
 		goto err1;
 	}
 
@@ -109,6 +91,8 @@ ex_access()
 		printf("input> ");
 		fflush(stdout);
 		if (fgets(buf, sizeof(buf), stdin) == NULL)
+			break;
+		if (strcmp(buf, "exit\n") == 0 || strcmp(buf, "quit\n") == 0)
 			break;
 		if ((len = strlen(buf)) <= 1)
 			continue;
@@ -161,11 +145,18 @@ ex_access()
 	if ((ret = dbp->close(dbp, 0)) != 0) {
 		fprintf(stderr,
 		    "%s: DB->close: %s\n", progname, db_strerror(ret));
-		return (ERROR_RETURN);
+		return (EXIT_FAILURE);
 	}
-	return (0);
+	return (EXIT_SUCCESS);
 
 err2:	(void)dbcp->c_close(dbcp);
 err1:	(void)dbp->close(dbp, 0);
-	return (ERROR_RETURN);
+	return (EXIT_FAILURE);
+}
+
+int
+usage()
+{
+	(void)fprintf(stderr, "usage: ex_access [-r] [database]\n");
+	return (EXIT_FAILURE);
 }

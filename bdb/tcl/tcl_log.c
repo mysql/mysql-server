@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: tcl_log.c,v 11.21 2000/11/30 00:58:45 ubell Exp $";
+static const char revid[] = "$Id: tcl_log.c,v 11.52 2002/08/14 20:11:57 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -20,7 +20,12 @@ static const char revid[] = "$Id: tcl_log.c,v 11.21 2000/11/30 00:58:45 ubell Ex
 #endif
 
 #include "db_int.h"
-#include "tcl_db.h"
+#include "dbinc/log.h"
+#include "dbinc/tcl_db.h"
+#include "dbinc/txn.h"
+
+#ifdef CONFIG_TEST
+static int tcl_LogcGet __P((Tcl_Interp *, int, Tcl_Obj * CONST*, DB_LOGC *));
 
 /*
  * tcl_LogArchive --
@@ -73,8 +78,8 @@ tcl_LogArchive(interp, objc, objv, envp)
 	}
 	_debug_check();
 	list = NULL;
-	ret = log_archive(envp, &list, flag, NULL);
-	result = _ReturnSetup(interp, ret, "log archive");
+	ret = envp->log_archive(envp, &list, flag);
+	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "log archive");
 	if (result == TCL_OK) {
 		res = Tcl_NewListObj(0, NULL);
 		for (file = list; file != NULL && *file != NULL; file++) {
@@ -86,7 +91,7 @@ tcl_LogArchive(interp, objc, objv, envp)
 		Tcl_SetObjResult(interp, res);
 	}
 	if (list != NULL)
-		__os_free(list, 0);
+		__os_ufree(envp, list);
 	return (result);
 }
 
@@ -166,24 +171,24 @@ tcl_LogFile(interp, objc, objv, envp)
 	name = NULL;
 	while (ret == ENOMEM) {
 		if (name != NULL)
-			__os_free(name, len/2);
-		ret = __os_malloc(envp, len, NULL, &name);
+			__os_free(envp, name);
+		ret = __os_malloc(envp, len, &name);
 		if (ret != 0) {
 			Tcl_SetResult(interp, db_strerror(ret), TCL_STATIC);
 			break;
 		}
 		_debug_check();
-		ret = log_file(envp, &lsn, name, len);
+		ret = envp->log_file(envp, &lsn, name, len);
 		len *= 2;
 	}
-	result = _ReturnSetup(interp, ret, "log_file");
+	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "log_file");
 	if (ret == 0) {
 		res = Tcl_NewStringObj(name, strlen(name));
 		Tcl_SetObjResult(interp, res);
 	}
 
 	if (name != NULL)
-		__os_free(name, len/2);
+		__os_free(envp, name);
 
 	return (result);
 }
@@ -222,8 +227,8 @@ tcl_LogFlush(interp, objc, objv, envp)
 		lsnp = NULL;
 
 	_debug_check();
-	ret = log_flush(envp, lsnp);
-	result = _ReturnSetup(interp, ret, "log_flush");
+	ret = envp->log_flush(envp, lsnp);
+	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "log_flush");
 	return (result);
 }
 
@@ -240,111 +245,13 @@ tcl_LogGet(interp, objc, objv, envp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *envp;			/* Environment pointer */
 {
-	static char *loggetopts[] = {
-		"-checkpoint",	"-current",	"-first",
-		"-last",	"-next",	"-prev",
-		"-set",
-		NULL
-	};
-	enum loggetopts {
-		LOGGET_CKP,	LOGGET_CUR,	LOGGET_FIRST,
-		LOGGET_LAST,	LOGGET_NEXT,	LOGGET_PREV,
-		LOGGET_SET
-	};
-	DB_LSN lsn;
-	DBT data;
-	Tcl_Obj *dataobj, *lsnlist, *myobjv[2], *res;
-	u_int32_t flag;
-	int i, myobjc, optindex, result, ret;
 
-	result = TCL_OK;
-	flag = 0;
-	if (objc < 3) {
-		Tcl_WrongNumArgs(interp, 2, objv, "?-args? lsn");
-		return (TCL_ERROR);
-	}
+	COMPQUIET(objv, NULL);
+	COMPQUIET(objc, 0);
+	COMPQUIET(envp, NULL);
 
-	/*
-	 * Get the command name index from the object based on the options
-	 * defined above.
-	 */
-	i = 2;
-	while (i < objc) {
-		if (Tcl_GetIndexFromObj(interp, objv[i],
-		    loggetopts, "option", TCL_EXACT, &optindex) != TCL_OK)
-			return (IS_HELP(objv[i]));
-		i++;
-		switch ((enum loggetopts)optindex) {
-		case LOGGET_CKP:
-			FLAG_CHECK(flag);
-			flag |= DB_CHECKPOINT;
-			break;
-		case LOGGET_CUR:
-			FLAG_CHECK(flag);
-			flag |= DB_CURRENT;
-			break;
-		case LOGGET_FIRST:
-			FLAG_CHECK(flag);
-			flag |= DB_FIRST;
-			break;
-		case LOGGET_LAST:
-			FLAG_CHECK(flag);
-			flag |= DB_LAST;
-			break;
-		case LOGGET_NEXT:
-			FLAG_CHECK(flag);
-			flag |= DB_NEXT;
-			break;
-		case LOGGET_PREV:
-			FLAG_CHECK(flag);
-			flag |= DB_PREV;
-			break;
-		case LOGGET_SET:
-			FLAG_CHECK(flag);
-			flag |= DB_SET;
-			if (i == objc) {
-				Tcl_WrongNumArgs(interp, 2, objv, "?-set lsn?");
-				result = TCL_ERROR;
-				break;
-			}
-			result = _GetLsn(interp, objv[i++], &lsn);
-			break;
-		}
-	}
-
-	if (result == TCL_ERROR)
-		return (result);
-
-	memset(&data, 0, sizeof(data));
-	data.flags |= DB_DBT_MALLOC;
-	_debug_check();
-	ret = log_get(envp, &lsn, &data, flag);
-	res = Tcl_NewListObj(0, NULL);
-	result = _ReturnSetup(interp, ret, "log_get");
-	if (ret == 0) {
-		/*
-		 * Success.  Set up return list as {LSN data} where LSN
-		 * is a sublist {file offset}.
-		 */
-		myobjc = 2;
-		myobjv[0] = Tcl_NewIntObj(lsn.file);
-		myobjv[1] = Tcl_NewIntObj(lsn.offset);
-		lsnlist = Tcl_NewListObj(myobjc, myobjv);
-		if (lsnlist == NULL) {
-			if (data.data != NULL)
-				__os_free(data.data, data.size);
-			return (TCL_ERROR);
-		}
-		result = Tcl_ListObjAppendElement(interp, res, lsnlist);
-		dataobj = Tcl_NewStringObj(data.data, data.size);
-		result = Tcl_ListObjAppendElement(interp, res, dataobj);
-	}
-	if (data.data != NULL)
-		__os_free(data.data, data.size);
-
-	if (result == TCL_OK)
-		Tcl_SetObjResult(interp, res);
-	return (result);
+	Tcl_SetResult(interp, "FAIL: log_get deprecated\n", TCL_STATIC);
+	return (TCL_ERROR);
 }
 
 /*
@@ -361,20 +268,22 @@ tcl_LogPut(interp, objc, objv, envp)
 	DB_ENV *envp;			/* Environment pointer */
 {
 	static char *logputopts[] = {
-		"-checkpoint",	"-curlsn",	"-flush",
+		"-flush",
 		NULL
 	};
 	enum logputopts {
-		LOGPUT_CKP,	LOGPUT_CUR,	LOGPUT_FLUSH
+		LOGPUT_FLUSH
 	};
 	DB_LSN lsn;
 	DBT data;
 	Tcl_Obj *intobj, *res;
+	void *dtmp;
 	u_int32_t flag;
-	int itmp, optindex, result, ret;
+	int freedata, optindex, result, ret;
 
 	result = TCL_OK;
 	flag = 0;
+	freedata = 0;
 	if (objc < 3) {
 		Tcl_WrongNumArgs(interp, 2, objv, "?-args? record");
 		return (TCL_ERROR);
@@ -384,8 +293,14 @@ tcl_LogPut(interp, objc, objv, envp)
 	 * Data/record must be the last arg.
 	 */
 	memset(&data, 0, sizeof(data));
-	data.data = Tcl_GetByteArrayFromObj(objv[objc-1], &itmp);
-	data.size = itmp;
+	ret = _CopyObjBytes(interp, objv[objc-1], &dtmp,
+	    &data.size, &freedata);
+	if (ret != 0) {
+		result = _ReturnSetup(interp, ret,
+		    DB_RETOK_STD(ret), "log put");
+		return (result);
+	}
+	data.data = dtmp;
 
 	/*
 	 * Get the command name index from the object based on the options
@@ -397,12 +312,6 @@ tcl_LogPut(interp, objc, objv, envp)
 			return (IS_HELP(objv[2]));
 		}
 		switch ((enum logputopts)optindex) {
-		case LOGPUT_CKP:
-			flag = DB_CHECKPOINT;
-			break;
-		case LOGPUT_CUR:
-			flag = DB_CURLSN;
-			break;
 		case LOGPUT_FLUSH:
 			flag = DB_FLUSH;
 			break;
@@ -413,69 +322,20 @@ tcl_LogPut(interp, objc, objv, envp)
 		return (result);
 
 	_debug_check();
-	ret = log_put(envp, &lsn, &data, flag);
-	result = _ReturnSetup(interp, ret, "log_put");
+	ret = envp->log_put(envp, &lsn, &data, flag);
+	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "log_put");
 	if (result == TCL_ERROR)
 		return (result);
 	res = Tcl_NewListObj(0, NULL);
-	intobj = Tcl_NewIntObj(lsn.file);
+	intobj = Tcl_NewLongObj((long)lsn.file);
 	result = Tcl_ListObjAppendElement(interp, res, intobj);
-	intobj = Tcl_NewIntObj(lsn.offset);
+	intobj = Tcl_NewLongObj((long)lsn.offset);
 	result = Tcl_ListObjAppendElement(interp, res, intobj);
 	Tcl_SetObjResult(interp, res);
+	if (freedata)
+		(void)__os_free(NULL, dtmp);
 	return (result);
 }
-
-/*
- * tcl_LogRegister --
- *
- * PUBLIC: int tcl_LogRegister __P((Tcl_Interp *, int,
- * PUBLIC:    Tcl_Obj * CONST*, DB_ENV *));
- */
-int
-tcl_LogRegister(interp, objc, objv, envp)
-	Tcl_Interp *interp;		/* Interpreter */
-	int objc;			/* How many arguments? */
-	Tcl_Obj *CONST objv[];		/* The argument objects */
-	DB_ENV *envp;			/* Environment pointer */
-{
-	DB *dbp;
-	Tcl_Obj *res;
-	int result, ret;
-	char *arg, msg[MSG_SIZE];
-
-	result = TCL_OK;
-	if (objc != 4) {
-		Tcl_WrongNumArgs(interp, 2, objv, "db filename");
-		return (TCL_ERROR);
-	}
-	/*
-	 * First comes the DB.
-	 */
-	arg = Tcl_GetStringFromObj(objv[2], NULL);
-	dbp = NAME_TO_DB(arg);
-	if (dbp == NULL) {
-		snprintf(msg, MSG_SIZE,
-		    "LogRegister: Invalid db: %s\n", arg);
-		Tcl_SetResult(interp, msg, TCL_VOLATILE);
-		return (TCL_ERROR);
-	}
-
-	/*
-	 * Next is the filename.
-	 */
-	arg = Tcl_GetStringFromObj(objv[3], NULL);
-
-	_debug_check();
-	ret = log_register(envp, dbp, arg);
-	result = _ReturnSetup(interp, ret, "log_register");
-	if (result == TCL_OK) {
-		res = Tcl_NewIntObj((int)dbp->log_fileid);
-		Tcl_SetObjResult(interp, res);
-	}
-	return (result);
-}
-
 /*
  * tcl_LogStat --
  *
@@ -502,8 +362,8 @@ tcl_LogStat(interp, objc, objv, envp)
 		return (TCL_ERROR);
 	}
 	_debug_check();
-	ret = log_stat(envp, &sp, NULL);
-	result = _ReturnSetup(interp, ret, "log stat");
+	ret = envp->log_stat(envp, &sp, 0);
+	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "log stat");
 	if (result == TCL_ERROR)
 		return (result);
 
@@ -520,7 +380,7 @@ tcl_LogStat(interp, objc, objv, envp)
 	MAKE_STAT_LIST("Region size", sp->st_regsize);
 	MAKE_STAT_LIST("Log file mode", sp->st_mode);
 	MAKE_STAT_LIST("Log record cache size", sp->st_lg_bsize);
-	MAKE_STAT_LIST("Maximum log file size", sp->st_lg_max);
+	MAKE_STAT_LIST("Current log file size", sp->st_lg_size);
 	MAKE_STAT_LIST("Mbytes written", sp->st_w_mbytes);
 	MAKE_STAT_LIST("Bytes written (over Mb)", sp->st_w_bytes);
 	MAKE_STAT_LIST("Mbytes written since checkpoint", sp->st_wc_mbytes);
@@ -532,50 +392,219 @@ tcl_LogStat(interp, objc, objv, envp)
 	MAKE_STAT_LIST("Times log flushed", sp->st_scount);
 	MAKE_STAT_LIST("Current log file number", sp->st_cur_file);
 	MAKE_STAT_LIST("Current log file offset", sp->st_cur_offset);
+	MAKE_STAT_LIST("On-disk log file number", sp->st_disk_file);
+	MAKE_STAT_LIST("On-disk log file offset", sp->st_disk_offset);
+	MAKE_STAT_LIST("Max commits in a log flush", sp->st_maxcommitperflush);
+	MAKE_STAT_LIST("Min commits in a log flush", sp->st_mincommitperflush);
 	MAKE_STAT_LIST("Number of region lock waits", sp->st_region_wait);
 	MAKE_STAT_LIST("Number of region lock nowaits", sp->st_region_nowait);
 	Tcl_SetObjResult(interp, res);
 error:
-	__os_free(sp, sizeof(*sp));
+	free(sp);
 	return (result);
 }
 
 /*
- * tcl_LogUnregister --
+ * logc_Cmd --
+ *	Implements the log cursor command.
  *
- * PUBLIC: int tcl_LogUnregister __P((Tcl_Interp *, int,
- * PUBLIC:    Tcl_Obj * CONST*, DB_ENV *));
+ * PUBLIC: int logc_Cmd __P((ClientData, Tcl_Interp *, int, Tcl_Obj * CONST*));
  */
 int
-tcl_LogUnregister(interp, objc, objv, envp)
+logc_Cmd(clientData, interp, objc, objv)
+	ClientData clientData;		/* Cursor handle */
 	Tcl_Interp *interp;		/* Interpreter */
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
-	DB_ENV *envp;			/* Environment pointer */
 {
-	DB *dbp;
-	char *arg, msg[MSG_SIZE];
-	int result, ret;
+	static char *logccmds[] = {
+		"close",
+		"get",
+		NULL
+	};
+	enum logccmds {
+		LOGCCLOSE,
+		LOGCGET
+	};
+	DB_LOGC *logc;
+	DBTCL_INFO *logcip;
+	int cmdindex, result, ret;
+
+	Tcl_ResetResult(interp);
+	logc = (DB_LOGC *)clientData;
+	logcip = _PtrToInfo((void *)logc);
+	result = TCL_OK;
+
+	if (objc <= 1) {
+		Tcl_WrongNumArgs(interp, 1, objv, "command cmdargs");
+		return (TCL_ERROR);
+	}
+	if (logc == NULL) {
+		Tcl_SetResult(interp, "NULL logc pointer", TCL_STATIC);
+		return (TCL_ERROR);
+	}
+	if (logcip == NULL) {
+		Tcl_SetResult(interp, "NULL logc info pointer", TCL_STATIC);
+		return (TCL_ERROR);
+	}
+
+	/*
+	 * Get the command name index from the object based on the berkdbcmds
+	 * defined above.
+	 */
+	if (Tcl_GetIndexFromObj(interp, objv[1], logccmds, "command",
+	    TCL_EXACT, &cmdindex) != TCL_OK)
+		return (IS_HELP(objv[1]));
+	switch ((enum logccmds)cmdindex) {
+	case LOGCCLOSE:
+		/*
+		 * No args for this.  Error if there are some.
+		 */
+		if (objc > 2) {
+			Tcl_WrongNumArgs(interp, 2, objv, NULL);
+			return (TCL_ERROR);
+		}
+		_debug_check();
+		ret = logc->close(logc, 0);
+		result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+		    "logc close");
+		if (result == TCL_OK) {
+			(void)Tcl_DeleteCommand(interp, logcip->i_name);
+			_DeleteInfo(logcip);
+		}
+		break;
+	case LOGCGET:
+		result = tcl_LogcGet(interp, objc, objv, logc);
+		break;
+	}
+	return (result);
+}
+
+static int
+tcl_LogcGet(interp, objc, objv, logc)
+	Tcl_Interp *interp;
+	int objc;
+	Tcl_Obj * CONST *objv;
+	DB_LOGC *logc;
+{
+	static char *logcgetopts[] = {
+		"-current",
+		"-first",
+		"-last",
+		"-next",
+		"-prev",
+		"-set",
+		NULL
+	};
+	enum logcgetopts {
+		LOGCGET_CURRENT,
+		LOGCGET_FIRST,
+		LOGCGET_LAST,
+		LOGCGET_NEXT,
+		LOGCGET_PREV,
+		LOGCGET_SET
+	};
+	DB_LSN lsn;
+	DBT data;
+	Tcl_Obj *dataobj, *lsnlist, *myobjv[2], *res;
+	u_int32_t flag;
+	int i, myobjc, optindex, result, ret;
 
 	result = TCL_OK;
+	res = NULL;
+	flag = 0;
+
+	if (objc < 3) {
+		Tcl_WrongNumArgs(interp, 2, objv, "?-args? lsn");
+		return (TCL_ERROR);
+	}
+
 	/*
-	 * 1 arg for this.  Error if more or less.
+	 * Get the command name index from the object based on the options
+	 * defined above.
 	 */
-	if (objc != 3) {
-		Tcl_WrongNumArgs(interp, 2, objv, NULL);
-		return (TCL_ERROR);
+	i = 2;
+	while (i < objc) {
+		if (Tcl_GetIndexFromObj(interp, objv[i],
+		    logcgetopts, "option", TCL_EXACT, &optindex) != TCL_OK)
+			return (IS_HELP(objv[i]));
+		i++;
+		switch ((enum logcgetopts)optindex) {
+		case LOGCGET_CURRENT:
+			FLAG_CHECK(flag);
+			flag |= DB_CURRENT;
+			break;
+		case LOGCGET_FIRST:
+			FLAG_CHECK(flag);
+			flag |= DB_FIRST;
+			break;
+		case LOGCGET_LAST:
+			FLAG_CHECK(flag);
+			flag |= DB_LAST;
+			break;
+		case LOGCGET_NEXT:
+			FLAG_CHECK(flag);
+			flag |= DB_NEXT;
+			break;
+		case LOGCGET_PREV:
+			FLAG_CHECK(flag);
+			flag |= DB_PREV;
+			break;
+		case LOGCGET_SET:
+			FLAG_CHECK(flag);
+			flag |= DB_SET;
+			if (i == objc) {
+				Tcl_WrongNumArgs(interp, 2, objv, "?-set lsn?");
+				result = TCL_ERROR;
+				break;
+			}
+			result = _GetLsn(interp, objv[i++], &lsn);
+			break;
+		}
 	}
-	arg = Tcl_GetStringFromObj(objv[2], NULL);
-	dbp = NAME_TO_DB(arg);
-	if (dbp == NULL) {
-		snprintf(msg, MSG_SIZE,
-		    "log_unregister: Invalid db identifier: %s\n", arg);
-		Tcl_SetResult(interp, msg, TCL_VOLATILE);
-		return (TCL_ERROR);
-	}
+
+	if (result == TCL_ERROR)
+		return (result);
+
+	memset(&data, 0, sizeof(data));
+
 	_debug_check();
-	ret = log_unregister(envp, dbp);
-	result = _ReturnSetup(interp, ret, "log_unregister");
+	ret = logc->get(logc, &lsn, &data, flag);
+
+	res = Tcl_NewListObj(0, NULL);
+	if (res == NULL)
+		goto memerr;
+
+	if (ret == 0) {
+		/*
+		 * Success.  Set up return list as {LSN data} where LSN
+		 * is a sublist {file offset}.
+		 */
+		myobjc = 2;
+		myobjv[0] = Tcl_NewLongObj((long)lsn.file);
+		myobjv[1] = Tcl_NewLongObj((long)lsn.offset);
+		lsnlist = Tcl_NewListObj(myobjc, myobjv);
+		if (lsnlist == NULL)
+			goto memerr;
+
+		result = Tcl_ListObjAppendElement(interp, res, lsnlist);
+		dataobj = Tcl_NewStringObj(data.data, data.size);
+		if (dataobj == NULL) {
+			goto memerr;
+		}
+		result = Tcl_ListObjAppendElement(interp, res, dataobj);
+	} else
+		result = _ReturnSetup(interp, ret, DB_RETOK_LGGET(ret),
+		    "DB_LOGC->get");
+
+	Tcl_SetObjResult(interp, res);
+
+	if (0) {
+memerr:		if (res != NULL)
+			Tcl_DecrRefCount(res);
+		Tcl_SetResult(interp, "allocation failed", TCL_STATIC);
+	}
 
 	return (result);
 }
+#endif

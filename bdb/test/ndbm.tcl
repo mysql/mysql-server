@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: ndbm.tcl,v 11.13 2000/08/25 14:21:51 sue Exp $
+# $Id: ndbm.tcl,v 11.16 2002/07/08 13:11:30 mjc Exp $
 #
 # Historic NDBM interface test.
 # Use the first 1000 entries from the dictionary.
@@ -80,11 +80,14 @@ proc ndbm { { nentries 1000 } } {
 	error_check_good NDBM:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 
-	puts "\tNDBM.c: pagf/dirf test"
-	set fd [$db pagfno]
-	error_check_bad pagf $fd -1
-	set fd [$db dirfno]
-	error_check_bad dirf $fd -1
+	# File descriptors tests won't work under Windows.
+	if { $is_windows_test != 1 } {
+		puts "\tNDBM.c: pagf/dirf test"
+		set fd [$db pagfno]
+		error_check_bad pagf $fd -1
+		set fd [$db dirfno]
+		error_check_bad dirf $fd -1
+	}
 
 	puts "\tNDBM.d: close, open, and dump file"
 

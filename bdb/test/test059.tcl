@@ -1,16 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test059.tcl,v 11.12 2000/08/25 14:21:57 sue Exp $
+# $Id: test059.tcl,v 11.18 2002/06/11 15:10:16 sue Exp $
 #
-# Test059:
-# Make sure that we handle retrieves of zero-length data items correctly.
-# The following ops, should allow a partial data retrieve of 0-length.
-#	db_get
-#	db_cget FIRST, NEXT, LAST, PREV, CURRENT, SET, SET_RANGE
-#
+# TEST	test059
+# TEST	Cursor ops work with a partial length of 0.
+# TEST	Make sure that we handle retrieves of zero-length data items correctly.
+# TEST	The following ops, should allow a partial data retrieve of 0-length.
+# TEST	db_get
+# TEST	db_cget FIRST, NEXT, LAST, PREV, CURRENT, SET, SET_RANGE
 proc test059 { method args } {
 	source ./include.tcl
 
@@ -20,6 +20,7 @@ proc test059 { method args } {
 	puts "Test059: $method 0-length partial data retrieval"
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -31,6 +32,11 @@ proc test059 { method args } {
 		set testfile test059.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	cleanup $testdir $env
 
@@ -44,20 +50,33 @@ proc test059 { method args } {
 	}
 
 	puts "\tTest059.a: Populate a database"
-	set oflags "-create -truncate -mode 0644 $omethod $args $testfile"
+	set oflags "-create -mode 0644 $omethod $args $testfile"
 	set db [eval {berkdb_open} $oflags]
 	error_check_good db_create [is_substr $db db] 1
 
 	# Put ten keys in the database
 	for { set key 1 } { $key <= 10 } {incr key} {
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set r [eval {$db put} $txn $pflags {$key datum$key}]
 		error_check_good put $r 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 
 	# Retrieve keys sequentially so we can figure out their order
 	set i 1
-	set curs [$db cursor]
-	error_check_good db_curs [is_substr $curs $db] 1
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set curs [eval {$db cursor} $txn]
+	error_check_good db_curs [is_valid_cursor $curs $db] TRUE
 
 	for {set d [$curs get -first] } { [llength $d] != 0 } {
 	    set d [$curs get -next] } {
@@ -68,7 +87,7 @@ proc test059 { method args } {
 	puts "\tTest059.a: db get with 0 partial length retrieve"
 
 	# Now set the cursor on the middle one.
-	set ret [eval {$db get -partial {0 0}} $gflags {$key_set(5)}]
+	set ret [eval {$db get -partial {0 0}} $txn $gflags {$key_set(5)}]
 	error_check_bad db_get_0 [llength $ret] 0
 
 	puts "\tTest059.a: db cget FIRST with 0 partial length retrieve"
@@ -124,5 +143,8 @@ proc test059 { method args } {
 	}
 
 	error_check_good curs_close [$curs close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 }

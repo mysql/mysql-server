@@ -1,0 +1,68 @@
+#!/bin/sh -
+#
+# $Id: chk.vx_code,v 1.6 2002/03/27 20:20:25 bostic Exp $
+#
+# Check to make sure the auto-generated utility code in the VxWorks build
+# directory compiles.
+
+d=../..
+
+[ -f $d/LICENSE ] || {
+	echo 'FAIL: cannot find source distribution directory.'
+	exit 1
+}
+[ -f ../libdb.a ] || (cd .. && make libdb.a) || {
+	echo 'FAIL: unable to find or build libdb.a'
+	exit 1
+}
+
+rm -f t.c t1.c t2.c
+
+header()
+{
+	echo "int"
+	echo "main(int argc, char *argv[])"
+	echo "{return ($1(argv[1]));}"
+}
+
+(echo "int"
+ echo "main(int argc, char *argv[])"
+ echo "{"
+ echo "int i;") > t1.c
+
+for i in db_archive db_checkpoint db_deadlock db_dump db_load \
+    db_printlog db_recover db_stat db_upgrade db_verify dbdemo; do
+	echo "	compiling build_vxworks/$i"
+	(cat $d/build_vxworks/$i/$i.c; header $i) > t.c
+	if cc -Wall -I.. -I$d t.c \
+	    $d/clib/getopt.c \
+	    $d/common/util_arg.c \
+	    $d/common/util_cache.c \
+	    $d/common/util_log.c \
+	    $d/common/util_sig.c ../libdb.a -o t; then
+		:
+	else
+		echo "FAIL: unable to compile $i"
+		exit 1
+	fi
+
+	cat $d/build_vxworks/$i/$i.c >> t2.c
+	echo "i = $i(argv[1]);" >> t1.c
+done
+
+(cat t2.c t1.c; echo "return (0); }") > t.c
+
+echo "	compiling build_vxworks utility composite"
+if cc -Dlint -Wall -I.. -I$d t.c \
+    $d/clib/getopt.c \
+    $d/common/util_arg.c \
+    $d/common/util_cache.c \
+    $d/common/util_log.c \
+    $d/common/util_sig.c ../libdb.a -o t; then
+	:
+else
+	echo "FAIL: unable to compile utility composite"
+	exit 1
+fi
+
+exit 0

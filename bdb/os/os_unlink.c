@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_unlink.c,v 11.13 2000/11/30 00:58:42 ubell Exp $";
+static const char revid[] = "$Id: os_unlink.c,v 11.24 2002/07/12 18:56:53 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -19,7 +19,42 @@ static const char revid[] = "$Id: os_unlink.c,v 11.13 2000/11/30 00:58:42 ubell 
 #endif
 
 #include "db_int.h"
-#include "os_jump.h"
+
+/*
+ * __os_region_unlink --
+ *	Remove a shared memory object file.
+ *
+ * PUBLIC: int __os_region_unlink __P((DB_ENV *, const char *));
+ */
+int
+__os_region_unlink(dbenv, path)
+	DB_ENV *dbenv;
+	const char *path;
+{
+#ifdef HAVE_QNX
+	int ret;
+	char *newname;
+
+	if ((ret = __os_shmname(dbenv, path, &newname)) != 0)
+		goto err;
+
+	if ((ret = shm_unlink(newname)) != 0) {
+		ret = __os_get_errno();
+		if (ret != ENOENT)
+			__db_err(dbenv, "shm_unlink: %s: %s",
+			    newname, strerror(ret));
+	}
+err:
+	if (newname != NULL)
+		__os_free(dbenv, newname);
+	return (ret);
+#else
+	if (F_ISSET(dbenv, DB_ENV_OVERWRITE))
+		(void)__db_overwrite(dbenv, path);
+
+	return (__os_unlink(dbenv, path));
+#endif
+}
 
 /*
  * __os_unlink --
@@ -34,15 +69,16 @@ __os_unlink(dbenv, path)
 {
 	int ret;
 
-	ret = __db_jump.j_unlink != NULL ?
-	    __db_jump.j_unlink(path) :
+retry:	ret = DB_GLOBAL(j_unlink) != NULL ?
+	    DB_GLOBAL(j_unlink)(path) :
 #ifdef HAVE_VXWORKS
 	    unlink((char *)path);
 #else
 	    unlink(path);
 #endif
 	if (ret == -1) {
-		ret = __os_get_errno();
+		if ((ret = __os_get_errno()) == EINTR)
+			goto retry;
 		/*
 		 * XXX
 		 * We really shouldn't be looking at this value ourselves,
@@ -66,41 +102,8 @@ __os_unlink(dbenv, path)
 		/* FALLTHROUGH */
 #endif
 		if (ret != ENOENT)
-			__db_err(dbenv, "Unlink: %s: %s", path, strerror(ret));
+			__db_err(dbenv, "unlink: %s: %s", path, strerror(ret));
 	}
 
 	return (ret);
-}
-
-/*
- * __os_region_unlink --
- *	Remove a shared memory object file.
- *
- * PUBLIC: int __os_region_unlink __P((DB_ENV *, const char *));
- */
-int
-__os_region_unlink(dbenv, path)
-	DB_ENV *dbenv;
-	const char *path;
-{
-#ifdef HAVE_QNX
-	int ret;
-	char *newname;
-
-	if ((ret = __os_shmname(dbenv, path, &newname)) != 0)
-		goto err;
-
-	if ((ret = shm_unlink(newname)) != 0) {
-		ret = __os_get_errno();
-		if (ret != ENOENT)
-			__db_err(dbenv, "Shm_unlink: %s: %s",
-			    newname, strerror(ret));
-	}
-err:
-	if (newname != NULL)
-		__os_free(newname, 0);
-	return (ret);
-#else
-	return (__os_unlink(dbenv, path));
-#endif
 }

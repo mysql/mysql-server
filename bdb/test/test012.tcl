@@ -1,14 +1,19 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test012.tcl,v 11.14 2000/08/25 14:21:54 sue Exp $
+# $Id: test012.tcl,v 11.20 2002/05/22 15:42:46 sue Exp $
 #
-# DB Test 12 {access method}
-# Take the source files and dbtest executable and enter their contents as
-# the key with their names as data.  After all are entered, retrieve all;
-# compare output to original. Close file, reopen, do retrieve and re-verify.
+# TEST	test012
+# TEST	Large keys/small data
+# TEST		Same as test003 except use big keys (source files and
+# TEST		executables) and small data (the file/executable names).
+# TEST
+# TEST	Take the source files and dbtest executable and enter their contents
+# TEST	as the key with their names as data.  After all are entered, retrieve
+# TEST	all; compare output to original. Close file, reopen, do retrieve and
+# TEST	re-verify.
 proc test012 { method args} {
 	global names
 	source ./include.tcl
@@ -24,6 +29,7 @@ proc test012 { method args} {
 	puts "Test012: $method ($args) filename=data filecontents=key pairs"
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -35,6 +41,11 @@ proc test012 { method args} {
 		set testfile test012.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	set t2 $testdir/t2
@@ -44,7 +55,7 @@ proc test012 { method args} {
 	cleanup $testdir $env
 
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644} $args {$omethod $testfile}]
+	     -create -mode 0644} $args {$omethod $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	set pflags ""
@@ -52,22 +63,37 @@ proc test012 { method args} {
 	set txn ""
 
 	# Here is the loop where we put and get each key/data pair
-	set file_list [glob $test_path/../\[a-z\]*/*.c \
-	    $test_path/./*.lo ./*.exe]
+	set file_list [get_file_list]
 
 	puts "\tTest012.a: put/get loop"
 	set count 0
 	foreach f $file_list {
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		put_file_as_key $db $txn $pflags $f
 
 		set kd [get_file_as_key $db $txn $gflags $f]
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		incr count
 	}
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
 	puts "\tTest012.b: dump file"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	dump_binkey_file $db $txn $t1 test012.check
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	# Now compare the data to see if they match the .o and dbtest files
@@ -85,7 +111,7 @@ proc test012 { method args} {
 
 	# Now, reopen the file and run the last test again.
 	puts "\tTest012.c: close, open, and dump file"
-	open_and_dump_file $testfile $env $txn $t1 test012.check \
+	open_and_dump_file $testfile $env $t1 test012.check \
 	    dump_binkey_file_direction "-first" "-next"
 
 	filesort $t1 $t3
@@ -95,7 +121,7 @@ proc test012 { method args} {
 
 	# Now, reopen the file and run the last test again in reverse direction.
 	puts "\tTest012.d: close, open, and dump file in reverse direction"
-	open_and_dump_file $testfile $env $txn $t1 test012.check\
+	open_and_dump_file $testfile $env $t1 test012.check\
 	    dump_binkey_file_direction "-last" "-prev"
 
 	filesort $t1 $t3

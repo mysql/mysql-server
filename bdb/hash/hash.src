@@ -1,8 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: hash.src,v 10.38 2002/04/17 19:03:10 krinsky Exp $
  */
 /*
  * Copyright (c) 1995, 1996
@@ -38,44 +40,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: hash.src,v 10.24 2000/12/12 17:41:48 bostic Exp $
  */
 
-/*
- * This is the source file used to create the logging functions for the
- * hash package.  Each access method (or set of routines wishing to register
- * record types with the transaction system) should have a file like this.
- * Each type of log record and its parameters is defined.  The basic
- * format of a record definition is:
- *
- * BEGIN	<RECORD_TYPE>
- * ARG|STRING|POINTER	<variable name>	<variable type> <printf format>
- * ...
- * END
- * ARG the argument is a simple parameter of the type *	specified.
- * DBT the argument is a DBT (db.h) containing a length and pointer.
- * PTR the argument is a pointer to the data type specified; the entire
- *     type should be logged.
- *
- * There are a set of shell scripts of the form xxx.sh that generate c
- * code and or h files to process these.  (This is probably better done
- * in a single PERL script, but for now, this works.)
- *
- * The DB recovery system requires the following three fields appear in
- * every record, and will assign them to the per-record-type structures
- * as well as making them the first parameters to the appropriate logging
- * call.
- * rectype:	record-type, identifies the structure and log/read call
- * txnid:	transaction id, a DBT in this implementation
- * prev:	the last LSN for this transaction
- */
-
-/*
- * Use the argument of PREFIX as the prefix for all record types,
- * routines, id numbers, etc.
- */
-PREFIX	ham
+PREFIX	__ham
+DBPRIVATE
 
 INCLUDE	#include "db_config.h"
 INCLUDE
@@ -83,16 +51,18 @@ INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
 INCLUDE #include <ctype.h>
-INCLUDE #include <errno.h>
 INCLUDE #include <string.h>
 INCLUDE #endif
 INCLUDE
 INCLUDE #include "db_int.h"
-INCLUDE #include "db_page.h"
-INCLUDE #include "db_dispatch.h"
-INCLUDE #include "db_am.h"
-INCLUDE #include "hash.h"
-INCLUDE #include "txn.h"
+INCLUDE #include "dbinc/crypto.h"
+INCLUDE #include "dbinc/db_page.h"
+INCLUDE #include "dbinc/db_dispatch.h"
+INCLUDE #include "dbinc/db_am.h"
+INCLUDE #include "dbinc/hash.h"
+INCLUDE #include "dbinc/rep.h"
+INCLUDE #include "dbinc/log.h"
+INCLUDE #include "dbinc/txn.h"
 INCLUDE
 
 /*
@@ -109,8 +79,8 @@ INCLUDE
  */
 BEGIN insdel		21
 ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
 ARG	ndx		u_int32_t	lu
 POINTER	pagelsn		DB_LSN *	lu
 DBT	key		DBT		s
@@ -129,33 +99,13 @@ END
  */
 BEGIN newpage		22
 ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
-ARG	prev_pgno	db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCKNZ prev_pgno	db_pgno_t	lu
 POINTER	prevlsn		DB_LSN *	lu
-ARG	new_pgno	db_pgno_t	lu
+WRLOCKNZ new_pgno	db_pgno_t	lu
 POINTER	pagelsn		DB_LSN *	lu
-ARG	next_pgno	db_pgno_t	lu
+WRLOCKNZ next_pgno	db_pgno_t	lu
 POINTER	nextlsn		DB_LSN *	lu
-END
-
-/*
- * DEPRECATED in 3.0.
- * Superceded by metagroup which allocates a group of new pages.
- *
- * Splitting requires two types of log messages.  The first logs the
- * meta-data of the split.
- *
- * For the meta-data split
- *	bucket: max_bucket in table before split
- *	ovflpoint: overflow point before split.
- *	spares: spares[ovflpoint] before split.
- */
-DEPRECATED splitmeta	23
-ARG	fileid		int32_t		ld
-ARG	bucket		u_int32_t	lu
-ARG	ovflpoint	u_int32_t	lu
-ARG	spares		u_int32_t	lu
-POINTER	metalsn		DB_LSN *	lu
 END
 
 /*
@@ -165,10 +115,10 @@ END
  * yet there.
  */
 BEGIN splitdata		24
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 ARG	opcode		u_int32_t	lu
-ARG	pgno		db_pgno_t	lu
-DBT	pageimage	DBT		s
+WRLOCK	pgno		db_pgno_t	lu
+PGDBT	pageimage	DBT		s
 POINTER	pagelsn		DB_LSN *	lu
 END
 
@@ -185,60 +135,14 @@ END
  *  makedup - this was a replacement that made an item a duplicate.
  */
 BEGIN replace		25
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
 ARG	ndx		u_int32_t	lu
 POINTER	pagelsn		DB_LSN *	lu
 ARG	off		int32_t		ld
 DBT	olditem		DBT		s
 DBT	newitem		DBT		s
 ARG	makedup		u_int32_t	lu
-END
-
-/*
- * DEPRECATED in 3.0.
- * Hash now uses the btree allocation and deletion page routines.
- *
- * HASH-newpgno: is used to record getting/deleting a new page number.
- * This doesn't require much data modification, just modifying the
- * meta-data.
- * pgno is the page being allocated/freed.
- * free_pgno is the next_pgno on the free list.
- * old_type was the type of a page being deallocated.
- * old_pgno was the next page number before the deallocation.
- */
-DEPRECATED newpgno	26
-ARG	opcode		u_int32_t	lu
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
-ARG	free_pgno	db_pgno_t	lu
-ARG	old_type	u_int32_t	lu
-ARG	old_pgno	db_pgno_t	lu
-ARG	new_type	u_int32_t	lu
-POINTER	pagelsn		DB_LSN *	lu
-POINTER metalsn		DB_LSN *	lu
-END
-
-/*
- * DEPRECATED in 3.0.
- * Since we now pre-allocate the contiguous chunk of pages for a doubling,
- * there is no big benefit to pre-allocating a few extra pages.  It used
- * to be that the file was only physically as large as the current bucket,
- * so if you were on a doubling of 16K, but were only on the first bucket
- * of that 16K, the file was much shorter than it would be at the end of
- * the doubling, so we didn't want to force overflow pages at the end of the
- * 16K pages.  Since we now must allocate the 16K pages (because of sub
- * databases), it's not a big deal to tack extra pages on at the end.
- *
- * ovfl: initialize a set of overflow pages.
- */
-DEPRECATED ovfl		27
-ARG	fileid		int32_t		ld
-ARG	start_pgno	db_pgno_t	lu
-ARG	npages		u_int32_t	lu
-ARG	free_pgno	db_pgno_t	lu
-ARG	ovflpoint	u_int32_t	lu
-POINTER	metalsn		DB_LSN *	lu
 END
 
 /*
@@ -252,33 +156,46 @@ END
  * nnextlsn: the LSN of nnext_pgno.
  */
 BEGIN copypage		28
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
+DB	fileid		int32_t		ld
+WRLOCK	pgno		db_pgno_t	lu
 POINTER	pagelsn		DB_LSN *	lu
-ARG	next_pgno	db_pgno_t	lu
+WRLOCK	next_pgno	db_pgno_t	lu
 POINTER	nextlsn		DB_LSN *	lu
-ARG	nnext_pgno	db_pgno_t	lu
+WRLOCKNZ nnext_pgno	db_pgno_t	lu
 POINTER	nnextlsn	DB_LSN *	lu
-DBT	page		DBT		s
+PGDBT	page		DBT		s
 END
 
 /*
- * This replaces the old splitmeta operation.  It behaves largely the same
- * way, but it has enough information so that we can record a group allocation
- * which we do now because of sub databases.  The number of pages allocated is
- * always bucket + 1 pgno is the page number of the first newly allocated
- * bucket.
+ * This record logs the meta-data aspects of a split operation.  It has enough
+ * information so that we can record both an individual page allocation as well
+ * as a group allocation which we do because in sub databases, the pages in
+ * a hash doubling, must be contiguous.  If we do a group allocation, the
+ * number of pages allocated is bucket + 1, pgno is the page number of the
+ * first newly allocated bucket.
+ *
  * bucket:	Old maximum bucket number.
- * pgno:	Page allocated to bucket + 1 (first newly allocated page)
+ * mmpgno:	Master meta-data page number (0 if same as mpgno).
+ * mmetalsn:	Lsn of the master meta-data page.
+ * mpgno:	Meta-data page number.
  * metalsn:	Lsn of the meta-data page.
- * pagelsn:	Lsn of the maximum page allocated.
+ * pgno:	Page allocated to bucket + 1 (first newly allocated page)
+ * pagelsn:	Lsn of either the first page allocated (if newalloc == 0) or
+ *		the last page allocated (if newalloc == 1).
+ * newalloc:	1 indicates that this record did the actual allocation;
+ *		0 indicates that the pages were already allocated from a
+ *		previous (failed) allocation.
  */
 BEGIN metagroup		29
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 ARG	bucket		u_int32_t	lu
-ARG	pgno		db_pgno_t	lu
+WRLOCK  mmpgno		db_pgno_t	lu
+POINTER	mmetalsn	DB_LSN *	lu
+WRLOCKNZ mpgno		db_pgno_t	lu
 POINTER	metalsn		DB_LSN *	lu
+WRLOCK	pgno		db_pgno_t	lu
 POINTER	pagelsn		DB_LSN *	lu
+ARG	newalloc	u_int32_t	lu
 END
 
 /*
@@ -293,28 +210,10 @@ END
  * start_pgno: starting page number
  * num: number of allocated pages
  */
-DEPRECATED groupalloc1	30
-ARG	fileid		int32_t		ld
-ARG	pgno		db_pgno_t	lu
-POINTER	metalsn		DB_LSN *	lu
-POINTER	mmetalsn	DB_LSN *	lu
-ARG	start_pgno	db_pgno_t	lu
-ARG	num		u_int32_t	lu
-END
-
-DEPRECATED groupalloc2	31
-ARG	fileid		int32_t		ld
-POINTER	meta_lsn	DB_LSN *	lu
-POINTER	alloc_lsn	DB_LSN *	lu
-ARG	start_pgno	db_pgno_t	lu
-ARG	num		u_int32_t	lu
-ARG	free		db_pgno_t	lu
-END
-
 BEGIN groupalloc	32
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 POINTER	meta_lsn	DB_LSN *	lu
-ARG	start_pgno	db_pgno_t	lu
+WRLOCK	start_pgno	db_pgno_t	lu
 ARG	num		u_int32_t	lu
 ARG	free		db_pgno_t	lu
 END
@@ -329,7 +228,7 @@ END
  *	dup_off	- if a dup its offset
  *	add	- 1 if add 0 if delete
  *	is_dup  - 1 if dup 0 otherwise.
- *	order	- order assinged to this deleted record or dup.
+ *	order	- order assigned to this deleted record or dup.
  *
  *   chgpg - rmoved a page, move the records to a new page
  *	mode	- CHGPG page was deleted or records move to new page.
@@ -338,9 +237,15 @@ END
  *	old_pgno, new_pgno - old and new page numbers.
  *	old_index, new_index - old and new index numbers, NDX_INVALID if
  *		it effects all records on the page.
+ *		For three opcodes new in 3.3 (DB_HAM_DELFIRSTPG, DELMIDPG,
+ *		and DELLASTPG), we overload old_indx and new_indx to avoid
+ *		needing a new log record type:  old_indx stores the only
+ *		indx of interest to these records, and new_indx stores the
+ *		order that's assigned to the lowest deleted record we're
+ *		moving.
  */
 BEGIN curadj	33
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 ARG	pgno		db_pgno_t	lu
 ARG	indx		u_int32_t	lu
 ARG	len		u_int32_t	lu
@@ -351,7 +256,7 @@ ARG	order		u_int32_t	lu
 END
 
 BEGIN chgpg	34
-ARG	fileid		int32_t		ld
+DB	fileid		int32_t		ld
 ARG	mode		db_ham_mode	ld
 ARG	old_pgno	db_pgno_t	lu
 ARG	new_pgno	db_pgno_t	lu

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: dbkill.cpp,v 11.4 2000/05/02 17:08:31 dda Exp $
+ * $Id: dbkill.cpp,v 11.7 2002/01/11 15:51:27 bostic Exp $
  */
 /*
  * Kill -
@@ -74,7 +74,7 @@ usage_exit()
 {
 	fprintf(stderr, "Usage: kill [ -sig ] pid\n");
 	fprintf(stderr, "       for win32, sig must be or 0, 15 (TERM)\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 int
@@ -117,15 +117,15 @@ main(int argc, char **argv)
 	hProcess = OpenProcess(accessflag, FALSE, pid);
 	if (hProcess == NULL) {
 		fprintf(stderr, "dbkill: %s: no such process\n", argv[1]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	if (sig == 0)
-		exit(0);
+		exit(EXIT_SUCCESS);
 	if (!TerminateProcess(hProcess, 99)) {
 		DWORD err = GetLastError();
 		fprintf(stderr,
 		    "dbkill: cannot kill process: error %d (0x%lx)\n", err, err);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
-	return 0;
+	return EXIT_SUCCESS;
 }

@@ -1,0 +1,27 @@
+input>
+input>
+less: 0.5
+equal: 0.5
+greater: 0.0
+input>
+less: 0.6666666666666666
+equal: 0.3333333333333333
+greater: 0.0
+input>
+less: 0.5
+equal: 0.25
+greater: 0.25
+input>
+less: 0.0
+equal: 0.2
+greater: 0.8
+input>
+less: 0.0
+equal: 0.16666666666666666
+greater: 0.8333333333333334
+input>MAMAMIA : AIMAMAM
+ZED : DEZ
+abc : cba
+middle : elddim
+moremiddle : elddimerom
+zend : dnez

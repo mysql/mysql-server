@@ -1,70 +1,32 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: ex_btrec.c,v 11.8 2000/05/22 15:17:03 sue Exp $
+ * $Id: ex_btrec.c,v 11.18 2002/01/23 15:33:18 bostic Exp $
  */
 
-#include "db_config.h"
-
-#ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#endif
 
 #include <db.h>
 
-#ifdef HAVE_VXWORKS
-#define	DATABASE	"/vxtmp/vxtmp/access.db"
-#define	WORDLIST	"/vxtmp/vxtmp/wordlist"
-#define	ERROR_RETURN	ERROR
-#else
 #define	DATABASE	"access.db"
 #define	WORDLIST	"../test/wordlist"
-#define	ERROR_RETURN	1
-int	main __P((int, char *[]));
-void	usage __P((char *));
-#endif
+int	main __P((void));
 
 int	ex_btrec __P((void));
-void	show __P((char *, DBT *, DBT *));
+void	show __P((const char *, DBT *, DBT *));
 
-#ifndef HAVE_VXWORKS
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main()
 {
-	extern char *optarg;
-	extern int optind;
-	int ch;
-
-	while ((ch = getopt(argc, argv, "")) != EOF)
-		switch (ch) {
-		case '?':
-		default:
-			usage(argv[0]);
-		}
-	argc -= optind;
-	argv += optind;
-
-	return (ex_btrec());
+	return (ex_btrec() == 1 ? EXIT_FAILURE : EXIT_SUCCESS);
 }
-
-void
-usage(progname)
-	char *progname;
-{
-	(void)fprintf(stderr, "usage: %s\n", progname);
-	exit(1);
-}
-#endif
 
 int
 ex_btrec()
@@ -84,32 +46,32 @@ ex_btrec()
 	if ((fp = fopen(WORDLIST, "r")) == NULL) {
 		fprintf(stderr, "%s: open %s: %s\n",
 		    progname, WORDLIST, db_strerror(errno));
-		return (ERROR_RETURN);
+		return (1);
 	}
 
 	/* Remove the previous database. */
-	(void)unlink(DATABASE);
+	(void)remove(DATABASE);
 
 	/* Create and initialize database object, open the database. */
 	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
 		fprintf(stderr,
 		    "%s: db_create: %s\n", progname, db_strerror(ret));
-		return (ERROR_RETURN);
+		return (1);
 	}
 	dbp->set_errfile(dbp, stderr);
 	dbp->set_errpfx(dbp, progname);			/* 1K page sizes. */
 	if ((ret = dbp->set_pagesize(dbp, 1024)) != 0) {
 		dbp->err(dbp, ret, "set_pagesize");
-		return (ERROR_RETURN);
+		return (1);
 	}						/* Record numbers. */
 	if ((ret = dbp->set_flags(dbp, DB_RECNUM)) != 0) {
 		dbp->err(dbp, ret, "set_flags: DB_RECNUM");
-		return (ERROR_RETURN);
+		return (1);
 	}
-	if ((ret =
-	    dbp->open(dbp, DATABASE, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
+	if ((ret = dbp->open(dbp,
+	    NULL, DATABASE, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
 		dbp->err(dbp, ret, "open: %s", DATABASE);
-		return (ERROR_RETURN);
+		return (1);
 	}
 
 	/*
@@ -144,7 +106,7 @@ ex_btrec()
 	(void)fclose(fp);
 
 	/* Print out the number of records in the database. */
-	if ((ret = dbp->stat(dbp, &statp, NULL, 0)) != 0) {
+	if ((ret = dbp->stat(dbp, &statp, 0)) != 0) {
 		dbp->err(dbp, ret, "DB->stat");
 		goto err1;
 	}
@@ -215,7 +177,7 @@ get_err:		dbp->err(dbp, ret, "DBcursor->get");
 	if ((ret = dbp->close(dbp, 0)) != 0) {
 		fprintf(stderr,
 		    "%s: DB->close: %s\n", progname, db_strerror(ret));
-		return (ERROR_RETURN);
+		return (1);
 	}
 
 	return (0);
@@ -232,8 +194,8 @@ err1:	(void)dbp->close(dbp, 0);
  */
 void
 show(msg, key, data)
+	const char *msg;
 	DBT *key, *data;
-	char *msg;
 {
 	printf("%s%.*s : %.*s\n", msg,
 	    (int)key->size, (char *)key->data,

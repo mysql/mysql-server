@@ -1,16 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: dbm.tcl,v 11.12 2000/08/25 14:21:50 sue Exp $
+# $Id: dbm.tcl,v 11.15 2002/01/11 15:53:19 bostic Exp $
 #
-# Historic DBM interface test.
-# Use the first 1000 entries from the dictionary.
-# Insert each with self as key and data; retrieve each.
-# After all are entered, retrieve all; compare output to original.
-# Then reopen the file, re-retrieve everything.
-# Finally, delete everything.
+# TEST	dbm
+# TEST	Historic DBM interface test.  Use the first 1000 entries from the
+# TEST	dictionary.  Insert each with self as key and data; retrieve each.
+# TEST	After all are entered, retrieve all; compare output to original.
+# TEST	Then reopen the file, re-retrieve everything.  Finally, delete
+# TEST	everything.
 proc dbm { { nentries 1000 } } {
 	source ./include.tcl
 

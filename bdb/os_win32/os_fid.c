@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_fid.c,v 11.7 2000/10/26 14:18:08 bostic Exp $";
+static const char revid[] = "$Id: os_fid.c,v 11.15 2002/08/26 14:37:39 margo Exp $";
 #endif /* not lint */
 
 #include "db_int.h"
@@ -40,9 +40,10 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	 * Can't think of a better solution right now.
 	 */
 	DB_FH fh;
-	HANDLE handle;
 	BY_HANDLE_FILE_INFORMATION fi;
 	BOOL retval = FALSE;
+
+	DB_ASSERT(fname != NULL);
 
 	/* Clear the buffer. */
 	memset(fidp, 0, DB_FILE_ID_LEN);
@@ -62,7 +63,7 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	 * interesting properties in base 2.
 	 */
 	if (fid_serial == SERIAL_INIT)
-		fid_serial = (u_int32_t)getpid();
+		__os_id(&fid_serial);
 	else
 		fid_serial += 100000;
 
@@ -74,15 +75,11 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 		return (ret);
 
 	/* File open, get its info */
-	handle = (HANDLE)_get_osfhandle(fh.fd);
-	if (handle == INVALID_HANDLE_VALUE)
+	if ((retval = GetFileInformationByHandle(fh.handle, &fi)) == FALSE)
 		ret = __os_win32_errno();
-	else
-		if ((retval = GetFileInformationByHandle(handle, &fi)) == FALSE)
-			ret = __os_win32_errno();
-	__os_closehandle(&fh);
+	__os_closehandle(dbenv, &fh);
 
-	if (handle == INVALID_HANDLE_VALUE || retval == FALSE)
+	if (retval == FALSE)
 		return (ret);
 
 	/*
@@ -113,6 +110,7 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	tmp = (u_int32_t)fi.nFileIndexHigh;
 	for (p = (u_int8_t *)&tmp, i = sizeof(u_int32_t); i > 0; --i)
 		*fidp++ = *p++;
+
 	if (unique_okay) {
 		/*
 		 * Use the system time to try to get a unique value
