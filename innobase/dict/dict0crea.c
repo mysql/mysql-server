@@ -501,10 +501,13 @@ dict_build_index_def_step(
 	dict_table_t*	table;
 	dict_index_t*	index;
 	dtuple_t*	row;
+	trx_t*		trx;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
+
+	trx = thr_get_trx(thr);
 
 	index = node->index;
 
@@ -514,7 +517,7 @@ dict_build_index_def_step(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	thr_get_trx(thr)->table_id = table->id;
+	trx->table_id = table->id;
 
 	node->table = table;
 
@@ -1264,9 +1267,9 @@ loop:
 		ut_print_timestamp(ef);
 		fputs(" Error in foreign key constraint creation for table ",
 			ef);
-		ut_print_name(ef, table->name);
+		ut_print_name(ef, trx, table->name);
 		fputs(".\nA foreign key constraint of name ", ef);
-		ut_print_name(ef, foreign->id);
+		ut_print_name(ef, trx, foreign->id);
 		fputs("\nalready exists."
 			"  (Note that internally InnoDB adds 'databasename/'\n"
 			"in front of the user-defined constraint name).\n",
@@ -1286,7 +1289,7 @@ loop:
 		ut_print_timestamp(ef);
 		fputs(" Internal error in foreign key constraint creation"
 			" for table ", ef);
-		ut_print_name(ef, table->name);
+		ut_print_name(ef, trx, table->name);
 		fputs(".\n"
 	"See the MySQL .err log in the datadir for more information.\n", ef);
 		mutex_exit(&dict_foreign_err_mutex);

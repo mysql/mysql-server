@@ -78,7 +78,8 @@ upd_field_set_field_no(
 	upd_field_t*	upd_field,	/* in: update vector field */
 	ulint		field_no,	/* in: field number in a clustered
 					index */
-	dict_index_t*	index)		/* in: index */
+	dict_index_t*	index,		/* in: index */
+	trx_t*		trx)		/* in: transaction */
 {	
 	upd_field->field_no = field_no;
 
@@ -86,7 +87,7 @@ upd_field_set_field_no(
 		fprintf(stderr,
 			"InnoDB: Error: trying to access field %lu in ",
 			(ulong) field_no);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, trx, index);
 		fprintf(stderr, "\n"
 			"InnoDB: but index only has %lu fields\n",
 		(ulong) dict_index_get_n_fields(index));

@@ -398,7 +398,7 @@ lock_check_trx_id_sanity(
 			stderr);
 		rec_print(stderr, rec);
 		fputs("InnoDB: in ", stderr);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, NULL, index);
 		fprintf(stderr, "\n"
 "InnoDB: is %lu %lu which is higher than the global trx id counter %lu %lu!\n"
 "InnoDB: The table is corrupt. You have to do dump + drop + reimport.\n",
@@ -1651,7 +1651,7 @@ lock_rec_enqueue_waiting(
 		fputs(
 "  InnoDB: Error: a record lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, index->table_name);
+		ut_print_name(stderr, trx, index->table_name);
 		fputs(".\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
@@ -1688,7 +1688,7 @@ lock_rec_enqueue_waiting(
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu in index ",
 			(ulong) ut_dulint_get_low(trx->id));
-		ut_print_name(stderr, index->name);
+		ut_print_name(stderr, trx, index->name);
 	}
 	
 	return(DB_LOCK_WAIT);	
@@ -3293,7 +3293,7 @@ lock_table_enqueue_waiting(
 		fputs(
 "  InnoDB: Error: a table lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, table->name);
+		ut_print_name(stderr, trx, table->name);
 		fputs(".\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
@@ -3820,7 +3820,7 @@ lock_table_print(
 		fputs("EXPLICIT ", file);
 	}
 	fputs("TABLE LOCK table ", file);
-	ut_print_name(file, lock->un_member.tab_lock.table->name);
+	ut_print_name(file, lock->trx, lock->un_member.tab_lock.table->name);
 	fprintf(file, " trx id %lu %lu",
 		(ulong) (lock->trx)->id.high, (ulong) (lock->trx)->id.low);
 
@@ -3871,7 +3871,7 @@ lock_rec_print(
 	fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu ",
 		       (ulong) space, (ulong) page_no,
 		       (ulong) lock_rec_get_n_bits(lock));
-	dict_index_name_print(file, lock->index);
+	dict_index_name_print(file, lock->trx, lock->index);
 	fprintf(file, " trx id %lu %lu",
 		       (ulong) (lock->trx)->id.high,
 		       (ulong) (lock->trx)->id.low);

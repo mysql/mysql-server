@@ -427,7 +427,7 @@ buf_page_print(
 					btr_page_get_index_id(read_buf));
 		        if (index) {
 				fputs("InnoDB: (", stderr);
-				dict_index_name_print(stderr, index);
+				dict_index_name_print(stderr, NULL, index);
 				fputs(")\n", stderr);
 			}
 		}
@@ -2123,7 +2123,7 @@ buf_print(void)
 
 		if (index) {
 			putc(' ', stderr);
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, NULL, index);
 		}
 
 		putc('\n', stderr);

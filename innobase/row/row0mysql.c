@@ -457,7 +457,7 @@ row_prebuilt_free(
 "InnoDB: table handle. Magic n %lu, magic n2 %lu, table name",
 		(ulong) prebuilt->magic_n,
 		(ulong) prebuilt->magic_n2);
-		ut_print_name(stderr, prebuilt->table->name);
+		ut_print_name(stderr, NULL, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption((byte*)prebuilt);
@@ -550,7 +550,7 @@ row_update_prebuilt_trx(
 		"InnoDB: Error: trying to use a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, prebuilt->table->name);
+		ut_print_name(stderr, NULL, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption((byte*)prebuilt);
@@ -864,7 +864,7 @@ row_insert_for_mysql(
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, prebuilt->table->name);
+		ut_print_name(stderr, prebuilt->trx, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption((byte*)prebuilt);
@@ -1081,7 +1081,7 @@ row_update_for_mysql(
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, prebuilt->table->name);
+		ut_print_name(stderr, prebuilt->trx, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption((byte*)prebuilt);
@@ -1568,7 +1568,7 @@ row_create_table_for_mysql(
 
 		if (err == DB_OUT_OF_FILE_SPACE) {
 			fputs("InnoDB: Warning: cannot create table ", stderr);
-			ut_print_name(stderr, table->name);
+			ut_print_name(stderr, trx, table->name);
 			fputs(" because tablespace full\n", stderr);
 		     	row_drop_table_for_mysql(table->name, trx, FALSE);
 
@@ -1576,7 +1576,7 @@ row_create_table_for_mysql(
 	    		ut_print_timestamp(stderr);
 
 			fputs("  InnoDB: Error: table ", stderr);
-			ut_print_name(stderr, table->name);
+			ut_print_name(stderr, trx, table->name);
 			fputs(" already exists in InnoDB internal\n"
      "InnoDB: data dictionary. Have you deleted the .frm file\n"
      "InnoDB: and not used DROP TABLE? Have you used DROP DATABASE\n"
@@ -1643,10 +1643,10 @@ row_create_index_for_mysql(
 				ut_print_timestamp(stderr);
 
 				fputs("  InnoDB: Error: column ", stderr);
-				ut_print_name(stderr,
+				ut_print_name(stderr, trx,
 				dict_index_get_nth_field(index, i)->name);
 				fputs(" appears twice in ", stderr);
-				dict_index_name_print(stderr, index);
+				dict_index_name_print(stderr, trx, index);
 				fputs("\n"
 				"InnoDB: This is not allowed in InnoDB.\n",
 					stderr);
@@ -1795,7 +1795,7 @@ row_drop_table_for_mysql_in_background(
 	if (error != DB_SUCCESS) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: Dropping table ", stderr);
-		ut_print_name(stderr, name);
+		ut_print_name(stderr, trx, name);
 		fputs(" in background drop list failed\n", stderr);
 	}
   	
@@ -1874,9 +1874,9 @@ already_dropped:
 	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
 
         ut_print_timestamp(stderr);
-	fputs("  InnoDB: Dropped table ", stderr);
-	ut_print_name(stderr, drop->table_name);
-	fputs(" in background drop queue.\n", stderr);
+	fprintf(stderr,
+		"  InnoDB: Dropped table %s in background drop queue.\n",
+		drop->table_name);
 
 	mem_free(drop->table_name);
 
@@ -2031,7 +2031,7 @@ row_discard_tablespace_for_mysql(
 	if (table->space == 0) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, name);
+		ut_print_name(stderr, trx, name);
 		fputs("\n"
 "InnoDB: is in the system tablespace 0 which cannot be discarded\n", stderr);
 		err = DB_ERROR;
@@ -2165,7 +2165,7 @@ row_import_tablespace_for_mysql(
 	if (table->space == 0) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, name);
+		ut_print_name(stderr, trx, name);
 		fputs("\n"
 "InnoDB: is in the system tablespace 0 which cannot be imported\n", stderr);
 		err = DB_ERROR;
@@ -2178,7 +2178,7 @@ row_import_tablespace_for_mysql(
 		fputs(
 "  InnoDB: Error: you are trying to IMPORT a tablespace\n"
 "InnoDB: ", stderr);
-		ut_print_name(stderr, name);
+		ut_print_name(stderr, trx, name);
 		fputs(", though you have not called DISCARD on it yet\n"
 "InnoDB: during the lifetime of the mysqld process!\n", stderr);
 
@@ -2395,7 +2395,7 @@ row_drop_table_for_mysql(
 	    	ut_print_timestamp(stderr);
 
 		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, name);
+		ut_print_name(stderr, trx, name);
 		fputs(" does not exist in the InnoDB internal\n"
      	"InnoDB: data dictionary though MySQL is trying to drop it.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
@@ -2429,10 +2429,10 @@ row_drop_table_for_mysql(
 		ut_print_timestamp(ef);
 
 		fputs("  Cannot drop table ", ef);
-		ut_print_name(ef, name);
+		ut_print_name(ef, trx, name);
 		fputs("\n"
 			"because it is referenced by ", ef);
-		ut_print_name(ef, foreign->foreign_table_name);
+		ut_print_name(ef, trx, foreign->foreign_table_name);
 		putc('\n', ef);
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -2444,7 +2444,7 @@ row_drop_table_for_mysql(
 	        ut_print_timestamp(stderr);
 		fputs("	 InnoDB: Warning: MySQL is trying to drop table ",
 			stderr);
-		ut_print_name(stderr, table->name);
+		ut_print_name(stderr, trx, table->name);
 		fputs("\n"
 		  "InnoDB: though there are still open handles to it.\n"
 		  "InnoDB: Adding the table to the background drop queue.\n",
@@ -2461,7 +2461,7 @@ row_drop_table_for_mysql(
 
 	        ut_print_timestamp(stderr);
 		fputs("	 InnoDB: You are trying to drop table ", stderr);
-		ut_print_name(stderr, table->name);
+		ut_print_name(stderr, trx, table->name);
 		fputs("\n"
 		  "InnoDB: though there are foreign key check running on it.\n"
 		  "InnoDB: Adding the table to the background drop queue.\n",
@@ -2503,7 +2503,7 @@ row_drop_table_for_mysql(
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: not able to remove table ",
 				stderr);
-			ut_print_name(stderr, name);
+			ut_print_name(stderr, trx, name);
 			fputs(" from the dictionary cache!\n", stderr);
 			err = DB_ERROR;
 		}
@@ -2526,7 +2526,7 @@ row_drop_table_for_mysql(
 				fprintf(stderr,
 "  InnoDB: Error: not able to delete tablespace %lu of table ",
 					(ulong) space_id);
-				ut_print_name(stderr, name);
+				ut_print_name(stderr, trx, name);
 				fputs("!\n", stderr);
 				err = DB_ERROR;
 			}
@@ -2590,10 +2590,10 @@ loop:
 			ut_print_timestamp(stderr);
 			fputs(
 	"  InnoDB: Warning: MySQL is trying to drop database ", stderr);
-			ut_print_name(stderr, name);
+			ut_print_name(stderr, trx, name);
 			fputs("\n"
 	"InnoDB: though there are still open handles to table ", stderr);
-			ut_print_name(stderr, table_name);
+			ut_print_name(stderr, trx, table_name);
 			fputs(".\n", stderr);
 
 		        os_thread_sleep(1000000);
@@ -2609,10 +2609,10 @@ loop:
 
 		if (err != DB_SUCCESS) {
 			fputs("InnoDB: DROP DATABASE ", stderr);
-			ut_print_name(stderr, name);
+			ut_print_name(stderr, trx, name);
 			fprintf(stderr, " failed with error %lu for table ",
 				(ulint) err);
-			ut_print_name(stderr, table_name);
+			ut_print_name(stderr, trx, table_name);
 			putc('\n', stderr);
 			break;
 		}
@@ -2793,7 +2793,7 @@ row_rename_table_for_mysql(
 	    	ut_print_timestamp(stderr);
 
                 fputs("  InnoDB: Error: table ", stderr);
-                ut_print_name(stderr, old_name);
+                ut_print_name(stderr, trx, old_name);
                 fputs(" does not exist in the InnoDB internal\n"
      	"InnoDB: data dictionary though MySQL is trying to rename the table.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
@@ -2808,7 +2808,7 @@ row_rename_table_for_mysql(
 	    	ut_print_timestamp(stderr);
 
                 fputs("  InnoDB: Error: table ", stderr);
-                ut_print_name(stderr, old_name);
+                ut_print_name(stderr, trx, old_name);
                 fputs(
 	" does not have an .ibd file in the database directory.\n"
 	"InnoDB: You can look for further help from section 15.1 of\n"
@@ -2940,16 +2940,16 @@ row_rename_table_for_mysql(
 		if (err == DB_DUPLICATE_KEY) {
 	    		ut_print_timestamp(stderr);
                 fputs("  InnoDB: Error: table ", stderr);
-                ut_print_name(stderr, new_name);
+                ut_print_name(stderr, trx, new_name);
                 fputs(" exists in the InnoDB internal data\n"
      "InnoDB: dictionary though MySQL is trying rename table ", stderr);
-                ut_print_name(stderr, old_name);
+                ut_print_name(stderr, trx, old_name);
 		fputs(" to it.\n"
      "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
      "InnoDB: You can look for further help from section 15.1 of\n"
 	      "InnoDB: http://www.innodb.com/ibman.php\n"
      "InnoDB: If table ", stderr);
-		ut_print_name(stderr, new_name);
+		ut_print_name(stderr, trx, new_name);
 		fputs(" is a temporary table #sql..., then it can be that\n"
      "InnoDB: there are still queries running on the table, and it will be\n"
      "InnoDB: dropped automatically when the queries end.\n"
@@ -2975,9 +2975,9 @@ row_rename_table_for_mysql(
 			ut_print_timestamp(stderr);
 			fputs(" InnoDB: Error in table rename, cannot rename ",
 				stderr);
-			ut_print_name(stderr, old_name);
+			ut_print_name(stderr, trx, old_name);
 			fputs(" to ", stderr);
-			ut_print_name(stderr, new_name);
+			ut_print_name(stderr, trx, new_name);
 			putc('\n', stderr);
 			err = DB_ERROR;
 
@@ -2999,14 +2999,14 @@ row_rename_table_for_mysql(
 	    			ut_print_timestamp(stderr);
 				fputs("  InnoDB: Error: in ALTER TABLE ",
 					stderr);
-				ut_print_name(stderr, new_name);
+				ut_print_name(stderr, trx, new_name);
 				fputs("\n"
 	"InnoDB: has or is referenced in foreign key constraints\n"
 	"InnoDB: which are not compatible with the new table definition.\n",
 					stderr);
 
 				ut_a(dict_table_rename_in_cache(table,
-							old_name, FALSE));
+					old_name, FALSE));
 				trx->error_state = DB_SUCCESS;
 				trx_general_rollback_for_mysql(trx, FALSE,
 									NULL);
@@ -3022,14 +3022,14 @@ row_rename_table_for_mysql(
 				fputs(
 				"  InnoDB: Error: in RENAME TABLE table ",
 					stderr);
-				ut_print_name(stderr, new_name);
+				ut_print_name(stderr, trx, new_name);
 				fputs("\n"
      "InnoDB: is referenced in foreign key constraints\n"
      "InnoDB: which are not compatible with the new table definition.\n",
 					stderr);
      
 				ut_a(dict_table_rename_in_cache(table,
-							old_name, FALSE));
+					old_name, FALSE));
 						
 				trx->error_state = DB_SUCCESS;
 				trx_general_rollback_for_mysql(trx, FALSE,
@@ -3146,7 +3146,8 @@ loop:
 			fputs("InnoDB: index records in a wrong order in ",
 				stderr);
 		not_ok:
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr,
+					prebuilt->trx, index);
 			fputs("\n"
 				"InnoDB: prev record ", stderr);
 			dtuple_print(stderr, prev_entry);
@@ -3232,7 +3233,8 @@ row_check_table_for_mysql(
 				ret = DB_ERROR;
  
 				fputs("Error: ", stderr);
-				dict_index_name_print(stderr, index);
+				dict_index_name_print(stderr,
+					prebuilt->trx, index);
 				fprintf(stderr,
 				" contains %lu entries, should be %lu\n",
 					(ulong) n_rows,

@@ -252,7 +252,7 @@ row_ins_sec_index_entry_by_modify(
 	heap = mem_heap_create(1024);
 	
 	update = row_upd_build_sec_rec_difference_binary(cursor->index,
-							entry, rec, heap); 
+				entry, rec, thr_get_trx(thr), heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try an optimistic updating of the record, keeping changes
 		within the page */
@@ -316,7 +316,7 @@ row_ins_clust_index_entry_by_modify(
 	roll_ptr */
 	
 	update = row_upd_build_difference_binary(cursor->index, entry, ext_vec,
-						n_ext_vec, rec, heap); 
+			n_ext_vec, rec, thr_get_trx(thr), heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
@@ -554,29 +554,30 @@ row_ins_foreign_report_err(
 					table */
 {
 	FILE*	ef	= dict_foreign_err_file;
+	trx_t*	trx	= thr_get_trx(thr);
 
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
-	trx_print(ef, thr_get_trx(thr));
+	trx_print(ef, trx);
 
 	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, foreign->foreign_table_name);
+	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(":\n", ef);
-	dict_print_info_on_foreign_key_in_create_format(ef, foreign);
+	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign);
 	putc('\n', ef);
 	fputs(errstr, ef);
 	fputs(" in parent table, in index ", ef);
-	ut_print_name(ef, foreign->referenced_index->name);
+	ut_print_name(ef, trx, foreign->referenced_index->name);
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in child table ", ef);
-	ut_print_name(ef, foreign->foreign_table_name);
+	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(", in index ", ef);
-	ut_print_name(ef, foreign->foreign_index->name);
+	ut_print_name(ef, trx, foreign->foreign_index->name);
 	if (rec) {
 		fputs(", there is a record:\n", ef);
 		rec_print(ef, rec);
@@ -612,19 +613,19 @@ row_ins_foreign_report_add_err(
 	fputs(" Transaction:\n", ef);
 	trx_print(ef, trx);
 	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, foreign->foreign_table_name);
+	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(":\n", ef);
-	dict_print_info_on_foreign_key_in_create_format(ef, foreign);
+	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign);
 	fputs("\nTrying to add in child table, in index ", ef);
-	ut_print_name(ef, foreign->foreign_index->name);
+	ut_print_name(ef, trx, foreign->foreign_index->name);
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in parent table ", ef);
-	ut_print_name(ef, foreign->referenced_table_name);
+	ut_print_name(ef, trx, foreign->referenced_table_name);
 	fputs(", in index ", ef);
-	ut_print_name(ef, foreign->referenced_index->name);
+	ut_print_name(ef, trx, foreign->referenced_index->name);
 	fputs(",\nthe closest match we can find is record:\n", ef);
 	if (rec && page_rec_is_supremum(rec)) {
 		/* If the cursor ended on a supremum record, it is better
@@ -704,10 +705,12 @@ row_ins_foreign_check_on_constraint(
 	ulint		n_to_update;
 	ulint		err;
 	ulint		i;
-
+	trx_t*		trx;
 
 	
 	ut_a(thr && foreign && pcur && mtr);
+
+	trx = thr_get_trx(thr);
 
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table */
@@ -847,7 +850,7 @@ row_ins_foreign_check_on_constraint(
 			fputs(
 			"InnoDB: error in cascade of a foreign key op\n"
 			"InnoDB: ", stderr);
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 
 			fputs("\n"
 				"InnoDB: record ", stderr);
@@ -1057,6 +1060,7 @@ row_ins_check_foreign_constraint(
 	ulint		err;
 	ulint		i;
 	mtr_t		mtr;
+	trx_t*		trx = thr_get_trx(thr);
 
 run_again:
 #ifdef UNIV_SYNC_DEBUG
@@ -1065,7 +1069,7 @@ run_again:
 
 	err = DB_SUCCESS;
 
-	if (thr_get_trx(thr)->check_foreigns == FALSE) {
+	if (trx->check_foreigns == FALSE) {
 		/* The user has suppressed foreign key checks currently for
 		this session */
 
@@ -1123,18 +1127,18 @@ run_again:
 			rewind(ef);
 			ut_print_timestamp(ef);
 			fputs(" Transaction:\n", ef);
-			trx_print(ef, thr_get_trx(thr));
+			trx_print(ef, trx);
 			fputs("Foreign key constraint fails for table ", ef);
-			ut_print_name(ef, foreign->foreign_table_name);
+			ut_print_name(ef, trx, foreign->foreign_table_name);
 			fputs(":\n", ef);
 			dict_print_info_on_foreign_key_in_create_format(ef,
-				foreign);
+					trx, foreign);
 			fputs("\nTrying to add to index ", ef);
-			ut_print_name(ef, foreign->foreign_index->name);
+			ut_print_name(ef, trx, foreign->foreign_index->name);
 			fputs(" tuple:\n", ef);
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
-			ut_print_name(ef, foreign->referenced_table_name);
+			ut_print_name(ef, trx, foreign->referenced_table_name);
 			fputs(" does not currently exist!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 
@@ -1267,7 +1271,7 @@ run_again:
 			if (check_ref) {			
 				err = DB_NO_REFERENCED_ROW;
 				row_ins_foreign_report_add_err(
-					thr_get_trx(thr), foreign, rec, entry);
+					trx, foreign, rec, entry);
 			} else {
 				err = DB_SUCCESS;
 			}
@@ -1283,7 +1287,7 @@ next_rec:
 			if (check_ref) {			
 				rec = btr_pcur_get_rec(&pcur);
 				row_ins_foreign_report_add_err(
-					thr_get_trx(thr), foreign, rec, entry);
+					trx, foreign, rec, entry);
 				err = DB_NO_REFERENCED_ROW;
 			} else {
 				err = DB_SUCCESS;
@@ -1302,18 +1306,18 @@ next_rec:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
-		thr_get_trx(thr)->error_state = err;
+		trx->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
 
 		srv_suspend_mysql_thread(thr);
 	
-		if (thr_get_trx(thr)->error_state == DB_SUCCESS) {
+		if (trx->error_state == DB_SUCCESS) {
 
 		        goto run_again;
 		}
 
-		err = thr_get_trx(thr)->error_state;
+		err = trx->error_state;
 	}
 
 	return(err);

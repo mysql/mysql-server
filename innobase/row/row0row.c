@@ -383,12 +383,13 @@ row_build_row_ref_in_tuple(
 	dtuple_t*	ref,	/* in/out: row reference built; see the
 				NOTE below! */
 	dict_index_t*	index,	/* in: index */
-	rec_t*		rec)	/* in: record in the index;
+	rec_t*		rec,	/* in: record in the index;
 				NOTE: the data fields in ref will point
 				directly into this record, therefore,
 				the buffer page of this record must be
 				at least s-latched and the latch held
 				as long as the row reference is used! */
+	trx_t*		trx)	/* in: transaction */
 {
 	dict_index_t*	clust_index;
 	dfield_t*	dfield;
@@ -403,9 +404,9 @@ row_build_row_ref_in_tuple(
 	if (!index->table) {
 		fputs("InnoDB: table ", stderr);
 	notfound:
-		ut_print_name(stderr, index->table_name);
+		ut_print_name(stderr, trx, index->table_name);
 		fputs(" for index ", stderr);
-		ut_print_name(stderr, index->name);
+		ut_print_name(stderr, trx, index->name);
 		fputs(" not found\n", stderr);
 		ut_error;
 	}
