@@ -122,7 +122,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
   }
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
-  selectNode(signal, node, loc, AccFull);
+  selectNode(signal, node, loc);
   out << par.m_path << " " << node << endl;
   // check children
   PrintPar cpar[2];
@@ -310,7 +310,6 @@ operator<<(NdbOut& out, const Dbtux::TreePos& pos)
   out << " [pos " << dec << pos.m_pos << "]";
   out << " [match " << dec << pos.m_match << "]";
   out << " [dir " << dec << pos.m_dir << "]";
-  out << " [ent " << pos.m_ent << "]";
   out << "]";
   return out;
 }
@@ -347,6 +346,7 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [lockMode " << dec << scan.m_lockMode << "]";
   out << " [keyInfo " << dec << scan.m_keyInfo << "]";
   out << " [pos " << scan.m_scanPos << "]";
+  out << " [ent " << scan.m_scanEnt << "]";
   for (unsigned i = 0; i <= 1; i++) {
     out << " [bound " << dec << i;
     Dbtux::ScanBound& bound = *scan.m_bound[i];
@@ -407,28 +407,21 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   const Dbtux::TreeHead& tree = frag.m_tree;
   out << "[NodeHandle " << hex << &node;
   out << " [loc " << node.m_loc << "]";
-  out << " [acc " << dec << node.m_acc << "]";
   out << " [node " << *node.m_node << "]";
-  if (node.m_acc >= Dbtux::AccPref) {
-    const Uint32* data;
-    out << " [pref";
-    data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize;
-    for (unsigned j = 0; j < tree.m_prefSize; j++)
-      out << " " << hex << data[j];
-    out << "]";
-    out << " [entList";
-    unsigned numpos = node.m_node->m_occup;
-    if (node.m_acc < Dbtux::AccFull && numpos > 2) {
-      numpos = 2;
-      out << "(" << dec << numpos << ")";
-    }
-    data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
-    const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
-    // print entries in logical order
-    for (unsigned pos = 1; pos <= numpos; pos++)
-      out << " " << entList[pos % numpos];
-    out << "]";
-  }
+  const Uint32* data;
+  out << " [pref";
+  data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize;
+  for (unsigned j = 0; j < tree.m_prefSize; j++)
+    out << " " << hex << data[j];
+  out << "]";
+  out << " [entList";
+  unsigned numpos = node.m_node->m_occup;
+  data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
+  const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
+  // print entries in logical order
+  for (unsigned pos = 1; pos <= numpos; pos++)
+    out << " " << entList[pos % numpos];
+  out << "]";
   out << "]";
   return out;
 }
