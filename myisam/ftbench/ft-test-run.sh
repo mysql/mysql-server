@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 
 if [ ! -x ./ft-test-run.sh ] ; then
   echo "Usage: ./ft-test-run.sh"
@@ -46,7 +46,7 @@ for batch in t/BEST t/* ; do
   touch $H
   OPTS="--defaults-file=$BASE/$batch/my.cnf --socket=$SOCK --character-sets-dir=$ROOT/sql/share/charsets"
   stop_myslqd
-  rm $MYSQLD
+  rm -f $MYSQLD
   (cd $ROOT; gmake)
 
   for prog in $MYSQLD $MYSQL $MYSQLADMIN ; do
@@ -65,17 +65,21 @@ for batch in t/BEST t/* ; do
                 --skip-grant-tables --skip-innodb \
                 --skip-networking --tmpdir=$DATA &
 
-  $MYSQLADMIN $OPTS --connect_timeout=60 ping
+  sleep 60
+  $MYSQLADMIN $OPTS ping
   if [ $? != 0 ] ; then
     echo "$MYSQLD refused to start"
     exit 1
   fi
-  for test in `cd data; echo *.test|sed "s/\.test\>//g"` ; do
+  for test in `cd data; echo *.test|sed "s/\.test//g"` ; do
+    echo "test $batch/$test"
     $MYSQL $OPTS --skip-column-names test <data/$test.test >var/$test.eval
+    echo "report $batch/$test"
     ./Ereport.pl var/$test.eval data/$test.relj > $batch/$test.out || exit
   done
   stop_myslqd
   rm -f $H
+  echo "compare $batch"
   [ $batch -ef t/BEST ] || ./Ecompare.pl t/BEST $batch >> t/BEST/report.txt
 done
 
