@@ -2331,11 +2331,17 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  mysql_free_result(warn_res);
 	}
       }
-      if (!disable_info && mysql_info(mysql))
+      if (!disable_info)
       {
-	dynstr_append(ds, "info: ");
-	dynstr_append(ds, mysql_info(mysql));
-	dynstr_append_mem(ds, "\n", 1);
+	char buf[40];
+	sprintf(buf,"affected rows: %ld\n",mysql_affected_rows(mysql));
+	dynstr_append(ds, buf);
+	if (mysql_info(mysql))
+	{
+	  dynstr_append(ds, "info: ");
+	  dynstr_append(ds, mysql_info(mysql));
+	  dynstr_append_mem(ds, "\n", 1);
+	}
       }
     }
 
