@@ -25,11 +25,10 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.1"
+#define IMPORT_VERSION "3.3"
 
 #include "client_priv.h"
 #include "mysql_version.h"
-#include <my_getopt.h>
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -90,8 +89,9 @@ static struct my_option my_long_options[] =
    (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore", 'i', "If duplicate unique key was found, keep old row.",
    (gptr*) &ignore, (gptr*) &ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.", 0, 0,
-   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.",
+   (gptr*) &opt_ignore_lines, (gptr*) &opt_ignore_lines, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
    (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -166,23 +166,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-  case 'c':
-    opt_columns= argument;
-    break;
-  case OPT_DEFAULT_CHARSET:
-    default_charset= argument;
-    break;
-  case OPT_CHARSETS_DIR:
-    charsets_dir= argument;
-    break;
-  case 'h':
-    current_host= argument;
-    break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    current_user= argument;
-    break;
-#endif
   case 'p':
     if (argument)
     {
@@ -195,12 +178,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     else
       tty_password= 1;
-    break;
-  case 'P':
-    opt_mysql_port= (unsigned int) atoi(argument);
-    break;
-  case 'S':
-    opt_mysql_unix_port= argument;
     break;
 #ifdef __WIN__
   case 'W':
@@ -216,24 +193,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
-  case (int) OPT_FTB:
-    fields_terminated= argument;
-    break;
-  case (int) OPT_LTB:
-    lines_terminated= argument;
-    break;
-  case (int) OPT_ENC:
-    enclosed= argument;
-    break;
-  case (int) OPT_O_ENC:
-    opt_enclosed= argument;
-    break;
-  case (int) OPT_ESC:
-    escaped= argument;
-    break;
-  case (int) OPT_IGN_LINES:
-    opt_ignore_lines= argument;
-    break;
 #include "sslopt-case.h"
   }
   return 0;

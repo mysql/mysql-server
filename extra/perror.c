@@ -16,32 +16,42 @@
 
 /* Return error-text for system error messages and nisam messages */
 
-#define PERROR_VERSION "2.7"
+#define PERROR_VERSION "2.8"
 
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <errno.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
+static my_bool verbose, print_all_codes;
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"help",       no_argument,        0, '?'},
-  {"info",       no_argument,        0, 'I'},
-  {"all",        no_argument,        0, 'a'},
-  {"silent",	 no_argument,	     0, 's'},
-  {"verbose",    no_argument,        0, 'v'},
-  {"version",    no_argument,        0, 'V'},
-  {0, 0, 0, 0}
+  {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"info", 'I', "Synonym for --help",  0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SYS_ERRLIST
+  {"all", 'a', "Print all the error messages and the number.",
+   (gptr*) &print_all_codes, (gptr*) &print_all_codes, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+#endif
+  {"silent", 's', "Only print the error message", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print error code and message (default).", (gptr*) &verbose,
+   (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"version", 'V', "Displays version information and exits.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 
 typedef struct ha_errors {
   int errcode;
   const char *msg;
 } HA_ERRORS;
 
-static int verbose=1,print_all_codes=0;
 
 static HA_ERRORS ha_errlist[]=
 {
@@ -99,57 +109,43 @@ static void usage(void)
   printf("Print a description for a system error code or a error code from\na MyISAM/ISAM/BDB table handler.\n");
   printf("If you want to get the error for a negative error code, you should use\n-- before the first error code to tell perror that there was no more options.\n\n");
   printf("Usage: %s [OPTIONS] [ERRORCODE [ERRORCODE...]]\n",my_progname);
-  printf("\n\
-   -?, --help     Displays this help and exits.\n\
-   -I, --info     Synonym for the above.");
-#ifdef HAVE_SYS_ERRLIST
-  printf("\n\
-   -a, --all      Print all the error messages and the number.");
-#endif
-  printf("\n\
-   -s, --silent	  Only print the error message\n\
-   -v, --verbose  Print error code and message (default).\n\
-   -V, --version  Displays version information and exits.\n");
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch (optid) {
+  case 's':
+    verbose=0;
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+    break;
+  case 'I':
+  case '?':
+    usage();
+    exit(0);
+    break;
+  }
+  return 0;
 }
 
 
 static int get_options(int *argc,char ***argv)
 {
-  int c,option_index;
+  int ho_error;
 
-  while ((c=getopt_long(*argc,*argv,"asvVI?",long_options,
-			&option_index)) != EOF)
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
   {
-      switch (c) {
-#ifdef HAVE_SYS_ERRLIST
-      case 'a':
-	print_all_codes=1;
-	break;
-#endif
-      case 'v':
-      	verbose=1;
-      	break;
-      case 's':
-	verbose=0;
-	break;
-      case 'V':
-	print_version();
-	exit(0);
-	break;
-      case 'I':
-      case '?':
-	usage();
-	exit(0);
-	break;
-      default:
-	fprintf(stderr,"%s: Illegal option character '%c'\n",
-		my_progname,opterr);
-	return(1);
-	break;
-      }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
-  (*argc)-=optind;
-  (*argv)+=optind;
   if (!*argc && !print_all_codes)
   {
     usage();

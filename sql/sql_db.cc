@@ -283,13 +283,20 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   */
   if (!found_other_files)
   {
-    char tmp_path[FN_REFLEN];
+    char tmp_path[FN_REFLEN], *pos;
     char *path=unpack_filename(tmp_path,org_path);
 #ifdef HAVE_READLINK
-    int linkcount = readlink(path,filePath,sizeof(filePath)-1);
-    if (linkcount > 0)			// If the path was a symbolic link
+    int error;
+    
+    /* Remove end FN_LIBCHAR as this causes problem on Linux in readlink */
+    pos=strend(path);
+    if (pos > path && pos[-1] == FN_LIBCHAR)
+      *--pos=0;
+
+    if ((error=my_readlink(filePath, path, MYF(MY_WME))) < 0)
+      DBUG_RETURN(-1);
+    if (!error)
     {
-      *(filePath + linkcount) = '\0';
       if (my_delete(path,MYF(!level ? MY_WME : 0)))
       {
 	/* Don't give errors if we can't delete 'RAID' directory */
@@ -297,11 +304,13 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	  DBUG_RETURN(deleted);
 	DBUG_RETURN(-1);
       }
-      path=filePath;
+      /* Delete directory symbolic link pointed at */
+      path= filePath;
     }
 #endif
     /* Remove last FN_LIBCHAR to not cause a problem on OS/2 */
-    char *pos=strend(path);
+    pos=strend(path);
+
     if (pos > path && pos[-1] == FN_LIBCHAR)
       *--pos=0;
     /* Don't give errors if we can't delete 'RAID' directory */

@@ -18,7 +18,7 @@
 /* Install or upgrade MySQL server. By Sasha Pachev <sasha@mysql.com>
  */
 
-#define INSTALL_VERSION "1.0"
+#define INSTALL_VERSION "1.1"
 
 #define DONT_USE_RAID
 #include <my_global.h>
@@ -27,17 +27,19 @@
 #include <m_string.h>
 #include <mysql_version.h>
 #include <errno.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
 #define ANSWERS_CHUNCK 32
 
 int have_gui=0;
 
-struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"help", no_argument, 0, '?'},
-  {"version", no_argument, 0, 'V'},
-  {0, 0,0,0}
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 /* For now, not much exciting here, but we'll add more once
@@ -195,26 +197,33 @@ static int ask_user(const char* question,int default_ind, ...)
   return ans;
 }
 
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch(optid) {
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+
+
 static int parse_args(int argc, char **argv)
 {
-  int c, option_index = 0;
+  int ho_error;
 
-  while((c = getopt_long(argc, argv, "?V",
-			 long_options, &option_index)) != EOF)
-    {
-      switch(c)
-	{
-	case 'V':
-	  print_version();
-	  exit(0);
-	case '?':
-	  usage();
-	  exit(0);
-	default:
-	  usage();
-	  exit(1);
-	}
-    }
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  {
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
+  }
   return 0;
 }
 
@@ -231,10 +240,8 @@ static void usage()
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Install or upgrade MySQL server.\n\n");
   printf("Usage: %s [OPTIONS] \n", my_progname);
-  printf("\n\
-  -?, --help               Display this help and exit.\n\
-  -h, --host=...           Connect to host.\n\
-  -V, --version            Output version information and exit.\n");
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 }
 
 int main(int argc, char** argv)

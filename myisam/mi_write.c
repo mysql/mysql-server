@@ -397,7 +397,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     DBUG_PRINT("test",("t_length: %d  ref_len: %d",
 		       t_length,s_temp.ref_length));
-    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key: %lx",
+    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key_pos: %lx",
 		       s_temp.n_ref_length,s_temp.n_length,s_temp.key));
   }
 #endif
@@ -758,6 +758,7 @@ int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
 
 
 /* typeof(_mi_keys_compare)=qsort_cmp2 */
+
 static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
 {
   uint not_used;
@@ -807,9 +808,10 @@ int _mi_init_bulk_insert(MI_INFO *info)
   bulk_insert_param *params;
   uint i, num_keys;
   ulonglong key_map=0;
+  DBUG_ENTER("_mi_init_bulk_insert");
 
   if (info->bulk_insert)
-    return 0;
+    DBUG_RETURN(0);
 
   for (i=num_keys=0 ; i < share->base.keys ; i++)
   {
@@ -821,15 +823,15 @@ int _mi_init_bulk_insert(MI_INFO *info)
     }
   }
 
-  if (num_keys==0 || num_keys>myisam_bulk_insert_tree_size)
-    return 0;
+  if (num_keys==0 || num_keys > myisam_bulk_insert_tree_size)
+    DBUG_RETURN(0);
 
   info->bulk_insert=(TREE *)
     my_malloc((sizeof(TREE)*share->base.keys+
                sizeof(bulk_insert_param)*num_keys),MYF(0));
 
   if (!info->bulk_insert)
-    return HA_ERR_OUT_OF_MEM;
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   params=(bulk_insert_param *)(info->bulk_insert+share->base.keys);
   for (i=0 ; i < share->base.keys ; i++,key++)
@@ -838,7 +840,7 @@ int _mi_init_bulk_insert(MI_INFO *info)
     {
       params->info=info;
       params->keynr=i;
-      init_tree(& info->bulk_insert[i],
+      init_tree(&info->bulk_insert[i],
                 myisam_bulk_insert_tree_size / num_keys / 4 + 10,
 		myisam_bulk_insert_tree_size / num_keys, 0,
 		(qsort_cmp2)keys_compare, 0,
@@ -848,5 +850,5 @@ int _mi_init_bulk_insert(MI_INFO *info)
      info->bulk_insert[i].root=0;
   }
 
-  return 0;
+  DBUG_RETURN(0);
 }

@@ -16,7 +16,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.1"
+#define SHOW_VERSION "9.3"
 
 #include <my_global.h>
 #include "client_priv.h"
@@ -27,7 +27,6 @@
 #include "mysqld_error.h"
 #include <signal.h>
 #include <stdarg.h>
-#include <my_getopt.h>
 #include "sslopt-vars.h"
 
 static my_string host=0,opt_password=0,user=0;
@@ -198,14 +197,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-  case 'c':
-    charsets_dir= argument;
-    break;
   case 'v':
     opt_verbose++;
-    break;
-  case 'h':
-    host = argument;
     break;
   case 'p':
     if (argument)
@@ -219,17 +212,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     else
       tty_password=1;
-    break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    user=argument;
-    break;
-#endif
-  case 'P':
-    opt_mysql_port= (unsigned int) atoi(argument);
-    break;
-  case 'S':
-    opt_mysql_unix_port= argument;
     break;
   case 'W':
 #ifdef __WIN__

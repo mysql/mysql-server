@@ -15,4 +15,15 @@ test
 select * from t1 where a like "te_t";
 a
 test
+select * from t1 where a like "%a%";
+a
+a
+abc
+abcd
+select * from t1 where a like "%abcd%";
+a
+abcd
+select * from t1 where a like "%abc\d%";
+a
+abcd
 drop table t1;

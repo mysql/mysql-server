@@ -182,7 +182,7 @@ typedef struct st_copy_info {
   ha_rows copied;
   ha_rows error;
   enum enum_duplicates handle_duplicates;
-  int escape_char;
+  int escape_char, errorno;
 } COPY_INFO;
 
 
@@ -382,7 +382,7 @@ public:
   ha_rows    select_limit,offset_limit,default_select_limit,cuted_fields,
              max_join_size, sent_row_count, examined_row_count;
   table_map  used_tables;
-  UC *user_connect;
+  USER_CONN *user_connect;
   ulong	     query_id,version, inactive_timeout,options,thread_id;
   long	     dbug_thread_id;
   pthread_t  real_id;
@@ -666,6 +666,7 @@ class select_union :public select_result {
   TABLE *table;
   COPY_INFO info;
   uint save_time_stamp;
+  TMP_TABLE_PARAM *tmp_table_param;
 
   select_union(TABLE *table_par);
   ~select_union();

@@ -1,8 +1,8 @@
-diff -r -c --exclude=*.info* glibc-2.2.4/linuxthreads/internals.h glibc-2.2.4-new/linuxthreads/internals.h
-*** glibc-2.2.4/linuxthreads/internals.h	Mon Jul 23 20:54:13 2001
---- glibc-2.2.4-new/linuxthreads/internals.h	Tue Apr 16 15:08:03 2002
+diff -r -c --exclude='*.info*' glibc-2.2.5.org/linuxthreads/internals.h glibc-2.2.5/linuxthreads/internals.h
+*** glibc-2.2.5.org/linuxthreads/internals.h	Thu Nov 29 08:44:16 2001
+--- glibc-2.2.5/linuxthreads/internals.h	Tue May 21 10:51:53 2002
 ***************
-*** 339,345 ****
+*** 343,349 ****
      THREAD_SELF implementation is used, this must be a power of two and
      a multiple of PAGE_SIZE.  */
   #ifndef STACK_SIZE
@@ -10,7 +10,7 @@ diff -r -c --exclude=*.info* glibc-2.2.4/linuxthreads/internals.h glibc-2.2.4-ne
   #endif
   
   /* The initial size of the thread stack.  Must be a multiple of PAGE_SIZE.  */
---- 339,345 ----
+--- 343,349 ----
      THREAD_SELF implementation is used, this must be a power of two and
      a multiple of PAGE_SIZE.  */
   #ifndef STACK_SIZE
@@ -18,9 +18,9 @@ diff -r -c --exclude=*.info* glibc-2.2.4/linuxthreads/internals.h glibc-2.2.4-ne
   #endif
   
   /* The initial size of the thread stack.  Must be a multiple of PAGE_SIZE.  */
-diff -r -c --exclude=*.info* glibc-2.2.4/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h glibc-2.2.4-new/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h
-*** glibc-2.2.4/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Fri Jun  9 22:17:35 2000
---- glibc-2.2.4-new/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Tue Apr 16 15:10:38 2002
+diff -r -c --exclude='*.info*' glibc-2.2.5.org/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h glibc-2.2.5/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h
+*** glibc-2.2.5.org/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Thu Jun  8 21:49:49 2000
+--- glibc-2.2.5/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Tue May 21 10:52:58 2002
 ***************
 *** 64,70 ****
   /* The number of threads per process.  */
@@ -38,16 +38,16 @@ diff -r -c --exclude=*.info* glibc-2.2.4/linuxthreads/sysdeps/unix/sysv/linux/bi
   
   /* Maximum amount by which a process can descrease its asynchronous I/O
      priority level.  */
-diff -r -c --exclude=*.info* glibc-2.2.4/nss/nsswitch.c glibc-2.2.4-new/nss/nsswitch.c
-*** glibc-2.2.4/nss/nsswitch.c	Mon Jul 23 20:54:48 2001
---- glibc-2.2.4-new/nss/nsswitch.c	Fri May  3 04:17:44 2002
+diff -r -c --exclude='*.info*' glibc-2.2.5.org/nss/nsswitch.c glibc-2.2.5/nss/nsswitch.c
+*** glibc-2.2.5.org/nss/nsswitch.c	Tue Jul 17 10:21:36 2001
+--- glibc-2.2.5/nss/nsswitch.c	Tue May 21 10:59:55 2002
 ***************
 *** 496,501 ****
 --- 496,502 ----
       {
         service_user *new_service;
         const char *name;
-+       int name_alloc_len;
++ 			int name_alloc_len;
   
         while (isspace (line[0]))
   	++line;
@@ -66,7 +66,7 @@ diff -r -c --exclude=*.info* glibc-2.2.4/nss/nsswitch.c glibc-2.2.4-new/nss/nssw
   
         /* Set default actions.  */
         new_service->actions[2 + NSS_STATUS_TRYAGAIN] = NSS_ACTION_CONTINUE;
---- 511,533 ----
+--- 511,534 ----
         if (name == line)
   	return result;
   
@@ -74,25 +74,26 @@ diff -r -c --exclude=*.info* glibc-2.2.4/nss/nsswitch.c glibc-2.2.4-new/nss/nssw
 + 
 + #ifdef DO_STATIC_NSS
 +       if (!((name_alloc_len == 6 && strncmp(name,"files",5) == 0) ||
-+ 	    (name_alloc_len == 4 && strncmp(name,"dns",3) == 0)))
++       (name_alloc_len == 4 && strncmp(name,"dns",3) == 0)))
 +       {
-+ 	name = (char*) "files";
-+         name_alloc_len=6;
++         name = (char*) "files";
++         name_alloc_len = 6;
 +       }
-+ #endif      
++ #endif
   
         new_service = (service_user *) malloc (sizeof (service_user)
 ! 					     + name_alloc_len);
         if (new_service == NULL)
   	return result;
   
-!       *((char *) __mempcpy (new_service->name, name, name_alloc_len)) = '\0';
+!       *((char *) __mempcpy (new_service->name, name, name_alloc_len-1)) = '\0';
+! 
   
         /* Set default actions.  */
         new_service->actions[2 + NSS_STATUS_TRYAGAIN] = NSS_ACTION_CONTINUE;
-diff -r -c --exclude=*.info* glibc-2.2.4/time/Makefile glibc-2.2.4-new/time/Makefile
-*** glibc-2.2.4/time/Makefile	Fri Aug 10 22:12:07 2001
---- glibc-2.2.4-new/time/Makefile	Tue Apr 16 15:11:09 2002
+diff -r -c --exclude='*.info*' glibc-2.2.5.org/time/Makefile glibc-2.2.5/time/Makefile
+*** glibc-2.2.5.org/time/Makefile	Fri Aug 10 01:59:41 2001
+--- glibc-2.2.5/time/Makefile	Tue May 21 11:01:11 2002
 ***************
 *** 37,44 ****
   
@@ -112,9 +113,9 @@ diff -r -c --exclude=*.info* glibc-2.2.4/time/Makefile glibc-2.2.4-new/time/Make
   	    -DTZDEFRULES='"$(posixrules-file)"'
   
   CFLAGS-tzfile.c = $(tz-cflags)
-diff -r -c --exclude=*.info* glibc-2.2.4/timezone/Makefile glibc-2.2.4-new/timezone/Makefile
-*** glibc-2.2.4/timezone/Makefile	Mon Jul 23 20:58:05 2001
---- glibc-2.2.4-new/timezone/Makefile	Tue Apr 16 15:11:09 2002
+diff -r -c --exclude='*.info*' glibc-2.2.5.org/timezone/Makefile glibc-2.2.5/timezone/Makefile
+*** glibc-2.2.5.org/timezone/Makefile	Thu Aug 30 00:45:25 2001
+--- glibc-2.2.5/timezone/Makefile	Tue May 21 11:01:57 2002
 ***************
 *** 159,166 ****
   

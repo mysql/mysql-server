@@ -17,7 +17,7 @@
 C_MODE_START
 
 enum get_opt_var_type { GET_NO_ARG, GET_BOOL, GET_INT, GET_UINT, GET_LONG,
-			GET_ULONG, GET_LL, GET_ULL, GET_STR };
+			GET_ULONG, GET_LL, GET_ULL, GET_STR, GET_STR_ALLOC };
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 
 struct my_option

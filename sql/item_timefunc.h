@@ -47,7 +47,7 @@ public:
   Item_func_to_days(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "to_days"; }
-  void fix_length_and_dec() { decimals=0; max_length=6; }
+  void fix_length_and_dec() { decimals=0; max_length=6; maybe_null=1; }
 };
 
 

@@ -19,12 +19,11 @@
 
 #include "client_priv.h"
 #include <signal.h>
-#include <my_getopt.h>
 #ifdef THREAD
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.31"
+#define ADMIN_VERSION "8.34"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -136,14 +135,15 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Silently exit if one can't connect to server",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &unix_port, (gptr*) &unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
   {"sleep", 'i', "Execute commands again and again with a sleep between.",
    (gptr*) &interval, (gptr*) &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include "sslopt-longopts.h"
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
-   (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v', "Write more information.", (gptr*) &opt_verbose,
    (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -174,10 +174,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   int error = 0;
 
   switch(optid) {
-  case 'h':
-    host = argument;
-    break;
-  case 'q':					/* Allow old 'q' option */
   case 'p':
     if (argument)
     {
@@ -191,22 +187,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password=1;
     break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    user= my_strdup(argument,MYF(0));
-    break;
-#endif
-  case 'i':
-    interval=atoi(argument);
-    break;
-  case 'P':
-    tcp_port= (unsigned int) atoi(argument);
-    break;
   case 's':
     option_silent++;
-    break;
-  case 'S':
-    unix_port= argument;
     break;
   case 'W':
 #ifdef __WIN__

@@ -456,7 +456,8 @@ row_ins_foreign_delete_or_set_null(
 	}
 
 	if (!page_rec_is_user_rec(clust_rec)) {
-	  	fprintf(stderr, "InnoDB: error in cascade of a foreign key op\n"
+	  	fprintf(stderr,
+			"InnoDB: error in cascade of a foreign key op\n"
 		  	"InnoDB: index %s table %s\n", index->name,
 		  	index->table->name);
 
@@ -490,9 +491,10 @@ row_ins_foreign_delete_or_set_null(
 	}
 
 	if (rec_get_deleted_flag(clust_rec)) {
-		/* This should never happen since we already have an S-lock
-		on non-delete-marked clust_rec or secondary index record! */
-
+		/* This can happen if there is a circular reference of
+		rows such that cascading delete comes to delete a row
+		already in the process of being delete marked */
+/*
 	  	fprintf(stderr,
 			"InnoDB: error 2 in cascade of a foreign key op\n"
 		  	"InnoDB: index %s table %s\n", index->name,
@@ -509,6 +511,8 @@ row_ins_foreign_delete_or_set_null(
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
 		ut_a(0);
+*/
+		err = DB_SUCCESS;		
 
 		goto nonstandard_exit_func;
 	}

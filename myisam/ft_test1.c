@@ -14,11 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Written by Sergei A. Golubchik, who has a shared copyright to this code */
+/* Written by Sergei A. Golubchik, who has a shared copyright to this code
+   added support for long options (my_getopt) 22.5.2002 by Jani Tolonen */
 
 #include "ftdefs.h"
 #include "ft_test1.h"
-#include <getopt.h>
+#include <my_getopt.h>
 
 static int key_field=FIELD_VARCHAR,extra_field=FIELD_SKIP_ENDSPACE;
 static uint key_length=200,extra_length=50;
@@ -33,8 +34,26 @@ static char record[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
 static int run_test(const char *filename);
 static void get_options(int argc, char *argv[]);
 static void create_record(char *, int);
+static void usage();
 
-int main(int argc,char *argv[])
+static struct my_option my_long_options[] =
+{
+  {"", 'v', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", '?', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'h', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'V', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'v', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 's', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'N', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'S', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'K', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'F', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'U', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", '#', "", 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+int main(int argc, char *argv[])
 {
   MY_INIT(argv[0]);
 
@@ -173,7 +192,7 @@ static int run_test(const char *filename)
   return (0);
 err:
   printf("got error: %3d when using myisam-database\n",my_errno);
-  return 1;			/* skipp warning */
+  return 1;			/* skip warning */
 }
 
 static char blob_key[MAX_REC_LENGTH];
@@ -232,34 +251,51 @@ void create_record(char *pos, int n)
   }
 }
 
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch(optid) {
+  case 'v': verbose=1; break;
+  case 's': silent=1; break;
+  case 'F': no_fulltext=1; no_search=1;
+  case 'U': skip_update=1; break;
+  case 'K': no_keys=no_search=1; break;
+  case 'N': no_search=1; break;
+  case 'S': no_stopwords=1; break;
+  case '#':
+    DEBUGGER_ON;
+    DBUG_PUSH (argument);
+    break;
+  case 'V':
+  case '?':
+  case 'h':
+    usage();
+    exit(1);
+  }
+  return 0;
+}
+
 /* Read options */
 
 static void get_options(int argc,char *argv[])
 {
-  int c;
-  const char *options="hVvsNSKFU#:";
+  int ho_error;
 
-  while ((c=getopt(argc,argv,options)) != -1)
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
-    switch(c) {
-    case 'v': verbose=1; break;
-    case 's': silent=1; break;
-    case 'F': no_fulltext=1; no_search=1;
-    case 'U': skip_update=1; break;
-    case 'K': no_keys=no_search=1; break;
-    case 'N': no_search=1; break;
-    case 'S': no_stopwords=1; break;
-    case '#':
-      DEBUGGER_ON;
-      DBUG_PUSH (optarg);
-      break;
-    case 'V':
-    case '?':
-    case 'h':
-    default:
-      printf("%s -[%s]\n", argv[0], options);
-      exit(0);
-    }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
   return;
 } /* get options */
+
+
+static void usage()
+{
+  printf("%s [options]\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}

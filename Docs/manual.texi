@@ -812,7 +812,7 @@ limits. Here are some examples:
 @item Linux-Intel 32 bit        @tab 2G, 4G or more, depends on Linux version
 @item Linux-Alpha               @tab 8T (?)
 @item Solaris 2.5.1             @tab 2G (possible 4G with patch)
-@item Solaris 2.6               @tab 4G
+@item Solaris 2.6               @tab 4G (can be changed with flag)
 @item Solaris 2.7 Intel         @tab 4G
 @item Solaris 2.7 UltraSPARC    @tab 512G
 @end multitable
@@ -2947,7 +2947,7 @@ extension @code{CONCAT()} (in lieu of the standard @code{||} operator).
 For example:
 
 @example
-SELECT CONCAT('DELETE FROM tab1 WHERE pkid = ', tab1.pkid, ';')
+SELECT CONCAT('DELETE FROM tab1 WHERE pkid = ', "'", tab1.pkid, "'", ';')
   FROM tab1, tab2
  WHERE tab1.col1 = tab2.col2;
 @end example
@@ -3432,6 +3432,11 @@ The following problems are known and will be fixed in due time:
 @item
 When using @code{SET CHARACTER SET}, one can't use translated
 characters in database, table, and column names.
+
+@item
+If you have a @code{DECIMAL} column with a  number stored in different
+formats (+01.00, 1.00, 01.00), @code{GROUP BY} may regard each value
+as a different value.
 
 @item
 @code{DELETE FROM merge_table} used without a @code{WHERE}
@@ -7036,7 +7041,7 @@ When the build is done, run @code{make install}.  Be careful with this
 on a production machine; the command may overwrite your live release
 installation.  If you have another installation of MySQL, we
 recommand that you run @code{./configure} with different values for the
-@code{prefix}, @code{tcp-port}, and @code{unix-socket-path} options than
+@code{prefix}, @code{with-tcp-port}, and @code{unix-socket-path} options than
 those used for your production server.
 
 @item
@@ -8566,7 +8571,7 @@ information.
 * Other Unix Notes::            Other Unix Notes
 * OS/2::                        OS/2 Notes
 * BeOS::                        BeOS Notes
-* Novell Netware::              Novell Netware Notes
+* Novell Netware::              Novell NetWare Notes
 @end menu
 
 
@@ -11159,10 +11164,10 @@ in a while.
 
 
 @node Novell Netware,  , BeOS, Operating System Specific Notes
-@subsection Novell Netware Notes
+@subsection Novell NetWare Notes
 
-We are really interested in getting MySQL to work on Netware, but
-unfortunately we don't have any person who knows Netware or has time to do
+We are really interested in getting MySQL to work on NetWare, but
+unfortunately we don't have any person who knows NetWare or has time to do
 a port.
 
 We are interested in finding someone to do a port, and we will help them
@@ -14353,6 +14358,14 @@ Option can be any combination of: @code{REAL_AS_FLOAT},
 By specifying all of the above options is same as using --ansi.
 With this option one can turn on only needed SQL modes. @xref{ANSI mode}.
 
+@item --temp-pool
+Using this option will cause most temporary files created to use a small
+set of names, rather than a unique name for each new file. This is to
+work around a problem in the Linux kernel dealing with creating a bunch
+of new files with different names. With the old behavior, Linux seems to
+'leak' memory, as it's being allocated to the directory entry cache
+instead of the disk cache.
+
 @item --transaction-isolation= @{ READ-UNCOMMITTED | READ-COMMITTED | REPEATABLE-READ | SERIALIZABLE @}
 Sets the default transaction isolation level.  @xref{SET TRANSACTION}.
 
@@ -16381,6 +16394,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * Privilege changes::           When Privilege Changes Take Effect
 * Default privileges::          Setting Up the Initial MySQL Privileges
 * Adding users::                Adding New Users to MySQL
+* User resources::              Limiting user resources
 * Passwords::                   Setting Up Passwords
 * Password security::           Keeping Your Password Secure
 * Secure connections::          Using Secure Connections
@@ -16409,7 +16423,9 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
 	[CIPHER cipher [AND]]
 	[ISSUER issuer [AND]]
 	[SUBJECT subject]]
-    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=#]]
+    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=# |
+                          MAX_UPDATES_PER_HOUR=# |
+                          MAX_CONNECTIONS_PER_HOUR=#]]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
@@ -16572,11 +16588,11 @@ to other users any privileges the user has at the specified privilege level.
 You should be careful to whom you give the @strong{grant} privilege, as two
 users with different privileges may be able to join privileges!
 
-@code{MAX_QUERIES_PER_HOUR=#} limits the number of queries the user can
-do during one hour. If @code{#} is 0, then this means that there is no
-limit of the number of queries. This works by MySQL resetting a user
-specific query counter to 0, after it has gone more than one hour
-since the counter started incrementing.
+@code{MAX_QUERIES_PER_HOUR=#}, @code{MAX_UPDATES_PER_HOUR=#} and
+@code{MAX_CONNECTIONS_PER_HOUR=#} limit the number of
+queries/updates and logins the user can do during one hour. 
+If @code{#} is 0 (default), then this means that there is no limitations
+for the user. @xref{User resources}.
 
 You cannot grant another user a privilege you don't have yourself;
 the @strong{grant} privilege allows you to give away only those privileges
@@ -16867,7 +16883,7 @@ you should copy them back from your MySQL distribution before
 running @code{mysql_install_db}.
 
 
-@node Adding users, Passwords, Default privileges, User Account Management
+@node Adding users, User resources, Default privileges, User Account Management
 @subsection Adding New Users to MySQL
 
 @findex GRANT statement
@@ -17059,8 +17075,67 @@ You can also use @code{xmysqladmin}, @code{mysql_webadmin}, and even
 You can find these utilities in the Contrib directory of the
 MySQL web site (@uref{http://www.mysql.com/Downloads/Contrib/}).
 
+@node User resources, Passwords, Adding users, User Account Management
+@subsection Limiting user resources
 
-@node Passwords, Password security, Adding users, User Account Management
+Starting from MySQL 4.0.2 one can limit certain resources per user.
+
+So far, the only available method of limiting usage of MySQL
+server resources has been setting the @code{max_user_connections}
+startup variable to a non-zero value. But this method is strictly
+global and does not allow for management of individual users, which
+could be of particular interest to Internet Service Providers.
+
+Therefore, management of three resources is introduced on the
+individual user level:
+
+@itemize @bullet
+@item Number of all queries per hour:
+All commands that could be run by a user.
+@item Number of all updates per hour:
+Any command that changes any table or database.
+@item Number of connections made per hour:
+New connections opened per hour.
+@end itemize
+
+A user in the aforementioned context is a single entry in the
+@code{user} table, which is uniquely identified by its @code{user}
+and @code{host} columns.
+
+All users are by default not limited in using the above resources,
+unless the limits are granted to them. These limits can be granted
+@strong{only} via global @code{GRANT (*.*)}, using this syntax:
+
+@example
+GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
+               MAX_UPDATES_PER_HOUR = N2
+               MAX_CONNECTIONS_PER_HOUR = N3;
+@end example
+
+One can specify any combination of the above resources.
+N1, N2 and N3 are integers and stands for count / hour.
+
+If user reaches any of the above limits withing one hour, his
+connection will be terminated or refused and the appropriate error
+message shall be issued.
+
+Current usage values for a particular user can be flushed (set to zero)
+by issuing a @code{GRANT} statement with any of the above clauses,
+including a @code{GRANT} statement with the current values.
+
+Also, current values for all users will be flushed if privileges are
+reloaded (in the server or using @code{mysqladmin reload})
+or if the @code{FLUSH USER_RESOURCES} command is issued.
+
+The feature is enabled as soon as a single user is granted with any
+of the limiting @code{GRANT} clauses.
+
+As a prerequisite for enabling this feature, the @code{user} table in
+the @code{mysql} database must contain the additional columns, as
+defined in the table creation scripts @code{mysql_install_db} and
+@code{mysql_install_db.sh} in @file{scripts} subdirectory.
+
+@node Passwords, Password security, User resources, User Account Management
 @subsection Setting Up Passwords
 
 @findex PASSWORD()
@@ -19024,6 +19099,8 @@ memory.  This command will not remove any queries from the cache, unlike
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a filesystem, like Veritas,that can take snapshots in time.
 
 @item @code{STATUS} @tab Resets most status variables to zero. This is something one should only use when debugging a query.
+
+@item @code{USER_RESOURCES} @tab Resets all user resources to zero. This will enable blocked users to login again. @xref{User resources}.
 @end multitable
 
 You can also access each of the commands shown above with the @code{mysqladmin}
@@ -19369,6 +19446,7 @@ The status variables listed above have the following meaning:
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}.
 @item @code{Delayed_errors} @tab Number of rows written with @code{INSERT DELAYED} for which some error occurred (probably @code{duplicate key}).
 @item @code{Flush_commands} @tab Number of executed @code{FLUSH} commands.
+@item @code{Handler_commit} @tab Number of internal @code{COMMIT} commands.
 @item @code{Handler_delete} @tab Number of times a row was deleted from a table.
 @item @code{Handler_read_first} @tab Number of times the first entry was read from an index.
 If this is high, it suggests that the server is doing a lot of full index scans, for example,
@@ -19378,12 +19456,14 @@ is high, it is a good indication that your queries and tables are properly index
 @item @code{Handler_read_next} @tab Number of requests to read next row in key order. This
 will be incremented if you are querying an index column with a range constraint. This also
 will be incremented if you are doing an index scan.
+@item @code{Handler_read_prev} @tab Number of requests to read previous row in key order.  This is mainly used to optimize @code{ORDER BY ... DESC}.
 @item @code{Handler_read_rnd} @tab Number of requests to read a row based on a fixed position.
 This will be high if you are doing a lot of queries that require sorting of the result.
 @item @code{Handler_read_rnd_next} @tab Number of requests to read the next row in the datafile.
 This will be high if you are doing a lot of table scans. Generally this suggests that your tables
 are not properly indexed or that your queries are not written to take advantage of the indexes you
 have.
+@item @code{Handler_rollback} @tab  Number of internal @code{ROLLBACK} commands.
 @item @code{Handler_update} @tab Number of requests to update a row in a table.
 @item @code{Handler_write} @tab Number of requests to insert a row in a table.
 @item @code{Key_blocks_used} @tab The number of used blocks in the key cache.
@@ -19398,20 +19478,23 @@ have.
 @item @code{Open_files} @tab  Number of files that are open.
 @item @code{Open_streams} @tab Number of streams that are open (used mainly for logging).
 @item @code{Opened_tables} @tab Number of tables that have been opened.
-@item @code{Select_full_join} @tab Number of joins without keys (Should be 0).
+@item @code{Rpl_status} @tab Status of failsafe replication. (Not yet in use).
+@item @code{Select_full_join} @tab Number of joins without keys (If this is 0, you should carefully check the index of your tables).
 @item @code{Select_full_range_join} @tab Number of joins where we used a range search on reference table.
 @item @code{Select_range} @tab Number of joins where we used ranges on the first table. (It's normally not critical even if this is big.)
-@item @code{Select_scan} @tab Number of joins where we scanned the first table.
-@item @code{Select_range_check} @tab Number of joins without keys where we check for key usage after each row (Should be 0).
+@item @code{Select_scan} @tab Number of joins where we did a full scann of the first table.
+@item @code{Select_range_check} @tab Number of joins without keys where we check for key usage after each row (If this is 0, you should carefully check the index of your tables).
 @item @code{Questions} @tab Number of queries sent to the server.
 @item @code{Slave_open_temp_tables} @tab Number of temporary tables currently
 open by the slave thread
-@item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to connect.
+@item @code{Slave_running} @tab Is @code{ON} if this is a slave that is connected to a master.
+@item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to create.
 @item @code{Slow_queries} @tab Number of queries that have taken more than @code{long_query_time}. @xref{Slow query log}.
-@item @code{Sort_merge_passes} @tab Number of merges the sort has to do. If this value is large you should consider increasing @code{sort_buffer}.
+@item @code{Sort_merge_passes} @tab Number of merges passes the sort algoritm have had to do. If this value is large you should consider increasing @code{sort_buffer}.
 @item @code{Sort_range} @tab Number of sorts that where done with ranges.
 @item @code{Sort_rows}  @tab Number of sorted rows.
 @item @code{Sort_scan}  @tab Number of sorts that where done by scanning the table.
+@item @code{ssl_xxx}	@tab Variables used by SSL; Not yet implemented.
 @item @code{Table_locks_immediate} @tab Number of times a table lock was
 acquired immediately. Available after 3.23.33.
 @item @code{Table_locks_waited} @tab Number of times a table lock could not
@@ -19432,8 +19515,8 @@ Some comments about the above:
 If @code{Opened_tables} is big, then your @code{table_cache}
 variable is probably too small.
 @item
-If @code{Key_reads} is big, then your @code{key_cache} is probably too
-small.  The cache hit rate can be calculated with
+If @code{Key_reads} is big, then your @code{key_buffer_size} variable is
+probably too small.  The cache hit rate can be calculated with
 @code{Key_reads}/@code{Key_read_requests}.
 @item
 If @code{Handler_read_rnd} is big, then you probably have a lot of
@@ -22563,6 +22646,8 @@ used.)
 @item  -q, --quick
 Don't buffer query, dump directly to stdout. Uses @code{mysql_use_result()}
 to do this.
+@item -Q, --quote-names
+Quote table and column names within @samp{`} characters.
 @item -r, --result-file=...
 Direct output to a given file. This option should be used in MSDOS,
 because it prevents new line '\n' from being converted to '\n\r' (new
@@ -23940,7 +24025,8 @@ Updates to a database with a different name than the original.
 
 Example: @code{replicate-rewrite-db=master_db_name->slave_db_name}
 
-@item @code{slave-skip-errors=err_code1,err_code2,...} @tab
+@item @code{slave-skip-errors= [err_code1,err_code2,... | all]} @tab
+
 Available only in 3.23.47 and later. Tells the slave thread to continue
 replication when a query returns an error from the provided
 list. Normally, replication will discontinue when an error is
@@ -26637,6 +26723,12 @@ In the first statement, the @code{LIKE} value begins with a wildcard
 character.  In the second statement, the @code{LIKE} value is not a
 constant.
 
+MySQL 4.0 does another optimization on @code{LIKE}.  If you use
+@code{... LIKE "%string%"} and @code{string} is longer than 3 characters,
+MySQL will use the @code{Turbo Boyer-Moore} algorithm to initialise the
+pattern for the string and then use this pattern to perform the search
+quicker.
+
 @findex IS NULL, and indexes
 @cindex indexes, and @code{IS NULL}
 Searching using @code{column_name IS NULL} will use indexes if column_name
@@ -28217,6 +28309,12 @@ If @code{lower_case_table_names} is 1 MySQL will convert all
 table names to lower case on storage and lookup.  Note that if you
 change this option, you need to first convert your old table names to
 lower case before starting @code{mysqld}.
+
+If you move @code{MyISAM} files from a Windows to a *nix disk, you may
+in some cases need to use the @file{mysql_fix_extensions} tool to fix-up
+the case of the file extensions in each specified database directory
+(lowercase @file{.frm}, uppercase @file{.MYI} and @file{.MYD}).
+@file{mysql_fix_extensions} can be found in the @file{script} subdirectory.
 
 
 @node Variables, Comments, Name case sensitivity, Language Structure
@@ -30477,10 +30575,10 @@ mysql> SELECT "a" ="A ";
 @node Logical Operators, Control flow functions, Comparison Operators, Non-typed Operators
 @subsubsection Logical Operators
 
-@findex Logical functions
-@findex Functions, logical
+@findex Logical operators
+@findex Operators, logical
 
-All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
+All logical operators evaluate to @code{1} (TRUE), @code{0} (FALSE) or
 @code{NULL} (unknown, which is in most cases the same as FALSE):
 
 @table @code
@@ -30488,9 +30586,9 @@ All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
 @findex ! (logical NOT)
 @item NOT
 @itemx !
-Logical NOT. Returns @code{1} if the argument is @code{0}, otherwise returns
-@code{0}.
-Exception: @code{NOT NULL} returns @code{NULL}:
+Logical NOT. Evaluates to @code{1} if the operand is @code{0}, otherwise
+evaluates to @code{0}.
+Exception: @code{NOT NULL} evaluates to @code{NULL}:
 @example
 mysql> SELECT NOT 1;
         -> 0
@@ -30501,14 +30599,14 @@ mysql> SELECT ! (1+1);
 mysql> SELECT ! 1+1;
         -> 1
 @end example
-The last example returns @code{1} because the expression evaluates
+The last example produces @code{1} because the expression evaluates
 the same way as @code{(!1)+1}.
 
 @findex OR, logical
 @findex || (logical OR)
 @item OR
 @itemx ||
-Logical OR. Returns @code{1} if either argument is not @code{0} and not
+Logical OR. Evaluates to @code{1} if either operand is not @code{0} and not
 @code{NULL}:
 @example
 mysql> SELECT 1 || 0;
@@ -30524,13 +30622,16 @@ mysql> SELECT 1 || NULL;
 @findex && (logical AND)
 @item AND
 @itemx &&
-Logical AND. Returns @code{0} if either argument is @code{0} or @code{NULL},
-otherwise returns @code{1}:
+Logical AND. For non-@code{NULL} operands, evaluates to @code{1} if both
+operands are non-zero and to @code{0} otherwise.
+Produces @code{NULL} if either operand is @code{NULL}:
 @example
-mysql> SELECT 1 && NULL;
-        -> 0
+mysql> SELECT 1 && 1;
+        -> 1
 mysql> SELECT 1 && 0;
         -> 0
+mysql> SELECT 1 && NULL;
+        -> NULL
 @end example
 @end table
 
@@ -32295,10 +32396,10 @@ following specifiers may be used in the @code{format} string:
 @item @code{%s} @tab Seconds (@code{00}..@code{59})
 @item @code{%p} @tab @code{AM} or @code{PM}
 @item @code{%w} @tab Day of the week (@code{0}=Sunday..@code{6}=Saturday)
-@item @code{%U} @tab Week (@code{0}..@code{53}), where Sunday is the first day of the week
-@item @code{%u} @tab Week (@code{0}..@code{53}), where Monday is the first day of the week
-@item @code{%V} @tab Week (@code{1}..@code{53}), where Sunday is the first day of the week. Used with '%X'
-@item @code{%v} @tab Week (@code{1}..@code{53}), where Monday is the first day of the week. Used with '%x'
+@item @code{%U} @tab Week (@code{00}..@code{53}), where Sunday is the first day of the week
+@item @code{%u} @tab Week (@code{00}..@code{53}), where Monday is the first day of the week
+@item @code{%V} @tab Week (@code{01}..@code{53}), where Sunday is the first day of the week. Used with '%X'
+@item @code{%v} @tab Week (@code{01}..@code{53}), where Monday is the first day of the week. Used with '%x'
 @item @code{%%} @tab A literal @samp{%}.
 @end multitable
 
@@ -32398,8 +32499,9 @@ mysql> SELECT UNIX_TIMESTAMP('1997-10-04 22:23:00');
 When @code{UNIX_TIMESTAMP} is used on a @code{TIMESTAMP} column, the function
 will return the internal timestamp value directly, with no implicit
 ``string-to-unix-timestamp'' conversion.
-If you give @code{UNIX_TIMESTAMP()} a wrong or out-of-range date, it will
-return 0.
+If you pass an out-of-range date to @code{UNIX_TIMESTAMP()} it will
+return 0, but please note that only basic checking is performed
+(year 1970-2037, month 01-12, day 01-31).
 
 If you want to subtract @code{UNIX_TIMESTAMP()} columns, you may want to
 cast the result to signed integers. @xref{Cast Functions}.
@@ -36186,16 +36288,15 @@ SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
 Sets the transaction isolation level for the global, whole session or
 the next transaction.
 
-The default behavior is to set the isolation level for the next (not started)
-transaction.
+The default behavior is to set the isolation level for the next (not
+started) transaction.  If you use the @code{GLOBAL} keyword, the statement
+sets the default transaction level globally for all new connections
+created from that point on.  You will need the @strong{process}
+privilege to do do this.  Using the @code{SESSION} keyword sets the
+default transaction level for all future transactions performed on the
+current connection.
 
-If you set the @code{GLOBAL} privilege it will affect all new created threads.
-You will need the @strong{process} privilege to do do this.
-
-Setting the @code{SESSION} privilege will affect the following and all
-future transactions.
-
-You can set the default isolation level for @code{mysqld} with
+You can set the default global isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
 @node Fulltext Search, Query Cache, Transactional Commands, Reference
@@ -40036,7 +40137,7 @@ database type. For MySQL, this driver is called
 For more information on the Perl5 DBI, please visit the @code{DBI} web
 page and read the documentation:
 @example
-@uref{http://www.symbolstone.org/technology/perl/DBI/}
+@uref{http://dbi.perl.org/}
 @end example
 For more information on Object Oriented Programming
 (OOP) as defined in Perl5, see the Perl OOP page:
@@ -44289,7 +44390,7 @@ have both a normal and a thread-safe client library.
 
 To get a threaded client where you can interrupt the client from other
 threads and set timeouts when talking with the MySQL server, you should
-use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug} libraries and
+use the @code{-lmysys}, @code{-lmystrings}, and @code{-ldbug} libraries and
 the @code{net_serv.o} code that the server uses.
 
 If you don't need interrupts or timeouts, you can just compile a
@@ -47446,10 +47547,12 @@ mysql> SELECT * FROM my_table WHERE phone IS NULL;
 mysql> SELECT * FROM my_table WHERE phone = "";
 @end example
 
-In MySQL, as in many other SQL servers, you can't index
-columns that can have @code{NULL} values.  You must declare such columns
-@code{NOT NULL}. Conversely, you cannot insert @code{NULL} into an indexed
-column.
+Note that you can only add an index on a column that can have @code{NULL}
+values if you are using MySQL Version 3.23.2 or newer and are using the
+@code{MyISAM} or @code{InnoDB} table type.
+In earlier versions and with other table types, you must declare such
+columns @code{NOT NULL}. This also means you cannot then insert
+@code{NULL} into an indexed column.
 
 @findex LOAD DATA INFILE
 When reading data with @code{LOAD DATA INFILE}, empty columns are updated
@@ -47512,9 +47615,9 @@ decide which rows from the result set should be used.
 @cindex rows, deleting
 @cindex tables, deleting rows
 
-As MySQL doesn't support sub-selects or use of more than one table
-in the @code{DELETE} statement, you should use the following approach to
-delete rows from 2 related tables:
+As MySQL doesn't yet support sub-selects, nor the use of more than one
+table in the @code{DELETE} statement (prior to Version 4.0), you should
+use the following approach to delete rows from 2 related tables:
 
 @enumerate
 @item
@@ -49202,8 +49305,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @menu
 * News-4.0.2::                  Changes in release 4.0.2
-* News-4.0.1::                  Changes in release 4.0.1
-* News-4.0.0::                  Changes in release 4.0.0
+* News-4.0.1::                  Changes in release 4.0.1 (23 Dec 2001)
+* News-4.0.0::                  Changes in release 4.0.0 (Oct 2001: Alpha)
 @end menu
 
 @node News-4.0.2, News-4.0.1, News-4.0.x, News-4.0.x
@@ -49211,15 +49314,30 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in @code{GROUP BY} with two or more fields, where at least one
+field can contain @code{NULL} values.
+@item
+Use @code{Turbo Boyer-Moore} algorithm to speed up @code{LIKE "%keyword%"}
+searches.
+@item
+Fixed bug in @code{DROP DATABASE} with symlink.
+@item
+Fixed crash in @code{REPAIR ... USE_FRM}.
+@item
+Fixed bug in @code{EXPLAIN} with @code{LIMIT offset != 0}
+@item
 Fixed bug in phrase operator @code{"..."} in boolean full-text search.
 @item
 Fixed bug that caused duplicated rows when using truncation operator
 @code{*} in boolean full-text search.
 @item
+Fixed bug in truncation operator of boolean full-text search (wrong results
+when there are only @code{+word*}'s in the query).
+@item
 Fixed bug in boolean full-text search that caused a crash when an identical
 @code{MATCH} expression that did not use an index appeared twice.
 @item
-Query cache disabled in @code{mysqldump}.
+Query cache is now automatically disabled in @code{mysqldump}.
 @item
 Fixed problem on Windows 98 that made sending of results very slow.
 @item
@@ -49385,10 +49503,18 @@ Added new columns @code{Null} and @code{Index_type} to @code{SHOW INDEX}
 output.
 @item
 Added @code{--no-beep} and @code{--prompt} options to @code{mysql} command-line client.
+@item
+New feature: management of user resources.
+@example
+GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
+               MAX_UPDATES_PER_HOUR = N2
+               MAX_CONNECTIONS_PER_HOUR = N3;
+@end example
+@xref{User resources}.
 @end itemize
 
 @node News-4.0.1, News-4.0.0, News-4.0.2, News-4.0.x
-@appendixsubsec Changes in release 4.0.1
+@appendixsubsec Changes in release 4.0.1 (23 Dec 2001)
 
 @itemize @bullet
 @item
@@ -49462,7 +49588,7 @@ Indexes are now used with @code{ORDER BY} on a whole @code{InnoDB} table.
 @end itemize
 
 @node News-4.0.0,  , News-4.0.1, News-4.0.x
-@appendixsubsec Changes in release 4.0.0
+@appendixsubsec Changes in release 4.0.0 (Oct 2001: Alpha)
 
 @itemize @bullet
 @item
@@ -49534,7 +49660,8 @@ Optimised queries of type:
 @item
 @code{LOAD DATA FROM MASTER} ``auto-magically'' sets up a slave.
 @item
-Renamed @code{safe_mysqld} to @code{mysqld_safe}.
+Renamed @code{safe_mysqld} to @code{mysqld_safe} to make this name more
+in line with other MySQL scripts/commands.
 @item
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
@@ -49619,43 +49746,43 @@ not yet 100% confident in this code.
 
 @menu
 * News-3.23.51::                Changes in release 3.23.51
-* News-3.23.50::                Changes in release 3.23.50
+* News-3.23.50::                Changes in release 3.23.50 (21 Apr 2002)
 * News-3.23.49::                Changes in release 3.23.49
-* News-3.23.48::                Changes in release 3.23.48
-* News-3.23.47::                Changes in release 3.23.47
-* News-3.23.46::                Changes in release 3.23.46
-* News-3.23.45::                Changes in release 3.23.45
-* News-3.23.44::                Changes in release 3.23.44
+* News-3.23.48::                Changes in release 3.23.48 (07 Feb 2002)
+* News-3.23.47::                Changes in release 3.23.47 (27 Dec 2001)
+* News-3.23.46::                Changes in release 3.23.46 (29 Nov 2001)
+* News-3.23.45::                Changes in release 3.23.45 (22 Nov 2001)
+* News-3.23.44::                Changes in release 3.23.44 (31 Oct 2001)
 * News-3.23.43::                Changes in release 3.23.43
-* News-3.23.42::                Changes in release 3.23.42
-* News-3.23.41::                Changes in release 3.23.41
+* News-3.23.42::                Changes in release 3.23.42 (08 Sep 2001)
+* News-3.23.41::                Changes in release 3.23.41 (11 Aug 2001)
 * News-3.23.40::                Changes in release 3.23.40
-* News-3.23.39::                Changes in release 3.23.39
-* News-3.23.38::                Changes in release 3.23.38
-* News-3.23.37::                Changes in release 3.23.37
-* News-3.23.36::                Changes in release 3.23.36
-* News-3.23.35::                Changes in release 3.23.35
+* News-3.23.39::                Changes in release 3.23.39 (12 Jun 2001)
+* News-3.23.38::                Changes in release 3.23.38 (09 May 2001)
+* News-3.23.37::                Changes in release 3.23.37 (17 Apr 2001)
+* News-3.23.36::                Changes in release 3.23.36 (27 Mar 2001)
+* News-3.23.35::                Changes in release 3.23.35 (15 Mar 2001)
 * News-3.23.34a::               Changes in release 3.23.34a
-* News-3.23.34::                Changes in release 3.23.34
-* News-3.23.33::                Changes in release 3.23.33
-* News-3.23.32::                Changes in release 3.23.32
-* News-3.23.31::                Changes in release 3.23.31
-* News-3.23.30::                Changes in release 3.23.30
-* News-3.23.29::                Changes in release 3.23.29
-* News-3.23.28::                Changes in release 3.23.28
-* News-3.23.27::                Changes in release 3.23.27
+* News-3.23.34::                Changes in release 3.23.34 (10 Mar 2001)
+* News-3.23.33::                Changes in release 3.23.33 (09 Feb 2001)
+* News-3.23.32::                Changes in release 3.23.32 (22 Jan 2001: Stable)
+* News-3.23.31::                Changes in release 3.23.31 (17 Jan 2001)
+* News-3.23.30::                Changes in release 3.23.30 (04 Jan 2001)
+* News-3.23.29::                Changes in release 3.23.29 (16 Dec 2000)
+* News-3.23.28::                Changes in release 3.23.28 (22 Nov 2000: Gamma)
+* News-3.23.27::                Changes in release 3.23.27 (24 Oct 2000)
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
-* News-3.23.24::                Changes in release 3.23.24
+* News-3.23.24::                Changes in release 3.23.24 (08 Sep 2000)
 * News-3.23.23::                Changes in release 3.23.23
-* News-3.23.22::                Changes in release 3.23.22
+* News-3.23.22::                Changes in release 3.23.22 (31 Jul 2000)
 * News-3.23.21::                Changes in release 3.23.21
 * News-3.23.20::                Changes in release 3.23.20
 * News-3.23.19::                Changes in release 3.23.19
 * News-3.23.18::                Changes in release 3.23.18
 * News-3.23.17::                Changes in release 3.23.17
 * News-3.23.16::                Changes in release 3.23.16
-* News-3.23.15::                Changes in release 3.23.15
+* News-3.23.15::                Changes in release 3.23.15 (May 2000: Beta)
 * News-3.23.14::                Changes in release 3.23.14
 * News-3.23.13::                Changes in release 3.23.13
 * News-3.23.12::                Changes in release 3.23.12
@@ -49670,21 +49797,60 @@ not yet 100% confident in this code.
 * News-3.23.3::                 Changes in release 3.23.3
 * News-3.23.2::                 Changes in release 3.23.2
 * News-3.23.1::                 Changes in release 3.23.1
-* News-3.23.0::                 Changes in release 3.23.0
+* News-3.23.0::                 Changes in release 3.23.0 (Sep 1999: Alpha)
 @end menu
 
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
+
 @itemize @bullet
+@item
+Fixed bug in @code{CONCAT_WS()} that cut the result.
+@item
+Changed name of variables @code{Com_show_master_stat} to
+@code{Com_show_master_status} and @code{Com_show_slave_stat} to
+@code{Com_show_slave_status}.
+@item
+Changed handling of @code{gethostbyname()} to make the client library
+threadsafe even if @code{gethostbyname_r} doesn't exists.
+@item
+Fixed core-dump problem when giving a wrong password string to @code{GRANT}.
+@item
+Fixed bug in @code{DROP DATABASE} with symlinked directory.
+@item
+Fixed optimization problem with @code{DATETIME} and value outside
+@code{DATETIME} range.
+@item
+Removed BDB documentation.
+@item
+Fixed mit-pthreads to compile with glibc 2.2 (needed for @code{make dist}).
+@item
+Fixed the @code{FLOAT(X+1,X)} is not converted to @code{FLOAT(X+2,X)}.
+(This also affected @code{DECIMAL}, @code{DOUBLE} and @code{REAL} types)
+@item
 Fixed the result from @code{IF()} is case in-sensitive if the 2 and
-third arguments are case-sensitive.
+third arguments are case sensitive.
+@item
+Fixed core dump problem on OSF in @code{gethostbyname_r}.
+@item
+Fixed that underflowed decimal fields is not zero filled.
+@item
+If we get an overflow when inserting @code{'+11111'} for
+@code{decimal(5,0) unsigned} columns, we will just drop the sign.
+@item
+Fixed optimization bug with @code{ISNULL(expression_which_cannot_be_null)} and
+@code{ISNULL(constant_expression)}.
+@item
+Fixed host lookup bug in the glibc library that we used with the 3.23.50
+Linux-x86 binaries.
 @end itemize
 
 @node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
-@appendixsubsec Changes in release 3.23.50
+@appendixsubsec Changes in release 3.23.50 (21 Apr 2002)
+
 @itemize @bullet
 @item
-Fixed problem with @code{crash-me} and gcc 3.0.4.
+Fixed problem with @code{crash-me} and @code{gcc} 3.0.4.
 @item
 Fixed that @code{@@@@unknown_variable} doesn't hang server.
 @item
@@ -49770,7 +49936,7 @@ Fixed shutdown problem on NT.
 @end itemize
 
 @node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x
-@appendixsubsec Changes in release 3.23.48
+@appendixsubsec Changes in release 3.23.48 (07 Feb 2002)
 
 @itemize @bullet
 @item
@@ -49829,7 +49995,7 @@ this situation.
 @end itemize
 
 @node News-3.23.47, News-3.23.46, News-3.23.48, News-3.23.x
-@appendixsubsec Changes in release 3.23.47
+@appendixsubsec Changes in release 3.23.47 (27 Dec 2001)
 
 @itemize @bullet
 @item
@@ -49861,7 +50027,7 @@ Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @end itemize
 
 @node News-3.23.46, News-3.23.45, News-3.23.47, News-3.23.x
-@appendixsubsec Changes in release 3.23.46
+@appendixsubsec Changes in release 3.23.46 (29 Nov 2001)
 
 @itemize @bullet
 @item
@@ -49890,7 +50056,7 @@ Fixed bug in replication on Mac OS X.
 @end itemize
 
 @node News-3.23.45, News-3.23.44, News-3.23.46, News-3.23.x
-@appendixsubsec Changes in release 3.23.45
+@appendixsubsec Changes in release 3.23.45 (22 Nov 2001)
 
 @itemize @bullet
 @item
@@ -49927,7 +50093,7 @@ Fixed bug in @code{TIME_TO_SEC()} when using negative values.
 @end itemize
 
 @node News-3.23.44, News-3.23.43, News-3.23.45, News-3.23.x
-@appendixsubsec Changes in release 3.23.44
+@appendixsubsec Changes in release 3.23.44 (31 Oct 2001)
 
 @itemize @bullet
 @item
@@ -50050,7 +50216,7 @@ Fixed bug in @code{--safe-user-create}.
 @end itemize
 
 @node News-3.23.42, News-3.23.41, News-3.23.43, News-3.23.x
-@appendixsubsec Changes in release 3.23.42
+@appendixsubsec Changes in release 3.23.42 (08 Sep 2001)
 
 @itemize @bullet
 @item
@@ -50108,7 +50274,7 @@ other threads.
 @end itemize
 
 @node News-3.23.41, News-3.23.40, News-3.23.42, News-3.23.x
-@appendixsubsec Changes in release 3.23.41
+@appendixsubsec Changes in release 3.23.41 (11 Aug 2001)
 
 @itemize @bullet
 @item
@@ -50208,7 +50374,7 @@ type. @code{GEMINI} is not released under an @code{Open Source} license.
 
 
 @node News-3.23.39, News-3.23.38, News-3.23.40, News-3.23.x
-@appendixsubsec Changes in release 3.23.39
+@appendixsubsec Changes in release 3.23.39 (12 Jun 2001)
 
 @itemize @bullet
 @item
@@ -50251,7 +50417,7 @@ Fixed problem with @code{MERGE} tables and big tables (> 4G) when using
 
 
 @node News-3.23.38, News-3.23.37, News-3.23.39, News-3.23.x
-@appendixsubsec Changes in release 3.23.38
+@appendixsubsec Changes in release 3.23.38 (09 May 2001)
 
 @itemize @bullet
 @item
@@ -50303,7 +50469,7 @@ Fixed bug with @code{LOCK TABLE} and @code{BDB} tables.
 
 
 @node News-3.23.37, News-3.23.36, News-3.23.38, News-3.23.x
-@appendixsubsec Changes in release 3.23.37
+@appendixsubsec Changes in release 3.23.37 (17 Apr 2001)
 
 @itemize @bullet
 @item
@@ -50369,7 +50535,7 @@ Added @code{--skip-safemalloc} option to @code{mysqld}.
 
 
 @node News-3.23.36, News-3.23.35, News-3.23.37, News-3.23.x
-@appendixsubsec Changes in release 3.23.36
+@appendixsubsec Changes in release 3.23.36 (27 Mar 2001)
 
 @itemize @bullet
 @item
@@ -50410,7 +50576,7 @@ Changed some macros to be able to use fast mutex with @code{glibc} 2.2.
 
 
 @node News-3.23.35, News-3.23.34a, News-3.23.36, News-3.23.x
-@appendixsubsec Changes in release 3.23.35
+@appendixsubsec Changes in release 3.23.35 (15 Mar 2001)
 
 @itemize @bullet
 @item
@@ -50439,7 +50605,7 @@ to be compiled.
 
 
 @node News-3.23.34, News-3.23.33, News-3.23.34a, News-3.23.x
-@appendixsubsec Changes in release 3.23.34
+@appendixsubsec Changes in release 3.23.34 (10 Mar 2001)
 
 @itemize @bullet
 @item
@@ -50515,7 +50681,7 @@ where @code{bar} is a column reference, an error was not properly generated.
 
 
 @node News-3.23.33, News-3.23.32, News-3.23.34, News-3.23.x
-@appendixsubsec Changes in release 3.23.33
+@appendixsubsec Changes in release 3.23.33 (09 Feb 2001)
 
 @itemize @bullet
 @item
@@ -50607,7 +50773,7 @@ the disk cache.
 
 
 @node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
-@appendixsubsec Changes in release 3.23.32
+@appendixsubsec Changes in release 3.23.32 (22 Jan 2001: Stable)
 
 @itemize @bullet
 @item
@@ -50649,7 +50815,7 @@ Added @code{MASTER_POS_WAIT()}.
 
 
 @node News-3.23.31, News-3.23.30, News-3.23.32, News-3.23.x
-@appendixsubsec Changes in release 3.23.31
+@appendixsubsec Changes in release 3.23.31 (17 Jan 2001)
 
 @itemize @bullet
 @item
@@ -50705,7 +50871,7 @@ Added @code{Threads_created} status variable to @code{mysqld}.
 
 
 @node News-3.23.30, News-3.23.29, News-3.23.31, News-3.23.x
-@appendixsubsec Changes in release 3.23.30
+@appendixsubsec Changes in release 3.23.30 (04 Jan 2001)
 
 @itemize @bullet
 @item
@@ -50768,7 +50934,7 @@ Fixed bug when running two simultaneous @code{SHOW LOGS} queries.
 
 
 @node News-3.23.29, News-3.23.28, News-3.23.30, News-3.23.x
-@appendixsubsec Changes in release 3.23.29
+@appendixsubsec Changes in release 3.23.29 (16 Dec 2000)
 
 @itemize @bullet
 @item
@@ -50897,7 +51063,7 @@ read by @code{mysql_options()}.
 
 
 @node News-3.23.28, News-3.23.27, News-3.23.29, News-3.23.x
-@appendixsubsec Changes in release 3.23.28
+@appendixsubsec Changes in release 3.23.28 (22 Nov 2000: Gamma)
 
 @itemize @bullet
 @item
@@ -51020,7 +51186,7 @@ new table with the rows in a specific order.
 
 
 @node News-3.23.27, News-3.23.26, News-3.23.28, News-3.23.x
-@appendixsubsec Changes in release 3.23.27
+@appendixsubsec Changes in release 3.23.27 (24 Oct 2000)
 
 @itemize @bullet
 @item
@@ -51210,7 +51376,7 @@ Added file mutexes to make @code{pwrite()} safe on Windows.
 
 
 @node News-3.23.24, News-3.23.23, News-3.23.25, News-3.23.x
-@appendixsubsec Changes in release 3.23.24
+@appendixsubsec Changes in release 3.23.24 (08 Sep 2000)
 
 @itemize @bullet
 @item
@@ -51346,7 +51512,7 @@ Full-text search via the @code{MATCH()} function and @code{FULLTEXT} index type
 
 
 @node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x
-@appendixsubsec Changes in release 3.23.22
+@appendixsubsec Changes in release 3.23.22 (31 Jul 2000)
 
 @itemize @bullet
 @item
@@ -51605,7 +51771,7 @@ Added @code{SQL_LOG_BIN} option.
 
 
 @node News-3.23.15, News-3.23.14, News-3.23.16, News-3.23.x
-@appendixsubsec Changes in release 3.23.15
+@appendixsubsec Changes in release 3.23.15 (May 2000: Beta)
 
 @itemize @bullet
 @item
@@ -52301,7 +52467,7 @@ Fixed some compilation problems.
 
 
 @node News-3.23.0,  , News-3.23.1, News-3.23.x
-@appendixsubsec Changes in release 3.23.0
+@appendixsubsec Changes in release 3.23.0 (Sep 1999: Alpha)
 
 @itemize @bullet
 @item
@@ -52476,10 +52642,10 @@ be very easy and painless.  @xref{Upgrading-from-3.21}.
 * News-3.22.22::                Changes in release 3.22.22
 * News-3.22.21::                Changes in release 3.22.21
 * News-3.22.20::                Changes in release 3.22.20
-* News-3.22.19::                Changes in release 3.22.19
+* News-3.22.19::                Changes in release 3.22.19 (Mar 1999: Stable)
 * News-3.22.18::                Changes in release 3.22.18
 * News-3.22.17::                Changes in release 3.22.17
-* News-3.22.16::                Changes in release 3.22.16
+* News-3.22.16::                Changes in release 3.22.16 (Feb 1999: Gamma)
 * News-3.22.15::                Changes in release 3.22.15
 * News-3.22.14::                Changes in release 3.22.14
 * News-3.22.13::                Changes in release 3.22.13
@@ -52488,13 +52654,13 @@ be very easy and painless.  @xref{Upgrading-from-3.21}.
 * News-3.22.10::                Changes in release 3.22.10
 * News-3.22.9::                 Changes in release 3.22.9
 * News-3.22.8::                 Changes in release 3.22.8
-* News-3.22.7::                 Changes in release 3.22.7
+* News-3.22.7::                 Changes in release 3.22.7 (Sep 1998: Beta)
 * News-3.22.6::                 Changes in release 3.22.6
 * News-3.22.5::                 Changes in release 3.22.5
 * News-3.22.4::                 Changes in release 3.22.4
 * News-3.22.3::                 Changes in release 3.22.3
 * News-3.22.2::                 Changes in release 3.22.2
-* News-3.22.1::                 Changes in release 3.22.1
+* News-3.22.1::                 Changes in release 3.22.1 (Jun 1998: Alpha)
 * News-3.22.0::                 Changes in release 3.22.0
 @end menu
 
@@ -52799,7 +52965,7 @@ The update log didn't have newlines on some operating systems.
 
 
 @node News-3.22.19, News-3.22.18, News-3.22.20, News-3.22.x
-@appendixsubsec Changes in release 3.22.19
+@appendixsubsec Changes in release 3.22.19 (Mar 1999: Stable)
 
 @itemize @bullet
 @item
@@ -52845,7 +53011,7 @@ Using @code{LEFT JOIN} on tables that had circular dependencies caused
 
 
 @node News-3.22.16, News-3.22.15, News-3.22.17, News-3.22.x
-@appendixsubsec Changes in release 3.22.16
+@appendixsubsec Changes in release 3.22.16 (Feb 1999: Gamma)
 
 @itemize @bullet
 @item
@@ -53174,7 +53340,7 @@ Added patches for UNIXWARE 7.
 
 
 @node News-3.22.7, News-3.22.6, News-3.22.8, News-3.22.x
-@appendixsubsec Changes in release 3.22.7
+@appendixsubsec Changes in release 3.22.7 (Sep 1998: Beta)
 
 @itemize @bullet
 @item
@@ -53467,7 +53633,7 @@ All bug fixes from MySQL Version 3.21.32.
 
 
 @node News-3.22.1, News-3.22.0, News-3.22.2, News-3.22.x
-@appendixsubsec Changes in release 3.22.1
+@appendixsubsec Changes in release 3.22.1 (Jun 1998: Alpha)
 
 @itemize @bullet
 @item
@@ -55266,7 +55432,7 @@ New math functions:
 The @code{configure} source now compiles a thread-free client library
 @code{-lmysqlclient}. This is the only library that needs to be linked
 with client applications.  When using the binary releases, you must
-link with @code{-lmysql -lmysys -ldbug -lstrings} as before.
+link with @code{-lmysql -lmysys -ldbug -lmystrings} as before.
 @item
 New @code{readline} library from @code{bash-2.0}.
 @item

@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <my_getopt.h>
 #include <assert.h>
+#include <my_sys.h>
 
 static int findopt (char *optpat, uint length,
 		    const struct my_option **opt_res,
@@ -49,7 +50,7 @@ char *disabled_my_option= (char*) "0";
 #define ERR_ARGUMENT_REQUIRED     4
 #define ERR_VAR_PREFIX_NOT_UNIQUE 5
 #define ERR_UNKNOWN_VARIABLE      6
-#define ERR_MUST_BE_VARIABLE      7
+#define ERR_OUT_OF_MEMORY         7
 #define ERR_UNKNOWN_SUFFIX        8
 #define ERR_NO_PTR_TO_VARIABLE	  9
 
@@ -94,34 +95,34 @@ int handle_options(int *argc, char ***argv,
       option_is_loose=   0;
 
       cur_arg++;		/* skip '-' */
-      if (*cur_arg == 'O')
-      {
-	must_be_var= 1;
-
-	if (!(*++cur_arg))	/* If not -Ovar=# */
-	{
-	  /* the argument must be in next argv */
-	  if (!*++pos)
-	  {
-	    fprintf(stderr, "%s: Option '-O' requires an argument\n",
-		    progname);
-	    return ERR_ARGUMENT_REQUIRED;
-	  }
-	  cur_arg= *pos;
-	  (*argc)--;
-	}
-	/* Sasha: quick dirty fix of a bug that coredumps mysqladmin while
-	   running the test suite. The bug is actually pretty serious -
-	   even in cases when we do not coredump, -O var=val will not set
-	   the variable, and the previous option would be treated upredictably.
-			*/
-	goto found_var; 
-      }
-      else if (*cur_arg == '-') /* check for long option, or --set-variable */
-      {
-	if (!compare_strings(cur_arg, "-set-variable", 13))
+      if (*cur_arg == '-' || *cur_arg == 'O') /* check for long option, */
+      {                                       /* --set-variable, or -O  */
+	if (*cur_arg == 'O')
 	{
 	  must_be_var= 1;
+
+	  if (!(*++cur_arg))	/* If not -Ovar=# */
+	  {
+	    /* the argument must be in next argv */
+	    if (!*++pos)
+	    {
+	      fprintf(stderr, "%s: Option '-O' requires an argument\n",
+		      progname);
+	      return ERR_ARGUMENT_REQUIRED;
+	    }
+	    cur_arg= *pos;
+	    (*argc)--;
+	  }
+	}
+	else if (!compare_strings(cur_arg, "-set-variable", 13) ||
+		 !compare_strings(cur_arg, "-loose-set-variable", 19))
+	{
+	  must_be_var= 1;
+	  if (cur_arg[1] == 'l')
+	  {
+	    option_is_loose= 1;
+	    cur_arg+= 6;
+	  }
 	  if (cur_arg[13] == '=')
 	  {
 	    cur_arg+= 14;
@@ -159,7 +160,6 @@ int handle_options(int *argc, char ***argv,
 	    continue;
 	  }
 	}
-    found_var:	
 	optend= strcend(cur_arg, '=');
 	length= optend - cur_arg;
 	if (*optend == '=')
@@ -280,10 +280,10 @@ int handle_options(int *argc, char ***argv,
 	      Set bool to 1 if no argument or if the user has used
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
-	    */
+	      */
 	    *((my_bool*) optp->value)= 	(my_bool) (!optend || *optend == '1');
 	    (*argc)--;	    
-	    continue;
+	    continue; // For GET_BOOL get_one_option() shouldn't be called
 	  }
 	  argument= optend;
 	}
@@ -330,7 +330,7 @@ int handle_options(int *argc, char ***argv,
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
 		(*argc)--;
-		continue;
+		continue; // For GET_BOOL get_one_option() shouldn't be called
 	      }
 	      else if (optp->arg_type == REQUIRED_ARG ||
 		       optp->arg_type == OPT_ARG)
@@ -414,16 +414,34 @@ static int setval (const struct my_option *opts, char *argument,
     if (!result_pos)
       return ERR_NO_PTR_TO_VARIABLE;
 
-    if (opts->var_type == GET_INT || opts->var_type == GET_UINT)
+    switch (opts->var_type) {
+    case GET_INT:
+    case GET_UINT:           /* fall through */
       *((int*) result_pos)= (int) getopt_ll(argument, opts, &err);
-    else if (opts->var_type == GET_LONG || opts->var_type == GET_ULONG)
+      break;
+    case GET_LONG:
+    case GET_ULONG:          /* fall through */
       *((long*) result_pos)= (long) getopt_ll(argument, opts, &err);
-    else if (opts->var_type == GET_LL)
+      break;
+    case GET_LL:
       *((longlong*) result_pos)= getopt_ll(argument, opts, &err);
-    else if (opts->var_type == GET_ULL)
+      break;
+    case GET_ULL:
       *((ulonglong*) result_pos)= getopt_ull(argument, opts, &err);
-    else if (opts->var_type == GET_STR)
+      break;
+    case GET_STR:
       *((char**) result_pos)= argument;
+      break;
+    case GET_STR_ALLOC:
+      if ((*((char**) result_pos)))
+	my_free((*(char**) result_pos),
+		MYF(MY_WME | MY_FAE));
+      if (!(*((char**) result_pos)= my_strdup(argument, MYF(MY_WME))))
+	return ERR_OUT_OF_MEMORY;
+      break;
+    default:    /* dummy default to avoid compiler warnings */
+      break;
+    }
     if (err)
       return ERR_UNKNOWN_SUFFIX;
   }
@@ -579,24 +597,38 @@ static void init_variables(const struct my_option *options)
   {
     if (options->value)
     {
-      if (options->var_type == GET_INT)
+      switch (options->var_type) {
+      case GET_BOOL:
+	*((my_bool*) options->u_max_value)= *((my_bool*) options->value)=
+	  (my_bool) options->def_value;
+	break;
+      case GET_INT:
 	*((int*) options->u_max_value)= *((int*) options->value)=
 	  (int) options->def_value;
-      else if (options->var_type == GET_UINT)
+	break;
+      case GET_UINT:
 	*((uint*) options->u_max_value)= *((uint*) options->value)=
 	  (uint) options->def_value;
-      else if (options->var_type == GET_LONG)
+	break;
+      case GET_LONG:
 	*((long*) options->u_max_value)= *((long*) options->value)=
 	  (long) options->def_value;
-      else if (options->var_type == GET_ULONG)
+	break;
+      case GET_ULONG:
 	*((ulong*) options->u_max_value)= *((ulong*) options->value)=
 	  (ulong) options->def_value;
-      else if (options->var_type == GET_LL)
+	break;
+      case GET_LL:
 	*((longlong*) options->u_max_value)= *((longlong*) options->value)=
 	  (longlong) options->def_value;
-      else if (options->var_type == GET_ULL)
+	break;
+      case GET_ULL:
 	*((ulonglong*) options->u_max_value)= *((ulonglong*) options->value)=
 	  (ulonglong) options->def_value;
+	break;
+      default: /* dummy default to avoid compiler warnings */
+	break;
+      }
     }
   }
 }
@@ -618,7 +650,7 @@ void my_print_help(const struct my_option *options)
   {
     if (optp->id < 256)
     {
-      printf("  -%c, ", optp->id);
+      printf("  -%c%s", optp->id, strlen(optp->name) ? ", " : "  ");
       col= 6;
     }
     else
@@ -626,29 +658,32 @@ void my_print_help(const struct my_option *options)
       printf("  ");
       col= 2;
     }
-    printf("--%s", optp->name);
-    col+= 2 + strlen(optp->name);
-    if (optp->var_type == GET_STR)
+    if (strlen(optp->name))
     {
-      printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
-	     optp->arg_type == OPT_ARG ? "]" : "");
-      col+= (optp->arg_type == OPT_ARG) ? 8 : 6;
-    }
-    else if (optp->var_type == GET_NO_ARG || optp->var_type == GET_BOOL)
-    {
-      putchar(' ');
-      col++;
-    }
-    else
-    {
-      printf("%s=#%s ", optp->arg_type == OPT_ARG ? "[" : "",
-	     optp->arg_type == OPT_ARG ? "]" : "");
-      col+= (optp->arg_type == OPT_ARG) ? 5 : 3;
-    }
-    if (col > name_space)
-    {
-      putchar('\n');
-      col= 0;
+      printf("--%s", optp->name);
+      col+= 2 + strlen(optp->name);
+      if (optp->var_type == GET_STR || optp->var_type == GET_STR_ALLOC)
+      {
+	printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
+	       optp->arg_type == OPT_ARG ? "]" : "");
+	col+= (optp->arg_type == OPT_ARG) ? 8 : 6;
+      }
+      else if (optp->var_type == GET_NO_ARG || optp->var_type == GET_BOOL)
+      {
+	putchar(' ');
+	col++;
+      }
+      else
+      {
+	printf("%s=#%s ", optp->arg_type == OPT_ARG ? "[" : "",
+	       optp->arg_type == OPT_ARG ? "]" : "");
+	col+= (optp->arg_type == OPT_ARG) ? 5 : 3;
+      }
+      if (col > name_space && optp->comment && *optp->comment)
+      {
+	putchar('\n');
+	col= 0;
+      }
     }
     for (; col < name_space; col++)
       putchar(' ');
@@ -685,64 +720,47 @@ void my_print_variables(const struct my_option *options)
   char buff[255];
   const struct my_option *optp;
 
-  printf("Variables (--variable-name=value) Default value\n");
-  printf("--------------------------------- -------------\n");
+  printf("\nVariables (--variable-name=value)\n");
+  printf("and boolean options {FALSE|TRUE}  Value (after reading options)\n");
+  printf("--------------------------------- -----------------------------\n");
   for (optp= options; optp->id; optp++)
   {
-    if (optp->value && optp->var_type != GET_BOOL)
+    if (optp->value)
     {
       printf("%s", optp->name);
       length= strlen(optp->name);
       for (; length < name_space; length++)
 	putchar(' ');
-      if (optp->var_type == GET_STR)
-      {
-	if (*((char**) optp->value))
-	  printf("%s\n", *((char**) optp->value));
-	else
-	  printf("(No default value)\n");
-      }
-      else if (optp->var_type == GET_INT)
-      {
-	if (!optp->def_value && !*((int*) optp->value))
-	  printf("(No default value)\n");
-	else
-	  printf("%d\n", *((int*) optp->value));
-      }
-      else if (optp->var_type == GET_UINT)
-      {
-	if (!optp->def_value && !*((uint*) optp->value))
-	  printf("(No default value)\n");
-	else
-	  printf("%d\n", *((uint*) optp->value));
-      }
-      else if (optp->var_type == GET_LONG)
-      {
-	if (!optp->def_value && !*((long*) optp->value))
-	  printf("(No default value)\n");
-	else
-	  printf("%lu\n", *((long*) optp->value));
-      }
-      else if (optp->var_type == GET_ULONG)
-      {
-	if (!optp->def_value && !*((ulong*) optp->value))
-	  printf("(No default value)\n");
-	else
-	  printf("%lu\n", *((ulong*) optp->value));
-      }
-      else if (optp->var_type == GET_LL)
-      {
-	if (!optp->def_value && !*((longlong*) optp->value))
-	  printf("(No default value)\n");
-	else
-	  printf("%s\n", llstr(*((longlong*) optp->value), buff));
-      }
-      else if (optp->var_type == GET_ULL)
-      {
-	if (!optp->def_value && !*((ulonglong*) optp->value))
-	  printf("(No default value)\n");
-	else
-	  printf("%s\n", longlong2str(*((ulonglong*) optp->value), buff, 10));
+      switch (optp->var_type) {
+      case GET_STR:
+      case GET_STR_ALLOC:                    /* fall through */
+	printf("%s\n", *((char**) optp->value) ? *((char**) optp->value) :
+	       "(No default value)");
+	break;
+      case GET_BOOL:
+	printf("%s\n", *((my_bool*) optp->value) ? "TRUE" : "FALSE");
+	break;
+      case GET_INT:
+	printf("%d\n", *((int*) optp->value));
+	break;
+      case GET_UINT:
+	printf("%d\n", *((uint*) optp->value));
+	break;
+      case GET_LONG:
+	printf("%lu\n", *((long*) optp->value));
+	break;
+      case GET_ULONG:
+	printf("%lu\n", *((ulong*) optp->value));
+	break;
+      case GET_LL:
+	printf("%s\n", llstr(*((longlong*) optp->value), buff));
+	break;
+      case GET_ULL:
+	longlong2str(*((ulonglong*) optp->value), buff, 10);
+	printf("%s\n", buff);
+	break;
+      default: /* dummy default to avoid compiler warnings */
+	break;
       }
     }
   }
