@@ -46,7 +46,8 @@ save_master_pos;
 connection slave;
 sync_with_master;
 select * from t1;
-show binlog events from 96;
+--replace_column 2 # 5 #
+show binlog events from 98;
 connection master;
 drop table t1;
 save_master_pos;

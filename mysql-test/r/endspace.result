@@ -178,7 +178,7 @@ teststring
 teststring
 explain select * from t1 order by text1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	key1	32	NULL	3	Using index
+1	SIMPLE	t1	index	NULL	key1	34	NULL	3	Using index
 alter table t1 modify text1 char(32) binary not null;
 select * from t1 order by text1;
 text1
