@@ -49617,7 +49617,7 @@ Don't allow database names that contains @samp{\}.
 @code{lower_case_table_names} now also affects created and dropped databases.
 @item
 Added @code{XOR} operator (logical and bitwise @code{XOR}) with @code{^}
-as a synonym.
+as a synonym for bitwise @code{XOR}.
 Added function @code{IS_FREE_LOCK("lock_name")}.
 Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
