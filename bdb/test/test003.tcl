@@ -1,14 +1,21 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test003.tcl,v 11.18 2000/08/25 14:21:54 sue Exp $
+# $Id: test003.tcl,v 11.25 2002/05/22 18:32:18 sue Exp $
 #
-# DB Test 3 {access method}
-# Take the source files and dbtest executable and enter their names as the
-# key with their contents as data.  After all are entered, retrieve all;
-# compare output to original. Close file, reopen, do retrieve and re-verify.
+# TEST	test003
+# TEST	Small keys/large data
+# TEST		Put/get per key
+# TEST		Dump file
+# TEST		Close, reopen
+# TEST		Dump file
+# TEST
+# TEST	Take the source files and dbtest executable and enter their names
+# TEST	as the key with their contents as data.  After all are entered,
+# TEST	retrieve all; compare output to original. Close file, reopen, do
+# TEST	retrieve and re-verify.
 proc test003 { method args} {
 	global names
 	source ./include.tcl
@@ -23,6 +30,8 @@ proc test003 { method args} {
 	puts "Test003: $method ($args) filename=key filecontents=data pairs"
 
 	# Create the database and open the dictionary
+	set limit 0
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -34,6 +43,12 @@ proc test003 { method args} {
 		set testfile test003.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			set limit 100
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	set t2 $testdir/t2
@@ -42,7 +57,7 @@ proc test003 { method args} {
 
 	cleanup $testdir $env
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644} $args $omethod $testfile]
+	     -create -mode 0644} $args $omethod $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set pflags ""
 	set gflags ""
@@ -55,11 +70,14 @@ proc test003 { method args} {
 	}
 
 	# Here is the loop where we put and get each key/data pair
-	set file_list [ glob \
-	    { $test_path/../*/*.[ch] } $test_path/*.tcl *.{a,o,lo,exe} \
-	    $test_path/file.1 ]
-
-	puts "\tTest003.a: put/get loop"
+	set file_list [get_file_list]
+	if { $limit } {
+		if { [llength $file_list] > $limit } {
+			set file_list [lrange $file_list 1 $limit]
+		}
+	}
+	set len [llength $file_list]
+	puts "\tTest003.a: put/get loop $len entries"
 	set count 0
 	foreach f $file_list {
 		if { [string compare [file type $f] "file"] != 0 } {
@@ -78,9 +96,17 @@ proc test003 { method args} {
 		fconfigure $fid -translation binary
 		set data [read $fid]
 		close $fid
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db put} \
 		    $txn $pflags {$key [chop_data $method $data]}]
 		error_check_good put $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 
 		# Should really catch errors
 		set fid [open $t4 w]
@@ -104,7 +130,15 @@ proc test003 { method args} {
 	# Now we will get each key from the DB and compare the results
 	# to the original.
 	puts "\tTest003.b: dump file"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	dump_bin_file $db $txn $t1 $checkfunc
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	# Now compare the keys to see if they match the entries in the
@@ -135,7 +169,7 @@ proc test003 { method args} {
 
 	# Now, reopen the file and run the last test again.
 	puts "\tTest003.c: close, open, and dump file"
-	open_and_dump_file $testfile $env $txn $t1 $checkfunc \
+	open_and_dump_file $testfile $env $t1 $checkfunc \
 	    dump_bin_file_direction "-first" "-next"
 
 	if { [is_record_based $method] == 1 } {
@@ -147,8 +181,7 @@ proc test003 { method args} {
 
 	# Now, reopen the file and run the last test again in reverse direction.
 	puts "\tTest003.d: close, open, and dump file in reverse direction"
-
-	open_and_dump_file $testfile $env $txn $t1 $checkfunc \
+	open_and_dump_file $testfile $env $t1 $checkfunc \
 	    dump_bin_file_direction "-last" "-prev"
 
 	if { [is_record_based $method] == 1 } {

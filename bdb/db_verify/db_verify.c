@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
@@ -9,9 +9,9 @@
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2000\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2002\nSleepycat Software Inc.  All rights reserved.\n";
 static const char revid[] =
-    "$Id: db_verify.c,v 1.15 2001/01/18 18:36:59 bostic Exp $";
+    "$Id: db_verify.c,v 1.38 2002/08/08 03:51:38 bostic Exp $";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -25,12 +25,9 @@ static const char revid[] =
 
 #include "db_int.h"
 
-int	main __P((int, char *[]));
-void	usage __P((void));
-void	version_check __P((void));
-
-const char
-	*progname = "db_verify";			/* Program name. */
+int main __P((int, char *[]));
+int usage __P((void));
+int version_check __P((const char *));
 
 int
 main(argc, argv)
@@ -39,46 +36,56 @@ main(argc, argv)
 {
 	extern char *optarg;
 	extern int optind;
-	DB *dbp;
+	const char *progname = "db_verify";
+	DB *dbp, *dbp1;
 	DB_ENV *dbenv;
-	int ch, e_close, exitval, nflag, quiet, ret, t_ret;
-	char *home;
+	u_int32_t cache;
+	int ch, d_close, e_close, exitval, nflag, oflag, private;
+	int quiet, resize, ret, t_ret;
+	char *home, *passwd;
 
-	version_check();
+	if ((ret = version_check(progname)) != 0)
+		return (ret);
 
 	dbenv = NULL;
-	e_close = exitval = nflag = quiet = 0;
-	home = NULL;
-	while ((ch = getopt(argc, argv, "h:NqV")) != EOF)
+	cache = MEGABYTE;
+	d_close = e_close = exitval = nflag = oflag = quiet = 0;
+	home = passwd = NULL;
+	while ((ch = getopt(argc, argv, "h:NoP:qV")) != EOF)
 		switch (ch) {
 		case 'h':
 			home = optarg;
 			break;
 		case 'N':
 			nflag = 1;
-			if ((ret = db_env_set_panicstate(0)) != 0) {
-				fprintf(stderr,
-				    "%s: db_env_set_panicstate: %s\n",
-				    progname, db_strerror(ret));
-				exit (1);
+			break;
+		case 'P':
+			passwd = strdup(optarg);
+			memset(optarg, 0, strlen(optarg));
+			if (passwd == NULL) {
+				fprintf(stderr, "%s: strdup: %s\n",
+				    progname, strerror(errno));
+				return (EXIT_FAILURE);
 			}
 			break;
+		case 'o':
+			oflag = 1;
 			break;
 		case 'q':
 			quiet = 1;
 			break;
 		case 'V':
 			printf("%s\n", db_version(NULL, NULL, NULL));
-			exit(0);
+			return (EXIT_SUCCESS);
 		case '?':
 		default:
-			usage();
+			return (usage());
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc <= 0)
-		usage();
+		return (usage());
 
 	/* Handle possible interruptions. */
 	__db_util_siginit();
@@ -87,63 +94,119 @@ main(argc, argv)
 	 * Create an environment object and initialize it for error
 	 * reporting.
 	 */
-	if ((ret = db_env_create(&dbenv, 0)) != 0) {
-		fprintf(stderr, "%s: db_env_create: %s\n",
-		    progname, db_strerror(ret));
+retry:	if ((ret = db_env_create(&dbenv, 0)) != 0) {
+		fprintf(stderr,
+		    "%s: db_env_create: %s\n", progname, db_strerror(ret));
 		goto shutdown;
 	}
 	e_close = 1;
 
-	/*
-	 * XXX
-	 * We'd prefer to have error output configured while calling
-	 * db_env_create, but there's no way to turn it off once it's
-	 * turned on.
-	 */
 	if (!quiet) {
 		dbenv->set_errfile(dbenv, stderr);
 		dbenv->set_errpfx(dbenv, progname);
 	}
 
-	if (nflag && (ret = dbenv->set_mutexlocks(dbenv, 0)) != 0) {
-		dbenv->err(dbenv, ret, "set_mutexlocks");
-		goto shutdown;
+	if (nflag) {
+		if ((ret = dbenv->set_flags(dbenv, DB_NOLOCKING, 1)) != 0) {
+			dbenv->err(dbenv, ret, "set_flags: DB_NOLOCKING");
+			goto shutdown;
+		}
+		if ((ret = dbenv->set_flags(dbenv, DB_NOPANIC, 1)) != 0) {
+			dbenv->err(dbenv, ret, "set_flags: DB_NOPANIC");
+			goto shutdown;
+		}
 	}
 
-	/*
-	 * Attach to an mpool if it exists, but if that fails, attach
-	 * to a private region.
-	 */
-	if ((ret = dbenv->open(dbenv,
-	    home, DB_INIT_MPOOL | DB_USE_ENVIRON, 0)) != 0 &&
-	    (ret = dbenv->open(dbenv, home,
-	    DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE | DB_USE_ENVIRON, 0)) != 0) {
-		dbenv->err(dbenv, ret, "open");
+	if (passwd != NULL &&
+	    (ret = dbenv->set_encrypt(dbenv, passwd, DB_ENCRYPT_AES)) != 0) {
+		dbenv->err(dbenv, ret, "set_passwd");
 		goto shutdown;
+	}
+	/*
+	 * Attach to an mpool if it exists, but if that fails, attach to a
+	 * private region.  In the latter case, declare a reasonably large
+	 * cache so that we don't fail when verifying large databases.
+	 */
+	private = 0;
+	if ((ret =
+	    dbenv->open(dbenv, home, DB_INIT_MPOOL | DB_USE_ENVIRON, 0)) != 0) {
+		if ((ret = dbenv->set_cachesize(dbenv, 0, cache, 1)) != 0) {
+			dbenv->err(dbenv, ret, "set_cachesize");
+			goto shutdown;
+		}
+		private = 1;
+		if ((ret = dbenv->open(dbenv, home,
+	    DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE | DB_USE_ENVIRON, 0)) != 0) {
+			dbenv->err(dbenv, ret, "open");
+			goto shutdown;
+		}
 	}
 
 	for (; !__db_util_interrupted() && argv[0] != NULL; ++argv) {
 		if ((ret = db_create(&dbp, dbenv, 0)) != 0) {
-			fprintf(stderr,
-			    "%s: db_create: %s\n", progname, db_strerror(ret));
+			dbenv->err(dbenv, ret, "%s: db_create", progname);
 			goto shutdown;
 		}
-		if (!quiet) {
-			dbp->set_errfile(dbp, stderr);
-			dbp->set_errpfx(dbp, progname);
+		d_close = 1;
+
+		/*
+		 * We create a 2nd dbp to this database to get its pagesize
+		 * because the dbp we're using for verify cannot be opened.
+		 */
+		if (private) {
+			if ((ret = db_create(&dbp1, dbenv, 0)) != 0) {
+				dbenv->err(
+				    dbenv, ret, "%s: db_create", progname);
+				goto shutdown;
+			}
+
+			if ((ret = dbp1->open(dbp1, NULL,
+			    argv[0], NULL, DB_UNKNOWN, DB_RDONLY, 0)) != 0) {
+				dbenv->err(dbenv, ret, "DB->open: %s", argv[0]);
+				(void)dbp1->close(dbp1, 0);
+				goto shutdown;
+			}
+			/*
+			 * If we get here, we can check the cache/page.
+			 * !!!
+			 * If we have to retry with an env with a larger
+			 * cache, we jump out of this loop.  However, we
+			 * will still be working on the same argv when we
+			 * get back into the for-loop.
+			 */
+			ret = __db_util_cache(dbenv, dbp1, &cache, &resize);
+			(void)dbp1->close(dbp1, 0);
+			if (ret != 0)
+				goto shutdown;
+
+			if (resize) {
+				(void)dbp->close(dbp, 0);
+				d_close = 0;
+
+				(void)dbenv->close(dbenv, 0);
+				e_close = 0;
+				goto retry;
+			}
 		}
-		if ((ret = dbp->verify(dbp, argv[0], NULL, NULL, 0)) != 0)
+		if ((ret = dbp->verify(dbp,
+		    argv[0], NULL, NULL, oflag ? DB_NOORDERCHK : 0)) != 0)
 			dbp->err(dbp, ret, "DB->verify: %s", argv[0]);
 		if ((t_ret = dbp->close(dbp, 0)) != 0 && ret == 0) {
-			dbp->err(dbp, ret, "DB->close: %s", argv[0]);
+			dbenv->err(dbenv, ret, "DB->close: %s", argv[0]);
 			ret = t_ret;
 		}
+		d_close = 0;
 		if (ret != 0)
 			goto shutdown;
 	}
 
 	if (0) {
 shutdown:	exitval = 1;
+	}
+
+	if (d_close && (ret = dbp->close(dbp, 0)) != 0) {
+		exitval = 1;
+		dbenv->err(dbenv, ret, "close");
 	}
 	if (e_close && (ret = dbenv->close(dbenv, 0)) != 0) {
 		exitval = 1;
@@ -154,18 +217,20 @@ shutdown:	exitval = 1;
 	/* Resend any caught signal. */
 	__db_util_sigresend();
 
-	return (exitval);
+	return (exitval == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
-void
+int
 usage()
 {
-	fprintf(stderr, "usage: db_verify [-NqV] [-h home] db_file ...\n");
-	exit (1);
+	fprintf(stderr, "%s\n",
+	    "usage: db_verify [-NoqV] [-h home] [-P password] db_file ...");
+	return (EXIT_FAILURE);
 }
 
-void
-version_check()
+int
+version_check(progname)
+	const char *progname;
 {
 	int v_major, v_minor, v_patch;
 
@@ -177,6 +242,7 @@ version_check()
 	"%s: version %d.%d.%d doesn't match library version %d.%d.%d\n",
 		    progname, DB_VERSION_MAJOR, DB_VERSION_MINOR,
 		    DB_VERSION_PATCH, v_major, v_minor, v_patch);
-		exit (1);
+		return (EXIT_FAILURE);
 	}
+	return (0);
 }

@@ -950,7 +950,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 #ifdef USE_STRCOLL
 	if (!sortorder->item->binary())
 	{ 
-	  CHARSET_INFO *cs=sortorder->item->str_value.charset();
+	  CHARSET_INFO *cs=sortorder->item->charset();
 	  if (use_strnxfrm(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}

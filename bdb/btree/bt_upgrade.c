@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: bt_upgrade.c,v 11.19 2000/11/30 00:58:29 ubell Exp $";
+static const char revid[] = "$Id: bt_upgrade.c,v 11.25 2002/08/06 06:11:13 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,11 +18,9 @@ static const char revid[] = "$Id: bt_upgrade.c,v 11.19 2000/11/30 00:58:29 ubell
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "btree.h"
-#include "db_am.h"
-#include "db_upgrade.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_am.h"
+#include "dbinc/db_upgrade.h"
 
 /*
  * __bam_30_btreemeta --
@@ -107,7 +105,7 @@ __bam_31_btreemeta(dbp, real_name, flags, fhp, h, dirtyp)
 	newmeta->minkey = oldmeta->minkey;
 	newmeta->maxkey = oldmeta->maxkey;
 	memmove(newmeta->dbmeta.uid,
-	     oldmeta->dbmeta.uid, sizeof(oldmeta->dbmeta.uid));
+	    oldmeta->dbmeta.uid, sizeof(oldmeta->dbmeta.uid));
 	newmeta->dbmeta.flags = oldmeta->dbmeta.flags;
 	newmeta->dbmeta.record_count = 0;
 	newmeta->dbmeta.key_count = 0;
@@ -126,7 +124,7 @@ __bam_31_btreemeta(dbp, real_name, flags, fhp, h, dirtyp)
 
 /*
  * __bam_31_lbtree --
- *      Upgrade the database btree leaf pages.
+ *	Upgrade the database btree leaf pages.
  *
  * PUBLIC: int __bam_31_lbtree
  * PUBLIC:      __P((DB *, char *, u_int32_t, DB_FH *, PAGE *, int *));
@@ -147,15 +145,15 @@ __bam_31_lbtree(dbp, real_name, flags, fhp, h, dirtyp)
 
 	ret = 0;
 	for (indx = O_INDX; indx < NUM_ENT(h); indx += P_INDX) {
-		bk = GET_BKEYDATA(h, indx);
+		bk = GET_BKEYDATA(dbp, h, indx);
 		if (B_TYPE(bk->type) == B_DUPLICATE) {
-			pgno = GET_BOVERFLOW(h, indx)->pgno;
+			pgno = GET_BOVERFLOW(dbp, h, indx)->pgno;
 			if ((ret = __db_31_offdup(dbp, real_name, fhp,
 			    LF_ISSET(DB_DUPSORT) ? 1 : 0, &pgno)) != 0)
 				break;
-			if (pgno != GET_BOVERFLOW(h, indx)->pgno) {
+			if (pgno != GET_BOVERFLOW(dbp, h, indx)->pgno) {
 				*dirtyp = 1;
-				GET_BOVERFLOW(h, indx)->pgno = pgno;
+				GET_BOVERFLOW(dbp, h, indx)->pgno = pgno;
 			}
 		}
 	}

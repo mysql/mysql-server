@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -43,7 +43,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: dbm.c,v 11.7 2000/11/30 00:58:35 ubell Exp $";
+static const char revid[] = "$Id: dbm.c,v 11.14 2002/02/22 16:11:10 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -60,6 +60,36 @@ static const char revid[] = "$Id: dbm.c,v 11.7 2000/11/30 00:58:35 ubell Exp $";
  *
  * This package provides dbm and ndbm compatible interfaces to DB.
  *
+ * EXTERN: #if DB_DBM_HSEARCH != 0
+ *
+ * EXTERN: int	 __db_ndbm_clearerr __P((DBM *));
+ * EXTERN: void	 __db_ndbm_close __P((DBM *));
+ * EXTERN: int	 __db_ndbm_delete __P((DBM *, datum));
+ * EXTERN: int	 __db_ndbm_dirfno __P((DBM *));
+ * EXTERN: int	 __db_ndbm_error __P((DBM *));
+ * EXTERN: datum __db_ndbm_fetch __P((DBM *, datum));
+ * EXTERN: datum __db_ndbm_firstkey __P((DBM *));
+ * EXTERN: datum __db_ndbm_nextkey __P((DBM *));
+ * EXTERN: DBM	*__db_ndbm_open __P((const char *, int, int));
+ * EXTERN: int	 __db_ndbm_pagfno __P((DBM *));
+ * EXTERN: int	 __db_ndbm_rdonly __P((DBM *));
+ * EXTERN: int	 __db_ndbm_store __P((DBM *, datum, datum, int));
+ *
+ * EXTERN: int	 __db_dbm_close __P((void));
+ * EXTERN: int	 __db_dbm_dbrdonly __P((void));
+ * EXTERN: int	 __db_dbm_delete __P((datum));
+ * EXTERN: int	 __db_dbm_dirf __P((void));
+ * EXTERN: datum __db_dbm_fetch __P((datum));
+ * EXTERN: datum __db_dbm_firstkey __P((void));
+ * EXTERN: int	 __db_dbm_init __P((char *));
+ * EXTERN: datum __db_dbm_nextkey __P((datum));
+ * EXTERN: int	 __db_dbm_pagf __P((void));
+ * EXTERN: int	 __db_dbm_store __P((datum, datum));
+ *
+ * EXTERN: #endif
+ */
+
+/*
  * The DBM routines, which call the NDBM routines.
  */
 static DBM *__cur_db;
@@ -210,7 +240,7 @@ __db_ndbm_open(file, oflags, mode)
 	if ((ret = dbp->set_pagesize(dbp, 4096)) != 0 ||
 	    (ret = dbp->set_h_ffactor(dbp, 40)) != 0 ||
 	    (ret = dbp->set_h_nelem(dbp, 1)) != 0 ||
-	    (ret = dbp->open(dbp,
+	    (ret = dbp->open(dbp, NULL,
 	    path, NULL, DB_HASH, __db_oflags(oflags), mode)) != 0) {
 		__os_set_errno(ret);
 		return (NULL);
@@ -277,7 +307,7 @@ __db_ndbm_fetch(dbm, key)
 			__os_set_errno(ENOENT);
 		else {
 			__os_set_errno(ret);
-			F_SET(dbc->dbp, DB_DBM_ERROR);
+			F_SET(dbc->dbp, DB_AM_DBM_ERROR);
 		}
 	}
 	return (data);
@@ -312,7 +342,7 @@ __db_ndbm_firstkey(dbm)
 			__os_set_errno(ENOENT);
 		else {
 			__os_set_errno(ret);
-			F_SET(dbc->dbp, DB_DBM_ERROR);
+			F_SET(dbc->dbp, DB_AM_DBM_ERROR);
 		}
 	}
 	return (key);
@@ -347,7 +377,7 @@ __db_ndbm_nextkey(dbm)
 			__os_set_errno(ENOENT);
 		else {
 			__os_set_errno(ret);
-			F_SET(dbc->dbp, DB_DBM_ERROR);
+			F_SET(dbc->dbp, DB_AM_DBM_ERROR);
 		}
 	}
 	return (key);
@@ -380,7 +410,7 @@ __db_ndbm_delete(dbm, key)
 		__os_set_errno(ENOENT);
 	else {
 		__os_set_errno(ret);
-		F_SET(dbc->dbp, DB_DBM_ERROR);
+		F_SET(dbc->dbp, DB_AM_DBM_ERROR);
 	}
 	return (-1);
 }
@@ -419,7 +449,7 @@ __db_ndbm_store(dbm, key, data, flags)
 		return (1);
 
 	__os_set_errno(ret);
-	F_SET(dbc->dbp, DB_DBM_ERROR);
+	F_SET(dbc->dbp, DB_AM_DBM_ERROR);
 	return (-1);
 }
 
@@ -431,7 +461,7 @@ __db_ndbm_error(dbm)
 
 	dbc = (DBC *)dbm;
 
-	return (F_ISSET(dbc->dbp, DB_DBM_ERROR));
+	return (F_ISSET(dbc->dbp, DB_AM_DBM_ERROR));
 }
 
 int
@@ -442,7 +472,7 @@ __db_ndbm_clearerr(dbm)
 
 	dbc = (DBC *)dbm;
 
-	F_CLR(dbc->dbp, DB_DBM_ERROR);
+	F_CLR(dbc->dbp, DB_AM_DBM_ERROR);
 	return (0);
 }
 

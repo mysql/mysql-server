@@ -1,11 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdb005.tcl,v 11.12 2000/08/25 14:21:53 sue Exp $
+# $Id: sdb005.tcl,v 11.18 2002/07/11 18:53:46 sandstro Exp $
 #
-# Test cursor operations between subdbs.
+# TEST	subdb005
+# TEST	Tests cursor operations in subdbs
+# TEST		Put/get per key
+# TEST		Verify cursor operations work within subdb
+# TEST		Verify cursor operations do not work across subdbs
+# TEST
 #
 # We should test this on all btrees, all hash, and a combination thereof
 proc subdb005 {method {nentries 100} args } {
@@ -20,21 +25,50 @@ proc subdb005 {method {nentries 100} args } {
 	}
 
 	puts "Subdb005: $method ( $args ) subdb cursor operations test"
+	set txnenv 0
+	set envargs ""
+	set eindex [lsearch -exact $args "-env"]
+	#
+	# If we are using an env, then testfile should just be the db name.
+	# Otherwise it is the test directory and the name.
+	if { $eindex == -1 } {
+		set testfile $testdir/subdb005.db
+		set env NULL
+	} else {
+		set testfile subdb005.db
+		incr eindex
+		set env [lindex $args $eindex]
+		set envargs " -env $env "
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			append envargs " -auto_commit "
+			if { $nentries == 100 } {
+				set nentries 20
+			}
+		}
+		set testdir [get_home $env]
+	}
+
+	cleanup $testdir $env
 	set txn ""
-	cleanup $testdir NULL
 	set psize 8192
-	set testfile $testdir/subdb005.db
 	set duplist {-1 -1 -1 -1 -1}
 	build_all_subdb \
-	    $testfile [list $method] [list $psize] $duplist $nentries $args
+	    $testfile [list $method] $psize $duplist $nentries $args
 	set numdb [llength $duplist]
 	#
 	# Get a cursor in each subdb and move past the end of each
 	# subdb.  Make sure we don't end up in another subdb.
 	#
 	puts "\tSubdb005.a: Cursor ops - first/prev and last/next"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	for {set i 0} {$i < $numdb} {incr i} {
-		set db [berkdb_open -unknown $testfile sub$i.db]
+		set db [eval {berkdb_open -unknown} $args {$testfile sub$i.db}]
 		error_check_good dbopen [is_valid_db $db] TRUE
 		set db_handle($i) $db
 		# Used in 005.c test
@@ -54,6 +88,7 @@ proc subdb005 {method {nentries 100} args } {
 		error_check_good dbc_get [expr [llength $d] != 0] 1
 		set d [$dbc get -next]
 		error_check_good dbc_get [expr [llength $d] == 0] 1
+		error_check_good dbc_close [$dbc close] 0
 	}
 	#
 	# Get a key from each subdb and try to get this key in a
@@ -67,15 +102,17 @@ proc subdb005 {method {nentries 100} args } {
 		}
 		set db $db_handle($i)
 		if { [is_record_based $method] == 1 } {
-			set d [$db get -recno $db_key($n)]
+			set d [eval {$db get -recno} $txn {$db_key($n)}]
 			error_check_good \
 			    db_get [expr [llength $d] == 0] 1
 		} else {
-			set d [$db get $db_key($n)]
+			set d [eval {$db get} $txn {$db_key($n)}]
 			error_check_good db_get [expr [llength $d] == 0] 1
 		}
 	}
-
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	#
 	# Clean up
 	#
@@ -92,7 +129,7 @@ proc subdb005 {method {nentries 100} args } {
 	     {berkdb_open_noerr -unknown $testfile} ret] 0
 
 	puts "\tSubdb005.d: Check contents of DB for subdb names only"
-	set db [berkdb_open -unknown -rdonly $testfile]
+	set db [eval {berkdb_open -unknown -rdonly} $envargs {$testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set subdblist [$db get -glob *]
 	foreach kd $subdblist {

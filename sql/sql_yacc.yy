@@ -712,7 +712,7 @@ help:
        LEX *lex= Lex;
        lex->sql_command= SQLCOM_HELP;
        lex->help_arg= $2.str;
-       }
+       };
 
 /* change master */
 
@@ -3295,13 +3295,13 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING { $$ = new Item_string($1.str,$1.length,default_charset_info); }
+	TEXT_STRING { $$ = new Item_string($1.str,$1.length,current_thd->thd_charset); }
 	| UNDERSCORE_CHARSET TEXT_STRING { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING
 	{ ((Item_string*) $1)->append($2.str,$2.length); };
 
 text_string:
-	TEXT_STRING	{ $$=  new String($1.str,$1.length,default_charset_info); }
+	TEXT_STRING	{ $$=  new String($1.str,$1.length,current_thd->thd_charset); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);

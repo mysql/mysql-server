@@ -1,17 +1,20 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test013.tcl,v 11.18 2000/08/25 14:21:54 sue Exp $
+# $Id: test013.tcl,v 11.23 2002/05/22 15:42:46 sue Exp $
 #
-# DB Test 13 {access method}
-#
-# 1. Insert 10000 keys and retrieve them (equal key/data pairs).
-# 2. Attempt to overwrite keys with NO_OVERWRITE set (expect error).
-# 3. Actually overwrite each one with its datum reversed.
-#
-# No partial testing here.
+# TEST	test013
+# TEST	Partial put test
+# TEST		Overwrite entire records using partial puts.
+# TEST		Make surethat NOOVERWRITE flag works.
+# TEST
+# TEST	1. Insert 10000 keys and retrieve them (equal key/data pairs).
+# TEST	2. Attempt to overwrite keys with NO_OVERWRITE set (expect error).
+# TEST	3. Actually overwrite each one with its datum reversed.
+# TEST
+# TEST	No partial testing here.
 proc test013 { method {nentries 10000} args } {
 	global errorCode
 	global errorInfo
@@ -23,9 +26,8 @@ proc test013 { method {nentries 10000} args } {
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	puts "Test013: $method ($args) $nentries equal key/data pairs, put test"
-
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -37,14 +39,28 @@ proc test013 { method {nentries 10000} args } {
 		set testfile test013.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			#
+			# If we are using txns and running with the
+			# default, set the default down a bit.
+			#
+			if { $nentries == 10000 } {
+				set nentries 100
+			}
+		}
+		set testdir [get_home $env]
 	}
+	puts "Test013: $method ($args) $nentries equal key/data pairs, put test"
+
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
 	cleanup $testdir $env
 
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644} $args {$omethod $testfile}]
+	     -create -mode 0644} $args {$omethod $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	set did [open $dict]
@@ -70,6 +86,11 @@ proc test013 { method {nentries 10000} args } {
 		} else {
 			set key $str
 		}
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db put} \
 		    $txn $pflags {$key [chop_data $method $str]}]
 		error_check_good put $ret 0
@@ -77,6 +98,9 @@ proc test013 { method {nentries 10000} args } {
 		set ret [eval {$db get} $gflags $txn {$key}]
 		error_check_good \
 		    get $ret [list [list $key [pad_data $method $str]]]
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		incr count
 	}
 	close $did
@@ -93,6 +117,11 @@ proc test013 { method {nentries 10000} args } {
 			set key $str
 		}
 
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db put} $txn $pflags \
 		    {-nooverwrite $key [chop_data $method $str]}]
 		error_check_good put [is_substr $ret "DB_KEYEXIST"] 1
@@ -101,6 +130,9 @@ proc test013 { method {nentries 10000} args } {
 		set ret [eval {$db get} $txn $gflags {$key}]
 		error_check_good \
 		    get $ret [list [list $key [pad_data $method $str]]]
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		incr count
 	}
 	close $did
@@ -116,6 +148,11 @@ proc test013 { method {nentries 10000} args } {
 			set key $str
 		}
 		set rstr [string toupper $str]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set r [eval {$db put} \
 		    $txn $pflags {$key [chop_data $method $rstr]}]
 		error_check_good put $r 0
@@ -124,13 +161,24 @@ proc test013 { method {nentries 10000} args } {
 		set ret [eval {$db get} $txn $gflags {$key}]
 		error_check_good \
 		    get $ret [list [list $key [pad_data $method $rstr]]]
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		incr count
 	}
 	close $did
 
 	# Now make sure that everything looks OK
 	puts "\tTest013.d: check entire file contents"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	dump_file $db $txn $t1 $checkfunc
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	# Now compare the keys to see if they match the dictionary (or ints)
@@ -153,7 +201,7 @@ proc test013 { method {nentries 10000} args } {
 
 	puts "\tTest013.e: close, open, and dump file"
 	# Now, reopen the file and run the last test again.
-	open_and_dump_file $testfile $env $txn $t1 $checkfunc \
+	open_and_dump_file $testfile $env $t1 $checkfunc \
 	    dump_file_direction "-first" "-next"
 
 	if { [is_record_based $method] == 0 } {
@@ -166,7 +214,7 @@ proc test013 { method {nentries 10000} args } {
 	# Now, reopen the file and run the last test again in the
 	# reverse direction.
 	puts "\tTest013.f: close, open, and dump file in reverse direction"
-	open_and_dump_file $testfile $env $txn $t1 $checkfunc \
+	open_and_dump_file $testfile $env $t1 $checkfunc \
 	    dump_file_direction "-last" "-prev"
 
 	if { [is_record_based $method] == 0 } {

@@ -1,0 +1,146 @@
+# $Id: types.ac,v 11.10 2001/12/10 14:16:49 bostic Exp $
+
+# db.h includes <sys/types.h> and <stdio.h>, not the other default includes
+# autoconf usually includes.  For that reason, we specify a set of includes
+# for all type checking tests. [#5060]
+AC_DEFUN(DB_INCLUDES, [[
+#include <sys/types.h>
+#include <stdio.h>]])
+
+# Check the sizes we know about, and see if any of them match what's needed.
+#
+# Prefer ints to anything else, because read, write and others historically
+# returned an int.
+AC_DEFUN(AM_SEARCH_USIZES, [
+	case "$3" in
+	"$ac_cv_sizeof_unsigned_int")
+		$1="typedef unsigned int $2;";;
+	"$ac_cv_sizeof_unsigned_char")
+		$1="typedef unsigned char $2;";;
+	"$ac_cv_sizeof_unsigned_short")
+		$1="typedef unsigned short $2;";;
+	"$ac_cv_sizeof_unsigned_long")
+		$1="typedef unsigned long $2;";;
+	*)
+		AC_MSG_ERROR([No unsigned $3-byte integral type]);;
+	esac])
+AC_DEFUN(AM_SEARCH_SSIZES, [
+	case "$3" in
+	"$ac_cv_sizeof_int")
+		$1="typedef int $2;";;
+	"$ac_cv_sizeof_char")
+		$1="typedef char $2;";;
+	"$ac_cv_sizeof_short")
+		$1="typedef short $2;";;
+	"$ac_cv_sizeof_long")
+		$1="typedef long $2;";;
+	*)
+		AC_MSG_ERROR([No signed $3-byte integral type]);;
+	esac])
+
+# Check for the standard system types.
+AC_DEFUN(AM_TYPES, [
+
+# We need to know the sizes of various objects on this system.
+# We don't use the SIZEOF_XXX values created by autoconf.
+AC_CHECK_SIZEOF(char,, DB_INCLUDES)
+AC_CHECK_SIZEOF(unsigned char,, DB_INCLUDES)
+AC_CHECK_SIZEOF(short,, DB_INCLUDES)
+AC_CHECK_SIZEOF(unsigned short,, DB_INCLUDES)
+AC_CHECK_SIZEOF(int,, DB_INCLUDES)
+AC_CHECK_SIZEOF(unsigned int,, DB_INCLUDES)
+AC_CHECK_SIZEOF(long,, DB_INCLUDES)
+AC_CHECK_SIZEOF(unsigned long,, DB_INCLUDES)
+AC_CHECK_SIZEOF(size_t,, DB_INCLUDES)
+AC_CHECK_SIZEOF(char *,, DB_INCLUDES)
+
+# We require off_t and size_t, and we don't try to substitute our own
+# if we can't find them.
+AC_CHECK_TYPE(off_t,,, DB_INCLUDES)
+if test "$ac_cv_type_off_t" = no; then
+	AC_MSG_ERROR([No off_t type.])
+fi
+
+AC_CHECK_TYPE(size_t,,, DB_INCLUDES)
+if test "$ac_cv_type_size_t" = no; then
+	AC_MSG_ERROR([No size_t type.])
+fi
+
+# We look for u_char, u_short, u_int, u_long -- if we can't find them,
+# we create our own.
+AC_SUBST(u_char_decl)
+AC_CHECK_TYPE(u_char,,, DB_INCLUDES)
+if test "$ac_cv_type_u_char" = no; then
+	u_char_decl="typedef unsigned char u_char;"
+fi
+
+AC_SUBST(u_short_decl)
+AC_CHECK_TYPE(u_short,,, DB_INCLUDES)
+if test "$ac_cv_type_u_short" = no; then
+	u_short_decl="typedef unsigned short u_short;"
+fi
+
+AC_SUBST(u_int_decl)
+AC_CHECK_TYPE(u_int,,, DB_INCLUDES)
+if test "$ac_cv_type_u_int" = no; then
+	u_int_decl="typedef unsigned int u_int;"
+fi
+
+AC_SUBST(u_long_decl)
+AC_CHECK_TYPE(u_long,,, DB_INCLUDES)
+if test "$ac_cv_type_u_long" = no; then
+	u_long_decl="typedef unsigned long u_long;"
+fi
+
+AC_SUBST(u_int8_decl)
+AC_CHECK_TYPE(u_int8_t,,, DB_INCLUDES)
+if test "$ac_cv_type_u_int8_t" = no; then
+	AM_SEARCH_USIZES(u_int8_decl, u_int8_t, 1)
+fi
+
+AC_SUBST(u_int16_decl)
+AC_CHECK_TYPE(u_int16_t,,, DB_INCLUDES)
+if test "$ac_cv_type_u_int16_t" = no; then
+	AM_SEARCH_USIZES(u_int16_decl, u_int16_t, 2)
+fi
+
+AC_SUBST(int16_decl)
+AC_CHECK_TYPE(int16_t,,, DB_INCLUDES)
+if test "$ac_cv_type_int16_t" = no; then
+	AM_SEARCH_SSIZES(int16_decl, int16_t, 2)
+fi
+
+AC_SUBST(u_int32_decl)
+AC_CHECK_TYPE(u_int32_t,,, DB_INCLUDES)
+if test "$ac_cv_type_u_int32_t" = no; then
+	AM_SEARCH_USIZES(u_int32_decl, u_int32_t, 4)
+fi
+
+AC_SUBST(int32_decl)
+AC_CHECK_TYPE(int32_t,,, DB_INCLUDES)
+if test "$ac_cv_type_int32_t" = no; then
+	AM_SEARCH_SSIZES(int32_decl, int32_t, 4)
+fi
+
+# Check for ssize_t -- if none exists, find a signed integral type that's
+# the same size as a size_t.
+AC_SUBST(ssize_t_decl)
+AC_CHECK_TYPE(ssize_t,,, DB_INCLUDES)
+if test "$ac_cv_type_ssize_t" = no; then
+	AM_SEARCH_SSIZES(ssize_t_decl, ssize_t, $ac_cv_sizeof_size_t)
+fi
+
+# Find the largest integral type.
+AC_SUBST(db_align_t_decl)
+AC_CHECK_TYPE(unsigned long long,,, DB_INCLUDES)
+if test "$ac_cv_type_unsigned_long_long" = no; then
+	db_align_t_decl="typedef unsigned long db_align_t;"
+else
+	db_align_t_decl="typedef unsigned long long db_align_t;"
+fi
+
+# Find an integral type which is the same size as a pointer.
+AC_SUBST(db_alignp_t_decl)
+AM_SEARCH_USIZES(db_alignp_t_decl, db_alignp_t, $ac_cv_sizeof_char_p)
+
+])

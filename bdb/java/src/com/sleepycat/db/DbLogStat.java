@@ -1,35 +1,29 @@
-/*-
- * See the file LICENSE for redistribution information.
- *
- * Copyright (c) 1998, 1999, 2000
- *	Sleepycat Software.  All rights reserved.
- *
- *	$Id: DbLogStat.java,v 11.3 2000/02/14 02:59:56 bostic Exp $
- */
+/* DO NOT EDIT: automatically built by dist/s_java. */
 
 package com.sleepycat.db;
 
-/*
- * This is filled in and returned by the
- * DbLog.stat() method.
- */
 public class DbLogStat
 {
-    public int st_magic;                // Log file magic number.
-    public int st_version;              // Log file version number.
-    public int st_mode;                 // Log file mode.
-    public int st_lg_max;               // Maximum log file size.
-    public int st_w_bytes;              // Bytes to log.
-    public int st_w_mbytes;             // Megabytes to log.
-    public int st_wc_bytes;             // Bytes to log since checkpoint.
-    public int st_wc_mbytes;            // Megabytes to log since checkpoint.
-    public int st_wcount;               // Total syncs to the log.
-    public int st_scount;               // Total writes to the log.
-    public int st_region_wait;          // Region lock granted after wait.
-    public int st_region_nowait;        // Region lock granted without wait.
-    public int st_cur_file;             // Current log file number.
-    public int st_cur_offset;           // Current log file offset.
-    public int st_regsize;              // Region size.
+    public int st_magic;
+    public int st_version;
+    public int st_mode;
+    public int st_lg_bsize;
+    public int st_lg_size;
+    public int st_w_bytes;
+    public int st_w_mbytes;
+    public int st_wc_bytes;
+    public int st_wc_mbytes;
+    public int st_wcount;
+    public int st_wcount_fill;
+    public int st_scount;
+    public int st_region_wait;
+    public int st_region_nowait;
+    public int st_cur_file;
+    public int st_cur_offset;
+    public int st_disk_file;
+    public int st_disk_offset;
+    public int st_regsize;
+    public int st_maxcommitperflush;
+    public int st_mincommitperflush;
 }
-
 // end of DbLogStat.java

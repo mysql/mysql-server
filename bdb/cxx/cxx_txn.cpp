@@ -1,136 +1,81 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: cxx_txn.cpp,v 11.13 2000/12/21 16:24:33 dda Exp $";
+static const char revid[] = "$Id: cxx_txn.cpp,v 11.27 2002/07/20 13:50:11 dda Exp $";
 #endif /* not lint */
 
 #include <errno.h>
 
 #include "db_cxx.h"
-#include "cxx_int.h"
+#include "dbinc/cxx_int.h"
 
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-//                            DbTxnMgr                                //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
+#include "db_int.h"
 
-int DbEnv::txn_begin(DbTxn *pid, DbTxn **tid, u_int32_t flags)
-{
-	int err;
-	DB_ENV *env = unwrap(this);
-	DB_TXN *txn;
-
-	if ((err = ::txn_begin(env, unwrap(pid), &txn, flags)) != 0) {
-		DB_ERROR("DbEnv::txn_begin", err, error_policy());
-		return (err);
-	}
-	DbTxn *result = new DbTxn();
-	result->imp_ = wrap(txn);
-	*tid = result;
-	return (err);
+// Helper macro for simple methods that pass through to the
+// underlying C method. It may return an error or raise an exception.
+// Note this macro expects that input _argspec is an argument
+// list element (e.g., "char *arg") and that _arglist is the arguments
+// that should be passed through to the C method (e.g., "(db, arg)")
+//
+#define	DBTXN_METHOD(_name, _delete, _argspec, _arglist)		\
+int DbTxn::_name _argspec						\
+{									\
+	int ret;							\
+	DB_TXN *txn = unwrap(this);					\
+									\
+	ret = txn->_name _arglist;					\
+	/* Weird, but safe if we don't access this again. */		\
+	if (_delete)							\
+		delete this;						\
+	if (!DB_RETOK_STD(ret))						\
+		DB_ERROR("DbTxn::" # _name, ret, ON_ERROR_UNKNOWN);	\
+	return (ret);							\
 }
 
-int DbEnv::txn_checkpoint(u_int32_t kbyte, u_int32_t min, u_int32_t flags)
-{
-	int err;
-	DB_ENV *env = unwrap(this);
-	if ((err = ::txn_checkpoint(env, kbyte, min, flags)) != 0 &&
-	    err != DB_INCOMPLETE) {
-		DB_ERROR("DbEnv::txn_checkpoint", err, error_policy());
-		return (err);
-	}
-	return (err);
-}
-
-int DbEnv::txn_stat(DB_TXN_STAT **statp, db_malloc_fcn_type db_malloc_fcn)
-{
-	int err;
-	DB_ENV *env = unwrap(this);
-	if ((err = ::txn_stat(env, statp, db_malloc_fcn)) != 0) {
-		DB_ERROR("DbEnv::txn_stat", err, error_policy());
-		return (err);
-	}
-	return (err);
-}
-
-////////////////////////////////////////////////////////////////////////
-//                                                                    //
-//                            DbTxn                                   //
-//                                                                    //
-////////////////////////////////////////////////////////////////////////
-
+// private constructor, never called but needed by some C++ linkers
 DbTxn::DbTxn()
 :	imp_(0)
 {
+}
+
+DbTxn::DbTxn(DB_TXN *txn)
+:	imp_(wrap(txn))
+{
+	txn->api_internal = this;
 }
 
 DbTxn::~DbTxn()
 {
 }
 
-int DbTxn::abort()
-{
-	int err;
-	DB_TXN *txn;
-
-	txn = unwrap(this);
-	err = txn_abort(txn);
-
-	// It may seem weird to delete this, but is legal as long
-	// as we don't access any of its data before returning.
-	//
-	delete this;
-
-	if (err != 0)
-		DB_ERROR("DbTxn::abort", err, ON_ERROR_UNKNOWN);
-
-	return (err);
-}
-
-int DbTxn::commit(u_int32_t flags)
-{
-	int err;
-	DB_TXN *txn;
-
-	txn = unwrap(this);
-	err = txn_commit(txn, flags);
-
-	// It may seem weird to delete this, but is legal as long
-	// as we don't access any of its data before returning.
-	//
-	delete this;
-
-	if (err != 0)
-		DB_ERROR("DbTxn::commit", err, ON_ERROR_UNKNOWN);
-
-	return (err);
-}
+DBTXN_METHOD(abort, 1, (), (txn))
+DBTXN_METHOD(commit, 1, (u_int32_t flags), (txn, flags))
+DBTXN_METHOD(discard, 1, (u_int32_t flags), (txn, flags))
 
 u_int32_t DbTxn::id()
 {
 	DB_TXN *txn;
 
 	txn = unwrap(this);
-	return (txn_id(txn));         // no error
+	return (txn->id(txn));		// no error
 }
 
-int DbTxn::prepare()
-{
-	int err;
-	DB_TXN *txn;
+DBTXN_METHOD(prepare, 0, (u_int8_t *gid), (txn, gid))
+DBTXN_METHOD(set_timeout, 0, (db_timeout_t timeout, u_int32_t flags),
+    (txn, timeout, flags))
 
-	txn = unwrap(this);
-	if ((err = txn_prepare(txn)) != 0) {
-		DB_ERROR("DbTxn::prepare", err, ON_ERROR_UNKNOWN);
-		return (err);
-	}
-	return (0);
+// static method
+DbTxn *DbTxn::wrap_DB_TXN(DB_TXN *txn)
+{
+	DbTxn *wrapped_txn = get_DbTxn(txn);
+	if (wrapped_txn == NULL)
+		wrapped_txn = new DbTxn(txn);
+	return wrapped_txn;
 }

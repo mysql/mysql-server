@@ -1,13 +1,15 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd005.tcl,v 11.27 2000/12/15 21:41:38 ubell Exp $
+# $Id: recd005.tcl,v 11.34 2002/05/22 15:42:39 sue Exp $
 #
-# Recovery Test 5.
-# Make sure that we can do catastrophic recovery even if we open
-# files using the same log file id.
+# TEST	recd005
+# TEST	Verify reuse of file ids works on catastrophic recovery.
+# TEST
+# TEST	Make sure that we can do catastrophic recovery even if we open
+# TEST	files using the same log file id.
 proc recd005 { method args} {
 	source ./include.tcl
 	global rand_init
@@ -15,7 +17,7 @@ proc recd005 { method args} {
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	puts "Recd005: $method catastropic recovery"
+	puts "Recd005: $method catastrophic recovery"
 
 	berkdb srand $rand_init
 
@@ -38,7 +40,7 @@ proc recd005 { method args} {
 			puts "\tRecd005.$tnum: $s1 $s2 $op1 $op2"
 
 			puts "\tRecd005.$tnum.a: creating environment"
-			set env_cmd "berkdb env $eflags"
+			set env_cmd "berkdb_env $eflags"
 			set dbenv [eval $env_cmd]
 			error_check_bad dbenv $dbenv NULL
 
@@ -147,12 +149,11 @@ proc do_one_file { dir method env env_cmd filename num op } {
 	# Save the initial file and open the environment and the first file
 	file copy -force $dir/$filename $dir/$filename.init
 	copy_extent_file $dir $filename init
-	set oflags "-unknown -env $env"
+	set oflags "-auto_commit -unknown -env $env"
 	set db [eval {berkdb_open} $oflags $filename]
 
 	# Dump out file contents for initial case
-	set tflags ""
-	open_and_dump_file $filename $env $tflags $init_file nop \
+	open_and_dump_file $filename $env $init_file nop \
 	    dump_file_direction "-first" "-next"
 
 	set txn [$env txn]
@@ -167,7 +168,7 @@ proc do_one_file { dir method env env_cmd filename num op } {
 	error_check_good sync:$db [$db sync] 0
 	file copy -force $dir/$filename $dir/$filename.afterop
 	copy_extent_file $dir $filename afterop
-	open_and_dump_file $testdir/$filename.afterop NULL $tflags \
+	open_and_dump_file $testdir/$filename.afterop NULL \
 	    $afterop_file nop dump_file_direction "-first" "-next"
 	error_check_good txn_$op:$txn [$txn $op] 0
 
@@ -179,7 +180,7 @@ proc do_one_file { dir method env env_cmd filename num op } {
 
 	# Dump out file and save a copy.
 	error_check_good sync:$db [$db sync] 0
-	open_and_dump_file $testdir/$filename NULL $tflags $final_file nop \
+	open_and_dump_file $testdir/$filename NULL $final_file nop \
 	    dump_file_direction "-first" "-next"
 	file copy -force $dir/$filename $dir/$filename.final
 	copy_extent_file $dir $filename final
@@ -211,8 +212,7 @@ proc check_file { dir env_cmd filename op } {
 	set afterop_file $dir/$filename.t2
 	set final_file $dir/$filename.t3
 
-	set tflags ""
-	open_and_dump_file $testdir/$filename NULL $tflags $final_file nop \
+	open_and_dump_file $testdir/$filename NULL $final_file nop \
 	    dump_file_direction "-first" "-next"
 	if { $op == "abort" } {
 		filesort $init_file $init_file.sort
@@ -227,5 +227,4 @@ proc check_file { dir env_cmd filename op } {
 		    diff(pre-commit,post-$op):diff($afterop_file,$final_file) \
 		    [filecmp $afterop_file.sort $final_file.sort] 0
 	}
-
 }
