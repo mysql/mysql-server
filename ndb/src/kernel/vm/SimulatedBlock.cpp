@@ -104,6 +104,11 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   UpgradeStartup::installEXEC(this);
 
   CLEAR_ERROR_INSERT_VALUE;
+
+#ifdef VM_TRACE
+  m_global_variables = new Ptr<void> * [1];
+  m_global_variables[0] = 0;
+#endif
 }
 
 SimulatedBlock::~SimulatedBlock()
@@ -111,6 +116,10 @@ SimulatedBlock::~SimulatedBlock()
   freeBat();
 #ifdef VM_TRACE_TIME
   printTimes(stdout);
+#endif
+
+#ifdef VM_TRACE
+  delete [] m_global_variables;
 #endif
 }
 
@@ -1771,3 +1780,25 @@ SimulatedBlock::execUPGRADE(Signal* signal){
     break;
   }
 }
+
+#ifdef VM_TRACE
+void
+SimulatedBlock::clear_global_variables(){
+  Ptr<void> ** tmp = m_global_variables;
+  while(* tmp != 0){
+    (* tmp)->i = RNIL;
+    (* tmp)->p = 0;
+    tmp++;
+  }
+}
+
+void
+SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
+  m_global_variables = new Ptr<void> * [cnt+1];
+  for(size_t i = 0; i<cnt; i++){
+    m_global_variables[i] = (Ptr<void>*)tmp[i];
+  }
+  m_global_variables[cnt] = 0;
+}
+
+#endif
