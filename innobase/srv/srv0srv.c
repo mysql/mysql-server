@@ -2760,6 +2760,7 @@ srv_master_thread(
 	ulint		n_ios_old;
 	ulint		n_ios_very_old;
 	ulint		n_pend_ios;
+	ibool		skip_sleep	= FALSE;
 	ulint		i;
 	
 	UT_NOT_USED(arg);
@@ -2800,11 +2801,19 @@ loop:
 	/* ---- We run the following loop approximately once per second
 	when there is database activity */
 
+	skip_sleep = FALSE;
+
 	for (i = 0; i < 10; i++) {
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
 		srv_main_thread_op_info = (char*)"sleeping";
-		os_thread_sleep(1000000);
+		
+		if (!skip_sleep) {
+
+		        os_thread_sleep(1000000);
+		}
+
+		skip_sleep = FALSE;
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT
@@ -2857,6 +2866,13 @@ loop:
 			
 			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
 							  ut_dulint_max);
+
+		        /* If we had to do the flush, it may have taken
+			even more than 1 second, and also, there may be more
+			to flush. Do not sleep 1 second during the next
+			iteration of this loop. */
+			     
+			skip_sleep = TRUE;
 		}
 
 		if (srv_activity_count == old_activity_count) {
