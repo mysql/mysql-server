@@ -389,3 +389,17 @@ set autocommit=1;
 alter table t1 engine=myisam;
 select * from t1 order by a;
 drop table t1;
+
+# -- bug #7340 --
+create table t1 (
+  id int(11) unsigned primary key NOT NULL auto_increment,
+  msg text NOT NULL
+) engine=ndbcluster default charset=utf8;
+insert into t1 (msg) values(
+'Tries to validate (8 byte length + inline bytes) as UTF8 :(
+Fast fix: removed validation for Text.  It is not yet indexable
+so bad data will not crash kernel.
+Proper fix: Set inline bytes to multiple of mbmaxlen and
+validate it (after the 8 byte length).');
+select * from t1;
+drop table t1;

@@ -34,7 +34,8 @@
 #include <AttributeList.hpp>
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
-#include "NdbBlob.hpp"
+#include <NdbBlob.hpp>
+#include "NdbBlobImpl.hpp"
 #include <AttributeHeader.hpp>
 #include <my_sys.h>
 
@@ -129,7 +130,7 @@ NdbColumnImpl::init(Type t)
   case Binary:
   case Varbinary:
   case Datetime:
-  case Timespec:
+  case Date:
     m_precision = 0;
     m_scale = 0;
     m_length = 1;
@@ -146,6 +147,12 @@ NdbColumnImpl::init(Type t)
     m_scale = 8000;
     m_length = 4;
     m_cs = default_cs;
+    break;
+  case Time:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
     break;
   case Undefined:
     assert(false);
@@ -1173,9 +1180,10 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtBinary,          NdbDictionary::Column::Binary },
   { DictTabInfo::ExtVarbinary,       NdbDictionary::Column::Varbinary },
   { DictTabInfo::ExtDatetime,        NdbDictionary::Column::Datetime },
-  { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
+  { DictTabInfo::ExtDate,            NdbDictionary::Column::Date },
   { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
   { DictTabInfo::ExtText,            NdbDictionary::Column::Text },
+  { DictTabInfo::ExtTime,            NdbDictionary::Column::Time },
   { -1, -1 }
 };
 
@@ -1385,7 +1393,7 @@ NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
     n--;
-    char btname[NdbBlob::BlobTableNameSize];
+    char btname[NdbBlobImpl::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
     // Save BLOB table handle
     NdbTableImpl * cachedBlobTable = getTable(btname);
@@ -1793,7 +1801,7 @@ NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
     NdbColumnImpl & c = *t.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
-    char btname[NdbBlob::BlobTableNameSize];
+    char btname[NdbBlobImpl::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
     if (dropTable(btname) != 0) {
       if (m_error.code != 709){

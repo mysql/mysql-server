@@ -355,11 +355,11 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
     LogHandler* pHandler = NULL;
     while ( (pHandler = m_pHandlerList->next()) != NULL)
     {
-      char buf[1024];
+      char buf[MAX_LOG_MESSAGE_SIZE];
       BaseString::vsnprintf(buf, sizeof(buf), pMsg, ap);
       pHandler->append(m_pCategory, logLevel, buf);
     }
-  } 
+  }
 }
 
 //

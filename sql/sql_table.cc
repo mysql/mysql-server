@@ -2465,7 +2465,11 @@ err:
     send_ok(thd);
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(error);
+
+  if (error == HA_ERR_ROW_IS_REFERENCED)
+    my_error(ER_ROW_IS_REFERENCED, MYF(0));
+  
+  DBUG_RETURN(-1);
 }
 
 
@@ -3440,6 +3444,16 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ulong save_sql_mode;
   DBUG_ENTER("copy_data_between_tables");
 
+  /*
+    Turn off recovery logging since rollback of an alter table is to
+    delete the new table so there is no need to log the changes to it.
+    
+    This needs to be done before external_lock
+  */
+  error= ha_enable_transaction(thd, FALSE);
+  if (error)
+    DBUG_RETURN(-1);
+  
   if (!(copy= new Copy_field[to->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
@@ -3497,17 +3511,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 	== HA_POS_ERROR)
       goto err;
   };
-
-  /*
-    Turn off recovery logging since rollback of an alter table is to
-    delete the new table so there is no need to log the changes to it.
-  */
-  error= ha_enable_transaction(thd,FALSE);
-  if (error)
-  {
-    error= 1;
-    goto err;
-  }
 
   /* Handler must be told explicitly to retrieve all columns, because
      this function does not set field->query_id in the columns to the

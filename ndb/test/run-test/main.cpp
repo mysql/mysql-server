@@ -275,6 +275,7 @@ parse_args(int argc, const char** argv){
     int tmp = Logger::LL_WARNING - g_verbosity;
     tmp = (tmp < Logger::LL_DEBUG ? Logger::LL_DEBUG : tmp);
     g_logger.disable(Logger::LL_ALL);
+    g_logger.enable(Logger::LL_ON);
     g_logger.enable((Logger::LoggerLevel)tmp, Logger::LL_ALERT);
   }
 

@@ -1763,7 +1763,21 @@ os_file_flush(
 #else
 	int	ret;
 
-#ifdef HAVE_FDATASYNC
+#if defined(HAVE_DARWIN_THREADS) && defined(F_FULLFSYNC) 
+	/* Apple has disabled fsync() for internal disk drives in OS X. That
+	caused corruption for a user when he tested a power outage. Let us in
+	OS X use a nonstandard flush method recommended by an Apple
+	engineer. */
+
+	ret = fcntl(file, F_FULLFSYNC, NULL);
+
+	if (ret) {
+		/* If we are not on a file system that supports this, then
+		fall back to a plain fsync. */ 
+
+		ret = fsync(file);
+	}
+#elif HAVE_FDATASYNC
 	ret = fdatasync(file);
 #else
 /*	fprintf(stderr, "Flushing to file %p\n", file); */
@@ -1850,6 +1864,7 @@ os_file_pread(
 	return(n_bytes);
 #else
 	{
+	off_t	ret_offset;
 	ssize_t	ret;
 	ulint	i;
 
@@ -1858,12 +1873,12 @@ os_file_pread(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = read(file, buf, (ssize_t)n);
@@ -1936,6 +1951,7 @@ os_file_pwrite(
         return(ret);
 #else
 	{
+	off_t	ret_offset;
 	ulint	i;
 
 	/* Protect the seek / write operation with a mutex */
@@ -1943,12 +1959,12 @@ os_file_pwrite(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = write(file, buf, (ssize_t)n);
