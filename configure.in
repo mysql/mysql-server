@@ -2461,15 +2461,18 @@ AC_SUBST(GXX)
 
 if test "$compile_readline" = "yes"
 then
-    AC_OUTPUT(cmd-line-utils/Makefile)
     AC_OUTPUT(cmd-line-utils/readline/Makefile)
 fi
 
 if test "$compile_libedit" = "yes"
 then
-    AC_OUTPUT(cmd-line-utils/Makefile)
     AC_OUTPUT(cmd-line-utils/libedit/Makefile)
 fi
+
+if [test "$compile_libedit" = "yes"] || [test "$compile_readline" = "yes"]
+then
+    AC_OUTPUT(cmd-line-utils/Makefile)
+fi 
 
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
