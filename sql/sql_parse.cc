@@ -5083,8 +5083,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	{
 	  if (thd->lex->sphead)
 	  {
-	    if (lex != thd->lex)
-	      thd->lex->sphead->restore_lex(thd);
 	    delete thd->lex->sphead;
 	    thd->lex->sphead= NULL;
 	  }
@@ -5120,8 +5118,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       if (thd->lex->sphead)
       {
 	/* Clean up after failed stored procedure/function */
-	if (lex != thd->lex)
-	  thd->lex->sphead->restore_lex(thd);
 	delete thd->lex->sphead;
 	thd->lex->sphead= NULL;
       }
