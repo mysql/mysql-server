@@ -2024,7 +2024,7 @@ row_ins_index_entry_set_vals(
 			field->len = innobase_get_at_most_n_mbchars(
 				dtype_get_charset_coll(cur_type->prtype),
 				ind_field->prefix_len,
-				dfield_get_len(field),row_field->data);
+				dfield_get_len(row_field),row_field->data);
 		} else {
 		        field->len = row_field->len;
 		}
