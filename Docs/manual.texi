@@ -761,6 +761,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Released as beta)
 
+* News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
 * News-3.23.21::                Changes in release 3.23.21
 * News-3.23.20::                Changes in release 3.23.20
@@ -5724,6 +5725,9 @@ If you are using gcc and have problems with loading @code{UDF} functions
 into @code{MySQL}, try adding @code{-lgcc} to the link line for the
 @code{UDF} function.
 
+For an automatic start of MySQL you can copy @file{support-files/mysql.server}
+to @file{/etc/init.d} and link from there to @code{/etc/rc3.d/S99mysql.server}.
+
 @node Solaris 2.7, Solaris x86, Solaris, Source install system issues
 @subsection Solaris 2.7 / 2.8 notes
 
@@ -5760,9 +5764,9 @@ Alternatively, you can edit @file{/usr/include/widec.h} directly.  Either
 way, after you make the fix, you should remove @file{config.cache} and run
 @code{configure} again!
 
-If you get errors like this when you run @code{make}, it's because @code{configure}
-didn't detect the @file{curses.h} file (probably because of the error in
-@code{/usr/include/widec.h}:
+If you get errors like this when you run @code{make}, it's because
+@code{configure} didn't detect the @file{curses.h} file (probably
+because of the error in @code{/usr/include/widec.h}:
 
 @example
 In file included from mysql.cc:50:
@@ -16792,11 +16796,14 @@ are automatically redirected to the new table without any failed updates.
 @section @code{CHECK TABLE} syntax
 
 @example
-CHECK TABLE tbl_name[,tbl_name...] [TYPE = QUICK]
+CHECK TABLE tbl_name[,tbl_name...] [TYPE = [QUICK | FAST | EXTEND | CHANGED]]
 @end example
 
-Check the table(s) for errors. The command returns a table with the following
-columns:
+@code{CHECK TABLE} only works on @code{MyISAM} tables and is the same things
+as running @code{myisamchk -m table_name} on the table.
+
+Check the table(s) for errors and updates the key statistics for the table.
+The command returns a table with the following columns:
 
 @multitable @columnfractions .35 .65
 @item Table @tab Table name
@@ -16805,16 +16812,21 @@ columns:
 @item Msg_text @tab The message.
 @end multitable
 
-Note that you can get many rows of information for each checked table. The
-last one row will be of @code{Msg_type status} and should normally be
-@code{OK}.  If you don't get @code{OK}, you should normally run a repair of
-the table. @xref{Table maintenance}.
+Note that you can get many rows of information for each checked
+table. The last one row will be of @code{Msg_type status} and should
+normally be @code{OK}.  If you don't get @code{OK}, or @code{Not
+checked} you should normally run a repair of the table. @xref{Table
+maintenance}. @code{Not checked} means that the table the given @code{TYPE}
+told @code{MySQL} that there wasn't any need to check the table.
 
-If @code{TYPE=QUICK} is given then @strong{MySQL} will not scan the rows
-for table with fixed size records.
+The different check types stands for the following:
 
-@code{CHECK TABLE} only works on @code{MyISAM} tables and is the same things
-as running @code{myisamchk -m table_name} on the table.
+@multitable @columnfractions .20 .80
+@item @code{QUICK} @tab Don't scan the rows for fixed size record tables.
+@item @code{FAST}  @tab Only check tables which hasn't been closed properly.
+@item @code{CHANGED} @tab Only check tables which has been changed since last check or hasn't been closed properly.
+@item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This enasures that the table is 100 % consistent, but will take a long time!
+@end multitable
 
 @findex ANALYZE TABLE
 @node ANALYZE TABLE, REPAIR TABLE, CHECK TABLE, Reference
@@ -26250,7 +26262,7 @@ to start using the new table.
 @node Table maintenance, Maintenance regimen, Maintenance, Maintenance
 @section Using @code{myisamchk} for table maintenance and crash recovery
 
-Starting with @strong{MySQL} 3.23.13, you can check tables MyISAM with the
+Starting with @strong{MySQL} 3.23.13, you can check MyISAM tables with the
 @code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can repair tables
 with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
@@ -26561,6 +26573,10 @@ If you have a problem with disk space during repair, you can try to use
 
 @node Maintenance regimen, Table-info, Table maintenance, Maintenance
 @section Setting up a table maintenance regimen
+
+Starting with @strong{MySQL} 3.23.13, you can check MyISAM tables with the
+@code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can repair tables
+with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
 It is a good idea to perform table checks on a regular basis rather than
 waiting for problems to occur.  For maintenance purposes, you can use
@@ -27020,7 +27036,7 @@ case you should at least make a backup before running @code{myisamchk}.
 @node Check, Repair, Crash recovery, Crash recovery
 @subsection How to check tables for errors
 
-To check a table, use the following commands:
+To check a MyISAM table, use the following commands:
 
 @table @code
 @item myisamchk tbl_name
@@ -28026,11 +28042,11 @@ some user that it works:
 To make Access work:
 @itemize @bullet
 @item
-
-If you are using Access 2000, you should get and install Microsoft MDAC from
-@uref{http://www.microsoft.com/data/download_21242023.htm}.  This will
-fix the bug in Access that when you export data to @strong{MySQL}, the
-table and column names aren't specified.
+If you are using Access 2000, you should get and install the newest
+Microsoft MDAC (@code{Microsoft Data Access Components}) from
+@uref{http://www.microsoft.com/data}.  This will fix the bug in Access
+that when you export data to @strong{MySQL}, the table and column names
+aren't specified.
 @item
 You should have a primary key in the table.
 @item
@@ -35310,11 +35326,10 @@ and will soon be declared beta, gamma and release.
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
 @item
-Changed @code{ALTER TABLE} to create non-unique indexes in a separate batch
-(which should make @code{ALTER TABLE} much faster when you have many indexes).
-@item
-Added delayed index handling to @code{LOAD DATA INFILE}, when you are
-reading into an empty file.
+Changed @code{ALTER TABLE}, @code{LOAD DATA INFILE} on empty tables and
+@code{INSERT ... SELECT...} on empty tables to create non-unique indexs
+in a separate batch with sorting. This will make the above calls much
+faster when you have many index.
 @item
 @code{ALTER TABLE} now logs the first used insert_id correctly.
 @item
@@ -35334,6 +35349,11 @@ When deleting rows with a non-unique key in a HEAP table, all rows weren't
 always deleted.
 @item
 Fixed that BDB tables work on part keys.
+@item
+Check table now updates key statistics for the table.
+@item
+Added @code{FAST}, @code{QUICK} @code{EXTENDED} check types to
+@code{CHECK TABLES}.
 @end itemize
 
 @node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x
