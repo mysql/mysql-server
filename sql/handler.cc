@@ -984,17 +984,41 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 
 	/* Use key cacheing on all databases */
 
-void ha_key_cache(void)
+int ha_key_cache(KEY_CACHE_VAR *key_cache)
 {
-  if (keybuff_size)
-    (void) init_key_cache(&dflt_keycache,dflt_key_block_size,
-                          (ulong) keybuff_size);
+  if (!key_cache->cache)
+  {
+    if (!key_cache->block_size)
+      key_cache->block_size= dflt_key_cache_block_size;
+    if (!key_cache->buff_size)
+      key_cache->buff_size= dflt_key_buff_size;
+    return !init_key_cache( &key_cache->cache,
+			   key_cache->block_size,
+			   key_cache->buff_size,
+                           key_cache);
+  }
+  return 0;
 }
 
 
-void ha_resize_key_cache(void)
+int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
 {
-  (void) resize_key_cache(&dflt_keycache,(ulong) keybuff_size);
+  if (key_cache->cache)
+  {
+    return !resize_key_cache(&key_cache->cache, 
+                           key_cache->buff_size);
+  }
+  return 0;
+}
+
+int ha_end_key_cache(KEY_CACHE_VAR *key_cache)
+{
+  if (key_cache->cache)
+  {
+    end_key_cache(&key_cache->cache, 1);
+    return key_cache->cache ? 1 : 0;
+  }
+  return 0;
 }
 
 

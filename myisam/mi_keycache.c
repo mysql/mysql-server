@@ -28,7 +28,7 @@
     mi_assign_to_keycache()
       info          open table
       map           map of indexes to assign to the key cache 
-      keycache_name name of of the key cache to assign index to
+      key_cache_ptr pointer to the key cache handle
 
   RETURN VALUE
     0 if a success. error code - otherwise.
@@ -39,9 +39,25 @@
     of the table will be assigned to the specified key cache.
 */
 
-int mi_assign_to_keycache(MI_INFO *info, ulonglong key_map,
-                          char *keycache_name)
+int mi_assign_to_keycache(MI_INFO *info, ulonglong key_map, 
+                          KEY_CACHE_HANDLE *reg_keycache)
 {
-  return 0;
+  int error= 0;
+  MYISAM_SHARE* share= info->s;
+
+  DBUG_ENTER("mi_assign_to_keycache");
+
+  share->reg_keycache= reg_keycache;
+  if (!(info->lock_type == F_WRLCK && share->w_locks))
+  {
+    if (flush_key_blocks(*share->keycache, share->kfile, FLUSH_RELEASE))
+    {
+      error=my_errno;
+      mi_mark_crashed(info);		/* Mark that table must be checked */
+    }
+    share->keycache= reg_keycache;
+  }
+    
+  DBUG_RETURN(error);
 }
 

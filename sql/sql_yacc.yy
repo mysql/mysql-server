@@ -1872,15 +1872,26 @@ keycache_list:
         | keycache_list ',' assign_to_keycache;
 
 assign_to_keycache:
-        table_ident cache_keys_spec ident
+        table_ident cache_keys_spec IN_SYM ident
         {
           LEX *lex=Lex;
           SELECT_LEX *sel= &lex->select_lex;
           if (!sel->add_table_to_list(lex->thd, $1, NULL, 0,
-                                      TL_WRITE,
+                                      TL_READ,
                                       sel->get_use_index(),
                                       (List<String> *)0,
-                                      &($3)))        
+                                      &($4)))        
+            YYABORT;
+        }
+        |
+        table_ident cache_keys_spec IN_SYM DEFAULT
+        {
+          LEX *lex=Lex;
+          SELECT_LEX *sel= &lex->select_lex;
+          if (!sel->add_table_to_list(lex->thd, $1, NULL, 0,
+                                      TL_READ,
+                                      sel->get_use_index(),
+                                      (List<String> *)0))        
             YYABORT;
         }
         ;

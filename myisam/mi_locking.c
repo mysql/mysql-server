@@ -34,6 +34,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   uint count;
   MYISAM_SHARE *share=info->s;
   uint flag;
+  uint switch_fl= 0;
   DBUG_ENTER("mi_lock_database");
 
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
@@ -50,13 +51,26 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       else
 	count= --share->w_locks;
       --share->tot_locks;
+      /*
+         During a key cache reassignment the current and registered
+         key caches for the table are different.
+         Although at present key cache ressignment is always
+         performed with a shared cache for the table acquired,
+         for future possible optimizations we still
+         handle this situation as if we could come to this point 
+         during the ressignment (in non-reassignment thread).
+      */ 
       if (info->lock_type == F_WRLCK && !share->w_locks &&
-	  !share->delay_key_write && 
-           flush_key_blocks(dflt_keycache,share->kfile,FLUSH_KEEP))
+	  ((switch_fl= share->keycache != share->reg_keycache) ||
+           !share->delay_key_write) && 
+           flush_key_blocks(*share->keycache, share->kfile,
+                            switch_fl ? FLUSH_RELEASE : FLUSH_KEEP))
       {
 	error=my_errno;
 	mi_mark_crashed(info);		/* Mark that table must be checked */
       }
+      if (switch_fl)
+        share->keycache= share->reg_keycache;
       if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
       {
 	if (end_io_cache(&info->rec_cache))
@@ -386,7 +400,7 @@ int _mi_test_if_changed(register MI_INFO *info)
   {						/* Keyfile has changed */
     DBUG_PRINT("info",("index file changed"));
     if (share->state.process != share->this_process)
-      VOID(flush_key_blocks(dflt_keycache,share->kfile,FLUSH_RELEASE));
+      VOID(flush_key_blocks(*share->keycache,share->kfile,FLUSH_RELEASE));
     share->last_process=share->state.process;
     info->last_unique=	share->state.unique;
     info->last_loop=	share->state.update_count;

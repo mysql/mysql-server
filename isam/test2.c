@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
     goto err;
   printf("- Writing key:s\n");
   if (key_cacheing)
-    init_key_cache(&dflt_keycache,dflt_key_block_size,IO_SIZE*16);		/* Use a small cache */
+    init_key_cache(dflt_keycache,512,IO_SIZE*16,0);		/* Use a small cache */
   if (locking)
     nisam_lock_database(file,F_WRLCK);
   if (write_cacheing)
