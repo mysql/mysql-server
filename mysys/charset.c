@@ -19,7 +19,9 @@
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_dir.h>
+#include <my_xml.h>
 
+#define MY_CHARSET_INDEX "Index.xml"
 
 const char *charsets_dir = NULL;
 static int charset_initialized=0;
@@ -85,53 +87,166 @@ char *get_charsets_dir(char *buf)
 }
 
 
+#define MAX_BUF 1024*16
+
+
+static void mstr(char *str,const char *src,uint l1,uint l2)
+{
+  l1 = l1<l2 ? l1 : l2;
+  memcpy(str,src,l1);
+  str[l1]='\0';
+}
+
+
+struct my_cs_file_section_st
+{
+  int        state;
+  const char *str;
+};
+
+#define _CS_MISC	1
+#define _CS_ID		2
+#define _CS_NAME	3
+#define _CS_FAMILY	4
+#define _CS_ORDER	5
+#define _CS_COLNAME	6
+#define _CS_FLAG	7
+#define _CS_CHARSET	8
+#define _CS_COLLATION	9
+
+static struct my_cs_file_section_st sec[] =
+{
+  {_CS_MISC,		"xml"},
+  {_CS_MISC,		"xml.version"},
+  {_CS_MISC,		"xml.encoding"},
+  {_CS_MISC,		"charsets"},
+  {_CS_MISC,		"charsets.max-id"},
+  {_CS_MISC,		"charsets.description"},
+  {_CS_CHARSET,		"charsets.charset"},
+  {_CS_NAME,		"charsets.charset.name"},
+  {_CS_FAMILY,		"charsets.charset.family"},
+  {_CS_MISC,		"charsets.charset.alias"},
+  {_CS_COLLATION,	"charsets.charset.collation"},
+  {_CS_COLNAME,		"charsets.charset.collation.name"},
+  {_CS_ID,		"charsets.charset.collation.id"},
+  {_CS_ORDER,		"charsets.charset.collation.order"},
+  {_CS_FLAG,		"charsets.charset.collation.flag"},
+  {0,	NULL}
+};
+
+static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
+{
+  struct my_cs_file_section_st *s;
+  for (s=sec; s->str; s++)
+    if (!strncmp(attr,s->str,len))
+      return s;
+  return NULL;
+}
+
+struct my_cs_file_info 
+{
+  CHARSET_INFO cs;
+  myf myflags;
+};
+
+static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
+{
+  struct my_cs_file_info *i = (struct my_cs_file_info *)st->user_data;
+  struct my_cs_file_section_st *s = cs_file_sec(attr,len);
+  
+  if ( s && (s->state == _CS_CHARSET))
+  {
+    bzero(&i->cs,sizeof(i->cs));
+  }
+  return MY_XML_OK;
+}
+
+static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
+{
+  struct my_cs_file_info *i = (struct my_cs_file_info *)st->user_data;
+  struct my_cs_file_section_st *s = cs_file_sec(attr,len);
+  
+  if (s && (s->state == _CS_COLLATION) && !all_charsets[i->cs.number])
+  {
+    if (!(all_charsets[i->cs.number]=
+         (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),i->myflags)))
+    {
+      return MY_XML_ERROR;
+    }
+    all_charsets[i->cs.number][0]=i->cs;
+  }
+  return MY_XML_OK;
+}
+
+static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
+{
+  struct my_cs_file_info *i = (struct my_cs_file_info *)st->user_data;
+  struct my_cs_file_section_st *s;
+  int    state = (s=cs_file_sec(st->attr,strlen(st->attr))) ? s->state : 0;
+  
+  if(0)
+  {
+    char   str[256];
+    mstr(str,attr,len,sizeof(str)-1);
+    printf("VALUE %d %s='%s'\n",state,st->attr,str);
+  }
+  
+  switch (state)
+  {
+    case _CS_ID:
+      i->cs.number = my_strntoul(my_charset_latin1,attr,len,(char**)NULL,0);
+      break;
+    case _CS_COLNAME:
+      if ((i->cs.name = (char*) my_once_alloc(len+1,i->myflags)))
+      {
+        memcpy((char*)i->cs.name,attr,len);
+        ((char*)(i->cs.name))[len]='\0';
+      }
+      break;
+  }
+  return MY_XML_OK;
+}
+
 static my_bool read_charset_index(myf myflags)
 {
-  struct simpleconfig_buf_st fb;
-  char buf[MAX_LINE], num_buf[MAX_LINE];
-    
-  strmov(get_charsets_dir(buf), "Index");
-
-  if ((fb.f = my_fopen(buf, O_RDONLY, myflags)) == NULL)
-    return TRUE;
-  fb.buf[0] = '\0';
-  fb.p = fb.buf;
-
+  char *buf;
+  int  fd;
+  uint len;
+  MY_XML_PARSER p;
+  struct my_cs_file_info i;
   
-  while (!get_word(&fb, buf) && !get_word(&fb, num_buf))
+  if (! (buf = (char *)my_malloc(MAX_BUF,myflags)))
+    return FALSE;
+  
+  strmov(get_charsets_dir(buf),MY_CHARSET_INDEX);
+  
+  if ((fd=my_open(buf,O_RDONLY,myflags)) < 0)
   {
-    uint csnum;
-    uint length;
-    CHARSET_INFO *cs;
-
-    if (!(csnum = atoi(num_buf)))
-    {
-      /* corrupt Index file */
-      my_fclose(fb.f,myflags);
-      return TRUE;
-    }
-    
-    if (all_charsets[csnum])
-      continue;
-    
-    if (!(cs=(CHARSET_INFO*) my_once_alloc(sizeof(cs[0]),myflags)))
-    {
-      my_fclose(fb.f,myflags);
-      return TRUE;
-    }
-    bzero(cs,sizeof(cs[0]));
-    
-    if (!(cs->name= (char*)my_once_alloc(length=(uint)strlen(buf)+1,myflags)))
-    {
-      my_fclose(fb.f,myflags);
-      return TRUE;
-    }
-    memcpy((char*)cs->name,buf,length);
-    cs->number=csnum;
-    all_charsets[csnum]=cs;
+    my_free(buf,myflags);
+    return TRUE;
   }
-  my_fclose(fb.f,myflags);
-
+  
+  len=read(fd,buf,MAX_BUF);
+  my_xml_parser_create(&p);
+  my_close(fd,myflags);
+  
+  my_xml_set_enter_handler(&p,cs_enter);
+  my_xml_set_value_handler(&p,cs_value);
+  my_xml_set_leave_handler(&p,cs_leave);
+  my_xml_set_user_data(&p,(void*)&i);
+  
+  if (MY_XML_OK!=my_xml_parse(&p,buf,len))
+  {
+  /*
+    printf("ERROR at line %d pos %d '%s'\n",
+      my_xml_error_lineno(&p)+1,
+      my_xml_error_pos(&p),
+      my_xml_error_string(&p));
+  */
+  }
+  
+  my_xml_parser_free(&p);
+  
   return FALSE;
 }
 
@@ -472,7 +587,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN], cs_string[23];
-    strmov(get_charsets_dir(index_file), "Index");
+    strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
     cs_string[0]='#';
     int10_to_str(cs_number, cs_string+1, 10);
     my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_string, index_file);
@@ -505,7 +620,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN];
-    strmov(get_charsets_dir(index_file), "Index");
+    strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
     my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
   }
 
