@@ -1067,6 +1067,12 @@ dict_create_or_check_foreign_constraint_tables(void)
 	there are 2 secondary indexes on SYS_FOREIGN, and they
 	are defined just like below */
 	
+	/* NOTE: when designing InnoDB's foreign key support in 2001, we made
+	an error and made the table names and the foreign key id of type
+	'CHAR' (internally, really a VARCHAR). We should have made the type
+	VARBINARY, like in other InnoDB system tables, to get a clean
+	design. */
+
 	str =
 	"PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
 	"BEGIN\n"
@@ -1284,8 +1290,16 @@ loop:
 		fputs(".\nA foreign key constraint of name ", ef);
 		ut_print_name(ef, trx, foreign->id);
 		fputs("\nalready exists."
-			"  (Note that internally InnoDB adds 'databasename/'\n"
+			" (Note that internally InnoDB adds 'databasename/'\n"
 			"in front of the user-defined constraint name).\n",
+			ef);
+		fputs("Note that InnoDB's FOREIGN KEY system tables store\n"
+		      "constraint names as case-insensitive, with the\n"
+		      "MySQL standard latin1_swedish_ci collation. If you\n"
+		      "create tables or databases whose names differ only in\n"
+		      "the character case, then collisions in constraint\n"
+		      "names can occur. Workaround: name your constraints\n"
+		      "explicitly with unique names.\n",
 			ef);
 
 		mutex_exit(&dict_foreign_err_mutex);

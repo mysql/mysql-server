@@ -19,6 +19,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "rem0cmp.h"
 #include "srv0start.h"
 
 /************************************************************************
@@ -1242,11 +1243,25 @@ loop:
 	rec = btr_pcur_get_rec(&pcur);
 	field = rec_get_nth_field(rec, 0, &len);
 
-	/* Check if the table name in record is the one searched for */
-	if (len != ut_strlen(table_name)
-	    || 0 != ut_memcmp(field, table_name, len)) {
+	/* Check if the table name in the record is the one searched for; the
+	following call does the comparison in the latin1_swedish_ci
+	charset-collation, in a case-insensitive way. */
 
+	if (0 != cmp_data_data(dfield_get_type(dfield),
+			dfield_get_data(dfield), dfield_get_len(dfield),
+			field, len)) {
+		
 		goto load_next_index;
+	}
+
+	/* Since table names in SYS_FOREIGN are stored in a case-insensitive
+	order, we have to check that the table name matches also in a binary
+	string comparison. On Unix, MySQL allows table names that only differ
+	in character case. */
+
+	if (0 != ut_memcmp(field, table_name, len)) {
+
+		goto next_rec;
 	}
 		
 	if (rec_get_deleted_flag(rec)) {
