@@ -256,7 +256,7 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
 
   if (!res && (a != a_end || b != b_end))
   {
-    int swap= 0;
+    int swap= 1;
     if (diff_if_only_endspace_difference)
       res= 1;                                   /* Assume 'a' is bigger */
     /*
@@ -274,7 +274,7 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
     for (; a < a_end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return res;

@@ -2093,7 +2093,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
 
   if (slen != tlen)
   {
-    int swap= 0;
+    int swap= 1;
     if (diff_if_only_endspace_difference)
       res= 1;                                   /* Assume 'a' is bigger */
     if (slen < tlen)
@@ -2117,7 +2117,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
     for ( ; s < se; s++)
     {
       if (*s != ' ')
-        return ((int)*s -  (int) ' ') ^ swap;
+	return (*s < ' ') ? -swap : swap;
     }
   }
   return res;

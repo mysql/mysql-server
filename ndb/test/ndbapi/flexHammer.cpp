@@ -621,10 +621,7 @@ flexHammerThread(void* pArg)
 
   flexHammerErrorData->resetErrorCounters();
 
-  // And exit using NDBT
-  NdbThread_Exit(0);
-
-  return  NULL;
+  return  NULL; // thread exits
   
 } // flexHammerThread
 

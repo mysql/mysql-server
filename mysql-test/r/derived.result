@@ -330,6 +330,15 @@ SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MA
 min	max	avg
 10.00	10.00	10
 DROP TABLE t1;
+create table t1 (a integer, b integer);
+insert into t1 values (1,4), (2,2),(2,2), (4,1),(4,1),(4,1),(4,1);
+select distinct sum(b) from t1 group by a;
+sum(b)
+4
+select distinct sum(b) from (select a,b from t1) y group by a;
+sum(b)
+4
+drop table t1;
 CREATE TABLE t1 (a char(10), b char(10));
 INSERT INTO t1 VALUES ('root','localhost'), ('root','%');
 SELECT * FROM (SELECT (SELECT a.a FROM t1 AS a WHERE a.a = b.a) FROM t1 AS b) AS c;
