@@ -1897,9 +1897,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
-    char* db = (table->db) ? table->db : thd->db;
+    char* db = table->db;
     bool fatal_error=0;
-    strxmov(table_name,db ? db : "",".",table->real_name,NullS);
+    strxmov(table_name, db, ".", table->real_name, NullS);
 
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
