@@ -1217,9 +1217,7 @@ row_mysql_lock_data_dictionary(
 /*===========================*/
 	trx_t*	trx)	/* in: transaction */
 {
-	ut_ad(trx->dict_operation_lock_mode == 0); /* This is allowed to fail
-					       in a rename #sql... to
-					       rsql... */
+	ut_a(trx->dict_operation_lock_mode == 0);
 	
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
@@ -1238,9 +1236,7 @@ row_mysql_unlock_data_dictionary(
 /*=============================*/
 	trx_t*	trx)	/* in: transaction */
 {
-	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH); /* This is allowed
-					       to fail in a rename #sql... to
-					       rsql... */
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
