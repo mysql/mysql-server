@@ -14,6 +14,7 @@ load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated 
 SELECT * from t1;
 drop table t1;
 
-
-
-
+create table t1 (a text, b text);
+load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+drop table t1;
