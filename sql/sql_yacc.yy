@@ -227,6 +227,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	COLLATION_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
+%token	COMPACT_SYM
 %token	CONCURRENT
 %token  CONDITION_SYM
 %token	CONNECTION_SYM
@@ -381,6 +382,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	READ_SYM
 %token	READS_SYM
 %token	REAL_NUM
+%token	REDUNDANT_SYM
 %token	REFERENCES
 %token	REGEXP
 %token	RELOAD
@@ -2628,7 +2630,9 @@ row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
 	| FIXED_SYM	{ $$= ROW_TYPE_FIXED; }
 	| DYNAMIC_SYM	{ $$= ROW_TYPE_DYNAMIC; }
-	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; };
+	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
+	| REDUNDANT_SYM	{ $$= ROW_TYPE_REDUNDANT; }
+	| COMPACT_SYM	{ $$= ROW_TYPE_COMPACT; };
 
 raid_types:
 	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
@@ -6915,6 +6919,7 @@ keyword:
 	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
 	| COMMIT_SYM		{}
+	| COMPACT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
@@ -7046,6 +7051,7 @@ keyword:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM	{}
 	| RAID_TYPE		{}
+	| REDUNDANT_SYM		{}
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}

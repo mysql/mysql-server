@@ -101,7 +101,7 @@ struct show_table_type_st sys_table_types[]=
 };
 
 const char *ha_row_type[] = {
-  "", "FIXED", "DYNAMIC", "COMPRESSED","?","?","?"
+  "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT", "?","?","?"
 };
 
 const char *tx_isolation_names[] =
