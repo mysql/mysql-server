@@ -375,6 +375,7 @@ inline THD *_current_thd(void)
 #include "sql_list.h"
 #include "sql_map.h"
 #include "handler.h"
+#include "parse_file.h"
 #include "table.h"
 #include "field.h"				/* Field definitions */
 #include "protocol.h"

@@ -121,6 +121,13 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_ERRNO_EDOM		33
 #define MY_ERRNO_ERANGE		34
 
+	/* Bits for get_date timeflag */
+#define GETDATE_DATE_TIME	1
+#define GETDATE_SHORT_DATE	2
+#define GETDATE_HHMMSSTIME	4
+#define GETDATE_GMT		8
+#define GETDATE_FIXEDLENGTH	16
+
 	/* defines when allocating data */
 #ifdef SAFEMALLOC
 #define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
