@@ -168,7 +168,7 @@ The following list describes some useful sections of the manual:
 @itemize @bullet
 @item
 For information about the company behind the @code{MySQL Database Server},
-see  @ref{What is MySQL AB}.
+see @ref{What is MySQL AB}.
 
 @item
 For a discussion about the capabilities of the @code{MySQL Database Server},
