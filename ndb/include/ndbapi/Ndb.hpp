@@ -1218,12 +1218,12 @@ public:
   /**
    * Drop a subscription to an event
    *
-   * @param eventName
-   *        unique identifier of the event
+   * @param eventOp
+   *        Event operation
    *
    * @return 0 on success
    */
-  int dropEventOperation(NdbEventOperation* eventName);
+  int dropEventOperation(NdbEventOperation* eventOp);
 
   /**
    * Wait for an event to occur. Will return as soon as an event
