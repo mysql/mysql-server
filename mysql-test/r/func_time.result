@@ -464,6 +464,63 @@ date_add(date,INTERVAL "1 1:1" DAY_MINUTE)
 select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
 date_add(date,INTERVAL "1 1:1:1" DAY_SECOND)
 2003-01-03 01:01:01
+select date_add(date,INTERVAL "1" WEEK) from t1;
+date_add(date,INTERVAL "1" WEEK)
+2003-01-09 00:00:00
+select date_add(date,INTERVAL "1" QUARTER) from t1;
+date_add(date,INTERVAL "1" QUARTER)
+2003-04-02
+select timestampadd(MINUTE, 1, date) from t1;
+timestampadd(MINUTE, 1, date)
+2003-01-02 00:01:00
+select timestampadd(WEEK, 1, date) from t1;
+timestampadd(WEEK, 1, date)
+2003-01-09 00:00:00
+select timestampadd(SQL_TSI_SECOND, 1, date) from t1;
+timestampadd(SQL_TSI_SECOND, 1, date)
+2003-01-02 00:00:01
+select timestampadd(SQL_TSI_FRAC_SECOND, 1, date) from t1;
+timestampadd(SQL_TSI_FRAC_SECOND, 1, date)
+2003-01-02 00:00:00.000001
+select timestampdiff(MONTH, '2001-02-01', '2001-05-01') as a;
+a
+3
+select timestampdiff(YEAR, '2002-05-01', '2001-01-01') as a;
+a
+-1
+select timestampdiff(QUARTER, '2002-05-01', '2001-01-01') as a;
+a
+-5
+select timestampdiff(MONTH, '2000-03-28', '2000-02-29') as a;
+a
+0
+select timestampdiff(MONTH, '1991-03-28', '2000-02-29') as a;
+a
+107
+select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a;
+a
+12
+select timestampdiff(SQL_TSI_HOUR, '2001-02-01', '2001-05-01') as a;
+a
+2136
+select timestampdiff(SQL_TSI_DAY, '2001-02-01', '2001-05-01') as a;
+a
+89
+select timestampdiff(SQL_TSI_MINUTE, '2001-02-01 12:59:59', '2001-05-01 12:58:59') as a;
+a
+128159
+select timestampdiff(SQL_TSI_SECOND, '2001-02-01 12:59:59', '2001-05-01 12:58:58') as a;
+a
+7689539
+select timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a;
+a
+7689538999999
+select timestampdiff(SQL_TSI_DAY, '1986-02-01', '1986-03-01') as a1,
+timestampdiff(SQL_TSI_DAY, '1900-02-01', '1900-03-01') as a2,
+timestampdiff(SQL_TSI_DAY, '1996-02-01', '1996-03-01') as a3,
+timestampdiff(SQL_TSI_DAY, '2000-02-01', '2000-03-01') as a4;
+a1	a2	a3	a4
+28	28	29	29
 select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
 2006-07-08 00:00:01
