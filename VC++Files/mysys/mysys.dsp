@@ -330,7 +330,15 @@ SOURCE=.\my_gethostbyname.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_gethwaddr.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_getopt.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_getsystime.c
 # End Source File
 # Begin Source File
 

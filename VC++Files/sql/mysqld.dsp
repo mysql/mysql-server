@@ -711,10 +711,6 @@ SOURCE=.\nt_servc.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\opt_ft.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\opt_range.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
