@@ -31,9 +31,9 @@ SELECT * FROM t1;
 
 # Update primary key
 UPDATE t1 SET pk1=2 WHERE attr1=1;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY pk1;
 UPDATE t1 SET pk1=pk1 + 1;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY pk1;
 
 # Delete the record
 DELETE FROM t1;
