@@ -158,69 +158,12 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
       }
     case DECIMAL_RESULT:
       {
-        switch (it->result_type())
-        {
-        case DECIMAL_RESULT:
-        {
-          my_decimal value, *val= it->val_decimal(&value);
-          if (it->null_value)
-            it= new Item_null();
-          else
-            it= new Item_decimal(val);
-          break;
-        }
-        case INT_RESULT:
-        {
-          longlong val= it->val_int();
-          if (it->null_value)
-            it= new Item_null();
-          else
-            it= new Item_decimal(val, (int)it->max_length,
-                                 (bool)it->unsigned_flag);
-          break;
-        }
-        case REAL_RESULT:
-        {
-          double val= it->val_real();
-          if (it->null_value)
-            it= new Item_null();
-          else
-            it= new Item_decimal(val, (int)it->max_length,
-                                 (int)it->decimals);
-          break;
-        }
-        case STRING_RESULT:
-        {
-          char buffer[MAX_FIELD_WIDTH];
-          String tmp(buffer, sizeof(buffer), it->collation.collation);
-          String *val= it->val_str(&tmp);
-          if (it->null_value)
-            it= new Item_null();
-          else
-            it= new Item_decimal(val->ptr(), val->length(), val->charset());
-          break;
-        }
-        case ROW_RESULT:
-        default:
-          DBUG_ASSERT(0);
-        }
-#ifndef DBUG_OFF
+        my_decimal value, *val= it->val_decimal(&value);
         if (it->null_value)
-        {
-          DBUG_PRINT("info", ("DECIMAL_RESULT: null"));
-        }
+          it= new Item_null();
         else
-        {
-          my_decimal value, *val= it->val_decimal(&value);
-          int len;
-          char *buff=
-            (char *)my_alloca(len= my_decimal_string_length(val) + 3);
-          String str(buff, len, &my_charset_bin);
-          my_decimal2string(0, val, 0, 0, 0, &str);
-          DBUG_PRINT("info", ("DECIMAL_RESULT: %s", str.ptr()));
-          my_afree(buff);
-        }
-#endif
+          it= new Item_decimal(val);
+        dbug_print_decimal("info", "DECIMAL_RESULT: %s", val);
         break;
       }
     case STRING_RESULT:
@@ -236,8 +179,9 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	}
 	else
 	{
-	  DBUG_PRINT("info",("default result: %*s",s->length(),s->c_ptr_quick()));
-	  it= new Item_string(thd->strmake(s->c_ptr_quick(), s->length()),
+	  DBUG_PRINT("info",("default result: %*s",
+                             s->length(), s->c_ptr_quick()));
+	  it= new Item_string(thd->strmake(s->ptr(), s->length()),
 			      s->length(), it->collation.collation);
 	}
 	break;
@@ -560,6 +504,7 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     ret= i->execute(thd, &ip);
+    thd->rollback_item_tree_changes();
     if (i->free_list)
       cleanup_items(i->free_list);
     // Check if an exception has occurred and a handler has been found
@@ -811,7 +756,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
 	      suv= new Item_func_set_user_var(guv->get_name(), item);
               /*
-                we do not check suv->fixed, bacause it can't be fixed after
+                we do not check suv->fixed, because it can't be fixed after
                 creation
               */
 	      suv->fix_fields(thd, NULL, &item);
@@ -1251,7 +1196,6 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   res= mysql_execute_command(thd);
 
   lex->unit.cleanup();
-  thd->rollback_item_tree_changes();
   if (thd->lock || thd->open_tables || thd->derived_tables)
   {
     thd->proc_info="closing tables";
@@ -2019,7 +1963,7 @@ sp_merge_table_hash(HASH *hdst, HASH *hsrc)
     SP_TABLE *tabsrc= (SP_TABLE *)hash_element(hsrc, i);
 
     if (! (tabdst= (SP_TABLE *)hash_search(hdst,
-					   tabsrc->qname.str,
+					   (byte *) tabsrc->qname.str,
 					   tabsrc->qname.length)))
     {
       my_hash_insert(hdst, (byte *)tabsrc);

@@ -215,6 +215,7 @@ bool berkeley_end(void)
 static int berkeley_close_connection(THD *thd)
 {
   my_free((gptr)thd->ha_data[berkeley_hton.slot], MYF(0));
+  return 0;
 }
 
 bool berkeley_flush_logs()
