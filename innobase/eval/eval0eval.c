@@ -164,8 +164,8 @@ eval_logical(
 	que_node_t*	arg1;
 	que_node_t*	arg2;
 	ibool		val1;
-	ibool		val2;
-	ibool		val;
+	ibool		val2 = 0; /* remove warning */
+	ibool		val = 0;  /* remove warning */
 	int		func;
 
 	ut_ad(que_node_get_type(logical_node) == QUE_NODE_FUNC);
@@ -205,7 +205,7 @@ eval_arith(
 	que_node_t*	arg1;
 	que_node_t*	arg2;
 	lint		val1;
-	lint		val2;
+	lint		val2 = 0; /* remove warning */
 	lint		val;
 	int		func;
 
@@ -283,7 +283,7 @@ eval_predefined_2(
 {
 	que_node_t*	arg;
 	que_node_t*	arg1;
-	que_node_t*	arg2;
+	que_node_t*	arg2 = 0; /* remove warning (??? bug ???) */
 	lint		int_val;
 	byte*		data;
 	ulint		len1;

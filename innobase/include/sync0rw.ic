@@ -126,7 +126,8 @@ rw_lock_s_lock_low(
 /*===============*/
 				/* out: TRUE if success */
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	ulint		pass,	/* in: pass value; != 0, if the lock will be
+	ulint		pass __attribute__((unused)),
+                                /* in: pass value; != 0, if the lock will be
 				passed to another thread to unlock */
 	char*		file_name, /* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */

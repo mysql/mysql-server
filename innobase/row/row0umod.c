@@ -139,7 +139,7 @@ row_undo_mod_remove_clust_low(
 				/* out: DB_SUCCESS, DB_FAIL, or error code:
 				we may run out of file space */
 	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr,	/* in: query thread */
+	que_thr_t*	thr __attribute__((unused)), /* in: query thread */
 	mtr_t*		mtr,	/* in: mtr */
 	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {

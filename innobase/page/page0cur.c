@@ -510,14 +510,14 @@ page_cur_parse_insert_rec(
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
 	ulint	extra_info_yes;
-	ulint	offset;
+	ulint	offset = 0; /* remove warning */
 	ulint	origin_offset;
 	ulint	end_seg_len;
 	ulint	mismatch_index;
 	rec_t*	cursor_rec;
 	byte	buf1[1024];
 	byte*	buf;
-	ulint	info_bits;
+	ulint	info_bits = 0; /* remove warning */
 	page_cur_t cursor;
 
 	if (!is_short) {
@@ -835,9 +835,9 @@ page_copy_rec_list_end_to_created_page(
 	rec_t*	rec,		/* in: first record to copy */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	page_dir_slot_t* slot;
+	page_dir_slot_t* slot = 0; /* remove warning */
 	byte*	heap_top;
-	rec_t*	insert_rec;
+	rec_t*	insert_rec = 0; /* remove warning */
 	rec_t*	prev_rec;
 	ulint	count;
 	ulint	n_recs;
@@ -882,6 +882,7 @@ page_copy_rec_list_end_to_created_page(
 	slot_index = 0;
 	n_recs = 0;
 
+	/* should be do ... until, comment by Jani */
 	while (rec != page_get_supremum_rec(page)) {
 		
 		insert_rec = rec_copy(heap_top, rec);

@@ -49,11 +49,11 @@ const MI_KEYSEG ft_keysegs[FT_SEGS]={
 
 const struct _ft_vft _ft_vft_nlq = {
   ft_nlq_read_next, ft_nlq_find_relevance, ft_nlq_close_search,
-  ft_nlq_get_relevance,  ft_nlq_get_docid, ft_nlq_reinit_search
+  ft_nlq_get_relevance,  ft_nlq_reinit_search
 };
 const struct _ft_vft _ft_vft_boolean = {
   ft_boolean_read_next, ft_boolean_find_relevance, ft_boolean_close_search,
-  ft_boolean_get_relevance,  ft_boolean_get_docid, ft_boolean_reinit_search
+  ft_boolean_get_relevance,  ft_boolean_reinit_search
 };
 
 FT_INFO *(*_ft_init_vft[2])(MI_INFO *, uint, byte *, uint, my_bool) =

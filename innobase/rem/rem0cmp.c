@@ -79,7 +79,7 @@ ulint
 cmp_collate(
 /*========*/
 				/* out: collation order position */
-	dtype_t*	type,	/* in: type */
+	dtype_t*	type __attribute__((unused)) ,	/* in: type */
 	ulint		code)	/* in: code of a character stored in database
 				record */
 {

@@ -492,15 +492,19 @@ dict_table_add_to_cache(
 	The clustered index will not always physically contain all
 	system columns. */
 
-	dict_mem_table_add_col(table, "DB_ROW_ID", DATA_SYS, DATA_ROW_ID, 0, 0);
+	dict_mem_table_add_col(table, (char *) "DB_ROW_ID", DATA_SYS,
+			       DATA_ROW_ID, 0, 0);
 	ut_ad(DATA_ROW_ID == 0);
-	dict_mem_table_add_col(table, "DB_TRX_ID", DATA_SYS, DATA_TRX_ID, 0, 0);
+	dict_mem_table_add_col(table, (char *) "DB_TRX_ID", DATA_SYS,
+			       DATA_TRX_ID, 0, 0);
 	ut_ad(DATA_TRX_ID == 1);
-	dict_mem_table_add_col(table, "DB_ROLL_PTR", DATA_SYS, DATA_ROLL_PTR,
+	dict_mem_table_add_col(table, (char *) "DB_ROLL_PTR", DATA_SYS,
+			       DATA_ROLL_PTR,
 									0, 0);
 	ut_ad(DATA_ROLL_PTR == 2);
 
-	dict_mem_table_add_col(table, "DB_MIX_ID", DATA_SYS, DATA_MIX_ID, 0, 0);
+	dict_mem_table_add_col(table, (char *) "DB_MIX_ID", DATA_SYS,
+			       DATA_MIX_ID, 0, 0);
 	ut_ad(DATA_MIX_ID == 3);
 	ut_ad(DATA_N_SYS_COLS == 4); /* This assert reminds that if a new
 					system column is added to the program,
@@ -1908,7 +1912,7 @@ dict_create_foreign_constraints(
 		return(DB_ERROR);
 	}
 loop:
-	ptr = dict_scan_to(ptr, "FOREIGN");
+	ptr = dict_scan_to(ptr, (char *) "FOREIGN");
 
 	if (*ptr == '\0' || dict_bracket_count(sql_string, ptr) != 1) {
 
@@ -1920,19 +1924,19 @@ loop:
 		return(error);
 	}
 
-	ptr = dict_accept(ptr, "FOREIGN", &success);		
+	ptr = dict_accept(ptr, (char *) "FOREIGN", &success);		
 	
 	if (!isspace(*ptr)) {
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
-	ptr = dict_accept(ptr, "KEY", &success);
+	ptr = dict_accept(ptr, (char *) "KEY", &success);
 
 	if (!success) {
 		goto loop;
 	}
 
-	ptr = dict_accept(ptr, "(", &success);
+	ptr = dict_accept(ptr, (char *) "(", &success);
 
 	if (!success) {
 		goto loop;
@@ -1950,13 +1954,13 @@ col_loop1:
 
 	i++;
 	
-	ptr = dict_accept(ptr, ",", &success);
+	ptr = dict_accept(ptr, (char *) ",", &success);
 
 	if (success) {
 		goto col_loop1;
 	}
 	
-	ptr = dict_accept(ptr, ")", &success);
+	ptr = dict_accept(ptr, (char *) ")", &success);
 
 	if (!success) {
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -1971,7 +1975,7 @@ col_loop1:
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
-	ptr = dict_accept(ptr, "REFERENCES", &success);
+	ptr = dict_accept(ptr, (char *) "REFERENCES", &success);
 
 	if (!success || !isspace(*ptr)) {
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -2002,7 +2006,7 @@ col_loop1:
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 	
-	ptr = dict_accept(ptr, "(", &success);
+	ptr = dict_accept(ptr, (char *) "(", &success);
 
 	if (!success) {
 		dict_foreign_free(foreign);
@@ -2022,13 +2026,13 @@ col_loop2:
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
-	ptr = dict_accept(ptr, ",", &success);
+	ptr = dict_accept(ptr, (char *) ",", &success);
 
 	if (success) {
 		goto col_loop2;
 	}
 	
-	ptr = dict_accept(ptr, ")", &success);
+	ptr = dict_accept(ptr, (char *) ")", &success);
 
 	if (!success || foreign->n_fields != i) {
 		dict_foreign_free(foreign);
@@ -2554,7 +2558,8 @@ void
 dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/* in: table */
-	ibool		has_dict_mutex)	/* in: TRUE if the caller has the
+	ibool		has_dict_mutex __attribute__((unused)))
+                                        /* in: TRUE if the caller has the
 					dictionary mutex */	
 {
 	dict_index_t*	index;

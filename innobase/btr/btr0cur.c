@@ -94,7 +94,7 @@ static
 void
 btr_cur_latch_leaves(
 /*=================*/
-	dict_tree_t*	tree,		/* in: index tree */
+	dict_tree_t*	tree __attribute__((unused)),	/* in: index tree */
 	page_t*		page,		/* in: leaf page where the search
 					converged */
 	ulint		space,		/* in: space id */
@@ -219,7 +219,7 @@ btr_cur_search_to_nth_level(
 	ulint		insert_planned;
 	ulint		buf_mode;
 	ulint		estimate;
-	ulint		root_height;
+	ulint		root_height = 0; /* remove warning */
 #ifdef BTR_CUR_ADAPT
 	btr_search_t*	info;
 #endif
@@ -488,7 +488,7 @@ btr_cur_open_at_index_side(
 	ulint		page_no;
 	ulint		space;
 	ulint		height;
-	ulint		root_height;
+	ulint		root_height = 0; /* remove warning */
 	rec_t*		node_ptr;
 	ulint		estimate;
 
@@ -2907,8 +2907,9 @@ btr_store_big_rec_extern_fields(
 	rec_t*		rec,		/* in: record */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
-	mtr_t*		local_mtr)	/* in: mtr containing the latch to
-					rec and to the tree */
+	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr
+                                        containing the latch to rec and to the
+                                        tree */
 {
 	byte*	data;
 	ulint	local_len;
@@ -3069,9 +3070,9 @@ btr_free_externally_stored_field(
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 					rollback and we do not want to free
 					inherited fields */
-	mtr_t*		local_mtr)	/* in: mtr containing the latch to
-					data an an X-latch to the index
-					tree */
+	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr 
+                                        containing the latch to data an an 
+                                        X-latch to the index tree */
 {
 	page_t*	page;
 	page_t*	rec_page;

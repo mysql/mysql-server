@@ -15,7 +15,8 @@ row_mysql_store_var_len(
 /*====================*/
 			/* out: dest + 2 */
 	byte*	dest,	/* in: where to store */
-	ulint	len)	/* in: length, must fit in two bytes */
+	ulint	len __attribute__((unused)))  /* in: length, must fit in two
+                                                 bytes */
 {
 	ut_ad(len < 256 * 256);
 /*	
