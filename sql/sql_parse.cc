@@ -2601,11 +2601,11 @@ unsent_create_error:
       if ((result=new select_insert(tables->table,&lex->field_list,
 				    lex->duplicates)))
 	/* Skip first table, which is the table we are inserting in */
-	lex->select_lex.table_list.first= (gptr) first_local_table->next;
+	lex->select_lex.table_list.first= (byte*) first_local_table->next;
 	lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
 	res=handle_select(thd,lex,result);
 	/* revert changes for SP */
-	lex->select_lex.table_list.first= (gptr) first_local_table;
+	lex->select_lex.table_list.first= (byte*) first_local_table;
 	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       if (thd->net.report_error)
 	res= -1;
@@ -4362,7 +4362,6 @@ static void remove_escape(char *name)
 bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
 {
   ORDER *order;
-  Item	**item_ptr;
   DBUG_ENTER("add_to_list");
   if (!(order = (ORDER *) thd->alloc(sizeof(ORDER))))
     DBUG_RETURN(1);

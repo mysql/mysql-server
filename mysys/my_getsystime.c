@@ -30,11 +30,26 @@ ulonglong my_getsystime()
   clock_gettime(CLOCK_REALTIME, &tp);
   return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
 #elif defined(__WIN__)
-  /* TODO: use GetSystemTimeAsFileTime here or
-     QueryPerformanceCounter/QueryPerformanceFrequency */
-  struct _timeb tb;
-  _ftime(&tb);
-  return (ulonglong)tb.time*10000000+(ulonglong)tb.millitm*10000;
+#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+  static __int64 offset=0, freq;
+  LARGE_INTEGER t_cnt;
+  if (!offset)
+  {
+    /* strictly speaking there should be a mutex to protect
+       initialization section. But my_getsystime() is called from
+       UUID() code, and UUID() calls are serialized with a mutex anyway
+    */
+    LARGE_INTEGER li;
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    li.LowPart=ft.dwLowDateTime;
+    li.HighPart=ft.dwHighDateTime;
+    offset=li.QuadPart-OFFSET_TO_EPOC;
+    QueryPerformanceFrequency(&li);
+    freq=li.QuadPart;
+  }
+  QueryPerformanceCounter(&t_cnt);
+  return t_cnt.QuadPart/freq*10000000+t_cnt.QuadPart%freq*10000000/freq+offset;
 #elif defined(__NETWARE__)
   NXTime_t tm;
   NXGetTime(NX_SINCE_1970, NX_NSECONDS, &tm);

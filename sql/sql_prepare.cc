@@ -1147,11 +1147,11 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
   TABLE_LIST *first_local_table=
     (TABLE_LIST *)lex->select_lex.table_list.first;
   /* Skip first table, which is the table we are inserting in */
-  lex->select_lex.table_list.first= (gptr) first_local_table->next;
+  lex->select_lex.table_list.first= (uchar*) first_local_table->next;
   lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
   res= select_like_statement_test(stmt, tables);
   /* revert changes*/
-  lex->select_lex.table_list.first= (gptr) first_local_table;
+  lex->select_lex.table_list.first= (uchar*) first_local_table;
   lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
   return res;
 }

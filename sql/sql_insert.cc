@@ -121,7 +121,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     runs without --log-update or --log-bin).
   */
   int log_on= DELAYED_LOG_UPDATE | DELAYED_LOG_BIN ;
-  bool transactional_table, log_delayed, bulk_insert;
+  bool transactional_table, log_delayed;
   uint value_count;
   ulong counter = 1;
   ulonglong id;

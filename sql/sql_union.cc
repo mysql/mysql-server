@@ -112,7 +112,6 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
-  ORDER *tmp_order;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   /*
@@ -215,7 +214,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     union_result->tmp_table_param.field_count= types.elements;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
-				  (ORDER*) 0, union_distinct, 1, 
+				  (ORDER*) 0, (bool) union_distinct, 1, 
 				  (first_select_in_union()->options |
 				   thd_arg->options |
 				   TMP_TABLE_ALL_COLUMNS),

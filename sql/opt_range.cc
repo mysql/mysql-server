@@ -2612,12 +2612,12 @@ int QUICK_SELECT::get_next()
     if (!(range= it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
 
-    start_key.key=    range->min_key;
+    start_key.key=    (const byte*) range->min_key;
     start_key.length= range->min_length;
     start_key.flag=   ((range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
 		       (range->flag & EQ_RANGE) ?
 		       HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
-    end_key.key=      range->max_key;
+    end_key.key=      (const byte*) range->max_key;
     end_key.length=   range->max_length;
     /*
       We use READ_AFTER_KEY here because if we are reading on a key

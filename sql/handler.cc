@@ -1490,7 +1490,7 @@ int handler::compare_key(key_range *range)
   if (!range)
     return 0;					// No max range
 
-  for (const char *key=range->key, *end=key+range->length;
+  for (const char *key= (const char*) range->key, *end=key+range->length;
        key < end;
        key+= store_length, key_part++)
   {

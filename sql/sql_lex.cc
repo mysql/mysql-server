@@ -1668,8 +1668,8 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
     and from local list if it is not the same
   */
   select_lex.table_list.first= ((&select_lex != all_selects_list) ?
-				(gptr) (*local_first)->next :
-				(gptr) tables);
+				(byte*) (*local_first)->next :
+				(byte*) tables);
   (*global_first)->next= 0;
   return tables;
 }
@@ -1698,10 +1698,10 @@ TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
       we do not touch local table 'next' field => we need just
       put the table in the list
     */
-    select_lex.table_list.first= (gptr) local_first;
+    select_lex.table_list.first= (byte*) local_first;
   }
   else
-    select_lex.table_list.first= (gptr) global_first;
+    select_lex.table_list.first= (byte*) global_first;
   return global_first;
 }
 
