@@ -29,6 +29,7 @@ Item *create_func_connection_id(void);
 Item *create_func_conv(Item* a, Item *b, Item *c);
 Item *create_func_cos(Item* a);
 Item *create_func_cot(Item* a);
+Item *create_func_crc32(Item* a);
 Item *create_func_date_format(Item* a,Item *b);
 Item *create_func_dayname(Item* a);
 Item *create_func_dayofmonth(Item* a);

@@ -430,6 +430,7 @@ static SYMBOL sql_functions[] = {
   { "COUNT",		SYM(COUNT_SYM),0,0},
   { "COS",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_cos)},
   { "COT",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_cot)},
+  { "CRC32",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_crc32)},
   { "CROSSES",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_crosses)},
   { "CURDATE",		SYM(CURDATE),0,0},
   { "CURTIME",		SYM(CURTIME),0,0},
