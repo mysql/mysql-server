@@ -27,6 +27,10 @@ typedef	struct xid_t XID;
  * A value of -1 in formatID means that the XID is null.
  */
 
+
+#ifdef NOTDEFINED
+/* Let us comment this out to remove compiler errors!!!!!!!!!!!! */
+
 /*
  * Declarations of routines by which RMs call TMs:
  */
@@ -41,6 +45,8 @@ extern int ax_unreg __P((int, long));
 #define	MAXINFOSIZE	256		/* maximum size in bytes of xa_info */
 					/* strings, including the null
 					terminator */
+
+
 struct xa_switch_t {
 	char name[RMNAMESZ];		/* name of resource manager */
 	long flags;			/* resource manager specific options */
@@ -66,6 +72,8 @@ struct xa_switch_t {
 	int (*xa_complete_entry)	/* xa_complete function pointer */
 	    __P((int *, int *, int, long));
 };
+#endif  /* NOTDEFINED */
+
 
 /*
  * Flag definitions for the RM switch
