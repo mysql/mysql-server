@@ -1,0 +1,4748 @@
+use test;
+
+###### Variations on ROUND(X,D) ######
+
+set @stmt_part_1= 'select ROUND(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ') as my_col' ;
+set @max_var_number= 2;
+set @string_1= '11.298' ;
+set @type_1=   'DOUBLE' ;
+set @type_2=   'BIGINT' ;
+set @string_2= '1' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,1) as my_col ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+set @string_2=  '3' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,3) as my_col ;
+my_col
+11.298
+execute __stmt_c_ ;
+my_col
+11.298
+execute __stmt_c_ ;
+my_col
+11.298
+execute __stmt_c_ ;
+my_col
+11.298
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.298
+execute __stmt_uv_ ;
+my_col
+11.298
+execute __stmt_uv_ ;
+my_col
+11.298
+execute __stmt_uv_ ;
+my_col
+11.298
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.298
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.298
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.298
+set @string_2=  '4' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,4) as my_col ;
+my_col
+11.2980
+execute __stmt_c_ ;
+my_col
+11.2980
+execute __stmt_c_ ;
+my_col
+11.2980
+execute __stmt_c_ ;
+my_col
+11.2980
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.2980
+execute __stmt_uv_ ;
+my_col
+11.2980
+execute __stmt_uv_ ;
+my_col
+11.2980
+execute __stmt_uv_ ;
+my_col
+11.2980
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.2980
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.2980
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.2980
+set @string_2=  '0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,0) as my_col ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11
+set @string_2=  '-1' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,-1) as my_col ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+10
+set @string_2=  '-2' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,-2) as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+set @string_2=  '-3' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,-3) as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+set @string_2=  'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'DOUBLE' ;
+set @string_2=  '1.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,1.0) as my_col ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+set @string_2=  '3.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,3.0) as my_col ;
+my_col
+11.298
+execute __stmt_c_ ;
+my_col
+11.298
+execute __stmt_c_ ;
+my_col
+11.298
+execute __stmt_c_ ;
+my_col
+11.298
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.298
+execute __stmt_uv_ ;
+my_col
+11.298
+execute __stmt_uv_ ;
+my_col
+11.298
+execute __stmt_uv_ ;
+my_col
+11.298
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.298
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.298
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.298
+set @string_2=  '4.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,4.0) as my_col ;
+my_col
+11.2980
+execute __stmt_c_ ;
+my_col
+11.2980
+execute __stmt_c_ ;
+my_col
+11.2980
+execute __stmt_c_ ;
+my_col
+11.2980
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.2980
+execute __stmt_uv_ ;
+my_col
+11.2980
+execute __stmt_uv_ ;
+my_col
+11.2980
+execute __stmt_uv_ ;
+my_col
+11.2980
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.2980
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.2980
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.2980
+set @string_2=  '0.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,0.0) as my_col ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11
+set @string_2=  '-1.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,-1.0) as my_col ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+10
+set @string_2=  '-2.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,-2.0) as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+set @string_2=  '-3.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,-3.0) as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+0
+set @string_2=  '1.1' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,1.1) as my_col ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+execute __stmt_c_ ;
+my_col
+11.3
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.3
+set @string_2=  '1.9' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,1.9) as my_col ;
+my_col
+11.30
+execute __stmt_c_ ;
+my_col
+11.30
+execute __stmt_c_ ;
+my_col
+11.30
+execute __stmt_c_ ;
+my_col
+11.30
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_uv_ ;
+my_col
+11.3
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.30
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.30
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+11.30
+set @string_2=  'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'LONGBLOB' ;
+set @string_2=  'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.298,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+set @type_2=   'BIGINT' ;
+set @string_2= '2' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,2) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= '-2' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,-2) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'DOUBLE' ;
+set @string_2= '2.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,2.0) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= '-2.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,-2.0) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'LONGBLOB' ;
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_1= 'NULL' ;
+set @type_1=   'DOUBLE' ;
+set @type_2=   'BIGINT' ;
+set @string_2= '2' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,2) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= '-2' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,-2) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'DOUBLE' ;
+set @string_2= '2.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,2.0) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= '-2.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,-2.0) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'LONGBLOB' ;
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+set @type_2=   'BIGINT' ;
+set @string_2= '2' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,2) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= '-2' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,-2) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'DOUBLE' ;
+set @string_2= '2.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,2.0) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= '-2.0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,-2.0) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @type_2=   'LONGBLOB' ;
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ,@var_2) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2 ;
+my_col
+NULL
+set @stmt_part_1= 'select ROUND(' ;
+set @stmt_part_2= ') as my_col' ;
+set @max_var_number= 1;
+set @string_1= '11' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11) as my_col ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+select ROUND(@var_1 ) as my_col ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+set @string_1= '-11' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(-11) as my_col ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+select ROUND(@var_1 ) as my_col ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+set @string_1= '0' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(0) as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select ROUND(@var_1 ) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+set @string_1= '11.49' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(11.49) as my_col ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+select ROUND(@var_1 ) as my_col ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+set @string_1= '10.51' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(10.51) as my_col ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+select ROUND(@var_1 ) as my_col ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+execute __stmt_ph_ using @var_1  ;
+my_col
+11
+set @string_1= '0.0' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(0.0) as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select ROUND(@var_1 ) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+set @string_1= 'NULL' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select ROUND(@var_1 ) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+set @string_1= '-11.49' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(-11.49) as my_col ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+select ROUND(@var_1 ) as my_col ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+set @string_1= '-10.51' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select ROUND(-10.51) as my_col ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+execute __stmt_c_ ;
+my_col
+-11
+select ROUND(@var_1 ) as my_col ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_uv_ ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+execute __stmt_ph_ using @var_1  ;
+my_col
+-11
+set @stmt_part_2= 'select ROUND() as my_col' ;
+set @max_var_number= 0;
+prepare __stmt_c_  from @__stmt_c_ ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+select ROUND( ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+execute __stmt_c_ ;
+ERROR HY000: Unknown prepared statement handler (__stmt_c_) given to EXECUTE
+execute __stmt_c_ ;
+ERROR HY000: Unknown prepared statement handler (__stmt_c_) given to EXECUTE
+execute __stmt_c_ ;
+ERROR HY000: Unknown prepared statement handler (__stmt_c_) given to EXECUTE
+
+###### Variations on CONCAT_WS(separator,str1,str2,...) ######
+
+set @stmt_part_1= 'select CONCAT_WS(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ') as my_col' ;
+set @max_var_number= 3;
+set @string_1= 'S' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'My' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'QL' ;
+set @type_3=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S','My','QL') as my_col ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+MySQL
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+set @string_2= 'My' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'QL' ;
+set @type_3=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS(NULL,'My','QL') as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS(NULL,'My','QL') as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS(NULL,'My','QL') as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= 'S' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'NULL' ;
+set @type_2=   'LONGBLOB' ;
+set @string_3= 'QL' ;
+set @type_3=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S',NULL,'QL') as my_col ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+set @type_2=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S',NULL,'QL') as my_col ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+set @type_2=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S',NULL,'QL') as my_col ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+execute __stmt_c_ ;
+my_col
+QL
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_uv_ ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+QL
+set @string_1= 'S' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'My' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S','My',NULL) as my_col ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S','My',NULL) as my_col ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+set @type_3=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S','My',NULL) as my_col ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+execute __stmt_c_ ;
+my_col
+My
+select CONCAT_WS(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_uv_ ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+My
+set @stmt_part_1= "select CONCAT_WS('S',IF(" ;
+set @stmt_part_2= ' IS NULL, ' ;
+set @stmt_part_3= ' , ' ;
+set @stmt_part_4= "),'QL') as my_col" ;
+set @max_var_number= 3;
+set @string_1= 'My' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'X' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'My' ;
+set @type_3=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONCAT_WS('S',IF('My' IS NULL, 'X' , 'My'),'QL') as my_col ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+select CONCAT_WS('S',IF(@var_1  IS NULL, @var_2 , @var_3),'QL') as my_col ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+MySQL
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+set @string_2= 'X' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'My' ;
+set @type_3=   'LONGTEXT' ;
+
+###### Variations on CHAR(N,...) ######
+
+set @stmt_part_1= 'select CHAR(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ',' ;
+set @stmt_part_5= ',' ;
+set @stmt_part_6= ') as my_col' ;
+set @max_var_number= 5;
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '83' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CHAR(77,121,83,81,76) as my_col ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+execute __stmt_c_ ;
+my_col
+MySQL
+select CHAR(@var_1 ,@var_2,@var_3,@var_4,@var_5) as my_col ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_uv_ ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5 ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5 ;
+my_col
+MySQL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5 ;
+my_col
+MySQL
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'BIGINT' ;
+set @string_4= 'NULL' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '83' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= 'NULL' ;
+set @type_5=   'BIGINT' ;
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '83' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+
+###### Variations on CHAR_LENGTH ######
+
+set @stmt_part_1= 'select CHAR_LENGTH(' ;
+set @stmt_part_2= ') as my_col' ;
+set @max_var_number= 1;
+set @string_1= 'MySQL' ;
+set @type_1=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CHAR_LENGTH('MySQL') as my_col ;
+my_col
+5
+execute __stmt_c_ ;
+my_col
+5
+execute __stmt_c_ ;
+my_col
+5
+execute __stmt_c_ ;
+my_col
+5
+select CHAR_LENGTH(@var_1 ) as my_col ;
+my_col
+5
+execute __stmt_uv_ ;
+my_col
+5
+execute __stmt_uv_ ;
+my_col
+5
+execute __stmt_uv_ ;
+my_col
+5
+execute __stmt_ph_ using @var_1  ;
+my_col
+5
+execute __stmt_ph_ using @var_1  ;
+my_col
+5
+execute __stmt_ph_ using @var_1  ;
+my_col
+5
+set @string_1= 'NULL' ;
+set @type_1=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CHAR_LENGTH(NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CHAR_LENGTH(@var_1 ) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CHAR_LENGTH(NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CHAR_LENGTH(@var_1 ) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CHAR_LENGTH(NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CHAR_LENGTH(@var_1 ) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+
+###### Variations on FIELD(str,str1,str2,str3,...) ######
+
+set @stmt_part_1= 'select FIELD(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ',' ;
+set @stmt_part_5= ') as my_col' ;
+set @max_var_number= 4;
+set @string_1= 'Hit' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '1it' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'Hit' ;
+set @type_3=   'LONGTEXT' ;
+set @string_4= '3it' ;
+set @type_4=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select FIELD('Hit','1it','Hit','3it') as my_col ;
+my_col
+2
+execute __stmt_c_ ;
+my_col
+2
+execute __stmt_c_ ;
+my_col
+2
+execute __stmt_c_ ;
+my_col
+2
+select FIELD(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+2
+execute __stmt_uv_ ;
+my_col
+2
+execute __stmt_uv_ ;
+my_col
+2
+execute __stmt_uv_ ;
+my_col
+2
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+2
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+2
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+2
+set @string_1= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select FIELD(NULL,'1it','Hit','3it') as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select FIELD(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+0
+set @string_3= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select FIELD(NULL,'1it',NULL,'3it') as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select FIELD(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+0
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+0
+
+###### Variations on INSERT(str,pos,len,newstr) ######
+
+set @stmt_part_1= "select INSERT(" ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ',' ;
+set @stmt_part_5= ") as my_col" ;
+set @max_var_number= 4;
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,4,'1234') as my_col ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+set @string_2= '+30.0E-1' ;
+set @type_2=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',+30.0E-1,4,'1234') as my_col ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '+40.0E-1' ;
+set @type_3=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,+40.0E-1,'1234') as my_col ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+execute __stmt_c_ ;
+my_col
+AB1234GHI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_uv_ ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234GHI
+set @string_1= 'NULL' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT(NULL,3,4,'1234') as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'NULL' ;
+set @type_2=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',NULL,4,'1234') as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,NULL,'1234') as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= 'NULL' ;
+set @type_4=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,4,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+NULL
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+set @string_2= '15' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',15,4,'1234') as my_col ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+set @string_2= '0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',0,4,'1234') as my_col ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+set @string_2= '-1' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',-1,4,'1234') as my_col ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+execute __stmt_c_ ;
+my_col
+ABCDEFGHI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_uv_ ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+ABCDEFGHI
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+set @string_3= '10' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,10,'1234') as my_col ;
+my_col
+AB1234
+execute __stmt_c_ ;
+my_col
+AB1234
+execute __stmt_c_ ;
+my_col
+AB1234
+execute __stmt_c_ ;
+my_col
+AB1234
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+AB1234
+execute __stmt_uv_ ;
+my_col
+AB1234
+execute __stmt_uv_ ;
+my_col
+AB1234
+execute __stmt_uv_ ;
+my_col
+AB1234
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234
+set @string_3= '5' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,5,'1234') as my_col ;
+my_col
+AB1234HI
+execute __stmt_c_ ;
+my_col
+AB1234HI
+execute __stmt_c_ ;
+my_col
+AB1234HI
+execute __stmt_c_ ;
+my_col
+AB1234HI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+AB1234HI
+execute __stmt_uv_ ;
+my_col
+AB1234HI
+execute __stmt_uv_ ;
+my_col
+AB1234HI
+execute __stmt_uv_ ;
+my_col
+AB1234HI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234HI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234HI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234HI
+set @string_3= '0' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,0,'1234') as my_col ;
+my_col
+AB1234CDEFGHI
+execute __stmt_c_ ;
+my_col
+AB1234CDEFGHI
+execute __stmt_c_ ;
+my_col
+AB1234CDEFGHI
+execute __stmt_c_ ;
+my_col
+AB1234CDEFGHI
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+AB1234CDEFGHI
+execute __stmt_uv_ ;
+my_col
+AB1234CDEFGHI
+execute __stmt_uv_ ;
+my_col
+AB1234CDEFGHI
+execute __stmt_uv_ ;
+my_col
+AB1234CDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234CDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234CDEFGHI
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234CDEFGHI
+set @string_3= '-1' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select INSERT('ABCDEFGHI',3,-1,'1234') as my_col ;
+my_col
+AB1234
+execute __stmt_c_ ;
+my_col
+AB1234
+execute __stmt_c_ ;
+my_col
+AB1234
+execute __stmt_c_ ;
+my_col
+AB1234
+select INSERT(@var_1 ,@var_2,@var_3,@var_4) as my_col ;
+my_col
+AB1234
+execute __stmt_uv_ ;
+my_col
+AB1234
+execute __stmt_uv_ ;
+my_col
+AB1234
+execute __stmt_uv_ ;
+my_col
+AB1234
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4 ;
+my_col
+AB1234
+
+###### Variations on BIN(N) ######
+
+set @stmt_part_1= "select BIN(" ;
+set @stmt_part_2= ") as my_col" ;
+set @max_var_number= 1;
+set @string_1= '12' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(12) as my_col ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+select BIN(@var_1 ) as my_col ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select BIN(@var_1 ) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+set @string_1= '2147483648' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(2147483648) as my_col ;
+my_col
+10000000000000000000000000000000
+execute __stmt_c_ ;
+my_col
+10000000000000000000000000000000
+execute __stmt_c_ ;
+my_col
+10000000000000000000000000000000
+execute __stmt_c_ ;
+my_col
+10000000000000000000000000000000
+select BIN(@var_1 ) as my_col ;
+my_col
+10000000000000000000000000000000
+execute __stmt_uv_ ;
+my_col
+10000000000000000000000000000000
+execute __stmt_uv_ ;
+my_col
+10000000000000000000000000000000
+execute __stmt_uv_ ;
+my_col
+10000000000000000000000000000000
+execute __stmt_ph_ using @var_1  ;
+my_col
+10000000000000000000000000000000
+execute __stmt_ph_ using @var_1  ;
+my_col
+10000000000000000000000000000000
+execute __stmt_ph_ using @var_1  ;
+my_col
+10000000000000000000000000000000
+set @string_1= '0' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(0) as my_col ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+execute __stmt_c_ ;
+my_col
+0
+select BIN(@var_1 ) as my_col ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_uv_ ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+execute __stmt_ph_ using @var_1  ;
+my_col
+0
+set @string_1= '-1' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(-1) as my_col ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_c_ ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_c_ ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_c_ ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+select BIN(@var_1 ) as my_col ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_uv_ ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_uv_ ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_uv_ ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_ph_ using @var_1  ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_ph_ using @var_1  ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+execute __stmt_ph_ using @var_1  ;
+my_col
+1111111111111111111111111111111111111111111111111111111111111111
+set @string_1= '9000000000000000000' ;
+set @type_1=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(9000000000000000000) as my_col ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_c_ ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_c_ ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_c_ ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+select BIN(@var_1 ) as my_col ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_uv_ ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_uv_ ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_uv_ ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_ph_ using @var_1  ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_ph_ using @var_1  ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+execute __stmt_ph_ using @var_1  ;
+my_col
+111110011100110011011000101000011100010100001000000000000000000
+set @string_1= '12.9E-0' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(12.9E-0) as my_col ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+select BIN(@var_1 ) as my_col ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+set @string_1= '0.129E+2' ;
+set @type_1=   'DOUBLE' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIN(0.129E+2) as my_col ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+execute __stmt_c_ ;
+my_col
+1100
+select BIN(@var_1 ) as my_col ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_uv_ ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+execute __stmt_ph_ using @var_1  ;
+my_col
+1100
+
+###### Variations on BIT_LENGT(str) ######
+
+set @stmt_part_1= "select BIT_LENGTH(" ;
+set @stmt_part_2= ") as my_col" ;
+set @max_var_number= 1;
+set @string_1= 'text' ;
+set @type_1=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIT_LENGTH('text') as my_col ;
+my_col
+32
+execute __stmt_c_ ;
+my_col
+32
+execute __stmt_c_ ;
+my_col
+32
+execute __stmt_c_ ;
+my_col
+32
+select BIT_LENGTH(@var_1 ) as my_col ;
+my_col
+32
+execute __stmt_uv_ ;
+my_col
+32
+execute __stmt_uv_ ;
+my_col
+32
+execute __stmt_uv_ ;
+my_col
+32
+execute __stmt_ph_ using @var_1  ;
+my_col
+32
+execute __stmt_ph_ using @var_1  ;
+my_col
+32
+execute __stmt_ph_ using @var_1  ;
+my_col
+32
+set @string_1= 'NULL' ;
+set @type_1=   'LONGTEXT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select BIT_LENGTH(NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select BIT_LENGTH(@var_1 ) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1  ;
+my_col
+NULL
+
+###### Variations on CONV(N,from_base,to_base) ######
+
+set @stmt_part_1= "select CONV(" ;
+set @stmt_part_2= "," ;
+set @stmt_part_3= "," ;
+set @stmt_part_4= ") as my_col" ;
+set @max_var_number= 3;
+set @string_1= '37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(37,10,10) as my_col ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+set @string_1= '-37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(-37,10,10) as my_col ;
+my_col
+18446744073709551579
+execute __stmt_c_ ;
+my_col
+18446744073709551579
+execute __stmt_c_ ;
+my_col
+18446744073709551579
+execute __stmt_c_ ;
+my_col
+18446744073709551579
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+18446744073709551579
+execute __stmt_uv_ ;
+my_col
+18446744073709551579
+execute __stmt_uv_ ;
+my_col
+18446744073709551579
+execute __stmt_uv_ ;
+my_col
+18446744073709551579
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+18446744073709551579
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+18446744073709551579
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+18446744073709551579
+set @string_1= CAST(CAST(-37 AS unsigned INTEGER) AS CHAR);
+set @type_1=   'LONGTEXT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV('18446744073709551579',10,10) as my_col ;
+my_col
+18446744073709551579
+execute __stmt_c_ ;
+my_col
+18446744073709551579
+execute __stmt_c_ ;
+my_col
+18446744073709551579
+execute __stmt_c_ ;
+my_col
+18446744073709551579
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+18446744073709551579
+execute __stmt_uv_ ;
+my_col
+18446744073709551579
+execute __stmt_uv_ ;
+my_col
+18446744073709551579
+execute __stmt_uv_ ;
+my_col
+18446744073709551579
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+18446744073709551579
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+18446744073709551579
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+18446744073709551579
+set @string_1= '37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(37,10,-10) as my_col ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+set @string_1= '-37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(-37,10,-10) as my_col ;
+my_col
+-37
+execute __stmt_c_ ;
+my_col
+-37
+execute __stmt_c_ ;
+my_col
+-37
+execute __stmt_c_ ;
+my_col
+-37
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+-37
+execute __stmt_uv_ ;
+my_col
+-37
+execute __stmt_uv_ ;
+my_col
+-37
+execute __stmt_uv_ ;
+my_col
+-37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+-37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+-37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+-37
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '11' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,10,11) as my_col ;
+my_col
+9
+execute __stmt_c_ ;
+my_col
+9
+execute __stmt_c_ ;
+my_col
+9
+execute __stmt_c_ ;
+my_col
+9
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+9
+execute __stmt_uv_ ;
+my_col
+9
+execute __stmt_uv_ ;
+my_col
+9
+execute __stmt_uv_ ;
+my_col
+9
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+9
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+9
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+9
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '11' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,11,10) as my_col ;
+my_col
+9
+execute __stmt_c_ ;
+my_col
+9
+execute __stmt_c_ ;
+my_col
+9
+execute __stmt_c_ ;
+my_col
+9
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+9
+execute __stmt_uv_ ;
+my_col
+9
+execute __stmt_uv_ ;
+my_col
+9
+execute __stmt_uv_ ;
+my_col
+9
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+9
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+9
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+9
+set @string_1= '10' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '11' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(10,10,11) as my_col ;
+my_col
+A
+execute __stmt_c_ ;
+my_col
+A
+execute __stmt_c_ ;
+my_col
+A
+execute __stmt_c_ ;
+my_col
+A
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+A
+execute __stmt_uv_ ;
+my_col
+A
+execute __stmt_uv_ ;
+my_col
+A
+execute __stmt_uv_ ;
+my_col
+A
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+A
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+A
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+A
+set @string_1= 'A' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '11' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV('A',11,10) as my_col ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+10
+set @string_1= '11' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '11' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(11,10,11) as my_col ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+execute __stmt_c_ ;
+my_col
+10
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_uv_ ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+10
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+10
+set @string_1= '10' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '11' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(10,11,10) as my_col ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+11
+set @string_1= '37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '36' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(37,10,36) as my_col ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+execute __stmt_c_ ;
+my_col
+11
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_uv_ ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+11
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+11
+set @string_1= '11' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '36' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(11,36,10) as my_col ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+execute __stmt_c_ ;
+my_col
+37
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_uv_ ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+37
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(NULL,10,10) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '37' ;
+set @string_2= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(37,NULL,10) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_2= '10' ;
+set @string_3= 'NULL' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(37,10,NULL) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_3= '10' ;
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '37' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,37,10) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '1' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,1,10) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '0' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,0,10) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '-1' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,-1,10) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '37' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,10,37) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '1' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,10,1) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '0' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '0' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,0,0) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-1' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,10,-1) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-37' ;
+set @type_3=   'BIGINT' ;
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+select CONV(9,10,-37) as my_col ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+execute __stmt_c_ ;
+my_col
+NULL
+select CONV(@var_1 ,@var_2,@var_3) as my_col ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_uv_ ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3 ;
+my_col
+NULL
