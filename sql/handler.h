@@ -315,6 +315,7 @@ my_off_t ha_get_ptr(byte *ptr, uint pack_length);
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos);
 int ha_init(void);
 int ha_panic(enum ha_panic_function flag);
+void ha_close_connection(THD* thd);
 enum db_type ha_checktype(enum db_type database_type);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);

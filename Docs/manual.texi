@@ -39275,6 +39275,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Fixed that @code{DROP DATABASE} works on OS/2.
+@item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
 table2..} when table2 was empty.
 @item

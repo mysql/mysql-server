@@ -39,7 +39,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.8";
+const char *VER="11.9";
 
 gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
@@ -377,7 +377,7 @@ enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
 
 static struct option long_options[] =
 {
-  {"i-am-a-dummy",  no_argument,	   0, 'U'},
+  {"i-am-a-dummy",  optional_argument,	   0, 'U'},
   {"batch",	    no_argument,	   0, 'B'},
   {"character-sets-dir",required_argument, 0, OPT_CHARSETS_DIR},
   {"compress",	    no_argument,	   0, 'C'},
@@ -413,7 +413,7 @@ static struct option long_options[] =
   {"quick",	    no_argument,	   0, 'q'},
   {"set-variable",  required_argument,	   0, 'O'},
   {"raw",	    no_argument,	   0, 'r'},
-  {"safe-updates",  no_argument,	   0, 'U'},
+  {"safe-updates",  optional_argument,	   0, 'U'},
   {"silent",	    no_argument,	   0, 's'},
   {"skip-column-names",no_argument,	   0, 'N'},
   {"skip-line-numbers",no_argument,	   0, 'L'},
@@ -558,7 +558,7 @@ static int get_options(int argc, char **argv)
 
   set_all_changeable_vars(changeable_vars);
   while ((c=getopt_long(argc,argv,
-			"?ABCD:LfgGHinNoqrstTUvVwWEe:h:O:P:S:u:#::p::",
+			"?ABCD:LfgGHinNoqrstTU::vVwWEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
