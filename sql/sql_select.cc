@@ -4837,14 +4837,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
                                       convert_blob_length);
   case Item::TYPE_HOLDER:
-  {
-    Field *example= ((Item_type_holder *)item)->example();
-    if (example)
-      return create_tmp_field_from_field(thd, example, item, table, 0,
-                                         convert_blob_length);
-    return create_tmp_field_from_item(thd, item, table, copy_func, 0,
-                                      convert_blob_length);
-  }
+    return ((Item_type_holder *)item)->make_field_by_type(table);
   default:					// Dosen't have to be stored
     return 0;
   }
@@ -5341,8 +5334,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
   }
-  /* Set table_name for easier debugging */
-  table->table_name= base_name(tmpname);
   if (!open_tmp_table(table))
     DBUG_RETURN(table);
 
@@ -9592,7 +9583,8 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE,
+                             "")))
       res= unit->exec();
     res|= unit->cleanup();
   }
