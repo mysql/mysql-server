@@ -373,6 +373,9 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
          Note that Rotate_log_event::exec_event() does not call this function,
          so there is no chance that a fake rotate event resets
          last_master_timestamp.
+         Note that we update without mutex (probably ok - except in some very
+         rare cases, only consequence is that value may take some time to
+         display in Seconds_Behind_Master - not critical).
       */
       rli->last_master_timestamp= when;
     }

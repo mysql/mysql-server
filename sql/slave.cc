@@ -4189,6 +4189,21 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
       */
       if (hot_log)
       {
+        /*
+          We say in Seconds_Behind_Master that we have "caught up". Note that
+          for example if network link is broken but I/O slave thread hasn't
+          noticed it (slave_net_timeout not elapsed), then we'll say "caught
+          up" whereas we're not really caught up. Fixing that would require
+          internally cutting timeout in smaller pieces in network read, no
+          thanks. Another example: SQL has caught up on I/O, now I/O has read
+          a new event and is queuing it; the false "0" will exist until SQL
+          finishes executing the new event; it will be look abnormal only if
+          the events have old timestamps (then you get "many", 0, "many").
+          Transient phases like this can't really be fixed.
+        */
+        time_t save_timestamp= rli->last_master_timestamp;
+        rli->last_master_timestamp= 0;
+
 	DBUG_ASSERT(rli->relay_log.get_open_count() == rli->cur_log_old_open_count);
 	/*
 	  We can, and should release data_lock while we are waiting for
@@ -4231,20 +4246,6 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
         */
         pthread_mutex_unlock(&rli->log_space_lock);
         pthread_cond_broadcast(&rli->log_space_cond);
-        /*
-          We say in Seconds_Behind_Master that we have "caught up". Note that
-          for example if network link is broken but I/O slave thread hasn't
-          noticed it (slave_net_timeout not elapsed), then we'll say "caught
-          up" whereas we're not really caught up. Fixing that would require
-          internally cutting timeout in smaller pieces in network read, no
-          thanks. Another example: SQL has caught up on I/O, now I/O has read
-          a new event and is queuing it; the false "0" will exist until SQL
-          finishes executing the new event; it will be look abnormal only if
-          the events have old timestamps (then you get "many", 0, "many").
-          Transient phases like this can't really be fixed.
-        */
-        time_t save_timestamp= rli->last_master_timestamp;
-        rli->last_master_timestamp= 0;
         // Note that wait_for_update unlocks lock_log !
         rli->relay_log.wait_for_update(rli->sql_thd, 1);
         // re-acquire data lock since we released it earlier
