@@ -1,6 +1,6 @@
 drop table if exists t1;
-select row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
-row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3))
+select (1,2,3) IN ((3,2,3), (1,2,3), (1,3,3));
+(1,2,3) IN ((3,2,3), (1,2,3), (1,3,3))
 1
 select row(10,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
 row(10,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3))
@@ -32,13 +32,22 @@ NULL
 select row('b',1.5,3) IN (row('b',NULL,4), row('a',1.5,3), row(1,3,3));
 row('b',1.5,3) IN (row('b',NULL,4), row('a',1.5,3), row(1,3,3))
 0
-select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,4)));
-row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,4)))
+select (1,2,(3,4)) IN ((3,2,(3,4)), (1,2,(3,4)));
+(1,2,(3,4)) IN ((3,2,(3,4)), (1,2,(3,4)))
 1
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,4));
 Cardinality error (more/less than 2 columns)
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
 row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)))
+NULL
+SELECT (1,2,3)=(0,NULL,3);
+(1,2,3)=(0,NULL,3)
+0
+SELECT (1,2,3)=(1,NULL,3);
+(1,2,3)=(1,NULL,3)
+NULL
+SELECT (1,2,3)=(1,NULL,0);
+(1,2,3)=(1,NULL,0)
 NULL
 SELECT ROW(1,2,3)=ROW(1,2,3);
 ROW(1,2,3)=ROW(1,2,3)
@@ -131,5 +140,7 @@ create table t1 (i int);
 select 1 from t1 where ROW(1,1);
 Cardinality error (more/less than 1 columns)
 select count(*) from t1 order by ROW(1,1);
+Cardinality error (more/less than 1 columns)
+select count(*) from t1 having (1,1) order by i;
 Cardinality error (more/less than 1 columns)
 drop table t1;

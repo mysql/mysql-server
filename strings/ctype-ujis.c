@@ -8350,6 +8350,9 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   unsigned char buf[2];
   unsigned char c1;
   int ret,jp;
+
+  if (s >= e)
+    return MY_CS_TOOSMALL;
   
   if (wc<0x80)
   { 

@@ -3,7 +3,7 @@
 drop table if exists t1;
 --enable_warnings
 
-select row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
+select (1,2,3) IN ((3,2,3), (1,2,3), (1,3,3));
 select row(10,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
 select row(1,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3));
 select row(10,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3));
@@ -14,10 +14,15 @@ select row('a',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3));
 select row('b',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3));
 select row('b',1.5,3) IN (row('b',NULL,3), row('a',1.5,3), row(1,3,3));
 select row('b',1.5,3) IN (row('b',NULL,4), row('a',1.5,3), row(1,3,3));
-select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,4)));
+select (1,2,(3,4)) IN ((3,2,(3,4)), (1,2,(3,4)));
 -- error 1239
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,4));
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
+
+SELECT (1,2,3)=(0,NULL,3);
+SELECT (1,2,3)=(1,NULL,3);
+# here's something for Sanja to fix :)
+SELECT (1,2,3)=(1,NULL,0);
 
 SELECT ROW(1,2,3)=ROW(1,2,3);
 SELECT ROW(2,2,3)=ROW(1+1,2,3);
@@ -58,9 +63,7 @@ create table t1 (i int);
 select 1 from t1 where ROW(1,1);
 -- error 1239
 select count(*) from t1 order by ROW(1,1);
-#TODO remove comments after parser fixing
-#-- error 1239
-#select count(*) from t1 order by i having (1,1);
-#-- error 1239
-#select 1 from t1 limit (1,1), (1,1);
+-- error 1239
+select count(*) from t1 having (1,1) order by i;
 drop table t1;
+

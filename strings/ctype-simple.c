@@ -106,6 +106,9 @@ int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
 		  const unsigned char *str,
 		  const unsigned char *end __attribute__((unused)))
 {
+  if (str >= end)
+    return MY_CS_TOOFEW(0);
+  
   *wc=cs->tab_to_uni[*str];
   return (!wc[0] && str[0]) ? MY_CS_ILSEQ : 1;
 }
@@ -116,6 +119,9 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
 {
   MY_UNI_IDX *idx;
 
+  if (str >= end)
+    return MY_CS_TOOSMALL;
+  
   for (idx=cs->tab_from_uni; idx->tab ; idx++)
   {
     if (idx->from <= wc && idx->to >= wc)
