@@ -2370,7 +2370,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      thd->send_kill_message();
       error= 1;
       break;
     }

@@ -528,7 +528,18 @@ public:
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
-  bool	     volatile killed;
+
+  enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  killed_state volatile killed;
+  inline int killed_errno() const
+  {
+    return killed;
+  }
+  inline void send_kill_message() const
+  {
+    my_error(killed_errno(), MYF(0));
+  }
+
   bool       prepare_command;
   bool	     tmp_table_used;
   sp_rcontext *spcont;		// SP runtime context
@@ -572,7 +583,7 @@ public:
   }
   void close_active_vio();
 #endif  
-  void awake(bool prepare_to_die);
+  void awake(THD::killed_state state_to_set);
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {

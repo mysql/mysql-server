@@ -92,8 +92,9 @@ THD::THD():user_time(0), is_fatal_error(0),
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
-  locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
+  locked=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=prepare_command=0;
+  killed= NOT_KILLED;
   db_length=query_length=col_access=0;
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
@@ -183,7 +184,7 @@ THD::THD():user_time(0), is_fatal_error(0),
     if (open_cached_file(&transaction.trans_log,
 			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
 			 MYF(MY_WME)))
-      killed=1;
+      killed= KILL_CONNECTION;
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
@@ -347,14 +348,14 @@ THD::~THD()
 }
 
 
-void THD::awake(bool prepare_to_die)
+void THD::awake(THD::killed_state state_to_set)
 {
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_delete); 
 
-  if (prepare_to_die)
-    killed = 1;
-  thr_alarm_kill(real_id);
+  killed= state_to_set;
+  if (state_to_set != THD::KILL_QUERY)
+    thr_alarm_kill(real_id);
 #ifdef SIGNAL_WITH_VIO_CLOSE
   close_active_vio();
 #endif    
@@ -471,7 +472,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
   {
     my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
 	     ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
-    killed= 1;
+    killed= KILL_CONNECTION;
     return 0;
   }
 
