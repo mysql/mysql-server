@@ -18,9 +18,10 @@
 #define _MYSQL_PRIV_H
 
 #include <my_global.h>
+#include "mysql_embed.h"
 #include <my_sys.h>
 #include <m_string.h>
-#include "mysql_version.h"
+#include <mysql_version.h>
 #include <hash.h>
 #include <signal.h>
 #include <thr_lock.h>

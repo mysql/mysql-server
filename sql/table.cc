@@ -455,8 +455,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (key == primary_key)
 	  {
 	    field->flags|= PRI_KEY_FLAG;
+	    /*
+	      If this field is part of the primary key and all keys contains
+	      the primary key, then we can use any key to find this column
+	    */
 	    if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
-	      field->part_of_key|= ((key_map) 1 << primary_key);
+	      field->part_of_key= outparam->keys_in_use;
 	  }
 	  if (field->key_length() != key_part->length)
 	  {
@@ -480,8 +484,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	(outparam->keys_in_use & ((key_map) 1 << primary_key)))
     {
       outparam->primary_key=primary_key;
-      if (outparam->file->option_flag() & HA_PRIMARY_KEY_IN_READ_INDEX)
-	outparam->ref_primary_key= (key_map) 1 << primary_key;
       /*
 	If we are using an integer as the primary key then allow the user to
 	refer to it as '_rowid'
