@@ -1434,6 +1434,13 @@ srv_sprintf_innodb_monitor(
 	buf = buf + strlen(buf);
 	ut_a(buf < buf_end + 1500);
 
+	/* Conceptually, srv_innodb_monitor_mutex has a very high latching
+	order level in sync0sync.h, while dict_foreign_err_mutex has a very
+	low level 135. Therefore we can reserve the latter mutex here without
+	a danger of a deadlock of threads. */
+
+	mutex_enter(&dict_foreign_err_mutex);
+
 	if (*dict_foreign_err_buf != '\0') {
 		buf += sprintf(buf,
 			"------------------------\n"
@@ -1445,18 +1452,7 @@ srv_sprintf_innodb_monitor(
 		}
 	}	
 
-	ut_a(buf < buf_end + 1500);
-
-	if (*dict_unique_err_buf != '\0') {
-		buf += sprintf(buf,
-"---------------------------------------------------------------\n"
-"LATEST UNIQUE KEY ERROR (is masked in REPLACE or INSERT IGNORE)\n"
-"---------------------------------------------------------------\n");
-
-		if (buf_end - buf > 6000) {
-			buf+= sprintf(buf, "%.4000s", dict_unique_err_buf);
-		}
-	}	
+	mutex_exit(&dict_foreign_err_mutex);
 
 	ut_a(buf < buf_end + 1500);
 
