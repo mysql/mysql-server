@@ -2108,10 +2108,8 @@ bool flush_error_log()
 bool MYSQL_LOG::cut_spurious_tail()
 {
   int error= 0;
-  char llbuf1[22], llbuf2[22];
-  ulonglong actual_size;
-
   DBUG_ENTER("cut_spurious_tail");
+
 #ifdef HAVE_INNOBASE_DB
   if (have_innodb != SHOW_OPTION_YES)
     DBUG_RETURN(0);
@@ -2121,6 +2119,9 @@ bool MYSQL_LOG::cut_spurious_tail()
   */
   char *name= ha_innobase::get_mysql_bin_log_name();
   ulonglong pos= ha_innobase::get_mysql_bin_log_pos();
+  ulonglong actual_size;
+  char llbuf1[22], llbuf2[22];
+
   if (name[0] == 0 || pos == ULONGLONG_MAX)
   {
     DBUG_PRINT("info", ("InnoDB has not set binlog info"));

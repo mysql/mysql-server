@@ -174,11 +174,11 @@ public:
 		  typename DataBuffer<sz>::Head & _src)
     : DataBuffer<sz>(thePool), src(_src)
   {
-    head = src;
+    this->head = src;
   }
   
   ~LocalDataBuffer(){
-    src = head;
+    src = this->head;
   }
 private:
   typename DataBuffer<sz>::Head & src;

@@ -549,19 +549,21 @@ bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
   return FALSE;
 }
 
+
 /*
   Update some cache variables when character set changes
 */
 
 void THD::update_charset()
 {
-  charset_is_system_charset= my_charset_same(charset(),system_charset_info);
-  charset_is_collation_connection= my_charset_same(charset(),
-						   variables.
-						   collation_connection);
+  uint32 not_used;
+  charset_is_system_charset= !String::needs_conversion(0,charset(),
+                                                       system_charset_info,
+                                                       &not_used);
+  charset_is_collation_connection= 
+    !String::needs_conversion(0,charset(),variables.collation_connection,
+                              &not_used);
 }
-
-
 
 
 /* routings to adding tables to list of changed in transaction tables */

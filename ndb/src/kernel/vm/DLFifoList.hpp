@@ -153,11 +153,11 @@ public:
   LocalDLFifoList(ArrayPool<T> & thePool, typename DLFifoList<T>::Head & _src)
     : DLFifoList<T>(thePool), src(_src)
   {
-    head = src;
+    this->head = src;
   }
   
   ~LocalDLFifoList(){
-    src = head;
+    src = this->head;
   }
 private:
   typename DLFifoList<T>::Head & src;

@@ -204,6 +204,17 @@ if ($opt_stage == 0)
 safe_cd($host);
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
 {
+  $md5_result= safe_system("./my_md5sum -c ${opt_distribution}.md5");
+
+  if ($md5_result != 0)
+  {
+	abort("MD5 failed for $opt_distribution!");
+  }
+  else
+  {
+	info("SUCCESS: MD5 checks for $opt_distribution");
+  }
+
   safe_system("gunzip < $opt_distribution | $tar xf -");
 
   # Fix file times; This is needed because the time for files may be
@@ -330,6 +341,9 @@ if ($opt_stage <= 3)
 
 $tar_file=<$pwd/$host/mysql*.t*gz>;
 abort ("Could not find tarball!") unless ($tar_file);
+
+# Generate the MD5 for the binary distribution
+safe_system("./my_md5sum $tar_file > ${tar_file}.md5}");
 
 #
 # Unpack the binary distribution
@@ -660,7 +674,10 @@ sub safe_system
   my($com,$res)=@_;
   print LOG "$com\n";
   print "$host: $com\n" if ($opt_debug);
-  system("$com >> $log 2>&1") && abort("error: Couldn't execute command, error: " . ($? / 256));
+  my $result= system("$com >> $log 2>&1");
+  abort("error: Couldn't execute command, error: " . ($? / 256)) unless $result == 0;
+
+  return $result;
 }
 
 sub check_system

@@ -305,6 +305,7 @@ character-set=latin2
 "Got temporary error %d '%-.100s' from %s",
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
+"Invalid %s character string: '%.64s'",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

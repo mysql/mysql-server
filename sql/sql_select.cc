@@ -3831,7 +3831,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	      Set tmp to (previous record count) * (records / combination)
 	    */
 	    if ((found_part & 1) &&
-		(!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX) ||
+		(!(table->file->index_flags(key,0,0) & HA_ONLY_WHOLE_INDEX) ||
 		 found_part == PREV_BITS(uint,keyinfo->key_parts)))
 	    {
 	      max_key_part=max_part_bit(found_part);
@@ -8865,14 +8865,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
-            int quick_type= select->quick->get_type();
-            if (!(table->file->index_flags(ref_key) & HA_READ_PREV) ||
+            /* here used_key_parts >0 */
+            if (!(table->file->index_flags(ref_key,used_key_parts-1, 1)
+                  & HA_READ_PREV) ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION)
               DBUG_RETURN(0);			// Use filesort
             
-            // ORDER BY range_key DESC
+            /* ORDER BY range_key DESC */
 	    QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
 							 used_key_parts);
 	    if (!tmp || tmp->error)
@@ -8892,8 +8893,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    Use a traversal function that starts by reading the last row
 	    with key part (A) and then traverse the index backwards.
 	  */
-	  if (!(table->file->index_flags(ref_key) & HA_READ_PREV))
-	    DBUG_RETURN(0);			// Use filesort
+          if (!(table->file->index_flags(ref_key,used_key_parts-1, 1)
+                & HA_READ_PREV))
+            DBUG_RETURN(0);			// Use filesort
 	  tab->read_first_record=       join_read_last_key;
 	  tab->read_record.read_record= join_read_prev_same;
 	  /* fall through */
