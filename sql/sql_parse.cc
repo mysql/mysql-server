@@ -4562,7 +4562,6 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   register TABLE_LIST *ptr;
   char *alias_str;
   DBUG_ENTER("add_table_to_list");
-  DBUG_PRINT("enter",("lock_option: %d", lock_type));
 
   if (!table)
     DBUG_RETURN(0);				// End of memory
