@@ -83,17 +83,17 @@ FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 test_thr_alarm: thr_alarm.c $(LIBRARIES)
 	$(CP) $(srcdir)/thr_alarm.c ./test_thr_alarm.c
 	$(LINK) $(FLAGS) -DMAIN ./test_thr_alarm.c $(LDADD) $(LIBS)
-	$(RM) ./test_thr_alarm.*
+	$(RM) -f ./test_thr_alarm.*
 
 test_thr_lock: thr_lock.c $(LIBRARIES)
 	$(CP) $(srcdir)/thr_lock.c test_thr_lock.c
 	$(LINK) $(FLAGS) -DMAIN ./test_thr_lock.c $(LDADD) $(LIBS)
-	$(RM) ./test_thr_lock.*
+	$(RM) -f ./test_thr_lock.*
 
 test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
 	$(CP) $(srcdir)/my_vsnprintf.c test_vsnprintf.c
 	$(LINK) $(FLAGS) -DMAIN ./test_vsnprintf.c $(LDADD) $(LIBS)
-	$(RM) test_vsnprintf.*
+	$(RM) -f test_vsnprintf.*
 
 test_dir: test_dir.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
