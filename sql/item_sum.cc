@@ -334,7 +334,7 @@ double Item_sum_hybrid::val()
   switch (hybrid_type) {
   case STRING_RESULT:
     String *res;  res=val_str(&str_value);
-    return res ? atof(res->c_ptr()) : 0.0;
+    return res ? my_strntod(res->charset(),res->ptr(),res->length(),(char**)0) : 0.0;
   case INT_RESULT:
     if (unsigned_flag)
       return ulonglong2double(sum_int);

@@ -54,14 +54,14 @@ double Item_str_func::val()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? atof(res->c_ptr()) : 0.0;
+  return res ? my_strntod(res->charset(),res->ptr(),res->length(),NULL) : 0.0;
 }
 
 longlong Item_str_func::val_int()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? strtoll(res->c_ptr(),NULL,10) : (longlong) 0;
+  return res ? my_strntoll(res->charset(),res->ptr(),res->length(),NULL,10) : (longlong) 0;
 }
 
 
@@ -1905,9 +1905,9 @@ String *Item_func_conv::val_str(String *str)
   }
   null_value=0;
   if (from_base < 0)
-    dec= strtoll(res->c_ptr(),&endptr,-from_base);
+    dec= my_strntoll(res->charset(),res->ptr(),res->length(),&endptr,-from_base);
   else
-    dec= (longlong) strtoull(res->c_ptr(),&endptr,from_base);
+    dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),&endptr,from_base);
   ptr= longlong2str(dec,ans,to_base);
   if (str->copy(ans,(uint32) (ptr-ans), thd_charset()))
     return &empty_string;
