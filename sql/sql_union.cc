@@ -442,6 +442,12 @@ int st_select_lex_unit::cleanup()
   int error= 0;
   DBUG_ENTER("st_select_lex_unit::cleanup");
 
+  if (cleaned)
+  {
+    DBUG_RETURN(0);
+  }
+  cleaned= 0;
+
   if (union_result)
   {
     delete union_result;

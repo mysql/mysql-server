@@ -53,3 +53,48 @@ show create table t1;
 select * from t1;
 drop table t1;
 
+#
+# Bug #2366  	Wrong utf8 behaviour when data is trancated
+#
+set names koi8r;
+create table t1 (s1 char(1) character set utf8);
+insert into t1 values (_koi8r'¡¬');
+select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
+drop table t1;
+
+create table t1 (s1 tinytext character set utf8);
+insert into t1 select repeat('a',300);
+insert into t1 select repeat('—',300);
+insert into t1 select repeat('a—',300);
+insert into t1 select repeat('—a',300);
+insert into t1 select repeat('——',300);
+select hex(s1) from t1;
+select length(s1),char_length(s1) from t1;
+drop table t1;
+
+create table t1 (s1 text character set utf8);
+insert into t1 select repeat('a',66000);
+insert into t1 select repeat('—',66000);
+insert into t1 select repeat('a—',66000);
+insert into t1 select repeat('—a',66000);
+insert into t1 select repeat('——',66000);
+select length(s1),char_length(s1) from t1;
+drop table t1;
+
+#
+# Bug #2368 Multibyte charsets do not check that incoming data is well-formed
+#
+create table t1 (s1 char(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 varchar(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 text character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;

@@ -79,7 +79,6 @@ int mysql_update(THD *thd,
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
   thd->proc_info="init";
-  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
@@ -431,7 +430,6 @@ int mysql_multi_update(THD *thd,
 #endif
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
-  fix_tables_pointers(thd->lex->all_selects_list);
 
   select_lex->select_limit= HA_POS_ERROR;
 
@@ -482,8 +480,11 @@ int mysql_multi_update(THD *thd,
     for (tl= select_lex->get_table_list() ; tl ; tl= tl->next)
     {
       if (tl->derived && (item_tables & tl->table->map))
+      {
 	my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
 			MYF(0), tl->alias, "UPDATE");
+	DBUG_RETURN(-1);
+      }
     }
   }
 

@@ -48,6 +48,7 @@
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
+char *memdup_mysql(struct st_mysql *mysql, const char*data, int length);
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
@@ -1397,11 +1398,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       char *packet= thd->lex->found_colon;
       /*
         Multiple queries exits, execute them individually
+	in embedded server - just store them to be executed later 
       */
+#ifndef EMBEDDED_LIBRARY
       if (thd->lock || thd->open_tables || thd->derived_tables)
         close_thread_tables(thd);
-
-      ulong length= thd->query_length-(ulong)(thd->lex->found_colon-thd->query);
+#endif
+      ulong length= thd->query_length-(ulong)(packet-thd->query);
 
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -1414,7 +1417,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= query_id++;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
+#ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
+#else
+      thd->query_rest= (char*)memdup_mysql(thd->mysql, packet, length);
+      thd->query_rest_length= length;
+      break;
+#endif /*EMBEDDED_LIBRARY*/
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1789,34 +1798,9 @@ mysql_execute_command(THD *thd)
 #endif
   }
 #endif /* !HAVE_REPLICATION */
-  /*
-    TODO: make derived tables processing 'inside' SELECT processing.
-    TODO: solve problem with depended derived tables in subselects
-  */
-  if (lex->derived_tables)
-  {
-    for (SELECT_LEX *sl= lex->all_selects_list;
-	 sl;
-	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= sl->get_table_list();
-	   cursor;
-	   cursor= cursor->next)
-      {
-	if (cursor->derived && (res=mysql_derived(thd, lex,
-						  cursor->derived,
-						  cursor)))
-	{
-	  if (res < 0 || thd->net.report_error)
-	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	  DBUG_VOID_RETURN;
-	}
-      }
-    }
-  }
   if (&lex->select_lex != lex->all_selects_list &&
       lex->sql_command != SQLCOM_CREATE_TABLE &&
-      lex->unit.create_total_list(thd, lex, &tables, 0))
+      lex->unit.create_total_list(thd, lex, &tables))
     DBUG_VOID_RETURN;
   
   /*
@@ -1875,7 +1859,6 @@ mysql_execute_command(THD *thd)
 	}
 	else
 	  thd->send_explain_fields(result);
-	fix_tables_pointers(lex->all_selects_list);
 	res= mysql_explain_union(thd, &thd->lex->unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
@@ -1914,7 +1897,6 @@ mysql_execute_command(THD *thd)
 		   (res= open_and_lock_tables(thd,tables))))
 	break;
 
-    fix_tables_pointers(lex->all_selects_list);
     res= mysql_do(thd, *lex->insert_list);
     if (thd->net.report_error)
       res= -1;
@@ -2123,7 +2105,7 @@ mysql_execute_command(THD *thd)
     lex->select_lex.table_list.first= (byte*) (tables);
     create_table->next= 0;
     if (&lex->select_lex != lex->all_selects_list &&
-	lex->unit.create_total_list(thd, lex, &tables, 0))
+	lex->unit.create_total_list(thd, lex, &tables))
       DBUG_VOID_RETURN;
 
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
@@ -2338,6 +2320,8 @@ mysql_execute_command(THD *thd)
       if (grant_option)
       {
 	TABLE_LIST old_list,new_list;
+	bzero((char*) &old_list, sizeof(old_list));
+	bzero((char*) &new_list, sizeof(new_list)); // Safety
 	old_list=table[0];
 	new_list=table->next[0];
 	old_list.next=new_list.next=0;
@@ -2669,21 +2653,13 @@ mysql_execute_command(THD *thd)
       }
       if (!walk)
       {
-	if (lex->derived_tables)
-	{
-	  // are we trying to delete derived table?
-	  for (walk= (TABLE_LIST*) tables; walk; walk= walk->next)
-	  {
-	    if (!strcmp(auxi->real_name,walk->alias) &&
-		walk->derived)
-	    {
-	      net_printf(thd, ER_NON_UPDATABLE_TABLE,
-			 auxi->real_name, "DELETE");
-	      goto error;
-	    }
-	  }
-	}
 	net_printf(thd, ER_NONUNIQ_TABLE, auxi->real_name);
+	goto error;
+      }
+      if (walk->derived)
+      {
+	net_printf(thd, ER_NON_UPDATABLE_TABLE,
+		   auxi->real_name, "DELETE");
 	goto error;
       }
       walk->lock_type= auxi->lock_type;
@@ -2699,21 +2675,27 @@ mysql_execute_command(THD *thd)
       break;
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
-      auxi->table= auxi->table_list->table;
-    if (&lex->select_lex != lex->all_selects_list)
     {
-      for (TABLE_LIST *t= select_lex->get_table_list();
-	   t; t= t->next)
+      auxi->table= auxi->table_list->table;
+      /* 
+	 Multi-delete can't be constructed over-union => we always have
+	 single SELECT on top and have to check underlaying SELECTs of it
+      */
+      for (SELECT_LEX_UNIT *un= lex->select_lex.first_inner_unit();
+	   un;
+	   un= un->next_unit())
       {
-	if (find_real_table_in_list(t->table_list->next, t->db, t->real_name))
+	if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
+	    un->check_updateable(auxi->table_list->db,
+				 auxi->table_list->real_name))
 	{
-	  my_error(ER_UPDATE_TABLE_USED, MYF(0), t->real_name);
+	  my_error(ER_UPDATE_TABLE_USED, MYF(0), auxi->table_list->real_name);
 	  res= -1;
 	  break;
 	}
       }
     }
-    fix_tables_pointers(lex->all_selects_list);
+
     if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
 							  table_count)))
     {
@@ -2958,7 +2940,6 @@ mysql_execute_command(THD *thd)
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
       break;
-    fix_tables_pointers(lex->all_selects_list);
     if (!(res= sql_set_variables(thd, &lex->var_list)))
       send_ok(thd);
     if (thd->net.report_error)

@@ -1092,14 +1092,20 @@ void Item_sum_count_distinct::cleanup()
   if (!original)
   {
     if (table)
+    {
       free_tmp_table(current_thd, table);
+      table= 0;
+    }
     delete tmp_table_param;
+    tmp_table_param= 0;
     if (use_tree)
+    {
       delete_tree(tree);
-    table= 0;
-    use_tree= 0;
+      use_tree= 0;
+    }
   }
 }
+
 
 bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
 					 Item **ref)
@@ -1674,12 +1680,20 @@ void Item_func_group_concat::cleanup()
   {
     THD *thd= current_thd;
     if (table)
+    {
       free_tmp_table(thd, table);
+      table= 0;
+    }
     delete tmp_table_param;
+    tmp_table_param= 0;
     if (tree_mode)
+    {
+      tree_mode= 0;
       delete_tree(tree); 
+    }
   }
 }
+
 
 Item_func_group_concat::~Item_func_group_concat()
 {
