@@ -99,7 +99,7 @@ static int run_test(const char *filename)
   keyinfo[0].seg[0].length=key_length;
   keyinfo[0].seg[0].null_bit= null_fields ? 2 : 0;
   keyinfo[0].seg[0].null_pos=0;
-  keyinfo[0].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[0].seg[0].language= default_charset_info->number;
   if (pack_seg & HA_BLOB_PART)
   {
     keyinfo[0].seg[0].bit_start=4;		/* Length of blob length */
@@ -122,7 +122,7 @@ static int run_test(const char *filename)
       uniqueseg[i].start=start;
       start+=recinfo[i+1].length;
       uniqueseg[i].length=recinfo[i+1].length;
-      uniqueseg[i].language=MY_CHARSET_CURRENT;
+      uniqueseg[i].language= default_charset_info->number;
     }
     uniqueseg[0].type= key_type;
     uniqueseg[0].null_bit= null_fields ? 2 : 0;

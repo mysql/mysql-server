@@ -141,7 +141,7 @@ String *Item_func_geometry_type::val_str(String *str)
     return 0;
   str->copy(geom.get_class_info()->m_name,
 	    strlen(geom.get_class_info()->m_name),
-	    default_charset_info);
+	    default_charset());
   return str;
 }
 

@@ -1042,7 +1042,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 CHARSET_INFO my_charset_ucs2_general_ci=
 {
     35,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,	/* state */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT,
     "ucs2",		/* cs name    */
     "ucs2_general_ci",	/* name         */
     "",			/* comment      */
@@ -1065,7 +1065,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
 CHARSET_INFO my_charset_ucs2_bin=
 {
     90,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE,	/* state */
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONTEXT,
     "ucs2",		/* cs name    */
     "ucs2_bin",		/* name         */
     "",			/* comment      */

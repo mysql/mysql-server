@@ -623,7 +623,7 @@ check_connections(THD *thd)
     memcpy(end,thd->scramble,SCRAMBLE_LENGTH+1);
     end+=SCRAMBLE_LENGTH +1;
     int2store(end,client_flags);
-    end[2]=(char) MY_CHARSET_CURRENT;
+    end[2]=(char) default_charset_info->number;
     int2store(end+3,thd->server_status);
     bzero(end+5,13);
     end+=18;
