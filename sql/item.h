@@ -348,6 +348,7 @@ public:
 
 class Item_field :public Item_ident
 {
+  void set_field(Field *field);
 public:
   Field *field,*result_field;
 
@@ -369,7 +370,7 @@ public:
   /*
     If this constructor is used, fix_fields() won't work, because
     db_name, table_name and column_name are unknown. It's necessary to call
-    set_field() before fix_fields() for all fields created this way.
+    reset_field() before fix_fields() for all fields created this way.
   */
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
@@ -381,7 +382,7 @@ public:
   longlong val_int_result();
   String *str_result(String* tmp);
   bool send(Protocol *protocol, String *str_arg);
-  void set_field(Field *field);
+  void reset_field(Field *f);
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
