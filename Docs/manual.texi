@@ -38173,6 +38173,8 @@ though, so 3.23 is not released as a stable version yet.
 Fixed bug where the automatic repair of MyISAM tables failed sometimes
 when the data file was corrupt.
 @item
+Fixed a bug in @code{SHOW CREATE} when using auto_increment columns.
+@item
 Changed BDB tables to use new compare function in Berkeley DB 3.2.3
 @item
 You can now use Unix sockets with @code{mit-pthreads}
