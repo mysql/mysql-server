@@ -442,6 +442,8 @@ public:
     static const Column * COMMIT_COUNT;
     static const Column * ROW_SIZE;
     static const Column * RANGE_NO;
+    
+    int getSizeInBytes() const;
 #endif
     
   private:

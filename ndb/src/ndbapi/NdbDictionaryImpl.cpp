@@ -1264,7 +1264,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   Uint32 blobCount = 0;
   Uint32 distKeys = 0;
   
-  for(Uint32 i = 0; i < tableDesc.NoOfAttributes; i++) {
+  Uint32 i;
+  for(i = 0; i < tableDesc.NoOfAttributes; i++) {
     DictTabInfo::Attribute attrDesc; attrDesc.init();
     s = SimpleProperties::unpack(it, 
 				 &attrDesc, 
@@ -1348,7 +1349,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   if(tableDesc.FragmentDataLen > 0)
   {
-    unsigned i;
     Uint32 replicaCount = tableDesc.FragmentData[0];
     Uint32 fragCount = tableDesc.FragmentData[1];
 
@@ -1377,6 +1377,15 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     impl->m_hashpointerValue = 0;
   }
 
+  if(distKeys == 0)
+  {
+    for(i = 0; i < tableDesc.NoOfAttributes; i++)
+    {
+      if(impl->m_columns[i]->getPrimaryKey())
+	impl->m_columns[i]->m_distributionKey = true;
+    }
+  }
+  
   * ret = impl;
 
   DBUG_RETURN(0);
@@ -1468,7 +1477,6 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
   BaseString internalName = impl.m_internalName;
   const char * originalInternalName = internalName.c_str();
   BaseString externalName = impl.m_externalName;
-  const char * originalExternalName = externalName.c_str();
 
   DBUG_ENTER("NdbDictionaryImpl::alterTable");
   if(!get_local_table_info(originalInternalName, false)){
@@ -1705,11 +1713,12 @@ void
 NdbDictInterface::execCREATE_TABLE_CONF(NdbApiSignal * signal,
 					LinearSectionPtr ptr[3])
 {
+#if 0
   const CreateTableConf* const conf=
     CAST_CONSTPTR(CreateTableConf, signal->getDataPtr());
   Uint32 tableId= conf->tableId;
   Uint32 tableVersion= conf->tableVersion;
-  
+#endif
   m_waiter.signal(NO_WAIT);  
 }
 
