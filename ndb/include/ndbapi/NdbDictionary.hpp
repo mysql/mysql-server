@@ -989,6 +989,13 @@ public:
      */
     Table getTableForAlteration(const char * name);
 
+    /**
+     * Get copy a copy of a table for alteration.
+     * @param table   Table object to alter
+     * @return table if successful. NULL if undefined
+     */
+    Table getTableForAlteration(const Table &);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Invalidate cached table object
