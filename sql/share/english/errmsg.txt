@@ -211,3 +211,5 @@
 "Update locks cannot be acquired during a READ UNCOMMITTED transaction",
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
+"Error in SHOW BINLOG EVENTS: %-.128s",
+

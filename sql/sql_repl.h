@@ -29,6 +29,7 @@ int load_master_data(THD* thd);
 int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi);
 int change_master(THD* thd);
 int show_slave_hosts(THD* thd);
+int show_binlog_events(THD* thd);
 void reset_slave();
 void reset_master();
 void init_slave_list();
