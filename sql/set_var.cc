@@ -380,7 +380,7 @@ sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 sys_var_long_ptr	sys_innodb_sync_spin_loops("innodb_sync_spin_loops",
                                              &srv_n_spin_wait_rounds);
-sys_var_long_ptr  sys_innodb_free_tickets_to_enter("innodb_free_tickets_to_enter",
+sys_var_long_ptr  sys_innodb_concurrency_tickets("innodb_concurrency_tickets",
                                              &srv_n_free_tickets_to_enter);
 sys_var_long_ptr  sys_innodb_thread_sleep_delay("innodb_thread_sleep_delay",
                                                 &srv_thread_sleep_delay);
@@ -660,7 +660,7 @@ sys_var *sys_variables[]=
   &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
   &sys_innodb_sync_spin_loops,
-  &sys_innodb_free_tickets_to_enter,
+  &sys_innodb_concurrency_tickets,
   &sys_innodb_thread_sleep_delay,
   &sys_innodb_thread_concurrency,
 #endif  
@@ -754,6 +754,7 @@ struct show_var_st init_vars[]= {
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
   {"innodb_doublewrite", (char*) &innobase_use_doublewrite, SHOW_MY_BOOL},
   {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
+  {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
@@ -761,7 +762,6 @@ struct show_var_st init_vars[]= {
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
-  {sys_innodb_free_tickets_to_enter.name, (char*) &sys_innodb_free_tickets_to_enter, SHOW_SYS},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
