@@ -110,16 +110,10 @@ BaseString NDBT_ResultRow::c_str() {
   return str;
 }
 
-
-/**
- * TODO This should share the same printer function as in 
- * NdbEventOperationImpl.cpp, using new types of course :)
- */
-
 NdbOut & 
 operator << (NdbOut& ndbout, const NDBT_ResultRow & res) {
   for(int i = 0; i<res.cols; i++)
-    ndbout << res.data[i];
+    ndbout << *(res.data[i]) << "\t";
   return ndbout;
 }
 
