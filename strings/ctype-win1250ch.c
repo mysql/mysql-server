@@ -651,7 +651,8 @@ CHARSET_INFO my_charset_win1250ch =
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
 };
 
 

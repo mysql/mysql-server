@@ -112,8 +112,12 @@ typedef struct charset_info_st
   uint (*hash_caseup)(struct charset_info_st *cs, const byte *key, uint len);
   void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len,
 		    ulong *nr1, ulong *nr2); 
-    
+  
   char    max_sort_char; /* For LIKE optimization */
+  
+  /* Charset dependant snprintf() */
+  int (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
+  
 } CHARSET_INFO;
 
 
@@ -149,6 +153,8 @@ extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, ui
 
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
+
+int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
 
 
 #ifdef USE_MB

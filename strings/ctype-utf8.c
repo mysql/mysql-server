@@ -1983,7 +1983,8 @@ CHARSET_INFO my_charset_utf8 =
     my_strncasecmp_utf8,
     my_hash_caseup_utf8,/* hash_caseup */
     my_hash_sort_utf8,	/* hash_sort   */
-    0
+    0,
+    my_snprintf_8bit
 };
 
 
@@ -2345,6 +2346,94 @@ static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) ,
 }
 
 
+#include <m_string.h>
+#include <stdarg.h>
+#include <assert.h>
+
+static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
+{
+  char *start=dst, *end=dst+n-1;
+  for (; *fmt ; fmt++)
+  {
+    if (fmt[0] != '%')
+    {
+      if (dst == end)			/* End of buffer */
+	break;
+      
+      *dst++='\0'; *dst++= *fmt;	/* Copy ordinary char */
+      continue;
+    }
+    
+    fmt++;
+    
+    /* Skip if max size is used (to be compatible with printf) */
+    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
+      fmt++;
+    
+    if (*fmt == 'l')
+      fmt++;
+    
+    if (*fmt == 's')				/* String parameter */
+    {
+      reg2 char	*par = va_arg(ap, char *);
+      uint plen;
+      uint left_len = (uint)(end-dst);
+      if (!par) par = (char*)"(null)";
+      plen = (uint) strlen(par);
+      if (left_len <= plen*2)
+	plen = left_len/2 - 1;
+      dst=strnmov(dst,par,plen);
+      for ( ; plen ; plen--, dst++, par++)
+      {
+        dst[0]='\0';
+        dst[1]=par[0];
+      }
+      continue;
+    }
+    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
+    {
+      register int iarg;
+      char nbuf[16];
+      char *pbuf=nbuf;
+      
+      if ((uint) (end-dst) < 32)
+	break;
+      iarg = va_arg(ap, int);
+      if (*fmt == 'd')
+	dst=int10_to_str((long) iarg, nbuf, -10);
+      else
+	dst=int10_to_str((long) (uint) iarg,nbuf,10);
+
+      for (; pbuf[0]; pbuf++)
+      {
+        *dst++='\0';
+        *dst++=*pbuf;
+      }
+      continue;
+    }
+    
+    /* We come here on '%%', unknown code or too long parameter */
+    if (dst == end)
+      break;
+    *dst++='\0';
+    *dst++='%';				/* % used as % or unknown code */
+  }
+  
+  DBUG_ASSERT(dst <= end);
+  *dst='\0';				/* End of errmessage */
+  return (uint) (dst - start);
+}
+
+static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
+			    ,char* to, uint n, const char* fmt, ...)
+{
+  va_list args;
+  va_start(args,fmt);
+  return my_vsnprintf_ucs2(to, n, fmt, args);
+}
+
+
+
 CHARSET_INFO my_charset_ucs2 =
 {
     35,			/* number       */
@@ -2376,7 +2465,8 @@ CHARSET_INFO my_charset_ucs2 =
     my_strncasecmp_ucs2,
     my_hash_caseup_ucs2,/* hash_caseup */
     my_hash_sort_ucs2,	/* hash_sort   */
-    0
+    0,
+    my_snprintf_ucs2
 };
 
 
