@@ -37,6 +37,8 @@
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
+#define FIRST_NON_YN_FIELD 26
+
 class acl_entry :public hash_filo_element
 {
 public:
