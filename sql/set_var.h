@@ -141,7 +141,7 @@ public:
 	      sys_update_func update_func_arg,
 	      sys_set_default_func set_default_func_arg,
               char *value_arg)
-    :sys_var(name_arg), check_func(check_func_arg), value(value_arg),
+    :sys_var(name_arg), value(value_arg), check_func(check_func_arg),
     update_func(update_func_arg),set_default_func(set_default_func_arg)
   {}
   bool check(THD *thd, set_var *var);

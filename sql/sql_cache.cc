@@ -1259,12 +1259,7 @@ void Query_cache::invalidate(char *db)
 	do
 	{
 	  next= curr->next;
-	  /*
-	    table_alias_charset used here because it depends of
-	    lower_case_table_names variable
-	  */
-	  if (my_strcasecmp(table_alias_charset, db, 
-			    (char*)(curr->table()->db())) == 0)
+	  if (strcmp(db, (char*)(curr->table()->db())) == 0)
 	    invalidate_table(curr);
 	  /*
 	    invalidate_table can freed block on which point 'next' (if
