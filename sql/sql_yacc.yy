@@ -2504,7 +2504,7 @@ select_derived:
 	  mysql_init_select(lex);
 	  lex->current_select->linkage= DERIVED_TABLE_TYPE;
 	}
-        select_options select_item_list opt_select_from
+        select_options select_item_list opt_select_from union_opt
         ;
 
 opt_outer:

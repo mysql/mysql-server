@@ -125,6 +125,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *sl;
 
+  if (lex_select_save->linkage != DERIVED_TABLE_TYPE)
+    thd->lex.current_select=first_select();
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
   {
