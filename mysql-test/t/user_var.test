@@ -12,4 +12,8 @@ create table t2 (i int not null, unique (i));
 insert into t2 select distinct i from t1;
 select * from t2; 
 select distinct t2.i,@vv1:=if(sv1.i,1,0),@vv2:=if(sv2.i,1,0),@vv3:=if(sv3.i,1,0), @vv1+@vv2+@vv3 from t2 left join t1 as sv1 on sv1.i=t2.i and sv1.v=1 left join t1 as sv2 on sv2.i=t2.i and sv2.v=2 left join t1 as sv3 on sv3.i=t2.i and sv3.v=3;
+explain select * from t1 where i=@vv1;
+explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
+explain select @vv1:=i from t1 where i=@vv1;
+explain select * from t1 where i=@vv1;
 drop table t1,t2;
