@@ -205,6 +205,8 @@ typedef struct st_table_list
   Item		**field_translation;	/* array of VIEW fields */
   /* ancestor of this table (VIEW merge algorithm) */
   st_table_list	*ancestor;
+  /* most upper view this table belongs to */
+  st_table_list	*belong_to_view;
   Item          *where;                 /* VIEW WHERE clause condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
   LEX_STRING	md5;			/* md5 of query tesxt */

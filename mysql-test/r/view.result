@@ -965,3 +965,13 @@ Field	Type	Null	Key	Default	Extra
 col1	char(2)	YES		NULL	
 drop view v1;
 drop table `t1a``b`;
+create table t1 (col1 char(5),col2 char(5));
+create view v1 as select * from t1;
+drop table t1;
+create table t1 (col1 char(5),newcol2 char(5));
+insert into v1 values('a','aa');
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
+drop table t1;
+select * from v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
+drop view v1;

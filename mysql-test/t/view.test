@@ -880,3 +880,17 @@ select * from v1;
 describe v1;
 drop view v1;
 drop table `t1a``b`;
+
+#
+# Changing of underlaying table
+#
+create table t1 (col1 char(5),col2 char(5));
+create view v1 as select * from t1;
+drop table t1;
+create table t1 (col1 char(5),newcol2 char(5));
+-- error 1354
+insert into v1 values('a','aa');
+drop table t1;
+-- error 1354
+select * from v1;
+drop view v1;
