@@ -820,8 +820,6 @@ insert into t3 values (3,3), (2,2), (1,1);
 select a,(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 and t1.a <= t3.b group by t1.a order by sum limit 1) from t3;
 drop table t1,t2,t3;
 
-drop table t1;
-
 #
 # aggregate functions in HAVING test
 #
