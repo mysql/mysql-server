@@ -244,9 +244,9 @@ void Query_log_event::pack_info(String* packet)
   tmp.length(0);
   if (db && db_len)
   {
-   tmp.append("use ");
+   tmp.append("use `",5);
    tmp.append(db, db_len);
-   tmp.append("; ", 2);
+   tmp.append("`; ", 3);
   }
 
   if (query && q_len)

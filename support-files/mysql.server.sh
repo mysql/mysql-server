@@ -57,16 +57,6 @@ fi
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
 export PATH
 
-if test -z "$pid_file"
-then
-  pid_file=$datadir/`@HOSTNAME@`.pid
-else
-  case "$pid_file" in
-    /* ) ;;
-    * )  pid_file="$datadir/$pid_file" ;;
-  esac
-fi
-
 mode=$1    # start or stop
 
 parse_arguments() {
@@ -116,6 +106,19 @@ else
 
   # Hope it's in the PATH ... but I doubt it
   test -z "$print_defaults" && print_defaults="my_print_defaults"
+fi
+
+#
+# Set pid file if not given
+#
+if test -z "$pid_file"
+then
+  pid_file=$datadir/`@HOSTNAME@`.pid
+else
+  case "$pid_file" in
+    /* ) ;;
+    * )  pid_file="$datadir/$pid_file" ;;
+  esac
 fi
 
 #
