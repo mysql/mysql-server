@@ -23,7 +23,6 @@
 #include "slave.h"
 #include "table_filter.h"
 #include <my_dir.h>
-extern Table_filter *rpl_filter;
 #endif /* MYSQL_CLIENT */
 
 #define log_cs	&my_charset_latin1

@@ -27,10 +27,6 @@
 
 #include "mysql_priv.h"
 #include "hash_filo.h"
-#ifdef HAVE_REPLICATION
-#include "table_filter.h" //for tables_ok()
-extern Table_filter *rpl_filter;
-#endif
 #include <m_ctype.h>
 #include <stdarg.h>
 #include "sp_head.h"
