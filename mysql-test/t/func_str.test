@@ -132,3 +132,26 @@ CREATE TABLE t1 (id int(11) NOT NULL auto_increment, tmp text NOT NULL, KEY id (
 INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 DROP TABLE t1;
+
+#
+# Test collation and coercibility
+#
+select collation(lcase(_latin2'a')), coercibility(lcase(_latin2'a'));
+select collation(ucase(_latin2'a')), coercibility(ucase(_latin2'a'));
+select collation(left(_latin2'a',1)), coercibility(left(_latin2'a',1));
+select collation(right(_latin2'a',1)), coercibility(right(_latin2'a',1));
+select collation(substring(_latin2'a',1,1)), coercibility(substring(_latin2'a',1,1));
+select collation(concat(_latin2'a',_latin2'b')), coercibility(concat(_latin2'a',_latin2'b'));
+select collation(concat_ws(_latin2'a',_latin2'b')), coercibility(concat_ws(_latin2'a',_latin2'b'));
+create table t1 
+select
+  left(_latin2'a',1),
+  right(_latin2'a',1), 
+  lcase(_latin2'a'), 
+  ucase(_latin2'a'),
+  substring(_latin2'a',1,1),
+  concat(_latin2'a',_latin2'b'),
+  concat_ws(_latin2'a',_latin2'b');
+
+show create table t1;
+drop table t1;
