@@ -1848,7 +1848,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
-  tmp_error = ha_recovery_logging(thd,TRUE);
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
