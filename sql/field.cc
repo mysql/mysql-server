@@ -289,6 +289,17 @@ static Field::field_cast_enum *field_cast_array[]=
 };
 
 
+/*
+  Check if field of given type can store a value of this field.
+
+  SYNOPSIS
+    type   type for test
+
+  RETURN
+    1 can
+    0 can not
+*/
+
 bool Field::field_cast_compatible(Field::field_cast_enum type)
 {
   DBUG_ASSERT(type != FIELD_CAST_STOP);
