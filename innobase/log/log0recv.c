@@ -34,6 +34,11 @@ Created 9/20/1997 Heikki Tuuri
 #include "dict0boot.h"
 #include "fil0fil.h"
 
+/* This is set to FALSE if the backup was originally taken with the
+ibbackup --include regexp option: then we do not want to create tables in
+directories which were not included */
+ibool	recv_replay_file_ops	= TRUE;
+
 /* Log records are stored in the hash table in chunks at most of this size;
 this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
 #define RECV_DATA_BLOCK_SIZE	(MEM_MAX_ALLOC_IN_BUF - sizeof(recv_data_t))
@@ -1974,18 +1979,21 @@ loop:
 					     || type == MLOG_FILE_RENAME
 					     || type == MLOG_FILE_DELETE)) {
 #ifdef UNIV_HOTBACKUP
-			/* In ibbackup --apply-log, replay an .ibd file
-			operation, if possible; note that
-			fil_path_to_mysql_datadir is set in ibbackup to
-			point to the datadir we should use there */
+			if (recv_replay_file_ops) {
+
+				/* In ibbackup --apply-log, replay an .ibd file
+				operation, if possible; note that
+				fil_path_to_mysql_datadir is set in ibbackup to
+				point to the datadir we should use there */
 			
-			if (NULL == fil_op_log_parse_or_replay(body, end_ptr,
-							type, TRUE, space)) {
-				fprintf(stderr,
+				if (NULL == fil_op_log_parse_or_replay(body,
+						end_ptr, type, TRUE, space)) {
+					fprintf(stderr,
 "InnoDB: Error: file op log record of type %lu space %lu not complete in\n"
 "InnoDB: the replay phase. Path %s\n", (ulint)type, space, (char*)(body + 2));
 
-				ut_a(0);
+					ut_a(0);
+				}
 			}
 #endif
 			/* In normal mysqld crash recovery we do not try to

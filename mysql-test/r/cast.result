@@ -101,6 +101,21 @@ t1	CREATE TABLE `t1` (
   `c5` char(2) character set utf8 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a binary(10), b char(10) character set koi8r);
+insert into t1 values (_binary'тест',_binary'тест');
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+a	b	cast(a as char character set cp1251)	cast(b as binary)
+тест	тест	тест	тест
+set names koi8r;
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+a	b	cast(a as char character set cp1251)	cast(b as binary)
+тест	тест	ФЕУФ	тест
+set names cp1251;
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+a	b	cast(a as char character set cp1251)	cast(b as binary)
+тест	РЕЯР	тест	тест
+drop table t1;
+set names binary;
 select cast("2001-1-1" as date) = "2001-01-01";
 cast("2001-1-1" as date) = "2001-01-01"
 1

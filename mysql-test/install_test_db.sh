@@ -66,7 +66,7 @@ if [ x$BINARY_DIST = x1 ] ; then
 basedir=..
 else
 basedir=.
-EXTRA_ARG="--language=../sql/share/english/"
+EXTRA_ARG="--language=../sql/share/english/ --character-sets-dir=../sql/share/charsets/"
 fi
 
 mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
