@@ -1554,7 +1554,7 @@ void init_master_info_with_options(MASTER_INFO* mi)
   if (master_user)
     strmake(mi->user, master_user, sizeof(mi->user) - 1);
   if (master_password)
-    strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
+    strmake(mi->password, master_password, MAX_PASSWORD_LENGTH);
   mi->port = master_port;
   mi->connect_retry = master_connect_retry;
   
