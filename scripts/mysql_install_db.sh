@@ -186,7 +186,7 @@ fi
 
 echo "Installing all prepared tables"
 if (
-   mysql_create_system_tables $create_option $mdata $hostname $windows 
+   ./mysql_create_system_tables $create_option $mdata $hostname $windows 
    if test -n "$fill_help_tables"
    then
      cat $fill_help_tables
