@@ -666,6 +666,11 @@ extern "C" {
    */
   struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
 							   unsigned version);
+
+  int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
+			   unsigned version,
+			   unsigned *pnodeid,
+			   int nodetype);
   /**
    * Config iterator
    */

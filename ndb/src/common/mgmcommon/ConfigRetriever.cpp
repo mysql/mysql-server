@@ -114,7 +114,8 @@ ConfigRetriever::getConfig(int verId, int nodeType) {
       struct ndb_mgm_configuration * p = 0;
       switch(m->type){
       case MgmId_TCP:
-	p = getConfig(m->data.tcp.remoteHost, m->data.tcp.port, verId);
+	p = getConfig(m->data.tcp.remoteHost, m->data.tcp.port,
+		      verId, nodeType);
 	break;
       case MgmId_File:
 	p = getConfig(m->data.file.filename, verId);
@@ -155,7 +156,8 @@ ConfigRetriever::getConfig(int verId, int nodeType) {
 ndb_mgm_configuration *
 ConfigRetriever::getConfig(const char * mgmhost, 
 			   short port,
-			   int versionId){
+			   int versionId,
+			   int nodetype){
   
   NdbMgmHandle h;
   h = ndb_mgm_create_handle();
@@ -175,6 +177,21 @@ ConfigRetriever::getConfig(const char * mgmhost,
   ndb_mgm_configuration * conf = ndb_mgm_get_configuration(h, versionId);
   if(conf == 0){
     setError(CR_ERROR, ndb_mgm_get_latest_error_desc(h));
+    ndb_mgm_destroy_handle(&h);
+    return 0;
+  }
+
+  {
+    unsigned nodeid= getOwnNodeId();
+
+    int res= ndb_mgm_alloc_nodeid(h, versionId, &nodeid, nodetype);
+    if(res != 0) {
+      setError(CR_ERROR, ndb_mgm_get_latest_error_desc(h));
+      ndb_mgm_destroy_handle(&h);
+      return 0;
+    }
+
+    _ownNodeId= nodeid;
   }
 
   ndb_mgm_disconnect(h);
@@ -329,6 +346,9 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
   }
 
   do {
+    if(strlen(hostname) == 0)
+      break;
+
     if(strcasecmp(hostname, localhost) == 0)
       break;
 

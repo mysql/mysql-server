@@ -150,10 +150,12 @@ public:
   enum LogMode {In, Out, InOut, Off};
 
   /* Constructor */
+
   MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
 	   const BaseString &config_filename,      /* Where to save config */
 	   const BaseString &ndb_config_filename,  /* Ndb.cfg filename */
 	   Config * config); 
+  NodeId getOwnNodeId() const {return _ownNodeId;};
 
   /**
    *   Read (initial) config file, create TransporterFacade, 
@@ -448,6 +450,7 @@ public:
    *   @return false if none found
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
+  bool getNextFreeNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   
   /**
    *
@@ -492,6 +495,11 @@ public:
    * @return statistic port number.
    */
   int getStatPort() const;
+  /**
+   * Returns the port number.
+   * @return port number.
+   */
+  int getPort() const;
 
 
   //**************************************************************************

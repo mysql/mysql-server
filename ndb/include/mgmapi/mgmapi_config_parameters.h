@@ -76,6 +76,8 @@
 
 #define CFG_DB_DISCLESS               148
 
+#define CFG_DB_SERVER_PORT            149
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 
