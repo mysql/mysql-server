@@ -440,3 +440,7 @@ Item *create_func_is_free_lock(Item* a)
   return new Item_func_is_free_lock(a);
 }
 
+Item *create_func_quote(Item* a)
+{
+  return new Item_func_quote(a);
+}
