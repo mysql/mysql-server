@@ -433,6 +433,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
+    set_charset(default_charset());
     max_length=args[0]->max_length+(args[0]->max_length-args[0]->decimals)/3;
   }
   const char *func_name() const { return "format"; }
@@ -444,7 +445,11 @@ class Item_func_char :public Item_str_func
 public:
   Item_func_char(List<Item> &list) :Item_str_func(list) {}
   String *val_str(String *);
-  void fix_length_and_dec() { maybe_null=0; max_length=arg_count; }
+  void fix_length_and_dec() 
+  { 
+    set_charset(default_charset());
+    maybe_null=0; max_length=arg_count;
+  }
   const char *func_name() const { return "char"; }
 };
 
@@ -490,7 +495,11 @@ public:
   Item_func_conv(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
   const char *func_name() const { return "conv"; }
   String *val_str(String *);
-  void fix_length_and_dec() { decimals=0; max_length=64; }
+  void fix_length_and_dec() 
+  { 
+    set_charset(default_charset());
+    decimals=0; max_length=64; 
+  }
 };
 
 
@@ -501,7 +510,11 @@ public:
   Item_func_hex(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "hex"; }
   String *val_str(String *);
-  void fix_length_and_dec() { decimals=0; max_length=args[0]->max_length*2; }
+  void fix_length_and_dec() 
+  { 
+    set_charset(default_charset());
+    decimals=0; max_length=args[0]->max_length*2;
+  }
 };
 
 
