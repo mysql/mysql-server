@@ -32,7 +32,7 @@ noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc
-libmysqlsources =	errmsg.c get_password.c
+libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c
 
 noinst_HEADERS =	embedded_priv.h
 
@@ -57,8 +57,6 @@ sqlsources = derror.cc field.cc field_conv.cc filesort.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc
 
-EXTRA_DIST = lib_vio.c
-
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=
 
@@ -74,7 +72,8 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
-		$(top_builddir)/regex/libregex.a
+		$(top_builddir)/regex/libregex.a \
+		$(top_builddir)/vio/libvio.a
 
 #
 # To make it easy for the end user to use the embedded library we 
@@ -115,11 +114,14 @@ link_sources:
 	  for f in $(libmysqlsources); do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../libmysql/$$f $(srcdir)/$$f; \
-	  done
+	  done; \
+	  @LN_CP_F@ $(srcdir)/../libmysql/client_settings.h $(srcdir)/client_settings.h;
+
 
 clean-local:
 	rm -f `echo $(sqlsources) $(libmysqlsources) | sed "s;\.lo;.c;g"` \
-	       $(top_srcdir)/linked_libmysqld_sources
+	       $(top_srcdir)/linked_libmysqld_sources; \
+	rm -f client_settings.h
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

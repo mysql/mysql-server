@@ -201,6 +201,7 @@ enum mysql_rpl_type
   MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE, MYSQL_RPL_ADMIN
 };
 
+struct st_mysql_methods;
 
 #if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
 
@@ -247,11 +248,13 @@ typedef struct st_mysql
   struct st_mysql* last_used_con;
 
   LIST  *stmts;                     /* list of all statements */
+  const struct st_mysql_methods *methods;
 #if !defined(CHECK_EMBEDDED_DIFFERENCES)
   struct st_mysql_res *result;
   void *thd;
   unsigned int last_errno;
   char *last_error;
+  char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
 #endif
 } MYSQL;
 
@@ -378,12 +381,10 @@ MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
 					   unsigned int port,
 					   const char *unix_socket,
 					   unsigned long clientflag);
-void		STDCALL mysql_close(MYSQL *sock);
 int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);
 int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
 					 unsigned long length);
-my_bool		STDCALL mysql_read_query_result(MYSQL *mysql);
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned long length);
 /* perform query on master */
@@ -444,8 +445,6 @@ MYSQL_RES *	STDCALL mysql_list_tables(MYSQL *mysql,const char *wild);
 MYSQL_RES *	STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
 					 const char *wild);
 MYSQL_RES *	STDCALL mysql_list_processes(MYSQL *mysql);
-MYSQL_RES *	STDCALL mysql_store_result(MYSQL *mysql);
-MYSQL_RES *	STDCALL mysql_use_result(MYSQL *mysql);
 int		STDCALL mysql_options(MYSQL *mysql,enum mysql_option option,
 				      const char *arg);
 void		STDCALL mysql_free_result(MYSQL_RES *result);
@@ -565,6 +564,25 @@ typedef struct st_mysql_stmt
   my_bool        result_buffered;      /* Results buffered */
 } MYSQL_STMT;
 
+
+#define mysql_close(sock) (*(sock)->methods->close)(sock)
+#define mysql_read_query_result(mysql) (*(mysql)->methods->read_query_result)(mysql)
+#define mysql_store_result(mysql) (*(mysql)->methods->store_result)(mysql)
+#define mysql_use_result(mysql) (*(mysql)->methods->use_result)(mysql)
+
+typedef struct st_mysql_methods
+{
+  void    STDCALL (*close)(MYSQL *sock);
+  my_bool STDCALL (*read_query_result)(MYSQL *mysql);
+  my_bool STDCALL (*advanced_command)(MYSQL *mysql, 
+				      enum enum_server_command command,
+				      const char *header, 
+				      ulong header_length,
+				      const char *arg, 
+				      ulong arg_length, my_bool skip_check);
+  MYSQL_RES *	STDCALL (*store_result)(MYSQL *mysql);
+  MYSQL_RES *	STDCALL (*use_result)(MYSQL *mysql);
+} MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
 				   unsigned long length);

@@ -319,7 +319,7 @@ static uint out_length;
 static int eval_result = 0;
 
 /* Disable functions that only exist in MySQL 4.0 */
-#if MYSQL_VERSION_ID < 40000 || defined(EMBEDDED_LIBRARY)
+#if MYSQL_VERSION_ID < 40000
 void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }

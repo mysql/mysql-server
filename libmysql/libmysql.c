@@ -58,13 +58,20 @@
 #endif
 
 #include <sql_common.h>
+#include "client_settings.h"
+
+#ifdef EMBEDDED_LIBRARY
+#ifdef net_flush
+#undef net_flush
+#endif
+
+my_bool	net_flush(NET *net);
+
+#endif
+
 
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
-ulong 		net_buffer_length=8192;
-ulong		max_allowed_packet= 1024L*1024L*1024L;
-ulong		net_read_timeout=  NET_READ_TIMEOUT;
-ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
                              | CLIENT_LOCAL_FILES   | CLIENT_TRANSACTIONS \
@@ -101,8 +108,9 @@ sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
-static my_bool org_my_init_done=0;
+my_bool org_my_init_done=0;
 
+#ifndef EMBEDDED_LIBRARY
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
@@ -119,6 +127,7 @@ void STDCALL mysql_server_end()
   else
     mysql_thread_end();
 }
+#endif /*EMBEDDED_LIBRARY*/
 
 my_bool STDCALL mysql_thread_init()
 {
@@ -140,17 +149,6 @@ void STDCALL mysql_thread_end()
   Let the user specify that we don't want SIGPIPE;  This doesn't however work
   with threaded applications as we can have multiple read in progress.
 */
-
-#if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
-#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0
-#define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE,pipe_sig_handler)
-#define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
-#else
-#define init_sigpipe_variables
-#define set_sigpipe(mysql)
-#define reset_sigpipe(mysql)
-#endif
-
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port,
 			 const char* user,
@@ -846,8 +844,7 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
   have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
 
-MYSQL_RES * STDCALL
-mysql_use_result(MYSQL *mysql)
+MYSQL_RES * STDCALL CLI_MYSQL_USE_RESULT(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_use_result");
@@ -1252,19 +1249,6 @@ uint STDCALL mysql_thread_safe(void)
 /****************************************************************************
   Some support functions
 ****************************************************************************/
-
-/*
-  Functions called my my_net_init() to set some application specific variables
-*/
-
-void my_net_local_init(NET *net)
-{
-  net->max_packet=   (uint) net_buffer_length;
-  net->read_timeout= (uint) net_read_timeout;
-  net->write_timeout=(uint) net_write_timeout;
-  net->retry_count=  1;
-  net->max_packet_size= max(net_buffer_length, max_allowed_packet);
-}
 
 /*
   Add escape characters to a string (blob?) to make it suitable for a insert
@@ -1999,8 +1983,9 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if (advanced_command(mysql, COM_EXECUTE, buff, MYSQL_STMT_HEADER, packet,
-		       length, 1) ||
+  if ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff, 
+					  MYSQL_STMT_HEADER, packet, 
+					  length, 1) ||
       mysql_read_query_result(mysql))
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
@@ -2292,8 +2277,9 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
       Note that we don't get any ok packet from the server in this case
       This is intentional to save bandwidth.
     */
-    if (advanced_command(mysql, COM_LONG_DATA, extra_data,
-			 MYSQL_LONG_DATA_HEADER, data, length, 1))
+    if ((*mysql->methods->advanced_command)(mysql, COM_LONG_DATA, extra_data,
+					    MYSQL_LONG_DATA_HEADER, data, 
+					    length, 1))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error,
 		      mysql->net.last_errno, mysql->net.sqlstate);

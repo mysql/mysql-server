@@ -47,9 +47,10 @@ static bool check_user(THD *thd, enum_server_command command,
 char * get_mysql_home(){ return mysql_home;};
 char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
-my_bool simple_command(MYSQL *mysql,enum enum_server_command command,
-		       const char *arg,
-		       ulong length, my_bool skipp_check)
+my_bool
+emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
+		     const char *header, ulong header_length,
+		     const char *arg, ulong arg_length, my_bool skip_check)
 {
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
@@ -67,9 +68,9 @@ my_bool simple_command(MYSQL *mysql,enum enum_server_command command,
   mysql->affected_rows= ~(my_ulonglong) 0;
 
   thd->store_globals();				// Fix if more than one connect
-  result= dispatch_command(command, thd, (char *) arg, length + 1);
+  result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
 
-  if (!skipp_check)
+  if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
   mysql->last_error= thd->net.last_error;
@@ -144,7 +145,6 @@ char **copy_arguments(int argc, char **argv)
 extern "C"
 {
 
-ulong		max_allowed_packet, net_buffer_length;
 char **		copy_arguments_ptr= 0; 
 
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
@@ -281,21 +281,6 @@ void STDCALL mysql_server_end()
     my_end(0);
 }
 
-my_bool STDCALL mysql_thread_init()
-{
-#ifdef THREAD
-  return my_thread_init();
-#else
-  return 0;
-#endif
-}
-
-void STDCALL mysql_thread_end()
-{
-#ifdef THREAD
-  my_thread_end();
-#endif
-}
 } /* extern "C" */
 
 C_MODE_START
@@ -452,11 +437,6 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 void
 send_eof(THD *thd, bool no_flush)
 {
-}
-
-uint STDCALL mysql_warning_count(MYSQL *mysql)
-{
-  return ((THD *)mysql->thd)->total_warn_count;
 }
 
 void Protocol_simple::prepare_for_resend()

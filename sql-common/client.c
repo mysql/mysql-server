@@ -40,6 +40,32 @@
 #if defined(MYSQL_SERVER) || defined(HAVE_EXTERNAL_CLIENT)
 
 #include "mysql.h"
+
+#ifdef EMBEDDED_LIBRARY
+
+#ifdef MYSQL_SERVER
+#undef MYSQL_SERVER
+#endif
+
+#ifndef MYSQL_CLIENT
+#define MYSQL_CLIENT
+#endif
+
+#define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
+
+#ifdef net_flush
+#undef net_flush
+#endif
+my_bool	net_flush(NET *net);
+
+#else  /*EMBEDDED_LIBRARY*/
+#define CLI_MYSQL_REAL_CONNECT mysql_real_connect
+#endif /*EMBEDDED_LIBRARY*/
+
+#ifdef MYSQL_CLIENT
+static my_bool	mysql_client_init=0;
+#endif
+
 #if !defined(MYSQL_SERVER) && defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
 #include <winsock.h>
 #include <odbcinst.h>
@@ -563,8 +589,8 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-my_bool
-advanced_command(MYSQL *mysql, enum enum_server_command command,
+static my_bool
+cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		 const char *header, ulong header_length,
 		 const char *arg, ulong arg_length, my_bool skip_check)
 {
@@ -632,7 +658,9 @@ my_bool
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 	       ulong length, my_bool skip_check)
 {
-  return advanced_command(mysql, command, NullS, 0, arg, length, skip_check);
+  return 
+    (*mysql->methods->advanced_command)(mysql, command, 
+				       NullS, 0, arg, length, skip_check);
 }
 
 void free_old_query(MYSQL *mysql)
@@ -747,8 +775,8 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   return 0;
 }
 
-static void mysql_read_default_options(struct st_mysql_options *options,
-				       const char *filename,const char *group)
+void mysql_read_default_options(struct st_mysql_options *options,
+				const char *filename,const char *group)
 {
   int argc;
   char *argv_buff[1],**argv;
@@ -1428,10 +1456,23 @@ error:
   before calling mysql_real_connect !
 */
 
-MYSQL * STDCALL
-mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
-		   const char *passwd, const char *db,
-		   uint port, const char *unix_socket,ulong client_flag)
+static void STDCALL cli_mysql_close(MYSQL *mysql);
+static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
+static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql);
+
+static MYSQL_METHODS client_methods=
+{
+  cli_mysql_close,
+  cli_mysql_read_query_result,
+  cli_advanced_command,
+  cli_mysql_store_result,
+  CLI_MYSQL_USE_RESULT
+};
+
+MYSQL * STDCALL 
+CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
+		       const char *passwd, const char *db,
+		       uint port, const char *unix_socket,ulong client_flag)
 {
 #ifdef MYSQL_CLIENT
   char          *charset_name;
@@ -1466,6 +1507,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      user ? user : "(Null)"));
 
   /* Don't give sigpipe errors if the client doesn't want them */
+  mysql->methods= &client_methods;
   set_sigpipe(mysql);
   net->vio = 0;				/* If something goes wrong */
   mysql->client_flag=0;			/* For handshake */
@@ -2176,8 +2218,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   If handle is alloced by mysql connect free it.
 *************************************************************************/
 
-void STDCALL
-mysql_close(MYSQL *mysql)
+static void STDCALL cli_mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */
@@ -2259,7 +2300,7 @@ mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
+static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
@@ -2378,8 +2419,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   mysql_data_seek may be used.
 **************************************************************************/
 
-MYSQL_RES * STDCALL
-mysql_store_result(MYSQL *mysql)
+static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");

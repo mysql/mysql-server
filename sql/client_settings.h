@@ -32,3 +32,5 @@ extern ulong slave_net_timeout;
 #ifdef HAVE_SMEM
 #undef HAVE_SMEM
 #endif
+
+#define CLI_MYSQL_USE_RESULT NULL
