@@ -407,7 +407,6 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
                    // signals to other management servers.
   _ownReference(0),
   m_local_config(local_config),
-  m_allocated_resources(*this),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
   m_statisticsListner(this)
