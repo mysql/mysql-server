@@ -70,6 +70,12 @@ select length(quote(concat(char(0),"test")));
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 
 #
+# Bug #6564: QUOTE(NULL
+#
+
+select concat('a', quote(NULL));
+
+#
 # Wrong usage of functions
 #
 
