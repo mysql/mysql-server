@@ -2147,7 +2147,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int shift = pattern_len;
   int j     = 0;
   int u     = 0;
-  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;	// QQ Needs to be fixed
 
   const int plm1=  pattern_len - 1;
   const int tlmpl= text_len - pattern_len;
