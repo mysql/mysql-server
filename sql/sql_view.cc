@@ -83,6 +83,8 @@ int mysql_create_view(THD *thd,
   /*
     Privilege check for view creation:
     - user have CREATE VIEW privilege on view table
+    - user have DELETE privilege in case of ALTER VIEW or CREATE OR REPLACE
+    VIEW
     - have some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
     underlying tables used on top of SELECT list (because it can be
     (theoretically) updated, so it is enough to have UPDATE privilege on
@@ -92,9 +94,13 @@ int mysql_create_view(THD *thd,
     checked that we have not more privileges on correspondent column of view
     table (i.e. user will not get some privileges by view creation)
   */
-  if (check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                   0, 0) ||
-      grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0))
+  if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
+                    0, 0) ||
+       grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
+      (mode != VIEW_CREATE_NEW &&
+       (check_access(thd, DELETE_ACL, view->db, &view->grant.privilege,
+                     0, 0) ||
+        grant_option && check_grant(thd, DELETE_ACL, view, 0, 1, 0))))
     DBUG_RETURN(1);
   for (sl= select_lex; sl; sl= sl->next_select())
   {
@@ -174,12 +180,26 @@ int mysql_create_view(THD *thd,
   if ((res= open_and_lock_tables(thd, tables)))
     DBUG_RETURN(res);
 
-  /* check that tables are not temporary */
+  /*
+    check that tables are not temporary  and this VIEW do not used in query
+    (it is possible with ALTERing VIEW)
+  */
   for (tbl= tables; tbl; tbl= tbl->next_global)
   {
+    /* is this table temporary and is not view? */
     if (tbl->table->tmp_table != NO_TMP_TABLE && !tbl->view)
     {
       my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
+      res= -1;
+      goto err;
+    }
+
+    /* is this table view and the same view which we creates now? */
+    if (tbl->view &&
+        strcmp(tbl->view_db.str, view->db) == 0 &&
+        strcmp(tbl->view_name.str, view->real_name) == 0)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
       res= -1;
       goto err;
     }
@@ -715,6 +735,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
+      table->effective_with_check= table->with_check;
 
       table->ancestor= view_tables;
       /*
@@ -745,7 +766,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
     lex->select_lex.linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
-    table->with_check= VIEW_CHECK_NONE;
+    table->effective_with_check= VIEW_CHECK_NONE;
 
     /* SELECT tree link */
     lex->unit.include_down(table->select_lex);

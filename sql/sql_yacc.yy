@@ -425,6 +425,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	UDF_SONAME_SYM
 %token	FUNCTION_SYM
 %token	UNCOMMITTED_SYM
+%token	UNDEFINED_SYM
 %token	UNDERSCORE_CHARSET
 %token  UNDO_SYM
 %token	UNICODE_SYM
@@ -3210,7 +3211,7 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-	| ALTER VIEW_SYM table_ident
+	| ALTER algorithm VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
@@ -3218,9 +3219,9 @@ alter:
 	    lex->create_view_mode= VIEW_ALTER;
 	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
 	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $3, NULL, 0);
+	    lex->select_lex.add_table_to_list(thd, $4, NULL, 0);
 	  }
-	  opt_view_list AS select_init
+	  opt_view_list AS select_init check_option
 	  {}
 	;
 
@@ -6973,6 +6974,7 @@ keyword:
 	| TYPES_SYM		{}
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
+	| UNDEFINED_SYM		{}
 	| UNICODE_SYM		{}
 	| UNTIL_SYM		{}
 	| USER			{}
@@ -7907,6 +7909,8 @@ or_replace:
 
 algorithm:
 	/* empty */
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
+	| ALGORITHM_SYM EQ UNDEFINED_SYM
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
 	| ALGORITHM_SYM EQ MERGE_SYM
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
