@@ -1631,7 +1631,7 @@ void Item_func_group_concat::reset_field()
 bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  uint i;			/* for loop variable */ 
+  int i;			/* for loop variable */ 
 
   if (!thd->allow_sum_func)
   {
@@ -1641,11 +1641,11 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   
   thd->allow_sum_func= 0;
   maybe_null= 0;
-  for (i= 0 ; i < arg_count ; i++)
+  for (uint ui= 0 ; ui < arg_count ; ui++)
   {
-    if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
+    if (args[ui]->fix_fields(thd, tables, args + ui) || args[ui]->check_cols(1))
       return 1;
-    maybe_null |= args[i]->maybe_null;
+    maybe_null |= args[ui]->maybe_null;
   }
   for (i= 0 ; i < arg_count_field ; i++)
   {
