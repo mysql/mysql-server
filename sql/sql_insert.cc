@@ -350,9 +350,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       before binlog writing and ha_autocommit_...
     */
     if (info.copied || info.deleted)
-    {
       query_cache_invalidate3(thd, table_list, 1);
-    }
 
     transactional_table= table->file->has_transactions();
 
@@ -1424,9 +1422,7 @@ void select_insert::send_error(uint errcode,const char *err)
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
   if (info.copied || info.deleted)
-  {
     query_cache_invalidate3(thd, table, 1);
-  }
   ha_rollback_stmt(thd);
 }
 
@@ -1438,13 +1434,13 @@ bool select_insert::send_eof()
     error=table->file->activate_all_index(thd);
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  /* We must invalidate the table in the query cache before binlog writing
-  and ha_autocommit_... */
+  /*
+    We must invalidate the table in the query cache before binlog writing
+    and ha_autocommit_...
+  */
 
   if (info.copied || info.deleted)
-  {
     query_cache_invalidate3(thd, table, 1);
-  }
 
   /* Write to binlog before commiting transaction */
   if (mysql_bin_log.is_open())
