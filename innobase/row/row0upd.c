@@ -287,7 +287,9 @@ upd_node_create(
 	node->select = NULL;
 	
 	node->heap = mem_heap_create(128);
-	node->magic_n = UPD_NODE_MAGIC_N;	
+#ifdef UNIV_DEBUG
+	node->magic_n = UPD_NODE_MAGIC_N;
+#endif /* UNIV_DEBUG */
 
 	node->cmpl_info = 0;
 	
@@ -1804,6 +1806,7 @@ row_upd_step(
 	trx_start_if_not_started(trx);
 
 	node = thr->run_node;
+	ut_ad(node->magic_n == UPD_NODE_MAGIC_N);
 	
 	sel_node = node->select;
 
@@ -1923,6 +1926,7 @@ row_upd_in_place_in_select(
 
 	node = que_node_get_parent(sel_node);
 
+	ut_ad(node->magic_n == UPD_NODE_MAGIC_N);
 	ut_ad(que_node_get_type(node) == QUE_NODE_UPDATE);
 
 	pcur = node->pcur;

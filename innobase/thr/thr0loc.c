@@ -46,10 +46,11 @@ struct thr_local_struct{
 	ibool		in_ibuf;/* TRUE if the the thread is doing an ibuf
 				operation */
 	hash_node_t	hash;	/* hash chain node */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;
-};
-
 #define THR_LOCAL_MAGIC_N	1231234
+#endif /* UNIV_DEBUG */
+};
 
 /***********************************************************************
 Returns the local storage struct for a thread. */
@@ -167,8 +168,9 @@ thr_local_create(void)
 
 	local->id = os_thread_get_curr_id();
 	local->handle = os_thread_get_curr();
+#ifdef UNIV_DEBUG
 	local->magic_n = THR_LOCAL_MAGIC_N;
-
+#endif /* UNIV_DEBUG */
  	local->in_ibuf = FALSE;
 	
 	mutex_enter(&thr_local_mutex);
@@ -207,7 +209,7 @@ thr_local_free(
 
 	mutex_exit(&thr_local_mutex);
 				
-	ut_a(local->magic_n == THR_LOCAL_MAGIC_N);
+	ut_ad(local->magic_n == THR_LOCAL_MAGIC_N);
 	
 	mem_free(local);
 }
