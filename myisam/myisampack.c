@@ -2047,7 +2047,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   share->state.dellink= HA_OFFSET_ERROR;
   share->state.split=(ha_rows) mrg->records;
   share->state.version=(ulong) time((time_t*) 0);
-  if (share->state.key_map != (1ULL << share->base.keys) - 1)
+  if (share->state.key_map != (((ulonglong)1) << share->base.keys) - 1)
   {
     /*
       Some indexes are disabled, cannot use current key_file_length value
