@@ -425,6 +425,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
     if (mysql_real_connect(mysql,host,user,opt_password,NullS,tcp_port,
 			   unix_port, 0))
     {
+      mysql->reconnect= 1;
       if (info)
       {
 	fputs("\n",stderr);

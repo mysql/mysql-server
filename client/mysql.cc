@@ -2792,6 +2792,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   connected=1;
 #ifndef EMBEDDED_LIBRARY
   mysql.reconnect=info_flag ? 1 : 0; // We want to know if this happens
+#else
+  mysql.reconnect= 1;
 #endif
 #ifdef HAVE_READLINE
   build_completion_hash(rehash, 1);
