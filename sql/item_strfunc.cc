@@ -1961,7 +1961,7 @@ String *Item_func_conv_charset::val_str(String *str)
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
 
-  while( s < se && d < de){
+  while (s < se && d < de){
 
     cnvres=from->mb_wc(from,&wc,s,se);
     if (cnvres>0)
@@ -2035,7 +2035,7 @@ String *Item_func_conv_charset3::val_str(String *str)
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
 
-  while( s < se && d < de){
+  while (s < se && d < de){
 
     cnvres=from_charset->mb_wc(from_charset,&wc,s,se);
     if (cnvres>0)
@@ -2655,7 +2655,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   null_value=1;
 
   str->length(0);
-  if(str->reserve(9,512))
+  if (str->reserve(9,512))
     return 0;
 
   str->q_append((char)Geometry::wkbNDR);

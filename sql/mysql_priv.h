@@ -466,7 +466,7 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 extern const Field *not_found_field;
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-			    bool report_error);
+			    TABLE_LIST **where, bool report_error);
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
 #ifdef HAVE_OPENSSL

@@ -1,6 +1,9 @@
 select (select 2);
+explain select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
+explain SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
+explain SELECT (SELECT (SELECT 0 UNION SELECT 0));
 -- error 1245
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
 -- error 1245
@@ -424,6 +427,8 @@ select 1.5 > ALL (SELECT * from t);
 select 10.5 > ALL (SELECT * from t);
 select 1.5 > ANY (SELECT * from t);
 select 10.5 > ANY (SELECT * from t);
+explain select (select a+1) from t;
+select (select a+1) from t;
 drop table t;
 
 #LIMIT is not supported now
@@ -432,7 +437,9 @@ create table t (a float);
 select 10.5 IN (SELECT * from t LIMIT 1);
 -- error 1235
 select 10.5 IN (SELECT * from t LIMIT 1 UNION SELECT 1.5);
-drop table t;create table t1 (a int, b int, c varchar(10));
+drop table t;
+
+create table t1 (a int, b int, c varchar(10));
 create table t2 (a int);
 insert into t1 values (1,2,'a'),(2,3,'b'),(3,4,'c');
 insert into t2 values (1),(2),(NULL);

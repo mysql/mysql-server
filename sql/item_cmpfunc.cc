@@ -153,11 +153,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
       }
     else
-    {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      current_thd->fatal_error= 1;
       return 1;
-    }
   }
   return 0;
 }
@@ -276,11 +272,7 @@ int Arg_comparator::compare_e_row()
 
 bool Item_in_optimizer::preallocate_row()
 {
-  if ((cache= Item_cache::get_cache(ROW_RESULT)))
-    return 0;
-  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-  current_thd->fatal_error= 1;
-  return 1;
+  return (!(cache= Item_cache::get_cache(ROW_RESULT)));
 }
 
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
@@ -296,11 +288,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   used_tables_cache= args[0]->used_tables();
   const_item_cache= args[0]->const_item();
   if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    thd->fatal_error= 1;
     return 1;
-  }
   cache->setup(args[0]);
   if (args[1]->fix_fields(thd, tables, args))
     return 1;
@@ -946,6 +934,13 @@ Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+void Item_func_case::set_outer_resolving()
+{
+  first_expr->set_outer_resolving();
+  else_expr->set_outer_resolving();
+  Item_func::set_outer_resolving();
+}
+
 bool Item_func_case::check_loop(uint id)
 {
   DBUG_ENTER("Item_func_case::check_loop");
@@ -1239,18 +1234,10 @@ void cmp_item_row::store_value(Item *item)
 	item->null_value|= item->el(i)->null_value;
       }
       else
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	thd->fatal_error= 1;
 	return;
-      }	  
   }
   else
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    thd->fatal_error= 1;
     return;
-  }
 }
 
 void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
@@ -1274,18 +1261,10 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
 	item->null_value|= item->el(i)->null_value;
       }
       else
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	current_thd->fatal_error= 1;
 	return;
-      }	  
   }
   else
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    current_thd->fatal_error= 1;
     return;
-  }	  
 }
 
 int cmp_item_row::cmp(Item *arg)
@@ -1521,6 +1500,15 @@ bool Item_cond::check_loop(uint id)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
+}
+
+void Item_cond::set_outer_resolving()
+{
+  Item_func::set_outer_resolving();
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+    item->set_outer_resolving();
 }
 
 void Item_cond::split_sum_func(List<Item> &fields)

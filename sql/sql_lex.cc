@@ -1037,7 +1037,7 @@ void st_select_lex_node::include_global(st_select_lex_node **plink)
 //excluding from global list (internal function)
 void st_select_lex_node::fast_exclude()
 {
-  if(link_prev)
+  if (link_prev)
   {
     if ((*link_prev= link_next))
       link_next->link_prev= link_prev;
@@ -1069,7 +1069,7 @@ void st_select_lex_node::exclude()
 void st_select_lex_unit::exclude_level()
 {
   SELECT_LEX_UNIT *units= 0, **units_last= &units;
-  for(SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
@@ -1143,7 +1143,7 @@ void st_select_lex_node::mark_as_dependent(SELECT_LEX *last)
   for (SELECT_LEX_NODE *s= this;
        s &&s != last;
        s= s->outer_select())
-    if( !s->dependent )
+    if ( !s->dependent )
     {
       // Select is dependent of outer select
       s->dependent= 1;
