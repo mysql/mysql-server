@@ -334,11 +334,6 @@ CREATE TABLE `t1` (
 drop table t1;
 create table t1(a int);
 create view v1 as select * from t1;
--- MySQL dump 10.7
---
--- Host: localhost    Database: test
--- ------------------------------------------------------
--- Server version	5.0.2-alpha-valgrind-max-debug-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -347,36 +342,17 @@ create view v1 as select * from t1;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE="NO_AUTO_VALUE_ON_ZERO" */;
-
---
--- Table structure for table `t1`
---
-
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `t1`
---
 
 
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
 LOCK TABLES `t1` WRITE;
 UNLOCK TABLES;
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-
---
--- Table structure for table `v1`
---
-
 DROP TABLE IF EXISTS `v1`;
-
---
--- View structure for view `v1`
---
-
 DROP VIEW IF EXISTS `v1`;
 CREATE VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`;
 
