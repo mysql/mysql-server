@@ -150,7 +150,7 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Datetime,
-    NULL  // cmpDatetime
+    cmpDatetime
   },
   {
     Type::Timespec,
@@ -458,12 +458,11 @@ NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const vo
   return 0;
 }
 
-// not used by MySQL or NDB
+// allowed but ordering is wrong before wl-1442 done
 int
 NdbSqlUtil::cmpDatetime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
-  assert(false);
-  return 0;
+  return cmpBinary(info, p1, n1, p2, n2, full);
 }
 
 // not used by MySQL or NDB

@@ -24,23 +24,25 @@
  * @brief Class of scan operations for use to scan ordered index
  */
 class NdbIndexScanOperation : public NdbScanOperation {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class NdbResultSet;
   friend class NdbOperation;
   friend class NdbScanOperation;
+#endif
+
 public:
   /**
-   * readTuples returns a NdbResultSet where tuples are stored.
-   * Tuples are not stored in NdbResultSet until execute(NoCommit) 
-   * has been executed and nextResult has been called.
+   * readTuples using ordered index
    * 
-   * @param parallel  Scan parallelism
+   * @param lock_mode Lock mode
    * @param batch     No of rows to fetch from each fragment at a time
-   * @param LockMode  Scan lock handling   
+   * @param parallel  No of fragments to scan in parallel
    * @param order_by  Order result set in index order
-   * @param order_desc  Order descending, ignored unless order_by
-   * @returns NdbResultSet.
+   * @param order_desc Order descending, ignored unless order_by
+   * @param read_range_no Enable reading of range no using @ref get_range_no
+   * @returns 0 for success and -1 for failure
    * @see NdbScanOperation::readTuples
    */ 
   int readTuples(LockMode = LM_Read,
@@ -49,14 +51,6 @@ public:
 		 bool order_by = false,
                  bool order_desc = false,
 		 bool read_range_no = false);
-  
-  inline int readTuples(int parallell){
-    return readTuples(LM_Read, 0, parallell, false);
-  }
-  
-  inline int readTuplesExclusive(int parallell = 0){
-    return readTuples(LM_Exclusive, 0, parallell, false);
-  }
   
   /**
    * Type of ordered index key bound.  The values (0-4) will not change
@@ -129,7 +123,14 @@ public:
    */
   int get_range_no();
   
+  /**
+   * Is current scan sorted
+   */
   bool getSorted() const { return m_ordered; }
+
+  /**
+   * Is current scan sorted descending
+   */
   bool getDescending() const { return m_descending; }
 private:
   NdbIndexScanOperation(Ndb* aNdb);

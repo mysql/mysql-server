@@ -14,18 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*****************************************************************************
- * Name:          NdbDictionary.hpp
- * Include:
- * Link:
- * Author:        Jonas Oreland
- * Date:          2003-05-14
- * Version:       0.1
- * Description:   Data dictionary support
- * Documentation:
- * Adjust:  2003-05-14  Jonas Oreland   First version.
- ****************************************************************************/
-
 #ifndef NdbDictionary_H
 #define NdbDictionary_H
 
@@ -39,11 +27,15 @@ typedef struct charset_info_st CHARSET_INFO;
  * @class NdbDictionary
  * @brief Data dictionary class
  * 
- * This class supports all schema data definition and enquiry such as:
- * -# Creating tables (Dictionary::createTable) and table columns
- * -# Dropping tables (Dictionary::dropTable)
- * -# Creating secondary indexes (Dictionary::createIndex)
- * -# Dropping secondary indexes (Dictionary::dropIndex)
+ * The preferred and supported way to create tables and indexes
+ * in ndb is through the 
+ * MySQL Server (see MySQL reference Manual, section MySQL Cluster).
+ *
+ * Tables and indexes that are created directly through the 
+ * NdbDictionary class
+ * can not be viewed from the MySQL Server.
+ * 
+ * This class supports schema data enquiries such as:
  * -# Enquiries about tables
  *    (Dictionary::getTable, Table::getNoOfColumns, 
  *    Table::getPrimaryKey, and Table::getNoOfPrimaryKeys)
@@ -51,11 +43,17 @@ typedef struct charset_info_st CHARSET_INFO;
  *    (Dictionary::getIndex, Index::getNoOfColumns, 
  *    and Index::getColumn)
  *
- * NdbDictionary has several help (inner) classes:
+ * This class supports schema data definition such as:
+ * -# Creating tables (Dictionary::createTable) and table columns
+ * -# Dropping tables (Dictionary::dropTable)
+ * -# Creating secondary indexes (Dictionary::createIndex)
+ * -# Dropping secondary indexes (Dictionary::dropIndex)
+ *
+ * NdbDictionary has several help (inner) classes to support this:
  * -# NdbDictionary::Table for creating tables
  * -# NdbDictionary::Column for creating table columns
  * -# NdbDictionary::Index for creating secondary indexes
- * 
+ *
  * See @ref ndbapi_example4.cpp for details of usage.
  */
 class NdbDictionary {
@@ -195,24 +193,7 @@ public:
      * @name General 
      * @{
      */
-    /**
-     * Constructor
-     * @param   name   Name of column
-     */
-    Column(const char * name = "");
-    /**
-     * Copy constructor
-     * @param  column  Column to be copied
-     */
-    Column(const Column& column); 
-    ~Column();
     
-    /**
-     * Set name of column
-     * @param  name  Name of the column
-     */
-    void setName(const char * name);
-
     /**
      * Get name of column
      * @return  Name of the column
@@ -220,20 +201,10 @@ public:
     const char* getName() const;
 
     /**
-     * Set whether column is nullable or not
-     */
-    void setNullable(bool);
-
-    /**
      * Get if the column is nullable or not
      */
     bool getNullable() const;
     
-    /**
-     * Set that column is part of primary key
-     */
-    void setPrimaryKey(bool);
-
     /**
      * Check if column is part of primary key
      */
@@ -251,32 +222,17 @@ public:
      */
     bool equal(const Column& column) const;
 
+
     /** @} *******************************************************************/
     /** 
-     * @name Type Specifiers
+     * @name Get Type Specifiers
      * @{
      */
-
-    /**
-     * Set type of column
-     * @param  type  Type of column
-     *
-     * @note setType resets <em>all</em> column attributes
-     *       to (type dependent) defaults and should be the first
-     *       method to call.  Default type is Unsigned.
-     */
-    void setType(Type type);
 
     /**
      * Get type of column
      */
     Type getType() const;
-
-    /**
-     * Set precision of column.
-     * @note Only applicable for builtin type Decimal
-     */
-    void setPrecision(int);
 
     /**
      * Get precision of column.
@@ -285,22 +241,10 @@ public:
     int getPrecision() const;
 
     /**
-     * Set scale of column.
-     * @note Only applicable for builtin type Decimal
-     */
-    void setScale(int);
-
-    /**
      * Get scale of column.
      * @note Only applicable for builtin type Decimal
      */
     int getScale() const;
-
-    /**
-     * Set length for column
-     * Array length for column or max length for variable length arrays.
-     */
-    void setLength(int length);
 
     /**
      * Get length for column
@@ -309,34 +253,31 @@ public:
     int getLength() const;
 
     /**
-     * For Char or Varchar or Text, set or get MySQL CHARSET_INFO.  This
+     * For Char or Varchar or Text, get MySQL CHARSET_INFO.  This
      * specifies both character set and collation.  See get_charset()
      * etc in MySQL.  (The cs is not "const" in MySQL).
      */
-    void setCharset(CHARSET_INFO* cs);
     CHARSET_INFO* getCharset() const;
 
+
     /**
-     * For blob, set or get "inline size" i.e. number of initial bytes
+     * For blob, get "inline size" i.e. number of initial bytes
      * to store in table's blob attribute.  This part is normally in
      * main memory and can be indexed and interpreted.
      */
-    void setInlineSize(int size);
     int getInlineSize() const;
 
     /**
-     * For blob, set or get "part size" i.e. number of bytes to store in
+     * For blob, get "part size" i.e. number of bytes to store in
      * each tuple of the "blob table".  Can be set to zero to omit parts
      * and to allow only inline bytes ("tinyblob").
      */
-    void setPartSize(int size);
     int getPartSize() const;
 
     /**
      * For blob, set or get "stripe size" i.e. number of consecutive
      * <em>parts</em> to store in each node group.
      */
-    void setStripeSize(int size);
     int getStripeSize() const;
 
     /**
@@ -345,7 +286,7 @@ public:
     int getSize() const;
 
     /** 
-     * Set distribution key
+     * Check if column is part of distribution key
      *
      * A <em>distribution key</em> is a set of attributes which are used
      * to distribute the tuples onto the NDB nodes.
@@ -359,16 +300,115 @@ public:
      * Locally in the fragments the full primary key 
      * will still be used with the hashing algorithm.
      *
+     * @return  true then the column is part of 
+     *                 the distribution key.
+     */
+    bool getDistributionKey() const;
+
+    /** @} *******************************************************************/
+
+
+    /** 
+     * @name Column creation
+     * @{
+     *
+     * These operations should normally not be performed in an NbdApi program
+     * as results will not be visable in the MySQL Server
+     * 
+     */
+
+    /**
+     * Constructor
+     * @param   name   Name of column
+     */
+    Column(const char * name = "");
+    /**
+     * Copy constructor
+     * @param  column  Column to be copied
+     */
+    Column(const Column& column); 
+    ~Column();
+
+    /**
+     * Set name of column
+     * @param  name  Name of the column
+     */
+    void setName(const char * name);
+
+    /**
+     * Set whether column is nullable or not
+     */
+    void setNullable(bool);
+
+    /**
+     * Set that column is part of primary key
+     */
+    void setPrimaryKey(bool);
+
+    /**
+     * Set type of column
+     * @param  type  Type of column
+     *
+     * @note setType resets <em>all</em> column attributes
+     *       to (type dependent) defaults and should be the first
+     *       method to call.  Default type is Unsigned.
+     */
+    void setType(Type type);
+
+    /**
+     * Set precision of column.
+     * @note Only applicable for builtin type Decimal
+     */
+    void setPrecision(int);
+
+    /**
+     * Set scale of column.
+     * @note Only applicable for builtin type Decimal
+     */
+    void setScale(int);
+
+    /**
+     * Set length for column
+     * Array length for column or max length for variable length arrays.
+     */
+    void setLength(int length);
+
+    /**
+     * For Char or Varchar or Text, get MySQL CHARSET_INFO.  This
+     * specifies both character set and collation.  See get_charset()
+     * etc in MySQL.  (The cs is not "const" in MySQL).
+     */
+    void setCharset(CHARSET_INFO* cs);
+
+    /**
+     * For blob, get "inline size" i.e. number of initial bytes
+     * to store in table's blob attribute.  This part is normally in
+     * main memory and can be indexed and interpreted.
+     */
+    void setInlineSize(int size);
+
+    /**
+     * For blob, get "part size" i.e. number of bytes to store in
+     * each tuple of the "blob table".  Can be set to zero to omit parts
+     * and to allow only inline bytes ("tinyblob").
+     */
+    void setPartSize(int size);
+
+    /**
+     * For blob, get "stripe size" i.e. number of consecutive
+     * <em>parts</em> to store in each node group.
+     */
+    void setStripeSize(int size);
+
+    /** 
+     * Set distribution key
+     * @see getDistributionKey
+     *
      * @param  enable  If set to true, then the column will be part of 
      *                 the distribution key.
      */
     void setDistributionKey(bool enable);
 
-    /**
-     * Check if column is part of distribution key
-     * @see setDistributionKey
-     */
-    bool getDistributionKey() const;
     /** @} *******************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -388,8 +428,10 @@ public:
 #endif
     
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbRecAttr;
     friend class NdbColumnImpl;
+#endif
     class NdbColumnImpl & m_impl;
     Column(NdbColumnImpl&);
     Column& operator=(const Column&);
@@ -427,30 +469,6 @@ public:
      * @name General
      * @{
      */
-    /**
-     * Constructor
-     * @param  name   Name of table
-     */
-    Table(const char * name = "");
-
-    /** 
-     * Copy constructor 
-     * @param  table  Table to be copied
-     */
-    Table(const Table& table); 
-    virtual ~Table();
-    
-    /**
-     * Assignment operator, deep copy
-     * @param  table  Table to be copied
-     */
-    Table& operator=(const Table&);
-
-    /**
-     * Name of table
-     * @param  name  Name of table
-     */
-    void setName(const char * name);
 
     /**
      * Get table name
@@ -461,12 +479,6 @@ public:
      * Get table id
      */ 
     int getTableId() const;
-    
-    /**
-     * Add a column definition to a table
-     * @note creates a copy
-     */
-    void addColumn(const Column &);
     
     /**
      * Get column definition via name.
@@ -509,29 +521,12 @@ public:
      * The default value is true and indicates a normal table 
      * with full checkpointing and logging activated.
      */
-    void setLogging(bool); 
-
-    /**
-     * @see NdbDictionary::Table::setLogging.
-     */
     bool getLogging() const;
-   
-    /**
-     * Set fragmentation type
-     */
-    void setFragmentType(FragmentType);
 
     /**
      * Get fragmentation type
      */
     FragmentType getFragmentType() const;
-    
-    /**
-     * Set KValue (Hash parameter.)
-     * Only allowed value is 6.
-     * Later implementations might add flexibility in this parameter.
-     */
-    void setKValue(int kValue);
     
     /**
      * Get KValue (Hash parameter.)
@@ -541,15 +536,6 @@ public:
     int getKValue() const;
 
     /**
-     * Set MinLoadFactor  (Hash parameter.)
-     * This value specifies the load factor when starting to shrink 
-     * the hash table. 
-     * It must be smaller than MaxLoadFactor.
-     * Both these factors are given in percentage.
-     */
-    void setMinLoadFactor(int);
-
-    /**
      * Get MinLoadFactor  (Hash parameter.)
      * This value specifies the load factor when starting to shrink 
      * the hash table. 
@@ -557,16 +543,6 @@ public:
      * Both these factors are given in percentage.
      */
     int getMinLoadFactor() const;
-
-    /**
-     * Set MaxLoadFactor  (Hash parameter.)
-     * This value specifies the load factor when starting to split 
-     * the containers in the local hash tables. 
-     * 100 is the maximum which will optimize memory usage.
-     * A lower figure will store less information in each container and thus
-     * find the key faster but consume more memory.
-     */
-    void setMaxLoadFactor(int);
 
     /**
      * Get MaxLoadFactor  (Hash parameter.)
@@ -610,15 +586,83 @@ public:
     const void* getFrmData() const;
     Uint32 getFrmLength() const;
 
-    /**
-     * Set frm file to store with this table
-     */ 
-    void setFrm(const void* data, Uint32 len);
+    /** @} *******************************************************************/
+
+    /** 
+     * @name Table creation
+     * @{
+     *
+     * These methods should normally not be used in an application as
+     * the result is not accessible from the MySQL Server
+     *
+     */
 
     /**
-     * Set table object type
+     * Constructor
+     * @param  name   Name of table
      */
-    void setObjectType(Object::Type type);
+    Table(const char * name = "");
+
+    /** 
+     * Copy constructor 
+     * @param  table  Table to be copied
+     */
+    Table(const Table& table); 
+    virtual ~Table();
+    
+    /**
+     * Assignment operator, deep copy
+     * @param  table  Table to be copied
+     */
+    Table& operator=(const Table&);
+
+    /**
+     * Name of table
+     * @param  name  Name of table
+     */
+    void setName(const char * name);
+
+    /**
+     * Add a column definition to a table
+     * @note creates a copy
+     */
+    void addColumn(const Column &);
+    
+    /**
+     * @see NdbDictionary::Table::getLogging.
+     */
+    void setLogging(bool); 
+   
+    /**
+     * Set fragmentation type
+     */
+    void setFragmentType(FragmentType);
+
+    /**
+     * Set KValue (Hash parameter.)
+     * Only allowed value is 6.
+     * Later implementations might add flexibility in this parameter.
+     */
+    void setKValue(int kValue);
+    
+    /**
+     * Set MinLoadFactor  (Hash parameter.)
+     * This value specifies the load factor when starting to shrink 
+     * the hash table. 
+     * It must be smaller than MaxLoadFactor.
+     * Both these factors are given in percentage.
+     */
+    void setMinLoadFactor(int);
+
+    /**
+     * Set MaxLoadFactor  (Hash parameter.)
+     * This value specifies the load factor when starting to split 
+     * the containers in the local hash tables. 
+     * 100 is the maximum which will optimize memory usage.
+     * A lower figure will store less information in each container and thus
+     * find the key faster but consume more memory.
+     */
+    void setMaxLoadFactor(int);
 
     /**
      * Get table object type
@@ -635,6 +679,16 @@ public:
      */
     virtual int getObjectVersion() const;
 
+    /**
+     * Set frm file to store with this table
+     */ 
+    void setFrm(const void* data, Uint32 len);
+
+    /**
+     * Set table object type
+     */
+    void setObjectType(Object::Type type);
+
     /** @} *******************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
@@ -646,7 +700,9 @@ public:
 #endif
 
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbTableImpl;
+#endif
     class NdbTableImpl & m_impl;
     Table(NdbTableImpl&);
   };
@@ -657,6 +713,94 @@ public:
    */
   class Index : public Object {
   public:
+    
+    /** 
+     * @name Getting Index properties
+     * @{
+     */
+
+    /**
+     * Get the name of an index
+     */
+    const char * getName() const;
+    
+    /**
+     * Get the name of the table being indexed
+     */
+    const char * getTable() const;
+    
+    /**
+     * Get the number of columns in the index
+     */
+    unsigned getNoOfColumns() const;
+
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+    /**
+     * Get the number of columns in the index
+     * Depricated, use getNoOfColumns instead.
+     */
+    int getNoOfIndexColumns() const;
+#endif
+
+    /**
+     * Get a specific column in the index
+     */
+    const Column * getColumn(unsigned no) const ;
+
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+    /**
+     * Get a specific column name in the index
+     * Depricated, use getColumn instead.
+     */
+    const char * getIndexColumn(int no) const ;
+#endif
+
+    /**
+     * Represents type of index
+     */
+    enum Type {
+      Undefined = 0,          ///< Undefined object type (initial value)
+      UniqueHashIndex = 3,    ///< Unique un-ordered hash index 
+                              ///< (only one currently supported)
+      OrderedIndex = 6        ///< Non-unique ordered index
+    };
+
+    /**
+     * Get index type of the index
+     */
+    Type getType() const;
+    
+    /**
+     * Check if index is set to be stored on disk
+     *
+     * @return if true then logging id enabled
+     *
+     * @note Non-logged indexes are rebuilt at system restart.
+     * @note Ordered index does not currently support logging.
+     */
+    bool getLogging() const;
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+    /** @} *******************************************************************/
+
+    /** 
+     * @name Index creation
+     * @{
+     *
+     * These methods should normally not be used in an application as
+     * the result will not be visible from the MySQL Server
+     *
+     */
+
     /**
      *  Constructor
      *  @param  name  Name of index
@@ -668,43 +812,11 @@ public:
      * Set the name of an index
      */
     void setName(const char * name);
-    
-    /**
-     * Get the name of an index
-     */
-    const char * getName() const;
-    
+
     /**
      * Define the name of the table to be indexed
      */
     void setTable(const char * name);
-
-    /**
-     * Get the name of the table being indexed
-     */
-    const char * getTable() const;
-    
-    /**
-     * Get the number of columns in the index
-     */
-    unsigned getNoOfColumns() const;
-
-    /**
-     * Get the number of columns in the index
-     * Depricated, use getNoOfColumns instead.
-     */
-    int getNoOfIndexColumns() const;
-
-    /**
-     * Get a specific column in the index
-     */
-    const Column * getColumn(unsigned no) const ;
-
-    /**
-     * Get a specific column name in the index
-     * Depricated, use getColumn instead.
-     */
-    const char * getIndexColumn(int no) const ;
 
     /**
      * Add a column to the index definition
@@ -720,6 +832,7 @@ public:
      */
     void addColumnName(const char * name);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Add a column name to the index definition
      * Note that the order of indexes will be in
@@ -727,6 +840,7 @@ public:
      * Depricated, use addColumnName instead.
      */
     void addIndexColumn(const char * name);
+#endif
 
     /**
      * Add several column names to the index definition
@@ -735,6 +849,7 @@ public:
      */
     void addColumnNames(unsigned noOfNames, const char ** names);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Add several column names to the index definition
      * Note that the order of indexes will be in
@@ -742,16 +857,7 @@ public:
      * Depricated, use addColumnNames instead.
      */
     void addIndexColumns(int noOfNames, const char ** names);
-
-    /**
-     * Represents type of index
-     */
-    enum Type {
-      Undefined = 0,          ///< Undefined object type (initial value)
-      UniqueHashIndex = 3,    ///< Unique un-ordered hash index 
-                              ///< (only one currently supported)
-      OrderedIndex = 6        ///< Non-unique ordered index
-    };
+#endif
 
     /**
      * Set index type of the index
@@ -759,47 +865,25 @@ public:
     void setType(Type type);
 
     /**
-     * Get index type of the index
-     */
-    Type getType() const;
-    
-    /**
      * Enable/Disable index storage on disk
      *
      * @param enable  If enable is set to true, then logging becomes enabled
      *
-     * @see NdbDictionary::Table::setLogging
-     *
-     * @note Non-logged indexes are rebuilt at system restart.
-     * @note Ordered index does not currently support logging.
+     * @see NdbDictionary::Index::getLogging
      */
     void setLogging(bool enable); 
-
-    /**
-     * Check if index is set to be stored on disk
-     *
-     * @see NdbDictionary::Index::setLogging
-     */
-    bool getLogging() const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     void setStoredIndex(bool x) { setLogging(x); }
     bool getStoredIndex() const { return getLogging(); }
 #endif
     
-    /**
-     * Get object status
-     */
-    virtual Object::Status getObjectStatus() const;
-
-    /**
-     * Get object version
-     */
-    virtual int getObjectVersion() const;
+    /** @} *******************************************************************/
 
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbIndexImpl;
-
+#endif
     class NdbIndexImpl & m_impl;
     Index(NdbIndexImpl&);
   };
@@ -851,8 +935,10 @@ public:
     void print();
 
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbEventImpl;
     friend class NdbEventOperationImpl;
+#endif
     class NdbEventImpl & m_impl;
     Event(NdbEventImpl&);
   };
@@ -926,40 +1012,11 @@ public:
     const struct NdbError & getNdbError() const;
 
     /** @} *******************************************************************/
+
     /** 
-     * @name Tables
+     * @name Retrieving references to Tables and Indexes
      * @{
      */
-
-    /**
-     * Create defined table given defined Table instance
-     * @param Table Table to create
-     * @return 0 if successful otherwise -1.
-     */
-    int createTable(const Table &);
-
-    /**
-     * Drop table given retrieved Table instance
-     * @param Table Table to drop
-     * @return 0 if successful otherwise -1.
-     */
-    int dropTable(Table &);
-
-    /**
-     * Drop table given table name
-     * @param name   Name of table to drop 
-     * @return 0 if successful otherwise -1.
-     */
-    int dropTable(const char * name);
-    
-    /**
-     * Alter defined table given defined Table instance
-     * @param Table Table to alter
-     * @return  -2 (incompatible version) <br>
-     *          -1 general error          <br>
-     *           0 success                 
-     */
-    int alterTable(const Table &);
 
     /**
      * Get table with given name, NULL if undefined
@@ -969,50 +1026,6 @@ public:
     const Table * getTable(const char * name);
 
     /**
-     * Get table with given name for alteration.
-     * @param name   Name of table to alter
-     * @return table if successful. NULL if undefined
-     */
-    Table getTableForAlteration(const char * name);
-
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    /**
-     * Invalidate cached table object
-     * @param name  Name of table to invalidate
-     */
-    void invalidateTable(const char * name);
-#endif
-
-    /**
-     * Remove table/index from local cache
-     */
-    void removeCachedTable(const char * table);
-    void removeCachedIndex(const char * index, const char * table);
-
-    
-    /** @} *******************************************************************/
-    /** 
-     * @name Indexes
-     * @{
-     */
-    
-    /**
-     * Create index given defined Index instance
-     * @param Index to create
-     * @return 0 if successful otherwise -1.
-     */
-    int createIndex(const Index &);
-
-    /**
-     * Drop index with given name
-     * @param indexName  Name of index to drop.
-     * @param tableName  Name of table that index belongs to.
-     * @return 0 if successful otherwise -1.
-     */
-    int dropIndex(const char * indexName,
-		  const char * tableName);
-    
-    /**
      * Get index with given name, NULL if undefined
      * @param indexName  Name of index to get.
      * @param tableName  Name of table that index belongs to.
@@ -1020,14 +1033,6 @@ public:
      */
     const Index * getIndex(const char * indexName,
 			   const char * tableName);
-
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    /**
-     * Invalidate cached index object
-     */
-    void invalidateIndex(const char * indexName,
-                         const char * tableName);
-#endif
 
     /**
      * Fetch list of indexes of given table.
@@ -1065,15 +1070,113 @@ public:
     const Event * getEvent(const char * eventName);
 
     /** @} *******************************************************************/
+
+    /** 
+     * @name Table creation
+     * @{
+     *
+     * These methods should normally not be used in an application as
+     * the result will not be visible from the MySQL Server
+     */
+
+    /**
+     * Create defined table given defined Table instance
+     * @param Table Table to create
+     * @return 0 if successful otherwise -1.
+     */
+    int createTable(const Table &);
+
+    /**
+     * Drop table given retrieved Table instance
+     * @param Table Table to drop
+     * @return 0 if successful otherwise -1.
+     */
+    int dropTable(Table &);
+
+    /**
+     * Drop table given table name
+     * @param name   Name of table to drop 
+     * @return 0 if successful otherwise -1.
+     */
+    int dropTable(const char * name);
     
+    /**
+     * Alter defined table given defined Table instance
+     * @param Table Table to alter
+     * @return  -2 (incompatible version) <br>
+     *          -1 general error          <br>
+     *           0 success                 
+     */
+    int alterTable(const Table &);
+
+    /**
+     * Get table with given name for alteration.
+     * @param name   Name of table to alter
+     * @return table if successful. NULL if undefined
+     */
+    Table getTableForAlteration(const char * name);
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /**
+     * Invalidate cached table object
+     * @param name  Name of table to invalidate
+     */
+    void invalidateTable(const char * name);
+#endif
+
+    /**
+     * Remove table/index from local cache
+     */
+    void removeCachedTable(const char * table);
+    void removeCachedIndex(const char * index, const char * table);
+
+    
+    /** @} *******************************************************************/
+    /** 
+     * @name Index creation
+     * @{
+     *
+     * These methods should normally not be used in an application as
+     * the result will not be visible from the MySQL Server
+     *
+     */
+    
+    /**
+     * Create index given defined Index instance
+     * @param Index to create
+     * @return 0 if successful otherwise -1.
+     */
+    int createIndex(const Index &);
+
+    /**
+     * Drop index with given name
+     * @param indexName  Name of index to drop.
+     * @param tableName  Name of table that index belongs to.
+     * @return 0 if successful otherwise -1.
+     */
+    int dropIndex(const char * indexName,
+		  const char * tableName);
+    
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /**
+     * Invalidate cached index object
+     */
+    void invalidateIndex(const char * indexName,
+                         const char * tableName);
+#endif
+
+    /** @} *******************************************************************/
+
   protected:
     Dictionary(Ndb & ndb);
     ~Dictionary();
     
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbDictionaryImpl;
     friend class UtilTransactions;
     friend class NdbBlob;
+#endif
     class NdbDictionaryImpl & m_impl;
     Dictionary(NdbDictionaryImpl&);
     const Table * getIndexTable(const char * indexName, 

@@ -64,6 +64,7 @@ static void best_extension_by_limited_search(JOIN *join,
                                              uint prune_level);
 static uint determine_search_depth(JOIN* join);
 static int join_tab_cmp(const void* ptr1, const void* ptr2);
+static int join_tab_cmp_straight(const void* ptr1, const void* ptr2);
 /*
   TODO: 'find_best' is here only temporarily until 'greedy_search' is
   tested and approved.
@@ -3678,22 +3679,26 @@ choose_plan(JOIN *join, table_map join_tables)
 {
   uint search_depth= join->thd->variables.optimizer_search_depth;
   uint prune_level=  join->thd->variables.optimizer_prune_level;
-
+  bool straight_join= join->select_options & SELECT_STRAIGHT_JOIN;
   DBUG_ENTER("choose_plan");
 
-  if (join->select_options & SELECT_STRAIGHT_JOIN)
+  /*
+    if (SELECT_STRAIGHT_JOIN option is set)
+      reorder tables so dependent tables come after tables they depend 
+      on, otherwise keep tables in the order they were specified in the query 
+    else
+      Apply heuristic: pre-sort all access plans with respect to the number of
+      records accessed.
+  */
+  qsort(join->best_ref + join->const_tables, join->tables - join->const_tables,
+        sizeof(JOIN_TAB*), straight_join?join_tab_cmp_straight:join_tab_cmp);
+  
+  if (straight_join)
   {
     optimize_straight_join(join, join_tables);
   }
   else
   {
-    /*
-      Heuristic: pre-sort all access plans with respect to the number of
-      records accessed.
-    */
-    qsort(join->best_ref + join->const_tables, join->tables - join->const_tables,
-          sizeof(JOIN_TAB*), join_tab_cmp);
-
     if (search_depth == MAX_TABLES+2)
     { /*
         TODO: 'MAX_TABLES+2' denotes the old implementation of find_best before
@@ -3749,6 +3754,23 @@ join_tab_cmp(const void* ptr1, const void* ptr2)
   return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
 }
 
+
+/* 
+  Same as join_tab_cmp, but for use with SELECT_STRAIGHT_JOIN.
+*/
+
+static int
+join_tab_cmp_straight(const void* ptr1, const void* ptr2)
+{
+  JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
+  JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
+
+  if (jt1->dependent & jt2->table->map)
+    return 1;
+  if (jt2->dependent & jt1->table->map)
+    return -1;
+  return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
+}
 
 /*
   Heuristic procedure to automatically guess a reasonable degree of
@@ -3832,7 +3854,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
   uint idx= join->const_tables;
   double    record_count= 1.0;
   double    read_time=    0.0;
-
+ 
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     /* Find the best access method from 's' to the current partial plan */
