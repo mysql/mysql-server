@@ -1621,7 +1621,7 @@ to do so.
 
 We have designed a set of special @emph{Conditional Use} logos that may be
 downloaded from our web site at
-@uref{http://www.mysql.com/downloads/logos.html}
+@uref{http://www.mysql.com/press/logos.html}
 and used on third-party web sites without written permission from
 @code{MySQL AB}.
 The use of these logos is not entirely unrestricted but, as the name
