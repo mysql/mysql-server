@@ -54,3 +54,15 @@ insert into t1 values (null,1);
 select * from t1;
 select * from t1 limit 9999999999;
 drop table t1;
+
+#
+# Item_uint::save_to_field()
+# BUG#1845
+#
+
+CREATE TABLE t1 ( quantity decimal(60,0));
+insert into t1 values (10000000000000000000);
+insert into t1 values ('10000000000000000000');
+select * from t1;
+drop table t1;
+
