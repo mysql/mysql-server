@@ -197,15 +197,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->used_tables=0;
   values= its++;
 
-  if (duplic == DUP_UPDATE && !table->insert_values)
-  {
-    /* it should be allocated before Item::fix_fields() */
-    table->insert_values= 
-      (byte *)alloc_root(thd->mem_root, table->rec_buff_length);
-    if (!table->insert_values)
-      goto abort;
-  }
-
   if (mysql_prepare_insert(thd, table_list, insert_table_list, table,
 			   fields, values, update_fields,
 			   update_values, duplic))
@@ -448,14 +439,24 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 			 enum_duplicates duplic)
 {
   DBUG_ENTER("mysql_prepare_insert");
-  if (check_insert_fields(thd, table, fields, *values, 1) ||
+  if (duplic == DUP_UPDATE && !table->insert_values)
+  {
+    /* it should be allocated before Item::fix_fields() */
+    table->insert_values= 
+      (byte *)alloc_root(thd->mem_root, table->rec_buff_length);
+    if (!table->insert_values)
+      DBUG_RETURN(-1);
+  }
+  if ((values && check_insert_fields(thd, table, fields, *values, 1)) ||
       setup_tables(insert_table_list) ||
-      setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
+      (values && setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0)) ||
       (duplic == DUP_UPDATE &&
        (setup_fields(thd, 0, insert_table_list, update_fields, 1, 0, 0) ||
         setup_fields(thd, 0, insert_table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(-1);
-  if (find_real_table_in_list(table_list->next, 
+  if ((thd->lex->sql_command==SQLCOM_INSERT ||
+       thd->lex->sql_command==SQLCOM_REPLACE) &&
+      find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
@@ -550,8 +551,10 @@ int write_record(TABLE *table,COPY_INFO *info)
            that matches, is updated. If update causes a conflict again,
            an error is returned
         */
+	DBUG_ASSERT(table->insert_values != NULL);
         store_record(table,insert_values);
         restore_record(table,record[1]);
+	DBUG_ASSERT(info->update_fields->elements==info->update_values->elements);
         if (fill_record(*info->update_fields, *info->update_values, 0))
           goto err;
         if ((error=table->file->update_row(table->record[1],table->record[0])))

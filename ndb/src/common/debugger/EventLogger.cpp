@@ -1280,10 +1280,10 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   case EventReport::BackupCompleted:
     BaseString::snprintf(m_text,
 	       m_text_len,
-	       "%sBackup %d started from node %d completed\n" 
-	       " StartGCP: %d StopGCP: %d\n"
-	       " #Records: %d #LogRecords: %d\n"
-	       " Data: %d bytes Log: %d bytes",
+	       "%sBackup %u started from node %u completed\n" 
+	       " StartGCP: %u StopGCP: %u\n"
+	       " #Records: %u #LogRecords: %u\n"
+	       " Data: %u bytes Log: %u bytes",
 	       theNodeId, theData[2], refToNode(theData[1]),
 	       theData[3], theData[4], theData[6], theData[8],
 	       theData[5], theData[7]);

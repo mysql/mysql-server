@@ -60,6 +60,8 @@ public:
   }
   
   void add_listener(const Event_listener&);
+  void update_max_log_level(const LogLevel&);
+  void update_log_level(const LogLevel&);
   
   void log(int eventType, const Uint32* theData, NodeId nodeId);
   
@@ -67,6 +69,8 @@ public:
 
   Event_listener& operator[](unsigned i) { return m_clients[i]; }
   const Event_listener& operator[](unsigned i) const { return m_clients[i]; }
+  void lock() { m_clients.lock(); }
+  void unlock(){ m_clients.unlock(); }
 };
 
 /**
@@ -360,7 +364,7 @@ public:
   /**
    * Backup functionallity
    */
-  int startBackup(Uint32& backupId, bool waitCompleted = false);
+  int startBackup(Uint32& backupId, int waitCompleted= 2);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
 

@@ -154,7 +154,8 @@ private:
 		     const char * param);
 
   NdbMgmHandle m_mgmsrv;
-  bool connected;
+  NdbMgmHandle m_mgmsrv2;
+  bool m_connected;
   int m_verbose;
   int try_reconnect;
   int m_error;
@@ -163,6 +164,7 @@ private:
   const char *rep_host;
   bool rep_connected;
 #endif
+  struct NdbThread* m_event_thread;
 };
 
 
@@ -261,9 +263,10 @@ static const char* helpText =
 "SHOW CONFIG                            Print configuration\n"
 "SHOW PARAMETERS                        Print configuration parameters\n"
 #endif
-"START BACKUP                           Start backup\n"
+"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"                                       Start backup (default WAIT COMPLETED)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
-"SHUTDOWN                               Shutdown all processes in cluster and quit\n"
+"SHUTDOWN                               Shutdown all processes in cluster\n"
 "CLUSTERLOG ON [<severity>] ...         Enable Cluster logging\n"
 "CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
@@ -386,13 +389,19 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
     ndbout_c("Cannot create handle to management server.");
     exit(-1);
   }
+  m_mgmsrv2 = ndb_mgm_create_handle();
+  if(m_mgmsrv2 == NULL) {
+    ndbout_c("Cannot create handle to management server.");
+    exit(-1);
+  }
   if (ndb_mgm_set_connectstring(m_mgmsrv, _host))
   {
     printError();
     exit(-1);
   }
 
-  connected = false;
+  m_connected= false;
+  m_event_thread= 0;
   try_reconnect = 0;
 #ifdef HAVE_GLOBAL_REPLICATION
   rep_host = NULL;
@@ -406,8 +415,9 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
  */
 CommandInterpreter::~CommandInterpreter() 
 {
-  connected = false;
+  disconnect();
   ndb_mgm_destroy_handle(&m_mgmsrv);
+  ndb_mgm_destroy_handle(&m_mgmsrv2);
 }
 
 static bool 
@@ -430,7 +440,10 @@ void
 CommandInterpreter::printError() 
 {
   if (ndb_mgm_check_connection(m_mgmsrv))
-    connected= false;
+  {
+    m_connected= false;
+    disconnect();
+  }
   ndbout_c("* %5d: %s", 
 	   ndb_mgm_get_latest_error(m_mgmsrv),
 	   ndb_mgm_get_latest_error_msg(m_mgmsrv));
@@ -440,32 +453,109 @@ CommandInterpreter::printError()
 //*****************************************************************************
 //*****************************************************************************
 
-bool 
+static int do_event_thread;
+static void*
+event_thread_run(void* m)
+{
+  NdbMgmHandle handle= *(NdbMgmHandle*)m;
+
+  my_thread_init();
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+  int fd = ndb_mgm_listen_event(handle, filter);
+  if (fd > 0)
+  {
+    do_event_thread= 1;
+    char *tmp= 0;
+    char buf[1024];
+    SocketInputStream in(fd,10);
+    do {
+      if (tmp == 0) NdbSleep_MilliSleep(10);
+      if((tmp = in.gets(buf, 1024)))
+	ndbout << tmp;
+    } while(do_event_thread);
+  }
+  else
+  {
+    do_event_thread= -1;
+  }
+
+  my_thread_end();
+  NdbThread_Exit(0);
+  return 0;
+}
+
+bool
 CommandInterpreter::connect() 
 {
-  if(!connected) {
+  if(!m_connected)
+  {
     if(!ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
     {
-      connected = true;
+      const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
+      unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
+      if(!ndb_mgm_set_connectstring(m_mgmsrv2,
+				    BaseString(host).appfmt(":%d",port).c_str())
+	 &&
+	 !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
+      {
+	assert(m_event_thread == 0);
+	assert(do_event_thread == 0);
+	do_event_thread= 0;
+	m_event_thread = NdbThread_Create(event_thread_run,
+					  (void**)&m_mgmsrv2,
+					  32768,
+					  "CommandInterpreted_event_thread",
+					  NDB_THREAD_PRIO_LOW);
+	if (m_event_thread != 0)
+	{
+	  int iter= 1000; // try for 30 seconds
+	  while(do_event_thread == 0 &&
+		iter-- > 0)
+	    NdbSleep_MilliSleep(30);
+	}
+	if (m_event_thread == 0 ||
+	    do_event_thread == 0 ||
+	    do_event_thread == -1)
+	{
+	  printf("Warning, event thread startup failed, degraded printouts as result\n");
+	  do_event_thread= 0;
+	}
+      }
+      else
+      {
+	printf("Warning, event connect failed, degraded printouts as result\n");
+      }
+      m_connected= true;
       if (m_verbose)
       {
 	printf("Connected to Management Server at: %s:%d\n",
-	       ndb_mgm_get_connected_host(m_mgmsrv),
-	       ndb_mgm_get_connected_port(m_mgmsrv));
+	       host, port);
       }
     }
   }
-  return connected;
+  return m_connected;
 }
 
 bool 
 CommandInterpreter::disconnect() 
 {
-  if (connected && (ndb_mgm_disconnect(m_mgmsrv) == -1)) {
-    ndbout_c("Could not disconnect from management server");
-    printError();
+  if (m_event_thread) {
+    void *res;
+    do_event_thread= 0;
+    NdbThread_WaitFor(m_event_thread, &res);
+    NdbThread_Destroy(&m_event_thread);
+    m_event_thread= 0;
+    ndb_mgm_disconnect(m_mgmsrv2);
   }
-  connected = false;
+  if (m_connected)
+  {
+    if (ndb_mgm_disconnect(m_mgmsrv) == -1) {
+      ndbout_c("Could not disconnect from management server");
+      printError();
+    }
+    m_connected= false;
+  }
   return true;
 }
 
@@ -484,6 +574,13 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect,
   return result;
 }
 
+static void
+invalid_command(const char *cmd)
+{
+  ndbout << "Invalid command: " << cmd << endl;
+  ndbout << "Type HELP for help." << endl << endl;
+}
+
 int 
 CommandInterpreter::execute_impl(const char *_line) 
 {
@@ -493,17 +590,30 @@ CommandInterpreter::execute_impl(const char *_line)
 
   char * line;
   if(_line == NULL) {
-    //   ndbout << endl;
     DBUG_RETURN(false);
   }
   line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
-  
-  if (emptyString(line) ||
-      line[0] == '#') {
-    DBUG_RETURN(true);
-  }
-  
+
+  int do_continue;
+  do {
+    do_continue= 0;
+    BaseString::trim(line," \t");
+    if (line[0] == 0 ||
+	line[0] == '#')
+    {
+      DBUG_RETURN(true);
+    }
+    // for mysql client compatability remove trailing ';'
+    {
+      unsigned last= strlen(line)-1;
+      if (line[last] == ';')
+      {
+	line[last]= 0;
+	do_continue= 1;
+      }
+    }
+  } while (do_continue);
   // if there is anything in the line proceed
   char* firstToken = strtok(line, " ");
   char* allAfterFirstToken = strtok(NULL, "");
@@ -590,8 +700,7 @@ CommandInterpreter::execute_impl(const char *_line)
     int nodeId;
 
     if (! convert(firstToken, nodeId)) {
-      ndbout << "Invalid command: " << _line << endl;
-      ndbout << "Type HELP for help." << endl << endl;
+      invalid_command(_line);
       DBUG_RETURN(true);
     }
 
@@ -640,12 +749,8 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
 					   char* allAfterFirstToken) {
   
   if (emptyString(allAfterFirstToken)) {
-    if (processId == -1) {
-      ndbout << "Expected a command after ALL." << endl;
-    }
-    else {
-      ndbout << "Expected a command after node ID." << endl;
-    }
+    ndbout << "Expected a command after "
+	   << ((processId == -1) ? "ALL." : "node ID.") << endl;
     return;
   }
   
@@ -664,8 +769,7 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   }
   
   if(fun == 0){
-    ndbout << "Invalid command: " << secondToken << endl;
-    ndbout << "Type HELP for help." << endl << endl;
+    invalid_command(secondToken);
     return;
   }
   
@@ -846,8 +950,7 @@ CommandInterpreter::executeHelp(char* parameters)
     ndbout << helpTextDebug;
 #endif
   } else {
-    ndbout << "Invalid argument: " << parameters << endl;
-    ndbout << "Type HELP for help." << endl << endl;
+    invalid_command(parameters);
   }
 }
 
@@ -901,7 +1004,8 @@ CommandInterpreter::executeShutdown(char* parameters)
     return result;
   }
 
-  connected = false;
+  m_connected= false;
+  disconnect();
   ndbout << "NDB Cluster management server shutdown." << endl;
   return 0;
 }
@@ -1869,21 +1973,68 @@ CommandInterpreter::executeEventReporting(int processId,
  * Backup
  *****************************************************************************/
 int
-CommandInterpreter::executeStartBackup(char* /*parameters*/) 
+CommandInterpreter::executeStartBackup(char* parameters)
 {
   struct ndb_mgm_reply reply;
   unsigned int backupId;
-
+#if 0
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
   int fd = ndb_mgm_listen_event(m_mgmsrv, filter);
-  int result = ndb_mgm_start_backup(m_mgmsrv, &backupId, &reply);
+  if (fd < 0)
+  {
+    ndbout << "Initializing start of backup failed" << endl;
+    printError();
+    return fd;
+  }
+#endif
+  Vector<BaseString> args;
+  {
+    BaseString(parameters).split(args);
+    for (unsigned i= 0; i < args.size(); i++)
+      if (args[i].length() == 0)
+	args.erase(i--);
+      else
+	args[i].ndb_toupper();
+  }
+  int sz= args.size();
+
+  int result;
+  if (sz == 2 &&
+      args[1] == "NOWAIT")
+  {
+    result = ndb_mgm_start_backup(m_mgmsrv, 0, &backupId, &reply);
+  }
+  else if (sz == 1 ||
+	   (sz == 3 &&
+	    args[1] == "WAIT" &&
+	    args[2] == "COMPLETED"))
+  {
+    ndbout_c("Waiting for completed, this may take several minutes");
+    result = ndb_mgm_start_backup(m_mgmsrv, 2, &backupId, &reply);
+  }
+  else if (sz == 3 &&
+	   args[1] == "WAIT" &&
+	   args[2] == "STARTED")
+  {
+    ndbout_c("Waiting for started, this may take several minutes");
+    result = ndb_mgm_start_backup(m_mgmsrv, 1, &backupId, &reply);
+  }
+  else
+  {
+    invalid_command(parameters);
+    return -1;
+  }
+
   if (result != 0) {
     ndbout << "Start of backup failed" << endl;
     printError();
+#if 0
     close(fd);
+#endif
     return result;
   }
-
+#if 0
+  ndbout_c("Waiting for completed, this may take several minutes");
   char *tmp;
   char buf[1024];
   {
@@ -1910,29 +2061,39 @@ CommandInterpreter::executeStartBackup(char* /*parameters*/)
       ndbout << tmp;
     }
   } while(tmp && tmp[0] != 0);
-  
+
   close(fd);
+#endif  
   return 0;
 }
 
 void
 CommandInterpreter::executeAbortBackup(char* parameters) 
 {
-  strtok(parameters, " ");
-  struct ndb_mgm_reply reply;
-  char* id = strtok(NULL, "\0");
   int bid = -1;
-  if(id == 0 || sscanf(id, "%d", &bid) != 1){
-    ndbout << "Invalid arguments: expected <BackupId>" << endl;
-    return;
+  struct ndb_mgm_reply reply;
+  if (emptyString(parameters))
+    goto executeAbortBackupError1;
+
+  {
+    strtok(parameters, " ");
+    char* id = strtok(NULL, "\0");
+    if(id == 0 || sscanf(id, "%d", &bid) != 1)
+      goto executeAbortBackupError1;
   }
-  int result = ndb_mgm_abort_backup(m_mgmsrv, bid, &reply);
-  if (result != 0) {
-    ndbout << "Abort of backup " << bid << " failed" << endl;
-    printError();
-  } else {
-    ndbout << "Abort of backup " << bid << " ordered" << endl;
+  {
+    int result= ndb_mgm_abort_backup(m_mgmsrv, bid, &reply);
+    if (result != 0) {
+      ndbout << "Abort of backup " << bid << " failed" << endl;
+      printError();
+    } else {
+      ndbout << "Abort of backup " << bid << " ordered" << endl;
+    }
   }
+  return;
+ executeAbortBackupError1:
+  ndbout << "Invalid arguments: expected <BackupId>" << endl;
+  return;
 }
 
 #ifdef HAVE_GLOBAL_REPLICATION
