@@ -60,6 +60,7 @@ public:
   int m_precision;
   int m_scale;
   int m_length;
+  CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
   bool m_tupleKey;
@@ -82,6 +83,7 @@ public:
   Uint32 m_keyInfoPos;
   Uint32 m_extType;             // used by restore (kernel type in versin v2x)
   bool getInterpretableType() const ;
+  bool getCharType() const;
   bool getBlobType() const;
 
   /**
@@ -446,6 +448,14 @@ NdbColumnImpl::getInterpretableType() const {
 	  m_type == NdbDictionary::Column::Bigunsigned);
 }
 
+inline
+bool 
+NdbColumnImpl::getCharType() const {
+  return (m_type == NdbDictionary::Column::Char ||
+          m_type == NdbDictionary::Column::Varchar ||
+          m_type == NdbDictionary::Column::Text);
+}
+   
 inline
 bool 
 NdbColumnImpl::getBlobType() const {

@@ -90,6 +90,13 @@ public:
    */
   static const Type& getType(Uint32 typeId);
 
+  /**
+   * Check character set.
+   */
+  static bool usable_in_pk(Uint32 typeId, const void* cs);
+  static bool usable_in_hash_index(Uint32 typeId, const void* cs);
+  static bool usable_in_ordered_index(Uint32 typeId, const void* cs);
+
 private:
   /**
    * List of all types.  Must match Type::Enum.
