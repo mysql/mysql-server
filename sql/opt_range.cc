@@ -2516,6 +2516,12 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   if (quick->ranges.push_back(range))
     goto err;
 
+  /* 
+     Add a NULL range if REF_OR_NULL optimization is used.
+     For example:
+       if we have "WHERE A=2 OR A IS NULL" we created the (A=2) range above
+       and have ref->null_ref_key set. Will create a new NULL range here.
+  */
   if (ref->null_ref_key)
   {
     QUICK_RANGE *null_range;
@@ -2526,7 +2532,6 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
 				      EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
-    /* Do we need to do something with key_parts here? Looks like we don't */
     if (quick->ranges.push_back(null_range))
       goto err;
   }
