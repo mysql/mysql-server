@@ -475,6 +475,10 @@ a
 1
 2
 4
+a	b
+1	NULL
+2	NULL
+4	NULL
 id	name	value	uid
 1	one	one value	101
 3	three	three value	103
