@@ -15,8 +15,6 @@ Created 10/21/1995 Heikki Tuuri
 
 #undef HAVE_FDATASYNC
 
-#undef UNIV_NON_BUFFERED_IO
-
 #ifdef POSIX_ASYNC_IO
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
 2.6, HP-UX 11i and AIX 4.3 have) */
@@ -500,14 +498,25 @@ try_again:
 		}
 #endif			
 #ifdef UNIV_NON_BUFFERED_IO
-		attributes = attributes | FILE_FLAG_NO_BUFFERING;
+		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+		        /* Do not use unbuffered i/o to log files because
+		        value 2 denotes that we do not flush the log at every
+		        commit, but only once per second */
+		} else {
+		        attributes = attributes | FILE_FLAG_NO_BUFFERING;
+		}
 #endif
 	} else if (purpose == OS_FILE_NORMAL) {
-		attributes = 0
+	        attributes = 0;
 #ifdef UNIV_NON_BUFFERED_IO
-			 | FILE_FLAG_NO_BUFFERING
+		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+		        /* Do not use unbuffered i/o to log files because
+		        value 2 denotes that we do not flush the log at every
+		        commit, but only once per second */
+		} else {
+		        attributes = attributes | FILE_FLAG_NO_BUFFERING;
+		}
 #endif
-			;
 	} else {
 		attributes = 0;
 		ut_error;
