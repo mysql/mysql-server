@@ -426,10 +426,11 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
   if (!ftb->queue.elements)
     return my_errno=HA_ERR_END_OF_FILE;
 
-  while(ftb->state == INDEX_SEARCH &&
-    (curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid[0]) != HA_POS_ERROR)
+  while (ftb->state == INDEX_SEARCH &&
+	(curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid[0]) !=
+	 HA_POS_ERROR)
   {
-    while (curdoc==(ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid[0])
+    while (curdoc == (ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid[0])
     {
       _ftb_climb_the_tree(ftb, ftbw, 0);
 
@@ -467,13 +468,15 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
         ftbe->yesses>=(ftbe->ythresh-ftbe->yweaks) && !ftbe->nos)
     {
       /* curdoc matched ! */
-      if (is_tree_inited(& ftb->no_dupes) &&
-          tree_insert(& ftb->no_dupes, &curdoc, 0)->count >1)
+      if (is_tree_inited(&ftb->no_dupes) &&
+          tree_insert(&ftb->no_dupes, &curdoc, 0, 
+		      ftb->no_dupes.custom_arg)->count >1)
         /* but it managed to get past this line once */
         continue;
 
       info->lastpos=curdoc;
-      info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED); /* why is this ? */
+      /* Clear all states, except that the table was updated */
+      info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
       if (!(*info->read_record)(info,curdoc,record))
       {

@@ -67,10 +67,10 @@ a	int(11)		PRI	0
 b	int(11)		MUL	0	
 c	int(11)			0	
 show full columns from t1;
-Field	Type	Null	Key	Default	Extra	Privileges
-a	int(11)		PRI	0		select,insert,update,references
-b	int(11)		MUL	0		select,insert,update,references
-c	int(11)			0		select,insert,update,references
+Field	Type	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)		PRI	0		select,insert,update,references	
+b	int(11)		MUL	0		select,insert,update,references	
+c	int(11)			0		select,insert,update,references	
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE	

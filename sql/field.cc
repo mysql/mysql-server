@@ -233,6 +233,8 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_length(length_arg),null_bit(null_bit_arg)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
+  comment.str= (char*) "";
+  comment.length=0;
 }
 
 uint Field::offset()
@@ -4861,6 +4863,8 @@ create_field::create_field(Field *old_field,Field *orig_field)
   unireg_check=old_field->unireg_check;
   pack_length=old_field->pack_length();
   sql_type=   old_field->real_type();
+  charset=    old_field->charset();		// May be NULL ptr
+  comment=    old_field->comment;
 
   /* Fix if the original table had 4 byte pointer blobs */
   if (flags & BLOB_FLAG)
@@ -4869,6 +4873,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {
+    /* Change CHAR -> VARCHAR if dynamic record length */
     sql_type=old_field->type();
     decimals=0;
   }

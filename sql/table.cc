@@ -49,7 +49,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
          interval_count,interval_parts,read_length,db_create_options;
   uint	 key_info_length, com_length;
   ulong  pos;
-  char	 index_file[FN_REFLEN], *names,*keynames;
+  char	 index_file[FN_REFLEN], *names, *keynames, *comment_pos;
   uchar  head[288],*disk_buff,new_field_pack_flag;
   my_string record;
   const char **int_array;
@@ -58,7 +58,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   Field  **field_ptr,*reg_field;
   KEY	 *keyinfo;
   KEY_PART_INFO *key_part;
-  uchar *null_pos, *comment_pos;
+  uchar *null_pos;
   uint null_bit, new_frm_ver, field_pack_length;
   SQL_CRYPT *crypted=0;
   DBUG_ENTER("openfrm");
@@ -292,7 +292,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   outparam->field=field_ptr;
   read_length=(uint) (outparam->fields * field_pack_length +
-		      pos+ (uint) (n_length+int_length));
+		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
     goto err_not_open; /* purecov: inspected */
   if (crypted)
@@ -302,7 +302,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     crypted=0;
   }
   strpos= disk_buff+pos;
-  comment_pos=disk_buff+read_length-com_length;
 
   outparam->intervals= (TYPELIB*) (field_ptr+outparam->fields+1);
   int_array= (const char **) (outparam->intervals+interval_count);
@@ -311,6 +310,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->intervals=0;			// For better debugging
   memcpy((char*) names, strpos+(outparam->fields*field_pack_length),
 	 (uint) (n_length+int_length));
+  comment_pos=names+(n_length+int_length);
+  memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
 
   fix_type_pointers(&int_array,&outparam->fieldnames,1,&names);
   fix_type_pointers(&int_array,outparam->intervals,interval_count,
@@ -489,13 +490,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	       keyinfo->key_length ? UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
 	  if (i == 0)
 	    field->key_start|= ((key_map) 1 << key);
-	  if ((ha_option & HA_HAVE_KEY_READ_ONLY) &&
-	      field->key_length() == key_part->length &&
+	  if (field->key_length() == key_part->length &&
 	      field->type() != FIELD_TYPE_BLOB)
 	  {
-	    if (field->key_type() != HA_KEYTYPE_TEXT ||
-		(!(ha_option & HA_KEY_READ_WRONG_STR) &&
-		 !(keyinfo->flags & HA_FULLTEXT)))
+	    if ((ha_option & HA_HAVE_KEY_READ_ONLY) &&
+		(field->key_type() != HA_KEYTYPE_TEXT ||
+		 (!(ha_option & HA_KEY_READ_WRONG_STR) &&
+		  !(keyinfo->flags & HA_FULLTEXT))))
 	      field->part_of_key|= ((key_map) 1 << key);
 	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
 		 !(keyinfo->flags & HA_FULLTEXT)) &&
@@ -1200,7 +1201,7 @@ db_type get_table_type(const char *name)
   error=my_read(file,(byte*) head,4,MYF(MY_NABP));
   my_close(file,MYF(0));
   if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1))
+      (head[2] < FRM_VER && head[2] > FRM_VER+2))
     DBUG_RETURN(DB_TYPE_UNKNOWN);
   DBUG_RETURN(ha_checktype((enum db_type) (uint) *(head+3)));
 }

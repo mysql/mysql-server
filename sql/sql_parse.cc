@@ -1749,6 +1749,7 @@ mysql_execute_command(void)
       bzero((char*) &create_info,sizeof(create_info));
       create_info.db_type=DB_TYPE_DEFAULT;
       create_info.row_type=ROW_TYPE_DEFAULT;
+      create_info.table_charset=default_charset_info;
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
@@ -2866,6 +2867,8 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
+  new_field->charset=0;				// QQ: To be fixed
+
   if (!comment)
   {
     new_field->comment.str=0;

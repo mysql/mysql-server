@@ -1577,12 +1577,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
 	if (cfield->change)
 	{
-	  if (!my_strcasecmp(system_charset_info,key_part_name, cfield->change))
+	  if (!my_strcasecmp(system_charset_info, key_part_name,
+			     cfield->change))
 	    break;
 	}
 	else if (!my_strcasecmp(system_charset_info,
                                 key_part_name, cfield->field_name))
-	    break;
+	  break;
       }
       if (!cfield)
 	continue;				// Field is removed
@@ -1618,6 +1619,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	key_list.push_back(key);
     }
   }
+
   if (drop_list.elements)
   {
     my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),drop_list.head()->name);

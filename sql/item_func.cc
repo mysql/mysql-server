@@ -2048,7 +2048,9 @@ void Item_func_match::init_search(bool no_order)
     return;
 
   if (key == NO_SUCH_KEY)
-    concat=new Item_func_concat_ws(new Item_string(" ",1), default_charset_info, fields);
+    concat=new Item_func_concat_ws(new Item_string(" ",1,
+						   default_charset_info),
+				   fields);
 
   if (master)
   {
@@ -2256,12 +2258,12 @@ double Item_func_match::val()
 
 Item *get_system_var(LEX_STRING name)
 {
-  if (!my_strcasecmp(name.str,"IDENTITY"))
+  if (!my_strcasecmp(system_charset_info, name.str, "IDENTITY"))
     return new Item_int((char*) "@@IDENTITY",
 			current_thd->insert_id(),21);
-  if (!my_strcasecmp(name.str,"VERSION"))
+  if (!my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION",server_version,
-			   (uint) strlen(server_version));
+			   (uint) strlen(server_version), system_charset_info);
   net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
   return 0;
 }
