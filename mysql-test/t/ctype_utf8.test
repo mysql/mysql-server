@@ -660,3 +660,9 @@ create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
 show create table t2;
 drop table t2;
 drop table t1;
+
+#
+# Bug #6787 LIKE not working properly with _ and utf8 data
+#
+select 'c' like '\_' as want0; 
+

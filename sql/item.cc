@@ -46,12 +46,11 @@ void item_init(void)
 }
 
 Item::Item():
-  name_length(0), fixed(0),
+  name(0), orig_name(0), name_length(0), fixed(0),
   collation(default_charset(), DERIVATION_COERCIBLE)
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  name= 0;
   decimals= 0; max_length= 0;
 
   /* Put item in free list so that we can free all items at end */
@@ -81,6 +80,7 @@ Item::Item():
 Item::Item(THD *thd, Item *item):
   str_value(item->str_value),
   name(item->name),
+  orig_name(item->orig_name),
   max_length(item->max_length),
   marker(item->marker),
   decimals(item->decimals),
@@ -111,10 +111,12 @@ void Item::print_item_w_name(String *str)
 void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
-  DBUG_PRINT("info", ("Item: 0x%lx", this));
-  DBUG_PRINT("info", ("Type: %d", (int)type()));
+  DBUG_PRINT("info", ("Item: 0x%lx, Type: %d, name %s, original name %s",
+		      this, (int)type(), name, orig_name));
   fixed=0;
   marker= 0;
+  if (orig_name)
+    name= orig_name;
   DBUG_VOID_RETURN;
 }
 
@@ -135,10 +137,30 @@ bool Item::cleanup_processor(byte *arg)
 }
 
 
+/*
+  rename item (used for views, cleanup() return original name)
+
+  SYNOPSIS
+    Item::rename()
+    new_name	new name of item;
+*/
+
+void Item::rename(char *new_name)
+{
+  /*
+    we can compare pointers to names here, bacause if name was not changed,
+    pointer will be same
+  */
+  if (!orig_name && new_name != name)
+    orig_name= name;
+  name= new_name;
+}
+
+
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 
-   orig_field_name(field_name_par),
+   orig_field_name(field_name_par), alias_name_used(FALSE),
    db_name(db_name_par), table_name(table_name_par), 
    field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
    cached_table(0), depended_from(0)
@@ -152,6 +174,7 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
    orig_db_name(item->orig_db_name),
    orig_table_name(item->orig_table_name), 
    orig_field_name(item->orig_field_name),
+   alias_name_used(item->alias_name_used),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
@@ -609,6 +632,7 @@ void Item_field::set_field(Field *field_par)
   table_name=field_par->table_name;
   field_name=field_par->field_name;
   db_name=field_par->table->table_cache_key;
+  alias_name_used= field_par->table->alias_name_used;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
   fixed= 1;
@@ -658,7 +682,8 @@ void Item_ident::print(String *str)
   THD *thd= current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
   const char *d_name= db_name, *t_name= table_name;
-  if (lower_case_table_names)
+  if (lower_case_table_names== 1 ||
+      (lower_case_table_names == 2 && !alias_name_used))
   {
     if (table_name && table_name[0])
     {
@@ -680,7 +705,7 @@ void Item_ident::print(String *str)
     append_identifier(thd, str, nm, strlen(nm));
     return;
   }
-  if (db_name && db_name[0])
+  if (db_name && db_name[0] && !alias_name_used)
   {
     append_identifier(thd, str, d_name, strlen(d_name));
     str->append('.');
@@ -2937,6 +2962,10 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   decimals=   (*ref)->decimals;
   collation.set((*ref)->collation);
   with_sum_func= (*ref)->with_sum_func;
+  if ((*ref)->type() == FIELD_ITEM)
+    alias_name_used= ((Item_ident *) (*ref))->alias_name_used;
+  else
+    alias_name_used= TRUE; // it is not field, so it is was resolved by alias
   fixed= 1;
 
   if (ref && (*ref)->check_cols(1))

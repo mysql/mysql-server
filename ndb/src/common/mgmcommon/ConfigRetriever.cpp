@@ -20,7 +20,6 @@
 #include <ConfigRetriever.hpp>
 #include <SocketServer.hpp>
 
-#include "LocalConfig.hpp"
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 
@@ -45,90 +44,62 @@
 //****************************************************************************
 //****************************************************************************
 
-ConfigRetriever::ConfigRetriever(LocalConfig &local_config,
+ConfigRetriever::ConfigRetriever(const char * _connect_string,
 				 Uint32 version, Uint32 node_type)
-  : _localConfig(local_config)
 {
-  m_handle= 0;
   m_version = version;
   m_node_type = node_type;
-  _ownNodeId = _localConfig._ownNodeId;
+  _ownNodeId= 0;
+
+  m_handle= ndb_mgm_create_handle();
+
+  if (m_handle == 0) {
+    setError(CR_ERROR, "Unable to allocate mgm handle");
+    return;
+  }
+
+  if (ndb_mgm_set_connectstring(m_handle, _connect_string))
+  {
+    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+    return;
+  }
+  resetError();
 }
 
-ConfigRetriever::~ConfigRetriever(){
-
+ConfigRetriever::~ConfigRetriever()
+{
   if (m_handle) {
     ndb_mgm_disconnect(m_handle);
     ndb_mgm_destroy_handle(&m_handle);
   }
 }
 
+Uint32 
+ConfigRetriever::get_configuration_nodeid() const
+{
+  return ndb_mgm_get_configuration_nodeid(m_handle);
+}
+
+Uint32 ConfigRetriever::get_mgmd_port() const
+{
+  return ndb_mgm_get_connected_port(m_handle);
+}
+
+const char *ConfigRetriever::get_mgmd_host() const
+{
+  return ndb_mgm_get_connected_host(m_handle);
+}
 
 //****************************************************************************
 //****************************************************************************
  
 int
-ConfigRetriever::do_connect(int exit_on_connect_failure){
-
-  m_mgmd_port= 0;
-  m_mgmd_host= 0;
-
-  if(!m_handle)
-    m_handle= ndb_mgm_create_handle();
-
-  if (m_handle == 0) {
-    setError(CR_ERROR, "Unable to allocate mgm handle");
-    return -1;
-  }
-
-  int retry = 1;
-  int retry_max = 12;    // Max number of retry attempts
-  int retry_interval= 5; // Seconds between each retry
-  while(retry < retry_max){
-    Uint32 type = CR_ERROR;
-    BaseString tmp;
-    for (unsigned int i = 0; i<_localConfig.ids.size(); i++){
-      MgmtSrvrId * m = &_localConfig.ids[i];
-      DBUG_PRINT("info",("trying %s:%d",
-			 m->name.c_str(),
-			 m->port));
-      switch(m->type){
-      case MgmId_TCP:
-	tmp.assfmt("%s:%d", m->name.c_str(), m->port);
-	if (ndb_mgm_connect(m_handle, tmp.c_str()) == 0) {
-	  m_mgmd_port= m->port;
-	  m_mgmd_host= m->name.c_str();
-	  DBUG_PRINT("info",("connected to ndb_mgmd at %s:%d",
-			     m_mgmd_host,
-			     m_mgmd_port));
-	  return 0;
-	}
-	setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
-      case MgmId_File:
-	break;
-      }
-    }
-    if(latestErrorType == CR_RETRY){
-      DBUG_PRINT("info",("CR_RETRY"));
-      if (exit_on_connect_failure)
-	return 1;
-      REPORT_WARNING("Failed to retrieve cluster configuration");
-      ndbout << "(Cause of failure: " << getErrorString() << ")" << endl;
-      ndbout << "Attempt " << retry << " of " << retry_max << ". " 
-	     << "Trying again in "<< retry_interval <<" seconds..." 
-	     << endl << endl;
-      NdbSleep_SecSleep(retry_interval);
-    } else {
-      break;
-    }
-    retry++;
-  }
-  
-  ndb_mgm_destroy_handle(&m_handle);
-  m_handle= 0;
-  m_mgmd_port= 0;
-  m_mgmd_host= 0;
-  return -1;
+ConfigRetriever::do_connect(int no_retries,
+			    int retry_delay_in_seconds, int verbose)
+{
+  return
+    (ndb_mgm_connect(m_handle,no_retries,retry_delay_in_seconds,verbose)==0) ?
+    0 : -1;
 }
 
 //****************************************************************************
@@ -140,22 +111,9 @@ ConfigRetriever::getConfig() {
 
   struct ndb_mgm_configuration * p = 0;
 
-  if(m_handle != 0){
+  if(m_handle != 0)
     p = getConfig(m_handle);
-  } else {
-    for (unsigned int i = 0; i<_localConfig.ids.size(); i++){
-      MgmtSrvrId * m = &_localConfig.ids[i];
-      switch(m->type){
-      case MgmId_File:
-	p = getConfig(m->name.c_str());
-	break;
-      case MgmId_TCP:
-	break;
-      }
-      if(p)
-	break;
-    }
-  }
+
   if(p == 0)
     return 0;
   
@@ -227,6 +185,16 @@ ConfigRetriever::setError(ErrorType et, const char * s){
   latestErrorType = et;
 }
 
+void
+ConfigRetriever::resetError(){
+  setError(CR_NO_ERROR,0);
+}
+
+int
+ConfigRetriever::hasError()
+{
+  return latestErrorType != CR_NO_ERROR;
+}
 
 const char * 
 ConfigRetriever::getErrorString(){
@@ -341,16 +309,23 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
 }
 
 Uint32
-ConfigRetriever::allocNodeId(){
-  unsigned nodeid= _ownNodeId;
-  
-  if(m_handle != 0){
-    int res= ndb_mgm_alloc_nodeid(m_handle, m_version, &nodeid, m_node_type);
-    if(res != 0) {
-      setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
-      return 0;
+ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
+{
+  _ownNodeId= 0;
+  if(m_handle != 0)
+  {
+    while (1)
+    {
+      int res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type);
+      if(res >= 0)
+	return _ownNodeId= (Uint32)res;
+      if (no_retries == 0)
+	break;
+      no_retries--;
+      NdbSleep_SecSleep(retry_delay_in_seconds);
     }
-  }
-  
-  return _ownNodeId= nodeid;
+    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+  } else
+    setError(CR_ERROR, "management server handle not initialized");    
+  return 0;
 }
