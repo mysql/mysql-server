@@ -34904,7 +34904,7 @@ table using @code{SHOW INDEX FROM tbl_name}.
 @item
 @cindex @code{NULL} values, and indexes
 @cindex indexes, and @code{NULL} values
-Only the @code{MyISAM} table type supports indexes on columns that can have
+Only the @code{MyISAM}, @code{InnoDB}, and @code{BDB} table types support indexes on columns that can have
 @code{NULL} values. In other cases you must declare such columns
 @code{NOT NULL} or an error results.
 
