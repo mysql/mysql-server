@@ -16,7 +16,6 @@
 
 #include <ndb_global.h>
 #include <ndb_version.h>
-#include <sys/stat.h>
 
 #include <ConfigRetriever.hpp>
 

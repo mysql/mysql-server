@@ -19,13 +19,7 @@
 
 #include <ndb_global.h>
 
-#ifdef NDB_MACOSX
-typedef unsigned int Size_t;
-#elif defined(NDB_SPARC_64)
-typedef unsigned int Size_t;
-#else
 typedef size_t Size_t;
-#endif
 
 typedef int Boolean_t;
 

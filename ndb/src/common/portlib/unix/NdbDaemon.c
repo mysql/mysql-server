@@ -19,15 +19,13 @@
 
 #define NdbDaemon_ErrorSize 500
 #if defined(NDB_LINUX) || defined(NDB_SOLARIS)
+  /* XXX fix other unixes */
 long NdbDaemon_DaemonPid;
 int NdbDaemon_ErrorCode;
 char NdbDaemon_ErrorText[NdbDaemon_ErrorSize];
-#endif
 int
 NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 {
-  /* XXX fix other unixes */
-#if defined(NDB_LINUX) || defined(NDB_SOLARIS)
   int lockfd = -1, logfd = -1, n;
   char buf[64];
 
@@ -129,10 +127,19 @@ NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
     dup2(logfd, 2);
     close(logfd);
   }
-#endif
   /* Success */
   return 0;
 }
+#else
+int
+NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
+{
+  /* Fail */
+  snprintf(NdbDaemon_ErrorText, NdbDaemon_ErrorSize,
+	   "Daemon mode not implemented");
+  return -1;
+}
+#endif
 
 #ifdef NDB_DAEMON_TEST
 
