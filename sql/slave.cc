@@ -1476,6 +1476,27 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
   DBUG_RETURN(0);
 }
 
+void init_master_info_with_options(MASTER_INFO* mi)
+{
+  mi->master_log_name[0] = 0;
+  mi->master_log_pos = BIN_LOG_HEADER_SIZE;		// skip magic number
+  
+  if (master_host)
+    strmake(mi->host, master_host, sizeof(mi->host) - 1);
+  if (master_user)
+    strmake(mi->user, master_user, sizeof(mi->user) - 1);
+  if (master_password)
+    strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
+  mi->port = master_port;
+  mi->connect_retry = master_connect_retry;
+}
+
+void clear_last_slave_error(RELAY_LOG_INFO* rli)
+{
+  //Clear the errors displayed by SHOW SLAVE STATUS
+  rli->last_slave_error[0]=0;
+  rli->last_slave_errno=0;
+}
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
@@ -1529,18 +1550,9 @@ file '%s')", fname);
       goto err;
     }
 
-    mi->master_log_name[0] = 0;
-    mi->master_log_pos = BIN_LOG_HEADER_SIZE;		// skip magic number
     mi->fd = fd;
-      
-    if (master_host)
-      strmake(mi->host, master_host, sizeof(mi->host) - 1);
-    if (master_user)
-      strmake(mi->user, master_user, sizeof(mi->user) - 1);
-    if (master_password)
-      strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
-    mi->port = master_port;
-    mi->connect_retry = master_connect_retry;
+    init_master_info_with_options(mi);
+
   }
   else // file exists
   {
@@ -2611,6 +2623,12 @@ slave_begin:
   pthread_cond_broadcast(&rli->start_cond);
   // This should always be set to 0 when the slave thread is started
   rli->pending = 0;
+  /*
+    Reset errors for a clean start (otherwise, if the master is idle, the SQL
+    thread may execute no Query_log_event, so the error will remain even
+    though there's no problem anymore).
+  */
+  clear_last_slave_error(rli);
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   pthread_mutex_lock(&rli->log_space_lock);
