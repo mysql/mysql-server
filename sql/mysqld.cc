@@ -146,6 +146,7 @@ static VolumeID_t datavolid;
 static event_handle_t eh;
 static Report_t ref;
 static void *refneb= NULL;
+my_bool event_flag= FALSE;
 static int volumeid= -1;
 
   /* NEB event callback */
@@ -815,7 +816,8 @@ static void __cdecl kill_server(int sig_ptr)
   else
     unireg_end();
 #ifdef __NETWARE__
-  pthread_join(select_thread, NULL);		// wait for main thread
+  if (!event_flag)
+      pthread_join(select_thread, NULL);	// wait for main thread
 #endif /* __NETWARE__ */
 
   pthread_exit(0);				/* purecov: deadcode */
@@ -1525,20 +1527,20 @@ static void check_data_home(const char *path)
 // down server event callback
 void mysql_down_server_cb(void *, void *)
 {
+  event_flag = TRUE;  
   kill_server(0);
 }
 
 
 // destroy callback resources
 void mysql_cb_destroy(void *)
-{
-  UnRegisterEventNotification(eh);  // cleanup down event notification
+{  
+  UnRegisterEventNotification(eh);  // cleanup down event notification    	  
   NX_UNWRAP_INTERFACE(ref);
-
-  /* Deregister NSS volume deactivation event */
-  NX_UNWRAP_INTERFACE(refneb);
+  /* Deregister NSS volume deactivation event */  
+  NX_UNWRAP_INTERFACE(refneb);  	
   if (neb_consumer_id)
-    UnRegisterConsumer(neb_consumer_id, NULL);	
+    UnRegisterConsumer(neb_consumer_id, NULL);
 }
 
 
@@ -1558,7 +1560,7 @@ void mysql_cb_init()
     Register for volume deactivation event
     Wrap the callback function, as it is called by non-LibC thread
   */
-  (void)NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
+  (void *) NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
   registerwithneb();
 
   NXVmRegisterExitHandler(mysql_cb_destroy, NULL);  // clean-up
@@ -1655,7 +1657,9 @@ ulong neb_event_callback(struct EventBlock *eblock)
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
       nw_panic = TRUE;
+      event_flag= TRUE;
       kill_server(0);
+ 
     }
   }
   return 0;
@@ -1729,8 +1733,8 @@ static void init_signals(void)
   for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
     signal(signals[i], kill_server);
   mysql_cb_init();  // initialize callbacks
-}
 
+}
 
 static void start_signal_handler(void)
 {
@@ -3008,7 +3012,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-
+  
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -3058,6 +3062,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+ 
   exit(0);
   return(0);					/* purecov: deadcode */
 }
