@@ -800,6 +800,14 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     if ((s->on_expr=tables->on_expr))
     {
       // table->maybe_null=table->outer_join=1;	// Mark for send fields
+      if (!table->file->records)
+      {						// Empty table
+	s->key_dependent=s->dependent=0;
+	s->type=JT_SYSTEM;
+	const_table_map|=table->map;
+	set_position(join,const_count++,s,(KEYUSE*) 0);
+	continue;
+      }
       s->key_dependent=s->dependent=
 	s->on_expr->used_tables() & ~(table->map);
       s->dependent|=stat_vector[i-1]->dependent | table_vector[i-1]->map;

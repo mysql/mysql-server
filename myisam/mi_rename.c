@@ -30,6 +30,11 @@ int mi_rename(const char *old_name, const char *new_name)
   uint raid_type=0,raid_chunks=0;
 #endif
   DBUG_ENTER("mi_rename");
+
+#ifdef EXTRA_DEBUG
+  check_table_is_closed(old_name,"rename old_table");
+  check_table_is_closed(new_name,"rename new table2");
+#endif
 #ifdef USE_RAID
   {
     MI_INFO *info;
@@ -39,7 +44,10 @@ int mi_rename(const char *old_name, const char *new_name)
     raid_chunks =    info->s->base.raid_chunks;
     mi_close(info);
   }
+#ifdef EXTRA_DEBUG
+  check_table_is_closed(old_name,"rename raidcheck");
 #endif
+#endif /* USE_RAID */
 
   fn_format(from,old_name,"",MI_NAME_IEXT,4);
   fn_format(to,new_name,"",MI_NAME_IEXT,4);

@@ -716,6 +716,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
       {
 	alength= *a++; blength= *b++;
 	end=a+alength;
+	next_key_length=key_length-blength-1;
       }
       else
       {

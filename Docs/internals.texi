@@ -143,6 +143,65 @@ same tables.
   and then we read the rows in the sorted order into a row buffer
   (record_buffer) .
 
+@node Coding guidelines
+@chapter Coding guidelines
+
+- We are using bitkeeper (www.bitkeeper.com) for source management.
+- You should use the MySQL 3.23 or MySQL 4.0 source for all developments.
+- If you have any questions about the MySQL source, you can post these
+  to developers@mysql.com and we will answer them.
+  Note that we will shortly change the name of this list to
+  internals@mysql.com, to more accurately reflect what should be
+  posted to this list.
+
+- Try to write code in a lot of black boxes that can be reused or at
+  least have a clean interface
+- Reuse code;  There is already in MySQL a lot of algorithms for list handling,
+  queues, dynamic and hashed arrays, sorting...) that can be reused.
+- Try to always write optimized code, so that you don't have to
+  go back and rewrite it a couple of months later.  It's better to
+  spend 3 times as much time designing and writing and optimal function than
+  having to do it all over again later on.
+- Avoid CPU wasteful code, even where it does not matter, so that
+  you will not develop sloppy coding habits.
+- If you can write it in fewer lines, do it (as long as the code will not
+  be slower or much harder to read)
+- do not check the same pointer for NULL more than once.
+- Use long function and variable names in English;  This makes your
+  code easier to read.
+- Think assembly - make it easier for the compiler to optimize your code.
+- Comment your code when you do something that someone else may think
+  is 'not trivial'.
+- Use the my_ functions like my_read/my_write/my_malloc() that you can
+  find in the mysys library instead of the direct system calls;  This
+  will make your code easier to debug and more portable.
+- use libstring functions instead of standard libc string functions
+  whenever possible
+- Avoid using alloc (its REAL slow);  For memory allocations that only
+  needs to live for the lifetime of one thread, on should use
+  sql_alloc() instead.
+- Before doing big design decision, please first post a summary of
+  what you want to do, why you want to do it and how you plan to do
+  it.  This way we can easily provide you with feedback and also
+  easily discuss is throughly if some other developer thinks there is better
+  way to do the same thing!
+
+- Use my_var as opposed to myVar or MyVar ( _ rather than dancing SHIFT
+  to spearate words in identifiers)
+- class names start with a capital 
+- structure types are typedefed to all caps identifier
+- #defines are capitalized
+- matching { are in the same column
+ - functions return 0 on success , non-zero on error, so you can do
+  if(a() || b() || c()) { error("something went wrong");}
+- goto is ok if not abused
+- avoid default variable initalizations, use LINT_INIT() if the
+  compiler complains after making sure that there is really no way
+  the variable can be used uninitialized
+- Do not instantiate a class if you do not have to
+- Use pointers rather than array indexing when operating on strings
+
+
 @node Index
 @unnumbered Index
 
