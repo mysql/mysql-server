@@ -1207,7 +1207,7 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
     if (!(error=key_file[keynr]->cursor(key_file[keynr], trans,
 					&tmp_cursor, 0)))
     {
-      if (!(error=cursor->c_get(tmp_cursor,
+      if (!(error=tmp_cursor->c_get(tmp_cursor,
 			       (keynr == primary_key ?
 				prim_key :
 				create_key(&key, keynr, key_buff2, record)),
