@@ -223,7 +223,7 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_ansi_mode=0,opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
-  opt_show_slave_auth_info = 0;
+  opt_show_slave_auth_info = 0, opt_old_rpl_compat = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -718,6 +718,7 @@ void clean_up(bool print_message)
   free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql_tmpdir,MYF(0));
+  my_free(slave_load_tmpdir,MYF(0));
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
@@ -2518,7 +2519,8 @@ enum options {
 	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
-               OPT_SHOW_SLAVE_AUTH_INFO};
+               OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
+               OPT_SLAVE_LOAD_TMPDIR};
 
 static struct option long_options[] = {
   {"ansi",                  no_argument,       0, 'a'},
@@ -2611,6 +2613,7 @@ static struct option long_options[] = {
      OPT_SAFEMALLOC_MEM_LIMIT},
   {"new",                   no_argument,       0, 'n'},
   {"old-protocol",          no_argument,       0, 'o'},
+  {"old-rpl-compat",          no_argument,       0, (int)OPT_OLD_RPL_COMPAT},
 #ifdef ONE_THREAD
   {"one-thread",            no_argument,       0, (int) OPT_ONE_THREAD},
 #endif
@@ -2659,6 +2662,7 @@ static struct option long_options[] = {
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
   {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINK},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
+  {"slave-load-tmpdir", required_argument, 0, (int) OPT_SLAVE_LOAD_TMPDIR},  
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
 #ifdef __WIN__
@@ -3310,6 +3314,12 @@ static void get_options(int argc,char **argv)
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
       safemalloc_mem_limit = atoi(optarg);
 #endif      
+      break;
+    case OPT_SLAVE_LOAD_TMPDIR:
+      slave_load_tmpdir = my_strdup(optarg, MYF(MY_FAE));
+      break;
+    case OPT_OLD_RPL_COMPAT:
+      opt_old_rpl_compat = 1;
       break;
     case OPT_SHOW_SLAVE_AUTH_INFO:
       opt_show_slave_auth_info = 1;
@@ -4376,6 +4386,14 @@ static void fix_paths(void)
     convert_dirname(mysql_tmpdir);
     mysql_tmpdir=(char*) my_realloc(mysql_tmpdir,(uint) strlen(mysql_tmpdir)+1,
 				    MYF(MY_HOLD_ON_ERROR));
+  }
+  if (!slave_load_tmpdir)
+  {
+    int copy_len;
+    slave_load_tmpdir = (char*) my_malloc((copy_len=strlen(mysql_tmpdir) + 1)
+					  ,  MYF(MY_FAE));
+    // no need to check return value, if we fail, my_malloc() never returns
+    memcpy(slave_load_tmpdir, mysql_tmpdir, copy_len);
   }
 }
 

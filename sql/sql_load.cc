@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include <my_dir.h>
 #include <m_ctype.h>
+#include "sql_repl.h"
 
 class READ_INFO {
   File	file;
@@ -32,6 +33,7 @@ class READ_INFO {
   int	field_term_char,line_term_char,enclosed_char,escape_char;
   int	*stack,*stack_pos;
   bool	found_end_of_line,start_of_line,eof;
+  bool  need_end_io_cache;
   IO_CACHE cache;
   NET *io_net;
 
@@ -50,6 +52,18 @@ public:
   char unescape(char chr);
   int terminator(char *ptr,uint length);
   bool find_start_of_fields();
+  // we need to force cache close before destructor is invoked to log
+  // the last read block
+  void end_io_cache()
+  {
+    ::end_io_cache(&cache);
+    need_end_io_cache = 0;
+  }
+
+  // either this method, or we need to make cache public
+  // arg must be set from mysql_load() since constructor does not see
+  // either the table or THD value
+  void set_io_cache_arg(void* arg) { cache.arg = arg; }
 };
 
 static int read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,
@@ -67,10 +81,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   File file;
   TABLE *table;
   int error;
-  uint save_skip_lines = ex->skip_lines;
   String *field_term=ex->field_term,*escaped=ex->escaped,
     *enclosed=ex->enclosed;
   bool is_fifo=0;
+  LOAD_FILE_INFO lf_info;
+  char * db = table_list->db ? table_list->db : thd->db;
   DBUG_ENTER("mysql_load");
 
   if (escaped->length() > 1 || enclosed->length() > 1)
@@ -79,7 +94,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(-1);
   }
-
   if (!(table = open_ltable(thd,table_list,lock_type)))
     DBUG_RETURN(-1);
   if (!fields.elements)
@@ -161,8 +175,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
 	DBUG_RETURN(-1);
       
-      // the file must be:
-      if (!((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+      // if we are not in slave thread, the file must be:
+      if (!thd->slave_thread &&
+	  !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
 #ifndef __EMX__
 	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
 #endif
@@ -195,13 +210,27 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(-1);				// Can't allocate buffers
   }
 
+  if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+  {
+    lf_info.thd = thd;
+    lf_info.ex = ex;
+    lf_info.db = db;
+    lf_info.table_name = table_list->real_name;
+    lf_info.fields = &fields;
+    lf_info.handle_dup = handle_duplicates;
+    lf_info.wrote_create_file = 0;
+    lf_info.last_pos_in_file = HA_POS_ERROR;
+    read_info.set_io_cache_arg((void*)&lf_info);
+  }
   restore_record(table,2);
 
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0L;
   if (ex->line_term->length() && field_term->length())
   {
-    while (ex->skip_lines--)
+    // ex->skip_lines needs to be preserved for logging
+    uint skip_lines = ex->skip_lines;
+    while (skip_lines--)
     {
       if (read_info.next_line())
 	break;
@@ -240,7 +269,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table->copy_blobs=0;
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
   if (error)
+  {
+    if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+    {
+      Delete_file_log_event d(thd);
+      mysql_bin_log.write(&d);
+    }
     DBUG_RETURN(-1);				// Error on read
+  }
   sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
 	  info.records-info.copied,thd->cuted_fields);
   send_ok(&thd->net,info.copied+info.deleted,0L,name);
@@ -250,12 +286,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   
   if (!table->file->has_transactions())
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
-  if (!read_file_from_client && mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open())
   {
-    ex->skip_lines = save_skip_lines; 
-    Load_log_event qinfo(thd, ex, table->table_name, fields, 
+    if (opt_old_rpl_compat && !read_file_from_client)
+    {
+      Load_log_event qinfo(thd, ex, db, table->table_name, fields, 
 			 handle_duplicates);
-    mysql_bin_log.write(&qinfo);
+      mysql_bin_log.write(&qinfo);
+    }
+    if (!opt_old_rpl_compat)
+    {
+      read_info.end_io_cache(); // make sure last block gets logged
+      Execute_load_log_event e(thd);
+      mysql_bin_log.write(&e);
+    }
   }
   DBUG_RETURN(0);
 }
@@ -480,6 +524,13 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
       my_free((gptr) buffer,MYF(0)); /* purecov: inspected */
       error=1;
     }
+    else 
+    {
+      need_end_io_cache = 1;
+      if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+	cache.pre_read = cache.pre_close =
+	  (IO_CACHE_CALLBACK)log_loaded_block;
+    }
   }
 }
 
@@ -488,7 +539,8 @@ READ_INFO::~READ_INFO()
 {
   if (!error)
   {
-    end_io_cache(&cache);
+    if (need_end_io_cache)
+      ::end_io_cache(&cache);
     my_free((gptr) buffer,MYF(0));
     error=1;
   }
@@ -798,3 +850,4 @@ bool READ_INFO::find_start_of_fields()
   }
   return 0;
 }
+

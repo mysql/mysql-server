@@ -1578,3 +1578,33 @@ err:
 
   return error;
 }
+
+int log_loaded_block(IO_CACHE* file)
+{
+  LOAD_FILE_INFO* lf_info;
+  uint block_len ;
+  if (!(block_len = file->rc_end - file->buffer))
+    return 0;
+  lf_info = (LOAD_FILE_INFO*)file->arg;
+  if (lf_info->last_pos_in_file != HA_POS_ERROR &&
+      lf_info->last_pos_in_file >= file->pos_in_file)
+    return 0;
+  lf_info->last_pos_in_file = file->pos_in_file;
+  if (lf_info->wrote_create_file)
+  {
+    Append_block_log_event a(lf_info->thd, file->buffer,block_len);
+    mysql_bin_log.write(&a);
+  }
+  else
+  {
+    Create_file_log_event c(lf_info->thd,lf_info->ex,lf_info->db,
+			    lf_info->table_name, *lf_info->fields,
+			    lf_info->handle_dup, file->buffer,
+			     block_len);
+    mysql_bin_log.write(&c);
+    lf_info->wrote_create_file = 1;
+  }
+  return 0;
+}
+
+

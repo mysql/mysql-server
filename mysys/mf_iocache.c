@@ -56,7 +56,8 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   DBUG_PRINT("enter",("type: %d  pos: %ld",(int) type, (ulong) seek_offset));
 
   info->file=file;
-  info->pre_read = info->post_read = 0;
+  info->pre_close = info->pre_read = info->post_read = 0;
+  info->arg = 0;
   if (!cachesize)
     if (! (cachesize= my_default_record_cache_size))
       DBUG_RETURN(1);				/* No cache requested */
@@ -608,7 +609,10 @@ int flush_io_cache(IO_CACHE *info)
 int end_io_cache(IO_CACHE *info)
 {
   int error=0;
+  IO_CACHE_CALLBACK pre_close;
   DBUG_ENTER("end_io_cache");
+  if((pre_close=info->pre_close))
+    (*pre_close)(info);
   if (info->buffer)
   {
     if (info->file != -1)			/* File doesn't exist */
@@ -618,3 +622,4 @@ int end_io_cache(IO_CACHE *info)
   }
   DBUG_RETURN(error);
 } /* end_io_cache */
+
