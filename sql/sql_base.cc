@@ -157,7 +157,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     table_list.db= (char*) entry->table_cache_key;
     table_list.real_name= entry->real_name;
     table_list.grant.privilege=0;
-    if (check_table_access(thd,SELECT_ACL | EXTRA_ACL,&table_list))
+    if (check_table_access(thd,SELECT_ACL | EXTRA_ACL,&table_list,1))
       continue;
 
     /* need to check if we haven't already listed it */

@@ -1351,13 +1351,12 @@ mysql_init(MYSQL *mysql)
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
       return 0;
     mysql->free_me=1;
-    mysql->net.vio = 0;
   }
   else
     bzero((char*) (mysql),sizeof(*(mysql)));
   mysql->options.connect_timeout=CONNECT_TIMEOUT;
   mysql->last_used_con = mysql->next_slave = mysql->master = mysql;
-  mysql->last_used_slave = 0;
+
   /*
     By default, we are a replication pivot. The caller must reset it
     after we return if this is not the case.

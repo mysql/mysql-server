@@ -92,7 +92,8 @@ NULL	NULL	NULL
 0	0	
 select id >= 0 and id <= 5 as grp,count(*) from t1 group by grp;
 grp	count(*)
-0	7
+NULL	1
+0	6
 1	6
 SELECT DISTINCT FACILITY FROM t1;
 FACILITY
