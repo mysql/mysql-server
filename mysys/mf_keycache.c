@@ -669,7 +669,7 @@ static int flush_key_blocks_int(File file, enum flush_type type)
   Flush all blocks for a specific file to disk
 
   SYNOPSIS
-    flush_all_key_blocks()
+    flush_key_blocks()
     file	File descriptor
     type	Type of flush operation
 
