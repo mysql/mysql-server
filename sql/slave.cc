@@ -1222,6 +1222,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->temporary_tables = save_temporary_tables; // restore temp tables
   threads.append(thd);
+  glob_mi.pending = 0;  //this should always be set to 0 when the slave thread
+  // is started
   
   DBUG_PRINT("info",("master info: log_file_name=%s, position=%s",
 		     glob_mi.log_file_name, llstr(glob_mi.pos,llbuff)));
