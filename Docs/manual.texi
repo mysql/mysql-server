@@ -8728,7 +8728,12 @@ it with a trace file or under @code{gdb}.  @xref{Using gdb on mysqld}.
 * FreeBSD::                     FreeBSD Notes
 * NetBSD::                      NetBSD notes
 * OpenBSD::                     OpenBSD Notes
+* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD 2.8::                 OpenBSD 2.8 Notes
 * BSDI::                        BSD/OS Notes
+* BSDI2::                       BSD/OS Version 2.x Notes
+* BSDI3::                       BSD/OS Version 3.x Notes
+* BSDI4::                       BSD/OS Version 4.x Notes
 @end menu
 
 
@@ -8836,7 +8841,7 @@ crash when @code{make} tries to run @code{lint} on C++ files.
 
 This section contains notes on OpenBSD.
 
-@node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, OpenBSD
+@node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, BSD Notes
 @subsubsection OpenBSD 2.5 Notes
 
 On OpenBSD Version 2.5, you can compile MySQL with native threads
@@ -8847,7 +8852,7 @@ CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
 
 
-@node OpenBSD 2.8, BSDI, OpenBSD 2.5, OpenBSD
+@node OpenBSD 2.8, BSDI, OpenBSD 2.5, BSD Notes
 @subsubsection OpenBSD 2.8 Notes
 
 Our users have reported that OpenBSD 2.8 has a threading bug which causes
@@ -8868,7 +8873,7 @@ usage, and crashes.
 
 This section contains notes on BSD/OS.
 
-@node BSDI2, BSDI3, BSDI, BSDI
+@node BSDI2, BSDI3, BSDI, BSD Notes
 @subsubsection BSD/OS Version 2.x Notes
 
 If you get the following error when compiling MySQL, your
@@ -8893,7 +8898,7 @@ If you get problems with the current date in MySQL, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
 
 
-@node BSDI3, BSDI4, BSDI2, BSDI
+@node BSDI3, BSDI4, BSDI2, BSD Notes
 @subsubsection BSD/OS Version 3.x Notes
 
 Upgrade to BSD/OS Version 3.1.  If that is not possible, install
@@ -8934,7 +8939,7 @@ If this doesn't work and you are using @code{bash}, try switching to
 @code{bash} and @code{ulimit}.
 
 
-@node BSDI4,  , BSDI3, BSDI
+@node BSDI4,  , BSDI3, BSD Notes
 @subsubsection BSD/OS Version 4.x Notes
 
 BSDI Version 4.x has some thread-related bugs.  If you want to use
@@ -26050,6 +26055,7 @@ may find it useful to refer to the various indexes.
 * Basic User Commands::         Basic MySQL User Utility Commands
 * Transactional Commands::      MySQL Transactional and Locking Commands
 * Fulltext Search::             MySQL Full-text Search
+* Query Cache::                 MySQL Query Cache
 @end menu
 
 
@@ -31227,10 +31233,11 @@ MySQL Version 3.23 this shouldn't normally be needed.
 @item
 @code{SQL_CACHE} tells MySQL to store the query result in the query cache
 if you are using @code{SQL_QUERY_CACHE_TYPE=2} (@code{DEMAND}).
+@xref{Query Cache}.
 
 @item
 @code{SQL_NO_CACHE} tells MySQL to not allow the query result to be stored
-in the query cache.
+in the query cache. @xref{Query Cache}.
 
 @item
 @cindex @code{GROUP BY}, extensions to ANSI SQL
@@ -33965,7 +33972,7 @@ future transactions.
 You can set the default isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
-@node Fulltext Search,  , Transactional Commands, Reference
+@node Fulltext Search, Query Cache, Transactional Commands, Reference
 @section MySQL Full-text Search
 
 @cindex searching, full-text
@@ -34265,6 +34272,209 @@ the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Make the model more flexible (by adding some adjustable
 parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 @end itemize
+
+
+@node Query Cache,  , Fulltext Search, Reference
+@section MySQL Query Cache
+
+@cindex Query Cache
+@cindex @code{SELECT}, Query Cache
+
+From version 4.0.1, @code{MySQL server} features a @code{Query Cache}.
+When in use, the query cache stores the text of a @code{SELECT} query
+together with the corresponding result that is sent to a client.
+If another identical query is received, the server can then retrieve
+the results from the query cache rather than parsing and executing the
+same query again.
+
+The query cache is extremely useful in an environment where (some)
+tables don't change very often and you have a lot of identical queries.
+This is a typical situation for many web servers that use a lot of
+dynamic content.
+
+Following are some performance data for the query cache
+(We got these by running the MySQL benchmark suite on a Linux Alpha
+2x500 MHz with 2GB RAM and a 64MB query cache).
+
+@itemize @bullet
+@item
+If you don't use the query cache (@code{query_cache_size=0}), there is
+no notable overhead.
+@item
+If all queries are very simple (like selecting a row from a table with
+one row) but still different so that the queries can't be cached, the
+overhead for having the query cache active is 13%. This could be
+regarded as the worst case scenario. In real life queries are much more
+complicated than this so the overhead is normally significantly lower.
+@item
+Searches after one row in a one row table is 238% faster.
+This can be regarded as close to the minimum speedup to be expected for
+a query that is cached.
+@end itemize
+
+@menu
+* Query Cache How::             How The Query Cache Operates
+* Query Cache Configuration::   Query Cache Configuration
+* Query Cache in SELECT::       Query Cache Options in @code{SELECT}
+* Query Cache Status and Maintenance::  Query Cache Status and Maintenance
+@end menu
+
+
+@node Query Cache How, Query Cache Configuration, Query Cache, Query Cache
+@subsection How The Query Cache Operates
+
+Queries are compared before parsing, thus
+
+@example
+SELECT * FROM TABLE
+@end example
+
+and
+
+@example
+Select * from table
+@end example
+
+are regarded as different queries for query cache, so queries need
+to be exactly the same (byte for byte) to be seen as identical.
+In addition, a query may be seen as different if for instance one
+client is using a new communication protocol format or another
+character set than another client.
+
+The cache does work for @code{SELECT CALC_ROWS ...} and
+@code{SELECT FOUND_ROWS() ...} type queries because the number of
+found rows is also stored in the cache.
+
+If a table changes (@code{INSERT}, @code{UPDATE}, @code{DELETE},
+@code{TRUNCATE}, @code{ALTER} or @code{DROP TABLE|DATABASE}),
+then all cached queries that used this table (possibly through a
+MRG_MyISAM table!) become invalid and are removed from the cache.
+
+Currently all @code{InnoDB} tables are invalidated on @code{COMMIT},
+in the future this will be changed so only tables changed in the
+transaction cause the corresponding cache entries to be invalidated.
+
+A query cannot be cached if it contains one of the functions:
+@multitable @columnfractions .25 .25 .25 .25
+@item @strong{Function} @tab @strong{Function}
+@tab @strong{Function} @tab @strong{Function}
+@item @code{User Defined Functions} @tab @code{CONNECTION_ID}
+@tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
+@item @code{RELEASE_LOCK} @tab @code{LOAD_FILE}
+@tab @code{MASTER_POS_WAIT} @tab @code{NOW}
+@item @code{SYSDATE} @tab @code{CURRENT_TIMESTAMP}
+@tab @code{CURDATE} @tab @code{CURRENT_DATE}
+@item @code{CURTIME} @tab @code{CURRENT_TIME}
+@tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
+@item @code{LAST_INSERT_ID} @tab @code{RAND}
+@tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
+@item @code{BENCHMARK}
+@end multitable
+
+Nor can a query be cached if it contains user variables,
+if it is of the form @code{SELECT ... IN SHARE MODE} or
+of the form @code{SELECT * FROM AUTOINCREMENT_FIELD IS NULL}
+(to retrieve last insert id - ODBC work around).
+
+However, @code{FOUND ROWS()} will return the correct value,
+even if the preceding query was fetched from the cache.
+
+Queries that don't use any tables are not cached.
+
+
+@node Query Cache Configuration, Query Cache in SELECT, Query Cache How, Query Cache
+@subsection Query Cache Configuration
+
+The query cache adds a few @code{MySQL} system variables for
+@code{mysqld} which may be set in a configuration file, on the
+command line when starting @code{mysqld}.
+
+@itemize
+@item @code{query_cache_limit}
+Don't cache results that are bigger than this. (Default 1M).
+
+@item @code{query_cache_size}
+The memory allocated to store results from old queries.
+If this is 0, the query cache is disabled (default).
+
+@item @code{query_cache_startup_type}
+This may be set (only numeric) to
+@multitable @columnfractions .3 .7
+@item 0 @tab (OFF, don't cache or retrieve results)
+@item 1 @tab (ON, cache all results except @code{SELECT SQL_NO_CACHE ...} queries)
+@item 2 @tab (DEMAND, cache only @code{SELECT SQL_CACHE ...} queries)
+@end multitable
+@end itemize
+
+
+Inside a thread (connection), the behaviour of the query cache can be
+changed from the default. The syntax is as follows:
+
+@code{SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND}
+@code{SQL_QUERY_CACHE_TYPE = 0   | 1  | 2}
+
+@multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
+@item 0 or OFF @tab Don't cache or retrieve results.
+@item 1 or ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
+@item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
+@end multitable
+
+By default @code{SQL_QUERY_CACHE_TYPE} depends on the value of
+@code{query_cache_startup_type} when the thread was created.
+
+
+@node Query Cache in SELECT, Query Cache Status and Maintenance, Query Cache Configuration, Query Cache
+@subsection Query Cache Options in @code{SELECT}
+
+There are two possible query cache related parameters that may be
+specified in a @code{SELECT} query:
+
+@findex SQL_CACHE
+@findex SQL_NO_CACHE
+
+@itemize
+@item @code{SQL_CACHE}
+If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND},
+allow the query to be cached.
+If @code{SQL_QUERY_CACHE_TYPE} is @code{ON}, this is the default.
+If @code{SQL_QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
+@item @code{SQL_NO_CACHE}
+Make this query non-cachable, don't allow this query to be stored
+in the cache.
+@end itemize
+
+
+@node Query Cache Status and Maintenance,  , Query Cache in SELECT, Query Cache
+@subsection Query Cache Status and Maintenance
+
+With the @code{FLUSH QUERY CACHE} command you can defragment the query
+cache to better utilise its memory. This command will not remove any
+queries from the cache.
+@code{FLUSH TABLES} also flushes the query cache.
+
+The @code{RESET QUERY CACHE} command removes all query results from the
+query cache.
+
+You can monitor query cache performance in @code{SHOW STATUS}:
+
+@itemize
+@item @code{Qcache_queries_in_cache}
+Number of queries registered in the cache.
+@item @code{Qcache_inserts}
+Number of queries added to the cache.
+@item @code{Qcache_hits}
+Number of cache hits
+@item @code{Qcache_not_cached}
+Number of non-cached queries
+(not cachable, or due to SQL_QUERY_CACHE_TYPE)
+@item @code{Qcache_free_memory}
+Amount of free memory for query cache.
+@end itemize
+
+Please note:
+Total number of queries =
+@code{Qcache_inserts} + @code{Qcache_hits} + @code{Qcache_not_cached}.
 
 
 @node Table types, Clients, Reference, Top
