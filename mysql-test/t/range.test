@@ -429,6 +429,7 @@ explain select count(*) from t1 where x > -16;
 # The following result should be (2). To be fixed when we add 'unsigned flag' to
 # Field::store(longlong)
 select count(*) from t1 where x > -16;
+select * from t1 where x > -16;
 select count(*) from t1 where x = 18446744073709551601;
 
 drop table t1;

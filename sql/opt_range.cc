@@ -7189,7 +7189,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   {
     quick_prefix_selectivity= (double) quick_prefix_records /
                               (double) table_records;
-    num_groups= (uint) round(num_groups * quick_prefix_selectivity);
+    num_groups= (uint) rint(num_groups * quick_prefix_selectivity);
   }
 
   if (used_key_parts > group_key_parts)
