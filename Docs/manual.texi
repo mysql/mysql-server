@@ -2348,21 +2348,21 @@ from the local @strong{MySQL} list.
 The following @strong{MySQL} mailing lists exist:
 
 @table @code
-@item announce
+@item @uref{mailto:announce-subscribe@@lists.mysql.com, announce}
 This is for announcement of new versions of @strong{MySQL} and related
 programs. This is a low volume list that we think all @strong{MySQL}
 users should be on.
 
-@item mysql
+@item @uref{mailto:mysql-subscribe@@lists.mysql.com, mysql}
 The main list for general @strong{MySQL} discussion. Please note that some
 topics are better discussed on the more-specialized lists. If you post to the
 wrong list, you may not get an answer!
 
-@item mysql-digest
+@item @uref{mailto:mysql-digest-subscribe@@lists.mysql.com, mysql-digest}
 The @code{mysql} list in digest form. That means you get all individual
 messages, sent as one large mail message once a day.
 
-@item bugs
+@item @uref{mailto:bugs-subscribe@@lists.mysql.com, bugs}
 On this list you should only post a full, repeatable bug report, using
 the @code{mysqlbug} script (if you are running on Windows, you should
 include a description of the operating system and the @strong{MySQL} version).
@@ -2374,45 +2374,54 @@ this list will be corrected or documented in the next @strong{MySQL} release!
 If there are only small code changes involved, we will also post a patch that 
 fixes the problem.
 
-@item bugs-digest
+@item @uref{mailto:bugs-digest-subscribe@@lists.mysql.com, bugs-digest}
 The @code{bugs} list in digest form
 
-@item developer
+@item @uref{mailto:developer-subscribe@@lists.mysql.com, developer}
+This list has been depreciated in favor of the
+@uref{mailto:internals-subscribe@@lists.mysql.com, internals} list (below).
+
+@item @uref{mailto:developer-digest-subscribe@@lists.mysql.com, developer-digest}
+This list has been depreciated in favor of the
+@uref{mailto:internals-digest-subscribe@@lists.mysql.com, internals-digest} list
+(below).
+
+@item @uref{mailto:internals-subscribe@@lists.mysql.com, internals}
 A list for people who work on the @strong{MySQL} code. On this list one
 can also discuss @strong{MySQL} development and post patches.
 
-@item developer-digest
-A digest version of the @code{developer} list.
+@item @uref{mailto:internals-digest-subscribe@@lists.mysql.com, internals-digest}
+A digest version of the @uref{mailto:internals-subscribe@@lists.mysql.com, internals} list.
 
-@item java
+@item @uref{mailto:java-subscribe@@lists.mysql.com, java}
 Discussion about @strong{MySQL} and Java. Mostly about the JDBC drivers.
 
-@item java-digest
+@item @uref{mailto:java-digest-subscribe@@lists.mysql.com, java-digest}
 A digest version of the @code{java} list.
 
-@item win32
+@item @uref{mailto:win32-subscribe@@lists.mysql.com, win32}
 All things concerning @strong{MySQL} on Microsoft operating systems such as
 Win95, Win98, NT and Win2000.
 
-@item win32-digest
+@item @uref{mailto:win32-digest-subscribe@@lists.mysql.com, win32-digest}
 A digest version of the @code{win32} list.
 
-@item myodbc
+@item @uref{mailto:myodbc-subscribe@@lists.mysql.com, myodbc}
 All things concerning connecting to @strong{MySQL} with ODBC.
 
-@item myodbc-digest
+@item @uref{mailto:myodbc-digest-subscribe@@lists.mysql.com, myodbc-digest}
 A digest version of the @code{myodbc} list.
 
-@item plusplus
+@item @uref{mailto:plusplus-subscribe@@lists.mysql.com, plusplus}
 All things concerning programming with the C++ API to @strong{MySQL}.
 
-@item plusplus-digest
+@item @uref{mailto:plusplus-digest-subscribe@@lists.mysql.com, plusplus-digest}
 A digest version of the @code{plusplus} list.
 
-@item msql-mysql-modules
+@item @uref{mailto:msql-mysql-modules-subscribe@@lists.mysql.com, msql-mysql-modules}
 A list about the Perl support in @strong{MySQL}.
 
-@item msql-mysql-modules-digest
+@item @uref{mailto:msql-mysql-modules-digest-subscribe@@lists.mysql.com, msql-mysql-modules-digest}
 A digest version of the @code{msql-mysql-modules} list.
 @end table
 
