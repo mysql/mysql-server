@@ -53,6 +53,7 @@ int mysql_create_view(THD *thd,
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
+  TABLE_LIST *tbl;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   int res= 0;
@@ -73,7 +74,7 @@ int mysql_create_view(THD *thd,
                    0, 0) ||
       grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0))
     DBUG_RETURN(1);
-  for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_local)
+  for (tbl= tables; tbl; tbl= tbl->next_local)
   {
     /*
       Ensure that we have some privilage on this table, more strict check
@@ -128,7 +129,7 @@ int mysql_create_view(THD *thd,
   if (&lex->select_lex != lex->all_selects_list)
   {
     /* check tables of subqueries */
-    for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_global)
+    for (tbl= tables; tbl; tbl= tbl->next_global)
     {
       if (!tbl->table_in_first_from_clause)
       {
@@ -163,7 +164,7 @@ int mysql_create_view(THD *thd,
     DBUG_RETURN(res);
 
   /* check that tables are not temporary */
-  for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_global)
+  for (tbl= tables; tbl; tbl= tbl->next_global)
   {
     if (tbl->table->tmp_table != NO_TMP_TABLE && !test(tbl->view))
     {
@@ -492,7 +493,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   }
 
   TABLE_LIST *old_next, *tbl_end, *tbl_next;
-  SELECT_LEX *end, *next;
+  SELECT_LEX *end;
   THD *thd= current_thd;
   LEX *old_lex= thd->lex, *lex;
   int res= 0;
