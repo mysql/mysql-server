@@ -280,6 +280,9 @@ void THD::init(void)
 					       variables.date_format);
   variables.datetime_format= date_time_format_copy((THD*) 0,
 						   variables.datetime_format);
+#ifdef HAVE_NDBCLUSTER_DB
+  variables.ndb_use_transactions= 1;
+#endif
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   options= thd_startup_options;

@@ -365,6 +365,21 @@ lock_deadlock_recursive(
 	ulint*	cost);		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return TRUE */
+
+/*************************************************************************
+Gets the type of a lock. */
+UNIV_INLINE
+ulint
+lock_get_type(
+/*==========*/
+			/* out: LOCK_TABLE or LOCK_REC */
+	lock_t*	lock)	/* in: lock */
+{
+	ut_ad(lock);
+
+	return(lock->type_mode & LOCK_TYPE_MASK);
+}
+
 /*************************************************************************
 Gets the nth bit of a record lock. */
 UNIV_INLINE
@@ -394,19 +409,6 @@ lock_rec_get_nth_bit(
 
 	return(ut_bit_get_nth(b, bit_index));
 }	
-
-/*************************************************************************
-Gets the table covered by an IX table lock. */
-
-dict_table_t*
-lock_get_ix_table(
-/*==============*/
-			/* out: the table covered by the lock */
-	lock_t*	lock)	/* in: table lock */
-{
-	ut_a(lock->type_mode == (LOCK_TABLE | LOCK_IX));
-	return(lock->un_member.tab_lock.table);
-}
 
 /*************************************************************************/
 
@@ -582,20 +584,6 @@ lock_get_mode(
 }
 
 /*************************************************************************
-Gets the type of a lock. */
-UNIV_INLINE
-ulint
-lock_get_type(
-/*==========*/
-			/* out: LOCK_TABLE or LOCK_REC */
-	lock_t*	lock)	/* in: lock */
-{
-	ut_ad(lock);
-
-	return(lock->type_mode & LOCK_TYPE_MASK);
-}
-
-/*************************************************************************
 Gets the wait flag of a lock. */
 UNIV_INLINE
 ibool
@@ -612,6 +600,128 @@ lock_get_wait(
 	}
 
 	return(FALSE);
+}
+
+/*************************************************************************
+Gets the source table of an ALTER TABLE transaction.  The table must be
+covered by an IX or IS table lock. */
+
+dict_table_t*
+lock_get_src_table(
+/*===============*/
+				/* out: the source table of transaction,
+				if it is covered by an IX or IS table lock;
+				dest if there is no source table, and
+				NULL if the transaction is locking more than
+				two tables or an inconsistency is found */
+	trx_t*		trx,	/* in: transaction */
+	dict_table_t*	dest,	/* in: destination of ALTER TABLE */
+	ulint*		mode)	/* out: lock mode of the source table */
+{
+	dict_table_t*	src;
+	lock_t*		lock;
+
+	src = NULL;
+	*mode = LOCK_NONE;
+
+	for (lock = UT_LIST_GET_FIRST(trx->trx_locks);
+	     lock;
+	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+		lock_table_t*	tab_lock;
+		ulint		lock_mode;
+		if (!(lock_get_type(lock) & LOCK_TABLE)) {
+			/* We are only interested in table locks. */
+			continue;
+		}
+		tab_lock = &lock->un_member.tab_lock;
+		if (dest == tab_lock->table) {
+			/* We are not interested in the destination table. */
+			continue;
+		} else if (!src) {
+			/* This presumably is the source table. */
+			src = tab_lock->table;
+			if (UT_LIST_GET_LEN(src->locks) != 1 ||
+			    UT_LIST_GET_FIRST(src->locks) != lock) {
+				/* We only support the case when
+				there is only one lock on this table. */
+				return(NULL);
+			}
+		} else if (src != tab_lock->table) {
+			/* The transaction is locking more than
+			two tables (src and dest): abort */
+			return(NULL);
+		}
+
+		/* Check that the source table is locked by
+		LOCK_IX or LOCK_IS. */
+		lock_mode = lock_get_mode(lock);
+		switch (lock_mode) {
+		case LOCK_IX:
+		case LOCK_IS:
+			if (*mode != LOCK_NONE && *mode != lock_mode) {
+				/* There are multiple locks on src. */
+				return(NULL);
+			}
+			*mode = lock_mode;
+			break;
+		}
+	}
+
+	if (!src) {
+		/* No source table lock found: flag the situation to caller */
+		src = dest;
+	}
+
+	return(src);
+}
+
+/*************************************************************************
+Determine if the given table is exclusively "owned" by the given
+transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
+on the table. */
+
+ibool
+lock_is_table_exclusive(
+/*====================*/
+				/* out: TRUE if table is only locked by trx,
+				with LOCK_IX, and possibly LOCK_AUTO_INC */
+	dict_table_t*	table,	/* in: table */
+	trx_t*		trx)	/* in: transaction */
+{
+	lock_t*	lock;
+	bool	ok	= FALSE;
+
+	ut_ad(table && trx);
+
+	for (lock = UT_LIST_GET_FIRST(table->locks);
+	     lock;
+	     lock = UT_LIST_GET_NEXT(locks, &lock->un_member.tab_lock)) {
+		if (lock->trx != trx) {
+			/* A lock on the table is held
+			by some other transaction. */
+			return(FALSE);
+		}
+
+		if (!(lock_get_type(lock) & LOCK_TABLE)) {
+			/* We are interested in table locks only. */
+			continue;
+		}
+
+		switch (lock_get_mode(lock)) {
+		case LOCK_IX:
+			ok = TRUE;
+			break;
+		case LOCK_AUTO_INC:
+			/* It is allowed for trx to hold an
+			auto_increment lock. */
+			break;
+		default:
+			/* Other table locks than LOCK_IX are not allowed. */
+			return(FALSE);
+		}
+	}
+
+	return(ok);
 }
 
 /*************************************************************************
@@ -4062,6 +4172,9 @@ lock_print_info(
 		(ulong) ut_dulint_get_low(purge_sys->purge_trx_no),
 		(ulong) ut_dulint_get_high(purge_sys->purge_undo_no),
 		(ulong) ut_dulint_get_low(purge_sys->purge_undo_no));
+
+	fprintf(file,
+	"History list length %lu\n", (ulong) trx_sys->rseg_history_len);
 
 	fprintf(file,
 		"Total number of lock structs in row lock hash table %lu\n",

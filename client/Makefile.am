@@ -20,14 +20,14 @@
 INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 				$(openssl_includes)
 LIBS =				@CLIENT_LIBS@
-DEPLIB=				@ndb_mgmclient_libs@ \
-				../libmysql/libmysqlclient.la
+DEPLIB=				../libmysql/libmysqlclient.la
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(DEPLIB)
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
  mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
+mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysql_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)

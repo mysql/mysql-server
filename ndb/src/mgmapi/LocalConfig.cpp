@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <LocalConfig.hpp>
+#include "LocalConfig.hpp"
 #include <NdbEnv.h>
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
@@ -292,6 +292,29 @@ LocalConfig::readConnectString(const char * connectString,
     setError(0,err2.c_str());
   }
   return return_value;
+}
+
+char *
+LocalConfig::makeConnectString(char *buf, int sz)
+{
+  int p= BaseString::snprintf(buf,sz,"nodeid=%d", _ownNodeId);
+  if (p < sz)
+    for (unsigned i = 0; i < ids.size(); i++)
+    {
+      if (ids[i].type != MgmId_TCP)
+	continue;
+      int new_p= p+BaseString::snprintf(buf+p,sz-p,",%s:%d",
+					ids[i].name.c_str(), ids[i].port);
+      if (new_p < sz)
+	p= new_p;
+      else 
+      {
+	buf[p]= 0;
+	break;
+      }
+    }
+  buf[sz-1]=0;
+  return buf;
 }
 
 template class Vector<MgmtSrvrId>;

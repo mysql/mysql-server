@@ -1860,9 +1860,9 @@ int Field_long::store(double nr)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > (double) (ulong) ~0L)
+    else if (nr > (double) UINT_MAX32)
     {
-      res=(int32) (uint32) ~0L;
+      res= UINT_MAX32;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
@@ -4086,6 +4086,10 @@ int Field_datetime::store(longlong nr)
 void Field_datetime::store_time(TIME *ltime,timestamp_type type)
 {
   longlong tmp;
+  /*
+    We don't perform range checking here since values stored in TIME
+    structure always fit into DATETIME range.
+  */
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
     tmp=((ltime->year*10000L+ltime->month*100+ltime->day)*LL(1000000)+
 	 (ltime->hour*10000L+ltime->minute*100+ltime->second));

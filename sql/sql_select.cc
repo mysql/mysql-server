@@ -2154,7 +2154,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 
       bool is_const=1;
       for (uint i=0; i<num_values; i++)
-        is_const&= (*value)->const_item();
+        is_const&= value[i]->const_item();
       if (is_const)
         stat[0].const_keys.merge(possible_keys);
       /*

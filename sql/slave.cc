@@ -161,7 +161,7 @@ int init_slave()
   }
     
   if (init_master_info(active_mi,master_info_file,relay_log_info_file,
-		       !master_host))
+		       !master_host, (SLAVE_IO | SLAVE_SQL)))
   {
     sql_print_error("Failed to initialize the master info structure");
     goto err;
@@ -1032,7 +1032,7 @@ bool net_request_file(NET* net, const char* fname)
 }
 
 
-const char *rewrite_db(const char* db, uint *new_len)
+const char *rewrite_db(const char* db, uint32 *new_len)
 {
   if (replicate_rewrite_db.is_empty() || !db)
     return db;
@@ -1043,7 +1043,7 @@ const char *rewrite_db(const char* db, uint *new_len)
   {
     if (!strcmp(tmp->key, db))
     {
-      *new_len= strlen(tmp->val);
+      *new_len= (uint32)strlen(tmp->val);
       return tmp->val;
     }
   }
@@ -1799,7 +1799,8 @@ void clear_until_condition(RELAY_LOG_INFO* rli)
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
-		     bool abort_if_no_master_info_file)
+		     bool abort_if_no_master_info_file,
+		     int thread_mask)
 {
   int fd,error;
   char fname[FN_REFLEN+128];
@@ -1813,8 +1814,16 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
       last time. If this case pos_in_file would be set and we would
       get a crash when trying to read the signature for the binary
       relay log.
+      
+      We only rewind the read position if we are starting the SQL
+      thread. The handle_slave_sql thread assumes that the read
+      position is at the beginning of the file, and will read the
+      "signature" and then fast-forward to the last position read.
     */
-    my_b_seek(mi->rli.cur_log, (my_off_t) 0);
+    if (thread_mask & SLAVE_SQL)
+    {
+      my_b_seek(mi->rli.cur_log, (my_off_t) 0);
+    }
     DBUG_RETURN(0);
   }
 

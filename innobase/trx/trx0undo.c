@@ -1241,7 +1241,7 @@ trx_undo_lists_init(
 
 		if (page_no != FIL_NULL
 		    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		    
+
 			undo = trx_undo_mem_create_at_db_start(rseg, i,
 								page_no, &mtr);
 			size += undo->size;

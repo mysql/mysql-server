@@ -165,12 +165,7 @@ err:
     {
       uint j;
       for (j=0 ; j < share->base.keys ; j++)
-      {
-        if (is_tree_inited(&info->bulk_insert[j]))
-        {
-          reset_tree(&info->bulk_insert[j]);
-        }
-      }
+        mi_flush_bulk_insert(info, j);
     }
     info->errkey= (int) i;
     while ( i-- > 0)
@@ -329,7 +324,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   uchar *temp_buff,*keypos;
   uchar keybuff[MI_MAX_KEY_BUFF];
   my_bool was_last_key;
-  my_off_t next_page;
+  my_off_t next_page, dupp_key_pos;
   DBUG_ENTER("w_search");
   DBUG_PRINT("enter",("page: %ld",page));
 
@@ -349,9 +344,9 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 	/* get position to record with duplicated key */
     tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,keybuff);
     if (tmp_key_length)
-      info->dupp_key_pos=_mi_dpos(info,0,keybuff+tmp_key_length);
+      dupp_key_pos=_mi_dpos(info,0,keybuff+tmp_key_length);
     else
-      info->dupp_key_pos= HA_OFFSET_ERROR;
+      dupp_key_pos= HA_OFFSET_ERROR;
     if (keyinfo->flag & HA_FULLTEXT)
     {
       uint off;
@@ -370,7 +365,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       else
       {
         /* popular word. two-level tree. going down */
-        my_off_t root=info->dupp_key_pos;
+        my_off_t root=dupp_key_pos;
         keyinfo=&info->s->ft2_keyinfo;
         get_key_full_length_rdonly(off, key);
         key+=off;
@@ -389,6 +384,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     }
     else /* not HA_FULLTEXT, normal HA_NOSAME key */
     {
+      info->dupp_key_pos= dupp_key_pos;
       my_afree((byte*) temp_buff);
       my_errno=HA_ERR_FOUND_DUPP_KEY;
       DBUG_RETURN(-1);

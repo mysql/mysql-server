@@ -106,7 +106,7 @@ struct fil_node_struct {
 				device or a raw disk partition */
 	ulint		size;	/* size of the file in database pages, 0 if
 				not known yet; the possible last incomplete
-				megabyte is ignored if space == 0 */
+				megabyte may be ignored if space == 0 */
 	ulint		n_pending;
 				/* count of pending i/o's on this file;
 				closing of the file is not allowed if
@@ -160,7 +160,9 @@ struct fil_space_struct {
 	UT_LIST_BASE_NODE_T(fil_node_t) chain;
 				/* base node for the file chain */
 	ulint		size;	/* space size in pages; 0 if a single-table
-				tablespace whose size we do not know yet */
+				tablespace whose size we do not know yet;
+				last incomplete megabytes in data files may be
+				ignored if space == 0 */ 
 	ulint		n_reserved_extents;
 				/* number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -3255,7 +3257,7 @@ fil_extend_space_to_desired_size(
 	ulint*	actual_size,	/* out: size of the space after extension;
 				if we ran out of disk space this may be lower
 				than the desired size */
-	ulint	space_id,	/* in: space id, must be != 0 */
+	ulint	space_id,	/* in: space id */
 	ulint	size_after_extend)/* in: desired size in pages after the
 				extension; if the current space size is bigger
 				than this already, the function does nothing */
@@ -3352,6 +3354,17 @@ fil_extend_space_to_desired_size(
 	fil_node_complete_io(node, system, OS_FILE_WRITE);
 
 	*actual_size = space->size;
+
+	if (space_id == 0) {
+		ulint pages_per_mb = (1024 * 1024) / UNIV_PAGE_SIZE;
+
+		/* Keep the last data file size info up to date, rounded to
+		full megabytes */
+
+		srv_data_file_sizes[srv_n_data_files - 1] =
+				(node->size / pages_per_mb) * pages_per_mb;
+	}
+
 	/*
         printf("Extended %s to %lu, actual size %lu pages\n", space->name,
                                         size_after_extend, *actual_size); */

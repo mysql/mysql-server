@@ -289,7 +289,7 @@ trx_purge_add_update_undo_to_history(
 			flst_get_len(seg_header + TRX_UNDO_PAGE_LIST, mtr));
 
 		mlog_write_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
-				hist_size + undo->size, MLOG_4BYTES, mtr);	
+				hist_size + undo->size, MLOG_4BYTES, mtr);
 	}
 
 	/* Add the log as the first in the history list */
@@ -645,6 +645,27 @@ trx_purge_rseg_get_next_history_log(
 	
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
+
+		mutex_enter(&kernel_mutex);
+		
+		/* Add debug code to track history list corruption reported
+		on the MySQL mailing list on Nov 9, 2004. The fut0lst.c
+		file-based list was corrupt. The prev node pointer was
+		FIL_NULL, even though the list length was over 8 million nodes!
+		We assume that purge truncates the history list in moderate
+		size pieces, and if we here reach the head of the list, the
+		list cannot be longer than 20 000 undo logs now. */
+	
+		if (trx_sys->rseg_history_len > 20000) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: Warning: purge reached the head of the history list,\n"
+"InnoDB: but its length is still reported as %lu! Make a detailed bug\n"
+"InnoDB: report, and post it to bugs.mysql.com\n",
+					(ulong)trx_sys->rseg_history_len);
+		}
+
+		mutex_exit(&kernel_mutex);
 
 		return;
 	}
