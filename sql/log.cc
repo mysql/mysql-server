@@ -1994,7 +1994,7 @@ void print_buffer_to_file(enum loglevel level, const char *buffer)
           start->tm_min,
           start->tm_sec,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-           "WARNING" : "INFORMATION"),
+           "WARNING" : "NOTE"),
           buffer);
 
   fflush(stderr);
