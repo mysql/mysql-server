@@ -5574,7 +5574,7 @@ shell> scripts/mysql_install_db
 shell> chown -R root  /usr/local/mysql
 shell> chown -R mysql /usr/local/mysql/data
 shell> chgrp -R mysql /usr/local/mysql
-shell> chown -R root /usr/local/mysql/bin/
+shell> chown -R root /usr/local/mysql/bin
 shell> bin/safe_mysqld --user=mysql &
 @end example
 
@@ -5705,7 +5705,7 @@ directory to the user that you will run @code{mysqld} as:
 
 @example
 shell> chown -R root  /usr/local/mysql
-shell> chown -R mysql /usr/local/mysql/var
+shell> chown -R mysql /usr/local/mysql/data
 shell> chgrp -R mysql /usr/local/mysql
 @end example
 
