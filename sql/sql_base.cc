@@ -2120,13 +2120,31 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 		       table_list->alias, name, item_name, (ulong) ref));
   if (table_list->field_translation)
   {
-    DBUG_ASSERT(ref != 0 && table_list->view != 0);
-    uint num= table_list->view->select_lex.item_list.elements;
+    uint num;
+    if (table_list->schema_table_reformed)
+    {
+      num= thd->lex->current_select->item_list.elements;
+    }
+    else
+    {
+      DBUG_ASSERT(ref != 0 && table_list->view != 0);
+      num= table_list->view->select_lex.item_list.elements;
+    }
     Field_translator *trans= table_list->field_translation;
     for (uint i= 0; i < num; i ++)
     {
       if (!my_strcasecmp(system_charset_info, trans[i].name, name))
       {
+        if (table_list->schema_table_reformed)
+        {
+          /*
+            Translation table items are always Item_fields 
+            and fixed already('mysql_schema_table' function). 
+            So we can return ->field. It is used only for 
+            'show & where' commands.
+          */
+          DBUG_RETURN(((Item_field*) (trans[i].item))->field);
+        }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (check_grants_view &&
 	    check_grant_column(thd, &table_list->grant,

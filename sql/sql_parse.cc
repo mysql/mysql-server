@@ -2011,6 +2011,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   }
   TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
   table_list->schema_select_lex= sel;
+  table_list->schema_table_reformed= 1;
   DBUG_RETURN(0);
 }
 
