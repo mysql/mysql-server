@@ -54,7 +54,7 @@ public:
   List<char *> m_tables;	// Used tables.
 #endif
 
-  sp_head(LEX_STRING *name, LEX *lex);
+  sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid);
 
   int
   create(THD *thd);
@@ -111,10 +111,30 @@ public:
     return sp_map_result_type(m_returns);
   }
 
+  void sp_set_info(char *creator, uint creatorlen,
+		   longlong created, longlong modified,
+		   bool suid, char *comment, uint commentlen)
+  {
+    m_creator= creator;
+    m_creatorlen= creatorlen;
+    m_created= created;
+    m_modified= modified;
+    m_comment.length= commentlen;
+    m_comment.str= comment;
+    m_suid= suid;
+   }
+
 private:
 
   LEX_STRING m_name;
   LEX_STRING m_defstr;
+  LEX_STRING m_comment;
+  char *m_creator;
+  uint m_creatorlen;
+  longlong m_created;
+  longlong m_modified;
+  bool m_suid;
+
   sp_pcontext *m_pcont;		// Parse context
   LEX m_lex;			// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"

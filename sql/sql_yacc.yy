@@ -938,7 +938,7 @@ create:
 	      YYABORT;
 	    }
 	    lex->spcont= new sp_pcontext();
-	    lex->sphead= new sp_head(&$3, lex);
+	    lex->sphead= new sp_head(&$3, lex, 0, 0);
 	    lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
 	    /*
 	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
@@ -987,7 +987,7 @@ create_function_tail:
 	      YYABORT;
 	    }
 	    lex->spcont= new sp_pcontext();
-	    lex->sphead= new sp_head(&lex->udf.name, lex);
+	    lex->sphead= new sp_head(&lex->udf.name, lex, 0, 0);
 	    lex->sphead->m_type= TYPE_ENUM_FUNCTION;
 	    /*
 	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
