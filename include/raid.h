@@ -16,9 +16,9 @@
    MA 02111-1307, USA */
 
 /* Parser needs these defines  always, even if USE_RAID is not defined */
-#define RAID_TYPE_0 1       // Striping
-#define RAID_TYPE_x 2       // Some new modes
-#define RAID_TYPE_y 3       //
+#define RAID_TYPE_0 1       /* Striping */
+#define RAID_TYPE_x 2       /* Some new modes */
+#define RAID_TYPE_y 3
 
 #define RAID_DEFAULT_CHUNKS 4
 #define RAID_DEFAULT_CHUNKSIZE 256*1024 /* 256kB */
@@ -102,9 +102,9 @@ class RaidName {
     bool IsRaid();
     int Rename(const char * from, const char * to, myf MyFlags);
   private:
-    uint _raid_type;       // RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5
-    uint _raid_chunks;     // 1..n
-    ulong _raid_chunksize; // 1..n in bytes
+    uint _raid_type;       /* RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5 */
+    uint _raid_chunks;     /* 1..n */
+    ulong _raid_chunksize; /* 1..n in bytes */
 };
 
 class RaidFd {
@@ -126,16 +126,16 @@ class RaidFd {
     static DYNAMIC_ARRAY _raid_map;		/* Map of RaidFD* */
   private:
 
-    uint _raid_type;       // RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5
-    uint _raid_chunks;     // 1..n
-    ulong _raid_chunksize; // 1..n in bytes
+    uint _raid_type;       /* RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5 */
+    uint _raid_chunks;     /* 1..n */
+    ulong _raid_chunksize; /* 1..n in bytes */
 
-    ulong _total_block;    // We are operating with block no x (can be 0..many).
-    uint _this_block;      // can be 0.._raid_chunks
-    uint _remaining_bytes; // Maximum bytes that can be written in this block
+    ulong _total_block;    /* We are operating with block no x (can be 0..many). */
+    uint _this_block;      /* can be 0.._raid_chunks */
+    uint _remaining_bytes; /* Maximum bytes that can be written in this block */
 
     my_off_t _position;
-    my_off_t _size;        // Cached file size for faster seek(SEEK_END)
+    my_off_t _size;        /* Cached file size for faster seek(SEEK_END) */
     File _fd;
     File *_fd_vector;		/* Array of File */
     off_t *_seek_vector;	/* Array of cached seek positions */
@@ -147,7 +147,7 @@ class RaidFd {
 			 (ulong) _position, _raid_chunksize, (ulong) _size));
 
       _total_block = (ulong) (_position / _raid_chunksize);
-      _this_block = _total_block % _raid_chunks;    // can be 0.._raid_chunks
+      _this_block = _total_block % _raid_chunks;    /* can be 0.._raid_chunks */
       _remaining_bytes = (uint) (_raid_chunksize -
 				 (_position - _total_block * _raid_chunksize));
       DBUG_PRINT("info",

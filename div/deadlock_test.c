@@ -125,7 +125,7 @@ static void permute_aux(int *order, int num_queries, int* fixed)
 	}
     }
 
-  //printf("num_free = %d\n", num_free);
+  /*printf("num_free = %d\n", num_free); */
   
   if(num_free <= 1)
     {

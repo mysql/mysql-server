@@ -17,25 +17,25 @@
 
 #ifdef HAVE_OPENSSL
     case OPT_SSL_SSL:
-      opt_use_ssl = 1;				//true
+      opt_use_ssl = 1;				/* true */
       break;
     case OPT_SSL_KEY:
-      opt_use_ssl = 1;				//true
+      opt_use_ssl = 1;				/* true */
       my_free(opt_ssl_key, MYF(MY_ALLOW_ZERO_PTR));
       opt_ssl_key = my_strdup(optarg, MYF(0));
       break;
     case OPT_SSL_CERT:
-      opt_use_ssl = 1;				//true
+      opt_use_ssl = 1;				/* true */
       my_free(opt_ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
       opt_ssl_cert = my_strdup(optarg, MYF(0));
       break;
     case OPT_SSL_CA:
-      opt_use_ssl = 1;				//true
+      opt_use_ssl = 1;				/* true */
       my_free(opt_ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
       opt_ssl_ca = my_strdup(optarg, MYF(0));
       break;
     case OPT_SSL_CAPATH:
-      opt_use_ssl = 1;				//true
+      opt_use_ssl = 1;				/* true */
       my_free(opt_ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
       opt_ssl_ca = my_strdup(optarg, MYF(0));
       break;
