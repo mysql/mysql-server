@@ -1,4 +1,4 @@
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
 #include "slave.h"
 
 typedef struct st_slave_info
@@ -55,5 +55,5 @@ typedef struct st_load_file_info
 
 int log_loaded_block(IO_CACHE* file);
 
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
 

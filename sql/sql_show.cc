@@ -52,6 +52,7 @@ extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 ** Send list of databases
 ** A database is a directory in the mysql_data_home directory
 ****************************************************************************/
+
 int
 mysqld_show_dbs(THD *thd,const char *wild)
 {
@@ -648,6 +649,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 /***************************************************************************
 ** List all columns in a table_list->real_name
 ***************************************************************************/
+
 int
 mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 		   bool verbose)
@@ -1240,7 +1242,6 @@ public:
 template class I_List<thread_info>;
 #endif
 
-#ifndef EMBEDDED_LIBRARY
 void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
   Item *field;
@@ -1272,8 +1273,13 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
+#ifndef EMBEDDED_LIBRARY
       if ((tmp->net.vio || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
+#else
+      if (tmp->system_thread &&
+          (!user || (tmp->user && !strcmp(tmp->user,user))))
+#endif
       {
         thread_info *thd_info=new thread_info;
 
@@ -1291,6 +1297,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if (tmp->mysys_var)
           pthread_mutex_lock(&tmp->mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
+#ifndef EMBEDDED_LIBRARY
         thd_info->state_info= (char*) (tmp->locked ? "Locked" :
                                        tmp->net.reading_or_writing ?
                                        (tmp->net.reading_or_writing == 2 ?
@@ -1301,6 +1308,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                        tmp->mysys_var &&
                                        tmp->mysys_var->current_cond ?
                                        "Waiting on cond" : NullS);
+#else
+        thd_info->state_info= (char*)"Writing to net";
+#endif
         if (tmp->mysys_var)
           pthread_mutex_unlock(&tmp->mysys_var->mutex);
 
@@ -1353,12 +1363,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   send_eof(thd);
   DBUG_VOID_RETURN;
 }
-#else /* EMBEDDED_LIBRARY */
-void mysqld_list_processes(THD *thd __attribute__(unused),
-			   const char *user __attribute__(unused),
-			   bool verbose __attribute__(unused))
-{}
-#endif
 
 /*****************************************************************************
   Status functions
@@ -1666,6 +1670,8 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_UNDEF:				// Show never happen
       case SHOW_SYS:
 	break;					// Return empty string
+      default:
+	break;
       }
       if (protocol->store(pos, (uint32) (end - pos)) ||
 	  protocol->write())

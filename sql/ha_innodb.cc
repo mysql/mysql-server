@@ -871,7 +871,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 #ifdef NEED_TO_BE_FIXED	  
@@ -885,7 +885,7 @@ innobase_commit_low(
 					  active_mi->rli.event_len +
 					  active_mi->rli.pending));
         }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
         trx_commit_for_mysql(trx);
 }
 

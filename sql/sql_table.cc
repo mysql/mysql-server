@@ -1032,7 +1032,6 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 
 {
   Protocol *protocol= thd->protocol;
-  protocol->set_nfields(4);
   protocol->prepare_for_resend();
   protocol->store(table->alias);
   protocol->store((char*) operator_name);

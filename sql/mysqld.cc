@@ -875,7 +875,7 @@ void clean_up(bool print_message)
   DBUG_PRINT("exit",("clean_up"));
   if (cleanup_done++)
     return; /* purecov: inspected */
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
 #endif
@@ -900,14 +900,14 @@ void clean_up(bool print_message)
     free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
   free_tmpdir(&mysql_tmpdir_list);
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
 #endif
   x_free(opt_bin_logname);
   x_free(opt_relay_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
 #ifdef USE_REGEX
@@ -1948,7 +1948,7 @@ static int init_thread_environement()
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
 #endif
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
@@ -1959,7 +1959,7 @@ static int init_thread_environement()
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   (void) pthread_cond_init(&COND_rpl_status, NULL);
 #endif
   /* Parameter for threads created for connections */
@@ -2008,7 +2008,7 @@ static int init_server_components()
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
   /* Setup log files */
@@ -2269,6 +2269,7 @@ The server will not act as a slave.");
   
   if (opt_bootstrap)
   {
+    printf("###stdin as bootstrap\n");
     int error=bootstrap(stdin);
     end_thr_alarm();				// Don't allow alarms
     unireg_abort(error ? 1 : 0);
@@ -2337,6 +2338,7 @@ The server will not act as a slave.");
 }
 
 #endif /* EMBEDDED_LIBRARY */
+
 
 /****************************************************************************
   Main and thread entry function for Win32
@@ -3498,7 +3500,7 @@ struct my_option my_long_options[] =
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   {"disconnect-slave-event-count", OPT_DISCONNECT_SLAVE_EVENT_COUNT,
    "Option used by mysql-test for debugging and testing of replication",
    (gptr*) &disconnect_slave_event_count,
@@ -3517,7 +3519,7 @@ struct my_option my_long_options[] =
    (gptr*) &opt_sporadic_binlog_dump_fail,
    (gptr*) &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3660,7 +3662,7 @@ struct my_option my_long_options[] =
   {"relay-log-info-file", OPT_RELAY_LOG_INFO_FILE, "Undocumented",
    (gptr*) &relay_log_info_file, (gptr*) &relay_log_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR, "Undocumented",
    (gptr*) &slave_load_tmpdir, (gptr*) &slave_load_tmpdir, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3995,7 +3997,7 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
    "Max space to use for all relay logs",
    (gptr*) &relay_log_space_limit,
@@ -4354,7 +4356,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'o':
     protocol_version=PROTOCOL_VERSION-1;
     break;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:
     init_slave_skip_errors(argument);
     break;
@@ -4398,7 +4400,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_BIN_LOG:
     opt_bin_log=1;
     break;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case (int) OPT_INIT_RPL_ROLE:
   {
     int role;
@@ -4523,7 +4525,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_reckless_slave = 1;
     init_slave_skip_errors("all");
     break;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
     break;
@@ -4900,7 +4902,7 @@ static void fix_paths(void)
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
     exit(1);
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   if (!slave_load_tmpdir)
   {
     if (!(slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE))))

@@ -22,8 +22,9 @@
  in case we decide to make them external at some point
 */
 
-#ifndef EMBEDDED_LIBRARY
 #include <my_global.h>
+#ifdef HAVE_EXTERNAL_CLIENT
+
 /* my_pthread must be included early to be able to fix things */
 #if defined(THREAD)
 #include <my_pthread.h>				/* because of signal()	*/
@@ -1473,4 +1474,4 @@ MYSQL_RES *mc_mysql_store_result(MYSQL *mysql)
   DBUG_RETURN(result);				/* Data fetched */
 }
 
-#endif /*EMBEDDED_LIBRARY*/
+#endif /* HAVE_EXTERNAL_CLIENT */

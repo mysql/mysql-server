@@ -1014,8 +1014,7 @@ bool Item::embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT
 {
   char buff[MAX_FIELD_WIDTH];
   String s(buff, sizeof(buff), charset), *value;
-  if (!(value=val_str(&s)) ||
-      !(*result=alloc_root(alloc, value->length() + 1)))
+  if (!(value=val_str(&s)))
   {
     *result= NULL;
     *length= 0;

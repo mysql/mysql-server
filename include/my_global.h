@@ -19,6 +19,11 @@
 #ifndef _global_h
 #define _global_h
 
+#ifndef EMBEDDED_LIBRARY
+#define HAVE_REPLICATION
+#define HAVE_EXTERNAL_CLIENT
+#endif
+
 #if defined( __EMX__) && !defined( MYSQL_SERVER)
 /* moved here to use below VOID macro redefinition */
 #define INCL_BASE

@@ -2162,28 +2162,18 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
     tmp=1;					// Max one record
   else
   {
-    if(tmp_min_flag & GEOM_FLAG)
-    {
-      tmp=param->table->file->
-	records_in_range((int) keynr,(byte*)(param->min_key + 1),
-	  min_key_length, (ha_rkey_function)(tmp_min_flag ^ GEOM_FLAG),
-          (byte *)NullS,0,HA_READ_KEY_EXACT);
-    }
-    else
-    {
-      tmp=param->table->file->
-	records_in_range((int) keynr,
-			 (byte*) (!min_key_length ? NullS :
-				  param->min_key),
-			 min_key_length,
-                         tmp_min_flag & NEAR_MIN ?
-			  HA_READ_AFTER_KEY : HA_READ_KEY_EXACT,
-			 (byte*) (!max_key_length ? NullS :
-				  param->max_key),
-			 max_key_length,
-			 (tmp_max_flag & NEAR_MAX ?
-			  HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY));
-    }
+    tmp=param->table->file->
+      records_in_range((int) keynr,
+		       (byte*) (!min_key_length ? NullS :
+				param->min_key),
+		       min_key_length,
+		       tmp_min_flag & NEAR_MIN ?
+		       HA_READ_AFTER_KEY : HA_READ_KEY_EXACT,
+		       (byte*) (!max_key_length ? NullS :
+				param->max_key),
+		       max_key_length,
+		       (tmp_max_flag & NEAR_MAX ?
+			HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY));
   }
  end:
   if (tmp == HA_POS_ERROR)			// Impossible range

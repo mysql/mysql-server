@@ -4586,7 +4586,7 @@ void Field_blob::set_key_image(char *buff,uint length)
 
 void Field_geom::get_key_image(char *buff,uint length, imagetype type)
 {
-/*  length-=HA_KEY_BLOB_LENGTH;
+  length-=HA_KEY_BLOB_LENGTH;
   ulong blob_length=get_length(ptr);
   char *blob;
   get_ptr(&blob);
@@ -4601,8 +4601,6 @@ void Field_geom::get_key_image(char *buff,uint length, imagetype type)
   float8store(buff+16, mbr.ymin);
   float8store(buff+24, mbr.ymax);
   return;
-*/
-  Field_blob::get_key_image(buff, length, type);
 }
 
 void Field_geom::set_key_image(char *buff,uint length)
@@ -4612,7 +4610,7 @@ void Field_geom::set_key_image(char *buff,uint length)
 
 void Field_geom::sql_type(String &res) const
 {
-  res.set("geometry", 8U, default_charset_info);
+  res.set("geometry", 8, default_charset_info);
 }
 
 int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
@@ -5255,10 +5253,10 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_LONGLONG: return 8;	/* Don't crash if no longlong */
   case FIELD_TYPE_NULL	: return 0;
   case FIELD_TYPE_TINY_BLOB:	return 1+portable_sizeof_char_ptr;
-  case FIELD_TYPE_BLOB:		return 2+portable_sizeof_char_ptr;
+  case FIELD_TYPE_BLOB:
+  case FIELD_TYPE_GEOMETRY:	return 2+portable_sizeof_char_ptr;
   case FIELD_TYPE_MEDIUM_BLOB:	return 3+portable_sizeof_char_ptr;
   case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
-  case FIELD_TYPE_GEOMETRY:	return 2+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
   default: return 0;

@@ -16,9 +16,9 @@
 
 // Sasha Pachev <sasha@mysql.com> is currently in charge of this file
 
-#ifndef EMBEDDED_LIBRARY
-
 #include "mysql_priv.h"
+#ifdef HAVE_REPLICATION
+
 #include "repl_failsafe.h"
 #include "sql_repl.h"
 #include "slave.h"
@@ -896,5 +896,5 @@ err:
   return error;
 }
 
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
 
