@@ -1912,7 +1912,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 
     read_time+=record_count/(double) TIME_FOR_COMPARE;
     if (join->sort_by_table &&
-	join->sort_by_table != join->positions[join->const_tables].table->table)
+	join->sort_by_table !=
+	join->positions[join->const_tables].table->table)
       read_time+=record_count;			// We have to make a temp table
     if (read_time < join->best_read)
     {
@@ -1946,7 +1947,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	uint max_key_part=0;
 
 	/* Test how we can use keys */
-	rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  /* Assumed records/key */
+	rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
 	for (keyuse=s->keyuse ; keyuse->table == table ;)
 	{
 	  key_map found_part=0;
@@ -2085,7 +2086,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		will match
 	      */
 	      if (table->quick_keys & ((key_map) 1 << key) &&
-		  table->quick_key_parts[key] <= max_key_part)
+		  table->quick_key_parts[key] == max_key_part)
 		tmp=records= (double) table->quick_rows[key];
 	      else
 	      {
@@ -2127,6 +2128,14 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  }
 		  records=(ulong) tmp;
 		}
+		/*
+		  If quick_select was used on a part of this key, we know
+		  the maximum number of rows that the key can match.
+		*/
+		if (table->quick_keys & ((key_map) 1 << key) &&
+		    table->quick_key_parts[key] <= max_key_part &&
+		    records > (double) table->quick_rows[key])
+		  tmp= records= (double) table->quick_rows[key];
 	      }
 	      /* Limit the number of matched rows */
 	      set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
