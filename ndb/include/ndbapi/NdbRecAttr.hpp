@@ -245,7 +245,9 @@ public:
   ~NdbRecAttr();    
 
 public:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbRecAttr* next() const;
+#endif
 private:
   NdbRecAttr();
 

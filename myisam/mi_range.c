@@ -233,7 +233,11 @@ static uint _mi_keynr(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page, u
   while (page < end)
   {
     if (!(*keyinfo->get_key)(keyinfo,nod_flag,&page,t_buff))
+    {
+      if (my_errno == HA_ERR_CRASHED)
+        mi_print_error(info, HA_ERR_CRASHED);
       return 0;					/* Error */
+    }
     max_key++;
     if (page == keypos)
       keynr=max_key;
