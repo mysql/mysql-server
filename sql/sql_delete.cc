@@ -68,8 +68,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(TRUE);
   }
 
-  if (thd->lex->duplicates == DUP_IGNORE)
-    select_lex->no_error= 1;
+  select_lex->no_error= thd->lex->ignore;
 
   /*
     Test if the user wants to delete all rows and deletion doesn't have

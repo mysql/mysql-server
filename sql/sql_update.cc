@@ -113,7 +113,7 @@ int mysql_update(THD *thd,
                  COND *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates)
+		 enum enum_duplicates handle_duplicates, bool ignore)
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
@@ -380,7 +380,7 @@ int mysql_update(THD *thd,
     }
   }
 
-  if (handle_duplicates == DUP_IGNORE)
+  if (ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
   if (select && select->quick && select->quick->reset())
@@ -433,8 +433,7 @@ int mysql_update(THD *thd,
 	  updated++;
           thd->no_trans_update= !transactional_table;
 	}
-	else if (handle_duplicates != DUP_IGNORE ||
-		 error != HA_ERR_FOUND_DUPP_KEY)
+ 	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	{
           thd->fatal_error();                   // Force error message
 	  table->file->print_error(error,MYF(0));
@@ -812,7 +811,7 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *values,
                         COND *conds,
                         ulong options,
-                        enum enum_duplicates handle_duplicates,
+                        enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
   bool res= FALSE;
@@ -825,7 +824,7 @@ bool mysql_multi_update(THD *thd,
   if (!(result= new multi_update(thd, table_list,
 				 thd->lex->select_lex.leaf_tables,
 				 fields, values,
-				 handle_duplicates)))
+				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
 
   thd->no_trans_update= 0;
@@ -851,12 +850,12 @@ bool mysql_multi_update(THD *thd,
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
 			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
-			   enum enum_duplicates handle_duplicates_arg)
+			   enum enum_duplicates handle_duplicates_arg, bool ignore_arg)
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
    thd(thd_arg), tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
    handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(0),
-   transactional_tables(1)
+   transactional_tables(1), ignore(ignore_arg)
 {}
 
 
@@ -1201,8 +1200,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 					   table->record[0])))
 	{
 	  updated--;
-          if (handle_duplicates != DUP_IGNORE ||
-	      error != HA_ERR_FOUND_DUPP_KEY)
+          if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	  {
             thd->fatal_error();                 // Force error message
 	    table->file->print_error(error,MYF(0));
@@ -1336,8 +1334,7 @@ int multi_update::do_updates(bool from_send_error)
 	if ((local_error=table->file->update_row(table->record[1],
 						 table->record[0])))
 	{
-	  if (local_error != HA_ERR_FOUND_DUPP_KEY ||
-	      handle_duplicates != DUP_IGNORE)
+	  if (!ignore || local_error != HA_ERR_FOUND_DUPP_KEY)
 	    goto err;
 	}
 	updated++;

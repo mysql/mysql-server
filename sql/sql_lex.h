@@ -721,7 +721,7 @@ typedef struct st_lex
   /* special JOIN::prepare mode: changing of query is prohibited */
   bool view_prepare_mode;
   bool safe_to_cache_query;
-  bool subqueries;
+  bool subqueries, ignore;
   bool variables_used;
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/

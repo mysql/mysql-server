@@ -529,7 +529,7 @@ JOIN::optimize()
   optimized= 1;
 
   // Ignore errors of execution if option IGNORE present
-  if (thd->lex->duplicates == DUP_IGNORE)
+  if (thd->lex->ignore)
     thd->lex->current_select->no_error= 1;
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
