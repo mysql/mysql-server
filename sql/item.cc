@@ -469,6 +469,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
       SELECT_LEX *last= 0;
+#ifdef EMBEDDED_LIBRARY
+      thd->net.last_errno= 0;
+#endif
       for (SELECT_LEX *sl= thd->lex.select->outer_select();
 	   sl && !tmp;
 	   sl= sl->outer_select())

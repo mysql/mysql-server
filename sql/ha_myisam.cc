@@ -80,7 +80,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   net_store_data(packet, msg_type);
 
   net_store_data(packet, msgbuf);
-  if (my_net_write(&thd->net, (char*)thd->packet.ptr(), thd->packet.length()))
+  if (SEND_ROW(thd, &thd->net, 4, (char*)thd->packet.ptr(), thd->packet.length()))
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
   return;
