@@ -5777,14 +5777,13 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating EQ filter %s", 
-			  field->is_big() ? "64 bit" : ""));
-      if (field->is_big())
-	filter->eq(field->get_field_no(),
-		   (Uint64) value->get_int_value());
-      else
-	filter->eq(field->get_field_no(),
-		   (Uint32) value->get_int_value());
+      DBUG_PRINT("info", ("Generating EQ filter"));
+      longlong int_value= value->get_int_value();
+
+      filter->cmp(NdbScanFilter::COND_EQ, 
+		  field->get_field_no(),
+		  (void *) &int_value,
+		  field->pack_length());
       DBUG_RETURN(cond->next->next->next);
     }
     case(Item_func::NE_FUNC): {
@@ -5800,15 +5799,13 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating NE filter %s", 
-			  field->is_big() ? "64 bit" : ""));
-      if (field->is_big())
-	filter->ne(field->get_field_no(),
-		   (Uint64) value->get_int_value());
-      else
-	filter->ne(field->get_field_no(),
-		   (Uint32) value->get_int_value(),
-		   field->pack_length());
+      DBUG_PRINT("info", ("Generating NE filter"));
+      longlong int_value= value->get_int_value();
+
+      filter->cmp(NdbScanFilter::COND_NE, 
+		  field->get_field_no(),
+		  (void *) &int_value,
+		  field->pack_length());
       DBUG_RETURN(cond->next->next->next);
     }
     case(Item_func::LT_FUNC): {
@@ -5824,25 +5821,22 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating LT filter %s", 
-			  field->is_big() ? "64 bit" : ""));
+      DBUG_PRINT("info", ("Generating LT filter")); 
+      longlong int_value= value->get_int_value();
+
       if (a == field)
       {
-	if (field->is_big())
-	  filter->lt(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->lt(field->get_field_no(),
-		     (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_LT, 
+		    field->get_field_no(),
+		    (void *) &int_value,
+		    field->pack_length());
       }
       else
       {
-	if (field->is_big())
-	  filter->gt(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->gt(field->get_field_no(),
-		     (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_GT, 
+		    field->get_field_no(),
+		    (void *) &int_value,
+		    field->pack_length());
       }
       DBUG_RETURN(cond->next->next->next);
     }
@@ -5859,25 +5853,22 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating LE filter %s", 
-			  field->is_big() ? "64 bit" : ""));
+      DBUG_PRINT("info", ("Generating LE filter")); 
+      longlong int_value= value->get_int_value();
+
       if (a == field)
       {
-	if (field->is_big())
-	  filter->le(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->le(field->get_field_no(),
-		     (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_LE, 
+		    field->get_field_no(),
+		     (void *) &int_value,
+		    field->pack_length());
       }
       else
       {
-	if (field->is_big())
-	  filter->ge(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->ge(field->get_field_no(),
-		     (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_GE, 
+		    field->get_field_no(),
+		    (void *) &int_value,
+		    field->pack_length());
       }
       DBUG_RETURN(cond->next->next->next);
     }
@@ -5894,25 +5885,22 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating GE filter %s", 
-			  field->is_big() ? "64 bit" : ""));
+      DBUG_PRINT("info", ("Generating GE filter")); 
+      longlong int_value= value->get_int_value();
+
       if (a == field)
       {
-	if (field->is_big())
-	  filter->ge(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->ge(field->get_field_no(),
-		     (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_GE, 
+		    field->get_field_no(),
+		    (void *) &int_value,
+		    field->pack_length());
       }
       else
       {
-	if (field->is_big())
-	  filter->le(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->le(field->get_field_no(),
-		     (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_LE, 
+		    field->get_field_no(),
+		    (void *) &int_value,
+		    field->pack_length());
       }
       DBUG_RETURN(cond->next->next->next);
     }
@@ -5929,25 +5917,22 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 	: (b->type == NDB_FIELD)? b
 	: NULL;
       if (!value || !field) break;
-      DBUG_PRINT("info", ("Generating GT filter %s", 
-			  field->is_big() ? "64 bit" : ""));
+      DBUG_PRINT("info", ("Generating GT filter")); 
+      longlong int_value= value->get_int_value();
+
       if (a == field)
       {
-	if (field->is_big())
-	  filter->gt(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->gt(field->get_field_no(),
-		   (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_GT, 
+		    field->get_field_no(),
+		    (void *) &int_value,
+		    field->pack_length());
       }
       else
       {
-	if (field->is_big())
-	  filter->lt(field->get_field_no(),
-		     (Uint64) value->get_int_value());
-	else
-	  filter->lt(field->get_field_no(),
-		     (Uint32) value->get_int_value());
+	filter->cmp(NdbScanFilter::COND_LT, 
+		    field->get_field_no(),
+		    (void *) &int_value,
+		    field->pack_length());
       }
       DBUG_RETURN(cond->next->next->next);
     }
