@@ -2198,7 +2198,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
     opt_name=tmp;
   }
   return log->open(opt_name, type, 0, index_file_name,
-		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
+		   (read_append) ? SEQ_READ_APPEND : APPEND_CACHE,
 		   no_auto_events, max_size);
 }
 
