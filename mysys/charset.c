@@ -537,7 +537,6 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
     while we may changing the cs_info_table
   */
   pthread_mutex_lock(&THR_LOCK_charset);
-
   if ((cs= all_charsets[cs_number]))
   {
     if (!(cs->state & MY_CS_COMPILED) && !(cs->state & MY_CS_LOADED))
@@ -548,7 +547,6 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
     cs= (cs->state & MY_CS_AVAILABLE) ? cs : NULL;
   }
   pthread_mutex_unlock(&THR_LOCK_charset);
- pthread_mutex_unlock(&THR_LOCK_charset);
   return cs;
 }
 
