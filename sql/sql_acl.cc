@@ -2655,9 +2655,9 @@ bool check_grant_column(THD *thd,TABLE *table, const char *name,
   if (table->grant.version != grant_version)
   {
     table->grant.grant_table=
-      table_hash_search(thd->host,thd->ip,thd->db,
+      table_hash_search(thd->host, thd->ip, table->table_cache_key,
 			thd->priv_user,
-			table->real_name,0);	/* purecov: inspected */
+			table->real_name, 0);	/* purecov: inspected */
     table->grant.version=grant_version;		/* purecov: inspected */
   }
   if (!(grant_table=table->grant.grant_table))
