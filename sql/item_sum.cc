@@ -1830,7 +1830,7 @@ bool Item_func_group_concat::setup(THD *thd)
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     DBUG_RETURN(1);
   /*
-    all not constant fields are push to list and create temp table
+    push all not constant fields to list and create temp table
   */ 
   always_null= 0;
   for (uint i= 0; i < arg_count; i++)

@@ -429,6 +429,7 @@ bool Item_in_optimizer::fix_left(THD *thd,
   not_null_tables_cache= args[0]->not_null_tables();
   with_sum_func= args[0]->with_sum_func;
   const_item_cache= args[0]->const_item();
+  fixed= 1;
   return 0;
 }
 
