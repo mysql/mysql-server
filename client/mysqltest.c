@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.12"
+#define MTEST_VERSION "1.13"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -243,7 +243,8 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname);
 void reject_dump(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query* q);
-VAR* var_get(const char *var_name, const char** var_name_end, int raw);
+VAR* var_get(const char *var_name, const char** var_name_end, my_bool raw,
+	     my_bool ignore_not_existing);
 int eval_expr(VAR* v, const char *p, const char** p_end);
 static int read_server_arguments(const char *name);
 
@@ -261,6 +262,7 @@ struct st_replace *init_replace(my_string *from, my_string *to, uint count,
 				my_string word_end_chars);
 uint replace_strings(struct st_replace *rep, my_string *start,
 		     uint *max_length, my_string from);
+void free_replace();
 static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
 void free_pointer_array(POINTER_ARRAY *pa);
 static int initialize_replace_buffer(void);
@@ -314,7 +316,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 	    }
 	  else
 	    {
-	      if(!(v = var_get(p, &p, 0)))
+	      if(!(v = var_get(p, &p, 0, 0)))
 		die("Bad variable in eval");
 	      dynstr_append_mem(query_eval, v->str_val, v->str_val_len);
 	    }
@@ -545,40 +547,43 @@ static int check_result(DYNAMIC_STRING* ds, const char* fname,
   return error;
 }
 
-VAR* var_get(const char* var_name, const char** var_name_end, int raw)
+VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
+	     my_bool ignore_not_existing)
 {
   int digit;
   VAR* v;
-  if (*var_name++ != '$')
-  {
-    --var_name;
+  DBUG_ENTER("var_get");
+  DBUG_PRINT("enter",("var_name: %s",var_name));
+
+  if (*var_name != '$')
     goto err;
-  }
-  digit = *var_name - '0';
+  digit = *++var_name - '0';
   if (!(digit < 10 && digit >= 0))
   {
     const char* save_var_name = var_name, *end;
     end = (var_name_end) ? *var_name_end : 0;
-    while (isvar(*var_name))
-    {
-      if(end && var_name == end)
-	break;
+    while (isvar(*var_name) && var_name != end)
       ++var_name;
-    }
-    if(var_name == save_var_name)
+    if (var_name == save_var_name)
+    {
+      if (ignore_not_existing)
+	DBUG_RETURN(0);
       die("Empty variable");
+    }
 
-    if(!(v = (VAR*)hash_search(&var_hash, save_var_name,
+    if (!(v = (VAR*) hash_search(&var_hash, save_var_name,
 			       var_name - save_var_name)))
-      {
-	if (end)
-	  *(char*)end = 0;
-        die("Variable '%s' used uninitialized", save_var_name);
-      }
-    --var_name;
+    {
+      if (ignore_not_existing)
+	DBUG_RETURN(0);
+      if (end)
+	*(char*) end = 0;
+      die("Variable '%s' used uninitialized", save_var_name);
+    }
+    --var_name;					/* Point at last character */
   }
   else 
-   v = var_reg + digit;
+    v = var_reg + digit;
 
   if (!raw && v->int_dirty)
   {
@@ -586,14 +591,14 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
     v->int_dirty = 0;
     v->str_val_len = strlen(v->str_val);
   }
-  if(var_name_end)
+  if (var_name_end)
     *var_name_end = var_name  ;
-  return v;
+  DBUG_RETURN(v);
 err:
   if (var_name_end)
     *var_name_end = 0;
   die("Unsupported variable name: %s", var_name);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static VAR* var_obtain(char* name, int len)
@@ -747,24 +752,24 @@ void var_copy(VAR* dest, VAR* src)
   dest->int_val=src->int_val;
   dest->int_dirty=src->int_dirty;
   if (dest->alloced_len < src->alloced_len &&
-      !(dest->str_val=my_realloc(dest->str_val,src->alloced_len,
+      !(dest->str_val=my_realloc(dest->str_val,src->alloced_len+1,
 				 MYF(MY_WME))))
     die("Out of memory");
   dest->str_val_len=src->str_val_len;
-  memcpy(dest->str_val,src->str_val,src->str_val_len);
+  memcpy(dest->str_val,src->str_val,src->str_val_len+1);
 }
 
 int eval_expr(VAR* v, const char* p, const char** p_end)
 {
   VAR* vp;
   if (*p == '$')
+  {
+    if ((vp = var_get(p,p_end,0,0)))
     {
-      if ((vp = var_get(p,p_end,0)))
-	{
-	  var_copy(v, vp);
-	  return 0;
-	}
+      var_copy(v, vp);
+      return 0;
     }
+  }
   else if(*p == '`')
   {
     return var_query_set(v, p, p_end);
@@ -778,9 +783,9 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
         v->alloced_len = (new_val_len < MIN_VAR_ALLOC - 1) ?
 	  MIN_VAR_ALLOC : new_val_len + 1;
 	if (!(v->str_val =
-	      v->str_val ? my_realloc(v->str_val, v->alloced_len,
+	      v->str_val ? my_realloc(v->str_val, v->alloced_len+1,
 				      MYF(MY_WME)) :
-	      my_malloc(v->alloced_len, MYF(MY_WME))))
+	      my_malloc(v->alloced_len+1, MYF(MY_WME))))
 	  die("Out of memory");
       }
       v->str_val_len = new_val_len;
@@ -801,7 +806,7 @@ int do_inc(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR* v;
-  v = var_get(p, 0, 1);
+  v = var_get(p, 0, 1, 0);
   v->int_val++;
   v->int_dirty = 1;
   return 0;
@@ -811,7 +816,7 @@ int do_dec(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR* v;
-  v = var_get(p, 0, 1);
+  v = var_get(p, 0, 1, 0);
   v->int_val--;
   v->int_dirty = 1;
   return 0;
@@ -1042,14 +1047,16 @@ static uint get_ints(uint *to,struct st_query* q)
 /*
   Get a string;  Return ptr to end of string
   Strings may be surrounded by " or '
+
+  If string is a '$variable', return the value of the variable.
 */
 
 
-static void get_string(char **to_ptr, char **from_ptr,
-		       struct st_query* q)
+static char *get_string(char **to_ptr, char **from_ptr,
+			struct st_query* q)
 {
   reg1 char c,sep;
-  char *to= *to_ptr, *from= *from_ptr;
+  char *to= *to_ptr, *from= *from_ptr, *start=to;
   DBUG_ENTER("get_string");
 
   /* Find separator */
@@ -1099,9 +1106,22 @@ static void get_string(char **to_ptr, char **from_ptr,
   while (isspace(*from))		/* Point to next string */
     from++;
 
-  *to++ =0;				/* End of string marker */
-  *to_ptr= to;
+  *to =0;				/* End of string marker */
+  *to_ptr= to+1;			/* Store pointer to end */
   *from_ptr= from;
+
+  /* Check if this was a variable */
+  if (*start == '$')
+  {
+    const char *end= to;
+    VAR *var=var_get(start, &end, 0, 1);
+    if (var && to == (char*) end+1)
+    {
+      DBUG_PRINT("info",("var: %s -> %s", start, var->str_val));
+      DBUG_RETURN(var->str_val);	/* return found variable value */
+    }
+  }
+  DBUG_RETURN(start);
 }
 
 
@@ -1109,6 +1129,8 @@ static void get_string(char **to_ptr, char **from_ptr,
   Get arguments for replace. The syntax is:
   replace from to [from to ...]
   Where each argument may be quoted with ' or "
+  A argument may also be a variable, in which case the value of the
+  variable is replaced.
 */
 
 static void get_replace(struct st_query *q)
@@ -1120,6 +1142,9 @@ static void get_replace(struct st_query *q)
   POINTER_ARRAY to_array,from_array;
   DBUG_ENTER("get_replace");
 
+  if (glob_replace)
+    free_replace();
+
   bzero((char*) &to_array,sizeof(to_array));
   bzero((char*) &from_array,sizeof(from_array));
   if (!*from)
@@ -1128,12 +1153,11 @@ static void get_replace(struct st_query *q)
   while (*from)
   {
     char *to=buff;
-    get_string(&buff, &from, q);
+    to=get_string(&buff, &from, q);
     if (!*from)
       die("Wrong number of arguments to replace in %s\n", q->query);
     insert_pointer_name(&from_array,to);
-    to=buff;
-    get_string(&buff, &from, q);
+    to=get_string(&buff, &from, q);
     insert_pointer_name(&to_array,to);
   }
   for (i=1,pos=word_end_chars ; i < 256 ; i++)
@@ -1149,6 +1173,7 @@ static void get_replace(struct st_query *q)
   free_pointer_array(&from_array);
   free_pointer_array(&to_array);
   my_free(start, MYF(0));
+  DBUG_VOID_RETURN;
 }
 
 void free_replace()
@@ -1310,7 +1335,7 @@ int do_connect(struct st_query* q)
     p = safe_get_param(p, &con_port_str, "missing connection port");
     if (*con_port_str == '$')
     {
-      if (!(var_port = var_get(con_port_str, 0, 0)))
+      if (!(var_port = var_get(con_port_str, 0, 0, 0)))
 	die("Unknown variable '%s'", con_port_str+1);
       con_port = var_port->int_val;
     }
@@ -1319,7 +1344,7 @@ int do_connect(struct st_query* q)
     p = safe_get_param(p, &con_sock, "missing connection socket");
     if (*con_sock == '$')
     {
-      if (!(var_sock = var_get(con_sock, 0, 0)))
+      if (!(var_sock = var_get(con_sock, 0, 0, 0)))
 	die("Unknown variable '%s'", con_sock+1);
       if (!(con_sock = (char*)my_malloc(var_sock->str_val_len+1, MYF(0))))
 	die("Out of memory");
@@ -1993,7 +2018,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	mysql_errno(mysql), errno);
   if ((flags & QUERY_SEND) && !disable_query_log)
   {
-    dynstr_append_mem(ds,query,query_len);
+    replace_dynstr_append_mem(ds,query, query_len);
     dynstr_append_mem(ds,";\n",2);
   }
   if (!(flags & QUERY_REAP))
@@ -2163,24 +2188,27 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
 {
   int val_alloc_len;
   VAR* tmp_var;
-  if(!name_len && name)
+  if (!name_len && name)
     name_len = strlen(name);
-  if(!val_len && val)
+  if (!val_len && val)
     val_len = strlen(val) ;
   val_alloc_len = val_len + 16; /* room to grow */
-  if(!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) 
-				 + name_len, MYF(MY_WME))))
+  if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) 
+						 + name_len, MYF(MY_WME))))
     die("Out of memory");
 
-  tmp_var->name = (name) ? (char*)tmp_var + sizeof(*tmp_var) : 0;
+  tmp_var->name = (name) ? (char*) tmp_var + sizeof(*tmp_var) : 0;
   tmp_var->alloced = (v == 0); 
 
-  if(!(tmp_var->str_val = my_malloc(val_alloc_len, MYF(MY_WME))))
+  if (!(tmp_var->str_val = my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
   memcpy(tmp_var->name, name, name_len);
-  if(val)
-    memcpy(tmp_var->str_val, val, val_len + 1);
+  if (val)
+  {
+    memcpy(tmp_var->str_val, val, val_len);
+    tmp_var->str_val[val_len]=0;
+  }
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
@@ -2201,7 +2229,7 @@ static void var_from_env(const char* name, const char* def_val)
 {
   const char* tmp;
   VAR* v;
-  if(!(tmp = getenv(name)))
+  if (!(tmp = getenv(name)))
     tmp = def_val;
 
   v = var_init(0, name, 0, tmp, 0); 
@@ -2407,7 +2435,7 @@ int main(int argc, char** argv)
   dynstr_free(&ds_res);
 
   if (!silent) {
-    if(error)
+    if (error)
       printf("not ok\n");
     else
       printf("ok\n");

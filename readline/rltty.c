@@ -368,6 +368,16 @@ static TIOTYPE otio;
 #  define OUTPUT_BEING_FLUSHED(tp)  0
 #endif
 
+#if defined (_AIX) || (defined (FLUSHO) && defined (_AIX41))
+static void
+rltty_warning (msg)
+     char *msg;
+{
+  fprintf (stderr, "readline: warning: %s\n", msg);
+}
+#endif
+
+
 #if defined (_AIX)
 void
 setopost(tp)
