@@ -31,7 +31,8 @@
 #define BINLOG_VERSION    1
 
 #define LOG_EVENT_HEADER_LEN 13
-#define QUERY_HEADER_LEN     (sizeof(uint32) + sizeof(uint32) + sizeof(uchar))
+#define QUERY_HEADER_LEN     (sizeof(uint32) + sizeof(uint32) + \
+ sizeof(uchar) + sizeof(uint16))
 #define LOAD_HEADER_LEN      (sizeof(uint32) + sizeof(uint32) + \
   + sizeof(uint32) + 2 + sizeof(uint32))
 #define EVENT_LEN_OFFSET     9
@@ -88,11 +89,13 @@ public:
   void print_timestamp(FILE* file, time_t *ts = 0);
   void print_header(FILE* file);
 
-  static Log_event* read_log_event(FILE* file);
+  // if mutex is 0, the read will proceed without mutex
+  static Log_event* read_log_event(FILE* file, pthread_mutex_t* log_lock);
   static Log_event* read_log_event(const char* buf, int max_buf);
 
 #ifndef MYSQL_CLIENT
-  static int read_log_event(FILE* file, String* packet);
+  static int read_log_event(FILE* file, String* packet,
+			    pthread_mutex_t* log_lock);
 #endif
   
 };
@@ -109,12 +112,14 @@ public:
   // we pass it here, so we would not have to call strlen()
   // otherwise, set it to 0, in which case, we compute it with strlen()
   uint32 db_len;
+  uint16 error_code;
   int thread_id;
 #if !defined(MYSQL_CLIENT)
   THD* thd;
   Query_log_event(THD* thd_arg, const char* query_arg):
     Log_event(thd_arg->start_time,0,0,thd_arg->server_id), data_buf(0),
     query(query_arg),  db(thd_arg->db), q_len(thd_arg->query_length),
+    error_code(thd_arg->net.last_errno),
     thread_id(thd_arg->thread_id), thd(thd_arg)
   {
     time_t end_time;
@@ -142,6 +147,7 @@ public:
     return q_len + db_len + 2 +
       sizeof(uint32) // thread_id
       + sizeof(uint32) // exec_time
+      + sizeof(uint16) // error_code
       ;
   }
 
