@@ -28,39 +28,75 @@
 #define set_if_smaller(A,B)                          /* no op */
 /**************************************************************/
 
+void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
+    FT_SEG_ITERATOR *ftsi)
+{
+  ftsi->num=info->s->keyinfo[keynr].keysegs-FT_SEGS;
+  ftsi->seg=info->s->keyinfo[keynr].seg;
+  ftsi->rec=record;
+}
+
+void _mi_ft_segiterator_dummy_init(const byte *record, uint len,
+    FT_SEG_ITERATOR *ftsi)
+{
+  ftsi->num=1;
+  ftsi->seg=0;
+  ftsi->pos=record;
+  ftsi->len=len;
+}
+
+/* This function breaks convention "return 0 in success"
+   but it's easier to use like this
+
+      while(_mi_ft_segiterator())
+
+   so "1" means "OK", "0" means "EOF"
+*/
+
+uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
+{
+  if(!ftsi->num)
+    return 0;
+  if (!ftsi->seg)
+    return 1;
+
+  ftsi->seg--;  ftsi->num--;
+  if (ftsi->seg->null_bit &&
+      (ftsi->rec[ftsi->seg->null_pos] & ftsi->seg->null_bit))
+  {
+      ftsi->pos=0;
+      return 1;
+  }
+  ftsi->pos= ftsi->rec+ftsi->seg->start;
+  if (ftsi->seg->flag & HA_VAR_LENGTH)
+  {
+    ftsi->len=uint2korr(ftsi->pos);
+    ftsi->pos+=2;					 /* Skip VARCHAR length */
+    set_if_smaller(ftsi->len,ftsi->seg->length);
+    return 1;
+  }
+  if (ftsi->seg->flag & HA_BLOB_PART)
+  {
+    ftsi->len=_mi_calc_blob_length(ftsi->seg->bit_start,ftsi->pos);
+    memcpy_fixed(&ftsi->pos,ftsi->pos+ftsi->seg->bit_start,sizeof(char*));
+    set_if_smaller(ftsi->len,ftsi->seg->length);
+    return 1;
+  }
+  ftsi->len=ftsi->seg->length;
+  return 1;
+}
 
 /* parses a document i.e. calls ft_parse for every keyseg */
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
 {
-  byte *pos;
-  uint i;
-  MI_KEYSEG *keyseg=info->s->keyinfo[keynr].seg;
+  FT_SEG_ITERATOR ftsi;
+  _mi_ft_segiterator_init(info, keynr, record, &ftsi);
 
-  for (i=info->s->keyinfo[keynr].keysegs-FT_SEGS ; i-- ; )
-  {
-    uint len;
+  while (_mi_ft_segiterator(&ftsi))
+    if (ftsi.pos)
+      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len))
+        return 1;
 
-    keyseg--;
-    if (keyseg->null_bit && (record[keyseg->null_pos] & keyseg->null_bit))
-	continue; /* NULL field */
-    pos= (byte *)record+keyseg->start;
-    if (keyseg->flag & HA_VAR_LENGTH)
-    {
-      len=uint2korr(pos);
-      pos+=2;					 /* Skip VARCHAR length */
-      set_if_smaller(len,keyseg->length);
-    }
-    else if (keyseg->flag & HA_BLOB_PART)
-    {
-      len=_mi_calc_blob_length(keyseg->bit_start,pos);
-      memcpy_fixed(&pos,pos+keyseg->bit_start,sizeof(char*));
-      set_if_smaller(len,keyseg->length);
-    }
-    else
-      len=keyseg->length;
-    if (ft_parse(parsed, pos, len))
-      return 1;
-  }
   /* Handle the case where all columns are NULL */
   if (!is_tree_inited(parsed) && ft_parse(parsed, (byte*) "", 0))
     return 1;
@@ -118,50 +154,16 @@ static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wlist,
 
 int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
 {
-  MI_KEYSEG *keyseg;
-  byte *pos1, *pos2;
-  uint i;
+  FT_SEG_ITERATOR ftsi1, ftsi2;
+  _mi_ft_segiterator_init(info, keynr, rec1, &ftsi1);
+  _mi_ft_segiterator_init(info, keynr, rec2, &ftsi2);
 
-  i=info->s->keyinfo[keynr].keysegs-FT_SEGS;
-  keyseg=info->s->keyinfo[keynr].seg;
-  while(i--)
+  while(_mi_ft_segiterator(&ftsi1) && _mi_ft_segiterator(&ftsi2))
   {
-    uint len1, len2;
-    LINT_INIT(len1); LINT_INIT(len2);
-    keyseg--;
-    if (keyseg->null_bit)
-    {
-      if ( (rec1[keyseg->null_pos] ^ rec2[keyseg->null_pos])
-	   & keyseg->null_bit )
-	return THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT;
-      if (rec1[keyseg->null_pos] & keyseg->null_bit )
-	continue; /* NULL field */
-    }
-    pos1= (byte *)rec1+keyseg->start;
-    pos2= (byte *)rec2+keyseg->start;
-    if (keyseg->flag & HA_VAR_LENGTH)
-    {
-      len1=uint2korr(pos1);
-      pos1+=2;					 /* Skip VARCHAR length */
-      set_if_smaller(len1,keyseg->length);
-      len2=uint2korr(pos2);
-      pos2+=2;					 /* Skip VARCHAR length */
-      set_if_smaller(len2,keyseg->length);
-    }
-    else if (keyseg->flag & HA_BLOB_PART)
-    {
-      len1=_mi_calc_blob_length(keyseg->bit_start,pos1);
-      memcpy_fixed(&pos1,pos1+keyseg->bit_start,sizeof(char*));
-      set_if_smaller(len1,keyseg->length);
-      len2=_mi_calc_blob_length(keyseg->bit_start,pos2);
-      memcpy_fixed(&pos2,pos2+keyseg->bit_start,sizeof(char*));
-      set_if_smaller(len2,keyseg->length);
-    }
-    else /* fixed length key */
-    {
-      len1=len2=keyseg->length;
-    }
-    if ((len1 != len2) || memcmp(pos1, pos2, len1))
+    if ((ftsi1.pos != ftsi2.pos) &&
+          _mi_compare_text(default_charset_info,
+	                 (uchar*) ftsi1.pos,ftsi1.len,
+			 (uchar*) ftsi2.pos,ftsi2.len,0))
       return THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT;
   }
   return GEE_THEY_ARE_ABSOLUTELY_IDENTICAL;

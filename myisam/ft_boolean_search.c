@@ -229,11 +229,12 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   return ftb;
 }
 
-void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
+void _ftb_climb_the_tree(FTB_WORD *ftbw)
 {
   FTB_EXPR *ftbe;
   float weight=ftbw->weight;
   int  yn=ftbw->yesno;
+  my_off_t curdoc=ftbw->docid;
 
   for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
   {
@@ -307,7 +308,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
   {
     while (curdoc==(ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid)
     {
-      _ftb_climb_the_tree(ftbw, curdoc);
+      _ftb_climb_the_tree(ftbw);
 
       /* update queue */
       r=_mi_search(info, keyinfo, (uchar*) ftbw->word, USE_WHOLE_KEY,
@@ -401,12 +402,13 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   for (i=1; i<=ftb->queue.elements; i++)
   {
     ftbw=(FTB_WORD *)(ftb->queue.root[i]);
+    ftbw->docid=docid;
     ptree.custom_arg=(void *)(ftbw->trunc);
     word.pos=ftbw->word+1;
     word.len=ftbw->len-1;
     if (tree_search(& ptree, & word))
     { /* found! */
-      _ftb_climb_the_tree(ftbw, docid);
+      _ftb_climb_the_tree(ftbw);
     }
     else
     { /* not found! */

@@ -173,7 +173,11 @@ static int queue_fix_cmp(QUEUE *queue, void **a, void **b)
 			(char*) (*b)+queue->offset_to_key);
 }
 
-	/* Fix heap when every element was changed */
+/* Fix heap when every element was changed
+   actually, it can be done in linear time,
+   not in n*log(n), but some code (myisam/ft_boolean_search.c)
+   requires a strict order here, not just a queue property
+*/
 void queue_fix(QUEUE *queue)
 {
   qsort2(queue->root+1,queue->elements, sizeof(void *),
