@@ -307,7 +307,7 @@ foreach my $rdb ( @db_desc ) {
 
     $rdb->{files}  = [ @db_files ];
     $rdb->{index}  = [ @index_files ];
-    my @hc_tables = map { "$db.$_" } @dbh_tables;
+    my @hc_tables = map { "`$db.$_`" } @dbh_tables;
     $rdb->{tables} = [ @hc_tables ];
 
     $rdb->{raid_dirs} = [ get_raid_dirs( $rdb->{files} ) ];
