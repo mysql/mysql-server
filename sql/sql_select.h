@@ -115,7 +115,8 @@ typedef struct st_position {			/* Used in find_best */
 
 /* Param to create temporary tables when doing SELECT:s */
 
-class TMP_TABLE_PARAM {
+class TMP_TABLE_PARAM :public Sql_alloc
+{
  public:
   List<Item> copy_funcs;
   List_iterator_fast<Item> copy_funcs_it;
@@ -159,7 +160,7 @@ class JOIN :public Sql_alloc
   bool	   sort_and_group,first_record,full_join,group, no_field_update;
   bool	   do_send_rows;
   table_map const_table_map,found_const_table_map,outer_join;
-  ha_rows  send_records,found_records,examined_rows,row_limit;
+  ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;
   List<Item> *fields;
@@ -195,7 +196,6 @@ class JOIN :public Sql_alloc
   SQL_SELECT *select;                //created in optimisation phase
   TABLE      *exec_tmp_table;        //used in 'exec' to hold temporary
 
-  my_bool test_function_query; // need to return select items 1 row
   const char *zero_result_cause; // not 0 if exec must return zero result
   
   my_bool union_part; // this subselect is part of union 
@@ -227,7 +227,6 @@ class JOIN :public Sql_alloc
     error(0),
     select(0),
     exec_tmp_table(0),
-    test_function_query(0),
     zero_result_cause(0)
   {
     fields_list = fields;
@@ -260,16 +259,15 @@ void TEST_join(JOIN *join);
 bool store_val_in_field(Field *field,Item *val);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
-			bool allow_distinct_limit, ulong select_options,
-			SELECT_LEX_UNIT *unit);
+			ulong select_options, ha_rows rows_limit);
 void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 		       bool reset_with_sum_func);
 bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item_result_field **func_ptr);
-bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
-			     bool ignore_last_dupp_error);
+bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
+			     int error, bool ignore_last_dupp_error);
 
 /* functions from opt_sum.cc */
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
@@ -321,12 +319,12 @@ class store_key_field: public store_key
       copy_field.set(to_field,from_field,0);
     }
   }
- bool copy()
- {
-   copy_field.do_copy(&copy_field);
-   return err != 0;
- }
- const char *name() const { return field_name; }
+  bool copy()
+  {
+    copy_field.do_copy(&copy_field);
+    return err != 0;
+  }
+  const char *name() const { return field_name; }
 };
 
 
@@ -343,8 +341,7 @@ public:
   {}
   bool copy()
   {
-    (void) item->save_in_field(to_field);
-    return err != 0;
+    return item->save_in_field(to_field, 1) || err != 0;
   }
   const char *name() const { return "func"; }
 };
@@ -367,7 +364,8 @@ public:
     if (!inited)
     {
       inited=1;
-      (void)item->save_in_field(to_field);
+      if (item->save_in_field(to_field, 1))
+	err= 1;
     }
     return err != 0;
   }
@@ -375,3 +373,4 @@ public:
 };
 
 bool cp_buffer_from_ref(TABLE_REF *ref);
+bool error_if_full_join(JOIN *join);

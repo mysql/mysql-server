@@ -41,7 +41,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result)
 ***************************************************************************/
 
 select_union::select_union(TABLE *table_par)
-    :table(table_par)
+  :table(table_par), not_describe(0)
 {
   bzero((char*) &info,sizeof(info));
   /*
@@ -59,7 +59,7 @@ select_union::~select_union()
 int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  if (save_time_stamp && list.elements != table->fields)
+  if (not_describe && list.elements != table->fields)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
 	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
@@ -81,7 +81,8 @@ bool select_union::send_data(List<Item> &values)
     if (thd->net.last_errno == ER_RECORD_FILE_FULL)
     {
       thd->clear_error(); // do not report user about table overflow
-      if (create_myisam_from_heap(table, tmp_table_param, info.last_errno, 0))
+      if (create_myisam_from_heap(thd, table, tmp_table_param,
+				  info.last_errno, 0))
 	return 1;
     }
     else
@@ -117,7 +118,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   prepared= 1;
   union_result=0;
   res= 0;
-  found_rows_for_union= false;
+  found_rows_for_union= 0;
   TMP_TABLE_PARAM tmp_table_param;
   this->thd= thd;
   this->result= result;
@@ -150,10 +151,9 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   tmp_table_param.field_count=item_list.elements;
   if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
 				(ORDER*) 0, !union_option,
-				1, 0,
-				(first_select()->options | thd->options |
-				 TMP_TABLE_ALL_COLUMNS),
-				this)))
+				1, (first_select()->options | thd->options |
+				    TMP_TABLE_ALL_COLUMNS),
+				HA_POS_ERROR)))
     goto err;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -165,7 +165,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   if (!(union_result=new select_union(table)))
     goto err;
 
-  union_result->save_time_stamp=1;
+  union_result->not_describe=1;
   union_result->tmp_table_param=&tmp_table_param;
 
   // prepare selects

@@ -2702,14 +2702,22 @@ row_search_for_mysql(
 
 		unique_search_from_clust_index = TRUE;
 
-		if (prebuilt->select_lock_type == LOCK_NONE
+		if (trx->mysql_n_tables_locked == 0
+		    && prebuilt->select_lock_type == LOCK_NONE
 		    && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
 		    && trx->read_view) {
 
 			/* This is a SELECT query done as a consistent read,
 			and the read view has already been allocated:
 			let us try a search shortcut through the hash
-			index */
+			index.
+			NOTE that we must also test that
+			mysql_n_tables_locked == 0, because this might
+			also be INSERT INTO ... SELECT ... or
+			CREATE TABLE ... SELECT ... . Our algorithm is
+			NOT prepared to inserts interleaved with the SELECT,
+			and if we try that, we can deadlock on the adaptive
+			hash index semaphore! */
 			
 			if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
 			        /* There is an x-latch request: release

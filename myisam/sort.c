@@ -376,7 +376,6 @@ pthread_handler_decl(thr_find_all_keys,arg)
     mi_check_print_error(info->sort_info->param,"Sort buffer to small"); /* purecov: tested */
     goto err; /* purecov: tested */
   }
-//  (*info->lock_in_memory)(info->sort_info->param);/* Everything is allocated */
 
   if (info->sort_info->param->testflag & T_VERBOSE)
     printf("Key %d - Allocating buffer for %d keys\n",info->key+1,keys);
@@ -456,9 +455,9 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
   byte *mergebuf=0;
   LINT_INIT(length);
 
-  for (i=0, sinfo=sort_param ; i<sort_info->total_keys ; i++,
-                               rec_per_key_part+=sinfo->keyinfo->keysegs,
-                                                                 sinfo++)
+  for (i= 0, sinfo= sort_param ;
+       i < sort_info->total_keys ;
+       i++, rec_per_key_part+=sinfo->keyinfo->keysegs, sinfo++)
   {
     if (!sinfo->sort_keys)
     {
@@ -484,15 +483,18 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
       }
     }
     my_free((gptr) sinfo->sort_keys,MYF(0));
-    my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff),
+	    MYF(MY_ALLOW_ZERO_PTR));
     sinfo->sort_keys=0;
   }
 
-  for (i=0, sinfo=sort_param ; i<sort_info->total_keys ; i++,
-                                      delete_dynamic(&sinfo->buffpek),
-                                  close_cached_file(&sinfo->tempfile),
-                   close_cached_file(&sinfo->tempfile_for_exceptions),
-                                                              sinfo++)
+  for (i= 0, sinfo= sort_param ;
+       i < sort_info->total_keys ;
+       i++,
+	 delete_dynamic(&sinfo->buffpek),
+	 close_cached_file(&sinfo->tempfile),
+	 close_cached_file(&sinfo->tempfile_for_exceptions),
+	 sinfo++)
   {
     if (got_error)
       continue;

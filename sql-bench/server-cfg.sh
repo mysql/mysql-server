@@ -216,6 +216,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -431,6 +432,8 @@ sub version
       {				# Strip pre- and endspace
 	$tmp=$1;
 	$tmp =~ s/\s+/ /g;	# Remove unnecessary spaces
+	$tmp .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+
 	return $tmp;
       }
     }
@@ -619,6 +622,7 @@ sub new
 sub version
 {
   my ($version,$dir);
+  $version = "PostgreSQL version ???";
   foreach $dir ($ENV{'PGDATA'},"/usr/local/pgsql/data", "/usr/local/pg/data")
   {
     if ($dir && -e "$dir/PG_VERSION")
@@ -627,11 +631,13 @@ sub version
       if ($? == 0)
       {
 	chomp($version);
+	$version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
 	return "PostgreSQL $version";
       }
     }
   }
-  return "PostgreSQL version ???";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;
 }
 
 
@@ -895,6 +901,7 @@ sub new
 sub version
 {
   my ($version,$dir);
+  $version="Solid version ??";
   foreach $dir ($ENV{'SOLIDDIR'},"/usr/local/solid", "/my/local/solid")
   {
     if ($dir && -e "$dir/bin/solcon")
@@ -903,11 +910,13 @@ sub version
       if ($? == 0)
       {
 	chomp($version);
+	$version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
 	return $version;
       }
     }
   }
-  return "Solid version ???";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;
 }
 
 sub connect
@@ -1136,6 +1145,8 @@ sub version
   {
     $version="Empress version ???";
   }
+
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -1403,6 +1414,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -1647,6 +1659,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -1846,7 +1859,9 @@ sub new
 sub version
 {
   my ($self)=@_;
-  return "Access 2000";		#DBI/ODBC can't return the server version
+  my $version="Access 2000";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;		#DBI/ODBC can't return the server version
 }
 
 sub connect
@@ -2028,7 +2043,8 @@ sub new
 sub version
 {
   my ($self)=@_;
-  my($sth,@row);
+  my($sth,@row, $version);
+  $version='MS SQL server ?';
   $dbh=$self->connect();
   $sth = $dbh->prepare("SELECT \@\@VERSION") or die $DBI::errstr;
   $sth->execute or die $DBI::errstr;
@@ -2036,10 +2052,11 @@ sub version
   if ($row[0]) {
      @server = split(/\n/,$row[0]);
      chomp(@server);
-     return "$server[0]";
-  } else {
-    return "Microsoft SQL server ?";
-  }
+     $version= "$server[0]";
+  } 
+  $sth->finish;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
+  return $version;
 }
 
 sub connect
@@ -2232,8 +2249,8 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
-
 }
 
 sub connect
@@ -2466,6 +2483,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -2842,6 +2860,7 @@ sub version
 #
   $version = $dbh->func(18, GetInfo);
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);  
   return $version;
 }
 
@@ -3041,6 +3060,7 @@ sub version
 #  $version =~ s/.*version \"(.*)\"$/$1/;
   $dbh->disconnect;
   $version = "6.0Beta";
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -3246,6 +3266,7 @@ sub version
   #$version = $dbh->func(18, GetInfo);
   $version="FrontBase 3.3";
 #  $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 
@@ -3365,7 +3386,7 @@ sub fix_for_insert
 #	     Configuration for SAPDB 
 #############################################################################
 
-package db_Sapdb;
+package db_sapdb;
 
 sub new
 {
@@ -3453,6 +3474,7 @@ sub version
   }
   $sth->finish;
   $dbh->disconnect;
+  $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
 

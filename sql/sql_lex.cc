@@ -1098,19 +1098,19 @@ st_select_lex* st_select_lex_node::select_lex()
   DBUG_RETURN(0);
 }
 
-bool st_select_lex_node::add_item_to_list(Item *item)
+bool st_select_lex_node::add_item_to_list(THD *thd, Item *item)
 {
   return 1;
 }
 
-bool st_select_lex_node::add_group_to_list(Item *item, bool asc)
+bool st_select_lex_node::add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return 1; 
 }
 
-bool st_select_lex_node::add_order_to_list(Item *item, bool asc)
+bool st_select_lex_node::add_order_to_list(THD *thd, Item *item, bool asc)
 { 
-  return add_to_list(order_list,item,asc);
+  return add_to_list(thd, order_list,item,asc);
 }
 
 bool st_select_lex_node::add_ftfunc_to_list(Item_func_match *func)
@@ -1166,7 +1166,7 @@ TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
 List<Item>* st_select_lex_node::get_item_list()      { return 0; }
 List<String>* st_select_lex_node::get_use_index()    { return 0; }
 List<String>* st_select_lex_node::get_ignore_index() { return 0; }
-TABLE_LIST *st_select_lex_node::add_table_to_list(Table_ident *table,
+TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  bool updating,
 						  thr_lock_type flags,
@@ -1269,14 +1269,14 @@ st_select_lex* st_select_lex::select_lex()
   return this;
 }
 
-bool st_select_lex::add_item_to_list(Item *item)
+bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
   return item_list.push_back(item);
 }
 
-bool st_select_lex::add_group_to_list(Item *item, bool asc)
+bool st_select_lex::add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return add_to_list(group_list, item, asc);
+  return add_to_list(thd, group_list, item, asc);
 }
 
 bool st_select_lex::add_ftfunc_to_list(Item_func_match *func)

@@ -110,7 +110,8 @@ enum ha_extra_function {
   HA_EXTRA_BULK_INSERT_BEGIN,
   HA_EXTRA_BULK_INSERT_FLUSH,		/* Flush one index */
   HA_EXTRA_BULK_INSERT_END,
-  HA_EXTRA_PREPARE_FOR_DELETE
+  HA_EXTRA_PREPARE_FOR_DELETE,
+  HA_EXTRA_PREPARE_FOR_UPDATE		/* Remove read cache if problems */
 };
 
 	/* The following is parameter to ha_panic() */

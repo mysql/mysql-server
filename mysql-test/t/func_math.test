@@ -13,6 +13,7 @@ select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 select pow(10,log10(10)),power(2,4);
+set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
 select pi(),sin(pi()/2),cos(pi()/2),abs(tan(pi())),cot(1),asin(1),acos(0),atan(1);
 select degrees(pi()),radians(360);
