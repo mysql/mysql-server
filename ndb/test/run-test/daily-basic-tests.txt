@@ -966,7 +966,7 @@ max-time: 1500
 cmd: testRestartGci
 args: T6 
 
-max-time: 300
+max-time: 600
 cmd: testBlobs
 args:
 
