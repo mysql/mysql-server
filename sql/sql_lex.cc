@@ -115,9 +115,14 @@ void lex_free(void)
 void lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= thd->lex;
+  DBUG_ENTER("lex_start");
+
+  lex->thd= lex->unit.thd= thd;
+  lex->buf= lex->ptr= buf;
+  lex->end_of_query= buf+length;
+
   lex->unit.init_query();
   lex->unit.init_select();
-  lex->thd= lex->unit.thd= thd;
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->update_list.empty();
@@ -150,8 +155,6 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;
-  lex->buf= lex->ptr= buf;
-  lex->end_of_query=buf+length;
   lex->yylineno = 1;
   lex->in_comment=0;
   lex->length=0;
@@ -173,14 +176,11 @@ void lex_start(THD *thd, uchar *buf,uint length)
 
   if (lex->spfuns.records)
     my_hash_reset(&lex->spfuns);
+  DBUG_VOID_RETURN;
 }
 
 void lex_end(LEX *lex)
 {
-  for (SELECT_LEX *sl= lex->all_selects_list;
-       sl;
-       sl= sl->next_select_in_list())
-    sl->expr_list.delete_elements();	// If error when parsing sql-varargs
   x_free(lex->yacc_yyss);
   x_free(lex->yacc_yyvs);
 }

@@ -473,3 +473,17 @@ INSERT INTO t1 VALUES
 
 select val, count(*) from t1 group by val;
 drop table t1;
+
+
+#
+# Bug 7833:  Wrong datatype of aggregate column is returned
+#
+
+create table t1(f1 datetime);
+insert into t1 values (now());
+create table t2 select f2 from (select max(now()) f2 from t1) a;
+show columns from t2;
+drop table t2;
+create table t2 select f2 from (select now() f2 from t1) a;
+show columns from t2;
+drop table t2, t1;
