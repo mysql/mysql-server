@@ -2458,11 +2458,13 @@ static struct option long_options[] = {
   {"enable-locking",        no_argument,       0, (int) OPT_ENABLE_LOCK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
+  /* We must always support this option to make scripts like mysqltest easier
+     to do */
+  {"innobase_data_file_path", required_argument, 0,
+     OPT_INNOBASE_DATA_FILE_PATH},
 #ifdef HAVE_INNOBASE_DB
   {"innobase_data_home_dir", required_argument, 0,
      OPT_INNOBASE_DATA_HOME_DIR},
-  {"innobase_data_file_path", required_argument, 0,
-     OPT_INNOBASE_DATA_FILE_PATH},
   {"innobase_log_group_home_dir", required_argument, 0,
     OPT_INNOBASE_LOG_GROUP_HOME_DIR},
   {"innobase_log_arch_dir", required_argument, 0,
@@ -3489,12 +3491,14 @@ static void get_options(int argc,char **argv)
       have_innobase=SHOW_OPTION_DISABLED;
 #endif
       break;
+    case OPT_INNOBASE_DATA_FILE_PATH:
+#ifdef HAVE_INNOBASE_DB
+      innobase_data_file_path=optarg;
+#endif
+      break;
 #ifdef HAVE_INNOBASE_DB
     case OPT_INNOBASE_DATA_HOME_DIR:
       innobase_data_home_dir=optarg;
-      break;
-    case OPT_INNOBASE_DATA_FILE_PATH:
-      innobase_data_file_path=optarg;
       break;
     case OPT_INNOBASE_LOG_GROUP_HOME_DIR:
       innobase_log_group_home_dir=optarg;

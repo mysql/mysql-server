@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.16"
+#define ADMIN_VERSION "8.17"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -402,32 +402,32 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
 	my_printf_error(0,"Too few arguments to create",MYF(ME_BELL));
 	return 1;
       }
-      sprintf(buff,"create database %.*s",FN_REFLEN,argv[1]);
+      sprintf(buff,"create database `%.*s`",FN_REFLEN,argv[1]);
       if (mysql_query(mysql,buff))
       {
-	my_printf_error(0,"Create failed; error: '%-.200s'",MYF(ME_BELL),
-			mysql_error(mysql));
+	my_printf_error(0,"CREATE DATABASE failed; error: '%-.200s'",
+			MYF(ME_BELL), mysql_error(mysql));
 	return 1;
       }
-      else
-      {
-	argc--; argv++;
-      }
+      argc--; argv++;
       break;
     }
     case ADMIN_DROP:
     {
+      char buff[FN_REFLEN+20];
       if (argc < 2)
       {
 	my_printf_error(0,"Too few arguments to drop",MYF(ME_BELL));
 	return 1;
       }
-      if (drop_db(mysql,argv[1]))
-	return 1;
-      else
+      sprintf(buff,"drop database `%.*s`",FN_REFLEN,argv[1]);
+      if (mysql_query(mysql,buff))
       {
-	argc--; argv++;
+	my_printf_error(0,"DROP DATABASE failed; error: '%-.200s'",
+			MYF(ME_BELL), mysql_error(mysql));
+	return 1;
       }
+      argc--; argv++;
       break;
     }
     case ADMIN_SHUTDOWN:

@@ -21,7 +21,7 @@
   - Don't automaticly pack all string keys (To do this we need to modify
     CREATE TABLE so that one can use the pack_keys argument per key).
   - An argument to pack_key that we don't want compression.
-  - DB_DBT_USERMEN should be used for fixed length tables
+  - DB_DBT_USERMEM should be used for fixed length tables
     We will need an updated Berkeley DB version for this.
   - Killing threads that has got a 'deadlock'
   - SHOW TABLE STATUS should give more information about the table.
@@ -585,6 +585,7 @@ int ha_berkeley::close(void)
 
   my_free(rec_buff,MYF(MY_ALLOW_ZERO_PTR));
   my_free(alloc_ptr,MYF(MY_ALLOW_ZERO_PTR));
+  ha_berkeley::extra(HA_EXTRA_RESET);		// current_row buffer
   DBUG_RETURN(free_share(share,table, hidden_primary_key,0));
 }
 
@@ -1587,6 +1588,15 @@ int ha_berkeley::extra(enum ha_extra_function operation)
   case HA_EXTRA_RESET_STATE:
     key_read=0;
     using_ignore=0;
+    if (current_row.flags & (DB_DBT_MALLOC | DB_DBT_REALLOC))
+    {
+      current_row.flags=0;
+      if (current_row.data)
+      {
+	free(current_row.data);
+	current_row.data=0;
+      }
+    }
     break;
   case HA_EXTRA_KEYREAD:
     key_read=1;					// Query satisfied with key
@@ -1662,17 +1672,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
   else
   {
     lock.type=TL_UNLOCK;			// Unlocked
-    if (current_row.flags & (DB_DBT_MALLOC | DB_DBT_REALLOC))
-    {
-      current_row.flags=0;
-      if (current_row.data)
-      {
-	free(current_row.data);
-	current_row.data=0;
-      }
-    }
     thread_safe_add(share->rows, changed_rows, &share->mutex);
-    current_row.data=0;
     if (!--thd->transaction.bdb_lock_count)
     {
       if (thd->transaction.stmt.bdb_tid)

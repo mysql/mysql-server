@@ -18,6 +18,7 @@
 /* Delete of records */
 
 #include "mysql_priv.h"
+#include "ha_innobase.h"
 
 /*
   Optimize delete of all rows by doing a full generate of the table
@@ -142,9 +143,10 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
 			 (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
 		       !(thd->options &
 			 (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)));
-  /* We need to add code to not generate table based on the table type */
 #ifdef HAVE_INNOBASE_DB
-  use_generate_table=0;
+  /* We need to add code to not generate table based on the table type */
+  if (!innobase_skip)
+    use_generate_table=0;		// Innobase can't use re-generate table
 #endif
   if (use_generate_table && ! thd->open_tables)
   {

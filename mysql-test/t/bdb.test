@@ -429,4 +429,302 @@ create index ax1 on t1 (i,j);
 select * from t1 where i=1 and j=2;
 drop table t1;
 
+#
+# Test of with CONST tables and TEXT columns
+# This gave a wrong result because the row information was freed too early
+#
 
+drop table if exists t1, t2, t3, t4, t5, t6, t7;
+create table t1
+(
+	branch_id	int		auto_increment	primary key,
+	branch_name	varchar(255)	not null,
+	branch_active	int		not null 	default 1,
+
+	unique  branch_name(branch_name),
+	index	branch_active(branch_active)
+) type=bdb;
+drop table if exists t2 ;
+create table t2
+(
+	target_id	int		auto_increment	primary key,
+	target_name	varchar(255)	not null,
+	target_active	int		not null 	default 1,
+
+	unique	target_name(target_name),
+	index	target_active(target_active)
+) type=bdb;
+drop table if exists t3 ;
+create table t3
+(
+	platform_id	int		auto_increment	primary key,
+	platform_name	varchar(255)	not null,
+	platform_active	int		not null 	default 1,
+
+	unique	platform_name(platform_name),
+	index	platform_active(platform_active)
+) type=bdb;
+drop table if exists t4 ;
+create table t4
+(
+	product_id	int		auto_increment	primary key,
+	product_name	varchar(255)	not null,
+	version_file	varchar(255)	not null,
+	product_active	int		not null 	default 1,
+
+	unique	product_name(product_name),
+	index	product_active(product_active)
+) type=bdb;
+drop table if exists t5 ;
+create table t5
+(
+	product_file_id		int		auto_increment	primary key,
+	product_id		int		not null,
+	file_name		varchar(255)	not null,
+	/* cvs module used to find the file version */
+	module_name		varchar(255)	not null,
+	/* flag whether the file is still included in the product */
+	file_included		int		not null	default 1,
+
+	unique	product_file(product_id,file_name),
+	index	file_included(file_included)
+) type=bdb;
+drop table if exists t6 ;
+create table t6
+(
+	file_platform_id	int		auto_increment	primary key,
+	product_file_id		int		not null,
+	platform_id		int		not null,
+	branch_id		int		not null,
+	/* filename in the build system */
+	build_filename		varchar(255)	not null,
+	/* default filename in the build archive */
+	archive_filename	varchar(255)	not null,
+
+	unique  file_platform(product_file_id,platform_id,branch_id)
+) type=bdb;
+drop table if exists ba_archive ;
+create table ba_archive
+(
+	archive_id	int		auto_increment	primary key,
+	branch_id	int		not null,
+	target_id	int		not null,
+	platform_id	int		not null,
+	product_id	int		not null,
+	status_id	int		not null	default 1,
+
+	unique  archive(branch_id,target_id,platform_id,product_id),
+	index	status_id(status_id)
+) type=bdb;
+drop table if exists t7 ;
+create table t7
+(
+	build_id	int		auto_increment	primary key,
+	branch_id	int		not null,
+	target_id	int		not null,
+	build_number	int		not null,
+	build_date	date		not null,
+	/* build system tag, e.g. 'rmanight-022301-1779' */
+	build_tag	varchar(255)	not null,	
+	/* path relative to the build archive root, e.g. 'current' */
+	build_path	text		not null,	
+
+	unique  build(branch_id,target_id,build_number)
+) type=bdb;
+drop table if exists t4_build ;
+create table t4_build
+(
+	product_build_id	int		auto_increment	primary key,
+	build_id		int		not null,
+	product_id		int		not null,
+	platform_id		int		not null,
+	/* flag whether this is a released build */
+	product_release		int		not null 	default 0,
+	/* user-defined tag, e.g. 'RealPlayer 8.0' */
+	release_tag		varchar(255)	not null,
+
+	unique	product_build(build_id,product_id,platform_id),
+	index	product_release(product_release),
+	index	release_tag(release_tag)
+) type=bdb;
+drop table if exists t7_file ;
+create table t7_file
+(
+	build_file_id		int		auto_increment	primary key,
+	product_build_id	int		not null,
+	product_file_id		int		not null,
+	/* actual filename in the build archive */
+	filename		text		not null,
+	/* actual path in the build archive */
+	file_path		text		not null,
+	/* file version string, e.g. '8.0.1.368' */
+	file_version		varchar(255)	not null,
+
+	unique	build_file(product_build_id,product_file_id),
+	index	file_version(file_version)
+) type=bdb;
+drop table if exists ba_status ;
+create table ba_status
+(
+	status_id	int		auto_increment 	primary key,
+	status_name	varchar(255)	not null,
+	status_desc	text		not null
+) type=bdb;
+insert into ba_status 
+	(status_name, status_desc)
+values 
+	('new', 'This item has been newly added.'),
+	('archived', 'This item is currently archived.'),
+	('not archived', 'This item is currently not archived.'),
+	('obsolete', 'This item is obsolete.'),
+	('unknown', 'The status of this item is unknown.') ;
+
+insert into t1 (branch_name)
+values ('RealMedia');
+insert into t1 (branch_name)
+values ('RP8REV');
+insert into t1 (branch_name)
+values ('SERVER_8_0_GOLD');
+
+insert into t2 (target_name)
+values ('rmanight');
+insert into t2 (target_name)
+values ('playerall');
+insert into t2 (target_name)
+values ('servproxyall');
+
+insert into t3 (platform_name)
+values ('linux-2.0-libc6-i386');
+insert into t3 (platform_name)
+values ('win32-i386');
+
+insert into t4 (product_name, version_file)
+values ('realserver', 'servinst');
+insert into t4 (product_name, version_file)
+values ('realproxy', 'prxyinst');
+insert into t4 (product_name, version_file)
+values ('realplayer', 'playinst');
+insert into t4 (product_name, version_file)
+values ('plusplayer', 'plusinst');
+
+create temporary table tmp1
+        select branch_id, target_id, platform_id, product_id
+        from t1, t2, t3, t4 ;
+create temporary table tmp2 
+        select tmp1.branch_id, tmp1.target_id, tmp1.platform_id, tmp1.product_id 
+        from tmp1 left join ba_archive 
+        using (branch_id,target_id,platform_id,product_id) 
+        where ba_archive.archive_id is null ;
+insert into ba_archive 
+        (branch_id, target_id, platform_id, product_id, status_id)
+        select branch_id, target_id, platform_id, product_id, 1
+        from tmp2 ;
+drop table tmp1 ;
+drop table tmp2 ;
+
+insert into t5 (product_id, file_name, module_name)
+values (1, 'servinst', 'server');
+
+insert into t5 (product_id, file_name, module_name)
+values (2, 'prxyinst', 'server');
+
+insert into t5 (product_id, file_name, module_name)
+values (3, 'playinst', 'rpapp');
+
+insert into t5 (product_id, file_name, module_name)
+values (4, 'plusinst', 'rpapp');
+
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (1, 2, 3, 'servinst.exe', 'win32-servinst.exe');
+
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (1, 1, 3, 'v80_linux-2.0-libc6-i386_servinst.bin', 'linux2-servinst.exe');
+
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (3, 2, 2, 'playinst.exe', 'win32-playinst.exe');
+
+insert into t6 
+(product_file_id,platform_id,branch_id,build_filename,archive_filename)
+values (4, 2, 2, 'playinst.exe', 'win32-playinst.exe');
+
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (2, 2, 1071, 'playerall-022101-1071', '2001-02-21', 'current');
+
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (2, 2, 1072, 'playerall-022201-1072', '2001-02-22', 'current');
+
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (3, 3, 388, 'servproxyall-022201-388', '2001-02-22', 'current');
+
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (3, 3, 389, 'servproxyall-022301-389', '2001-02-23', 'current');
+
+insert into t7 
+(branch_id,target_id,build_number,build_tag,build_date,build_path)
+values (4, 4, 100, 'foo target-010101-100', '2001-01-01', 'current');
+
+insert into t4_build
+(build_id, product_id, platform_id)
+values (1, 3, 2);
+
+insert into t4_build
+(build_id, product_id, platform_id)
+values (2, 3, 2);
+
+insert into t4_build
+(build_id, product_id, platform_id)
+values (3, 1, 2);
+
+insert into t4_build
+(build_id, product_id, platform_id)
+values (4, 1, 2);
+
+insert into t4_build
+(build_id, product_id, platform_id)
+values (5, 5, 3);
+
+insert into t7_file
+(product_build_id, product_file_id, filename, file_path, file_version)
+values (1, 3, 'win32-playinst.exe', 'RP8REV/current/playerall-022101-1071/win32-i386', '8.0.3.263');
+
+insert into t7_file
+(product_build_id, product_file_id, filename, file_path, file_version)
+values (5, 5, 'file1.exe', 'foo branch/current/foo target-022101-1071/foo platform', 'version 1');
+
+insert into t7_file
+(product_build_id, product_file_id, filename, file_path, file_version)
+values (5, 6, 'file2.exe', 'foo branch/current/foo target-022101-1071/foo platform', 'version 2');
+
+update ba_archive
+set status_id=2
+where branch_id=2 and target_id=2 and platform_id=2 and product_id=1;
+
+select t7.build_path
+from 
+    t1, 
+    t7, 
+    t2, 
+    t3, 
+    t4,
+    t5, 
+    t6
+where 
+    t7.branch_id = t1.branch_id and 
+    t7.target_id = t2.target_id and 
+    t5.product_id = t4.product_id and
+    t6.product_file_id = t5.product_file_id and
+    t6.platform_id = t3.platform_id and
+    t6.branch_id = t6.branch_id and
+    t7.build_id = 1 and
+    t4.product_id = 3 and
+    t5.file_name = 'playinst' and
+    t3.platform_id = 2;
+
+drop table t1, t2, t3, t4, t5, t6,t7;

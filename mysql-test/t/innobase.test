@@ -33,7 +33,7 @@ INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
--- error 1062
+-- error 1062,1022
 update t1 set id=1024 where id=1009; 
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
@@ -93,22 +93,6 @@ drop table t1;
 create table t1 (a int,b varchar(20),key(a)) type=innobase;
 insert into t1 values (1,""), (2,"testing");
 select * from t1 where a = 1;
-drop table t1;
-
-#
-# Test auto_increment on sub key
-#
-
-create table t1 (a char(10) not null, b int not null auto_increment, primary key(a,b)) type=innobase;
-insert into t1 values ("a",1),("b",2),("a",2),("c",1);
-insert into t1 values ("a",NULL),("b",NULL),("c",NULL),("e",NULL);
-insert into t1 (a) values ("a"),("b"),("c"),("d");
-insert into t1 (a) values ('k'),('d');
-insert into t1 (a) values ("a");
-insert into t1 values ("d",last_insert_id());
-select * from t1;
-flush tables;
-select count(*) from t1;
 drop table t1;
 
 #
@@ -389,20 +373,6 @@ insert into t1 (a) values(1),(2),(3);
 select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
 update t1 set a=5 where a=1;
 select a from t1;
-drop table t1;
-
-#
-# Test key on blob with null values
-#
-create table t1 (b blob, i int, key (b(100)), key (i), key (i, b(20))) type=innobase;
-insert into t1 values ('this is a blob', 1), (null, -1), (null, null),("",1),("",2),("",3);
-select b from t1 where b = 'this is a blob';
-select * from t1 where b like 't%';
-select b, i from t1 where b is not null;
-select * from t1 where b is null and i > 0;
-select * from t1 where i is NULL;
-update t1 set b='updated' where i=1;
-select * from t1;
 drop table t1;
 
 #

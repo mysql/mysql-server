@@ -205,3 +205,4 @@
 "Kunde inte initializera replications-strukturerna. Kontrollera privilegerna för 'master.info'",
 "Kunde inte starta en tråd för replikering",
 "Användare '%-.64s' har redan 'max_user_connections' aktiva inloggningar",
+"Du kan endast använda konstant-uttryck med SET",

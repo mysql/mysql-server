@@ -193,7 +193,7 @@ then
 fi
 
 if $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata  << END_OF_DATA
+    --basedir=$basedir --datadir=$ldata --skip-innobase --skip-bdb --skip-gemini << END_OF_DATA
 use mysql;
 $c_d
 $i_d
