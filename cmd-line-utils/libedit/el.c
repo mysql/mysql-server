@@ -84,7 +84,7 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 		el_free(el);
 		return NULL;
 	}
-	(void) key_init(el);
+	(void) el_key_init(el);
 	(void) map_init(el);
 	if (tty_init(el) == -1)
 		el->el_flags |= NO_TTY;
@@ -112,7 +112,7 @@ el_end(EditLine *el)
 	el_reset(el);
 
 	term_end(el);
-	key_end(el);
+	el_key_end(el);
 	map_end(el);
 	tty_end(el);
 	ch_end(el);
