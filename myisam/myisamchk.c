@@ -323,10 +323,13 @@ static struct my_option my_long_options[] =
 };
 
 
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s  Ver 2.6 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -433,6 +436,7 @@ static void usage(void)
   my_print_variables(my_long_options);
 }
 
+#include <help_end.h>
 
 	 /* Read options */
 

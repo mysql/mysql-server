@@ -267,11 +267,13 @@ static char *quote_name(const char *name, char *buff, my_bool force);
 static void print_quoted_xml(FILE *output, char *fname, char *str, uint len);
 static const char *check_if_ignore_table(const char *table_name);
 
+#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
-   MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -281,7 +283,9 @@ static void short_usage_sub(void)
   printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
 	 my_progname);
   printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
+  NETWARE_SET_SCREEN_MODE(1);
 }
+
 
 static void usage(void)
 {
@@ -301,6 +305,8 @@ static void short_usage(void)
   short_usage_sub();
   printf("For more options, use %s --help\n", my_progname);
 }
+
+#include <help_end.h>
 
 
 static void write_header(FILE *sql_file, char *db_name)
