@@ -2450,13 +2450,16 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
   uint found;
   DBUG_ENTER("insert_fields");
 
-
   if (db_name && lower_case_table_names)
   {
-    /* convert database to lower case for comparison */
+    /*
+      convert database to lower case for comparison
+      We can't do this in Item_field as this would change the
+      'name' of the item which may be used in the select list
+    */
     strmake(name_buff, db_name, sizeof(name_buff)-1);
-    my_casedn_str(system_charset_info,name_buff);
-    db_name = name_buff;
+    my_casedn_str(name_buff);
+    db_name= name_buff;
   }
 
 

@@ -859,7 +859,7 @@ static int get_options(int argc, char **argv)
   opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, 0)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;

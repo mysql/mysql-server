@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
   progname= argv[0];
 
-  if (handle_options(&argc, &argv, my_long_options, get_one_option, NULL))
+  if (handle_options(&argc, &argv, my_long_options, get_one_option))
     exit(-1);
   if (!argv[0] || !argv[1] || (pid= atoi(argv[0])) <= 0 ||
       (t= atoi(argv[1])) <= 0)
