@@ -184,7 +184,7 @@
 "Katse muuta tabelit turvalises rezhiimis ilma WHERE klauslita",
 "Võti '%-.64s' ei eksisteeri tabelis '%-.64s'",
 "Ei suuda avada tabelit",
-"Antud tabelitüüp ei toeta CHECK/REPAIR käske",
+"Antud tabelitüüp ei toeta %s käske",
 "Seda käsku ei saa kasutada transaktsiooni sees",
 "Viga %d käsu COMMIT täitmisel",
 "Viga %d käsu ROLLBACK täitmisel",
@@ -249,3 +249,5 @@
 "Subselect returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
+"Cyclic reference on subqueries",
+"Converting column '%s' from %s to %s"

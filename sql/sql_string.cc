@@ -93,18 +93,36 @@ bool String::realloc(uint32 alloc_length)
 
 bool String::set(longlong num, CHARSET_INFO *cs)
 {
-  if (alloc(21))
+  uint l=20*cs->mbmaxlen+1;
+
+  if (alloc(l))
     return TRUE;
-  str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
+  if (cs->snprintf == my_snprintf_8bit)
+  {
+    str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
+  }
+  else
+  {
+    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
+  }
   str_charset=cs;
   return FALSE;
 }
 
 bool String::set(ulonglong num, CHARSET_INFO *cs)
 {
-  if (alloc(21))
+  uint l=20*cs->mbmaxlen+1;
+
+  if (alloc(l))
     return TRUE;
-  str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
+  if (cs->snprintf == my_snprintf_8bit)
+  {
+    str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
+  }
+  else
+  {
+    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
+  }
   str_charset=cs;
   return FALSE;
 }
@@ -117,14 +135,14 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff), my_charset_latin1);
+    return copy(buff, (uint32) strlen(buff), my_charset_latin1, cs);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
   char *pos,*to;
 
   VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!my_isdigit(system_charset_info, buff[1]))
+  if (!my_isdigit(my_charset_latin1, buff[1]))
   {						// Nan or Inf
     pos=buff+1;
     if (sign)
@@ -132,7 +150,7 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,(uint32) strlen(pos));
+    return copy(pos,(uint32) strlen(pos), my_charset_latin1, cs);
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -182,7 +200,7 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff), my_charset_latin1);
+  return copy(buff,(uint32) strlen(buff), my_charset_latin1, cs);
 #endif
 }
 
@@ -216,6 +234,55 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
     memcpy(Ptr,str,arg_length);
   Ptr[arg_length]=0;
   str_charset=cs;
+  return FALSE;
+}
+
+/* Copy with charset convertion */
+bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *from, CHARSET_INFO *to)
+{
+  uint32      new_length=to->mbmaxlen*arg_length;
+  int         cnvres;
+  my_wc_t     wc;
+  const uchar *s=(const uchar *)str;
+  const uchar *se=s+arg_length;
+  uchar       *d, *de;
+
+  if (alloc(new_length))
+    return TRUE;
+
+  d=(uchar *)Ptr;
+  de=d+new_length;
+  
+  for (str_length=new_length ; s < se && d < de ; )
+  {
+    if ((cnvres=from->mb_wc(from,&wc,s,se)) > 0 )
+    {
+      s+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILSEQ)
+    {
+      s++;
+      wc='?';
+    }
+    else
+      break;
+
+outp:
+    if((cnvres=to->wc_mb(to,wc,d,de)) >0 )
+    {
+      d+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILUNI && wc!='?')
+    {
+      wc='?';
+      goto outp;
+    }
+    else
+      break;
+  }
+  Ptr[new_length]=0;
+  length((uint32) (d-(uchar *)Ptr));
+  str_charset=to;
   return FALSE;
 }
 
@@ -604,261 +671,5 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
   return to;
 }
 
-/* Make it easier to handle different charactersets */
-
-#ifdef USE_MB
-#define INC_PTR(cs,A,B) A+=((use_mb_flag && \
-                          my_ismbchar(cs,A,B)) ? my_ismbchar(cs,A,B) : 1)
-#else
-#define INC_PTR(cs,A,B) A++
-#endif
-
-/*
-** Compare string against string with wildcard
-**	0 if matched
-**	-1 if not matched with wildcard
-**	 1 if matched with wildcard
-*/
-
-#ifdef LIKE_CMP_TOUPPER
-#define likeconv(s,A) (uchar) my_toupper(s,A)
-#else
-#define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
-#endif
-
-int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
-		      const char *wildstr,const char *wildend,
-		      char escape)
-{
-  int result= -1;				// Not found, using wildcards
-#ifdef USE_MB
-  bool use_mb_flag=use_mb(cs);
-#endif
-  while (wildstr != wildend)
-  {
-    while (*wildstr != wild_many && *wildstr != wild_one)
-    {
-      if (*wildstr == escape && wildstr+1 != wildend)
-	wildstr++;
-#ifdef USE_MB
-      int l;
-      if (use_mb_flag &&
-          (l = my_ismbchar(cs, wildstr, wildend)))
-      {
-	  if (str+l > str_end || memcmp(str, wildstr, l) != 0)
-	      return 1;
-	  str += l;
-	  wildstr += l;
-      }
-      else
-#endif
-      if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
-	return(1);				// No match
-      if (wildstr == wildend)
-	return (str != str_end);		// Match if both are at end
-      result=1;					// Found an anchor char
-    }
-    if (*wildstr == wild_one)
-    {
-      do
-      {
-	if (str == str_end)			// Skip one char if possible
-	  return (result);
-	INC_PTR(cs,str,str_end);
-      } while (++wildstr < wildend && *wildstr == wild_one);
-      if (wildstr == wildend)
-	break;
-    }
-    if (*wildstr == wild_many)
-    {						// Found wild_many
-      wildstr++;
-      /* Remove any '%' and '_' from the wild search string */
-      for (; wildstr != wildend ; wildstr++)
-      {
-	if (*wildstr == wild_many)
-	  continue;
-	if (*wildstr == wild_one)
-	{
-	  if (str == str_end)
-	    return (-1);
-	  INC_PTR(cs,str,str_end);
-	  continue;
-	}
-	break;					// Not a wild character
-      }
-      if (wildstr == wildend)
-	return(0);				// Ok if wild_many is last
-      if (str == str_end)
-	return -1;
-
-      uchar cmp;
-      if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
-	cmp= *++wildstr;
-#ifdef USE_MB
-      const char* mb = wildstr;
-      int mblen;
-      LINT_INIT(mblen);
-      if (use_mb_flag)
-        mblen = my_ismbchar(cs, wildstr, wildend);
-#endif
-      INC_PTR(cs,wildstr,wildend);		// This is compared trough cmp
-      cmp=likeconv(cs,cmp);   
-      do
-      {
-#ifdef USE_MB
-        if (use_mb_flag)
-	{
-          for (;;)
-          {
-            if (str >= str_end)
-              return -1;
-            if (mblen)
-            {
-              if (str+mblen <= str_end && memcmp(str, mb, mblen) == 0)
-              {
-                str += mblen;
-                break;
-              }
-            }
-            else if (!my_ismbchar(cs, str, str_end) &&
-                     likeconv(cs,*str) == cmp)
-            {
-              str++;
-              break;
-            }
-            INC_PTR(cs,str, str_end);
-          }
-	}
-        else
-        {
-#endif /* USE_MB */
-          while (str != str_end && likeconv(cs,*str) != cmp)
-            str++;
-          if (str++ == str_end) return (-1);
-#ifdef USE_MB
-        }
-#endif
-	{
-	  int tmp=wild_case_compare(cs,str,str_end,wildstr,wildend,escape);
-	  if (tmp <= 0)
-	    return (tmp);
-	}
-      } while (str != str_end && wildstr[0] != wild_many);
-      return(-1);
-    }
-  }
-  return (str != str_end ? 1 : 0);
-}
-
-
-int wild_case_compare(String &match,String &wild, char escape)
-{
-  DBUG_ENTER("wild_case_compare");
-  DBUG_PRINT("enter",("match='%s', wild='%s', escape='%c'"
-			  ,match.ptr(),wild.ptr(),escape));
-  DBUG_RETURN(wild_case_compare(match.str_charset,match.ptr(),match.ptr()+match.length(),
-			   wild.ptr(), wild.ptr()+wild.length(),escape));
-}
-
-/*
-** The following is used when using LIKE on binary strings
-*/
-
-int wild_compare(const char *str,const char *str_end,
-		 const char *wildstr,const char *wildend,char escape)
-{
-  DBUG_ENTER("wild_compare");
-  DBUG_PRINT("enter",("str='%s', str_end='%s', wildstr='%s', wildend='%s', escape='%c'"
-			  ,str,str_end,wildstr,wildend,escape));
-  int result= -1;				// Not found, using wildcards
-  while (wildstr != wildend)
-  {
-    while (*wildstr != wild_many && *wildstr != wild_one)
-    {
-      if (*wildstr == escape && wildstr+1 != wildend)
-	wildstr++;
-      if (str == str_end || *wildstr++ != *str++)
-      {
-	DBUG_RETURN(1);
-      }
-      if (wildstr == wildend)
-      {
-	DBUG_RETURN(str != str_end);		// Match if both are at end
-      }
-      result=1;					// Found an anchor char
-    }
-    if (*wildstr == wild_one)
-    {
-      do
-      {
-	if (str == str_end)			// Skip one char if possible
-	  DBUG_RETURN(result);
-	str++;
-      } while (*++wildstr == wild_one && wildstr != wildend);
-      if (wildstr == wildend)
-	break;
-    }
-    if (*wildstr == wild_many)
-    {						// Found wild_many
-      wildstr++;
-      /* Remove any '%' and '_' from the wild search string */
-      for (; wildstr != wildend ; wildstr++)
-      {
-	if (*wildstr == wild_many)
-	  continue;
-	if (*wildstr == wild_one)
-	{
-	  if (str == str_end)
-	  {
-	    DBUG_RETURN(-1);
-	  }
-	  str++;
-	  continue;
-	}
-	break;					// Not a wild character
-      }
-      if (wildstr == wildend)
-      {
-	DBUG_RETURN(0);				// Ok if wild_many is last
-      }
-      if (str == str_end)
-      {
-	DBUG_RETURN(-1);
-      }
-      char cmp;
-      if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
-	cmp= *++wildstr;
-      wildstr++;				// This is compared trough cmp
-      do
-      {
-	while (str != str_end && *str != cmp)
-	  str++;
-	if (str++ == str_end)
-	{ 
-	  DBUG_RETURN(-1);
-	}
-	{
-	  int tmp=wild_compare(str,str_end,wildstr,wildend,escape);
-	  if (tmp <= 0)
-	  {
-	    DBUG_RETURN(tmp);
-	  }
-	}
-      } while (str != str_end && wildstr[0] != wild_many);
-      DBUG_RETURN(-1);
-    }
-  }
-  DBUG_RETURN(str != str_end ? 1 : 0);
-}
-
-
-int wild_compare(String &match,String &wild, char escape)
-{
-  DBUG_ENTER("wild_compare");
-  DBUG_PRINT("enter",("match='%s', wild='%s', escape='%c'"
-			  ,match.ptr(),wild.ptr(),escape));
-  DBUG_RETURN(wild_compare(match.ptr(),match.ptr()+match.length(),
-		      wild.ptr(), wild.ptr()+wild.length(),escape));
-}
 
 

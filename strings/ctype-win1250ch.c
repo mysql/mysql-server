@@ -555,8 +555,6 @@ static uchar NEAR like_range_prefix_max_win1250ch[] = {
 
 #define min_sort_char '\x00'
 #define max_sort_char '\xff'
-#define wild_one '_'
-#define wild_many '%'
 
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
@@ -577,7 +575,8 @@ static uchar NEAR like_range_prefix_max_win1250ch[] = {
 
 static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 	const char *ptr, uint ptr_length,
-	pchar escape, uint res_length,
+	int escape, int w_one, int w_many,
+	uint res_length,
 	char *min_str, char *max_str,
 	uint *min_length, uint *max_length) {
 
@@ -589,10 +588,10 @@ static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 	/* return 1; */
 
 	for (; ptr != end && min_str != min_end ; ptr++) {
-		if (*ptr == wild_one) {		/* '_' in SQL */
+		if (*ptr == w_one) {		/* '_' in SQL */
 			break;
 		}
-		if (*ptr == wild_many) {	/* '%' in SQL */
+		if (*ptr == w_many) {	/* '%' in SQL */
 			break;
 		}
 		if (*ptr == escape && ptr + 1 != end) {	/* Skip escape */
@@ -636,7 +635,8 @@ CHARSET_INFO my_charset_win1250ch =
     my_strnncoll_win1250ch,
     my_strnxfrm_win1250ch,
     my_like_range_win1250ch,
-    0,				/* mbmaxlen  */
+    my_wildcmp_8bit,		/* wildcmp   */
+    1,				/* mbmaxlen  */
     NULL,			/* ismbchar  */
     NULL,			/* ismbhead  */
     NULL,			/* mbcharlen */
@@ -646,12 +646,18 @@ CHARSET_INFO my_charset_win1250ch =
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,			/* tosort      */
+    NULL,			/* tosort     */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 

@@ -66,7 +66,7 @@ a
 alter table t1 type=myisam;
 explain select * from t1 where a in (869751,736494,226312,802616);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uniq_id	uniq_id	4	NULL	4	where used; Using index
+1	SIMPLE	t1	range	uniq_id	uniq_id	4	NULL	4	Using where; Using index
 drop table t1;
 create table t1 (x int not null, y int not null, key x (x), unique y (y))
 type=heap;
@@ -159,17 +159,17 @@ create table t1 (btn char(10) not null, key(btn)) type=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "q%";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	btn	NULL	NULL	NULL	14	where used
+1	SIMPLE	t1	ALL	btn	NULL	NULL	NULL	14	Using where
 select * from t1 where btn like "q%";
 btn
 alter table t1 add column new_col char(1) not null, add key (btn,new_col), drop key btn;
 update t1 set new_col=btn;
 explain select * from t1 where btn="a";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	btn	NULL	NULL	NULL	14	where used
+1	SIMPLE	t1	ALL	btn	NULL	NULL	NULL	14	Using where
 explain select * from t1 where btn="a" and new_col="a";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	btn	btn	11	const,const	10	where used
+1	SIMPLE	t1	ref	btn	btn	11	const,const	10	Using where
 drop table t1;
 CREATE TABLE t1 (
 a int default NULL,
@@ -182,7 +182,7 @@ SELECT * FROM t1 WHERE a=NULL;
 a	b
 explain SELECT * FROM t1 WHERE a IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	10	where used
+1	SIMPLE	t1	ref	a	a	5	const	10	Using where
 SELECT * FROM t1 WHERE a<=>NULL;
 a	b
 NULL	99
@@ -190,7 +190,7 @@ SELECT * FROM t1 WHERE b=NULL;
 a	b
 explain SELECT * FROM t1 WHERE b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	b	b	5	const	1	where used
+1	SIMPLE	t1	ref	b	b	5	const	1	Using where
 SELECT * FROM t1 WHERE b<=>NULL;
 a	b
 99	NULL

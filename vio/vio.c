@@ -45,7 +45,43 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
   vio->sd	= sd;
   vio->hPipe	= hPipe;
   vio->localhost= localhost;
-#ifdef HAVE_VIO
+#ifdef HAVE_VIO  
+#ifdef __WIN__ 
+  if (type == VIO_TYPE_NAMEDPIPE)
+  {
+    vio->viodelete	=vio_delete;
+    vio->vioerrno	=vio_errno;
+    vio->read           =vio_read_pipe;
+    vio->write          =vio_write_pipe;
+    vio->fastsend	=vio_fastsend;
+    vio->viokeepalive	=vio_keepalive;
+    vio->should_retry	=vio_should_retry;
+    vio->vioclose	=vio_close_pipe;
+    vio->peer_addr	=vio_peer_addr;
+    vio->in_addr	=vio_in_addr;
+    vio->vioblocking	=vio_blocking;
+    vio->is_blocking	=vio_is_blocking;
+  }
+  else					/* default is VIO_TYPE_TCPIP */
+#endif
+#ifdef HAVE_SMEM 
+  if (type == VIO_TYPE_SHARED_MEMORY)
+  {
+    vio->viodelete	=vio_delete;
+    vio->vioerrno	=vio_errno;
+    vio->read           =vio_read_shared_memory;
+    vio->write          =vio_write_shared_memory;
+    vio->fastsend	=vio_fastsend;
+    vio->viokeepalive	=vio_keepalive;
+    vio->should_retry	=vio_should_retry;
+    vio->vioclose	=vio_close_shared_memory;
+    vio->peer_addr	=vio_peer_addr;
+    vio->in_addr	=vio_in_addr;
+    vio->vioblocking	=vio_blocking;
+    vio->is_blocking	=vio_is_blocking;
+  }
+  else
+#endif   
 #ifdef HAVE_OPENSSL 
   if (type == VIO_TYPE_SSL)
   {
@@ -131,4 +167,44 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_RETURN(vio);
 }
 
+#ifdef HAVE_SMEM
+Vio *vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_map,
+                                HANDLE event_server_wrote, HANDLE event_server_read,
+                                HANDLE event_client_wrote, HANDLE event_client_read)
+{
+  Vio *vio;
+  DBUG_ENTER("vio_new_win32shared_memory");
+  if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
+  {
+    vio_reset(vio, VIO_TYPE_SHARED_MEMORY, 0, 0, TRUE);
+    vio->handle_file_map = handle_file_map;
+    vio->handle_map = handle_map;
+    vio->event_server_wrote = event_server_wrote;
+    vio->event_server_read = event_server_read;
+    vio->event_client_wrote = event_client_wrote;
+    vio->event_client_read = event_client_read;
+    vio->shared_memory_remain = 0;
+    vio->shared_memory_pos = handle_map;
+    vio->net = net;
+    strmov(vio->desc, "shared memory");
+  }
+  DBUG_RETURN(vio);
+}
 #endif
+#endif
+
+void vio_delete(Vio* vio)
+{
+  /* It must be safe to delete null pointers. */
+  /* This matches the semantics of C++'s delete operator. */
+  if (vio)
+  {
+    if (vio->type != VIO_CLOSED)
+#ifdef HAVE_VIO /*WAX*/
+      vio->vioclose(vio);
+#else
+      vio_close(vio);
+#endif
+    my_free((gptr) vio,MYF(0));
+  }
+}

@@ -15,6 +15,7 @@ Created 11/11/1995 Heikki Tuuri
 
 #include "ut0byte.h"
 #include "ut0lst.h"
+#include "page0page.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
 #include "buf0lru.h"
@@ -223,6 +224,24 @@ buf_flush_buffered_writes(void)
 		mutex_exit(&(trx_doublewrite->mutex));
 
 		return;
+	}
+
+	for (i = 0; i < trx_doublewrite->first_free; i++) {
+		block = trx_doublewrite->buf_block_arr[i];
+
+		if (block->check_index_page_at_flush
+				&& !page_simple_validate(block->frame)) {
+
+			buf_page_print(block->frame);
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+	"  InnoDB: Apparent corruption of an index page\n"
+	"InnoDB: to be written to data file. We intentionally crash server\n"
+	"InnoDB: to prevent corrupt data from ending up in data\n"
+	"InnoDB: files.\n");
+			ut_a(0);
+		}
 	}
 
 	if (trx_doublewrite->first_free > TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {

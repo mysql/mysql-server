@@ -190,13 +190,15 @@ THR_LOCK_DATA **ha_isammrg::store_lock(THD *thd,
 				       THR_LOCK_DATA **to,
 				       enum thr_lock_type lock_type)
 {
-  MRG_TABLE *table;
+  MRG_TABLE *open_table;
 
-  for (table=file->open_tables ; table != file->end_table ; table++)
+  for (open_table=file->open_tables ;
+       open_table != file->end_table ;
+       open_table++)
   {
-    *(to++)= &table->table->lock;
-    if (lock_type != TL_IGNORE && table->table->lock.type == TL_UNLOCK)
-      table->table->lock.type=lock_type;
+    *(to++)= &open_table->table->lock;
+    if (lock_type != TL_IGNORE && open_table->table->lock.type == TL_UNLOCK)
+      open_table->table->lock.type=lock_type;
   }
   return to;
 }

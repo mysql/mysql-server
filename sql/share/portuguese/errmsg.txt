@@ -179,7 +179,7 @@
 "Você está usando modo de atualização seguro e tentou atualizar uma tabela sem uma cláusula WHERE que use uma coluna chave",
 "Chave '%-.64s' não existe na tabela '%-.64s'",
 "Não pode abrir a tabela",
-"O manipulador de tabela não suporta checagem/reparação (check/repair)",
+"O manipulador de tabela não suporta %s",
 "Não lhe é permitido executar este comando em uma transação",
 "Obteve erro %d durante COMMIT",
 "Obteve erro %d durante ROLLBACK",
@@ -244,3 +244,5 @@
 "Subselect returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
+"Cyclic reference on subqueries",
+"Converting column '%s' from %s to %s"

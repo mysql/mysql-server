@@ -84,6 +84,15 @@ ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 #define SOCKET_ERROR -1
 #endif /* __WIN__ */
 
+#ifdef HAVE_SMEM
+char *shared_memory_base_name=0;
+const char *def_shared_memory_base_name=default_shared_memory_base_name;
+#endif
+
+const char *sql_protocol_names_lib[] =
+{ "TCP", "SOCKET", "PIPE", "MEMORY",NullS };
+TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
+			   sql_protocol_names_lib};
 /*
   If allowed through some configuration, then this needs to
   be changed
@@ -233,7 +242,7 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
-#if defined(HPUX) && defined(THREAD)
+#if defined(HPUX10) && defined(THREAD)
     if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
       break;
 #else
@@ -336,6 +345,190 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 }
 #endif
 
+/* 
+  Create new shared memory connection, return handler of connection
+
+  SYNOPSIS
+    create_shared_memory()
+    mysql  Pointer of mysql structure
+    net    Pointer of net structure 
+    connect_timeout Timeout of connection
+*/
+#ifdef HAVE_SMEM
+HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
+{
+  ulong smem_buffer_length = shared_memory_buffer_length + 4;
+/*  
+  event_connect_request is event object for start connection actions 
+  event_connect_answer is event object for confirm, that server put data
+  handle_connect_file_map is file-mapping object, use for create shared memory  
+  handle_connect_map is pointer on shared memory
+  handle_map is pointer on shared memory for client
+  event_server_wrote,
+  event_server_read,
+  event_client_wrote,
+  event_client_read are events for transfer data between server and client
+  handle_file_map is file-mapping object, use for create shared memory
+*/
+  HANDLE event_connect_request = NULL;
+  HANDLE event_connect_answer = NULL;
+  HANDLE handle_connect_file_map = NULL;
+  char *handle_connect_map = NULL;
+
+  char *handle_map = NULL;
+  HANDLE event_server_wrote = NULL;
+  HANDLE event_server_read = NULL;
+  HANDLE event_client_wrote = NULL;
+  HANDLE event_client_read = NULL;
+  HANDLE handle_file_map = NULL;
+  ulong connect_number; 
+  char connect_number_char[22], *p;
+  char tmp[64];
+  char *suffix_pos;  
+  DWORD error_allow = 0;
+  DWORD error_code = 0;
+  char *shared_memory_base_name = mysql->options.shared_memory_base_name;
+
+/*
+  The name of event and file-mapping events create agree next rule:
+            shared_memory_base_name+unique_part
+  Where:
+    shared_memory_base_name is unique value for each server
+    unique_part is uniquel value for each object (events and file-mapping)
+*/
+  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  strmov(suffix_pos, "CONNECT_REQUEST");
+  if ((event_connect_request = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL) 
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
+    goto err;
+  }
+  strmov(suffix_pos, "CONNECT_ANSWER");
+  if ((event_connect_answer = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL) 
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
+    goto err;
+  }
+  strmov(suffix_pos, "CONNECT_DATA");
+  if ((handle_connect_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL) 
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
+    goto err;
+  }
+  if ((handle_connect_map = MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,sizeof(DWORD))) == NULL) 
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_MAP_ERROR;
+    goto err;
+  }
+/*
+ Send to server request of connection
+*/
+  if (!SetEvent(event_connect_request)) 
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
+    goto err;
+  }
+/*
+  Wait of answer from server
+*/
+  if (WaitForSingleObject(event_connect_answer,connect_timeout*1000) != WAIT_OBJECT_0)
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR;
+    goto err;
+  }
+/*
+  Get number of connection
+*/
+  connect_number = uint4korr(handle_connect_map);/*WAX2*/
+  p = int2str(connect_number, connect_number_char, 10);
+
+/*
+  The name of event and file-mapping events create agree next rule:
+    shared_memory_base_name+unique_part+number_of_connection
+  Where:
+    shared_memory_base_name is uniquel value for each server
+    unique_part is uniquel value for each object (events and file-mapping)
+    number_of_connection is number of connection between server and client
+*/
+  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,"_",NullS);
+  strmov(suffix_pos, "DATA");
+  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
+    goto err2;    
+  }
+  if ((handle_map = MapViewOfFile(handle_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_MAP_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "SERVER_WROTE");
+  if ((event_server_wrote = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "SERVER_READ");
+  if ((event_server_read = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "CLIENT_WROTE");
+  if ((event_client_wrote = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+
+  strmov(suffix_pos, "CLIENT_READ");
+  if ((event_client_read = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
+/*
+  Set event that server should send data
+*/
+  SetEvent(event_server_read);
+
+err2:   
+  if (error_allow == 0) 
+  {
+    net->vio = vio_new_win32shared_memory(net,handle_file_map,handle_map,event_server_wrote,
+                                          event_server_read,event_client_wrote,event_client_read);        
+  } 
+  else 
+  {
+    error_code = GetLastError();
+    if (event_server_read) CloseHandle(event_server_read);
+    if (event_server_wrote) CloseHandle(event_server_wrote);
+    if (event_client_read) CloseHandle(event_client_read);
+    if (event_client_wrote) CloseHandle(event_client_wrote);
+    if (handle_map) UnmapViewOfFile(handle_map);
+    if (handle_file_map) CloseHandle(handle_file_map);
+  }
+err:
+  if (error_allow) error_code = GetLastError();
+  if (event_connect_request) CloseHandle(event_connect_request);
+  if (event_connect_answer) CloseHandle(event_connect_answer);
+  if (handle_connect_map) UnmapViewOfFile(handle_connect_map);
+  if (handle_connect_file_map) CloseHandle(handle_connect_file_map);
+  if (error_allow) 
+  {
+    net->last_errno=error_allow;
+    if (error_allow == CR_SHARED_MEMORY_EVENT_ERROR)
+      sprintf(net->last_error,ER(net->last_errno),suffix_pos,error_code);
+    else
+      sprintf(net->last_error,ER(net->last_errno),error_code);
+    return(INVALID_HANDLE_VALUE);
+  } 
+  return(handle_map);
+};
+#endif
 
 /*****************************************************************************
   read a packet from server. Give error message if socket was down
@@ -734,7 +927,7 @@ static const char *default_options[]=
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
-  "ssl-cipher",
+  "ssl-cipher","protocol", "shared_memory_base_name",
  NullS
 };
 
@@ -794,9 +987,8 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	    options->password=my_strdup(opt_arg,MYF(MY_WME));
 	  }
 	  break;
-	case 5:				/* pipe */
-	  options->named_pipe=1;	/* Force named pipe */
-	  break;
+        case 5:
+          options->protocol = MYSQL_PROTOCOL_PIPE;
 	case 20:			/* connect_timeout */
 	case 6:				/* timeout */
 	  if (opt_arg)
@@ -889,6 +1081,20 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	case 25: /* repl-parse-query */
 	  options->rpl_parse= 1;
 	  break;
+        case 27:/* protocol */
+          if ((options->protocol = find_type(opt_arg, &sql_protocol_typelib,0)) == ~(ulong) 0)
+          {
+            fprintf(stderr, "Unknown option to protocol: %s\n", opt_arg);
+            exit(1);
+          }
+          break;
+        case 28: /*shared_memory_base_name*/
+#ifdef HAVE_SMEM
+          if (options->shared_memory_base_name != def_shared_memory_base_name)
+            my_free(options->shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+          options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
+#endif
+          break;        
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
 	}
@@ -1449,6 +1655,9 @@ mysql_init(MYSQL *mysql)
 #ifdef ENABLED_LOCAL_INFILE
   mysql->options.client_flag|= CLIENT_LOCAL_FILES;
 #endif
+#ifdef HAVE_SMEM
+  mysql->options.shared_memory_base_name=(char*)def_shared_memory_base_name;
+#endif    
   return mysql;
 }
 
@@ -1599,6 +1808,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #endif
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
+  LINT_INIT(host_info);
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
@@ -1646,9 +1856,38 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   /*
   ** Grab a socket and connect it to the server
   */
-
+#if defined(HAVE_SMEM)
+  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)&&
+      (!host || !strcmp(host,LOCAL_HOST)))
+  {
+    if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) == 
+          INVALID_HANDLE_VALUE)
+    {
+      DBUG_PRINT("error",
+        ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
+          host ? host : "<null>",
+          unix_socket ? unix_socket : "<null>",
+          (int) mysql->options.shared_memory_base_name,
+          (int) have_tcpip));
+	  if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
+	    goto error;		
+/* 
+Try also with PIPE or TCP/IP
+*/
+    }  
+    else
+    {
+      mysql->options.protocol=MYSQL_PROTOCOL_MEMORY;
+      sock=0;
+      unix_socket = 0;
+      host=mysql->options.shared_memory_base_name;
+      host_info=(char*) ER(CR_SHARED_MEMORY_CONNECTION);
+    }
+  } else
+#endif //HAVE_SMEM
 #if defined(HAVE_SYS_UN_H)
-  if ((!host || !strcmp(host,LOCAL_HOST)) && (unix_socket || mysql_unix_port))
+  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_SOCKET)&&
+     (!host || !strcmp(host,LOCAL_HOST)) && (unix_socket || mysql_unix_port))
   {
     host=LOCAL_HOST;
     if (!unix_socket)
@@ -1673,46 +1912,42 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       sprintf(net->last_error,ER(net->last_errno),unix_socket,socket_errno);
       goto error;
     }
+    else
+      mysql->options.protocol=MYSQL_PROTOCOL_SOCKET;
   }
   else
 #elif defined(__WIN__)
+  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_PIPE)&&
+      ((unix_socket || !host && is_NT() ||
+	host && !strcmp(host,LOCAL_HOST_NAMEDPIPE) ||!have_tcpip))&&(!net->vio))
   {
-    if ((unix_socket ||
-	 !host && is_NT() ||
-	 host && !strcmp(host,LOCAL_HOST_NAMEDPIPE) ||
-	 mysql->options.named_pipe || !have_tcpip))
+    sock=0;
+    if ((hPipe=create_named_pipe(net, mysql->options.connect_timeout,
+		   (char**) &host, (char**) &unix_socket)) ==
+                    INVALID_HANDLE_VALUE)
     {
-      sock=0;
-      if ((hPipe=create_named_pipe(net, mysql->options.connect_timeout,
-				   (char**) &host, (char**) &unix_socket)) ==
-	  INVALID_HANDLE_VALUE)
-      {
-	DBUG_PRINT("error",
-		   ("host: '%s'  socket: '%s'  named_pipe: %d  have_tcpip: %d",
-		    host ? host : "<null>",
-		    unix_socket ? unix_socket : "<null>",
-		    (int) mysql->options.named_pipe,
-		    (int) have_tcpip));
-	if (mysql->options.named_pipe ||
-	    (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
-	    (unix_socket && !strcmp(unix_socket,MYSQL_NAMEDPIPE)))
-	{
-	  net->last_errno= CR_SERVER_LOST;
-	  strmov(net->last_error,ER(net->last_errno));    
-	  goto error;		/* User only requested named pipes */
-	}
-	/* Try also with TCP/IP */
-      }
-      else
-      {
-	net->vio=vio_new_win32pipe(hPipe);
-	sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), host,
-		unix_socket);
-      }
+      DBUG_PRINT("error",
+                ("host: '%s'  socket: '%s'  have_tcpip: %d",
+                host ? host : "<null>",
+                unix_socket ? unix_socket : "<null>",
+                (int) have_tcpip));
+      if (mysql->options.protocol == MYSQL_PROTOCOL_PIPE ||
+          (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
+          (unix_socket && !strcmp(unix_socket,MYSQL_NAMEDPIPE)))
+            goto error;		
+	    /* 
+            Try also with TCP/IP 
+            */
+    }
+    else
+    {
+      net->vio=vio_new_win32pipe(hPipe);
+      sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), host,
+        unix_socket);
     }
   }
-  if (hPipe == INVALID_HANDLE_VALUE)
 #endif
+  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_TCP)&&(!net->vio))
   {
     unix_socket=0;				/* This is not used */
     if (!port)
@@ -1767,6 +2002,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       goto error;
     }
   }
+  else
+    if (!net->vio)
+    {
+      DBUG_PRINT("error",("Unknow protocol %d ",mysql->options.protocol));
+      net->last_errno= CR_CONN_UNKNOW_PROTOCOL;
+      sprintf(net->last_error ,ER(CR_CONN_UNKNOW_PROTOCOL));
+      goto error;
+    };
 
   if (!net->vio || my_net_init(net, net->vio))
   {
@@ -1947,15 +2190,18 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 				       options->ssl_capath,
 				       options->ssl_cipher)))
     {
-      /* TODO: Change to SSL error */
-      net->last_errno= CR_SERVER_LOST;
+      net->last_errno= CR_SSL_CONNECTION_ERROR;
       strmov(net->last_error,ER(net->last_errno));    
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    /* TODO:  Add proper error checking here, with return error message */
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
-	       mysql->net.vio, (long) (mysql->options.connect_timeout));
+    if(sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
+	        mysql->net.vio, (long) (mysql->options.connect_timeout)))
+    {
+      net->last_errno= CR_SSL_CONNECTION_ERROR;
+      strmov(net->last_error,ER(net->last_errno));
+      goto error;    
+    }
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
@@ -2243,6 +2489,10 @@ mysql_close(MYSQL *mysql)
 #ifdef HAVE_OPENSSL
     mysql_ssl_free(mysql);
 #endif /* HAVE_OPENSSL */
+#ifdef HAVE_SMEM
+    if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
+      my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif /* HAVE_SMEM */
     /* Clear pointers for better safety */
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
     bzero((char*) &mysql->options,sizeof(mysql->options));
@@ -2962,7 +3212,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     mysql->options.compress= 1;			/* Remember for connect */
     break;
   case MYSQL_OPT_NAMED_PIPE:
-    mysql->options.named_pipe=1;		/* Force named pipe */
+    mysql->options.protocol=MYSQL_PROTOCOL_PIPE; /* Force named pipe */
     break;
   case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
     if (!arg || test(*(uint*) arg))
@@ -2989,6 +3239,16 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
   case MYSQL_SET_CHARSET_NAME:
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.charset_name=my_strdup(arg,MYF(MY_WME));
+    break;
+  case MYSQL_OPT_PROTOCOL:
+    mysql->options.protocol= *(uint*) arg;
+    break;
+  case MYSQL_SHARED_MEMORY_BASE_NAME:
+#ifdef HAVE_SMEM
+    if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
+      my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+    mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
+#endif
     break;
   default:
     DBUG_RETURN(1);

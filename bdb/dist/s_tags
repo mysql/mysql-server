@@ -3,6 +3,8 @@
 #
 # Build tags files.
 
+. ./RELEASE
+
 files="../dbinc/*.h \
 	../dbinc/*.in \
 	../btree/*.[ch] \

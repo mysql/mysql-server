@@ -179,7 +179,7 @@
 "In modalita` 'safe update' si e` cercato di aggiornare una tabella senza clausola WHERE su una chiave",
 "La chiave '%-.64s' non esiste nella tabella '%-.64s'",
 "Impossibile aprire la tabella",
-"Il gestore per la tabella non supporta il controllo/riparazione",
+"Il gestore per la tabella non supporta il %s",
 "Non puoi eseguire questo comando in una transazione",
 "Rilevato l'errore %d durante il COMMIT",
 "Rilevato l'errore %d durante il ROLLBACK",
@@ -244,3 +244,5 @@
 "Subselect returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
+"Cyclic reference on subqueries",
+"Converting column '%s' from %s to %s"

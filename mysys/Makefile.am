@@ -56,11 +56,10 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
-# test_fn removed 980815 since it not upp to date test_dir
-noinst_PROGRAMS =	test_charset charset2html @THREAD_LPROGRAMS@
+noinst_PROGRAMS =	charset2html @THREAD_LPROGRAMS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
-test_charset_DEPENDENCIES=	$(LIBRARIES)
+# test_charset_DEPENDENCIES=	$(LIBRARIES)
 charset2html_DEPENDENCIES=	$(LIBRARIES)
 EXTRA_PROGRAMS =	
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \

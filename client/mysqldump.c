@@ -90,6 +90,10 @@ extern ulong net_buffer_length;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
 FILE  *md_result_file;
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
+static uint opt_protocol=0;
 
 static struct my_option my_long_options[] =
 {
@@ -200,6 +204,8 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
    0},
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with a `",
@@ -208,6 +214,11 @@ static struct my_option my_long_options[] =
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -294,7 +305,10 @@ static void short_usage(void)
 static void write_header(FILE *sql_file, char *db_name)
 {
   if (opt_xml)
+  {
     fprintf(sql_file,"<?xml version=\"1.0\"?>\n");
+    fprintf(sql_file,"<mysqldump>\n");
+  }
   else
   {
     fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
@@ -308,6 +322,12 @@ static void write_header(FILE *sql_file, char *db_name)
   return;
 } /* write_header */
 
+static void write_footer(FILE *sql_file)
+{
+  if (opt_xml)
+    fprintf(sql_file,"</mysqldump>");
+  fputs("\n", sql_file);
+} /* write_footer */
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -338,7 +358,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'W':
 #ifdef __WIN__
-    opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+    opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
   case 'T':
@@ -365,6 +385,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
+  case OPT_MYSQL_PROTOCOL:
+  {
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1);
+    }
+   break;
+  }
   }
   return 0;
 }
@@ -473,6 +502,12 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (opt_use_ssl)
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+#endif
+  if (opt_protocol)
+    mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
@@ -978,7 +1013,7 @@ static void dumpTable(uint numFields, char *table)
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
     if (opt_xml)
-      fprintf(md_result_file, "\t<%s>\n", table);
+      fprintf(md_result_file, "\t<table name=\"%s\">\n", table);
 
     if (opt_autocommit)
       fprintf(md_result_file, "set autocommit=0;\n");
@@ -1068,9 +1103,9 @@ static void dumpTable(uint numFields, char *table)
 	      /* change any strings ("inf","nan",..) into NULL */
 	      char *ptr = row[i];
 	      if (opt_xml)
-		fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
+		fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
 			field->name,
-			!my_isalpha(system_charset_info,*ptr) ?ptr: "NULL",field->name);
+			!my_isalpha(system_charset_info, *ptr) ? ptr: "NULL");
 	      else
 		fputs((!my_isalpha(system_charset_info,*ptr)) ? 
 		       ptr : "NULL", md_result_file);
@@ -1079,8 +1114,8 @@ static void dumpTable(uint numFields, char *table)
 	  else
 	  {
 	    if (opt_xml)
-	      fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
-		      field->name, "NULL", field->name);
+	      fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
+		      field->name, "NULL");
 	    else
 	      fputs("NULL", md_result_file);
 	  }
@@ -1121,7 +1156,7 @@ static void dumpTable(uint numFields, char *table)
 
     /* XML - close table tag and supress regular output */
     if (opt_xml)
-	fprintf(md_result_file, "\t</%s>\n", table);
+	fprintf(md_result_file, "\t</table>\n");
     else if (extended_insert && row_break)
       fputs(";\n", md_result_file);		/* If not empty table */
     fflush(md_result_file);
@@ -1153,7 +1188,7 @@ static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
 {
   const char *end;
 
-  fprintf(output, "\t\t<%s>", fname);
+  fprintf(output, "\t\t<field name=\"%s\">", fname);
   for (end = str + len; str != end; str++)
   {
     if (*str == '<')
@@ -1167,7 +1202,7 @@ static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
     else
       fputc(*str, output);
   }
-  fprintf(output, "</%s>\n", fname);
+  fprintf(output, "</field>\n");
 }
 
 static char *getTableName(int reset)
@@ -1222,13 +1257,8 @@ static int dump_databases(char **db_names)
   int result=0;
   for ( ; *db_names ; db_names++)
   {
-    /* XML edit - add database element */
-    if (opt_xml)
-      fprintf(md_result_file, "<%s>\n", *db_names);
     if (dump_all_tables_in_db(*db_names))
       result=1;
-    if (opt_xml)
-      fprintf(md_result_file, "</%s>\n", *db_names);
   }
   return result;
 } /* dump_databases */
@@ -1241,7 +1271,7 @@ static int init_dumping(char *database)
     DBerror(sock, "when selecting the database");
     return 1;			/* If --force */
   }
-  if (!path)
+  if (!path && !opt_xml)
   {
     if (opt_databases || opt_alldbs)
     {
@@ -1252,7 +1282,7 @@ static int init_dumping(char *database)
         MYSQL_ROW row;
         MYSQL_RES *dbinfo;
 	
-        sprintf(qbuf,"SHOW CREATE DATABASE IF NOT EXISTS %s",database);
+        sprintf(qbuf,"SHOW CREATE DATABASE WITH IF NOT EXISTS %s",database);
         
         if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
@@ -1287,6 +1317,8 @@ static int dump_all_tables_in_db(char *database)
 
   if (init_dumping(database))
     return 1;
+  if (opt_xml)
+    fprintf(md_result_file, "<database name=\"%s\">\n", database);
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -1313,6 +1345,8 @@ static int dump_all_tables_in_db(char *database)
     if (!dFlag && numrows > 0)
       dumpTable(numrows,table);
   }
+  if (opt_xml)
+    fprintf(md_result_file, "</database>\n");
   if (lock_tables)
     mysql_query(sock,"UNLOCK_TABLES");
   return 0;
@@ -1349,12 +1383,16 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       DBerror(sock, "when doing refresh");
      /* We shall countinue here, if --force was given */
   }
+  if (opt_xml)
+    fprintf(md_result_file, "<database name=\"%s\">\n", db);
   for (; tables > 0 ; tables-- , table_names++)
   {
     numrows = getTableStructure(*table_names, db);
     if (!dFlag && numrows > 0)
       dumpTable(numrows, *table_names);
   }
+  if (opt_xml)
+    fprintf(md_result_file, "</database>\n");
   if (lock_tables)
     mysql_query(sock,"UNLOCK_TABLES");
   return 0;
@@ -1471,6 +1509,9 @@ int main(int argc, char **argv)
 		      MYF(0), mysql_error(sock));
   }
   else if (opt_single_transaction) /* Just to make it beautiful enough */
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   {
     /*
       In case we were locking all tables, we did not start transaction
@@ -1485,7 +1526,7 @@ int main(int argc, char **argv)
     }		      
   }
   dbDisconnect(current_host);
-  fputs("\n", md_result_file);
+  write_footer(md_result_file);
   if (md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));

@@ -380,7 +380,8 @@ int ha_isam::create(const char *name, register TABLE *form,
   }
   recinfo_pos->base.type= (int) FIELD_LAST;	/* End of fieldinfo */
   error=nisam_create(fn_format(buff,name,"","",2+4+16),form->keys,keydef,
-		  recinfo,form->max_rows,form->min_rows,0,0,0L);
+		     recinfo,(ulong) form->max_rows, (ulong) form->min_rows,
+		     0, 0, 0L);
   my_free((gptr) recinfo,MYF(0));
   DBUG_RETURN(error);
 

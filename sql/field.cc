@@ -41,6 +41,11 @@
 #include <floatingpoint.h>
 #endif
 
+// Maximum allowed exponent value for converting string to decimal
+#define MAX_EXPONENT 1024
+
+
+
 /*****************************************************************************
   Instansiate templates and static variables
 *****************************************************************************/
@@ -392,7 +397,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   const char *frac_digits_from, *frac_digits_end;
   /* The sign of the exponent : will be 0 (means no exponent), '+' or '-' */
   char expo_sign_char=0;
-  uint exponent=0;				// value of the exponent
+  uint exponent=0;                                // value of the exponent
   /*
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
@@ -488,13 +493,17 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     else
       expo_sign_char= '+';
     /*
-      Read digits of the exponent and compute its value
-      'exponent' overflow (e.g. if 1E10000000000000000) is not a problem
-      (the value of the field will be overflow anyway, or 0 anyway, 
-      it does not change anything if the exponent is 2^32 or more
+      Read digits of the exponent and compute its value.  We must care about
+      'exponent' overflow, because as unsigned arithmetic is "modulo", big 
+      exponents will become small (e.g. 1e4294967296 will become 1e0, and the 
+      field will finally contain 1 instead of its max possible value).
     */
-    for (;from!=end && my_isdigit(system_charset_info, (*from)); from++)
+    for (;from!=end && my_isdigit(system_charset_info, *from); from++)
+    {
       exponent=10*exponent+(*from-'0');
+      if (exponent>MAX_EXPONENT)
+        break;
+    }
   }
   
   /*
@@ -536,6 +545,13 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     int_digits_added_zeros=2 (to make 1234500).
   */
   
+  /* 
+     Below tmp_uint cannot overflow with small enough MAX_EXPONENT setting,
+     as int_digits_added_zeros<=exponent<4G and 
+     (int_digits_end-int_digits_from)<=max_allowed_packet<=2G and
+     (frac_digits_from-int_digits_tail_from)<=max_allowed_packet<=2G
+  */
+
   if (!expo_sign_char)
     tmp_uint=tmp_dec+(uint)(int_digits_end-int_digits_from);
   else if (expo_sign_char == '-') 
@@ -544,7 +560,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     frac_digits_added_zeros=exponent-tmp_uint;
     int_digits_end -= tmp_uint;
     frac_digits_head_end=int_digits_end+tmp_uint;
-    tmp_uint=tmp_dec+(uint)(int_digits_end-int_digits_from);	
+    tmp_uint=tmp_dec+(uint)(int_digits_end-int_digits_from);     
   }
   else // (expo_sign_char=='+') 
   {
@@ -571,9 +587,9 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 	int_digits_added_zeros=0;
       }
     }
-    tmp_uint=(tmp_dec+(uint)(int_digits_end-int_digits_from)
-	      +(uint)(frac_digits_from-int_digits_tail_from)+
-	      int_digits_added_zeros);
+    tmp_uint= (tmp_dec+(int_digits_end-int_digits_from)+
+               (uint)(frac_digits_from-int_digits_tail_from)+
+               int_digits_added_zeros);
   }
   
   /*
@@ -584,7 +600,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     If the sign is defined and '-', we need one position for it
   */
 
-  if (field_length < tmp_uint + (int) (sign_char == '-'))
+  if (field_length < tmp_uint + (int) (sign_char == '-')) 
   {
     // too big number, change to max or min number
     Field_decimal::overflow(sign_char == '-');
@@ -647,69 +663,67 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
       *pos--=' ';  //fill with blanks
   }
   
-  if (tmp_dec)					// This field has decimals
-  { 
-    /*
-      Write digits of the frac_% parts ;
-      Depending on current_thd->count_cutted_fields, we may also want
-      to know if some non-zero tail of these parts will
-      be truncated (for example, 0.002->0.00 will generate a warning,
-      while 0.000->0.00 will not)
-      (and 0E1000000000 will not, while 1E-1000000000 will)
-    */
+  /*
+    Write digits of the frac_% parts ;
+    Depending on current_thd->count_cutted_fields, we may also want
+    to know if some non-zero tail of these parts will
+    be truncated (for example, 0.002->0.00 will generate a warning,
+    while 0.000->0.00 will not)
+    (and 0E1000000000 will not, while 1E-1000000000 will)
+  */
       
-    pos=to+(uint)(field_length-tmp_dec);	// Calculate post to '.'
+  pos=to+(uint)(field_length-tmp_dec);	// Calculate post to '.'
+  right_wall=to+field_length;
+  if (pos != right_wall) 
     *pos++='.';
-    right_wall=to+field_length;
 
-    if (expo_sign_char == '-')
+  if (expo_sign_char == '-')
+  {
+    while (frac_digits_added_zeros-- > 0)
     {
-      while (frac_digits_added_zeros-- > 0)
+      if (pos == right_wall) 
       {
-	if (pos == right_wall) 
-	{
-	  if (current_thd->count_cuted_fields && !is_cuted_fields_incr) 
-	    break; // Go on below to see if we lose non zero digits
-	  return 0;
-	}
-	*pos++='0';
+        if (current_thd->count_cuted_fields && !is_cuted_fields_incr) 
+          break; // Go on below to see if we lose non zero digits
+        return 0;
       }
-      while (int_digits_end != frac_digits_head_end)
-      {
-	tmp_char= *int_digits_end++;
-	if (pos == right_wall)
-	{
-	  if (tmp_char != '0')			// Losing a non zero digit ?
-	  {
-	    if (!is_cuted_fields_incr)
-	      current_thd->cuted_fields++;
-	    return 0;
-	  }
-	  continue;
-	}
-	*pos++= tmp_char;
-      }
+      *pos++='0';
     }
-
-    for (;frac_digits_from!=frac_digits_end;) 
+    while (int_digits_end != frac_digits_head_end)
     {
-      tmp_char= *frac_digits_from++;
+      tmp_char= *int_digits_end++;
       if (pos == right_wall)
       {
-	if (tmp_char != '0')			// Losing a non zero digit ?
-	{
-	  if (!is_cuted_fields_incr)
-	    current_thd->cuted_fields++;
-	  return 0;
-	}
-	continue;
+        if (tmp_char != '0')			// Losing a non zero digit ?
+        {
+          if (!is_cuted_fields_incr)
+            current_thd->cuted_fields++;
+          return 0;
+        }
+        continue;
       }
       *pos++= tmp_char;
     }
-      
-    while (pos != right_wall)
-      *pos++='0';			// Fill with zeros at right of '.'
   }
+
+  for (;frac_digits_from!=frac_digits_end;) 
+  {
+    tmp_char= *frac_digits_from++;
+    if (pos == right_wall)
+    {
+      if (tmp_char != '0')			// Losing a non zero digit ?
+      {
+        if (!is_cuted_fields_incr)
+	  current_thd->cuted_fields++;
+        return 0;
+      }
+      continue;
+    }
+    *pos++= tmp_char;
+  }
+      
+  while (pos != right_wall)
+   *pos++='0';			// Fill with zeros at right of '.'
   return 0;
 }
 
@@ -3930,12 +3944,12 @@ int Field_string::pack_cmp(const char *b, uint length)
 }
 
 
-uint Field_string::packed_col_length(const char *ptr, uint length)
+uint Field_string::packed_col_length(const char *data_ptr, uint length)
 {
   if (length > 255)
-    return uint2korr(ptr)+2;
+    return uint2korr(data_ptr)+2;
   else
-    return (uint) ((uchar) *ptr)+1;
+    return (uint) ((uchar) *data_ptr)+1;
 }
 
 uint Field_string::max_packed_col_length(uint max_length)
@@ -4162,12 +4176,12 @@ int Field_varstring::pack_cmp(const char *b, uint key_length)
 		     (const uchar *)b,b_length);
 }
 
-uint Field_varstring::packed_col_length(const char *ptr, uint length)
+uint Field_varstring::packed_col_length(const char *data_ptr, uint length)
 {
   if (length > 255)
-    return uint2korr(ptr)+2;
+    return uint2korr(data_ptr)+2;
   else
-    return (uint) ((uchar) *ptr)+1;
+    return (uint) ((uchar) *data_ptr)+1;
 }
 
 uint Field_varstring::max_packed_col_length(uint max_length)
@@ -4698,12 +4712,12 @@ char *Field_blob::pack_key_from_key_image(char *to, const char *from,
   return to+length;
 }
 
-uint Field_blob::packed_col_length(const char *ptr, uint length)
+uint Field_blob::packed_col_length(const char *data_ptr, uint length)
 {
   if (length > 255)
-    return uint2korr(ptr)+2;
+    return uint2korr(data_ptr)+2;
   else
-    return (uint) ((uchar) *ptr)+1;
+    return (uint) ((uchar) *data_ptr)+1;
 }
 
 uint Field_blob::max_packed_col_length(uint max_length)
@@ -5294,10 +5308,11 @@ Field *make_field(char *ptr, uint32 field_length,
     return new Field_datetime(ptr,null_pos,null_bit,
 			      unireg_check, field_name, table, field_charset);
   case FIELD_TYPE_NULL:
-    default:					// Impossible (Wrong version)
     return new Field_null(ptr,field_length,unireg_check,field_name,table, field_charset);
+  default:					// Impossible (Wrong version)
+    break;
   }
-  return 0;					// Impossible (Wrong version)
+  return 0;
 }
 
 

@@ -346,3 +346,14 @@ a
 1234567890
 9999999999
 drop  table t1;
+create table t1(a decimal(10,0));
+insert into t1 values ("1e4294967295");
+select * from t1;
+a
+99999999999
+delete from t1;
+insert into t1 values("1e4294967297");
+select * from t1;
+a
+99999999999
+drop table t1;

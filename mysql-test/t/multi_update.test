@@ -147,4 +147,30 @@ insert into t2 values (1),(2),(4),(8),(16),(32);
 select * from t2 left outer join t1  using (n);
 delete  t1,t2 from t2 left outer join t1  using (n);
 select * from t2 left outer join t1  using (n);
-drop table if exists t1,t2 ;
+drop table t1,t2 ;
+
+#
+# Test with locking
+#
+
+create table t1 (n int(10) not null primary key, d int(10));
+create table t2 (n int(10) not null primary key, d int(10));
+insert into t1 values(1,1);
+insert into t2 values(1,10),(2,20);
+LOCK TABLES t1 write, t2 read;
+--error 1099
+DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
+--error 1099
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+# The following should be fixed to not give an error
+--error 1099
+UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+unlock tables;
+LOCK TABLES t1 write, t2 write;
+UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+select * from t1;
+DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
+select * from t1;
+select * from t2;
+unlock tables;
+drop table t1,t2;

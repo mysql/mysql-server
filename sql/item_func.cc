@@ -126,6 +126,22 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+bool Item_func::check_loop(uint id)
+{
+  DBUG_ENTER("Item_func::check_loop");
+  if (Item_result_field::check_loop(id))
+    DBUG_RETURN(1);
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      if ((*arg)->check_loop(id))
+	DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN(0);
+}
 
 void Item_func::split_sum_func(List<Item> &fields)
 {
@@ -438,6 +454,25 @@ void Item_func_div::fix_length_and_dec()
   set_if_smaller(max_length,tmp);
   maybe_null=1;
 }
+
+
+/* Integer division */
+longlong Item_func_int_div::val_int()
+{
+  longlong value=args[0]->val_int();
+  longlong val2=args[1]->val_int();
+  if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
+    return 0;
+  return value/val2;
+}
+
+
+void Item_func_int_div::fix_length_and_dec()
+{
+  max_length=args[0]->max_length - args[0]->decimals;
+  maybe_null=1;
+}
+
 
 double Item_func_mod::val()
 {
@@ -752,13 +787,14 @@ double Item_func_rand::val()
   }
   else if (!thd->rand_used)
   {
-    // no need to send a Rand log event if seed was given eg: RAND(seed),
-    // as it will be replicated in the query as such.
+    /*
+      No need to send a Rand log event if seed was given eg: RAND(seed),
+      as it will be replicated in the query as such.
 
-    // save the seed only the first time RAND() is used in the query
-
-    // once events are forwarded rather than recreated,
-    // the following can be skipped if inside the slave thread
+      Save the seed only the first time RAND() is used in the query
+      Once events are forwarded rather than recreated,
+      the following can be skipped if inside the slave thread
+    */
     thd->rand_used=1;
     thd->rand_saved_seed1=thd->rand.seed1;
     thd->rand_saved_seed2=thd->rand.seed2;
@@ -1571,7 +1607,7 @@ void item_user_lock_release(ULL *ull)
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")");
-    Query_log_event qev(current_thd,tmp.ptr(), tmp.length());
+    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
   }
@@ -2016,13 +2052,13 @@ void Item_func_set_user_var::print(String *str)
 
 user_var_entry *Item_func_get_user_var::get_entry()
 {
-  if (!entry  || ! entry->value)
+  if (!var_entry  || ! var_entry->value)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
-  return entry;
+  return var_entry;
 }
 
 
@@ -2091,8 +2127,8 @@ void Item_func_get_user_var::fix_length_and_dec()
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  if ((entry= get_variable(&thd->user_vars, name, 0)))
-    const_var_flag= thd->query_id != entry->update_query_id;
+  if ((var_entry= get_variable(&thd->user_vars, name, 0)))
+    const_var_flag= thd->query_id != var_entry->update_query_id;
 }
 
 
@@ -2264,23 +2300,36 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   return 0;
 }
 
+bool Item_func_match::check_loop(uint id)
+{
+  DBUG_ENTER("Item_func_match::check_loop");
+  if (Item_real_func::check_loop(id))
+    DBUG_RETURN(1);
+
+  List_iterator<Item> li(fields);
+  Item *item;
+  while ((item= li++))
+    if (item->check_loop(id))
+      DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
 
 bool Item_func_match::fix_index()
 {
   List_iterator_fast<Item> li(fields);
   Item_field *item;
-  uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, key;
+  uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0;
 
-  if (this->key == NO_SUCH_KEY)
+  if (key == NO_SUCH_KEY)
     return 0;
 
-  for (key=0 ; key<table->keys ; key++)
+  for (keynr=0 ; keynr < table->keys ; keynr++)
   {
-    if ((table->key_info[key].flags & HA_FULLTEXT) &&
-        (table->keys_in_use_for_query & (((key_map)1) << key)))
+    if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
+        (table->keys_in_use_for_query & (((key_map)1) << keynr)))
     {
-      ft_to_key[fts]=key;
+      ft_to_key[fts]=keynr;
       ft_cnt[fts]=0;
       fts++;
     }
@@ -2291,45 +2340,45 @@ bool Item_func_match::fix_index()
 
   while ((item=(Item_field*)(li++)))
   {
-    for (key=0 ; key<fts ; key++)
+    for (keynr=0 ; keynr < fts ; keynr++)
     {
-      KEY *ft_key=&table->key_info[ft_to_key[key]];
+      KEY *ft_key=&table->key_info[ft_to_key[keynr]];
       uint key_parts=ft_key->key_parts;
 
       for (uint part=0 ; part < key_parts ; part++)
       {
 	if (item->field->eq(ft_key->key_part[part].field))
-	  ft_cnt[key]++;
+	  ft_cnt[keynr]++;
       }
     }
   }
 
-  for (key=0 ; key<fts ; key++)
+  for (keynr=0 ; keynr < fts ; keynr++)
   {
-    if (ft_cnt[key] > max_cnt)
+    if (ft_cnt[keynr] > max_cnt)
     {
       mkeys=0;
-      max_cnt=ft_cnt[mkeys]=ft_cnt[key];
-      ft_to_key[mkeys]=ft_to_key[key];
+      max_cnt=ft_cnt[mkeys]=ft_cnt[keynr];
+      ft_to_key[mkeys]=ft_to_key[keynr];
       continue;
     }
-    if (max_cnt && ft_cnt[key] == max_cnt)
+    if (max_cnt && ft_cnt[keynr] == max_cnt)
     {
       mkeys++;
-      ft_cnt[mkeys]=ft_cnt[key];
-      ft_to_key[mkeys]=ft_to_key[key];
+      ft_cnt[mkeys]=ft_cnt[keynr];
+      ft_to_key[mkeys]=ft_to_key[keynr];
       continue;
     }
   }
 
-  for (key=0 ; key<=mkeys ; key++)
+  for (keynr=0 ; keynr <= mkeys ; keynr++)
   {
     // for now, partial keys won't work. SerG
     if (max_cnt < fields.elements ||
-        max_cnt < table->key_info[ft_to_key[key]].key_parts)
+        max_cnt < table->key_info[ft_to_key[keynr]].key_parts)
       continue;
 
-    this->key=ft_to_key[key];
+    key=ft_to_key[keynr];
 
     return 0;
   }
@@ -2337,7 +2386,7 @@ bool Item_func_match::fix_index()
 err:
   if (mode == FT_BOOL)
   {
-    this->key=NO_SUCH_KEY;
+    key=NO_SUCH_KEY;
     return 0;
   }
   my_printf_error(ER_FT_MATCHING_KEY_NOT_FOUND,

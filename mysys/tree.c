@@ -53,7 +53,8 @@
 
 #define BLACK		1
 #define RED		0
-#define DEFAULT_ALLOC_SIZE (8192-MALLOC_OVERHEAD)
+#define DEFAULT_ALLOC_SIZE 8192
+#define DEFAULT_ALIGN_SIZE 8192
 
 static void delete_tree_element(TREE *,TREE_ELEMENT *);
 static int tree_walk_left_root_right(TREE *,TREE_ELEMENT *,
@@ -80,8 +81,9 @@ void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
   DBUG_ENTER("init_tree");
   DBUG_PRINT("enter",("tree: %lx  size: %d",tree,size));
 
- if (!default_alloc_size)
-   default_alloc_size= DEFAULT_ALLOC_SIZE;
+  if (default_alloc_size < DEFAULT_ALLOC_SIZE)
+    default_alloc_size= DEFAULT_ALLOC_SIZE;
+  default_alloc_size= MY_ALIGN(default_alloc_size, DEFAULT_ALIGN_SIZE);
   bzero((gptr) &tree->null_element,sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;
@@ -439,14 +441,14 @@ void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs,
   Expected that tree is fully balanced
   (each path from root to leaf has the same length)
 */
-uint tree_record_pos(TREE *tree, const void *key, 
+ha_rows tree_record_pos(TREE *tree, const void *key, 
                      enum ha_rkey_function flag, void *custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element= tree->root;
   double left= 1;
   double right= tree->elements_in_tree;
-  uint last_equal_pos= HA_POS_ERROR;
+  ha_rows last_equal_pos= HA_POS_ERROR;
 
   while (element != &tree->null_element)
   {

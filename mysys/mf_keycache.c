@@ -595,13 +595,14 @@ static int flush_key_blocks_int(File file, enum flush_type type)
 	  count++;
       }
       /* Only allocate a new buffer if its bigger than the one we have */
-      if (count <= FLUSH_CACHE ||
-	  !(cache=(SEC_LINK**) my_malloc(sizeof(SEC_LINK*)*count,MYF(0))))
+      if (count > FLUSH_CACHE)
       {
-	cache=cache_buff;		/* Fall back to safe buffer */
-	count=FLUSH_CACHE;
+	if (!(cache=(SEC_LINK**) my_malloc(sizeof(SEC_LINK*)*count,MYF(0))))
+        {
+	  cache=cache_buff;		/* Fall back to safe buffer */
+	  count=FLUSH_CACHE;
+        }
       }
-      end=cache+count;
     }
 
     /* Go through the keys and write them to buffer to be flushed */

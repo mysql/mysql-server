@@ -5698,8 +5698,9 @@ CHARSET_INFO my_charset_gb2312 =
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
-    2,			/* mbmaxlen */
+    my_like_range_simple,/* like_range */
+    my_wildcmp_mb,	/* wildcmp    */
+    2,			/* mbmaxlen   */
     ismbchar_gb2312,
     ismbhead_gb2312,
     mbcharlen_gb2312,
@@ -5714,7 +5715,13 @@ CHARSET_INFO my_charset_gb2312 =
     my_strncasecmp_mb,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 #endif

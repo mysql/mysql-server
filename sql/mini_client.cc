@@ -297,11 +297,11 @@ static int mc_sock_connect(my_socket s, const struct sockaddr *name,
   FD_SET(s, &sfds);
   tv.tv_sec = (long) to;
   tv.tv_usec = 0;
-#ifdef HPUX
+#ifdef HPUX10
   res = select(s+1, NULL, (int*) &sfds, NULL, &tv);
 #else
   res = select(s+1, NULL, &sfds, NULL, &tv);
-#endif
+#endif /* HPUX10 */
   if (res <= 0)					/* Never became writable */
     return(-1);
 

@@ -203,6 +203,10 @@ public:
   sys_var_thd_ulonglong(const char *name_arg, ulonglong SV::*offset_arg)
     :sys_var_thd(name_arg), offset(offset_arg)
   {}
+  sys_var_thd_ulonglong(const char *name_arg, ulonglong SV::*offset_arg,
+			sys_after_update_func func)
+    :sys_var_thd(name_arg,func), offset(offset_arg)
+  {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE type() { return SHOW_LONGLONG; }
@@ -330,6 +334,23 @@ public:
     We can't retrieve the value of this, so we don't have to define
     type() or value_ptr()
   */
+};
+
+
+class sys_var_rand_seed1 :public sys_var
+{
+public:
+  sys_var_rand_seed1(const char *name_arg) :sys_var(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  bool check_type(enum_var_type type) { return type == OPT_GLOBAL; }
+};
+
+class sys_var_rand_seed2 :public sys_var
+{
+public:
+  sys_var_rand_seed2(const char *name_arg) :sys_var(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  bool check_type(enum_var_type type) { return type == OPT_GLOBAL; }
 };
 
 

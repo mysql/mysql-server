@@ -608,7 +608,7 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
 {
   hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
 	    (hash_get_key) get_table_key,
-	    (void (*)(void*)) free_table_ent, 0);
+	    (hash_free_key) free_table_ent, 0);
   *h_inited = 1;
 }
 
@@ -638,9 +638,10 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     {
       TABLE_RULE_ENT* e ;
       get_dynamic(a, (gptr)&e, i);
-      if (!wild_case_compare(system_charset_info, key, key_end, 
+      if (!my_wildcmp(system_charset_info, key, key_end, 
                             (const char*)e->db,
-			    (const char*)(e->db + e->key_len),'\\'))
+			    (const char*)(e->db + e->key_len),
+			    '\\',wild_one,wild_many))
 	return e;
     }
   
@@ -1636,7 +1637,7 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
   my_b_seek(file, 0L);
-  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n",
+  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
 	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
 	      mi->host, mi->user,
 	      mi->password, mi->port, mi->connect_retry
@@ -1944,7 +1945,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
 		"Slave: query '%s' partially completed on the master \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the\
- slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1;\
+ slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
  SLAVE START;", thd->query);
     rli->last_slave_errno = expected_error;
     sql_print_error("%s",rli->last_slave_error);
@@ -2024,11 +2025,10 @@ This may also be a network problem, or just a bug in the master or slave code.\
 }
 
 /*****************************************************************************
-
   Slave I/O Thread entry point
-
 *****************************************************************************/
-pthread_handler_decl(handle_slave_io,arg)
+
+extern "C" pthread_handler_decl(handle_slave_io,arg)
 {
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql;
@@ -2297,11 +2297,10 @@ err:
 }
 
 /*****************************************************************************
-
   Slave SQL Thread entry point
-
 *****************************************************************************/
-pthread_handler_decl(handle_slave_sql,arg)
+
+extern "C" pthread_handler_decl(handle_slave_sql,arg)
 {
   THD *thd;			/* needs to be first for thread_stack */
   char llbuff[22],llbuff1[22];
@@ -2477,7 +2476,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
      in the loop
   */
   {
-    Append_block_log_event aev(thd,0,0);
+    Append_block_log_event aev(thd,0,0,0);
   
     for (;;)
     {
@@ -2490,7 +2489,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       if (unlikely(!num_bytes)) /* eof */
       {
 	net_write_command(net, 0, "", 0, "", 0);/* 3.23 master wants it */
-	Execute_load_log_event xev(thd);
+	Execute_load_log_event xev(thd,0);
 	xev.log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))
 	{

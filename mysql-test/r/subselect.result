@@ -8,6 +8,10 @@ SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 (SELECT (SELECT 0 UNION SELECT 0))
 0
+SELECT (SELECT 1 FROM (SELECT 1) HAVING a=1) as a;
+Cyclic reference on subqueries
+SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVING a=1) as b;
+Cyclic reference on subqueries
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -46,7 +50,7 @@ a	b
 1	7
 2	7
 3	8
-select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)
 union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 a	b
 1	7
@@ -56,9 +60,9 @@ a	b
 explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
 union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	where used
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	Using filesort
-3	UNION	t4	ALL	NULL	NULL	NULL	NULL	3	where used; Using filesort
+3	UNION	t4	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
 4	SUBSELECT	t2	ALL	NULL	NULL	NULL	NULL	2	
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 (select a from t3 where a<t2.a*4 order by 1 desc limit 1)	a
@@ -71,9 +75,9 @@ select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 explain select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
 (select * from t2 where a>1) as tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	where used
 1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	1	
-2	SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	where used; Using filesort
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -91,7 +95,7 @@ explain select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a))
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	3	
 2	DEPENDENT SUBSELECT	t2	ALL	NULL	NULL	NULL	NULL	2	
-3	DEPENDENT SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	where used
+3	DEPENDENT SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from t3 where exists (select * from t2 where t2.b=t3.a);
 a
 7
@@ -125,8 +129,8 @@ NULL	1
 explain select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
-2	DEPENDENT SUBSELECT	t1	system	NULL	NULL	NULL	NULL	1	where used
-3	DEPENDENT UNION	t5	ALL	NULL	NULL	NULL	NULL	2	where used
+2	DEPENDENT SUBSELECT	t1	system	NULL	NULL	NULL	NULL	1	Using where
+3	DEPENDENT UNION	t5	ALL	NULL	NULL	NULL	NULL	2	Using where
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 Subselect returns more than 1 record
 create table attend (patient_uq int, clinic_uq int, index i1 (clinic_uq));
@@ -196,11 +200,11 @@ INSERT INTO searchconthardwarefr3 (topic,date,pseudo) VALUES
 ('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
 EXPLAIN SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	searchconthardwarefr3	index	NULL	PRIMARY	41	NULL	2	where used; Using index
+1	SIMPLE	searchconthardwarefr3	index	NULL	PRIMARY	41	NULL	2	Using where; Using index
 EXPLAIN SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY								No tables used
-2	SUBSELECT	searchconthardwarefr3	index	NULL	PRIMARY	41	NULL	2	where used; Using index
+2	SUBSELECT	searchconthardwarefr3	index	NULL	PRIMARY	41	NULL	2	Using where; Using index
 SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
 date
 2002-08-03
@@ -220,3 +224,68 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	SUBSELECT								No tables used
 3	UNION								No tables used
 drop table searchconthardwarefr3;
+drop table if exists forumconthardwarefr7, searchconthardwarefr7;
+CREATE TABLE `forumconthardwarefr7` (
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`maxnumrep` int(10) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`),
+UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (40143,1),(43506,2);
+CREATE TABLE `searchconthardwarefr7` (
+`mot` varchar(30) NOT NULL default '',
+`topic` mediumint(8) unsigned NOT NULL default '0',
+`date` date NOT NULL default '0000-00-00',
+`pseudo` varchar(35) NOT NULL default '',
+PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`)
+) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
+INSERT INTO searchconthardwarefr7 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
+select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+a
+40143
+SELECT numeropost,maxnumrep FROM forumconthardwarefr7 WHERE exists (SELECT 1 FROM searchconthardwarefr7 WHERE (mot='joce') AND date >= '2002-10-21' AND forumconthardwarefr7.numeropost = searchconthardwarefr7.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
+numeropost	maxnumrep
+43506	2
+40143	1
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+Unknown column 'a' in 'having clause'
+drop table forumconthardwarefr7, searchconthardwarefr7;
+drop table if exists forumconthardwarefr7;
+CREATE TABLE `forumconthardwarefr7` (
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`maxnumrep` int(10) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`),
+UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (1,0),(2,1);
+select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+Subselect returns more than 1 record
+select numeropost as a FROM forumconthardwarefr7 ORDER BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+Subselect returns more than 1 record
+drop table if exists forumconthardwarefr7;
+drop table if exists iftest;
+CREATE TABLE iftest (field char(1) NOT NULL DEFAULT 'b');
+INSERT INTO iftest VALUES ();
+SELECT field FROM iftest WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) HAVING field='b');
+Subselect returns more than 1 record
+drop table iftest;
+drop table if exists threadhardwarefr7;
+CREATE TABLE `threadhardwarefr7` (
+`numeropost` mediumint(8) unsigned NOT NULL default '0',
+`numreponse` int(10) unsigned NOT NULL auto_increment,
+`pseudo` varchar(35) NOT NULL default '',
+PRIMARY KEY  (`numeropost`,`numreponse`),
+UNIQUE KEY `numreponse` (`numreponse`),
+KEY `pseudo` (`pseudo`,`numeropost`)
+) TYPE=MyISAM;
+INSERT INTO threadhardwarefr7 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
+EXPLAIN SELECT numreponse FROM threadhardwarefr7 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM threadhardwarefr7 WHERE numeropost='1');
+Subselect returns more than 1 record
+EXPLAIN SELECT MAX(numreponse) FROM threadhardwarefr7 WHERE numeropost='1';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE								Select tables optimized away
+EXPLAIN SELECT numreponse FROM threadhardwarefr7 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM threadhardwarefr7 WHERE numeropost='1');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	threadhardwarefr7	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	
+2	SUBSELECT								Select tables optimized away
+drop table if exists threadhardwarefrtest7;

@@ -41,12 +41,13 @@ typedef struct st_queue {
 #define queue_element(queue,index) ((queue)->root[index+1])
 #define queue_end(queue) ((queue)->root[(queue)->elements])
 #define queue_replaced(queue) _downheap(queue,1)
+typedef int (*queue_compare)(void *,byte *, byte *);
 
 int init_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
-	       pbool max_at_top, int (*compare)(void *,byte *, byte *),
+	       pbool max_at_top, queue_compare compare,
 	       void *first_cmp_arg);
 int reinit_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
-                 pbool max_at_top, int (*compare)(void *,byte *, byte *),
+                 pbool max_at_top, queue_compare compare,
                  void *first_cmp_arg);
 void delete_queue(QUEUE *queue);
 void queue_insert(QUEUE *queue,byte *element);

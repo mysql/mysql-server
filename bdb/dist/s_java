@@ -38,7 +38,7 @@ cmp $t $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
 # Build Db.java.
-f=../java/src/com/sleepycat/db/Db.java
+f=../java/src/com/sleepycat/db/Db.java.in
 sed '/BEGIN-JAVA-SPECIAL-CONSTANTS/q' < $f > $t
 (echo "    $msgjava" &&
  for i in `egrep '^DB_.*C$' pubdef.in | awk '{print $1}'`; do \

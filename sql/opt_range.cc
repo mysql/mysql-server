@@ -299,9 +299,6 @@ static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
 			       Item_result cmp_type);
 static SEL_ARG *get_mm_leaf(PARAM *param,Field *field,KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
-static bool like_range(const char *ptr,uint length,char wild_prefix,
-		       uint field_length, char *min_str,char *max_str,
-		       char max_sort_char,uint *min_length,uint *max_length);
 static SEL_TREE *get_mm_tree(PARAM *param,COND *cond);
 static ha_rows check_quick_select(PARAM *param,uint index,SEL_ARG *key_tree);
 static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
@@ -970,27 +967,14 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     max_str=min_str+length;
     if (maybe_null)
       max_str[0]= min_str[0]=0;
-    if (field->binary())
-      like_error=like_range(res->ptr(),res->length(),wild_prefix,field_length,
-			    min_str+offset,max_str+offset,(char) 255,
-			    &min_length,&max_length);
-    else
-    {
-      CHARSET_INFO *charset=field->charset();
-#ifdef USE_STRCOLL
-      if (use_strnxfrm(charset))
-        like_error= my_like_range(charset,
-                                  res->ptr(),res->length(),wild_prefix,
-                                  field_length, min_str+maybe_null,
-                                  max_str+maybe_null,&min_length,&max_length);
-      else
-#endif
-        like_error=like_range(res->ptr(),res->length(),wild_prefix,
-			      field_length,
-                              min_str+offset,max_str+offset,
-                              charset->max_sort_char,
-                              &min_length,&max_length);
-    }
+
+    like_error= my_like_range(field->charset(),
+                                  res->ptr(),res->length(),
+				  wild_prefix,wild_one,wild_many,
+                                  field_length, 
+				  min_str+offset, max_str+offset,
+				  &min_length,&max_length);
+
     if (like_error)				// Can't optimize with LIKE
       DBUG_RETURN(0);
     if (offset != maybe_null)			// Blob
@@ -1116,69 +1100,6 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     break;
   }
   DBUG_RETURN(tree);
-}
-
-
-/*
-** Calculate min_str and max_str that ranges a LIKE string.
-** Arguments:
-** ptr		Pointer to LIKE string.
-** ptr_length	Length of LIKE string.
-** escape	Escape character in LIKE.  (Normally '\').
-**		All escape characters should be removed from min_str and max_str
-** res_length	Length of min_str and max_str.
-** min_str	Smallest case sensitive string that ranges LIKE.
-**		Should be space padded to res_length.
-** max_str	Largest case sensitive string that ranges LIKE.
-**		Normally padded with the biggest character sort value.
-**
-** The function should return 0 if ok and 1 if the LIKE string can't be
-** optimized !
-*/
-
-static bool like_range(const char *ptr,uint ptr_length,char escape,
-		       uint res_length, char *min_str,char *max_str,
-		       char max_sort_chr, uint *min_length, uint *max_length)
-{
-  const char *end=ptr+ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-
-  for (; ptr != end && min_str != min_end ; ptr++)
-  {
-    if (*ptr == escape && ptr+1 != end)
-    {
-      ptr++;					// Skip escape
-      *min_str++= *max_str++ = *ptr;
-      continue;
-    }
-    if (*ptr == wild_one)			// '_' in SQL
-    {
-      *min_str++='\0';				// This should be min char
-      *max_str++=max_sort_chr;
-      continue;
-    }
-    if (*ptr == wild_many)			// '%' in SQL
-    {
-      *min_length= (uint) (min_str - min_org);
-      *max_length=res_length;
-      do {
-	*min_str++ = ' ';			// Because if key compression
-	*max_str++ = max_sort_chr;
-      } while (min_str != min_end);
-      return 0;
-    }
-    *min_str++= *max_str++ = *ptr;
-  }
-  *min_length= *max_length = (uint) (min_str - min_org);
-
-  /* Temporary fix for handling wild_one at end of string (key compression) */
-  for (char *tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
-    *--tmp=' ';
-
-  while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		// Because if key compression
-  return 0;
 }
 
 
@@ -2542,9 +2463,9 @@ int QUICK_SELECT::get_next()
 
     if (range->flag & NO_MIN_RANGE)		// Read first record
     {
-      int error;
-      if ((error=file->index_first(record)))
-	DBUG_RETURN(error);			// Empty table
+      int local_error;
+      if ((local_error=file->index_first(record)))
+	DBUG_RETURN(local_error);		// Empty table
       if (cmp_next(range) == 0)
 	DBUG_RETURN(0);
       range=0;			// No matching records; go to next range
@@ -2578,13 +2499,13 @@ int QUICK_SELECT::get_next()
 	/* compare if found key is over max-value */
 	/* Returns 0 if key <= range->max_key */
 
-int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
+int QUICK_SELECT::cmp_next(QUICK_RANGE *range_arg)
 {
-  if (range->flag & NO_MAX_RANGE)
-    return (0);					/* key can't be to large */
+  if (range_arg->flag & NO_MAX_RANGE)
+    return 0;					/* key can't be to large */
 
   KEY_PART *key_part=key_parts;
-  for (char *key=range->max_key, *end=key+range->max_length;
+  for (char *key=range_arg->max_key, *end=key+range_arg->max_length;
        key < end;
        key+= key_part++->part_length)
   {
@@ -2605,7 +2526,7 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
     if (cmp > 0)
       return 1;
   }
-  return (range->flag & NEAR_MAX) ? 1 : 0;		// Exact match
+  return (range_arg->flag & NEAR_MAX) ? 1 : 0;		// Exact match
 }
 
 
@@ -2689,9 +2610,9 @@ int QUICK_SELECT_DESC::get_next()
 
     if (range->flag & NO_MAX_RANGE)		// Read last record
     {
-      int error;
-      if ((error=file->index_last(record)))
-	DBUG_RETURN(error);			// Empty table
+      int local_error;
+      if ((local_error=file->index_last(record)))
+	DBUG_RETURN(local_error);		// Empty table
       if (cmp_prev(range) == 0)
 	DBUG_RETURN(0);
       range=0;			// No matching records; go to next range
@@ -2745,16 +2666,18 @@ int QUICK_SELECT_DESC::get_next()
   }
 }
 
+
 /*
- * Returns 0 if found key is inside range (found key >= range->min_key).
- */
-int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
+  Returns 0 if found key is inside range (found key >= range->min_key).
+*/
+
+int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range_arg)
 {
-  if (range->flag & NO_MIN_RANGE)
-    return (0);					/* key can't be to small */
+  if (range_arg->flag & NO_MIN_RANGE)
+    return 0;					/* key can't be to small */
 
   KEY_PART *key_part = key_parts;
-  for (char *key = range->min_key, *end = key + range->min_length;
+  for (char *key = range_arg->min_key, *end = key + range_arg->min_length;
        key < end;
        key += key_part++->part_length)
   {
@@ -2778,42 +2701,45 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range)
     if (cmp < 0)
       return 1;
   }
-  return (range->flag & NEAR_MIN) ? 1 : 0;		// Exact match
+  return (range_arg->flag & NEAR_MIN) ? 1 : 0;		// Exact match
 }
+
 
 /*
  * True if this range will require using HA_READ_AFTER_KEY
    See comment in get_next() about this
  */
 
-bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range)
+bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg)
 {
-  return ((range->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
-	  !(range->flag & EQ_RANGE) ||
-	  head->key_info[index].key_length != range->max_length) ? 1 : 0;
+  return ((range_arg->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
+	  !(range_arg->flag & EQ_RANGE) ||
+	  head->key_info[index].key_length != range_arg->max_length) ? 1 : 0;
 }
+
 
 /* True if we are reading over a key that may have a NULL value */
 
-bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
+bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
 					   uint used_key_parts)
 {
   uint offset,end;
   KEY_PART *key_part = key_parts,
            *key_part_end= key_part+used_key_parts;
 
-  for (offset= 0,  end = min(range->min_length, range->max_length) ;
+  for (offset= 0,  end = min(range_arg->min_length, range_arg->max_length) ;
        offset < end && key_part != key_part_end ;
        offset += key_part++->part_length)
   {
     uint null_length=test(key_part->null_bit);
-    if (!memcmp((char*) range->min_key+offset, (char*) range->max_key+offset,
+    if (!memcmp((char*) range_arg->min_key+offset,
+		(char*) range_arg->max_key+offset,
 		key_part->part_length + null_length))
     {
       offset+=null_length;
       continue;
     }
-    if (null_length && range->min_key[offset])
+    if (null_length && range_arg->min_key[offset])
       return 1;				// min_key is null and max_key isn't
     // Range doesn't cover NULL. This is ok if there is no more null parts
     break;
@@ -2826,7 +2752,7 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range,
   */
   if (key_part != key_part_end && key_part->null_bit)
   {
-    if (offset >= range->min_length || range->min_key[offset])
+    if (offset >= range_arg->min_length || range_arg->min_key[offset])
       return 1;					// Could be null
     key_part++;
   }
