@@ -1970,6 +1970,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
+  Cursor *cursor= 0;
   /*
     Query text for binary log, or empty string if the query is not put into
     binary log.
@@ -2007,15 +2008,17 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
         statement: we can't open a cursor for it.
       */
       flags= 0;
+      my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
+      goto err;
     }
     else
     {
       DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!stmt->cursor &&
-          !(stmt->cursor= new (&stmt->main_mem_root) Cursor()))
+          !(cursor= stmt->cursor= new (&stmt->main_mem_root) Cursor()))
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
-      stmt->lex->result= &stmt->cursor->result;
+      stmt->lex->result= &cursor->result;
     }
   }
 #ifndef EMBEDDED_LIBRARY
@@ -2061,11 +2064,10 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
-  if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
+  if (cursor && cursor->is_open())
   {
-    if (stmt->cursor->is_open())
-      stmt->cursor->init_from_thd(thd);
-    stmt->cursor->state= stmt->state;
+    cursor->init_from_thd(thd);
+    cursor->state= stmt->state;
   }
   else
   {
