@@ -29,8 +29,8 @@ Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 a	b
-Full-text indexes	are called collections
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
 MySQL has now support	for full-text search
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -294,18 +294,27 @@ INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
 SET NAMES koi8r;
 INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
 ("Не влезай, убьет!"),("и будет прав!");
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
-t	charset(t)
-Это мы - опилки	utf8
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
-t	charset(t)
-и будет прав!	utf8
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
+t	collation(t)
+Это мы - опилки	utf8_general_ci
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
+t	collation(t)
+и будет прав!	utf8_general_ci
 SELECT * FROM t1 WHERE MATCH t AGAINST ('это' IN BOOLEAN MODE);
 t
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
-t	charset(t)
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+t	collation(t)
 SET NAMES latin1;
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
-t	charset(t)
-aus OsnabrЭck	utf8
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+t	collation(t)
+aus OsnabrЭck	utf8_general_ci
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
+t	collation(t)
+alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+t	collation(t)
+aus OsnabrЭck	latin1_german2_ci
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
+t	collation(t)
+aus OsnabrЭck	latin1_german2_ci
 DROP TABLE t1;
