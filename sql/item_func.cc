@@ -2167,6 +2167,6 @@ Item *get_system_var(LEX_STRING name)
   if (!my_strcasecmp(name.str,"VERSION"))
     return new Item_string("@@VERSION",server_version,
 			   (uint) strlen(server_version));
-  net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name);
+  net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
   return 0;
 }
