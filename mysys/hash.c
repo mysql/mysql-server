@@ -275,10 +275,9 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
 {
   uint rec_keylength;
   byte *rec_key=hash_key(hash,pos->data,&rec_keylength,1);
-  /* BAR TODO: remove default_charset_info */
   return (length && length != rec_keylength) ||
     (hash->flags & HASH_CASE_INSENSITIVE ?
-     my_strncasecmp(default_charset_info, rec_key,key,rec_keylength) :
+     my_strncasecmp(hash->charset, rec_key,key,rec_keylength) :
      memcmp(rec_key,key,rec_keylength));
 }
 
