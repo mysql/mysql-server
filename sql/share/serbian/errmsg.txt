@@ -286,3 +286,4 @@ character-set=cp1250
 "Unknown table engine '%s'",
 "'%s' is deprecated. Use '%s' instead.",
 "The target table %-.100s of the %s is not updatable.",
+"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"

@@ -293,3 +293,4 @@ character-set=koi8r
 "Unknown table engine '%s'",
 "'%s' is deprecated. Use '%s' instead.",
 "Таблица %-.100s в %s не может изменятся.",
+"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
