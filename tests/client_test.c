@@ -97,11 +97,12 @@ void die(const char *file, int line, const char *expr)
 #define myerror(msg) print_error(msg)
 #define mysterror(stmt, msg) print_st_error(stmt, msg)
 
-#define myquery(r) \
+#define myquery(RES) \
 { \
-if (r) \
-  myerror(NULL); \
- DIE_UNLESS(r == 0); \
+  int r= (RES);                                \
+  if (r) \
+    myerror(NULL); \
+  DIE_UNLESS(r == 0); \
 }
 
 #define myquery_r(r) \
@@ -282,38 +283,40 @@ static void client_query()
 
   myheader("client_query");
 
-  rc= mysql_query(mysql, "DROP TABLE IF EXISTS myclient_test");
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE myclient_test("
+  rc= mysql_query(mysql, "CREATE TABLE t1("
                          "id int primary key auto_increment, "
                          "name varchar(20))");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE myclient_test(id int, name varchar(20))");
+  rc= mysql_query(mysql, "CREATE TABLE t1(id int, name varchar(20))");
   myquery_r(rc);
 
-  rc= mysql_query(mysql, "INSERT INTO myclient_test(name) VALUES('mysql')");
+  rc= mysql_query(mysql, "INSERT INTO t1(name) VALUES('mysql')");
   myquery(rc);
 
-  rc= mysql_query(mysql, "INSERT INTO myclient_test(name) VALUES('monty')");
+  rc= mysql_query(mysql, "INSERT INTO t1(name) VALUES('monty')");
   myquery(rc);
 
-  rc= mysql_query(mysql, "INSERT INTO myclient_test(name) VALUES('venu')");
+  rc= mysql_query(mysql, "INSERT INTO t1(name) VALUES('venu')");
   myquery(rc);
 
-  rc= mysql_query(mysql, "INSERT INTO myclient_test(name) VALUES('deleted')");
+  rc= mysql_query(mysql, "INSERT INTO t1(name) VALUES('deleted')");
   myquery(rc);
 
-  rc= mysql_query(mysql, "INSERT INTO myclient_test(name) VALUES('deleted')");
+  rc= mysql_query(mysql, "INSERT INTO t1(name) VALUES('deleted')");
   myquery(rc);
 
-  rc= mysql_query(mysql, "UPDATE myclient_test SET name= 'updated' "
+  rc= mysql_query(mysql, "UPDATE t1 SET name= 'updated' "
                           "WHERE name= 'deleted'");
   myquery(rc);
 
-  rc= mysql_query(mysql, "UPDATE myclient_test SET id= 3 WHERE name= 'updated'");
+  rc= mysql_query(mysql, "UPDATE t1 SET id= 3 WHERE name= 'updated'");
   myquery_r(rc);
+
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
@@ -743,7 +746,7 @@ static void client_store_result()
 
   myheader("client_store_result");
 
-  rc= mysql_query(mysql, "SELECT * FROM myclient_test");
+  rc= mysql_query(mysql, "SELECT * FROM t1");
   myquery(rc);
 
   /* get the result */
@@ -763,7 +766,7 @@ static void client_use_result()
   int       rc;
   myheader("client_use_result");
 
-  rc= mysql_query(mysql, "SELECT * FROM myclient_test");
+  rc= mysql_query(mysql, "SELECT * FROM t1");
   myquery(rc);
 
   /* get the result */
@@ -7537,17 +7540,17 @@ static void test_fetch_seek()
   char       c2[11], c3[20];
 
   myheader("test_fetch_seek");
+  rc= mysql_query(mysql, "drop table if exists t1");
 
-  rc= mysql_query(mysql, "drop table if exists test_seek");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table test_seek(c1 int primary key auto_increment, c2 char(10), c3 timestamp(14))");
+  rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10), c3 timestamp(14))");
   myquery(rc);
 
-  rc= mysql_query(mysql, "insert into test_seek(c2) values('venu'), ('mysql'), ('open'), ('source')");
+  rc= mysql_query(mysql, "insert into t1(c2) values('venu'), ('mysql'), ('open'), ('source')");
   myquery(rc);
 
-  stmt= mysql_simple_prepare(mysql, "select * from test_seek");
+  stmt= mysql_simple_prepare(mysql, "select * from t1");
   check_stmt(stmt);
 
   bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -7620,6 +7623,7 @@ static void test_fetch_seek()
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
@@ -7637,16 +7641,16 @@ static void test_fetch_offset()
 
   myheader("test_fetch_offset");
 
-  rc= mysql_query(mysql, "drop table if exists test_column");
+  rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table test_column(a char(10))");
+  rc= mysql_query(mysql, "create table t1(a char(10))");
   myquery(rc);
 
-  rc= mysql_query(mysql, "insert into test_column values('abcdefghij'), (null)");
+  rc= mysql_query(mysql, "insert into t1 values('abcdefghij'), (null)");
   myquery(rc);
 
-  stmt= mysql_simple_prepare(mysql, "select * from test_column");
+  stmt= mysql_simple_prepare(mysql, "select * from t1");
   check_stmt(stmt);
 
   bind[0].buffer_type= MYSQL_TYPE_STRING;
@@ -7706,6 +7710,8 @@ static void test_fetch_offset()
   check_execute_r(stmt, rc);
 
   mysql_stmt_close(stmt);
+
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
@@ -7721,16 +7727,16 @@ static void test_fetch_column()
 
   myheader("test_fetch_column");
 
-  rc= mysql_query(mysql, "drop table if exists test_column");
+  rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table test_column(c1 int primary key auto_increment, c2 char(10))");
+  rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10))");
   myquery(rc);
 
-  rc= mysql_query(mysql, "insert into test_column(c2) values('venu'), ('mysql')");
+  rc= mysql_query(mysql, "insert into t1(c2) values('venu'), ('mysql')");
   myquery(rc);
 
-  stmt= mysql_simple_prepare(mysql, "select * from test_column order by c2 desc");
+  stmt= mysql_simple_prepare(mysql, "select * from t1 order by c2 desc");
   check_stmt(stmt);
 
   bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -7841,6 +7847,7 @@ static void test_fetch_column()
   check_execute_r(stmt, rc);
 
   mysql_stmt_close(stmt);
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
@@ -7852,27 +7859,28 @@ static void test_list_fields()
   int rc;
   myheader("test_list_fields");
 
-  rc= mysql_query(mysql, "drop table if exists test_list_fields");
+  rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table test_list_fields(c1 int primary key auto_increment, c2 char(10) default 'mysql')");
+  rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10) default 'mysql')");
   myquery(rc);
 
-  result= mysql_list_fields(mysql, "test_list_fields", NULL);
+  result= mysql_list_fields(mysql, "t1", NULL);
   mytest(result);
 
   rc= my_process_result_set(result);
   DIE_UNLESS(rc == 0);
 
   verify_prepare_field(result, 0, "c1", "c1", MYSQL_TYPE_LONG,
-                       "test_list_fields", "test_list_fields",
+                       "t1", "t1",
                        current_db, 11, "0");
 
   verify_prepare_field(result, 1, "c2", "c2", MYSQL_TYPE_STRING,
-                       "test_list_fields", "test_list_fields",
+                       "t1", "t1",
                        current_db, 10, "mysql");
 
   mysql_free_result(result);
+  myquery(mysql_query(mysql, "drop table t1"));
 }
 
 
@@ -11140,11 +11148,13 @@ static void test_bug4172()
   res= mysql_store_result(mysql);
   row= mysql_fetch_row(res);
 
-  printf("Binary protocol: float=%s, double=%s, decimal(10,4)=%s\n",
-         f, d, e);
-  printf("Text protocol:   float=%s, double=%s, decimal(10,4)=%s\n",
-         row[0], row[1], row[2]);
-
+  if (!opt_silent)
+  {
+    printf("Binary protocol: float=%s, double=%s, decimal(10,4)=%s\n",
+           f, d, e);
+    printf("Text protocol:   float=%s, double=%s, decimal(10,4)=%s\n",
+           row[0], row[1], row[2]);
+  }
   DIE_UNLESS(!strcmp(f, row[0]) && !strcmp(d, row[1]) && !strcmp(e, row[2]));
 
   mysql_free_result(res);

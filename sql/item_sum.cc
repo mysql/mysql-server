@@ -254,7 +254,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 Item *Item_sum_sum::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_sum(thd, this);
+  return new (thd->mem_root) Item_sum_sum(thd, this);
 }
 
 
@@ -282,7 +282,7 @@ double Item_sum_sum::val()
 
 Item *Item_sum_count::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_count(thd, this);
+  return new (thd->mem_root) Item_sum_count(thd, this);
 }
 
 
@@ -327,7 +327,7 @@ void Item_sum_count::cleanup()
 
 Item *Item_sum_avg::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_avg(thd, this);
+  return new (thd->mem_root) Item_sum_avg(thd, this);
 }
 
 
@@ -374,7 +374,7 @@ double Item_sum_std::val()
 
 Item *Item_sum_std::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_std(thd, this);
+  return new (thd->mem_root) Item_sum_std(thd, this);
 }
 
 
@@ -384,7 +384,7 @@ Item *Item_sum_std::copy_or_same(THD* thd)
 
 Item *Item_sum_variance::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_variance(thd, this);
+  return new (thd->mem_root) Item_sum_variance(thd, this);
 }
 
 
@@ -546,7 +546,7 @@ void Item_sum_hybrid::cleanup()
 
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_min(thd, this);
+  return new (thd->mem_root) Item_sum_min(thd, this);
 }
 
 
@@ -599,7 +599,7 @@ bool Item_sum_min::add()
 
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_max(thd, this);
+  return new (thd->mem_root) Item_sum_max(thd, this);
 }
 
 
@@ -666,7 +666,7 @@ void Item_sum_bit::clear()
 
 Item *Item_sum_or::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_or(thd, this);
+  return new (thd->mem_root) Item_sum_or(thd, this);
 }
 
 
@@ -680,7 +680,7 @@ bool Item_sum_or::add()
 
 Item *Item_sum_xor::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_xor(thd, this);
+  return new (thd->mem_root) Item_sum_xor(thd, this);
 }
 
 
@@ -694,7 +694,7 @@ bool Item_sum_xor::add()
 
 Item *Item_sum_and::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_and(thd, this);
+  return new (thd->mem_root) Item_sum_and(thd, this);
 }
 
 
@@ -1337,7 +1337,7 @@ int Item_sum_count_distinct::tree_to_myisam()
 
 Item *Item_sum_count_distinct::copy_or_same(THD* thd) 
 {
-  return new (&thd->mem_root) Item_sum_count_distinct(thd, this);
+  return new (thd->mem_root) Item_sum_count_distinct(thd, this);
 }
 
 
@@ -1438,7 +1438,7 @@ bool Item_udf_sum::add()
 
 Item *Item_sum_udf_float::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_udf_float(thd, this);
+  return new (thd->mem_root) Item_sum_udf_float(thd, this);
 }
 
 double Item_sum_udf_float::val()
@@ -1463,7 +1463,7 @@ String *Item_sum_udf_float::val_str(String *str)
 
 Item *Item_sum_udf_int::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_udf_int(thd, this);
+  return new (thd->mem_root) Item_sum_udf_int(thd, this);
 }
 
 
@@ -1501,7 +1501,7 @@ void Item_sum_udf_str::fix_length_and_dec()
 
 Item *Item_sum_udf_str::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_udf_str(thd, this);
+  return new (thd->mem_root) Item_sum_udf_str(thd, this);
 }
 
 
@@ -1815,7 +1815,7 @@ Item_func_group_concat::~Item_func_group_concat()
 
 Item *Item_func_group_concat::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_func_group_concat(thd, this);
+  return new (thd->mem_root) Item_func_group_concat(thd, this);
 }
 
 

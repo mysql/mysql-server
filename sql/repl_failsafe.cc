@@ -92,7 +92,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  thd->mem_root.free=thd->mem_root.used=0;	
+  thd->mem_root->free= thd->mem_root->used= 0;
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options|= OPTION_BIG_SELECTS;
 

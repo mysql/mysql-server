@@ -3297,7 +3297,7 @@ opt_distinct:
     |DISTINCT   { $$ = 1; };
 
 opt_gconcat_separator:
-    /* empty */        { $$ = new (&YYTHD->mem_root) String(",",1,default_charset_info); }
+    /* empty */        { $$ = new (YYTHD->mem_root) String(",",1,default_charset_info); }
     |SEPARATOR_SYM text_string  { $$ = $2; };
 
 
@@ -3551,15 +3551,15 @@ key_list_or_empty:
 key_usage_list2:
 	key_usage_list2 ',' ident
         { Select->
-	    interval_list.push_back(new (&YYTHD->mem_root) String((const char*) $3.str, $3.length,
+	    interval_list.push_back(new (YYTHD->mem_root) String((const char*) $3.str, $3.length,
 				    system_charset_info)); }
 	| ident
         { Select->
-	    interval_list.push_back(new (&YYTHD->mem_root) String((const char*) $1.str, $1.length,
+	    interval_list.push_back(new (YYTHD->mem_root) String((const char*) $1.str, $1.length,
 				    system_charset_info)); }
 	| PRIMARY_SYM
         { Select->
-	    interval_list.push_back(new (&YYTHD->mem_root) String("PRIMARY", 7,
+	    interval_list.push_back(new (YYTHD->mem_root) String("PRIMARY", 7,
 				    system_charset_info)); };
 
 using_list:
@@ -4507,7 +4507,7 @@ opt_db:
 wild:
 	/* empty */
 	| LIKE TEXT_STRING_sys
-	  { Lex->wild=  new (&YYTHD->mem_root) String($2.str, $2.length,
+	  { Lex->wild=  new (YYTHD->mem_root) String($2.str, $2.length,
                                                       system_charset_info); };
 
 opt_full:
@@ -4561,7 +4561,7 @@ opt_describe_column:
 	/* empty */	{}
 	| text_string	{ Lex->wild= $1; }
 	| ident
-	  { Lex->wild= new (&YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info); };
+	  { Lex->wild= new (YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info); };
 
 
 /* flush things */
@@ -4802,7 +4802,7 @@ text_literal:
 
 text_string:
 	TEXT_STRING_literal
-	{ $$=  new (&YYTHD->mem_root) String($1.str,$1.length,YYTHD->variables.collation_connection); }
+	{ $$=  new (YYTHD->mem_root) String($1.str,$1.length,YYTHD->variables.collation_connection); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -5821,7 +5821,7 @@ column_list:
 column_list_id:
 	ident
 	{
-	  String *new_str = new (&YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info);
+	  String *new_str = new (YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info);
 	  List_iterator <LEX_COLUMN> iter(Lex->columns);
 	  class LEX_COLUMN *point;
 	  LEX *lex=Lex;
