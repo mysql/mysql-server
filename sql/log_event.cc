@@ -1034,7 +1034,7 @@ int Query_log_event::write_data(IO_CACHE* file)
     int8store(start, sql_mode);
     start+= 8;
   }
-  if (catalog)
+  if (catalog_len >= 0) // i.e. "catalog inited" (false for 4.0 events)
   {
     *(start++)= Q_CATALOG_CODE;
     *(start++)= (uchar) catalog_len;
@@ -1119,7 +1119,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_log_event *description_event)
   :Log_event(buf, description_event), data_buf(0), query(NULL),
-   catalog(NULL), db(NULL), catalog_len(0), status_vars_len(0),
+   db(NULL), catalog_len(-1), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0)
 {
   ulong data_len;
@@ -1214,9 +1214,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
         not need (and want) to change start_dup (because this would cut the
         previously marked status vars).
       */
+      pos++;
       if (start_dup==end)
-        start_dup= ++pos;
-      pos+= catalog_len+1;
+        start_dup= pos;
+      pos+= catalog_len+1; // counting the end '\0'
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -1236,11 +1237,15 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   
   const char* tmp_buf= data_buf;
   /* Now set event's pointers to point to bits of the new string */
-  if (catalog_len)
+  if (catalog_len >= 0) // we have seen a catalog (zero-length or not)
   {
     catalog= tmp_buf;
     tmp_buf+= (uint) (end-start_dup); /* "seek" to db */
   }
+#ifndef DBUG_OFF
+  else
+    catalog= 0; // for DBUG_PRINT 
+#endif
   db= tmp_buf;
   query= tmp_buf + db_len + 1;
   q_len = data_buf + data_len - query;
@@ -1531,7 +1536,7 @@ end:
     TEMPORARY TABLE don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax).
   */
-  thd->db= 0;	                        // prevent db from being freed
+  thd->db= thd->catalog= 0;	        // prevent db from being freed
   thd->query= 0;			// just to be sure
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
