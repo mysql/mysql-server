@@ -26,6 +26,8 @@
 #include "mysql_priv.h"
 #include <stdarg.h>
 
+static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
+
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
 #else
@@ -687,7 +689,7 @@ bool Protocol_simple::store_null()
 #endif
   char buff[1];
   buff[0]= (char)251;
-  return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 #endif
 
@@ -990,7 +992,7 @@ bool Protocol_prep::store_tiny(longlong from)
   char buff[1];
   field_pos++;
   buff[0]= (uchar) from;
-  return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 
 
@@ -1002,7 +1004,7 @@ bool Protocol_prep::store_short(longlong from)
         field_types[field_pos] == MYSQL_TYPE_YEAR);
 #endif
   field_pos++;
-  char *to= packet->prep_append(2, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   int2store(to, (int) from);
@@ -1018,7 +1020,7 @@ bool Protocol_prep::store_long(longlong from)
 	      field_types[field_pos] == MYSQL_TYPE_LONG);
 #endif
   field_pos++;
-  char *to= packet->prep_append(4, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   int4store(to, from);
@@ -1033,7 +1035,7 @@ bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
 	      field_types[field_pos] == MYSQL_TYPE_LONGLONG);
 #endif
   field_pos++;
-  char *to= packet->prep_append(8, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   int8store(to, from);
@@ -1048,7 +1050,7 @@ bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
 	      field_types[field_pos] == MYSQL_TYPE_FLOAT);
 #endif
   field_pos++;
-  char *to= packet->prep_append(4, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   float4store(to, from);
@@ -1063,7 +1065,7 @@ bool Protocol_prep::store(double from, uint32 decimals, String *buffer)
 	      field_types[field_pos] == MYSQL_TYPE_DOUBLE);
 #endif
   field_pos++;
-  char *to= packet->prep_append(8, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   float8store(to, from);
@@ -1112,7 +1114,7 @@ bool Protocol_prep::store(TIME *tm)
   else
     length=0;
   buff[0]=(char) length;			// Length is stored first
-  return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, length+1, PACKET_BUFFER_EXTRA_ALLOC);
 }
 
 bool Protocol_prep::store_date(TIME *tm)
@@ -1129,7 +1131,7 @@ bool Protocol_prep::store_time(TIME *tm)
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_TIME);
 #endif
-  char buff[15],*pos;
+  char buff[13], *pos;
   uint length;
   field_pos++;
   pos= buff+1;
@@ -1140,13 +1142,13 @@ bool Protocol_prep::store_time(TIME *tm)
   pos[7]= (uchar) tm->second;
   int4store(pos+8, tm->second_part);
   if (tm->second_part)
-    length=11;
+    length=12;
   else if (tm->hour || tm->minute || tm->second || tm->day)
     length=8;
   else
     length=0;
   buff[0]=(char) length;			// Length is stored first
-  return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, length+1, PACKET_BUFFER_EXTRA_ALLOC);
 }
 
 #ifdef EMBEDDED_LIBRARY
