@@ -90,6 +90,8 @@ public:
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
   void setConnectionParameter(Parser_t::Context &ctx,
 			      const class Properties &args);
+  void getConnectionParameter(Parser_t::Context &ctx,
+			      Properties const &args);
 
   void listen_event(Parser_t::Context &ctx, const class Properties &args);
 
