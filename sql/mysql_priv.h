@@ -521,7 +521,7 @@ void sql_print_error(const char *format,...)
 extern uint32 server_id;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    max_sort_char, mysql_real_data_home[];
-extern my_string mysql_unix_port,mysql_tmpdir;
+extern my_string mysql_tmpdir;
 extern const char *first_keyword, *localhost, *delayed_user;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
 	     created_tmp_tables, created_tmp_disk_tables,
@@ -535,7 +535,7 @@ extern ulong filesort_merge_passes;
 extern ulong select_range_check_count, select_range_count, select_scan_count;
 extern ulong select_full_range_join_count,select_full_join_count,
 			 slave_open_temp_tables;
-extern uint test_flags,select_errors,mysql_port,ha_open_options;
+extern uint test_flags,select_errors,ha_open_options;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
 extern time_t start_time;
 extern const char *command_name[];

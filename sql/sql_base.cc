@@ -1944,7 +1944,6 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	// TODO: This could be optimized to use hashed names if t2 had a hash
 	for (j=0 ; j < t2->fields ; j++)
 	{
-	  key_map tmp_map;
 	  if (!my_strcasecmp(t1->field[i]->field_name,
 			     t2->field[j]->field_name))
 	  {

@@ -209,7 +209,6 @@ void Item_func::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
-
 String *Item_int_func::val_str(String *str)
 {
   longlong nr=val_int();

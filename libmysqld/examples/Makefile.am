@@ -26,7 +26,7 @@ LDADD =	$(top_builddir)/libmysqld/libmysqld.la \
 mysqltest_DEPENDENCIES = ../libmysqld.la
 mysqltest_SOURCES =	mysqltest.c
 
-mysql_SOURCES = mysql.cc readline.cc sql_string.cc completion_hash.cc \
+mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
                 my_readline.h sql_string.h completion_hash.h
 mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 

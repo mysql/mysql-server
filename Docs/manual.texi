@@ -770,9 +770,11 @@ databases that contain 50,000,000 records and we know of users that
 uses MySQL with 60,000 tables and about 5,000,000,000 rows
 
 @item
-All columns have default values.  You can use @code{INSERT} to insert a
-subset of a table's columns; those columns that are not explicitly given
-values are set to their default values.
+@cindex default values
+All columns have default values.
+You can use @code{INSERT} to insert a subset of a table's columns; those
+columns that are not explicitly given values are set to their default
+values.
 
 @item
 Uses GNU Automake, Autoconf, and Libtool for portability.
@@ -4705,7 +4707,6 @@ database. @xref{Privileges}.
 @item mSQL
 Has a file @file{mSQL.acl} in which you can grant read/write privileges for
 users.
-@item
 @end table
 
 
@@ -7906,8 +7907,11 @@ The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
 
 @item
-You will need GNU @code{autoconf}, @code{automake}, @code{libtool}, and
-@code{m4} to run the next set of commands.
+You will need GNU @code{autoconf 2.13}, @code{automake 1.4},
+@code{libtool}, and @code{m4} to run the next set of commands.
+Note that the new versions of @code{autoconf} (2.52) and @code{automake}
+(1.5) do not work.
+
 If you get some strange error during this stage, check that you really
 have @code{libtool} installed!
 
@@ -10018,7 +10022,7 @@ all other cases if the client has TCP/IP installed.  The host name specifies
 which protocol is used:
 
 @multitable @columnfractions .3 .7
-@strong{Host name} @tab @strong{Protocol}
+@item @strong{Host name} @tab @strong{Protocol}
 @item NULL (none) @tab  On NT, try named pipes first; if that doesn't work, use TCP/IP. On Win95/Win98, TCP/IP is used.
 @item . @tab Named pipes
 @item localhost @tab TCP/IP to current host
@@ -10804,6 +10808,7 @@ crash when @code{make} tries to run @code{lint} on C++ files.
 * OpenBSD 2.8::                 OpenBSD 2.8 Notes
 @end menu
 
+This section contains notes on OpenBSD.
 
 @node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, BSD Notes
 @subsubsection OpenBSD 2.5 Notes
@@ -10835,6 +10840,7 @@ usage, and crashes.
 * BSDI4::                       BSD/OS 4.x notes
 @end menu
 
+This section contains notes on BSD/OS.
 
 @node BSDI2, BSDI3, BSDI, BSD Notes
 @subsubsection BSD/OS Version 2.x Notes
@@ -14848,28 +14854,28 @@ servers:
 
 At least the following options should be different per server:
 
-@table @code
+@itemize
 @item port=#
 @item socket=path
 @item pid-file=path
-@end table
+@end itemize
 
 The following options should be different, if they are used:
 
-@table @code
+@itemize
 @item log=path
 @item log-bin=path
 @item log-update=path
 @item log-isam=path
 @item bdb-logdir=path
-@end table
+@end itemize
 
 If you want more performance, you can also specify the following differently:
 
-@table @code
+@itemize
 @item tmpdir=path
 @item bdb-tmpdir=path
-@end table
+@end itemize
 
 @xref{Command-line options}.
 
@@ -18622,11 +18628,11 @@ and the server, because the server does all the work when you use
 @code{myisamchk} also has a number of other options you can use to improve
 the performance of a table:
 
-@table @code
+@itemize
 @item -S, --sort-index
 @item -R index_num, --sort-records=index_num
 @item -a, --analyze
-@end table
+@end itemize
 
 For a full description of the option. @xref{myisamchk syntax}.
 
@@ -18707,7 +18713,7 @@ myisamchk -r --silent --sort-index  -O sort_buffer_size=16M */*.MYI
 To get a description of a table or statistics about it, use the commands shown
 below. We explain some of the information in more detail later:
 
-@table @code
+@itemize @bullet
 @item myisamchk -d tbl_name
 Runs @code{myisamchk} in ``describe mode'' to produce a description of
 your table. If you start the MySQL server using the
@@ -18726,7 +18732,7 @@ must read the whole table.
 
 @item myisamchk -eiv tbl_name
 This is like @code{-eis}, but tells you what is being done.
-@end table
+@end itemize
 
 @cindex examples, @code{myisamchk} output
 @cindex @code{myisamchk}, example output
@@ -18872,7 +18878,7 @@ Explanations for the types of information @code{myisamchk} produces are
 given below.  The ``keyfile'' is the index file.  ``Record'' and ``row''
 are synonymous:
 
-@table @code
+@itemize @bullet
 @item ISAM file
 Name of the ISAM (index) file.
 
@@ -18932,7 +18938,7 @@ Other possible values are @code{Compressed} and @code{Packed}.
 A list of all keys in the table. For each key, some low-level information
 is presented:
 
-@table @code
+@itemize @minus
 @item Key
 This key's number.
 
@@ -18966,7 +18972,7 @@ records there are per value for this key. A unique key always has a
 value of 1. This may be updated after a table is loaded (or greatly
 changed) with @code{myisamchk -a}. If this is not updated at all, a default
 value of 30 is given.
-@end table
+@end itemize
 
 @item
 In the first example above, the 9th key is a multi-part key with two parts.
@@ -19032,7 +19038,7 @@ the sum of all such losses, in bytes.
 When the dynamic table format is used, record fragments are linked with
 pointers (4 to 7 bytes each). @code{Linkdata} is the sum of the amount of
 storage used by all such pointers.
-@end table
+@end itemize
 
 If a table has been compressed with @code{myisampack}, @code{myisamchk
 -d} prints additional information about each table column.  See
@@ -19692,7 +19698,7 @@ indicates 16 megabytes.  The case of suffix letters does not matter;
 @code{16M} and @code{16m} are equivalent:
 
 @cindex variables, values
-@table @code
+@itemize
 @item @code{ansi_mode}.
 Is @code{ON} if @code{mysqld} was started with @code{--ansi}.
 @xref{ANSI mode}.
@@ -20122,7 +20128,7 @@ The version number for the server.
 @item @code{wait_timeout}
 The number of seconds the server waits for activity on a connection before
 closing it. See also @code{interactive_timeout}.
-@end table
+@end itemize
 
 The manual section that describes tuning MySQL contains some
 information of how to tune the above variables. @xref{Server parameters}.
@@ -20781,7 +20787,7 @@ Most of the options to @code{safe_mysqld} are the same as the options to
 
 @code{safe_mysqld} supports the following options:
 
-@table @code
+@itemize
 @item --basedir=path
 @item --core-file-size=#
 Size of the core file @code{mysqld} should be able to create. Passed to @code{ulimit -c}.
@@ -20808,7 +20814,7 @@ Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}
 @item --timezone=#
 Set the timezone (the @code{TZ}) variable to the value of this parameter.
 @item --user=#
-@end table
+@end itemize
 
 The @code{safe_mysqld} script is written so that it normally is able to start
 a server that was installed from either a source or a binary version of
@@ -20888,7 +20894,7 @@ list. Anything after a white space is ignored.
 
 @code{mysqld_multi} supports the following options:
 
-@table @code
+@itemize
 @cindex config-file option
 @item --config-file=...
 Alternative config file. NOTE: This will not affect this program's own
@@ -20933,7 +20939,7 @@ MySQL user for @code{mysqladmin}.
 @cindex version option
 @item --version
 Print the version number and exit.
-@end table
+@end itemize
 
 Some notes about @code{mysqld_multi}:
 
@@ -21106,7 +21112,7 @@ file.  It is permissible to omit the @file{.MYI} extension.
 
 @code{myisampack} supports the following options:
 
-@table @code
+@itemize @bullet
 @item -b, --backup
 Make a backup of the table as @code{tbl_name.OLD}.
 
@@ -21160,7 +21166,7 @@ Wait and retry if table is in use.  If the @code{mysqld} server was
 invoked with the @code{--skip-locking} option, it is not a good idea to
 invoke @code{myisampack} if the table might be updated during the
 packing process.
-@end table
+@end itemize
 
 @cindex examples, compressed tables
 The sequence of commands shown below illustrates a typical table compression
@@ -23752,10 +23758,9 @@ logs. In pre 3.23.26 versions the command was called
 is a comma-separated list of @code{master_def} where @code{master_def} is
 one of the following: @code{MASTER_HOST}, @code{MASTER_USER},
 @code{MASTER_PASSWORD}, @code{MASTER_PORT}, @code{MASTER_CONNECT_RETRY},
-@code{MASTER_LOG_FILE}, @code{MASTER_LOG_POS}. Example:
+@code{MASTER_LOG_FILE}, @code{MASTER_LOG_POS}. For example:
 
 @example
-
 CHANGE MASTER TO
   MASTER_HOST='master2.mycompany.com',
   MASTER_USER='replication',
@@ -23763,7 +23768,6 @@ CHANGE MASTER TO
   MASTER_PORT=3306,
   MASTER_LOG_FILE='master2-bin.001',
   MASTER_LOG_POS=4;
-
 @end example
 
 You only need to specify the values that need to be changed. The values that
@@ -24279,6 +24283,37 @@ takes more effort and hardware.
 We are also working on some extensions to solve this problem for some
 common application niches.
 
+MySQL can work with both transactional and not transactional tables.  To
+be able to work smoothly with not transactional tables (which can't
+rollback if something goes wrong), MySQL has the following rules:
+
+@cindex default values
+@itemize @bullet
+@item
+All columns has default values.
+@item
+If you insert a 'wrong' value in a column like a @code{NULL} in a
+@code{NOT NULL} column or a too big numerical value in a numerical
+column, MySQL will instead of giving an error instead set the column to
+the 'best possible value'.  For numerical values this is 0, the smallest
+possible values or the largest possible value. For strings this is
+either the empty string or the longest possible string that can be in
+the column.
+@item
+All calculated expressions returns a value that can be used instead of
+signaling an error condition. For example 1/0 returns @code{NULL}
+@end itemize
+
+The reason for the above rules is that we can't check these conditions
+before the query starts to execute.  If we encounter a problem after
+updating a few rows, we can't just rollback as the table type may not
+support this.  We can't stop because in that case the update would be
+'half done' which is probably the worst possible scenario.  In this case
+it's better to 'do the best you can' and then continue as if nothing
+happened.
+
+The above means that one should not use MySQL to check fields content,
+but one should do this in the application.
 
 @node Portability, Internal use, Design Limitations, Optimize Overview
 @subsection Portability
@@ -24441,7 +24476,7 @@ multi-threaded tests to the benchmark suite.
 For example, (run on the same NT 4.0 machine):
 
 @multitable @columnfractions .6 .2 .2
-@strong{Reading 2000000 rows by index} @tab @strong{Seconds} @tab @strong{Seconds}
+@item @strong{Reading 2000000 rows by index} @tab @strong{Seconds} @tab @strong{Seconds}
 @item mysql             @tab 367 @tab 249
 @item mysql_odbc	@tab 464
 @item db2_odbc		@tab 1206
@@ -24453,7 +24488,7 @@ For example, (run on the same NT 4.0 machine):
 @end multitable
 
 @multitable @columnfractions .6 .2 .2
-@strong{Inserting (350768) rows} @tab @strong{Seconds} @tab @strong{Seconds}
+@item @strong{Inserting (350768) rows} @tab @strong{Seconds} @tab @strong{Seconds}
 @item mysql		@tab 381 @tab 206
 @item mysql_odbc	@tab 619
 @item db2_odbc		@tab 3460
@@ -32551,11 +32586,18 @@ If you specify no column list for @code{INSERT ... VALUES} or @code{INSERT
 the columns in the table, use @code{DESCRIBE tbl_name} to find out.
 
 @item
+@cindex default values
 Any column not explicitly given a value is set to its default value.  For
 example, if you specify a column list that doesn't name all the columns in
 the table, unnamed columns are set to their default values.  Default value
 assignment is described in @ref{CREATE TABLE, , @code{CREATE TABLE}}.
 
+MySQL always has a default value for all fields. This is something
+that is imposed on MySQL to be able to work with both transactional
+and not transactional tables.
+
+Our view is that checking of fields content should be done in the
+application and not in the database server.
 @item
 An @code{expression} may refer to any column that was set earlier in a value
 list.  For example, you can say this:
@@ -33796,6 +33838,7 @@ as setting it to @code{NULL}, because @code{0} is a valid @code{TIMESTAMP}
 value.
 
 @item
+@cindex default values
 If no @code{DEFAULT} value is specified for a column, MySQL
 automatically assigns one.
 
@@ -41890,12 +41933,12 @@ You need to use the following functions when you want to create a
 threaded client. @xref{Threaded clients}.
 
 @menu
-* my_init()::                   @code{my_init()}
-* mysql_thread_init()::         @code{mysql_thread_init()}
-* mysql_thread_end()::          @code{mysql_thread_end()}
+* my_init::                       @code{my_init()}
+* mysql_thread_init::             @code{mysql_thread_init()}
+* mysql_thread_end::              @code{mysql_thread_end()}
 @end menu
 
-@node my_init(), mysql_thread_init(), C Thread functions, C Thread functions
+@node my_init, mysql_thread_init, C Thread functions, C Thread functions
 @subsubsection @code{my_init()}
 
 @findex @code{my_init()}
@@ -41914,7 +41957,7 @@ This is automatically called by @code{mysql_init()},
 
 none.
 
-@node mysql_thread_init(), mysql_thread_end(), my_init(), C Thread functions
+@node mysql_thread_init, mysql_thread_end, my_init, C Thread functions
 @subsubsection @code{mysql_thread_init()}
 
 @findex @code{mysql_thread_init()}
@@ -41930,7 +41973,7 @@ This is automatically called by @code{my_init()} and @code{mysql_connect()}.
 
 none.
 
-@node mysql_thread_end(),  , mysql_thread_init(), C Thread functions
+@node mysql_thread_end,  , mysql_thread_init, C Thread functions
 @subsubsection @code{mysql_thread_end()}
 
 @findex @code{mysql_thread_end()}
@@ -41960,11 +42003,11 @@ possible to choose between using the embedded MySQL server and
 a stand-alone server without modifying any code.
 
 @menu
-* mysql_server_init()::         
-* mysql_server_end()::          
+* mysql_server_init::           @code{mysql_server_init()}
+* mysql_server_end::            @code{mysql_server_end()}
 @end menu
 
-@node mysql_server_init(), mysql_server_end(), C Embedded Server func, C Embedded Server func
+@node mysql_server_init, mysql_server_end, C Embedded Server func, C Embedded Server func
 @subsubsection @code{mysql_server_init()}
 
 @findex @code{mysql_server_init()}
@@ -42025,7 +42068,7 @@ int main(void) @{
 
 0 if ok, 1 if an error occurred.
 
-@node mysql_server_end(),  , mysql_server_init(), C Embedded Server func
+@node mysql_server_end,  , mysql_server_init, C Embedded Server func
 @subsubsection @code{mysql_server_end()}
 
 @findex @code{mysql_server_end()}
@@ -46163,7 +46206,7 @@ With source code. By Matthias Fichtner.
 A library to use MySQL with Delphi}.
 
 @item @uref{http://www.geocities.com/CapeCanaveral/2064/mysql.html, Delphi TDataset-component}.
-@item
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/Win32/SBMySQL50Share.exe, Delphi 5 Shareware MySQL Dataset Components}
 @end itemize
 
@@ -47552,26 +47595,27 @@ not yet 100% confident in this code.
 Fixed a bug in @code{INSERT DELAYED} and @code{FLUSH TABLES} introduced
 in 3.23.42.
 @item
-Fixed unlikely bug, which returned not matching rows, in SELECT with
+Fixed unlikely bug, which returned non-matching rows, in @code{SELECT} with
 many tables and multi-column indexes and 'range' type.
 @item
-Fixed a unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
+Fixed an unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
 many tables and @code{ORDER BY}.
 @item
 Fixed bug in @code{LOAD DATA FROM MASTER} when using table with
 @code{CHECKSUM=1}.
 @item
 Added unique error message when one gets a DEADLOCK during a transaction with
-BDB tables.
+@code{BDB} tables.
 @item
 Fixed problem with @code{BDB} tables and @code{UNIQUE} columns defined
 as @code{NULL}.
 @item
-Fixed problem with @code{myisampack} when using pre-space filled CHAR columns.
+Fixed problem with @code{myisampack} when using pre-space filled @code{CHAR}
+columns.
 @item
 Applied patch from Yuri Dario for OS2.
 @item
-Fixed bug in @code{--safe-user-create}
+Fixed bug in @code{--safe-user-create}.
 @end itemize
 
 @node News-3.23.42, News-3.23.41, News-3.23.43, News-3.23.x
@@ -49889,10 +49933,10 @@ Fix storage of floating-point values in @code{TIME} columns.
 Changed parsing of @code{TIME} strings to be more strict.  Now the
 fractional second part is detected (and currently skipped). The
 following formats are supported:
-@table @code
+@itemize
 @item [[DAYS] [H]H:]MM:]SS[.fraction]
 @item [[[[[H]H]H]H]MM]SS[.fraction]
-@end table
+@end itemize
 @item
 Detect (and ignore) second fraction part from @code{DATETIME}.
 @item
@@ -53361,7 +53405,7 @@ in the @code{mysql} mail archive, you should report the bug to
 online at the @uref{http://www.mysql.com/documentation/, MySQL
 documentation page}.
 
-If you have started @code{mysqld} with @code{--with-myisam-recover},
+If you have started @code{mysqld} with @code{myisam-recover},
 MySQL will automatically check and try to repair @code{MyISAM}
 tables if they are marked as 'not closed properly' or 'crashed'.  If
 this happens, MySQL will write an entry in the
@@ -53800,7 +53844,7 @@ really ``thread aware''.
 
 
 @node Environment variables, Regexp, Porting, Top
-@appendix  Environment Variables
+@appendix Environment Variables
 
 @cindex environment variables, list of
 

@@ -309,7 +309,6 @@ bool multi_delete::send_data(List<Item> &values)
       continue;
 
     table->file->position(table->record[0]);
-    int rl = table->file->ref_length;
     
     if (secure_counter < 0)
     {
@@ -397,7 +396,6 @@ int multi_delete::do_deletes (bool from_send_error)
        table_being_deleted=table_being_deleted->next, counter++)
   { 
     TABLE *table = table_being_deleted->table;
-    int rl = table->file->ref_length;
     if (tempfiles[counter]->get(table))
     {
       error=1;
