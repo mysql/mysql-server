@@ -1479,6 +1479,69 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
+  static int tuplst[] = { 4007, 4008, 4009, 4010, 4011, 4012 };
+  static int tuxlst[] = { 12001, 12002, 12003, 12004, 12005, 12006 };
+  static unsigned tupcnt = sizeof(tuplst)/sizeof(tuplst[0]);
+  static unsigned tuxcnt = sizeof(tuxlst)/sizeof(tuxlst[0]);
+
+  NdbRestarter restarter;
+  int nodeId = restarter.getMasterNodeId();
+  Ndb* pNdb = GETNDB(step);  
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  NdbDictionary::Table tab(*ctx->getTab());
+  tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
+
+  // ordered index on first few columns
+  NdbDictionary::Index idx("X");
+  idx.setTable(tab.getName());
+  idx.setType(NdbDictionary::Index::OrderedIndex);
+  idx.setLogging(false);
+  for (int i_hate_broken_compilers = 0;
+       i_hate_broken_compilers < 3 &&
+       i_hate_broken_compilers < tab.getNoOfColumns();
+       i_hate_broken_compilers++) {
+    idx.addColumn(*tab.getColumn(i_hate_broken_compilers));
+  }
+
+  const int loops = ctx->getNumLoops();
+  int result = NDBT_OK;
+  (void)pDic->dropTable(tab.getName());
+
+  for (int l = 0; l < loops; l++) {
+    for (unsigned i = 0; i < tupcnt; i++) {
+      unsigned j = (l == 0 ? i : myRandom48(tupcnt));
+      int errval = tuplst[j];
+      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
+             "failed to set error insert");
+      CHECK2(pDic->createTable(tab) != 0,
+             "failed to fail after error insert " << errval);
+      CHECK2(pDic->createTable(tab) == 0,
+             pDic->getNdbError());
+      CHECK2(pDic->dropTable(tab.getName()) == 0,
+             pDic->getNdbError());
+    }
+    for (unsigned i = 0; i < tuxcnt; i++) {
+      unsigned j = (l == 0 ? i : myRandom48(tuxcnt));
+      int errval = tuxlst[j];
+      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
+             "failed to set error insert");
+      CHECK2(pDic->createTable(tab) == 0,
+             pDic->getNdbError());
+      CHECK2(pDic->createIndex(idx) != 0,
+             "failed to fail after error insert " << errval);
+      CHECK2(pDic->createIndex(idx) == 0,
+             pDic->getNdbError());
+      CHECK2(pDic->dropTable(tab.getName()) == 0,
+             pDic->getNdbError());
+    }
+  }
+end:
+  return result;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("CreateAndDrop", 
 	 "Try to create and drop the table loop number of times\n"){
@@ -1573,6 +1636,10 @@ TESTCASE("TableRenameSR",
 TESTCASE("DictionaryPerf",
 	 ""){
   INITIALIZER(runTestDictionaryPerf);
+}
+TESTCASE("FailAddFragment",
+         "Fail add fragment or attribute in TUP or TUX\n"){
+  INITIALIZER(runFailAddFragment);
 }
 NDBT_TESTSUITE_END(testDict);
 

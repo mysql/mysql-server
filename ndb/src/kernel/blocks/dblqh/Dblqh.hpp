@@ -2474,7 +2474,7 @@ private:
   void sendExecFragRefLab(Signal* signal);
   void fragrefLab(Signal* signal, BlockReference retRef,
                   Uint32 retPtr, Uint32 errorCode);
-  void accFragRefLab(Signal* signal);
+  void abortAddFragOps(Signal* signal);
   void rwConcludedLab(Signal* signal);
   void sendsttorryLab(Signal* signal);
   void initialiseRecordsLab(Signal* signal, Uint32 data, Uint32, Uint32);

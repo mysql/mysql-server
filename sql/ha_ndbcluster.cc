@@ -2144,22 +2144,19 @@ void ha_ndbcluster::print_results()
     }
     case NdbDictionary::Column::Decimal: {
       char *value= field->ptr;
-
       fprintf(DBUG_FILE, "Decimal\t'%-*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Char:{
-      char buf[field->pack_length()+1];
-      char *value= (char *) field->ptr;
-      snprintf(buf, field->pack_length(), "%s", value);
-      fprintf(DBUG_FILE, "Char\t'%s'", buf);
+      const char *value= (char *) field->ptr;
+      fprintf(DBUG_FILE, "Char\t'%.*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Varchar:
     case NdbDictionary::Column::Binary:
     case NdbDictionary::Column::Varbinary: {
-      char *value= (char *) field->ptr;
-      fprintf(DBUG_FILE, "'%s'", value);
+      const char *value= (char *) field->ptr;
+      fprintf(DBUG_FILE, "Var\t'%.*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Datetime: {
