@@ -475,14 +475,14 @@ struct CreateEvntRef {
   }
 };
 inline bool CreateEvntRef::isTemporary() const
-{ return (errorCode &  CreateEvntRef::Temporary) > 0; };
+{ return (errorCode &  CreateEvntRef::Temporary) > 0; }
 inline void CreateEvntRef::setTemporary()
-{ errorCode |=  CreateEvntRef::Temporary; };
+{ errorCode |=  CreateEvntRef::Temporary; }
 inline CreateEvntRef::ErrorCode CreateEvntRef::setTemporary(ErrorCode ec)
 { return (CreateEvntRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)CreateEvntRef::Temporary)); };
+    (errorCode = ((Uint32) ec | (Uint32)CreateEvntRef::Temporary)); }
 inline CreateEvntRef::ErrorCode CreateEvntRef::makeTemporary(ErrorCode ec)
 { return (CreateEvntRef::ErrorCode) 
-    ( (Uint32) ec | (Uint32)CreateEvntRef::Temporary ); };
+    ( (Uint32) ec | (Uint32)CreateEvntRef::Temporary ); }
 
 #endif
