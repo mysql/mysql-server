@@ -1,0 +1,43 @@
+#
+# Test of replicating user variables
+#
+source include/master-slave.inc;
+
+#save_master_pos;
+#connection slave;
+#sync_with_master;
+#reset master;
+#connection master;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(n char(30));
+
+prepare stmt1 from 'insert into t1 values (?)';
+set @var1= "from-master-1";
+execute stmt1 using @var1;
+set @var1= "from-master-2-'',";
+execute stmt1 using @var1;
+select * from t1;
+
+set @var2= 'insert into t1 values (concat("from-var-", ?))';
+prepare stmt2 from @var2;
+set @var1='from-master-3';
+execute stmt2 using @var1;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+
+connection master;
+
+drop table t1;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+stop slave;
+
