@@ -191,7 +191,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db ? table->db : thd->db;
-    mysql_ha_closeall(thd, table, 1);
+    mysql_ha_closeall(thd, table);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -461,9 +461,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     if (!sql_field->charset)
       sql_field->charset = create_info->table_charset ?
-			   create_info->table_charset : 
-			   thd->db_charset? thd->db_charset :
-			   default_charset_info;
+			   create_info->table_charset : thd->db_charset;
     
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:
@@ -705,14 +703,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	{
           if (key->type == Key::FULLTEXT)
             column->length=1; /* ft-code ignores it anyway :-) */
-          else if (key->type == Key::SPATIAL)
-          {
-            /* 
-               BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
-               Lately we'll extend this code to support more dimensions 
-            */
-            column->length=4*sizeof(double);
-          }
           else
           {
             my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
@@ -720,6 +710,17 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
                             column->field_name);
             DBUG_RETURN(-1);
           }
+	}
+      }
+      if (key->type  == Key::SPATIAL)
+      {
+	if (!column->length )
+	{
+	  /* 
+          BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
+               Lately we'll extend this code to support more dimensions 
+          */
+          column->length=4*sizeof(double);
 	}
       }
       if (!(sql_field->flags & NOT_NULL_FLAG))
@@ -756,6 +757,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	    my_error(ER_WRONG_SUB_KEY,MYF(0));
 	    DBUG_RETURN(-1);
 	  }
+	}
+	else if (f_is_geom(sql_field->pack_flag))
+	{
 	}
 	else if (column->length > length ||
 		 ((f_is_packed(sql_field->pack_flag) || 

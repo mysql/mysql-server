@@ -1,5 +1,22 @@
 source include/master-slave.inc;
 
+# Clean up old slave's binlogs.
+# The slave is started with --log-slave-updates
+# and this test does SHOW BINLOG EVENTS on the slave's
+# binlog. But previous tests can influence the current test's
+# binlog (e.g. a temporary table in the previous test has not
+# been explicitly deleted, or it has but the slave hasn't had
+# enough time to catch it before STOP SLAVE, 
+# and at the beginning of the current
+# test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
+# We wait for the slave to have written all he wants to the binlog
+# (otherwise RESET MASTER may come too early).
+save_master_pos;
+connection slave;
+sync_with_master;
+reset master;
+connection master;
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 

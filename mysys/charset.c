@@ -215,6 +215,7 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 					     MYF(MY_WME));
     create_fromuni(to);
   }
+  to->mbmaxlen= 1;
 }
 
 

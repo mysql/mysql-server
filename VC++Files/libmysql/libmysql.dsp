@@ -139,6 +139,10 @@ SOURCE="..\strings\ctype-euc_kr.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-extra.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-gb2312.c"
 # End Source File
 # Begin Source File
@@ -147,7 +151,15 @@ SOURCE="..\strings\ctype-gbk.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-latin1.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-latin1_de.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-mb.c"
 # End Source File
 # Begin Source File
 
@@ -260,7 +272,6 @@ SOURCE=..\mysys\my_alloc.c
 # Begin Source File
 
 SOURCE=..\mysys\my_compress.c
-# ADD CPP /I "../zlib"
 # End Source File
 # Begin Source File
 
@@ -360,7 +371,7 @@ SOURCE=..\mysys\my_thr_init.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\mysys\my_vsnprintf.c
+SOURCE=..\strings\my_vsnprintf.c
 # End Source File
 # Begin Source File
 
@@ -477,6 +488,10 @@ SOURCE=..\vio\viossl.c
 # Begin Source File
 
 SOURCE=..\vio\viosslfactories.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\xml.c
 # End Source File
 # End Target
 # End Project

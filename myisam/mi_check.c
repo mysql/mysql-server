@@ -1893,6 +1893,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   {
     sort_param.read_cache=param->read_cache;
     sort_param.keyinfo=share->keyinfo+sort_param.key;
+    sort_param.seg=sort_param.keyinfo->seg;
     if (!(((ulonglong) 1 << sort_param.key) & key_map))
     {
       /* Remember old statistics for key */
@@ -1906,7 +1907,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     if ((!(param->testflag & T_SILENT)))
       printf ("- Fixing index %d\n",sort_param.key+1);
     sort_param.max_pos=sort_param.pos=share->pack.header_length;
-    keyseg=sort_param.keyinfo->seg;
+    keyseg=sort_param.seg;
     bzero((char*) sort_param.unique,sizeof(sort_param.unique));
     sort_param.key_length=share->rec_reflength;
     for (i=0 ; keyseg[i].type != HA_KEYTYPE_END; i++)
@@ -2255,6 +2256,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   {
     sort_param[i].key=key;
     sort_param[i].keyinfo=share->keyinfo+key;
+    sort_param[i].seg=sort_param[i].keyinfo->seg;
     if (!(((ulonglong) 1 << key) & key_map))
     {
       /* Remember old statistics for key */
@@ -2292,7 +2294,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			   (share->base.pack_reclength * i));
 
     sort_param[i].key_length=share->rec_reflength;
-    for (keyseg=sort_param[i].keyinfo->seg; keyseg->type != HA_KEYTYPE_END;
+    for (keyseg=sort_param[i].seg; keyseg->type != HA_KEYTYPE_END;
 	 keyseg++)
     {
       sort_param[i].key_length+=keyseg->length;
@@ -3051,7 +3053,7 @@ static int sort_key_cmp(MI_SORT_PARAM *sort_param, const void *a,
 			const void *b)
 {
   uint not_used;
-  return (ha_key_cmp(sort_param->keyinfo->seg, *((uchar**) a), *((uchar**) b),
+  return (ha_key_cmp(sort_param->seg, *((uchar**) a), *((uchar**) b),
 		     USE_WHOLE_KEY, SEARCH_SAME,&not_used));
 } /* sort_key_cmp */
 
@@ -3066,7 +3068,7 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
 
   if (sort_info->key_block->inited)
   {
-    cmp=ha_key_cmp(sort_param->keyinfo->seg,sort_info->key_block->lastkey,
+    cmp=ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
 		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
 		   &diff_pos);
     sort_param->unique[diff_pos-1]++;
@@ -3091,7 +3093,7 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
 				 llbuff2));
     param->testflag|=T_RETRY_WITHOUT_QUICK;
     if (sort_info->param->testflag & T_VERBOSE)
-      _mi_print_key(stdout,sort_param->keyinfo->seg,(uchar*) a, USE_WHOLE_KEY);
+      _mi_print_key(stdout,sort_param->seg,(uchar*) a, USE_WHOLE_KEY);
     return (sort_delete_record(sort_param));
   }
 #ifndef DBUG_OFF
@@ -3182,7 +3184,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
   get_key_full_length_rdonly(val_off, ft_buf->lastkey);
 
   if (val_off == a_len &&
-      mi_compare_text(sort_param->keyinfo->seg->charset,
+      mi_compare_text(sort_param->seg->charset,
                       ((uchar *)a)+1,a_len-1,
                       ft_buf->lastkey+1,val_off-1, 0)==0)
   {

@@ -1059,7 +1059,9 @@ bool do_command(THD *thd)
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
+#ifndef EMBEDDED_LIBRARY
   int res;
+#endif
   NET *net= &thd->net;
   bool error= 0;
   /*

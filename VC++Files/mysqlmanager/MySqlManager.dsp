@@ -101,7 +101,31 @@ SOURCE=.\ChildFrm.cpp
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-extra.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-latin1.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-mb.c"
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\is_prefix.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\MainFrm.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_sleep.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\my_vsnprintf.c
 # End Source File
 # Begin Source File
 

@@ -66,7 +66,7 @@ TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
 #define closesocket(A) close(A)
 #endif
 
-void STDCALL mysql_once_init(void);
+void mysql_once_init(void);
 static void end_server(MYSQL *mysql);
 static void append_wild(char *to,char *end,const char *wild);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
@@ -386,7 +386,7 @@ mysql_init(MYSQL *mysql)
 }
 
 
-void STDCALL mysql_once_init()
+void mysql_once_init()
 {
   if (!mysql_client_init)
   {
@@ -1038,11 +1038,10 @@ mysql_list_fields(MYSQL *mysql __attribute__((unused)), const char *table __attr
 }
 
 /* List all running processes (threads) in server */
-#ifdef DUMMY
-
 MYSQL_RES * STDCALL
 mysql_list_processes(MYSQL *mysql)
 {
+#ifdef DUMMY
   MYSQL_DATA *fields;
   uint field_count;
   uchar *pos;
@@ -1063,9 +1062,9 @@ mysql_list_processes(MYSQL *mysql)
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
   DBUG_RETURN(mysql_store_result(mysql));
-  return (MYSQL_RES*)mysql;
-}
 #endif /*DUMMY*/
+  return 0;
+}
 
 
 int  STDCALL

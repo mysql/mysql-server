@@ -355,10 +355,6 @@ class select_result;
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
 
-#ifdef EMBEDDED_LIBRARY
-typedef struct st_mysql;
-#endif
-
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
 struct system_variables

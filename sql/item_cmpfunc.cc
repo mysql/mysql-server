@@ -841,6 +841,7 @@ Item *Item_func_case::find_item(String *str)
         return args[i+1];
       break;
     case ROW_RESULT:
+    default:
       // This case should never be choosen
       DBUG_ASSERT(0);
       break;
@@ -1224,6 +1225,9 @@ cmp_item* cmp_item::get_comparator(Item *item)
   case ROW_RESULT:
     return new cmp_item_row;
     break;
+  default:
+    DBUG_ASSERT(0);
+    break;
   }
   return 0; // to satisfy compiler :)
 }
@@ -1366,6 +1370,9 @@ void Item_func_in::fix_length_and_dec()
     case ROW_RESULT:
       array= new in_row(arg_count, item);
       break;
+    default:
+      DBUG_ASSERT(0);
+      return;
     }
     uint j=0;
     for (uint i=0 ; i < arg_count ; i++)

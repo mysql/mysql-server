@@ -53,7 +53,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
   int res;
   uchar *page_buf;
   int k_len;
-  int *saved_key = (int*)(info->rtree_recursion_state + level * sizeof(int));
+  uint *saved_key = (uint*) (info->rtree_recursion_state) + level;
   
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
   {
@@ -114,8 +114,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
         uchar *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
         info->lastpos = _mi_dpos(info, 0, after_key);
         info->lastkey_length = k_len + info->s->base.rec_reflength;
-        memcpy(info->lastkey, k, k_len + info->s->base.rec_reflength);
-
+        memcpy(info->lastkey, k, info->lastkey_length);
         info->rtree_recursion_depth = level;
         *saved_key = k - page_buf;
 
@@ -125,6 +124,10 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
           memcpy(info->buff, page_buf, keyinfo->block_length);
           info->int_maxpos = rt_PAGE_END(info->buff);
           info->buff_used = 0;
+        }
+        else
+        {
+	  info->buff_used = 1;
         }
 
         res = 0;
@@ -205,7 +208,7 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
 
         info->lastpos = _mi_dpos(info, 0, after_key);
         info->lastkey_length = k_len + info->s->base.rec_reflength;
-        memcpy(info->lastkey, key, k_len + info->s->base.rec_reflength);
+        memcpy(info->lastkey, key, info->lastkey_length);
 
         *(int*)info->int_keypos = key - info->buff;
         if (after_key >= info->int_maxpos)
@@ -246,7 +249,7 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
   int res;
   uchar *page_buf;
   uint k_len;
-  int *saved_key = (int*)(info->rtree_recursion_state + level*sizeof(int));
+  uint *saved_key = (uint*) (info->rtree_recursion_state) + level;
   
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
     return -1;
@@ -297,7 +300,7 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
       uchar *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
       info->lastpos = _mi_dpos(info, 0, after_key);
       info->lastkey_length = k_len + info->s->base.rec_reflength;
-      memcpy(info->lastkey, k, k_len + info->s->base.rec_reflength);
+      memcpy(info->lastkey, k, info->lastkey_length);
 
       info->rtree_recursion_depth = level;
       *saved_key = k - page_buf;
@@ -308,6 +311,10 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
         memcpy(info->buff, page_buf, keyinfo->block_length);
         info->int_maxpos = rt_PAGE_END(info->buff);
         info->buff_used = 0;
+      }
+      else
+      {
+	info->buff_used = 1;
       }
 
       res = 0;
@@ -785,7 +792,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           goto err1;
       }
       if (ReinsertList.pages)
-        free(ReinsertList.pages);
+        my_free((byte*) ReinsertList.pages, MYF(0));
 
       /* check for redundant root (not leaf, 1 child) and eliminate */
       if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)

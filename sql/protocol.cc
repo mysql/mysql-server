@@ -55,8 +55,10 @@ inline bool Protocol::convert_str(const char *from, uint length)
 
 void send_error(THD *thd, uint sql_errno, const char *err)
 {
+#ifndef EMBEDDED_LIBRARY 
   uint length;
   char buff[MYSQL_ERRMSG_SIZE+2];
+#endif
   NET *net= &thd->net;
   DBUG_ENTER("send_error");
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno,

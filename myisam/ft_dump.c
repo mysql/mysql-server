@@ -124,13 +124,9 @@ int main(int argc,char *argv[])
     {
       keylen=*(info->lastkey);
 
-#if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-      subkeys=mi_sint4korr(info->lastkey+keylen+1);
+      subkeys=ft_sintXkorr(info->lastkey+keylen+1);
       if (subkeys >= 0)
         weight=*(float*)&subkeys;
-#else
-#error
-#endif
 
       snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
       my_casedn_str(default_charset_info,buf);

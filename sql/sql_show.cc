@@ -1664,7 +1664,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
             pos= "Unknown";
 	    break;
 	}
-	pos= strend(pos);
+	end= strend(pos);
         break;
 	/* First group - functions relying on SSL */
       case SHOW_SSL_GET_VERSION:

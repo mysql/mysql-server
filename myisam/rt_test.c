@@ -55,7 +55,7 @@ int run_test(const char *filename)
   int key_type=HA_KEYTYPE_DOUBLE;
   int key_length=8;
   int null_fields=0;
-  int nrecords=30;
+  int nrecords=300;
   int rec_length=0;
   int uniques=0;
   int i;

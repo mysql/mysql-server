@@ -984,9 +984,12 @@ static void dumpTable(uint numFields, char *table)
 {
   char query[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
   MYSQL_RES	*res;
-  MYSQL_FIELD  *field;
-  MYSQL_ROW    row;
+  MYSQL_FIELD	*field;
+  MYSQL_ROW	row;
   ulong		rownr, row_break, total_length, init_length;
+#if defined(__NETWARE__) && defined(THREAD)
+  uint		lines= 0;
+#endif
 
   if (verbose)
     fprintf(stderr, "-- Sending SELECT query...\n");
@@ -1216,6 +1219,11 @@ static void dumpTable(uint numFields, char *table)
       }
       else if (!opt_xml)
 	fputs(");\n", md_result_file);
+#if defined(__NETWARE__) && defined(THREAD)
+      /* on a long result the screen could hog the cpu */
+      if ((lines++ & 1023) == 0)
+	pthread_yield();
+#endif
     }
 
     /* XML - close table tag and supress regular output */

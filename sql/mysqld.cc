@@ -192,7 +192,6 @@ static char szPipeName [ 257 ];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
-static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
 static pthread_cond_t COND_handler_count;
@@ -502,9 +501,11 @@ static bool read_init_file(char *file_name);
 #ifdef __NT__
 extern "C" pthread_handler_decl(handle_connections_namedpipes,arg);
 #endif
+#if !defined(EMBEDDED_LIBRARY)
 #ifdef HAVE_SMEM
 static pthread_handler_decl(handle_connections_shared_memory,arg);
 #endif
+#endif /* EMBEDDED_LIBRARY */
 extern "C" pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
@@ -782,7 +783,7 @@ void kill_mysql(void)
 
 #if defined(OS2) || defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_RETURN
+#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
 #elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
 #define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
@@ -799,9 +800,6 @@ static void __cdecl kill_server(int sig_ptr)
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
-#ifdef __NETWARE__
-  ActivateScreen(getscreenhandle());		// Show the screen going down
-#endif
   signal(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_error(ER(ER_NORMAL_SHUTDOWN),my_progname);
@@ -1263,7 +1261,8 @@ void yyerror(const char *s)
 {
   THD *thd=current_thd;
   char *yytext=(char*) thd->lex.tok_start;
-  if (!strcmp(s,"parse error"))
+  /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
+  if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s=ER(ER_SYNTAX_ERROR);
   net_printf(thd,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
 	     thd->lex.yylineno);
@@ -1427,7 +1426,6 @@ static void check_data_home(const char *path)
 // down server event callback
 void mysql_down_server_cb(void *, void *)
 {
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);   // auto close the screen
   kill_server(0);
 }
 
@@ -1483,26 +1481,6 @@ static void start_signal_handler(void)
 
 static void check_data_home(const char *path)
 {
-  struct volume_info vol;
-  char buff[PATH_MAX], *pos;
-
-  bzero((char*) &vol, sizeof(vol));    // clear struct
-
-  // find volume name
-  if ((pos= strchr(path, ':')))
-  {
-    uint length= (uint) (pos-path);
-    strmake(buff, path, min(length, sizeof(buff)-1));
-  }
-  else
-    strmov(buff, "SYS");     // assume SYS volume
-
-  netware_vol_info_from_name(&vol, buff);    // retrieve information
-  if ((vol.flags & VOL_NSS_PRESENT) == 0)
-  {
-    sql_print_error("Error: %s is not on an NSS volume!", path);
-    unireg_abort(-1);
-  }
 }
 
 #elif defined(__EMX__)
@@ -2019,11 +1997,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   max_system_variables.pseudo_thread_id= (ulong)~0;
   start_time=time((time_t*) 0);
 
-#ifdef __NETWARE__
-  printf("MySQL Server %s, for %s (%s)\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-  fflush(stdout);
-#endif /* __NETWARE__ */
-
 #ifdef OS2
   {
     // fix timezone for daylight saving
@@ -2270,6 +2243,7 @@ static void create_maintenance_thread()
 
 static void create_shutdown_thread()
 {
+#if !defined(EMBEDDED_LIBRARY)
 #ifdef __WIN__
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
@@ -2285,6 +2259,7 @@ static void create_shutdown_thread()
   if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
     sql_print_error("Warning: Can't create thread to handle shutdown requests");
 #endif
+#endif // EMBEDDED_LIBRARY 
 }
 
 
@@ -2328,6 +2303,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
+#if !defined(EMBEDDED_LIBRARY)
 #ifdef HAVE_SMEM
   if (opt_enable_shared_memory)
   {
@@ -2339,7 +2315,8 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif
+#endif 
+#endif // EMBEDDED_LIBRARY
 
   while (handler_count > 0)
     pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
@@ -2704,11 +2681,10 @@ int main(int argc, char **argv)
 
 static int bootstrap(FILE *file)
 {
-  THD *thd;
   int error= 0;
   DBUG_ENTER("bootstrap");
 #ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
-  thd= new THD;
+  THD *thd= new THD;
   thd->bootstrap=1;
   thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
@@ -2849,7 +2825,11 @@ inline void kill_broken_server()
       (!opt_disable_networking && ip_sock == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
+#ifdef __NETWARE__
+    kill_server(MYSQL_KILL_SIGNAL); /* never returns */
+#else
     kill_server((void*)MYSQL_KILL_SIGNAL); /* never returns */
+#endif /* __NETWARE__ */
   }
 }
 #define MAYBE_BROKEN_SYSCALL kill_broken_server();
@@ -3487,7 +3467,6 @@ enum options
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
   OPT_ERROR_LOG_FILE,
-  OPT_AUTOCLOSE,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS
@@ -3500,9 +3479,6 @@ struct my_option my_long_options[] =
 {
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTOCLOSE, "Auto close screen. (NetWare only)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif /* __NETWARE__ */
   {"basedir", 'b',
    "Path to installation directory. All paths are usually resolved relative to this.",
    (gptr*) &mysql_home_ptr, (gptr*) &mysql_home_ptr, 0, GET_STR, REQUIRED_ARG,
@@ -4890,11 +4866,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (opt_console)
       opt_error_log= 0;			// Force logs to stdout
     break;
-#ifdef __NETWARE__
-  case (int) OPT_AUTOCLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case (int) OPT_FLUSH:
 #ifdef HAVE_ISAM
     nisam_flush=1;

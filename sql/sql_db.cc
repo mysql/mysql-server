@@ -60,9 +60,9 @@ static bool write_db_opt(const char *path, HA_CREATE_INFO *create)
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     ulong length;
-    length= my_sprintf(buf,(buf, "default-character-set=%s\n",
-			    (create && create->table_charset) ? 
-			    create->table_charset->name : "DEFAULT"));
+    CHARSET_INFO *cs= (create && create->table_charset) ? 
+		     create->table_charset : default_charset_info;
+    length= my_sprintf(buf,(buf, "default-character-set=%s\n", cs->name));
 
     /* Error is written by my_write */
     if (!my_write(file,(byte*) buf, length, MYF(MY_NABP+MY_WME)))
@@ -98,6 +98,7 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
   uint nbytes;
 
   bzero((char*) create,sizeof(*create));
+  create->table_charset= default_charset_info;
   if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
   {
     IO_CACHE cache;
@@ -278,7 +279,8 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   */
   if (thd->db && !strcmp(thd->db,db))
   {
-    thd->db_charset= create_info ? create_info->table_charset : NULL;
+    thd->db_charset= (create_info && create_info->table_charset) ?
+		     create_info->table_charset : default_charset_info;
   }
 
   mysql_update_log.write(thd,thd->query, thd->query_length);
@@ -599,7 +601,7 @@ bool mysql_change_db(THD *thd, const char *name)
 
   strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
   load_db_opt(path, &create);
-  thd->db_charset=create.table_charset;
+  thd->db_charset= create.table_charset ? create.table_charset : default_charset_info;
   thd->variables.thd_charset=thd->db_charset ? thd->db_charset : default_charset_info;
   DBUG_RETURN(0);
 }
