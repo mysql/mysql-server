@@ -1237,11 +1237,11 @@ alter_list_item:
 	    lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0));
 	    lex->simple_alter=0;
 	  }
-	| RENAME opt_to table_alias table_ident
+	| RENAME opt_to table_ident
 	  { 
 	    LEX *lex=Lex;
-	    lex->select->db=$4->db.str;
-	    lex->name= $4->table.str;
+	    lex->select->db=$3->db.str;
+	    lex->name= $3->table.str;
 	    lex->simple_alter=0; 
 	  }
         | create_table_options { Lex->simple_alter=0; }
@@ -1268,6 +1268,7 @@ opt_place:
 opt_to:
 	/* empty */	{}
 	| TO_SYM	{}
+	| EQ		{}
 	| AS		{};
 
 slave:
