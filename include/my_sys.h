@@ -179,11 +179,12 @@ extern void free_charsets(void);
 extern char *list_charsets(myf want_flags); /* my_free() this string... */
 
 
-/* statisticts */
+/* statistics */
 extern ulong	_my_cache_w_requests,_my_cache_write,_my_cache_r_requests,
 		_my_cache_read;
 extern ulong	 _my_blocks_used,_my_blocks_changed;
 extern uint	my_file_opened,my_stream_opened;
+extern my_bool	key_cache_inited;
 
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),

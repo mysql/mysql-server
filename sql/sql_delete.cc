@@ -89,9 +89,12 @@ static int generate_table(THD *thd, TABLE_LIST *table_list,
   if (!error)
   {
     send_ok(&thd->net);		// This should return record count
-    mysql_update_log.write(thd->query,thd->query_length);
-    Query_log_event qinfo(thd, thd->query);
-    mysql_bin_log.write(&qinfo);
+    mysql_update_log.write(thd,thd->query,thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      mysql_bin_log.write(&qinfo);
+    }
   }
   DBUG_RETURN(error ? -1 : 0);
 }
@@ -188,9 +191,12 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   VOID(table->file->extra(HA_EXTRA_READCHECK));
   if (deleted)
   {
-    mysql_update_log.write(thd->query, thd->query_length);
-    Query_log_event qinfo(thd, thd->query);
-    mysql_bin_log.write(&qinfo);
+    mysql_update_log.write(thd,thd->query, thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      mysql_bin_log.write(&qinfo);
+    }
   }
   if (ha_autocommit_or_rollback(thd,error >= 0))
     error=1;
