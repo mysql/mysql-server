@@ -146,7 +146,10 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     if (setup_tables(first_table) ||
 	setup_wild(thd, first_table, sl->item_list, 0, sl->with_wild))
       goto err;
-	
+    List_iterator<Item> it(sl->item_list);	
+    Item *item;
+    while((item=it++))
+      item->maybe_null=1;
     item_list= sl->item_list;
     sl->with_wild= 0;
     if (setup_ref_array(thd, &sl->ref_pointer_array, 
