@@ -84,7 +84,8 @@ static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
-             *where=0, *default_charset, *opt_compatible_mode_str= 0,
+             *where=0, *default_charset= (char *)MYSQL_CHARSET, 
+             *opt_compatible_mode_str= 0,
              *err_ptr= 0;
 static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
@@ -98,6 +99,7 @@ FILE  *md_result_file;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
+static CHARSET_INFO *charset_info= &my_charset_latin1;
 
 const char *compatible_mode_names[]=
 {
@@ -481,11 +483,8 @@ static int get_options(int *argc, char ***argv)
 	    my_progname);
     return(1);
   }
-  if (default_charset)
-  {
-    if (!(system_charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
-      exit(1);
-  }
+  if (!(charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
+    exit(1);
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))
   {
     short_usage();
@@ -592,7 +591,7 @@ static my_bool test_if_special_chars(const char *str)
 {
 #if MYSQL_VERSION_ID >= 32300
   for ( ; *str ; str++)
-    if (!my_isvar(system_charset_info,*str) && *str != '$')
+    if (!my_isvar(charset_info,*str) && *str != '$')
       return 1;
 #endif
   return 0;
@@ -1138,7 +1137,7 @@ static void dumpTable(uint numFields, char *table)
 		/* change any strings ("inf","nan",..) into NULL */
 		char *ptr = row[i];
 		dynstr_append(&extended_row,
-			      (!my_isalpha(system_charset_info,*ptr)) ? 
+			      (!my_isalpha(charset_info,*ptr)) ? 
 			      ptr : "NULL");
 	      }
 	    }
@@ -1172,9 +1171,9 @@ static void dumpTable(uint numFields, char *table)
 	      if (opt_xml)
 		fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
 			field->name,
-			!my_isalpha(system_charset_info, *ptr) ? ptr: "NULL");
+			!my_isalpha(charset_info, *ptr) ? ptr: "NULL");
 	      else
-		fputs((!my_isalpha(system_charset_info,*ptr)) ? 
+		fputs((!my_isalpha(charset_info,*ptr)) ? 
 		       ptr : "NULL", md_result_file);
 	    }
 	  }
@@ -1481,7 +1480,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
   char buff[255];
 
   *err_pos= 0;                  /* No error yet */
-  while (end > x && my_isspace(system_charset_info, end[-1]))
+  while (end > x && my_isspace(charset_info, end[-1]))
     end--;
 
   *err_len= 0;
