@@ -87,7 +87,7 @@ FT_WORD * ft_linearize(MI_INFO *info, uint keynr, byte *keybuf, TREE *wtree)
   }
   delete_tree(wtree);
   my_free((char*) wtree,MYF(0));
-  if (wlist==NULL)
+  if (!wlist)
     return NULL;
 
   docstat.list->pos=NULL;

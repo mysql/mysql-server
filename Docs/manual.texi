@@ -162,18 +162,18 @@ General Information About MySQL
 * General-SQL::                 General SQL information and tutorials
 * Useful Links::                Useful @strong{MySQL}-related links
 
-About this manual
+About This Manual
 
 * Manual conventions::          Conventions used in this manual
 
-MySQL mailing lists
+MySQL Mailing Lists
 
 * Mailing-list::                The @strong{MySQL} mailing lists
 * Asking questions::            Asking questions or reporting bugs
 * Bug reports::                 How to report bugs or problems
 * Answering questions::         Guidelines for answering questions on the mailing list
 
-MySQL licensing and support
+MySQL Licensing and Support
 
 * Licensing policy::            @strong{MySQL} licensing policy
 * Copyright::                   Copyrights used by @strong{MySQL}
@@ -181,22 +181,22 @@ MySQL licensing and support
 * Cost::                        @strong{MySQL} licensing and support costs
 * Support::                     Types of commercial support
 
-Copyrights used by MySQL
+Copyrights Used by MySQL
 
 * Copyright changes::           Possible future copyright changes
 
-Example licensing situations
+Example Licensing Situations
 
 * Products that use MySQL::     Selling products that use @strong{MySQL}
 * ISP::                         ISP @strong{MySQL} services
 * Web server::                  Running a web server using @strong{MySQL}.
 
-@strong{MySQL} licensing and support costs
+@strong{MySQL} Licensing and Support Costs
 
 * Payment information::         Payment information
 * Contact information::         Contact information
 
-Types of commercial support
+Types of Commercial Support
 
 * Basic email support::         Basic email support
 * Extended email support::      Extended email support
@@ -222,31 +222,31 @@ Installing MySQL
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Is there anything special to do when upgrading/downgrading @strong{MySQL}?
 
-Installing a MySQL binary distribution
+Installing a MySQL Binary Distribution
 
 * Linux-RPM::                   Linux RPM files
 * Building clients::            Building client programs
 * Binary install system issues::  System-specific issues
 
-System-specific issues
+System-specific Issues
 
 * Binary notes-Linux::          Linux notes for binary distribution
 * Binary notes-HP-UX::          HP-UX notes for binary distribution
 
-Installing a MySQL source distribution
+Installing a MySQL Source Distribution
 
 * Quick install::               Quick installation overview
 * Applying patches::            Applying patches
 * configure options::           Typical @code{configure} options
 
-Perl installation comments
+Perl Installation Comments
 
 * Perl installation::           Installing Perl on Unix
 * ActiveState Perl::            Installing ActiveState Perl on Windows
 * Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
 * Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
 
-System-specific issues
+System-specific Issues
 
 * Solaris::                     Solaris notes
 * Solaris 2.7::                 Solaris 2.7 / 2.8 notes
@@ -268,7 +268,7 @@ System-specific issues
 * Mac OS X::                    Mac OS X notes
 * BEOS::                        
 
-Linux notes (all Linux versions)
+Linux Notes (All Linux Versions)
 
 * Linux-x86::                   Linux-x86 notes
 * Linux-RedHat50::              RedHat 5.0 notes
@@ -279,13 +279,13 @@ Linux notes (all Linux versions)
 * Qube2::                       Qube2 Linux notes
 * Linux-Ia64::                  
 
-BSD/OS notes
+BSD/OS Notes
 
 * BSDI2::                       BSD/OS 2.x notes
 * BSDI3::                       BSD/OS 3.x notes
 * BSDI4::                       BSD/OS 4.x notes
 
-Windows notes
+Windows Notes
 
 * Windows installation::        Installing @strong{MySQL} on Windows
 * Win95 start::                 Starting @strong{MySQL} on Win95 / Win98
@@ -297,7 +297,7 @@ Windows notes
 * Windows and BDB tables.::     
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
-Post-installation setup and testing
+Post-installation Setup and Testing
 
 * mysql_install_db::            Problems running @code{mysql_install_db}
 * Starting server::             Problems starting the @strong{MySQL} server
@@ -367,10 +367,10 @@ MySQL language reference
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
-* ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
-* REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * BACKUP TABLE::                @code{BACKUP TABLE} syntax
 * RESTORE TABLE::               @code{RESTORE TABLE} syntax
+* ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
+* REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
@@ -464,7 +464,7 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 MySQL table types
 
 * MyISAM::                      MyISAM tables
-* MERGE::                       MERGE tables
+* MERGE::                       
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -543,7 +543,7 @@ Replication in MySQL
 * Replication Features::        Replication Features
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
-* Replication FAQ::             Frequently asked questions about replication
+* Replication FAQ::             Frequently Asked Questions about replication
 
 Getting maximum performance from MySQL
 
@@ -580,7 +580,7 @@ Speed of queries that access or update data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN} and @code{RIGHT JOIN}
+* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
 * Update speed::                Speed of @code{UPDATE} queries
@@ -811,6 +811,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
+* News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
 * News-3.23.24::                Changes in release 3.23.24
 * News-3.23.23::                Changes in release 3.23.23
@@ -938,7 +939,7 @@ Changes in release 3.19.x
 * News-3.19.4::                 Changes in release 3.19.4
 * News-3.19.3::                 Changes in release 3.19.3
 
-List of things we want to add to MySQL in the future (The TODO)
+MySQL and the future (The TODO)
 
 * TODO future::                 Things that must done in the very near future
 * TODO sometime::               Things that have to be done sometime
@@ -6473,8 +6474,8 @@ table. @xref{Crashing}.
 
 To get a core dump on Linux if mysqld dies with a SIGSEGV
 signal, you can start mysqld with the @code{--core-file} option.  Note
-that you also probably need to raise the @code{core file size} with
-@code{ulimit}!
+that you also probably need to raise the @code{core file size} by adding
+@code{ulimit -c 1000000} to @code{safe_mysqld}.
 
 If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
 you must upgrade to LinuxThreads Version 0.7.1 or newer.
@@ -12373,10 +12374,10 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
-* ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
-* REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * BACKUP TABLE::                @code{BACKUP TABLE} syntax
 * RESTORE TABLE::               @code{RESTORE TABLE} syntax
+* ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
+* REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
@@ -17761,7 +17762,7 @@ The different check types stand for the following:
 @end multitable
 
 @findex BACKUP TABLE
-@node BACKUP TABLE,  RESTORE TABLE, CHECK TABLE, Reference
+@node BACKUP TABLE, RESTORE TABLE, CHECK TABLE, Reference
 @section @code{BACKUP TABLE} syntax
 
 @example
@@ -17936,6 +17937,7 @@ the @code{LIMIT} value.
 @node SELECT, JOIN, DELETE, Reference
 @section @code{SELECT} syntax
 
+@c help SELECT 
 @example
 SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
        [HIGH_PRIORITY]
@@ -17950,6 +17952,7 @@ SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
         [LIMIT [offset,] rows]
         [PROCEDURE procedure_name] ]
 @end example
+@c help end
 
 @code{SELECT} is used to retrieve rows selected from one or more tables.
 @code{select_expression} indicates the columns you want to retrieve.
@@ -24686,7 +24689,7 @@ command line. (Slave)
 
 @end multitable
 
-@node Replication FAQ, , Replication SQL, Replication 
+@node Replication FAQ,  , Replication SQL, Replication
 @section Replication FAQ
 
 @cindex Binlog_Dump
@@ -36509,7 +36512,6 @@ The twz driver: A type 4 JDBC driver by Terrence W. Zellers
 private and educational use. (not supported anymore)
 @c no answer from server 990830
 @c You can always find the latest driver at @uref{http://www.voicenet.com/~zellert/tjFM/}.
-@item
 @item @uref{http://www.mysql.com/Downloads/Contrib/pmdamysql.tgz,pmdamysql.tgz}
 A @strong{MySQL} PMDA. Provides @strong{MySQL} server status and configuration
 variables.
@@ -36611,6 +36613,11 @@ By Terry Jones
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/eiffel-wrapper-1.0.tar.gz,eiffel-wrapper-1.0.tar.gz}.
 Eiffel wrapper by Michael Ravits.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/SQLmy0.06.tgz,SQLmy0.06.tgz}.
+FlagShip Replaceable Database Driver (RDD) for MySQL. By Alejandro
+Fernandez Herrero.
+@uref{http://www.fship.com/rdds.html, Flagship RDD home page}
 @end itemize
 
 @appendixsec  Clients
@@ -37054,7 +37061,6 @@ Previous versions of things found here that you probably won't be
 interested in.
 @end itemize
 
-
 @page
 @node Credits, News, Contrib, Top
 @appendix Contributors to MySQL
@@ -37343,16 +37349,6 @@ ODBC and VisualC++ interface questions.
 @strong{MySQL} server.
 @end table
 
-@c we don't want the entire change history in the nusphere manual
-@ifset nusphere
-@node News, Bugs, Credits, Top
-@appendix MySQL change history
-
-The MySQL change history can be found in the latest version of the mysql
-manual at @url{http://www.mysql.com/documentation/manual/}
-@end ifset
-
-@ifclear nusphere
 @node News, Bugs, Credits, Top
 @appendix MySQL change history
 
@@ -37387,6 +37383,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
 * News-3.23.24::                Changes in release 3.23.24
 * News-3.23.23::                Changes in release 3.23.23
@@ -37415,7 +37412,16 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.25, News-3.23.24, News-3.23.x, News-3.23.x
+@node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.26
+@itemize @bullet
+@item
+Fixed bug in @code{FULLTEXT} index when inserting a NULL column.
+@item
+Changed to use @code{mkstemp()} instead of @code{tempnam()}.
+@end itemize
+
+@node News-3.23.25, News-3.23.24, News-3.23.26, News-3.23.x
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
 @item
@@ -41551,7 +41557,6 @@ fields, the @code{BLOB} was garbage on output.
 @item
 Fixed @code{DISTINCT} with calculated columns.
 @end itemize
-@end ifclear
 
 @node Bugs, TODO, News, Top
 @appendix Known errors and design deficiencies in MySQL
@@ -42911,15 +42916,6 @@ All new development is concentrated to @strong{MySQL}.
 @page
 @c This node name is special
 
-@ifset nusphere
-@node GPL license, LGPL license, Unireg, Top
-@appendix GNU General Public License
-
-The GPL License can be found at ...
-
-@end ifset
-
-@ifclear nusphere
 @node GPL license, LGPL license, Unireg, Top
 @appendix GNU General Public License
 
@@ -43265,19 +43261,9 @@ library.  If this is what you want to do, use the GNU Library General
 Public License instead of this License.
 
 @end example
-@end ifclear
 
 @page
 
-@ifset nusphere
-@node LGPL license, Function Index, GPL license, Top
-@appendix GNU Library General Public License
-
-The LGPL License can be found at ...
-
-@end ifset
-
-@ifclear nusphere
 @node LGPL license, Function Index, GPL license, Top
 @appendix GNU Library General Public License
 
@@ -43764,7 +43750,6 @@ necessary.  Here is a sample; alter the names:
 
 That's all there is to it!
 @end example
-@end ifclear
 
 @node Function Index, Concept Index, LGPL license, Top
 @unnumbered SQL command, type and function index

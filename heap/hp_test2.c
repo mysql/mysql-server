@@ -62,6 +62,7 @@ char *argv[];
   HP_KEYSEG keyseg[MAX_KEYS*5];
   HEAP_PTR position;
   MY_INIT(argv[0]);		/* init my_sys library & pthreads */
+  LINT_INIT(position);
 
   filename= "test2";
   filename2= "test2_2";
