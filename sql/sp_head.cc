@@ -454,6 +454,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	      suv= new Item_func_set_user_var(guv->get_name(), item);
 	      suv->fix_fields(thd, NULL, &item);
 	      suv->fix_length_and_dec();
+	      suv->check();
 	      suv->update();
 	    }
 	  }

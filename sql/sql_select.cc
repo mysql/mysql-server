@@ -1586,7 +1586,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     goto err;					// 1
   }
 
-  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     join->conds_history= join->conds;
     join->having_history= (join->having?join->having:join->tmp_having);
@@ -1597,7 +1597,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 
   join->exec();
 
-  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     select_lex->where= join->conds_history;
     select_lex->having= join->having_history;
@@ -9095,8 +9095,8 @@ void st_select_lex::print(THD *thd, String *str)
   //options
   if (options & SELECT_STRAIGHT_JOIN)
     str->append("straight_join ", 14);
-  if ((thd->lex.lock_option & TL_READ_HIGH_PRIORITY) &&
-      (this == &thd->lex.select_lex))
+  if ((thd->lex->lock_option & TL_READ_HIGH_PRIORITY) &&
+      (this == &thd->lex->select_lex))
     str->append("high_priority ", 14);
   if (options & SELECT_DISTINCT)
     str->append("distinct ", 9);
@@ -9108,7 +9108,7 @@ void st_select_lex::print(THD *thd, String *str)
     str->append("buffer_result ", 14);
   if (options & OPTION_FOUND_ROWS)
     str->append("calc_found_rows ", 16);
-  if (!thd->lex.safe_to_cache_query)
+  if (!thd->lex->safe_to_cache_query)
     str->append("no_cache ", 9);
   if (options & OPTION_TO_QUERY_CACHE)
     str->append("cache ", 6);
