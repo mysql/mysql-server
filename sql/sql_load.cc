@@ -133,7 +133,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   table= table_list->table;
   transactional_table= table->file->has_transactions();
-  log_delayed= (transactional_table || table->tmp_table);
+  log_delayed= (transactional_table || table->s->tmp_table);
 
   if (!fields.elements)
   {
@@ -257,7 +257,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.thd = thd;
     lf_info.ex = ex;
     lf_info.db = db;
-    lf_info.table_name = table_list->real_name;
+    lf_info.table_name = table_list->table_name;
     lf_info.fields = &fields;
     lf_info.ignore= ignore;
     lf_info.handle_dup = handle_duplicates;
@@ -268,7 +268,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
 #endif /*!EMBEDDED_LIBRARY*/
 
-  restore_record(table,default_values);
+  restore_record(table, s->default_values);
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
