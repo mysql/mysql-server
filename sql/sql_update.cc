@@ -423,7 +423,7 @@ int mysql_multi_update(THD *thd,
     DBUG_RETURN(res);
   fix_tables_pointers(thd->lex.all_selects_list);
 
-  thd->select_limit=HA_POS_ERROR;
+  select_lex->select_limit= HA_POS_ERROR;
   if (setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
     DBUG_RETURN(-1);
 

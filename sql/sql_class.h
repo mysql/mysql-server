@@ -532,7 +532,7 @@ public:
   */
   ulonglong  current_insert_id;
   ulonglong  limit_found_rows;
-  ha_rows    select_limit, offset_limit, cuted_fields,
+  ha_rows    cuted_fields,
              sent_row_count, examined_row_count;
   table_map  used_tables;
   USER_CONN *user_connect;
