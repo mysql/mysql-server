@@ -34727,7 +34727,7 @@ file is ignored.
 
 If you load data from a local file using the @code{LOCAL} keyword, the server
 has no way to stop transmission of the file in the middle of the operation,
-so the default bahavior is the same as if @code{IGNORE} is specified.
+so the default behavior is the same as if @code{IGNORE} is specified.
 
 If you use @code{LOAD DATA INFILE} on an empty @code{MyISAM} table,
 all non-unique indexes are created in a separate batch (like in @code{REPAIR}).
