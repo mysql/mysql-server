@@ -987,13 +987,13 @@ static bool get_interval_value(Item *args,interval_type int_type,
     interval->year= (ulong) value;
     break;
   case INTERVAL_QUARTER:
-    interval->month=value*3;
+    interval->month= (ulong)(value*3);
     break;
   case INTERVAL_MONTH:
     interval->month= (ulong) value;
     break;
   case INTERVAL_WEEK:
-    interval->day=value*7;
+    interval->day= (ulong)(value*7);
     break;
   case INTERVAL_DAY:
     interval->day= (ulong) value;
