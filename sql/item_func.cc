@@ -2641,7 +2641,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
     pos=strmov(pos,"global.");
   memcpy(pos, var->name, var->name_length+1);
   // set_name() will allocate the name
-  item->set_name(buff,(uint) (pos-buff)+var->name_length);
+  item->set_name(buff,(uint) (pos-buff)+var->name_length, system_charset_info);
   return item;
 }
 
@@ -2656,9 +2656,9 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
   var= find_sys_var(var_name, length);
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type)))
-    return 0;					// Impossible
+    return 0;						// Impossible
   thd->lex.uncacheable();
-  item->set_name(item_name);		// Will use original name
+  item->set_name(item_name, 0, system_charset_info);	// Will use original name
   return item;
 }
 

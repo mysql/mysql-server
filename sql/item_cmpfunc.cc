@@ -124,10 +124,10 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
-  set_cmp_func();
   /* QQ: COERCIBILITY */
-  cmp_charset= (args[0]->binary() || args[1]->binary()) ? 
-	      &my_charset_bin : args[0]->charset();
+  cmp_charset= (args[0]->binary() || args[1]->binary()) ?
+                &my_charset_bin : args[0]->charset();
+  set_cmp_func();
 }
 
 

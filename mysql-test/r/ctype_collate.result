@@ -545,21 +545,21 @@ Variable_name	Value
 client_collation	koi8r
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-koi8r	koi8r	2	1
+latin1	latin1	2	1
 SET COLLATION koi8r_bin;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	koi8r_bin
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-koi8r	koi8r_bin	2	0
+latin1	latin1	2	1
 SET COLLATION DEFAULT;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	koi8r
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-koi8r	koi8r	2	1
+latin1	latin1	2	1
 SET NAMES DEFAULT;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
