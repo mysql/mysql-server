@@ -505,7 +505,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
-	table_to_table_list table_to_table
+	table_to_table_list table_to_table opt_table_list
 	END_OF_INPUT
 
 %type <NONE>
@@ -548,7 +548,7 @@ verb_clause:
 	| rollback
 	| select
 	| set
-	| slave
+	| slave  
 	| show
 	| unlock
 	| update
@@ -557,7 +557,7 @@ verb_clause:
 /* change master */
 
 change:
-       CHANGE MASTER_SYM TO_SYM
+       CHANGE MASTER_SYM TO_SYM 
         {
 	  LEX *lex = Lex;
 	  lex->sql_command = SQLCOM_CHANGE_MASTER;
@@ -568,7 +568,7 @@ master_defs:
        master_def
        |
        master_defs ',' master_def
-
+	  
 master_def:
        MASTER_HOST_SYM EQ TEXT_STRING
        {
@@ -590,7 +590,7 @@ master_def:
 	 Lex->mi.log_file_name = $3.str;
        }
        |
-       MASTER_PORT_SYM EQ ULONGLONG_NUM
+       MASTER_PORT_SYM EQ ULONG_NUM
        {
 	 Lex->mi.port = $3;
        }
@@ -600,13 +600,13 @@ master_def:
 	 Lex->mi.pos = $3;
        }
        |
-       MASTER_CONNECT_RETRY_SYM EQ ULONGLONG_NUM
+       MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
        {
 	 Lex->mi.connect_retry = $3;
        }
+       
 
-
-
+	  
 /* create a table */
 
 create:
@@ -614,7 +614,7 @@ create:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
-	  if (!add_table_to_list($5,
+	  if (!add_table_to_list($5, 
 				 ($2 & HA_LEX_CREATE_TMP_TABLE ?
 				   &tmp_table_alias : (LEX_STRING*) 0)))
 	    YYABORT;
@@ -678,7 +678,7 @@ create:
 	  }
 
 create2:
-	'(' field_list ')' opt_create_table_options create3 {}
+	'(' field_list ')' opt_create_table_options create3 {} 
 	| opt_create_table_options create3 {}
 
 create3:
@@ -690,18 +690,18 @@ create3:
           select_options select_item_list opt_select_from {}
 
 opt_table_options:
-	/* empty */	 { $$= 0; }
+	/* empty */	 { $$= 0; } 
 	| table_options  { $$= $1;}
 
 table_options:
 	table_option	{ $$=$1; }
 	| table_option table_options { $$= $1 | $2 }
-
+	
 table_option:
 	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; }
 
 opt_if_not_exists:
-	/* empty */	 { $$= 0; }
+	/* empty */	 { $$= 0; } 
 	| IF NOT EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; }
 
 opt_create_table_options:
@@ -723,7 +723,7 @@ create_table_option:
 	| PACK_KEYS_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; }
 	| CHECKSUM_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM EQ ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM EQ row_types	{ Lex->create_info.row_type= $3; }
+	| ROW_FORMAT_SYM EQ row_types	{ Lex->create_info.row_type= $3; } 
 	| RAID_TYPE EQ raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKS EQ ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKSIZE EQ ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
@@ -865,7 +865,7 @@ char:
 	CHAR_SYM {}
 	| NCHAR_SYM {}
 	| NATIONAL_SYM CHAR_SYM {}
-
+	
 varchar:
 	char VARYING {}
 	| VARCHAR {}
@@ -1096,7 +1096,7 @@ slave:
            Lex->sql_command = SQLCOM_SLAVE_STOP;
 	   Lex->type = 0;
          };
-
+	
 repair:
 	REPAIR table_or_tables
 	{
@@ -1124,7 +1124,7 @@ analyze:
 	}
 
 check:
-	CHECK_SYM table_or_tables
+	CHECK_SYM table_or_tables 
 	{
 	   Lex->sql_command = SQLCOM_CHECK;
 	   Lex->check_opt.init();
@@ -1152,8 +1152,8 @@ table_to_table_list:
 
 table_to_table:
 	table_ident TO_SYM table_ident
-	{ if (add_table_to_list($1,NULL,TL_IGNORE) ||
-	      add_table_to_list($3,NULL,TL_IGNORE))
+	{ if (!add_table_to_list($1,NULL,TL_IGNORE) ||
+	      !add_table_to_list($3,NULL,TL_IGNORE))
 	     YYABORT;
  	}
 
@@ -1239,7 +1239,7 @@ select_alias:
 optional_braces:
 	/* empty */ {}
 	| '(' ')' {}
-
+	
 /* all possible expressions */
 expr:	expr_expr	{$$ = $1; }
 	| simple_expr	{$$ = $1; }
@@ -1381,7 +1381,7 @@ simple_expr:
                    (Item_func_match *)($$=new Item_func_match(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
-	  { $$= new Item_func_case(* $4, $2, $5 ) }
+	  { $$= new Item_func_case(* $4, $2, $5 ) } 
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -1575,7 +1575,7 @@ simple_expr:
 	  { $$= new Item_func_yearweek($3, $5); }
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
 	  { $$=new Item_func_benchmark($3,$5); }
-	| EXTRACT_SYM '(' interval FROM expr ')'
+	| EXTRACT_SYM '(' interval FROM expr ')' 
 	{ $$=new Item_extract( $3, $5); }
 
 udf_expr_list:
@@ -1646,12 +1646,12 @@ when_list:
 	{ $$= Lex->when_list.pop(); }
 
 when_list2:
-	expr THEN_SYM expr
+	expr THEN_SYM expr 
 	  {
 	    Lex->when_list.head()->push_back($1);
 	    Lex->when_list.head()->push_back($3);
 	}
-	| when_list2 WHEN_SYM expr THEN_SYM expr
+	| when_list2 WHEN_SYM expr THEN_SYM expr 
 	  {
 	    Lex->when_list.head()->push_back($3);
 	    Lex->when_list.head()->push_back($5);
@@ -2114,11 +2114,11 @@ show_param:
         | MASTER_SYM STATUS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
-          }
+          }       
         | SLAVE STATUS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
-          }
+          }       
 
 opt_db:
 	/* empty */  { $$= 0; }
@@ -2161,14 +2161,18 @@ flush_options:
 	| flush_option
 
 flush_option:
-	TABLES		{ Lex->type|= REFRESH_TABLES; }
+	TABLES		{ Lex->type|= REFRESH_TABLES; } opt_table_list
 	| TABLES WITH READ_SYM LOCK_SYM { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
 	| HOSTS_SYM	{ Lex->type|= REFRESH_HOSTS; }
 	| PRIVILEGES	{ Lex->type|= REFRESH_GRANT; }
 	| LOGS_SYM	{ Lex->type|= REFRESH_LOG; }
 	| STATUS_SYM	{ Lex->type|= REFRESH_STATUS; }
-        | SLAVE         { Lex->type|= REFRESH_SLAVE; }
-        | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
+        | SLAVE         { Lex->type|= REFRESH_SLAVE; } 
+        | MASTER_SYM    { Lex->type|= REFRESH_MASTER; } 
+
+opt_table_list:
+	/* empty */  {}
+	| table_list {}
 
 /* kill threads */
 
@@ -2201,13 +2205,13 @@ load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
 	    YYABORT;
 	}
         |
-	LOAD TABLE_SYM table_ident FROM MASTER_SYM
+	LOAD TABLE_SYM table_ident FROM MASTER_SYM 
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
 	  if (!add_table_to_list($3,NULL))
 	    YYABORT;
-
-        }
+	  
+        }   
 
 opt_local:
 	/* empty */	{ $$=0;}
@@ -2330,7 +2334,7 @@ ident:
 
 ident_or_text:
 	ident 		{ $$=$1;}
-	| TEXT_STRING	{ $$=$1;}
+	| TEXT_STRING	{ $$=$1;} 
 	| LEX_HOSTNAME	{ $$=$1;}
 
 user:
@@ -2413,10 +2417,10 @@ keyword:
 	| PROCESSLIST_SYM	{}
 	| QUICK			{}
 	| RAID_0_SYM            {}
-	| RAID_CHUNKS		{}
-	| RAID_CHUNKSIZE	{}
+	| RAID_CHUNKS		{} 
+	| RAID_CHUNKSIZE	{} 
 	| RAID_STRIPED_SYM      {}
-	| RAID_TYPE		{}
+	| RAID_TYPE		{} 
 	| RELOAD		{}
 	| REPAIR		{}
 	| ROLLBACK_SYM		{}

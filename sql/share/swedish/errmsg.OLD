@@ -193,5 +193,4 @@
 "Fick nätverksfel vid läsning från master",
 "Fick nätverksfel vid skrivning till master",
 "Hittar inte ett FULLTEXT index i kolumnlist",
-#ER_LOCK_OR_ACTIVE_TRANSACTION
 "Can't execute the given command because you have active locked tables or an active transaction",

@@ -45,7 +45,7 @@ typedef struct st_log_info
 typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
-  ulong pos;
+  ulonglong pos;
   FILE* file; // we keep the file open, so we need to remember the file pointer
 
   // the variables below are needed because we can change masters on the fly
@@ -58,7 +58,7 @@ typedef struct st_master_info
   bool inited;
 
   st_master_info():inited(0) { host[0] = 0; user[0] = 0; password[0] = 0;}
-  inline void inc_pos(ulong val)
+  inline void inc_pos(ulonglong val)
   {
     pthread_mutex_lock(&lock);
     pos += val;
@@ -66,7 +66,7 @@ typedef struct st_master_info
   }
   // thread safe read of position - not needed if we are in the slave thread,
   // but required otherwise
-  inline void read_pos(ulong& var)
+  inline void read_pos(ulonglong& var)
   {
     pthread_mutex_lock(&lock);
     var = pos;
@@ -470,7 +470,7 @@ class Table_ident :public Sql_alloc {
   }
   inline Table_ident(LEX_STRING table_arg) :table(table_arg) {db.str=0;}
   inline void change_db(char *db_name)
-  { db.str= db_name; db.length=strlen(db_name); }
+  { db.str= db_name; db.length=(uint) strlen(db_name); }
 };
 
 // this is needed for user_vars hash

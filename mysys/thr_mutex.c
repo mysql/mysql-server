@@ -37,7 +37,7 @@
 #ifdef HAVE_NONPOSIX_PTHREAD_MUTEX_INIT
 #define pthread_mutex_init(a,b) my_pthread_mutex_init((a),(b))
 #endif
-#endif
+#endif /* DO_NOT_REMOVE_THREAD_WRAPPERS */
 
 int safe_mutex_init(safe_mutex_t *mp,
 		    const pthread_mutexattr_t *attr __attribute__((unused)))
@@ -211,4 +211,4 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
   return pthread_mutex_destroy(&mp->mutex);
 }
 
-#endif /* SAFE_MUTEX */
+#endif /* THREAD && SAFE_MUTEX */

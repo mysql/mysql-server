@@ -199,7 +199,7 @@ int  acl_init(bool dont_read_acl_tables)
     update_hostname(&user.host,get_field(&mem, table,0));
     user.user=get_field(&mem, table,1);
     user.password=get_field(&mem, table,2);
-    if (user.password && (length=strlen(user.password)) == 8 &&
+    if (user.password && (length=(uint) strlen(user.password)) == 8 &&
 	protocol_version == PROTOCOL_VERSION)
     {
       sql_print_error(
@@ -217,7 +217,7 @@ int  acl_init(bool dont_read_acl_tables)
     get_salt_from_password(user.salt,user.password);
     user.access=get_access(table,3);
     user.sort=get_sort(2,user.host.hostname,user.user);
-    user.hostname_length=user.host.hostname ? strlen(user.host.hostname) : 0;
+    user.hostname_length=user.host.hostname ? (uint) strlen(user.host.hostname) : 0;
 #ifndef TO_BE_REMOVED
     if (table->fields <= 13)
     {						// Without grant
@@ -497,7 +497,7 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.password=0;
   acl_user.access=privileges;
   acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
-  acl_user.hostname_length=strlen(acl_user.host.hostname);
+  acl_user.hostname_length=(uint) strlen(acl_user.host.hostname);
   if (password)
   {
     acl_user.password=(char*) "";		// Just point at something
@@ -713,7 +713,7 @@ static void init_check_host(void)
 	  (void) push_dynamic(&acl_wild_hosts,(char*) &acl_user->host);
       }
       else if (!hash_search(&acl_check_hosts,(byte*) &acl_user->host,
-			    strlen(acl_user->host.hostname)))
+			    (uint) strlen(acl_user->host.hostname)))
       {
 	if (hash_insert(&acl_check_hosts,(byte*) acl_user))
 	{					// End of memory
@@ -737,8 +737,8 @@ bool acl_check_host(const char *host, const char *ip)
     return 0;
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  if (host && hash_search(&acl_check_hosts,(byte*) host,strlen(host)) ||
-      ip && hash_search(&acl_check_hosts,(byte*) ip,strlen(ip)))
+  if (host && hash_search(&acl_check_hosts,(byte*) host,(uint) strlen(host)) ||
+      ip && hash_search(&acl_check_hosts,(byte*) ip,(uint) strlen(ip)))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     return 0;					// Found host
@@ -778,10 +778,10 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (!host)
     host=thd->ip; /* purecov: tested */
   /* password should always be 0 or 16 chars; simple hack to avoid cracking */
-  length=strlen(new_password);
+  length=(uint) strlen(new_password);
   new_password[length & 16]=0;
 
-  if (strcmp(thd->user,user) ||
+  if (!thd || strcmp(thd->user,user) ||
       my_strcasecmp(host,thd->host ? thd->host : thd->ip))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
@@ -820,7 +820,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		acl_user->user,
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
-  mysql_update_log.write(buff,strlen(buff));
+  mysql_update_log.write(buff,(uint) strlen(buff));
   mysql_bin_log.write(&qinfo);
   return 0;
 }
@@ -919,8 +919,8 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   tables.db=(char*) "mysql";
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
-  table->field[0]->store(host,strlen(host));
-  table->field[1]->store(user,strlen(user));
+  table->field[0]->store(host,(uint) strlen(host));
+  table->field[1]->store(user,(uint) strlen(user));
 
   if (table->file->index_read_idx(table->record[0],0,
 				  (byte*) table->field[0]->ptr,0,
@@ -930,7 +930,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,1);
-  table->field[2]->store(new_password,strlen(new_password));
+  table->field[2]->store(new_password,(uint) strlen(new_password));
   if ((error=table->file->update_row(table->record[1],table->record[0])))
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
@@ -982,14 +982,14 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
     restore_record(table,2);			// cp empty row from record[2]
     table->field[0]->store(combo.host.str,combo.host.length);
     table->field[1]->store(combo.user.str,combo.user.length);
-    table->field[2]->store(password,strlen(password));
+    table->field[2]->store(password,(uint) strlen(password));
   }
   else
   {
     ima = 1;
     store_record(table,1);			// Save copy for update
     if (combo.password.str)			// If password given
-      table->field[2]->store(password,strlen(password));
+      table->field[2]->store(password,(uint) strlen(password));
   }
 
   for (i = 3, j = SELECT_ACL;			// starting from reload
@@ -1064,7 +1064,7 @@ static int replace_db_table(TABLE *table, const char *db,
   }
 
   table->field[0]->store(combo.host.str,combo.host.length);
-  table->field[1]->store(db,strlen(db));
+  table->field[1]->store(db,(uint) strlen(db));
   table->field[2]->store(combo.user.str,combo.user.length);
   table->file->index_init(0);
   if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,0,
@@ -1079,7 +1079,7 @@ static int replace_db_table(TABLE *table, const char *db,
     ima = 0; // no row
     restore_record(table,2);			// cp empty row from record[2]
     table->field[0]->store(combo.host.str,combo.host.length);
-    table->field[1]->store(db,strlen(db));
+    table->field[1]->store(db,(uint) strlen(db));
     table->field[2]->store(combo.user.str,combo.user.length);
   }
   else
@@ -1166,7 +1166,7 @@ public:
     db =   strdup_root(&memex,d);
     user = strdup_root(&memex,u);
     tname= strdup_root(&memex,t);
-    key_length =strlen(d)+strlen(u)+strlen(t)+3;
+    key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
     (void) hash_init(&hash_columns,0,0,0, (hash_get_key) get_key_column,0,
@@ -1187,7 +1187,7 @@ public:
       privs = cols = 0;				/* purecov: inspected */
       return;					/* purecov: inspected */
     }
-    key_length = strlen(db) + strlen(user) + strlen (tname) + 3;
+    key_length = (uint) strlen(db) + (uint) strlen(user) + (uint) strlen (tname) + 3;
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
     privs = (uint) form->field[6]->val_int();
@@ -1200,10 +1200,10 @@ public:
     if (cols)
     {
       int key_len;
-      col_privs->field[0]->store(host,strlen(host));
-      col_privs->field[1]->store(db,strlen(db));
-      col_privs->field[2]->store(user,strlen(user));
-      col_privs->field[3]->store(tname,strlen(tname));
+      col_privs->field[0]->store(host,(uint) strlen(host));
+      col_privs->field[1]->store(db,(uint) strlen(db));
+      col_privs->field[2]->store(user,(uint) strlen(user));
+      col_privs->field[3]->store(tname,(uint) strlen(tname));
       key_len=(col_privs->field[0]->pack_length()+
 	       col_privs->field[1]->pack_length()+
 	       col_privs->field[2]->pack_length()+
@@ -1307,9 +1307,9 @@ static int replace_column_table(GRANT_TABLE *g_t,
   DBUG_ENTER("replace_column_table");
 
   table->field[0]->store(combo.host.str,combo.host.length);
-  table->field[1]->store(db,strlen(db));
+  table->field[1]->store(db,(uint) strlen(db));
   table->field[2]->store(combo.user.str,combo.user.length);
-  table->field[3]->store(table_name,strlen(table_name));
+  table->field[3]->store(table_name,(uint) strlen(table_name));
   key_length=(table->field[0]->pack_length()+ table->field[1]->pack_length()+
 	      table->field[2]->pack_length()+ table->field[3]->pack_length());
   key_copy(key,table,0,key_length);
@@ -1483,9 +1483,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 
   restore_record(table,2);			// Get empty record
   table->field[0]->store(combo.host.str,combo.host.length);
-  table->field[1]->store(db,strlen(db));
+  table->field[1]->store(db,(uint) strlen(db));
   table->field[2]->store(combo.user.str,combo.user.length);
-  table->field[3]->store(table_name,strlen(table_name));
+  table->field[3]->store(table_name,(uint) strlen(table_name));
   store_record(table,1);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0],0,
@@ -1530,7 +1530,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     }
   }
 
-  table->field[4]->store(grantor,strlen(grantor));
+  table->field[4]->store(grantor,(uint) strlen(grantor));
   table->field[6]->store((longlong) store_table_rights);
   table->field[7]->store((longlong) store_col_rights);
   rights=fix_rights_for_table(store_table_rights);
@@ -2150,7 +2150,7 @@ bool check_grant_all_columns(THD *thd,uint want_access, TABLE *table)
   for (ptr=table->field; (field= *ptr) ; ptr++)
   {
     grant_column=column_hash_search(grant_table, field->field_name,
-				    strlen(field->field_name));
+				    (uint) strlen(field->field_name));
     if (!grant_column || (~grant_column->rights & want_access))
       goto err;
   }
@@ -2253,7 +2253,7 @@ uint get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
   else
   {
     grant_column=column_hash_search(grant_table, field->field_name,
-				    strlen(field->field_name));
+				    (uint) strlen(field->field_name));
     if (!grant_column)
       priv=table->grant.privilege;
     else

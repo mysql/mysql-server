@@ -554,7 +554,7 @@ sub new
   $limits{'max_index_parts'}	= 16;		# Is this true ?
   $limits{'max_text_size'}	= 7000;		# 8000 crashes pg 6.3
   $limits{'query_size'}		= 16777216;
-  $limits{'unique_index'}	= 0; # Unique index works or not
+  $limits{'unique_index'}	= 1; # Unique index works or not
 
   # the different cases per query ...
   $smds{'q1'} 	= 'b'; # with time

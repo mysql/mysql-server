@@ -467,7 +467,7 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
   char* logname = mi->log_file_name;
   int4store(buf, mi->pos);
   int2store(buf + 4, binlog_flags);
-  len = strlen(logname);
+  len = (uint) strlen(logname);
   memcpy(buf + 6, logname,len);
   if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 6, 1))
 	// something went wrong, so we will just reconnect and retry later
@@ -486,8 +486,8 @@ static int request_table_dump(MYSQL* mysql, char* db, char* table)
 {
   char buf[1024];
   char * p = buf;
-  uint table_len = strlen(table);
-  uint db_len = strlen(db);
+  uint table_len = (uint) strlen(table);
+  uint db_len = (uint) strlen(db);
   if(table_len + db_len > sizeof(buf) - 2)
     {
       sql_print_error("request_table_dump: Buffer overrun");

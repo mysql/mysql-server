@@ -286,8 +286,8 @@ int main(int argc,char *argv[])
       histfile=my_strdup(getenv("MYSQL_HISTFILE"),MYF(MY_WME));
     else if (getenv("HOME"))
     {
-      histfile=(char*) my_malloc(strlen(getenv("HOME"))
-				 + strlen("/.mysql_history")+2,
+      histfile=(char*) my_malloc((uint) strlen(getenv("HOME"))
+				 + (uint) strlen("/.mysql_history")+2,
 				 MYF(MY_WME));
       if (histfile)
 	sprintf(histfile,"%s/.mysql_history",getenv("HOME"));
@@ -743,7 +743,7 @@ static COMMANDS *find_command (char *name,char cmd_char)
 	end=0;					// no arguments to function
     }
     else
-      len=strlen(name);
+      len=(uint) strlen(name);
   }
 
   for (uint i= 0; commands[i].name; i++)
@@ -772,7 +772,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     add_history(line);
 #endif
 #ifdef USE_MB
-  char *strend=line+strlen(line);
+  char *strend=line+(uint) strlen(line);
 #endif
 
   for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
@@ -926,14 +926,14 @@ static char *new_command_generator(char *text,int state)
   static uint i;
 
   if (!state) {
-    textlen=strlen(text);
+    textlen=(uint) strlen(text);
   }
 
   if (textlen>0) { /* lookup in the hash */
     if (!state) {
       uint len;
 
-      b = find_all_matches(&ht,text,strlen(text),&len);
+      b = find_all_matches(&ht,text,(uint) strlen(text),&len);
       if (!b) {
 	return NullS;
       }
@@ -961,7 +961,7 @@ static char *new_command_generator(char *text,int state)
     }
     ptr= NullS;
     while (e && !ptr) { /* find valid entry in bucket */
-      if (strlen(e->str)==b->nKeyLength) {
+      if ((uint) strlen(e->str)==b->nKeyLength) {
 	ptr = strdup(e->str);
       }
       /* find the next used entry */
@@ -1054,7 +1054,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       while ((table_row=mysql_fetch_row(tables)))
       {
 	if (!completion_hash_exists(&ht,(char*) table_row[0],
-				    strlen((const char*) table_row[0])))
+				    (uint) strlen((const char*) table_row[0])))
 	  add_word(&ht,table_row[0]);
       }
     }
@@ -1102,7 +1102,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
 	add_word(&ht,field_names[i][j]);
 	field_names[i][num_fields+j] = my_strdup(sql_field->name,MYF(0));
 	if (!completion_hash_exists(&ht,field_names[i][num_fields+j],
-				    strlen(field_names[i][num_fields+j])))
+				    (uint) strlen(field_names[i][num_fields+j])))
 	  add_word(&ht,field_names[i][num_fields+j]);
 	j++;
       }
@@ -1351,7 +1351,7 @@ print_table_data(MYSQL_RES *result)
   separator.copy("+",1);
   while ((field = mysql_fetch_field(result)))
   {
-    uint length=skip_column_names ? 0 : strlen(field->name);
+    uint length=skip_column_names ? 0 : (uint) strlen(field->name);
     if (quick)
       length=max(length,field->length);
     else
@@ -1437,7 +1437,7 @@ print_table_data_vertically(MYSQL_RES *result)
 
   while ((field = mysql_fetch_field(result)))
   {
-    uint length=strlen(field->name);
+    uint length=(uint) strlen(field->name);
     if (length > max_length)
       max_length= length;
     field->max_length=length;

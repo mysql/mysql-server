@@ -1383,7 +1383,7 @@ static BDB_SHARE *get_share(const char *table_name)
 {
   BDB_SHARE *share;
   pthread_mutex_lock(&bdb_mutex);
-  uint length=strlen(table_name);
+  uint length=(uint) strlen(table_name);
   if (!(share=(BDB_SHARE*) hash_search(&bdb_open_tables, table_name, length)))
   {
     if ((share=(BDB_SHARE *) my_malloc(sizeof(*share)+length+1,
