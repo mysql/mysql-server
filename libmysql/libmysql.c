@@ -149,7 +149,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__)
+#if defined(SIGPIPE) && !defined(__WIN__) && !defined(__NETWARE__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -181,6 +181,14 @@ void STDCALL mysql_server_end()
   else
     mysql_thread_end();
   mysql_client_init= org_my_init_done= 0;
+}
+
+static MYSQL_PARAMETERS mysql_internal_parameters=
+{&max_allowed_packet, &net_buffer_length};
+
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters()
+{
+  return &mysql_internal_parameters;
 }
 
 my_bool STDCALL mysql_thread_init()

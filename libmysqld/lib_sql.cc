@@ -23,6 +23,11 @@
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
 
+extern "C"
+{
+  extern unsigned long max_allowed_packet, net_buffer_length;
+}
+
 static int fake_argc= 1;
 static char *fake_argv[]= {(char *)"", 0};
 static const char *fake_groups[] = { "server", "embedded", 0 };

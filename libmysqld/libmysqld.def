@@ -92,7 +92,6 @@ EXPORTS
 	mysql_thread_safe
 	mysql_use_result
 	mysql_warning_count
-	net_buffer_length
 	set_dynamic
 	strcend
 	strcont
@@ -128,5 +127,5 @@ EXPORTS
 	alloc_root
 	free_root
 	my_read
-	max_allowed_packet
 	llstr
+	mysql_get_parameters

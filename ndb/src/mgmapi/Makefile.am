@@ -1,5 +1,5 @@
 
-ndblib_LTLIBRARIES = libmgmapi.la libMGM_API.la
+noinst_LTLIBRARIES = libmgmapi.la libMGM_API.la
 
 libmgmapi_la_SOURCES_loc = mgmapi.cpp
 
