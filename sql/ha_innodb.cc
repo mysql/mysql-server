@@ -4504,6 +4504,17 @@ ha_innobase::start_stmt(
 	        prepared for an update of a row */
 	  
 	        prebuilt->select_lock_type = LOCK_X;
+	} else {
+		/* For other than temporary tables, we obtain
+		no lock for consistent read (plain SELECT), and
+		an exclusive lock for SELECT ... FOR UPDATE or
+		SELECT ... LOCK IN SHARE MODE. */
+
+		prebuilt->select_lock_type =
+			thd->lex.sql_command == SQLCOM_SELECT
+			&& thd->lex.lock_option == TL_READ
+			? LOCK_NONE
+			: LOCK_X;
 	}
 	
 	/* Set the MySQL flag to mark that there is an active transaction */
