@@ -243,20 +243,17 @@ MgmtSrvr::startEventLog()
   char clusterLog[MAXPATHLEN];
   NdbConfig_ClusterLogFileName(clusterLog, sizeof(clusterLog));
   
-  
   if(ndb_mgm_get_string_parameter(iter, CFG_LOG_DESTINATION, &tmp) == 0){
     logdest.assign(tmp);
   }
   ndb_mgm_destroy_iterator(iter);
   
-  if(logdest.length()==0) {
+  if(logdest.length() == 0 || logdest == "") {
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
 		   clusterLog);
   }
-  
   if(!g_EventLogger.addHandler(logdest)) {
-    ndbout << "ERROR: cannot parse \"" << logdest << "\"" << endl;
-    exit(1);
+    ndbout << "Warning: could not add log destination \"" << logdest.c_str() << "\"" << endl;
   }
 }
 
