@@ -19990,6 +19990,7 @@ loaded system may be above the threshold on a heavily loaded one.
 @item @code{lower_case_table_names}
 If set to 1 table names are stored in lowercase on disk and table
 names will be case-insensitive.
+From version 4.0.2, this option also applies to database names.
 @xref{Name case sensitivity}.
 
 @item @code{max_allowed_packet}
@@ -28545,9 +28546,10 @@ lower_case_table_names=1}. By default this option is 1 on Windows and 0 on
 Unix.
 
 If @code{lower_case_table_names} is 1 MySQL will convert all
-table names to lower case on storage and lookup.  Note that if you
-change this option, you need to first convert your old table names to
-lower case before starting @code{mysqld}.
+table names to lower case on storage and lookup.
+(From version 4.0.2, this option also applies to database names.)
+Note that if you change this option, you need to first convert your old
+table names to lower case before starting @code{mysqld}.
 
 If you move @code{MyISAM} files from a Windows to a *nix disk, you may
 in some cases need to use the @file{mysql_fix_extensions} tool to fix-up
@@ -50132,7 +50134,7 @@ after all options have been parsed.
 @item
 Don't allow database names that contain @samp{\}.
 @item
-@code{lower_case_table_names} now also affects created and dropped databases.
+@code{lower_case_table_names} now also affects database names.
 @item
 Added @code{XOR} operator (logical and bitwise @code{XOR}) with @code{^}
 as a synonym for bitwise @code{XOR}.
