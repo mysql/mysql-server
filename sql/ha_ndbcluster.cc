@@ -1195,18 +1195,21 @@ inline int ha_ndbcluster::next_result(byte *buf)
 	be sent to NDB
       */
       DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
-      if (current_thd->transaction.on)
+      if (ops_pending)
       {
-	if (ops_pending && (execute_no_commit(this,trans) != 0))
-	  DBUG_RETURN(ndb_err(trans));
+	if (current_thd->transaction.on)
+	{
+	  if (execute_no_commit(this,trans) != 0)
+	    DBUG_RETURN(ndb_err(trans));
+	}
+	else
+	{
+	  if  (execute_commit(this,trans) != 0)
+	    DBUG_RETURN(ndb_err(trans));
+	  DBUG_ASSERT(trans->restart() == 0);
+	}
+	ops_pending= 0;
       }
-      else
-      {
-	if (ops_pending && (execute_commit(this,trans) != 0))
-	  DBUG_RETURN(ndb_err(trans));
-	trans->restart();
-      }
-      ops_pending= 0;
       
       contact_ndb= (check == 2);
     }
@@ -1641,7 +1644,7 @@ int ha_ndbcluster::write_row(byte *record)
 	no_uncommitted_rows_execute_failure();
 	DBUG_RETURN(ndb_err(trans));
       }
-      trans->restart();
+      DBUG_ASSERT(trans->restart() == 0);
     }
   }
   if ((has_auto_increment) && (skip_auto_increment))
@@ -2278,7 +2281,7 @@ int ha_ndbcluster::rnd_init(bool scan)
   {
     if (!scan)
       DBUG_RETURN(1);
-    cursor->restart();    
+    DBUG_ASSERT(cursor->restart() == 0);
   }
   index_init(table->primary_key);
   DBUG_RETURN(0);
@@ -2435,7 +2438,7 @@ void ha_ndbcluster::info(uint flag)
     DBUG_PRINT("info", ("HA_STATUS_CONST"));
     set_rec_per_key();
   }
-   if (flag & HA_STATUS_ERRKEY)
+  if (flag & HA_STATUS_ERRKEY)
   {
     DBUG_PRINT("info", ("HA_STATUS_ERRKEY"));
     errkey= dupkey;
