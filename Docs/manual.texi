@@ -34159,7 +34159,7 @@ if no @code{PRIMARY KEY} was specified explicitly.)
 @findex UNIQUE
 @findex PRIMARY KEY
 If you add a @code{UNIQUE INDEX} or @code{PRIMARY KEY} to a table, this
-is stored before any not @code[UNIQUE} index so that MySQL can detect
+is stored before any not @code{UNIQUE} index so that MySQL can detect
 duplicate keys as early as possible.
 
 @findex ORDER BY
