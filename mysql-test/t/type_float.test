@@ -3,7 +3,8 @@
 # Numeric floating point.
 
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
-select 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
+SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
+SELECT 1e1,1.e1,1.0e1,1e+1,1.e+1,1.0e+1,1e-1,1.e-1,1.0e-1;
 
 drop table if exists t1;
 create table t1 (f1 float(24),f2 float(52));

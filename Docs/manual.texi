@@ -46461,6 +46461,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
 @item
+Fixed parser to allow floats of type @code{1.0e1} (no sign after @code{e}).
+@item
 Option @code{--force} to @code{myisamchk} now also updates states.
 @item
 Added option @code{--warnings} to @code{mysqld}. Now @code{mysqld}
