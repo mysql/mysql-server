@@ -419,7 +419,7 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_int(name,value,max_length); }
-  void cleanup() { fixed= 1; } // to privent drop fixed flag
+  void cleanup() { fixed= 1; } // to prevent drop fixed flag
   void print(String *str);
 };
 
@@ -908,7 +908,7 @@ public:
   static Item_cache* get_cache(Item_result type);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
-  void cleanup() { fixed= 1; } // to privent drop fixed flag
+  void cleanup() { fixed= 1; } // to prevent drop fixed flag
   void print(String *str);
 };
 

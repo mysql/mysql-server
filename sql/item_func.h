@@ -1009,7 +1009,10 @@ public:
       table->fulltext_searched=0;
     }
     if (concat)
+    {
       delete concat;
+      concat= 0;
+    }
     DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }
