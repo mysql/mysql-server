@@ -99,8 +99,8 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
 
       if (keydef[i].algorithm == HA_KEY_ALG_BTREE)
       {
-	init_tree(&keyinfo->rb_tree, 0, 0, 0, (qsort_cmp2)keys_compare, 1, 
-		  NULL, NULL);
+	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(byte*), 
+		  (qsort_cmp2)keys_compare, 1, NULL, NULL);
 	keyinfo->delete_key= hp_rb_delete_key;
 	keyinfo->write_key= hp_rb_write_key;
 	nsegs++;
