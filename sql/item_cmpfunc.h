@@ -93,9 +93,10 @@ class Item_in_optimizer: public Item_bool_func
 {
 protected:
   Item_cache *cache;
+  bool save_cache;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, (Item *)b), cache(0) {}
+    Item_bool_func(a, (Item *)b), cache(0), save_cache(0) {}
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool fix_left(THD *thd, struct st_table_list *tables, Item **ref);
   bool is_null();
@@ -107,8 +108,10 @@ public:
     Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
   */
   longlong val_int();
+  void cleanup();
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
+  void keep_top_level_cache();
 };
 
 class Comp_creator
@@ -209,9 +212,11 @@ public:
   }
   void cleanup()
   {
+    DBUG_ENTER("Item_bool_rowready_func2::cleanup");
     Item_bool_func2::cleanup();
     tmp_arg[0]= orig_a;
     tmp_arg[1]= orig_b;
+    DBUG_VOID_RETURN;
   }
 };
 
@@ -720,10 +725,12 @@ class Item_func_in :public Item_int_func
   void fix_length_and_dec();
   void cleanup()
   {
+    DBUG_ENTER("Item_func_in::cleanup");
     delete array;
     delete in_item;
     array= 0;
     in_item= 0;
+    DBUG_VOID_RETURN;
   }
   optimize_type select_optimize() const
     { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }

@@ -355,6 +355,8 @@ public:
   int prepare(THD *thd, select_result *result, ulong additional_options);
   int exec();
   int cleanup();
+  inline void unclean() { cleaned= 0; }
+  void reinit_exec_mechanism();
 
   bool check_updateable(char *db, char *table);
   void print(String *str);

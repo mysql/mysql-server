@@ -1631,6 +1631,14 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
   fix_tables_pointers(thd->lex->all_selects_list);
+
+  /*
+    open temporary memory pool, which will be closed in
+    mysql_test_select_fields,  mysql_test_upd_fields or
+    mysql_test_insert_fields
+  */
+  if (thd->current_statement)
+    thd->ps_setup_prepare_memory();
   DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
@@ -2080,6 +2088,9 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 {
   if (!wild_num)
     return 0;
+  Statement *stmt= thd->current_statement, backup;
+  if (stmt)
+    thd->set_n_backup_item_arena(stmt, &backup);
   reg2 Item *item;
   List_iterator<Item> it(fields);
   while ( wild_num && (item= it++))
@@ -2091,7 +2102,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
 			((Item_field*) item)->table_name, &it))
+      {
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
 	return (-1);
+      }
       if (sum_func_list)
       {
 	/*
@@ -2104,6 +2119,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
   }
+  if (stmt)
+      thd->restore_backup_item_arena(stmt, &backup);
   return 0;
 }
 
