@@ -260,7 +260,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (wrong_tables.length())
   {
     if (!foreign_key_error)
-      my_error(ER_BAD_TABLE_ERROR,MYF(0), wrong_tables.c_ptr());
+      my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
+                     wrong_tables.c_ptr());
     else
       my_error(ER_ROW_IS_REFERENCED, MYF(0));
     error= 1;
