@@ -56,6 +56,14 @@ start slave;
 # Detect this with timeout.
 select master_pos_wait('master-bin.001',3000,120)=-1;
 select * from t1 where a=8000;
-# Note that the simple fact to have less than around 30 slave's binlogs
-# (the slave is started with --log-slave-updates) is already
-# a proof that the transaction was not properly resumed.
+
+# The following DROP is a very important cleaning task:
+# imagine the next test is run with --skip-innodb: it will do
+# DROP TABLE IF EXISTS t1; but this will delete the frm and leave
+# some data in the InnoDB datafile (because at that time mysqld
+# does not know about InnoDB : --skip-innodb). So if later in the
+# test suite a test wants to create an InnoDB table called t1, it
+# will fail with 
+# InnoDB: Error: table t1 already exists in InnoDB internal
+# InnoDB: data dictionary. Have you deleted the .frm file etc
+drop table t1;
