@@ -470,3 +470,9 @@ unix_timestamp(@a)
 select unix_timestamp('1969-12-01 19:00:01');
 unix_timestamp('1969-12-01 19:00:01')
 0
+select from_unixtime(0);
+from_unixtime(0)
+NULL
+select from_unixtime(2145916800);
+from_unixtime(2145916800)
+NULL
