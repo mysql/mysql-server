@@ -72,13 +72,14 @@ HugoCalculator::Int64 calcValue(int record, int attrib, int updates) const;
 HugoCalculator::float calcValue(int record, int attrib, int updates) const;
 HugoCalculator::double calcValue(int record, int attrib, int updates) const;
 #endif
+
 const char* 
 HugoCalculator::calcValue(int record, 
 			  int attrib, 
 			  int updates, 
 			  char* buf,
 			  int len) const {
-
+  unsigned seed;
   const NdbDictionary::Column* attr = m_tab.getColumn(attrib);
   Uint32 val;
   do
@@ -98,16 +99,15 @@ HugoCalculator::calcValue(int record,
     
     if (attr->getPrimaryKey())
     {
-      srand(record + attrib);
-      val = (record + attrib);
+      seed = record + attrib;
     }
     else
     {
-      srand(record + attrib + updates);
-      val = rand();
+      seed = record + attrib + updates;
     }
   } while (0);
-  
+  val = rand_r(&seed);  
+
   if(attr->getNullable() && (((val >> 16) & 255) > 220))
     return NULL;
   
@@ -115,14 +115,14 @@ HugoCalculator::calcValue(int record,
   int pos= 4;
   while(pos + 4 < len)
   {
-    val= rand();
+    val= rand_r(&seed);
     memcpy(buf+pos, &val, 4);
     pos++;
   }
 
   if(pos < len)
   { 
-    val= rand();
+    val= rand_r(&seed);
     memcpy(buf+pos, &val, (len - pos));
   }
 
