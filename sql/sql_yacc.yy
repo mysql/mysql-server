@@ -1718,7 +1718,7 @@ simple_expr:
 	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CONVERT_SYM '(' expr USING IDENT ')'
 	  { 
-	    CHARSET_INFO *cs=find_compiled_charset_by_name($5.str);
+	    CHARSET_INFO *cs=get_charset_by_name($5.str,MYF(MY_WME));
 	    if (!cs)
 	    {
 	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$5);
@@ -1728,7 +1728,7 @@ simple_expr:
 	  }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
 	  { 
-	    $$= new Item_func_conv_charset3($3,$5,$7); 
+	    $$= new Item_func_conv_charset3($3,$7,$5); 
 	  }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
