@@ -23,6 +23,10 @@
 #include "m_ctype.h"
 #include <errno.h>
 
+#ifndef EILSEQ
+#define EILSEQ ENOENT
+#endif
+
 #ifdef HAVE_CHARSET_utf8
 #define HAVE_UNIDATA
 #endif
