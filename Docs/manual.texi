@@ -48762,6 +48762,16 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in UNION's with last offset being transposed to total result set
+@item
+Fixed that DEFAULT_SELECT_LIMIT is always imposed on UNION's result set 
+@item
+Fixed that some SELECT options can appear only in the first SELECT
+@item
+Fixed bug with LIMIT with UNION, where last select is in the braces
+@item
+Fixed that fulltext works fine with UNION's
+@item
 Fixed bug with indexless boolean full-text search.
 @item
 Fixed bug that sometimes appeared when full-text search was used

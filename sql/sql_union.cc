@@ -186,7 +186,10 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 	  thd->options&= ~OPTION_FOUND_ROWS;
       }
       else 
-	thd->select_limit= HA_POS_ERROR;		// no limit
+      {
+	thd->offset_limit= 0;
+	thd->select_limit= thd->default_select_limit;
+      }
       if (describe)
 	thd->select_limit= HA_POS_ERROR;		// no limit
       res=mysql_select(thd,&result_table_list,
