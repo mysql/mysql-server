@@ -146,7 +146,9 @@ void Item_func_not_all::print(String *str)
 
 
 /*
-  special NOP for ALL subquery
+  Special NOP (No OPeration) for ALL subquery it is like  Item_func_not_all
+  (return TRUE if underlaying sudquery do not return rows) but if subquery
+  returns some rows it return same value as argument (TRUE/FALSE).
 */
 
 longlong Item_func_nop_all::val_int()
