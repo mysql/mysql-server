@@ -35,6 +35,8 @@
 #include "sql_acl.h"
 #include "lex_symbol.h"
 #include "item_create.h"
+#include "sp_head.h"
+#include "sp_pcontext.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -121,6 +123,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	AVG_SYM
 %token	BEGIN_SYM
 %token	BINLOG_SYM
+%token  CALL_SYM
 %token	CHANGE
 %token	CLIENT_SYM
 %token	COMMENT_SYM
@@ -201,6 +204,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CONVERT_SYM
 %token	DATABASES
 %token	DATA_SYM
+%token  DECLARE_SYM
 %token	DEFAULT
 %token	DELAYED_SYM
 %token	DELAY_KEY_WRITE_SYM
@@ -246,6 +250,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INFILE
 %token	INNER_SYM
 %token	INNOBASE_SYM
+%token  INOUT_SYM
 %token	INTO
 %token	IN_SYM
 %token	ISOLATION
@@ -260,6 +265,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LIKE
 %token	LINES
 %token	LOCAL_SYM
+%token  LOCATOR_SYM
 %token	LOG_SYM
 %token	LOGS_SYM
 %token	LONG_NUM
@@ -300,6 +306,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	OR
 %token	OR_OR_CONCAT
 %token	ORDER_SYM
+%token  OUT_SYM
 %token	OUTER
 %token	OUTFILE
 %token	DUMPFILE
@@ -338,6 +345,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SIMPLE_SYM
 %token	SHUTDOWN
 %token	SPATIAL_SYM
+%token  SPECIFIC_SYM
 %token  SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
@@ -526,6 +534,18 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_SMALL_RESULT
 %token  SQL_BUFFER_RESULT
 
+%token  CURSOR_SYM
+%token  ELSEIF_SYM
+%token  ITERATE_SYM
+%token  LEAVE_SYM
+%token  LOOP_SYM
+%token  REPEAT_SYM
+%token  UNTIL_SYM
+%token  WHILE_SYM
+%token  ASENSITIVE_SYM
+%token  INSENSITIVE_SYM
+%token  SENSITIVE_SYM
+
 %token  ISSUER_SYM
 %token  SUBJECT_SYM
 %token  CIPHER_SYM
@@ -673,7 +693,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	union_clause union_list union_option
 	precision subselect_start opt_and
 	subselect_end select_var_list select_var_list_init help opt_len
+	statement
 END_OF_INPUT
+
+%type <NONE> call sp_proc_stmts sp_proc_stmt
+%type <num>  sp_decls sp_decl sp_decl_idents sp_opt_inout
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -700,10 +724,16 @@ query:
 	| verb_clause END_OF_INPUT {};
 
 verb_clause:
+	  statement
+	| begin
+	;
+
+/* Verb clauses, except begin */
+statement:
 	  alter
 	| analyze
 	| backup
-	| begin
+	| call
 	| change
 	| check
 	| commit
@@ -885,7 +915,405 @@ create:
 	    lex->udf.returns=(Item_result) $7;
 	    lex->udf.dl=$9.str;
 	  }
-          ;
+	| CREATE PROCEDURE ident
+	  {
+	    LEX *lex= Lex;
+
+	    lex->spcont = new sp_pcontext();
+	    lex->sphead = new sp_head(&$3, lex);
+	  }
+          '(' sp_dparam_list ')'
+	  {
+	    Lex->spcont->set_params();
+	  }
+	  sp_proc_stmt
+	  {
+	    Lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+	  } 
+	;
+
+call:
+	  CALL_SYM ident
+	  {
+	    LEX *lex = Lex;
+
+	    lex->sql_command= SQLCOM_CALL;
+	    lex->value_list.empty();
+	    lex->value_list.push_back(
+	     (Item*)new Item_string($2.str, $2.length, default_charset_info));
+	  }
+          '(' sp_cparam_list ')' {}
+	;
+
+/* CALL parameters */
+sp_cparam_list:
+	  /* Empty */
+	| sp_cparams
+	;
+
+sp_cparams:
+	  sp_cparams ',' expr
+	  {
+	    Lex->value_list.push_back($3);
+	  }
+	| expr
+	  {
+	    Lex->value_list.push_back($1);
+	  }
+	;
+
+/* SP parameter declaration list */
+sp_dparam_list:
+	  /* Empty */
+	| sp_dparams
+	;
+
+sp_dparams:
+	  sp_dparams ',' sp_dparam
+	| sp_dparam
+	;
+
+sp_dparam:
+	  sp_opt_inout ident type sp_opt_locator
+	  {
+	    Lex->spcont->push(&$2,
+	                      (enum enum_field_types)$3,
+			      (sp_param_mode_t)$1);
+	  }
+	;
+
+sp_opt_inout:
+	  /* Empty */ { $$= sp_param_in; }
+	| IN_SYM      { $$= sp_param_in; }
+	| OUT_SYM     { $$= sp_param_out; }
+	| INOUT_SYM   { $$= sp_param_inout; }
+	;
+
+sp_opt_locator:
+	  /* Empty */
+	| AS LOCATOR_SYM
+	;
+
+sp_proc_stmts:
+	  sp_proc_stmt ';'
+	| sp_proc_stmts sp_proc_stmt ';'
+	;
+
+sp_decls:
+	  /* Empty */
+	  {
+	    $$= 0;
+	  }
+	| sp_decls sp_decl ';'
+	  {
+	    $$= $1 + $2;
+	  }
+	;
+
+sp_decl:
+	  DECLARE_SYM sp_decl_idents type
+	  {
+	    LEX *lex= Lex;
+	    uint max= lex->spcont->current_framesize();
+
+	    for (uint i = max-$2 ; i < max ; i++)
+	    {
+	      lex->spcont->set_type(i, (enum enum_field_types)$3);
+	      lex->spcont->set_isset(i, FALSE);
+	    }
+	    $$= $2;
+	  }
+	;
+
+sp_decl_idents:
+	  ident
+	  {
+	    Lex->spcont->push(&$1, (enum_field_types)0, sp_param_in);
+	    $$= 1;
+	  }
+	| sp_decl_idents ',' ident
+	  {
+	    Lex->spcont->push(&$3, (enum_field_types)0, sp_param_in);
+	    $$= $1 + 1;
+	  }
+	;
+
+sp_proc_stmt:
+	  {
+	    Lex->sphead->reset_lex(YYTHD);
+	  }
+	  statement
+	  {
+	    LEX *lex= Lex;
+
+	    if (lex->sql_command == SQLCOM_SELECT && !lex->result)
+	    {
+	      send_error(YYTHD, ER_SP_BADSELECT);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      /* Don't add an instruction for empty SET statements.
+	      ** (This happens if the SET only contained local variables,
+	      **  which get their set instructions generated separately.)
+	      */
+	      if (lex->sql_command != SQLCOM_SET_OPTION ||
+	          !lex->var_list.is_empty())
+	      {
+	        sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
+
+	        i->set_lex(lex);
+	        lex->sphead->add_instr(i);
+              }
+	      lex->sphead->restore_lex(YYTHD);
+	    }
+          }
+	| IF sp_if END IF {}
+	| CASE_SYM WHEN_SYM
+	  {
+	    Lex->sphead->m_simple_case= FALSE;
+	  }
+	  sp_case END CASE_SYM {}
+	| CASE_SYM expr WHEN_SYM
+	  {
+	    /* We "fake" this by using an anonymous variable which we
+	       set to the expression. Note that all WHENs are evaluate
+	       at the same frame level, so we then know that it's the
+	       top-most variable in the frame. */
+	    LEX *lex= Lex;
+	    uint offset= lex->spcont->current_framesize();
+	    sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
+	                                       offset, $2, MYSQL_TYPE_STRING);
+	    LEX_STRING dummy;
+
+	    dummy.str= (char *)"";
+	    dummy.length= 0;
+	    lex->spcont->push(&dummy, MYSQL_TYPE_STRING, sp_param_in);
+	    lex->sphead->add_instr(i);
+	    lex->sphead->m_simple_case= TRUE;
+	  }
+	  sp_case END CASE_SYM
+	  {
+	    Lex->spcont->pop();
+	  }
+	| sp_labeled_control
+	  {}
+	| { /* Unlabeled controls get a secret label. */
+	    LEX *lex= Lex;
+
+	    lex->spcont->push_label((char *)"", lex->sphead->instructions());
+	  }
+	  sp_unlabeled_control
+	  {
+	    LEX *lex= Lex;
+
+	    lex->sphead->backpatch(lex->spcont->pop_label());
+	  }
+	| LEAVE_SYM IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp = lex->sphead;
+	    sp_label_t *lab= lex->spcont->find_label($2.str);
+
+	    if (! lab)
+	    {
+	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "LEAVE");
+	      YYABORT;
+	    }
+	    else
+	    {
+	      sp_instr_jump *i= new sp_instr_jump(sp->instructions());
+
+	      sp->push_backpatch(i, lab);  /* Jumping forward */
+              sp->add_instr(i);
+	    }
+	  }
+	| ITERATE_SYM IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->find_label($2.str);
+
+	    if (! lab)
+	    {
+	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE");
+	      YYABORT;
+	    }
+	    else
+	    {
+	      uint ip= lex->sphead->instructions();
+	      sp_instr_jump *i= new sp_instr_jump(ip, lab->ip); /* Jump back */
+
+              lex->sphead->add_instr(i);
+	    }
+	  }
+	;
+
+sp_if:
+	  expr THEN_SYM
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $1);
+
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->add_instr(i);
+	  }
+	  sp_proc_stmts
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump *i = new sp_instr_jump(ip);
+
+	    sp->add_instr(i);
+	    sp->backpatch(ctx->pop_label());
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+	  }
+	  sp_elseifs
+	  {
+	    LEX *lex= Lex;
+
+	    lex->sphead->backpatch(lex->spcont->pop_label());
+	  }
+	;
+
+sp_elseifs:
+	  /* Empty */
+	| ELSEIF_SYM sp_if
+	| ELSE sp_proc_stmts
+	;
+
+sp_case:
+	  expr THEN_SYM
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump_if_not *i;
+
+	    if (! sp->m_simple_case)
+	      i= new sp_instr_jump_if_not(ip, $1);
+	    else
+	    { /* Simple case: <caseval> = <whenval> */
+	      Item *var= (Item*) new Item_splocal(ctx->current_framesize()-1);
+	      Item *expr= Item_bool_func2::eq_creator(var, $1);
+
+	      i= new sp_instr_jump_if_not(ip, expr);
+	    }
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->add_instr(i);
+	  }
+	  sp_proc_stmts
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump *i = new sp_instr_jump(ip);
+
+	    sp->add_instr(i);
+	    sp->backpatch(ctx->pop_label());
+	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+	  }
+	  sp_whens
+	  {
+	    LEX *lex= Lex;
+
+	    lex->sphead->backpatch(lex->spcont->pop_label());
+	  }
+	;
+
+sp_whens:
+	  /* Empty */
+	| WHEN_SYM sp_case
+	| ELSE sp_proc_stmts
+	;
+
+sp_labeled_control:
+	  IDENT ':'
+	  {
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->find_label($1.str);
+
+	    if (lab)
+	    {
+	      send_error(YYTHD, ER_SP_LABEL_REDEFINE);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      lex->spcont->push_label($1.str,
+	                              lex->sphead->instructions());
+	    }
+	  }
+	  sp_unlabeled_control IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->find_label($5.str);
+
+	    if (! lab || strcasecmp($5.str, lab->name) != 0)
+	    {
+	      send_error(YYTHD, ER_SP_LABEL_MISMATCH);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      lex->spcont->pop_label();
+	      lex->sphead->backpatch(lab);
+	    }
+	  }
+	;
+
+sp_unlabeled_control:
+	  BEGIN_SYM
+	    sp_decls
+	    sp_proc_stmts
+	  END
+	  { /* QQ This is just a dummy for grouping declarations and statements
+	       together. No [[NOT] ATOMIC] yet, and we need to figure out how
+	       make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
+	    Lex->spcont->pop($2);
+	  }
+	| LOOP_SYM
+	  sp_proc_stmts END LOOP_SYM
+	  {
+	    LEX *lex= Lex;
+	    uint ip= lex->sphead->instructions();
+	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+	    sp_instr_jump *i = new sp_instr_jump(ip, lab->ip);
+
+	    lex->sphead->add_instr(i);
+	  }
+	| WHILE_SYM expr DO_SYM
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    uint ip= sp->instructions();
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $2);
+
+	    /* Jumping forward */
+	    sp->push_backpatch(i, lex->spcont->last_label());
+            sp->add_instr(i);
+	  }
+	  sp_proc_stmts END WHILE_SYM
+	  {
+	    LEX *lex= Lex;
+	    uint ip= lex->sphead->instructions();
+	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+	    sp_instr_jump *i = new sp_instr_jump(ip, lab->ip);
+
+	    lex->sphead->add_instr(i);
+	  }
+	| REPEAT_SYM sp_proc_stmts UNTIL_SYM expr END REPEAT_SYM
+	  {
+	    LEX *lex= Lex;
+	    uint ip= lex->sphead->instructions();
+	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $4, lab->ip);
+
+            lex->sphead->add_instr(i);
+	  }
+	;
 
 create2:
 	'(' field_list ')' opt_create_table_options create3 {}
@@ -1457,8 +1885,27 @@ alter:
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
-	  };
+	  }
+	| ALTER PROCEDURE opt_specific ident
+	  /* QQ Characteristics missing for now */
+	  opt_restrict
+	  {
+	    LEX *lex=Lex;
 
+	    /* This is essensially an no-op right now, since we haven't
+	       put the characteristics in yet. */
+	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
+	    lex->value_list.empty();
+	    lex->value_list.push_back(
+	      (Item*)new Item_string($4.str, $4.length, default_charset_info));
+	  }
+	;
+
+opt_specific:
+	/* Empty */
+	|
+	SPECIFIC_SYM
+	;
 
 alter_list:
         | alter_list_item
@@ -2134,6 +2581,8 @@ simple_expr:
 	  { $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);}
 	| FUNC_ARG3 '(' expr ',' expr ',' expr ')'
 	  { $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);}
+	| REPEAT_SYM '(' expr ',' expr ')'
+	  { $$= new Item_func_repeat($3,$5); }
 	| ATAN	'(' expr ')'
 	  { $$= new Item_func_atan($3); }
 	| ATAN	'(' expr ',' expr ')'
@@ -2989,10 +3438,29 @@ select_var_list:
 	   | select_var_ident {}
            ;
 
-select_var_ident:  '@' ident_or_text
+select_var_ident:  
+	   '@' ident_or_text
            {
              LEX *lex=Lex;
-	     if (lex->result && ((select_dumpvar *)lex->result)->var_list.push_back((LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING))))
+	     if (lex->result) 
+	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($2,0,0));
+	     else
+	       YYABORT;
+	   }
+           | ident_or_text
+           {
+             LEX *lex=Lex;
+	     if (!lex->spcont)
+	       YYABORT;
+	     sp_pvar_t *t;
+	     if (!(t=lex->spcont->find_pvar(&$1)))
+	     {
+	       send_error(lex->thd, ER_SYNTAX_ERROR);
+	       YYABORT;
+	     }
+	     if (lex->result)
+	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset));
+	     else
 	       YYABORT;
 	   }
            ;
@@ -3077,7 +3545,16 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->udf.name = $3;
-	  };
+	  }
+	| DROP PROCEDURE ident opt_restrict
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
+	    lex->value_list.empty();
+	    lex->value_list.push_back(
+	     (Item*)new Item_string($3.str, $3.length, default_charset_info));
+	  }
+	;
 
 
 table_list:
@@ -3133,7 +3610,6 @@ replace:
 	  Select->set_lock_for_tables($3);
 	}
 	insert_field_spec
-	{}
 	{}
 	;
 
@@ -3835,8 +4311,25 @@ order_ident:
 simple_ident:
 	ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
-	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,NullS,$1.str) : (Item*) new Item_ref(NullS,NullS,$1.str);
+	  sp_pvar_t *spv;
+	  LEX *lex = Lex;
+          sp_pcontext *spc = lex->spcont;
+
+	  if (spc && (spv = spc->find_pvar(&$1)))
+	  { /* We're compiling a stored procedure and found a variable */
+	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
+	    {
+	      send_error(YYTHD, ER_SP_UNINIT_VAR);
+	      YYABORT;
+	    }
+	    else
+	      $$ = (Item*) new Item_splocal(spv->offset);
+	  }
+	  else
+	  {
+	    SELECT_LEX_NODE *sel=Select;
+	    $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,NullS,$1.str) : (Item*) new Item_ref(NullS,NullS,$1.str);
+	  }
 	}
 	| ident '.' ident
 	{
@@ -4145,15 +4638,12 @@ opt_var_ident_type:
 	;
 
 option_value:
-	'@' ident_or_text equal expr
-	{
-	  Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
-	}
-	| internal_variable_name equal set_expr_or_default
+	  '@' ident_or_text equal expr
 	  {
-	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var(lex->option_type, $1, $3));
+	    Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
 	  }
+	| internal_or_splocal
+	  {}
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
@@ -4167,12 +4657,12 @@ option_value:
 						new Item_int((int32) $4)));
 	  }
 	| CHAR_SYM SET opt_equal set_expr_or_default
-	{
-	  LEX *lex=Lex;
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("convert_character_set"),
-					      $4));
-	}
+	  {
+	    LEX *lex=Lex;
+	    lex->var_list.push_back(new set_var(lex->option_type,
+	    			                find_sys_var("convert_character_set"),
+						$4));
+	  }
 	| PASSWORD equal text_or_password
 	  {
 	    THD *thd=YYTHD;
@@ -4198,6 +4688,32 @@ internal_variable_name:
 	  $$=tmp;
 	}
         ;
+
+internal_or_splocal:
+	ident equal set_expr_or_default
+	{
+	  LEX *lex= Lex;
+          sp_pcontext *spc= lex->spcont;
+	  sp_pvar_t *spv;
+
+	  if (!spc || !(spv = spc->find_pvar(&$1)))
+	  { /* Not an SP local variable */
+	    sys_var *tmp= find_sys_var($1.str, $1.length);
+
+	    if (!tmp)
+	      YYABORT;
+	    lex->var_list.push_back(new set_var(lex->option_type, tmp, $3));
+	  }
+	  else
+	  { /* An SP local variable */
+	    sp_instr_set *i= new sp_instr_set(lex->sphead->instructions(),
+	                                      spv->offset, $3, spv->type);
+
+	    lex->sphead->add_instr(i);
+	    spv->isset= TRUE;
+	  }
+	}
+	;
 
 isolation_types:
 	READ_SYM UNCOMMITTED_SYM	{ $$= ISO_READ_UNCOMMITTED; }
