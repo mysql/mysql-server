@@ -2228,8 +2228,11 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
-  mysql_close(&mysql);
-  connected= 0;
+  if (connected)
+  {
+    connected= 0;
+    mysql_close(&mysql);
+  }
   mysql_init(&mysql);
   if (opt_connect_timeout)
   {
