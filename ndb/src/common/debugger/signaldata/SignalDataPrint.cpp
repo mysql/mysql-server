@@ -27,6 +27,7 @@
 const NameFunctionPair
 SignalDataPrintFunctions[] = {
   { GSN_TCKEYREQ, printTCKEYREQ },
+  { GSN_TCINDXREQ, printTCKEYREQ },
   { GSN_TCKEYCONF, printTCKEYCONF },
   { GSN_TCKEYREF, printTCKEYREF },
   { GSN_LQHKEYREQ, printLQHKEYREQ },
