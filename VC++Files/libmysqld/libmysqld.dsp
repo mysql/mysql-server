@@ -351,6 +351,10 @@ SOURCE=..\mysys\my_alloc.c
 SOURCE=..\mysys\my_getopt.c
 # End Source File
 # Begin Source File
+ 
+SOURCE=..\sql-common\my_time.c
+# End Source File
+# Begin Source File
 
 SOURCE=..\sql\net_serv.cpp
 # End Source File
@@ -364,11 +368,11 @@ SOURCE=..\sql\opt_sum.cpp
 # End Source File
 # Begin Source File
 
-SOURCE="..\sql-common\pack.c"
+SOURCE=..\sql-common\pack.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\sql-common\my_time.c
+SOURCE=..\sql\parse_file.cpp
 # End Source File
 # Begin Source File
 
@@ -549,6 +553,10 @@ SOURCE=..\sql\sql_union.cpp
 # Begin Source File
 
 SOURCE=..\sql\sql_update.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\sql_view.cpp
 # End Source File
 # Begin Source File
 
