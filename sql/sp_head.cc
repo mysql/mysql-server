@@ -780,7 +780,7 @@ sp_head::backpatch(sp_label_t *lab)
 void
 sp_head::set_info(char *definer, uint definerlen,
 		  longlong created, longlong modified,
-		  st_sp_chistics *chistics)
+		  st_sp_chistics *chistics, ulong sql_mode)
 {
   char *p= strchr(definer, '@');
   uint len;
@@ -803,6 +803,7 @@ sp_head::set_info(char *definer, uint definerlen,
     m_chistics->comment.str= strmake_root(&mem_root,
 					  m_chistics->comment.str,
 					  m_chistics->comment.length);
+  m_sql_mode= sql_mode;
 }
 
 void
@@ -846,21 +847,44 @@ sp_head::show_create_procedure(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
+  ulong old_sql_mode;
+  sys_var *sql_mode_var;
+  byte *sql_mode_str;
+  ulong sql_mode_len;
 
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  field_list.push_back(new Item_empty_string("Procedure",NAME_LEN));
+  old_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode= m_sql_mode;
+  sql_mode_var= find_sys_var("SQL_MODE", 8);
+  if (sql_mode_var)
+  {
+    sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
+    sql_mode_len= strlen(sql_mode_str);
+  }
+
+  field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
+  if (sql_mode_var)
+    field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Create Procedure",
-					     max(buffer.length(),1024)));
+					     max(buffer.length(), 1024)));
   if (protocol->send_fields(&field_list, 1))
-    DBUG_RETURN(1);
+  {
+    res= 1;
+    goto done;
+  }
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
+  if (sql_mode_var)
+    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
+
+ done:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
 
@@ -889,20 +913,43 @@ sp_head::show_create_function(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
+  ulong old_sql_mode;
+  sys_var *sql_mode_var;
+  byte *sql_mode_str;
+  ulong sql_mode_len;
 
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
+  old_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode= m_sql_mode;
+  sql_mode_var= find_sys_var("SQL_MODE", 8);
+  if (sql_mode_var)
+  {
+    sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
+    sql_mode_len= strlen(sql_mode_str);
+  }
+
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
+  if (sql_mode_var)
+    field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   field_list.push_back(new Item_empty_string("Create Function",
 					     max(buffer.length(),1024)));
   if (protocol->send_fields(&field_list, 1))
-    DBUG_RETURN(1);
+  {
+    res= 1;
+    goto done;
+  }
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
+  if (sql_mode_var)
+    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
+
+ done:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
 // ------------------------------------------------------------------
