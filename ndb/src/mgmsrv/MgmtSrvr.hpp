@@ -173,7 +173,7 @@ public:
 
   MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
 	   const BaseString &config_filename,      /* Where to save config */
-	   const BaseString &ndb_config_filename,  /* Ndb.cfg filename */
+	   LocalConfig &local_config,  /* Ndb.cfg filename */
 	   Config * config); 
   NodeId getOwnNodeId() const {return _ownNodeId;};
 
@@ -528,8 +528,8 @@ private:
   NdbMutex *m_configMutex;
   const Config * _config;
   Config * m_newConfig;
+  LocalConfig &m_local_config;
   BaseString m_configFilename;
-  BaseString m_localNdbConfigFilename;
   Uint32 m_nextConfigGenerationNumber;
   
   NodeBitmask m_reserved_nodes;
