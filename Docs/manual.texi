@@ -43229,7 +43229,7 @@ applications that need all speed they can get. The tables may be memory
 based,@code{HEAP} tables or disk based @code{MyISAM}. @xref{Table types}.
 @item
 @strong{MySQL} has support for 2 different table handles that support
-transactions (@code{BDB} and @code{InnoDB}}.  Because
+transactions (@code{BDB} and @code{InnoDB}).  Because
 every transaction engine performs differently under different
 conditions, this gives the application writer more options to find an
 optimal solution for his/her setup. @xref{Table types}.
