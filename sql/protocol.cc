@@ -742,7 +742,9 @@ bool Protocol_simple::store_short(longlong from)
 bool Protocol_simple::store_long(longlong from)
 {
 #ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos++] == MYSQL_TYPE_LONG);
+  DBUG_ASSERT(field_types == 0 || 
+              field_types[field_pos++] == MYSQL_TYPE_INT24 || 
+              field_types[field_pos++] == MYSQL_TYPE_LONG);
 #endif
   char buff[20];
   return net_store_data((char*) buff,
