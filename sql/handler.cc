@@ -1464,39 +1464,26 @@ int ha_discover(THD* thd, const char* db, const char* name,
 
 
 /*
-  Ask handler if it would support discover of a file 
-  with this name
-
-  RETURN
-   0     Does not recognise file
-   1     File can be discovered
+  Call this function in order to give the handler the possiblity 
+  to ask engine if there are any new tables that should be written to disk 
+  or any dropped tables that need to be removed from disk
 */
 
-int ha_can_discover(THD* thd, const char* name)
+int
+ha_find_files(THD *thd,const char *db,const char *path,
+	      const char *wild, bool dir)
 {
-  int error= 0; // Can't discover this file name
-  DBUG_ENTER("ha_can_discover");
-  DBUG_PRINT("enter", ("name: %s", name));
-#ifdef HAVE_NDBCLUSTER_DB
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_can_discover(thd, name);
-#endif
-  DBUG_RETURN(error);
-}
-
-/*
-  Get a list of tables that exists in handler(s)
- */
-int ha_list_tables(THD* thd, HASH *tables, const char* db)
-{  
   int error= 0;
-  DBUG_ENTER("ha_list_tables");
-  DBUG_PRINT("enter", ("db: %s", db));
+  DBUG_ENTER("ha_find_files");
+  DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
+		       db, path, wild, dir));
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_list_tables(thd, tables, db);
+    error= ndbcluster_find_files(thd, db, path, wild, dir);
 #endif
   DBUG_RETURN(error);
+  
+  
 }
 
 /*
