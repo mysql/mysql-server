@@ -49,8 +49,15 @@ enum enum_server_command
 };
 
 
-#define SCRAMBLE_LENGTH   8
-#define SCRAMBLE41_LENGTH 20
+/*
+  Length of random string sent by server on handshake; this is also length of
+  obfuscated password, recieved from client 
+*/
+#define SCRAMBLE_LENGTH 20
+#define SCRAMBLE_LENGTH_323 8
+/* length of password stored in the db: new passwords are preceeded with '*' */
+#define SCRAMBLED_PASSWORD_CHAR_LENGTH (SCRAMBLE_LENGTH*2+1)
+#define SCRAMBLED_PASSWORD_CHAR_LENGTH_323 (SCRAMBLE_LENGTH_323*2)
 
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
@@ -302,31 +309,34 @@ extern "C" {
 extern unsigned long max_allowed_packet;
 extern unsigned long net_buffer_length;
 
-void randominit(struct rand_struct *,unsigned long seed1,
-		unsigned long seed2);
+/*
+  These functions are used for authentication by client and server and
+  implemented in sql/password.c
+*/
+
+void randominit(struct rand_struct *, unsigned long seed1,
+                unsigned long seed2);
 double my_rnd(struct rand_struct *);
-void make_scrambled_password(char *to,const char *password,
-     my_bool force_old_scramble,struct rand_struct *rand_st);
-int get_password_length(my_bool force_old_scramble);
-char get_password_version(const char* password);
-void create_random_string(int length,struct rand_struct *rand_st,char* target);
-my_bool validate_password(const char* password, const char* message,
-        unsigned long* salt);
-void password_hash_stage1(char *to, const char *password);
-void password_hash_stage2(char *to,const char *salt);
-void password_crypt(const char* from,char* to, const char* password,int length);
-void get_hash_and_password(unsigned long* salt, unsigned char  pversion,char* hash,
-     unsigned char* bin_password);
-void get_salt_from_password(unsigned long *res,const char *password);
-void create_key_from_old_password(const char* password,char* key);
-void make_password_from_salt(char *to, unsigned long *hash_res,
-     unsigned char  password_version);
-char *scramble(char *to,const char *message,const char *password,
-	       my_bool old_ver);
-my_bool check_scramble(const char *, const char *message,
-		       unsigned long *salt,my_bool old_ver);
+void create_random_string(char *to, uint length, struct rand_struct *rand_st);
+
+void hash_password(ulong *to, const char *password, uint password_len);
+void make_scrambled_password_323(char *to, const char *password);
+void scramble_323(char *to, const char *message, const char *password);
+my_bool check_scramble_323(const char *, const char *message,
+                           unsigned long *salt);
+void get_salt_from_password_323(unsigned long *res, const char *password);
+void make_password_from_salt_323(char *to, const unsigned long *salt);
+
+void make_scrambled_password(char *to, const char *password);
+void scramble(char *to, const char *message, const char *password);
+my_bool check_scramble(const char *reply, const char *message,
+                       const unsigned char *hash_stage2);
+void get_salt_from_password(unsigned char *res, const char *password);
+void make_password_from_salt(char *to, const unsigned char *hash_stage2);
+
+/* end of password.c */
+
 char *get_tty_password(char *opt_message);
-void hash_password(unsigned long *result, const char *password);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
