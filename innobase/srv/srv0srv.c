@@ -2790,6 +2790,15 @@ background_loop:
 
 	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
 
+	if (n_tables_to_drop > 0) {
+		/* Do not monopolize the CPU even if there are tables waiting
+		in the background drop queue. (It is essentially a bug if
+		MySQL tries to drop a table while there are still open handles
+		to it and we had to put it to the background drop queue.) */
+
+	        os_thread_sleep(100000);
+	}
+
 	srv_main_thread_op_info = (char*)"";
 	
 	srv_main_thread_op_info = (char*)"flushing buffer pool pages";
