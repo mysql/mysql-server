@@ -1391,8 +1391,10 @@ restore_user:
       if (check_global_access(thd,RELOAD_ACL))
 	break;
       mysql_log.write(thd,command,NullS);
-      /* error sending is deferred to reload_acl_and_cache */
-      reload_acl_and_cache(thd, options, (TABLE_LIST*) 0) ;
+      if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, NULL))
+        send_error(thd, 0);
+      else
+        send_ok(thd);
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -2164,6 +2166,16 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
     res = mysql_repair_table(thd, tables, &lex->check_opt);
+    /* ! we write after unlocking the table */
+    if (!res && !lex->no_write_to_binlog)
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
+      }
+    }
     break;
   }
   case SQLCOM_CHECK:
@@ -2180,6 +2192,16 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
     res = mysql_analyze_table(thd, tables, &lex->check_opt);
+    /* ! we write after unlocking the table */
+    if (!res && !lex->no_write_to_binlog)
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
+      }
+    }
     break;
   }
 
@@ -2209,6 +2231,16 @@ mysql_execute_command(THD *thd)
     }
     else
       res = mysql_optimize_table(thd, tables, &lex->check_opt);
+    /* ! we write after unlocking the table */
+    if (!res && !lex->no_write_to_binlog)
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
+      }
+    }
     break;
   }
   case SQLCOM_UPDATE:
@@ -2894,13 +2926,42 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
-  case SQLCOM_FLUSH:
   case SQLCOM_RESET:
+    /* 
+       RESET commands are never written to the binary log, so we have to
+       initialize this variable because RESET shares the same code as FLUSH
+    */
+    lex->no_write_to_binlog= 1;
+  case SQLCOM_FLUSH:
+  {
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, tables))
       goto error;
-    /* error sending is deferred to reload_acl_and_cache */
-    reload_acl_and_cache(thd, lex->type, tables);
+    /*
+      reload_acl_and_cache() will tell us if we are allowed to write to the
+      binlog or not.
+    */
+    bool write_to_binlog;
+    if (reload_acl_and_cache(thd, lex->type, tables, &write_to_binlog))
+      send_error(thd, 0);
+    else
+    {
+      /*
+        We WANT to write and we CAN write.
+        ! we write after unlocking the table.
+      */
+      if (!lex->no_write_to_binlog && write_to_binlog)
+      {
+        mysql_update_log.write(thd, thd->query, thd->query_length);
+        if (mysql_bin_log.is_open())
+        {
+          Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+          mysql_bin_log.write(&qinfo);
+        }
+      }
+      send_ok(thd);
+    }
     break;
+  }
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
     break;
@@ -3957,14 +4018,31 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
 
 
 /*
-  Reload/resets privileges and the different caches
+  Reload/resets privileges and the different caches.
+
+  SYNOPSIS
+    reload_acl_and_cache()
+    thd			Thread handler
+    options             What should be reset/reloaded (tables, privileges,
+    slave...)
+    tables              Tables to flush (if any)
+    write_to_binlog     Depending on 'options', it may be very bad to write the
+                        query to the binlog (e.g. FLUSH SLAVE); this is a
+                        pointer where, if it is not NULL, reload_acl_and_cache()
+                        will put 0 if it thinks we really should not write to
+                        the binlog. Otherwise it will put 1.
+
+  RETURN
+    0	 ok
+    !=0  error
 */
 
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
+bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
+                          bool *write_to_binlog)
 {
   bool result=0;
-  bool error_already_sent=0;
   select_errors=0;				/* Write if more errors */
+  bool tmp_write_to_binlog= 1;
   if (options & REFRESH_GRANT)
   {
     acl_reload(thd);
@@ -3974,6 +4052,12 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   }
   if (options & REFRESH_LOG)
   {
+    /* 
+     Writing this command to the binlog may result in infinite loops when doing
+     mysqlbinlog|mysql, and anyway it does not really make sense to log it
+     automatically (would cause more trouble to users than it would help them)
+    */
+    tmp_write_to_binlog= 0;
     mysql_log.new_file(1);
     mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
@@ -4002,10 +4086,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     query_cache.flush();			// RESET QUERY CACHE
   }
 #endif /*HAVE_QUERY_CACHE*/
-  if (options & (REFRESH_TABLES | REFRESH_READ_LOCK))
+  /*
+    Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too
+    (see sql_yacc.yy)
+  */
+  if (options & (REFRESH_TABLES | REFRESH_READ_LOCK)) 
   {
     if ((options & REFRESH_READ_LOCK) && thd)
     {
+      // writing to the binlog could cause deadlocks, as we don't log UNLOCK TABLES
+      tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;
     }
@@ -4019,8 +4109,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     flush_thread_cache();
 #ifndef EMBEDDED_LIBRARY
   if (options & REFRESH_MASTER)
+  {
+    tmp_write_to_binlog= 0;
     if (reset_master(thd))
       result=1;
+  }
 #endif
 #ifdef OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
@@ -4032,32 +4125,17 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
 #ifndef EMBEDDED_LIBRARY
  if (options & REFRESH_SLAVE)
  {
+   tmp_write_to_binlog= 0;
    LOCK_ACTIVE_MI;
    if (reset_slave(thd, active_mi))
-   {
      result=1;
-     /*
-       reset_slave() sends error itself.
-       If it didn't, one would either change reset_slave()'s prototype, to
-       pass *errorcode and *errmsg to it when it's called or
-       change reset_slave to use my_error() to register the error.
-     */
-     error_already_sent=1;
-   }
    UNLOCK_ACTIVE_MI;
  }
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
-
- if (thd && !error_already_sent)
- {
-   if (result)
-     send_error(thd,0);
-   else
-     send_ok(thd);
- }
-
+ if (write_to_binlog)
+   *write_to_binlog= tmp_write_to_binlog;
  return result;
 }
 

@@ -625,7 +625,9 @@ report_stats () {
     $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
     # Remove some non fatal warnings from the log files
     $SED -e 's!Warning:  Table:.* on delete!!g' \
-         $MY_LOG_DIR/*.err > $MY_LOG_DIR/warnings.tmp
+        $MY_LOG_DIR/*.err \
+        | $SED -e 's!Warning:  Table:.* on rename!!g' \
+        > $MY_LOG_DIR/warnings.tmp
 
     found_error=0
     # Find errors
