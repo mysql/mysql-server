@@ -254,7 +254,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 				  STATE_CRASHED_ON_REPAIR)) &&
 	share->state.open_count == 0) ||
        ((param.testflag & T_FAST) && (share->state.open_count ==
-				      (share->global_changed ? 1 : 0)))))
+				      (uint) (share->global_changed ? 1 : 0)))))
     return HA_ADMIN_ALREADY_DONE;
 
   error = chk_size(&param, file);
@@ -298,6 +298,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     mi_mark_crashed(file);
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
   }
+  check_opt->retry_without_quick=param.retry_without_quick;
 
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
@@ -317,7 +318,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
 
   myisamchk_init(&param);
   param.thd = thd;
-  param.op_name = (char*)" analyze";
+  param.op_name = (char*) "analyze";
   param.table_name = table->table_name;
   param.testflag=(T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
 		  T_DONT_CHECK_CHECKSUM);
@@ -337,6 +338,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
     mi_mark_crashed(file);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
+
 
 int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 {
@@ -404,6 +406,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 
 int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {
+  int error;
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
   MI_CHECK param;
 
@@ -415,7 +418,21 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   if (check_opt->quick)
     param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
-  return repair(thd,param,0);
+  while ((error=repair(thd,param,0)))
+  {
+    if (param.retry_without_quick && param.opt_rep_quick)
+    {
+      param.opt_rep_quick=0;
+      continue;
+    }
+    if ((param.testflag & T_REP_BY_SORT))
+    {
+      param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;      
+      continue;
+    }
+    break;
+  }
+  return error;
 }
 
 int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
@@ -576,19 +593,19 @@ bool ha_myisam::activate_all_index(THD *thd)
 }
 
 
-bool ha_myisam::check_and_repair(THD *thd, const char *name)
+bool ha_myisam::check_and_repair(THD *thd)
 {
   int error=0;
   HA_CHECK_OPT check_opt;
   DBUG_ENTER("ha_myisam::auto_check_and_repair");
 
-  if (open(name, O_RDWR, HA_OPEN_WAIT_IF_LOCKED))
-    DBUG_RETURN(1);
-
   check_opt.init();
-  check_opt.flags=T_MEDIUM;
+  check_opt.flags= T_MEDIUM;
+  check_opt.quick= !file->state->del;	// Don't use quick if deleted rows
   if (mi_is_crashed(file) || check(thd, &check_opt))
   {
+    if (check_opt.retry_without_quick)
+      check_opt.quick=0;
     check_opt.flags=(((myisam_recover_options & HA_RECOVER_BACKUP) ? 
 		      T_BACKUP_DATA : 0) |
 		     (!(myisam_recover_options & HA_RECOVER_FORCE) ? 
@@ -596,11 +613,14 @@ bool ha_myisam::check_and_repair(THD *thd, const char *name)
     if (repair(thd, &check_opt))
       error=1;
   }
-  if (close())
-    error=1;
   DBUG_RETURN(error);
 }
 
+bool ha_myisam::is_crashed() const
+{
+  return (file->s->state.changed & STATE_CRASHED ||
+	  (my_disable_locking && file->s->state.open_count));
+}
 
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {

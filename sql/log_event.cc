@@ -261,7 +261,7 @@ void Log_event::print_header(FILE* file)
 {
   fputc('#', file);
   print_timestamp(file);
-  fprintf(file, " server id  %d ", server_id); 
+  fprintf(file, " server id  %ld ", server_id); 
 }
 
 void Log_event::print_timestamp(FILE* file, time_t* ts = 0)
@@ -709,7 +709,7 @@ void Load_log_event::print(FILE* file, bool short_form)
   }
      
   if((int)skip_lines > 0)
-    fprintf(file, " IGNORE %d LINES ", skip_lines);
+    fprintf(file, " IGNORE %ld LINES ", skip_lines);
 
   if(num_fields)
     {

@@ -161,6 +161,7 @@ sub new
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'limit'}		= 1;		# supports the limit attribute
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -378,6 +379,7 @@ sub new
   $limits{'group_func_extra_std'} = 0;
   $limits{'limit'}		= 1;		# supports the limit attribute
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 0;
 
   $limits{'func_odbc_mod'}	= 0;
   $limits{'func_extra_%'}	= 0;
@@ -576,6 +578,7 @@ sub new
   $limits{'max_text_size'}	= 7000;		# 8000 crashes pg 6.3
   $limits{'query_size'}		= 16777216;
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   # the different cases per query ...
   $smds{'q1'} 	= 'b'; # with time
@@ -849,6 +852,7 @@ sub new
   $limits{'NEG'}		= 1;
   $limits{'func_extra_in_num'}	= 1;
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   # for the smds small benchmark test ....
   # the different cases per query ...
@@ -1087,6 +1091,7 @@ sub new
   $limits{'NEG'}		= 1;
   $limits{'func_extra_in_num'}	= 0;
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   # for the smds small benchmark test ....
   # the different cases per query ... EMPRESS
@@ -1364,6 +1369,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -1612,6 +1618,7 @@ sub new
   $limits{'subqueries'}		= 1; # Doesn't support sub-queries.
   $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   return $self;
 }
@@ -1809,6 +1816,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
   return $self;
 }
 
@@ -1980,6 +1988,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 0; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
   return $self;
 }
 
@@ -2163,6 +2172,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 0; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
   return $self;
 }
 
@@ -2349,6 +2359,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -2558,6 +2569,7 @@ sub new
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'func_extra_in_num'}	= 0; # Has function in
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
   return $self;
 }
 
@@ -2726,6 +2738,7 @@ sub new
   $limits{'func_extra_in_num'}	= 1; # Has function in
   $limits{'limit'}		= 0; # Does not support the limit attribute
   $limits{'unique_index'}	= 1; # Unique index works or not
+  $limits{'insert_select'}	= 1;
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')

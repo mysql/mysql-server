@@ -45,8 +45,7 @@ class ha_myisam: public handler
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER |  HA_LASTKEY_ORDER |
 		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
 		    HA_LONGLONG_KEYS |  HA_NULL_KEY |
-		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY |
-		    HA_CHECK_AND_REPAIR)
+		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY)
   {}
   ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
@@ -103,7 +102,9 @@ class ha_myisam: public handler
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
-  bool check_and_repair(THD *thd, const char *name);
+  bool check_and_repair(THD *thd);
+  bool is_crashed() const;
+  bool auto_repair() const { return myisam_recover_options != 0; }
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int restore(THD* thd, HA_CHECK_OPT* check_opt);
   int backup(THD* thd, HA_CHECK_OPT* check_opt);
