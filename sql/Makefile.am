@@ -22,7 +22,7 @@ MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ @ZLIB_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
-			-I$(srcdir) $(openssl_includes)
+			-I$(srcdir) $(openssl_includes) -I$(top_srcdir)/extra
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
