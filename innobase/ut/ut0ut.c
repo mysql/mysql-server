@@ -416,7 +416,11 @@ ut_print_namel(
 {
 	const char*	s = name;
 	const char*	e = s + namelen;
+#ifdef UNIV_HOTBACKUP
+	int		q = '"';
+#else
 	int		q = mysql_get_identifier_quote_char(trx, name, namelen);
+#endif
 	if (q == EOF) {
 		fwrite(name, 1, namelen, f);
 		return;
