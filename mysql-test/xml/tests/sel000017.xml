@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000017">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numerics.</description>
+   <description>Testing big pos/neg numbers.</description>
+
+   <resultfile name="r/3.23/sel000017.result">
+        <sql>SELECT 9223372036854775807,-009223372036854775808</sql>
+   </resultfile>
+
+</test>

@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000021">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Strings.</description>
+   <description>Testing string comparisons; =, >, >=, &lt;=, &lt;>.</description>
+
+   <resultfile name="r/3.23/sel000021.result">
+        <sql>SELECT "a"&lt;"b","a"&lt;="b","b">="a","b">"a","a"="A","a"&lt;>"b"</sql>
+   </resultfile>
+
+</test>

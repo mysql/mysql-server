@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000011">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numeric bitmoving comparisons.</description>
+   <description>Testing &lt;&lt;, >>.</description>
+
+   <resultfile name="r/3.23/sel000011.result">
+        <sql>SELECT 1 &lt;&lt; 32,1 &lt;&lt; 63, 1 &lt;&lt; 64, 4 >> 2, 4 >> 63, 1&lt;&lt; 63 >> 60</sql>
+   </resultfile>
+
+</test>

@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000029">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Strings.</description>
+   <description>Testing string comparisons; NOT, AND, OR, !, &amp;&amp;, ||.</description>
+
+   <resultfile name="r/3.23/sel000029.result">
+        <sql>SELECT !0,NOT 0=1,!(0=0),1 AND 1,1 &amp;&amp; 0,0 OR 1,1 || NULL, 1=1 OR 1=1 AND 1=0</sql>
+   </resultfile>
+
+</test>

@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000030">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Control flow.</description>
+   <description>Testing control flow; IF()</description>
+
+   <resultfile name="r/3.23/sel000030.result">
+        <sql>SELECT IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0</sql>
+   </resultfile>
+
+</test>

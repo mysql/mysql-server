@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000006">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numeric functions.</description>
+   <description>Testing ROUND(); hundreths precision.</description>
+
+   <resultfile name="r/3.23/sel000006.result">
+        <sql>SELECT ROUND(5.64,1),ROUND(5.64,2),ROUND(5.64,-1),ROUND(5.64,-2)</sql>
+   </resultfile>
+
+</test>
