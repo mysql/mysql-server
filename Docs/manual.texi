@@ -29135,16 +29135,16 @@ types the precision and scale can be (and usually is) specified; for
 example:
 
 @example
-    salary DECIMAL(9,2)
+    salary DECIMAL(5,2)
 @end example
 
-In this example, @code{9} (@code{precision}) represents the number of
+In this example, @code{5} (@code{precision}) represents the number of
 significant decimal digits that will be stored for values, and @code{2}
 (@code{scale}) represents the number of digits that will be stored
 following the decimal point.  In this case, therefore, the range of
 values that can be stored in the @code{salary} column is from
-@code{-9999999.99} to @code{9999999.99}.
-(MySQL can actually store numbers up to @code{9999999.99} in this column
+@code{-99.99} to @code{99.99}.
+(MySQL can actually store numbers up to @code{999.99} in this column
 because it doesn't have to store the sign for positive numbers)
 
 In ANSI/ISO SQL92, the syntax @code{DECIMAL(p)} is equivalent to

@@ -4786,7 +4786,8 @@ join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
   int error;
-  if (!table->key_read && (table->used_keys & ((key_map) 1 << tab->index)))
+  if (!table->key_read && (table->used_keys & ((key_map) 1 << tab->index)) &&
+      !table->no_keyread)
   {
     table->key_read=1;
     table->file->extra(HA_EXTRA_KEYREAD);
