@@ -82,6 +82,7 @@ class ha_innobase: public handler
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
 			  HA_DROP_BEFORE_CREATE |
 			  HA_NO_PREFIX_CHAR_KEYS |
+			  HA_NOT_READ_PREFIX_LAST |
 			  HA_TABLE_SCAN_ON_INDEX),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0)
@@ -96,7 +97,7 @@ class ha_innobase: public handler
 	ulong index_flags(uint idx) const
 	{
 	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-		  HA_KEY_READ_ONLY | HA_NOT_READ_PREFIX_LAST);
+		  HA_KEY_READ_ONLY);
 	}
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }
