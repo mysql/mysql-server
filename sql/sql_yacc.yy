@@ -3578,6 +3578,8 @@ show_param:
 	  }
 	| charset wild
 	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
+	| COLLATION_SYM wild
+	  { Lex->sql_command= SQLCOM_SHOW_COLLATIONS; }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
