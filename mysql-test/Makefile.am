@@ -19,6 +19,13 @@
 
 if HAVE_NDBCLUSTER_DB
 SUBDIRS = ndb
+DIST_SUBDIRS=ndb
+else
+# If one uses automake conditionals, automake will automatically
+# include all possible branches to DIST_SUBDIRS goal.
+# Reset DIST_SUBDIRS if we don't use NDB
+SUBDIRS=
+DIST_SUBDIRS=
 endif
 
 benchdir_root=		$(prefix)
