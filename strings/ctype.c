@@ -3118,8 +3118,8 @@ CHARSET_INFO compiled_charsets[] = {
     ismbchar_euc_kr,
     ismbhead_euc_kr,
     mbcharlen_euc_kr,
-    NULL,		/* mb_wc   */
-    NULL,		/* wc_mb   */
+    my_mb_wc_euc_kr,	/* mb_wc   */
+    my_wc_mb_euc_kr,	/* wc_mb   */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
