@@ -375,7 +375,7 @@ log_pad_current_log_block(void)
 	log_close();
 	log_release();
 
-	ut_a((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
+	ut_ad((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
 						== LOG_BLOCK_HDR_SIZE);
 }
 
@@ -998,6 +998,8 @@ log_group_file_header_flush(
 {
 	byte*	buf;
 	ulint	dest_offset;
+	
+	UT_NOT_USED(type);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -1068,8 +1070,8 @@ log_group_write_buf(
 	ulint	i;
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
-	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_a(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	if (new_data_offset == 0) {
 		write_header = TRUE;
@@ -2901,10 +2903,9 @@ logs_empty_and_mark_files_at_shutdown(void)
 	dulint	lsn;
 	ulint	arch_log_no;
 
-	if (srv_print_verbose_log)
-	{
-	  ut_print_timestamp(stderr);
-	  fprintf(stderr, "  InnoDB: Starting shutdown...\n");
+	if (srv_print_verbose_log) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Starting shutdown...\n");
 	}
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -3006,15 +3007,17 @@ loop:
 		goto loop;
 	}
 
+	/* Make some checks that the server really is quiet */
+	ut_a(buf_all_freed());
+	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
+
 	fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);	
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
-	if (srv_print_verbose_log)
-	{
-	  ut_print_timestamp(stderr);
-	  fprintf(stderr, "  InnoDB: Shutdown completed\n");
-	}
+	/* Make some checks that the server really is quiet */
+	ut_a(buf_all_freed());
+	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 }
 
 /**********************************************************

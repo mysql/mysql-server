@@ -16,6 +16,7 @@
 
 
 extern const char	*unknown_sqlstate;
+extern const char	*not_error_sqlstate;
 
 #ifdef	__cplusplus
 extern "C" {

@@ -268,7 +268,8 @@ typedef struct st_mysql
   my_bool	free_me;		/* If free in mysql_close */
   my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
   unsigned int last_errno;
-  char *last_error;
+  char *last_error;			/* Used by embedded server */
+  char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
 } MYSQL;
 
 #endif
@@ -566,6 +567,7 @@ unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
 my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
+my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt);
 unsigned int STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_sqlstate(MYSQL_STMT * stmt);

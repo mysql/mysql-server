@@ -285,7 +285,7 @@ create table t1 (c int);
 insert into t1 values(1),(2);
 create table t2 select * from t1;
 create table t3 select * from t1, t2;
-Duplicate column name 'c'
+ERROR 42S21: Duplicate column name 'c'
 create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
 show full columns from t3;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment

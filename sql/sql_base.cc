@@ -544,7 +544,8 @@ TABLE_LIST * find_table_in_list(TABLE_LIST *table,
 {
   for (; table; table= table->next)
     if ((!db_name || !strcmp(table->db, db_name)) &&
-	(!table_name || !strcmp(table->alias, table_name)))
+	(!table_name || !my_strcasecmp(table_alias_charset,
+				       table->alias, table_name)))
       break;
   return table;
 }
@@ -1739,7 +1740,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     bool found_table=0;
     for (; tables ; tables=tables->next)
     {
-      if (!strcmp(tables->alias,table_name) &&
+      if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
 	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
       {
 	found_table=1;
@@ -1868,20 +1869,22 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 {
   List_iterator<Item> li(items);
   Item **found=0,*item;
+  const char *db_name=0;
   const char *field_name=0;
   const char *table_name=0;
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
   {
     field_name= ((Item_ident*) find)->field_name;
     table_name= ((Item_ident*) find)->table_name;
+    db_name=    ((Item_ident*) find)->db_name;
   }
 
   for (uint i= 0; (item=li++); i++)
   {
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
-      if (!my_strcasecmp(system_charset_info,
-                         ((Item_field*) item)->name,field_name))
+      Item_field *item_field= (Item_field*) item;
+      if (!my_strcasecmp(system_charset_info, item_field->name, field_name))
       {
 	if (!table_name)
 	{
@@ -1897,11 +1900,16 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 	  found= li.ref();
 	  *counter= i;
 	}
-	else if (!strcmp(((Item_field*) item)->table_name,table_name))
+	else
 	{
-	  found= li.ref();
-	  *counter= i;
-	  break;
+	  if (!strcmp(item_field->table_name,table_name) &&
+	      (!db_name || (db_name && item_field->db_name &&
+			    !strcmp(item_field->table_name,table_name))))
+	  {
+	    found= li.ref();
+	    *counter= i;
+	    break;
+	  }
 	}
       }
     }
@@ -2094,7 +2102,8 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
   for (; tables ; tables=tables->next)
   {
     TABLE *table=tables->table;
-    if (!table_name || (!strcmp(table_name,tables->alias) &&
+    if (!table_name || (!my_strcasecmp(table_alias_charset, table_name,
+				       tables->alias) &&
 			(!db_name || !strcmp(tables->db,db_name))))
     {
       /* Ensure that we have access right to all columns */

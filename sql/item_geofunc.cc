@@ -34,7 +34,7 @@ String *Item_func_geometry_from_text::val_str(String *str)
   uint32 srid;
 
   if ((arg_count == 2) && !args[1]->null_value)
-    srid= args[1]->val_int();
+    srid= (uint32)args[1]->val_int();
   else
     srid= 0;
 
@@ -62,7 +62,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   uint32 srid;
 
   if ((arg_count == 2) && !args[1]->null_value)
-    srid= args[1]->val_int();
+    srid= (uint32)args[1]->val_int();
   else
     srid= 0;
 
