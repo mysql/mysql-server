@@ -3886,9 +3886,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 	else
 	{
 	  mysql_execute_command(thd);
-#ifndef EMBEDDED_LIBRARY  /* TODO query cache in embedded library*/
-	  query_cache_end_of_result(&thd->net);
-#endif
+	  query_cache_end_of_result(thd);
 	}
       }
     }
@@ -3896,9 +3894,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
     {
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
-#ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
       query_cache_abort(&thd->net);
-#endif
     }
     thd->proc_info="freeing items";
     free_items(thd->free_list);  /* Free strings used by items */

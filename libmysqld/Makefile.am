@@ -33,10 +33,10 @@ INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(top_srcdir)/include \
 noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
-libmysqld_sources=	libmysqld.c lib_sql.cc
+libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c
 
-noinst_HEADERS =	embedded_priv.h
+noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	ha_innodb.cc ha_berkeley.cc ha_heap.cc ha_isam.cc ha_isammrg.cc \
