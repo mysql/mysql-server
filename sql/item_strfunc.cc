@@ -418,7 +418,7 @@ redo:
           i=(char*) ptr+1; j=(char*) search+1;
           while (j != search_end)
             if (*i++ != *j++) goto skipp;
-          offset=ptr-res->ptr();
+          offset= (int) (ptr-res->ptr());
           if (res->length()-from_length + to_length > max_allowed_packet)
             goto null;
           if (!alloced)
@@ -740,12 +740,12 @@ String *Item_func_substr_index::val_str(String *str)
         if (c) return res; /* Not found, return original string */
         if (count>0) /* return left part */
         {
-	  tmp_value.set(*res,0,ptr-res->ptr());
+	  tmp_value.set(*res,0,(ulong) (ptr-res->ptr()));
         }
         else /* return right part */
         {
 	  ptr+=delimeter_length;
-	  tmp_value.set(*res,ptr-res->ptr(),strend-ptr);
+	  tmp_value.set(*res,(ulong) (ptr-res->ptr()), (ulong) (strend-ptr));
         }
       }
     }

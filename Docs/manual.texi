@@ -5004,12 +5004,11 @@ and that provides output about what is happening.
 @xref{Debugging server}.
 
 @item
-If your client programs are using threads, you need to compile the
-@strong{MySQL} client library to be thread safe with
-@code{--with-thread-safe-client}; this forces the library to use thread
-safe functions calls for some functions that are not thread safe by
-default. You pay a very small performance penalty by doing this, but
-generally it's quite safe to use this option.
+If your client programs are using threads, you need to also compile a
+thread safe version of the @strong{MySQL} client library with the
+@code{--with-thread-safe-client} configure options. This will create a
+@code{libmysqlclient_r} library with which you should link your threaded
+applications. @xref{Thread-safe clients}.
 
 @item
 Options that pertain to particular systems can be found in the
@@ -30101,24 +30100,8 @@ The @strong{MySQL} server shrinks each communication buffer to
 the buffer associated with a connection is not decreased until the connection
 is closed, at which time client memory is reclaimed.
 
-If you are programming with threads, you should compile the
-@strong{MySQL} C API with @code{--with-thread-safe-client}.  This will make
-the C API thread safe per connection.   You can let two threads share the same
-connection as long as you do the following:
-
-@table @asis
-@item
-Two threads can't send a query to the @strong{MySQL} at the same time on
-the same connection.  In particular you have to ensure that between a
-@code{mysql_query()} and @code{mysql_store_result()} no other thread is using
-the same connection.
-@item
-Many threads can access different result sets that are retrieved with
-@code{mysql_store_result()}.
-@item
-If you use @code{mysql_use_result}, you have to ensure that no other thread
-is asking anything on the same connection until the result set is closed.
-@end table
+For programming with threads, consult the 'how to make a thread safe
+client' chapter. @xref{Thread-safe clients}.
 
 @node C API datatypes, C API function overview, C, Clients
 @section C API datatypes
@@ -32769,18 +32752,21 @@ have your own alarm that can break a long read to a server.  If you
 install an interrupt handlers for the @code{SIGPIPE} interrupt,
 the socket handling should be thread safe. 
 
-In the standard binaries we distribute on our web site, the client libraries
-are not normally compiled with the thread safe option.
+In the older binaries we distribute on our web site, the client
+libraries are not normally compiled with the thread safe option (the
+windows binaries are however by default compiled to be thread safe).
+Newer binary distributions should however have both a normal and a
+threadsafe client library.
 
 To get a really thread-safe client where you can interrupt the client
 from other threads and set timeouts when talking with the MySQL server,
 you should use the @code{-lmysys}, @code{-lstring} and @code{-ldbug}
 libraries and the @code{net_serv.o} code that the server uses.
 
-If you don't need interrupts or timeouts you can just compile the client
-library @code{(mysqlclient)} to be thread safe and use this.  In this
-case you don't have to worry about the @code{net_serv.o} object file or
-the other @strong{MySQL} libraries.
+If you don't need interrupts or timeouts you can just compile a tread
+safe client library @code{(mysqlclient_r)} and use this.  @xref{C,,
+MySQL C API}.  In this case you don't have to worry about the
+@code{net_serv.o} object file or the other @strong{MySQL} libraries.
 
 When using a threaded client and you want to use timeouts and interrupts,
 you can make great use of the routines in the @file{thr_alarm.c} file.
@@ -32798,36 +32784,43 @@ To make @code{mysql_real_connect()} thread-safe, you must recompile the
 client library with this command:
 
 @example
-shell> ./configure --enable-thread-safe-client
+shell> ./configure --with-thread-safe-client
 @end example
 
-This will ensure that the client library will use the header files required
-for thread safe programs and also that @code{mysql_real_connect()} will use
-a thread safe version of the @code{gethostbyname()} call.
+This will create a thread safe client library @code{libmysqlclient_r}.
+@code{--with-thread-safe-client}.  This library is is thread safe per
+connection.  You can let two threads share the same connection as long
+as you do the following:
 
-You may get some errors because of undefined symbols when linking the
-standard client, because the pthread libraries are not included by
-default.
-
-The resulting @file{libmysqlclient.a} library is now thread-safe.  What this
-means is that client code is thread-safe as long as two threads don't query
-the same connection handle returned by @code{mysql_real_connect()} at the
-same time; the client/server protocol allows only one request at a time on a
-given connection.  If you want to use multiple threads on the same
-connection, you must have a mutex lock around your @code{mysql_query()} and
+@table @asis
+@item
+Two threads can't send a query to the @strong{MySQL} at the same time on
+the same connection.  In particular you have to ensure that between a
+@code{mysql_query()} and @code{mysql_store_result()} no other thread is using
+the same connection.
+@item
+Many threads can access different result sets that are retrieved with
+@code{mysql_store_result()}.
+@item
+If you use @code{mysql_use_result}, you have to ensure that no other thread
+is asking anything on the same connection until the result set is closed.
+However, it really is best for threaded clients that share the same
+connection to use @code{mysql_use_result()}.
+@item
+If you want to use multiple threads on the same connection, you must
+have a mutex lock around your @code{mysql_query()} and
 @code{mysql_store_result()} call combination.  Once
 @code{mysql_store_result()} is ready, the lock can be released and other
-threads may query the same connection.  (In other words, different threads
-can use different @code{MYSQL_RES} pointers that were created with
-@code{mysql_store_result()}, as long as they use the proper locking
-protocol.) If you program with POSIX threads, you can use
-@code{pthread_mutex_lock()} and @code{pthread_mutex_unlock()} to establish
-and release a mutex lock.
+threads may query the same connection.
+@item
+If you program with POSIX threads, you can use
+@code{pthread_mutex_lock()} and @code{pthread_mutex_unlock()} to
+establish and release a mutex lock.
+@end table
 
-If you used @code{mysql_use_result()} rather than @code{mysql_store_result()},
-the lock would need to surround @code{mysql_use_result()} and the calls
-to @code{mysql_fetch_row()}.  However, it really is best for threaded
-clients not to use @code{mysql_use_result()}.
+You may get some errors because of undefined symbols when linking your
+client with @code{mysqlclient_r};  In most cases this is because you haven't
+included the thread libraries on the link/compile line.
 
 @node Perl, Eiffel, C API functions, Clients
 @section MySQL Perl API
@@ -34652,9 +34645,8 @@ The @strong{MySQL} GUI client homepage. By Sinisa at MySQL AB.
 An administration tool for the @strong{MySQL} server using QT / KDE.  Tested
 only on Linux.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql-admin-using-java+swing.tar.gz, Java client
-using Swing} By Fredy Fischer, @email{se-afs@@dial.eunet.ch}. You can
-always find the latest version
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql-admin-using-java+swing.tar.gz, Java client using Swing} By Fredy Fischer, @email{se-afs@@dial.eunet.ch}.
+You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlwinadmn.zip, mysqlwinadmn.zip}
@@ -34675,6 +34667,14 @@ URL @url{http://www.it-netservice.de/pages/software/index.html}.
 @item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN201.EXE,Atronic's @strong{MySQL} client for Win32 2.0.1.0}.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
 @item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}
+
+@item @uref{http://dbtools.vila.bol.com.br/, Dbtools}
+A tool to manage @strong{MySQL} databases. Currently only for Win32.
+Some features:
+@itemize @bullet
+@item manage servers, databases, tables, columns, indexes and users
+@item import wizard to import structure and data from a MS Access, MS Excel, Dbase, FoxPro, Paradox and ODBC Databases.
+@end itemize
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/xmysqladmin-1.0.tar.gz, xmysqladmin-1.0.tar.gz}
 An X based front end to the @strong{MySQL} database engine.  It allows reloads,
@@ -35401,6 +35401,9 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.23, News-3.23.22, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
+@item
+Updated mysqlhotcopy to use the new @code{FLUSH TABLES table_list} syntax. Only
+tables which are being backed up are flushed now.
 @item
 Changed behavior of @code{--enable-thread-safe-client} so
 that both non-threaded (@code{-lmysqlclient}) and threaded

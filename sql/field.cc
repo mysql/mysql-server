@@ -799,7 +799,7 @@ String *Field_tiny::val_str(String *val_buffer,
   if (unsigned_flag)
     length= (uint) (int10_to_str((long) *((uchar*) ptr),to,10)-to);
   else
-    length=(int10_to_str((long) *((signed char*) ptr),to,-10)-to);
+    length= (uint) (int10_to_str((long) *((signed char*) ptr),to,-10)-to);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);

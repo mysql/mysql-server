@@ -32,11 +32,17 @@
 #define	SYSTEM_TYPE	"Win95/Win98"
 #endif
 
-#ifdef _WIN32
-#define MACHINE_TYPE	"i32"		/* Define to machine type name */
-#else
+#ifdef _WIN64
 #define MACHINE_TYPE	"i64"		/* Define to machine type name */
+#else
+#define MACHINE_TYPE	"i32"		/* Define to machine type name */
+#ifndef _WIN32
+#define _WIN32				/* Compatible with old source */
 #endif
+#ifndef __WIN32__
+#define __WIN32__
+#endif
+#endif /* _WIN64 */
 #ifndef __WIN__
 #define __WIN__                       /* To make it easier in VC++ */
 #endif

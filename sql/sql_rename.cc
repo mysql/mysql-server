@@ -32,8 +32,7 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 {
   bool error=1,got_all_locks=1;
-  db_type table_type;
-  TABLE_LIST *lock_table,*ren_table=0,*new_table;
+  TABLE_LIST *lock_table,*ren_table=0;
   DBUG_ENTER("mysql_rename_tables");
   
   /* Avoid problems with a rename on a table that we have locked or

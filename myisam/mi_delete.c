@@ -527,7 +527,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 					  (uchar*) 0, (uchar *) 0,
 					  leaf_key, &s_temp);
       /* t_length will always be > 0 for a new page !*/
-      length=(buff+mi_getint(buff))-half_pos;
+      length=(uint) ((buff+mi_getint(buff))-half_pos);
       bmove((byte*) buff+p_length+t_length,(byte*) half_pos,(size_t) length);
       (*keyinfo->store_key)(keyinfo,buff+p_length,&s_temp);
       mi_putint(buff,length+t_length+p_length,nod_flag);
@@ -683,7 +683,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
       DBUG_RETURN(0);				/* Error */
     if (next_block && nod_flag)
       *next_block= _mi_kpos(nod_flag,keypos);
-    s_length=(keypos-start);
+    s_length=(int) (keypos-start);
     if (keypos != page_end)
     {
       if (keyinfo->flag & HA_BINARY_PACK_KEY)
@@ -699,7 +699,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
 		    (next_length-prev_length));
 	  keypos-=(next_length-prev_length)+prev_pack_length;
 	  store_key_length(keypos,prev_length);
-	  s_length=(keypos-start);
+	  s_length=(int) (keypos-start);
 	}
       }
       else
@@ -746,7 +746,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	    rest_length+=tmp;
 	    pack_length= prev_length ? get_pack_length(rest_length): 0;
 	    keypos-=tmp+pack_length+prev_pack_length;
-	    s_length=(keypos-start);
+	    s_length=(int) (keypos-start);
 	    if (prev_length)			/* Pack against prev key */
 	    {
 	      *keypos++= start[0];

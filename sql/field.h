@@ -33,7 +33,7 @@ class Field {
   Field(const Item &);				/* Prevent use of theese */
   void operator=(Field &);
 public:
-  static void *operator new(size_t size) {return (void*) sql_alloc(size); }
+  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg, size_t size) {} /*lint -e715 */
 
   enum utype { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
