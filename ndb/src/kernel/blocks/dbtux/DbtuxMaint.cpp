@@ -57,9 +57,9 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   c_indexPool.getPtr(indexPtr, req->indexId);
   ndbrequire(indexPtr.p->m_tableId == req->tableId);
   // get base fragment id and extra bits
-  const Uint32 fragOff = indexPtr.p->m_fragOff;
-  const Uint32 fragId = req->fragId & ((1 << fragOff) - 1);
-  const Uint32 fragBit = req->fragId >> fragOff;
+  const Uint32 fragId = req->fragId & ~1;
+  const Uint32 fragBit = req->fragId & 1;
+  
   // get the fragment
   FragPtr fragPtr;
   fragPtr.i = RNIL;
@@ -71,6 +71,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       break;
     }
   }
+
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
   // set up index keys for this operation
