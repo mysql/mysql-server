@@ -2666,6 +2666,9 @@ Functions to concatinate various spatial objects
 
 String *Item_func_point::val_str(String *str)
 {
+  double x= args[0]->val();
+  double y= args[1]->val();
+
   if ( (null_value = (args[0]->null_value ||
                      args[1]->null_value ||
                      str->realloc(1+4+8+8))))
@@ -2674,8 +2677,8 @@ String *Item_func_point::val_str(String *str)
   str->length(0);
   str->q_append((char)Geometry::wkbNDR);
   str->q_append((uint32)Geometry::wkbPoint);
-  str->q_append((double)args[0]->val());
-  str->q_append((double)args[1]->val());
+  str->q_append(x);
+  str->q_append(y);
   return str;
 }
 
@@ -2707,10 +2710,9 @@ String *Item_func_spatial_collection::val_str(String *str)
 
   for (i = 0; i < arg_count; ++i)
   {
+    String *res = args[i]->val_str(&arg_value);
     if (args[i]->null_value)
       goto ret;
-
-    String *res = args[i]->val_str(&arg_value);
 
     if ( coll_type == Geometry::wkbGeometryCollection )
     {
