@@ -43,11 +43,6 @@
 
 #include <NdbOut.hpp>
 
-// time out for next scan result (-1 is infinite)
-// XXX should change default only if non-trivial interpreted program is used
-#define WAITFOR_SCAN_TIMEOUT    120000
-
-
 
 /***************************************************************************
  * int  receiveSCAN_TABREF(NdbApiSignal* aSignal)

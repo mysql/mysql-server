@@ -32,7 +32,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_READCONF,               "READCONF" }
   ,{ GSN_SCAN_NEXTREQ,           "SCAN_NEXTREQ" }
   ,{ GSN_SCAN_TABCONF,           "SCAN_TABCONF" }
-  ,{ GSN_SCAN_TABINFO,           "SCAN_TABINFO" }
   ,{ GSN_SCAN_TABREF,            "SCAN_TABREF" }
   ,{ GSN_SCAN_TABREQ,            "SCAN_TABREQ" }
   ,{ GSN_TC_COMMITCONF,          "TC_COMMITCONF" }
