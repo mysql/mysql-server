@@ -79,8 +79,8 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	   bootstrap(0),in_lock_tables(0),
 	   global_read_lock(0)
 {
-   host=user=db=query=ip=0;
   proc_info="login";
+  host=user=db=query=ip=0;
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=0;
   query_length=col_access=0;
@@ -117,13 +117,12 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   ull=0;
   system_thread=0;
   bzero((char*) &mem_root,sizeof(mem_root));
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMENI_DB)
+#ifdef USING_TRANSACTIONS
+  bzero((char*) &transaction,sizeof(transaction));
   if (open_cached_file(&transaction.trans_log,
 		       mysql_tmpdir,LOG_PREFIX,0,MYF(MY_WME)))
     killed=1;
-  transaction.bdb_lock_count=0;
 #endif
-  transaction.bdb_tid=0;
 
 #ifdef	__WIN__
   real_id = 0 ;
@@ -146,7 +145,7 @@ THD::~THD()
     close_thread_tables(this);
   }
   close_temporary_tables(this);
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMENI_DB)
+#ifdef USING_TRANSACTIONS
   close_cached_file(&transaction.trans_log);
 #endif
   if (global_read_lock)

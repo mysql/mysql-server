@@ -134,7 +134,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 
-/* options for select set by the yacc parser */
+/* options for select set by the yacc parser (stored in lex->options) */
 #define SELECT_DISTINCT		1
 #define SELECT_STRAIGHT_JOIN	2
 #define SELECT_DESCRIBE		4
@@ -155,14 +155,17 @@ void kill_one_thread(THD *thd, ulong id);
 #define OPTION_SAFE_UPDATES	OPTION_ANSI_MODE*2
 #define OPTION_BUFFER_RESULT	OPTION_SAFE_UPDATES*2
 #define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
-#define OPTION_AUTO_COMMIT	OPTION_BIN_LOG*2
-#define OPTION_BEGIN		OPTION_AUTO_COMMIT*2
+#define OPTION_NOT_AUTO_COMMIT	OPTION_BIN_LOG*2
+#define OPTION_BEGIN		OPTION_NOT_AUTO_COMMIT*2
 #define OPTION_QUICK		OPTION_BEGIN*2
 #define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
 
+/* Set if we are updating a non-transaction safe table */
+#define OPTION_STATUS_NO_TRANS_UPDATE OPTION_QUOTE_SHOW_CREATE*2
+
 /* The following is set when parsing the query */
-#define OPTION_NO_INDEX_USED		OPTION_QUOTE_SHOW_CREATE*2
-#define OPTION_NO_GOOD_INDEX_USED	OPTION_NO_INDEX_USED*2
+#define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2
+#define QUERY_NO_GOOD_INDEX_USED	QUERY_NO_INDEX_USED*2
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -255,6 +258,7 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 
 /* net_pkg.c */
 void send_error(NET *net,uint sql_errno=0, const char *err=0);
+void send_warning(NET *net, uint sql_errno, const char *err=0);
 void net_printf(NET *net,uint sql_errno, ...);
 void send_ok(NET *net,ha_rows affected_rows=0L,ulonglong id=0L,
 	     const char *info=0);

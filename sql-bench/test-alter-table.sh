@@ -68,7 +68,7 @@ $field_count= $opt_start_field_count;
 
 $start_time=new Benchmark;
 
-$dbh->do("drop table bench");
+$dbh->do("drop table bench" . $server->{'drop_attr'});
 do_many($dbh,$server->create("bench",\@fields,\@index));
 
 print "Insert data into the table\n";
@@ -92,9 +92,16 @@ print "Time for insert ($opt_row_count)",
 $loop_time=new Benchmark;
 $add= int(($opt_field_count-$opt_start_field_count)/$opt_loop_count)+1;
 
-
-$add=1 if (!$limits{'alter_add_multi_col'});
 $multi_add=$server->{'limits'}->{'alter_add_multi_col'} == 1;
+if ($opt_fast)
+{
+  $add=1 if (!$server->{'limits'}->{'alter_add_multi_col'});
+}
+else
+{
+  $add=1 if (!$limits{'alter_add_multi_col'});
+}
+
 
 $count=0;
 while ($field_count < $opt_field_count)
@@ -159,7 +166,8 @@ while ($field_count > $opt_start_field_count)
   {
     $fields.=",DROP i${field_count}";
   }
-  $dbh->do("ALTER TABLE bench " . substr($fields,1)) || die $DBI::errstr;
+  $dbh->do("ALTER TABLE bench " . substr($fields,1) . $server->{'drop_attr'})
+  || die $DBI::errstr;
 }
 
 $end_time=new Benchmark;
@@ -173,7 +181,7 @@ skip_dropcol:
 #### End of the test...Finally print time used to execute the
 #### whole test.
 
-$dbh->do("drop table bench");
+$dbh->do("drop table bench" . $server->{'drop_attr'});
 
 $dbh->disconnect;
 

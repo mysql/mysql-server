@@ -686,6 +686,7 @@ static const char *default_options[]=
  "init-command", "host", "database", "debug", "return-found-rows",
  "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
  "character-set-dir", "default-character-set", "interactive-timeout",
+ "connect_timeout",
  NullS
 };
 
@@ -745,6 +746,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	case 5:				/* pipe */
 	  options->named_pipe=1;	/* Force named pipe */
 	  break;
+	case 20:			/* connect_timeout */
 	case 6:				/* timeout */
 	  if (opt_arg)
 	    options->connect_timeout=atoi(opt_arg);

@@ -18,7 +18,7 @@ noinst_SCRIPTS =	Support/texi2html Support/generate-text-files.pl \
 			Support/generate-mirror-listing.pl
 info_TEXINFOS =		manual.texi
 
-targets =		manual.txt mysql.info manual.html $(PDFMANUAL)
+targets =		manual.txt mysql.info manual.html
 
 BUILT_SOURCES =		$(targets) manual_toc.html include.texi
 EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt INSTALL-BINARY
@@ -30,9 +30,9 @@ txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
 
 CLEAN_FILES:		manual.ps
 
-# The PostScript version is so big that is not included in the
+# The PostScript and PDF version are so big that they are not included in the
 # standard distribution. It is available for download from the home page.  
-paper: manual_a4.ps manual_letter.ps
+paper: manual_a4.ps manual_letter.ps  $(PDFMANUAL)
 
 #########################################################################
 

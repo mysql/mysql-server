@@ -1,0 +1,11 @@
+Testing server '2.1' at 2000-11-24 12:38:06
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 150 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 36 wallclock secs ( 3.58 usr  2.67 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing big selects on the table
+Time for select_big (70:17207): 11 wallclock secs ( 0.22 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

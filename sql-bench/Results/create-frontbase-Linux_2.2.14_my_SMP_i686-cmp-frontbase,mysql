@@ -1,0 +1,16 @@
+Testing server '2.1' at 2000-11-23 21:30:54
+
+Testing the speed of creating and droping tables
+Testing with 1000 tables and 10000 loop count
+
+Testing create of tables
+Time for create_MANY_tables (1000): 27 wallclock secs ( 0.63 usr  0.24 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Accessing tables
+Time to select_group_when_MANY_tables (1000):  5 wallclock secs ( 0.29 usr  0.29 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing drop
+Time for drop_table_when_MANY_tables (1000): 799 wallclock secs ( 0.81 usr  0.38 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing create+drop
+Time for create+drop (10000): 2122 wallclock secs (12.59 usr  6.29 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

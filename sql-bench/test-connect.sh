@@ -42,6 +42,8 @@ if ($opt_small_test)
   $opt_loop_count/=100;
 }
 
+$opt_loop_count=min(1000, $opt_loop_count) if ($opt_tcpip);
+
 print "Testing the speed of connecting to the server and sending of data\n";
 print "All tests are done $opt_loop_count times\n\n";
 
@@ -68,11 +70,11 @@ for ($i=0 ; $i < $opt_loop_count ; $i++)
       $dbh->disconnect;
       last;
     }
-    select(undef, undef, undef, 0.001);
+    select(undef, undef, undef, 0.01*$j);
     print "$errors " if (($opt_debug));
     $errors++;
   }
-  die $DBI::errstr if ($j == $max_test);
+  die "Got error '$DBI::errstr' after $i connects" if ($j == $max_test);
   $dbh->disconnect;
   undef($dbh);
 }
@@ -128,7 +130,7 @@ if ($limits->{'select_without_from'})
 #### Then we shall do $opt_loop_count selects from this table.
 #### Table will contain very simple data.
 
-$sth = $dbh->do("drop table bench1");
+$sth = $dbh->do("drop table bench1" . $server->{'drop_attr'});
 do_many($dbh,$server->create("bench1",
 			     ["a int NOT NULL",
 			      "i int",
@@ -221,7 +223,7 @@ if ($limits->{'functions'})
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
 
-$sth = $dbh->do("drop table bench1")
+$sth = $dbh->do("drop table bench1" . $server->{'drop_attr'})
   or die $DBI::errstr;
 
 if ($opt_fast && defined($server->{vacuum}))
@@ -233,6 +235,8 @@ if ($opt_fast && defined($server->{vacuum}))
 #### We'll create one table with a single blob field,but with a
 #### huge record in it and then we'll do $opt_loop_count selects
 #### from it.
+
+goto skip_blob_test if (!$limits->{'working_blobs'});
 
 print "Testing retrieval of big records ($str_length bytes)\n";
 
@@ -265,7 +269,7 @@ $end_time=new Benchmark;
 print "Time to select_big ($opt_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
-$sth = $dbh->do("drop table bench1")
+$sth = $dbh->do("drop table bench1" . $server->{'drop_attr'})
   or do
 {
     # Fix for Access 2000
@@ -277,6 +281,7 @@ if ($opt_fast && defined($server->{vacuum}))
   $server->vacuum(0,\$dbh);
 }
 
+skip_blob_test:
 
 ################################ END ###################################
 ####

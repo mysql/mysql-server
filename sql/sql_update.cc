@@ -102,7 +102,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->lex.options|=OPTION_NO_INDEX_USED;
+    thd->lex.options|=QUERY_NO_INDEX_USED;
     if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
     {
       delete select;
@@ -245,6 +245,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       Query_log_event qinfo(thd, thd->query);
       mysql_bin_log.write(&qinfo);
     }
+    if (!table->file->has_transactions())
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
   if (ha_autocommit_or_rollback(thd, error >= 0))
     error=1;

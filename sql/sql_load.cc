@@ -241,6 +241,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   send_ok(&thd->net,info.copied+info.deleted,0L,name);
   mysql_update_log.write(thd,thd->query,thd->query_length);
   
+  if (!table->file->has_transactions())
+    thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   if (!read_file_from_client)
   {
     ex->skip_lines = save_skip_lines; 
