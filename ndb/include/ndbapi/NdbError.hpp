@@ -41,7 +41,7 @@
  * The <em>error messages</em> and <em>error details</em> may
  * change without notice.
  * 
- * For example of use, see @ref ndbapi_example3.cpp.
+ * For example of use, see @ref ndbapi_retries.cpp.
  */
 struct NdbError {
   /**

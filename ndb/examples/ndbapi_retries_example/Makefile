@@ -1,6 +1,6 @@
-TARGET = ndbapi_example3
-SRCS = ndbapi_example3.cpp
-OBJS = ndbapi_example3.o
+TARGET = ndbapi_retries
+SRCS = ndbapi_retries.cpp
+OBJS = ndbapi_retries.o
 CXX = g++
 CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 DEBUG = 

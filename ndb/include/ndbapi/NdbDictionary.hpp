@@ -56,7 +56,7 @@ typedef struct charset_info_st CHARSET_INFO;
  * -# NdbDictionary::Column for creating table columns
  * -# NdbDictionary::Index for creating secondary indexes
  *
- * See @ref ndbapi_example4.cpp for details of usage.
+ * See @ref ndbapi_simple_index.cpp for details of usage.
  */
 class NdbDictionary {
 public:
@@ -286,14 +286,14 @@ public:
     int getSize() const;
 
     /** 
-     * Check if column is part of distribution key
+     * Check if column is part of partition key
      *
-     * A <em>distribution key</em> is a set of attributes which are used
+     * A <em>partition key</em> is a set of attributes which are used
      * to distribute the tuples onto the NDB nodes.
-     * The distribution key uses the NDB Cluster hashing function.
+     * The partition key uses the NDB Cluster hashing function.
      *
      * An example where this is useful is TPC-C where it might be
-     * good to use the warehouse id and district id as the distribution key. 
+     * good to use the warehouse id and district id as the partition key. 
      * This would place all data for a specific district and warehouse 
      * in the same database node.
      *
@@ -301,9 +301,12 @@ public:
      * will still be used with the hashing algorithm.
      *
      * @return  true then the column is part of 
-     *                 the distribution key.
+     *                 the partition key.
      */
-    bool getDistributionKey() const;
+    bool getPartitionKey() const;
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+    inline bool getDistributionKey() const { return getPartitionKey(); };
+#endif
 
     /** @} *******************************************************************/
 
@@ -401,13 +404,17 @@ public:
     void setStripeSize(int size);
 
     /** 
-     * Set distribution key
-     * @see getDistributionKey
+     * Set partition key
+     * @see getPartitionKey
      *
      * @param  enable  If set to true, then the column will be part of 
-     *                 the distribution key.
+     *                 the partition key.
      */
-    void setDistributionKey(bool enable);
+    void setPartitionKey(bool enable);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+    inline void setDistributionKey(bool enable)
+    { setPartitionKey(enable); };
+#endif
 
     /** @} *******************************************************************/
 
@@ -691,7 +698,7 @@ public:
 
     /** @} *******************************************************************/
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void setStoredTable(bool x) { setLogging(x); }
     bool getStoredTable() const { return getLogging(); }
 
@@ -894,32 +901,80 @@ public:
    */
   class Event : public Object  {
   public:
-    enum TableEvent { TE_INSERT=1, TE_DELETE=2, TE_UPDATE=4, TE_ALL=7 };
+    enum TableEvent { 
+      TE_INSERT=1, ///< Insert event on table
+      TE_DELETE=2, ///< Delete event on table
+      TE_UPDATE=4, ///< Update event on table
+      TE_ALL=7     ///< Any/all event on table (not relevant when 
+                   ///< events are received)
+    };
     enum EventDurability { 
-      ED_UNDEFINED = 0,
+      ED_UNDEFINED
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+      = 0
+#endif
 #if 0 // not supported
-      ED_SESSION = 1, 
+      ,ED_SESSION = 1, 
       // Only this API can use it
       // and it's deleted after api has disconnected or ndb has restarted
       
-      ED_TEMPORARY = 2,
+      ED_TEMPORARY = 2
       // All API's can use it,
       // But's its removed when ndb is restarted
-#endif      
-      ED_PERMANENT = 3
-      // All API's can use it,
-      // It's still defined after a restart
+#endif
+      ,ED_PERMANENT    ///< All API's can use it,
+                       ///< It's still defined after a restart
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+      = 3
+#endif
     };
     
     Event(const char *name);
     virtual ~Event();
-    void setName(const char *);
-    void setTable(const char *);
-    void addTableEvent(const TableEvent);
-    void setDurability(const EventDurability);
+    /**
+     * Set unique identifier for the event
+     */
+    void setName(const char *name);
+    /**
+     * Set table for which events should be detected
+     */
+    void setTable(const char *tableName);
+    /**
+     * Add type of event that should be detected
+     */
+    void addTableEvent(const TableEvent te);
+    /**
+     * Set durability of the event
+     */
+    void setDurability(const EventDurability ed);
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
+#endif
+    /**
+     * Add a column on which events should be detected
+     *
+     * @param attrId Column id
+     *
+     * @note errors will mot be detected until createEvent() is called
+     */
     void addEventColumn(unsigned attrId);
+    /**
+     * Add a column on which events should be detected
+     *
+     * @param columnName Column name
+     *
+     * @note errors will mot be detected until createEvent() is called
+     */
     void addEventColumn(const char * columnName);
+    /**
+     * Add several columns on which events should be detected
+     *
+     * @param n Number of columns
+     * @param columnNames Column names
+     *
+     * @note errors will mot be detected until 
+     *       NdbDictionary::Dictionary::createEvent() is called
+     */
     void addEventColumns(int n, const char ** columnNames);
 
     /**
@@ -932,7 +987,9 @@ public:
      */
     virtual int getObjectVersion() const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void print();
+#endif
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1003,6 +1060,8 @@ public:
      * Fetch list of all objects, optionally restricted to given type.
      */
     int listObjects(List & list, Object::Type type = Object::TypeUndefined);
+    int listObjects(List & list,
+		    Object::Type type = Object::TypeUndefined) const;
 
     /**
      * Get the latest error
@@ -1041,6 +1100,7 @@ public:
      * @return  0 if successful, otherwise -1
      */
     int listIndexes(List & list, const char * tableName);
+    int listIndexes(List & list, const char * tableName) const;
 
     /** @} *******************************************************************/
     /** 

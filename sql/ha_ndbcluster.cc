@@ -161,7 +161,9 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans)
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(NoCommit,AbortOnError,h->m_force_send);
+  return trans->execute(NdbTransaction::NoCommit,
+			NdbTransaction::AbortOnError,
+			h->m_force_send);
 }
 
 inline
@@ -172,7 +174,9 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(Commit,AbortOnError,h->m_force_send);
+  return trans->execute(NdbTransaction::Commit,
+			NdbTransaction::AbortOnError,
+			h->m_force_send);
 }
 
 inline
@@ -183,7 +187,9 @@ int execute_commit(THD *thd, NdbTransaction *trans)
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(Commit,AbortOnError,thd->variables.ndb_force_send);
+  return trans->execute(NdbTransaction::Commit,
+			NdbTransaction::AbortOnError,
+			thd->variables.ndb_force_send);
 }
 
 inline
@@ -194,7 +200,9 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans)
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(NoCommit,AO_IgnoreError,h->m_force_send);
+  return trans->execute(NdbTransaction::NoCommit,
+			NdbTransaction::AO_IgnoreError,
+			h->m_force_send);
 }
 
 /*
@@ -3345,7 +3353,7 @@ int ndbcluster_rollback(THD *thd, void *ndb_transaction)
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
-  if (trans->execute(Rollback) != 0)
+  if (trans->execute(NdbTransaction::Rollback) != 0)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
@@ -4863,7 +4871,9 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
     
-    check= pTrans->execute(NoCommit, AbortOnError, TRUE);
+    check= pTrans->execute(NdbTransaction::NoCommit,
+			   NdbTransaction::AbortOnError,
+			   TRUE);
     if (check == -1)
       break;
     

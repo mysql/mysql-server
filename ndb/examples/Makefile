@@ -1,5 +1,10 @@
-BIN_DIRS := ndbapi_example1 ndbapi_example3 ndbapi_example4 \
-	    ndbapi_example5 ndbapi_scan_example
+BIN_DIRS := 	ndbapi_simple_example \
+	 	ndbapi_async_example \
+	 	ndbapi_async_example1 \
+		ndbapi_retries_example \
+		ndbapi_simple_index_example \
+		ndbapi_event_example \
+		ndbapi_scan_example
 
 bins: $(patsubst %, _bins_%, $(BIN_DIRS))
 

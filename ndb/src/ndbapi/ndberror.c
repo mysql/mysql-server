@@ -79,6 +79,7 @@ static const char* empty_string = "";
  * 4400 - ""
  * 4500 - ""
  * 4600 - ""
+ * 4700 - "" Event
  * 5000 - Management server
  */
 
@@ -295,6 +296,22 @@ ErrorBundle ErrorCodes[] = {
   { 4609, AE, "You must call nextScanResult before trying to takeOverScan"},
   { 4232, AE, "Parallelism can only be between 1 and 240" },
   { 290,  AE, "Scan not started or has been closed by kernel due to timeout" },
+
+  /** 
+   * Event application errors
+   */
+
+  { 4707,  AE, "Too many event have been defined"},
+  { 4708,  AE, "Event name is too long"},
+  { 4709,  AE, "Event already exists"},
+  { 4710,  AE, "Event not found"},
+  { 4711,  AE, "Creation of event failed"},
+
+  /** 
+   * Event internal errors
+   */
+
+  { 4731,  IE, "Event not found"},
 
   /**
    * SchemaError
