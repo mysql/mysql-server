@@ -141,6 +141,12 @@ int populate(Ndb * myNdb)
   int i;
   Car cars[15];
 
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("GARAGE");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
   /**
    * Five blue mercedes
    */
@@ -177,8 +183,7 @@ int populate(Ndb * myNdb)
 
   for (i = 0; i < 15; i++) 
   {
-    NdbOperation* myNdbOperation = myTrans->getNdbOperation("GARAGE");
-    // Error check. If error, then maybe table MYTABLENAME is not in database
+    NdbOperation* myNdbOperation = myTrans->getNdbOperation(myTable);
     if (myNdbOperation == NULL) 
       APIERROR(myTrans->getNdbError());
     myNdbOperation->insertTuple();
@@ -209,6 +214,12 @@ int scan_delete(Ndb* myNdb,
   NdbError              err;
   NdbTransaction	*myTrans;
   NdbScanOperation	*myScanOp;
+
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("GARAGE");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
 
   /**
    * Loop as long as :
@@ -246,7 +257,7 @@ int scan_delete(Ndb* myNdb,
    /**
     * Get a scan operation.
     */
-    myScanOp = myTrans->getNdbScanOperation("GARAGE");	
+    myScanOp = myTrans->getNdbScanOperation(myTable);	
     if (myScanOp == NULL) 
     {
       std::cout << myTrans->getNdbError().message << std::endl;
@@ -382,6 +393,12 @@ int scan_update(Ndb* myNdb,
   NdbTransaction	*myTrans;
   NdbScanOperation	*myScanOp;
 
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("GARAGE");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
   /**
    * Loop as long as :
    *  retryMax not reached
@@ -419,7 +436,7 @@ int scan_update(Ndb* myNdb,
    /**
     * Get a scan operation.
     */
-    myScanOp = myTrans->getNdbScanOperation("GARAGE");	
+    myScanOp = myTrans->getNdbScanOperation(myTable);	
     if (myScanOp == NULL) 
     {
       std::cout << myTrans->getNdbError().message << std::endl;
@@ -567,6 +584,12 @@ int scan_print(Ndb * myNdb)
    */
   NdbRecAttr *    	myRecAttr[3];   
 
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("GARAGE");
+
+  if (myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
   /**
    * Loop as long as :
    *  retryMax not reached
@@ -604,7 +627,7 @@ int scan_print(Ndb * myNdb)
      * Define a scan operation. 
      * NDBAPI.
      */
-    myScanOp = myTrans->getNdbScanOperation("GARAGE");	
+    myScanOp = myTrans->getNdbScanOperation(myTable);	
     if (myScanOp == NULL) 
     {
       std::cout << myTrans->getNdbError().message << std::endl;
