@@ -93,6 +93,10 @@ class ha_ndbcluster: public handler
   int read_range_first(const key_range *start_key,
 		       const key_range *end_key,
 		       bool eq_range, bool sorted);
+  int read_range_first_to_buf(const key_range *start_key,
+			      const key_range *end_key,
+			      bool eq_range, bool sorted,
+			      byte* buf);
   int read_range_next();
 
   bool get_error_message(int error, String *buf);
