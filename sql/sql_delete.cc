@@ -176,14 +176,14 @@ cleanup:
   }
   if (using_transactions && ha_autocommit_or_rollback(thd,error >= 0))
     error=1;
+  if (deleted)
+  {
+    query_cache_invalidate3(thd, table_list, 1);
+  }
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
-  }
-  if (deleted)
-  {
-	query_cache_invalidate3(thd, table_list, 1);
   }
   delete select;
   if (error >= 0)				// Fatal error
@@ -356,6 +356,9 @@ void multi_delete::send_error(uint errcode,const char *err)
   /* If nothing deleted return */
   if (!deleted)
     DBUG_VOID_RETURN;
+
+  /* Somthing alredy deleted consequently we have to invalidate cache */
+  query_cache_invalidate3(thd, delete_tables, 1);
 
   /* Below can happen when thread is killed early ... */
   if (!table_being_deleted)
