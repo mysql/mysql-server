@@ -4096,14 +4096,14 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->maxLoadFactor = tabPtr.p->maxLoadFactor;
     req->minLoadFactor = tabPtr.p->minLoadFactor;
     req->kValue = tabPtr.p->kValue;
-    req->lh3DistrBits = lhDistrBits;
-    req->lh3PageBits = lhPageBits;
+    req->lh3DistrBits = 0; //lhDistrBits;
+    req->lh3PageBits = 0; //lhPageBits;
     req->noOfAttributes = tabPtr.p->noOfAttributes;
     req->noOfNullAttributes = tabPtr.p->noOfNullAttr;
     req->noOfPagesToPreAllocate = 0;
     req->schemaVersion = tabPtr.p->tableVersion;
     Uint32 keyLen = tabPtr.p->tupKeyLength;
-    req->keyLength = keyLen > 8 ? 0 : keyLen; // Put this into ACC instead
+    req->keyLength = keyLen; // wl-2066 no more "long keys"
     req->nextLCP = lcpNo;
 
     req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
