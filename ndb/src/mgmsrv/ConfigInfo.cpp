@@ -98,6 +98,7 @@ static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
 static bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
 static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data);
+static bool fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data);
 
 const ConfigInfo::SectionRule 
 ConfigInfo::m_SectionRules[] = {
@@ -110,6 +111,8 @@ ConfigInfo::m_SectionRules[] = {
   { MGM_TOKEN,  transformNode, 0 },
   { "REP",  transformNode, 0 },
   { "EXTERNAL REP",  transformExtNode, 0 },
+
+  { MGM_TOKEN,  fixShmUniqueId, 0 },
 
   { "TCP",  checkConnectionSupport, 0 },
   { "SHM",  checkConnectionSupport, 0 },
@@ -3155,19 +3158,39 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   DBUG_RETURN(true);
 }
 
+static bool 
+fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data)
+{
+  DBUG_ENTER("fixShmUniqueId");
+  Uint32 nodes= 0;
+  ctx.m_userProperties.get(ctx.fname, &nodes);
+  if (nodes == 1) // first management server
+  {
+    Uint32 portno= atoi(NDB_PORT);
+    ctx.m_currentSection->get("PortNumber", &portno);
+    ctx.m_userProperties.put("ShmUniqueId", portno);
+  }
+  DBUG_RETURN(true);
+}
+
 static 
 bool 
 fixShmKey(InitConfigFileParser::Context & ctx, const char *)
 {
+  DBUG_ENTER("fixShmKey");
   Uint32 id1= 0, id2= 0, key= 0;
   require(ctx.m_currentSection->get("NodeId1", &id1));
   require(ctx.m_currentSection->get("NodeId2", &id2));
   if(ctx.m_currentSection->get("ShmKey", &key))
-    return true;
+  {
+    DBUG_RETURN(true);
+  }
 
-  key= (id1 > id2 ? id1 << 16 | id2 : id2 << 16 | id1);
+  require(ctx.m_userProperties.get("ShmUniqueId", &key));
+  key= key << 16 | (id1 > id2 ? id1 << 8 | id2 : id2 << 8 | id1);
   ctx.m_currentSection->put("ShmKey", key);
-  return true;
+  DBUG_PRINT("info",("Added ShmKey=0x%x", key));
+  DBUG_RETURN(true);
 }
 
 /**
