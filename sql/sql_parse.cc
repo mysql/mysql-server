@@ -2902,6 +2902,12 @@ mysql_init_query(THD *thd)
   thd->lex.select_lex.table_list.first=0;
   thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
   thd->lex.select_lex.next=0;
+  /*
+    select_lex.options is also inited in dispatch_command(), but for
+    replication (which bypasses dispatch_command() and calls mysql_parse()
+    directly) we must do it here.
+  */
+  thd->lex.select_lex.options=0;
   thd->lex.olap=0;
   thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
   thd->fatal_error=0;				// Safety
