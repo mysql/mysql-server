@@ -71,9 +71,10 @@ bool mysql_create_view(THD *thd,
   if (lex->derived_tables ||
       lex->variables_used || lex->param_list.elements)
   {
-    my_error((lex->derived_tables ?
+    int err= (lex->derived_tables ?
               ER_VIEW_SELECT_DERIVED :
-              ER_VIEW_SELECT_VARIABLE), MYF(0));
+              ER_VIEW_SELECT_VARIABLE);
+    my_message(err, ER(err), MYF(0));
     res= TRUE;
     goto err;
   }
@@ -188,7 +189,8 @@ bool mysql_create_view(THD *thd,
     /* is this table temporary and is not view? */
     if (tbl->table->tmp_table != NO_TMP_TABLE && !tbl->view)
     {
-      my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
+      my_printf_error(ER_VIEW_SELECT_TMPTABLE,
+                      ER(ER_VIEW_SELECT_TMPTABLE), MYF(0), tbl->alias);
       res= TRUE;
       goto err;
     }
@@ -198,7 +200,8 @@ bool mysql_create_view(THD *thd,
         strcmp(tbl->view_db.str, view->db) == 0 &&
         strcmp(tbl->view_name.str, view->real_name) == 0)
     {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
+      my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
+                      tbl->view_db.str, tbl->view_name.str);
       res= TRUE;
       goto err;
     }
@@ -253,7 +256,8 @@ bool mysql_create_view(THD *thd,
       {
         if (strcmp(item->name, check->name) == 0)
         {
-          my_error(ER_DUP_FIELDNAME, MYF(0), item->name);
+          my_printf_error(ER_DUP_FIELDNAME, ER(ER_DUP_FIELDNAME),
+                          MYF(0), item->name);
           DBUG_RETURN(TRUE);
         }
       }
@@ -426,7 +430,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     {
       if (mode == VIEW_CREATE_NEW)
       {
-	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
+	my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                        MYF(0), view->alias);
 	DBUG_RETURN(-1);
       }
 
@@ -436,8 +441,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       if (!parser->ok() ||
           strncmp("VIEW", parser->type()->str, parser->type()->length))
       {
-        my_error(ER_WRONG_OBJECT, MYF(0), (view->db ? view->db : thd->db),
-                 view->real_name, "VIEW");
+        my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
+                        (view->db ? view->db : thd->db),
+                        view->real_name, "VIEW");
         DBUG_RETURN(-1);
       }
 
@@ -457,7 +463,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     {
       if (mode == VIEW_ALTER)
       {
-	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
+	my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
+                        view->db, view->alias);
 	DBUG_RETURN(-1);
       }
     }
@@ -500,7 +507,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if (view->with_check != VIEW_CHECK_NONE &&
       !view->updatable_view)
   {
-    my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->real_name);
+    my_printf_error(ER_VIEW_NONUPD_CHECK, ER(ER_VIEW_NONUPD_CHECK), MYF(0),
+                    view->db, view->real_name);
     DBUG_RETURN(-1);
   }
 
@@ -671,7 +679,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       if (check_table_access(thd, SELECT_ACL, view_tables, 1) &&
           check_table_access(thd, SHOW_VIEW_ACL, table, 1))
       {
-        my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
+        my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;
       }
     }
@@ -851,9 +859,11 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 	continue;
       }
       if (type)
-        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->real_name, "VIEW");
+        my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
+                        view->db, view->real_name, "VIEW");
       else
-        my_error(ER_BAD_TABLE_ERROR, MYF(0), name);
+        my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
+                        name);
       goto err;
     }
     if (my_delete(path, MYF(MY_WME)))

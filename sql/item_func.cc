@@ -45,10 +45,11 @@ bool check_reserved_words(LEX_STRING *name)
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   fname);
+  my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
+                  ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
+                  c1.collation->name, c1.derivation_name(),
+                  c2.collation->name, c2.derivation_name(),
+                  fname);
 }
 
 static void my_coll_agg_error(DTCollation &c1,
@@ -56,11 +57,12 @@ static void my_coll_agg_error(DTCollation &c1,
 			       DTCollation &c3,
 			       const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   c3.collation->name,c3.derivation_name(),
-	   fname);
+  my_printf_error(ER_CANT_AGGREGATE_3COLLATIONS,
+                  ER(ER_CANT_AGGREGATE_3COLLATIONS), MYF(0),
+                  c1.collation->name, c1.derivation_name(),
+                  c2.collation->name, c2.derivation_name(),
+                  c3.collation->name, c3.derivation_name(),
+                  fname);
 }
 
 
@@ -74,7 +76,8 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 		      args[2]->collation,
 		      fname);
   else
-    my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
+    my_printf_error(ER_CANT_AGGREGATE_NCOLLATIONS,
+                    ER(ER_CANT_AGGREGATE_NCOLLATIONS), MYF(0),fname);
 }
 
 
@@ -3112,7 +3115,8 @@ err:
     key=NO_SUCH_KEY;
     return 0;
   }
-  my_error(ER_FT_MATCHING_KEY_NOT_FOUND,MYF(0));
+  my_message(ER_FT_MATCHING_KEY_NOT_FOUND,
+             ER(ER_FT_MATCHING_KEY_NOT_FOUND), MYF(0));
   return 1;
 }
 
@@ -3241,7 +3245,8 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   {
     if (!var->is_struct())
     {
-      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), base_name->str);
+      my_printf_error(ER_VARIABLE_IS_NOT_STRUCT, ER(ER_VARIABLE_IS_NOT_STRUCT),
+                      MYF(0), base_name->str);
       return 0;
     }
   }

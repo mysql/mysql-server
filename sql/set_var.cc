@@ -884,8 +884,8 @@ bool sys_var_str::check(THD *thd, set_var *var)
     return 0;
 
   if ((res=(*check_func)(thd, var)) < 0)
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name,
-             var->value->str_value.ptr());
+    my_printf_error(ER_WRONG_VALUE_FOR_VAR, ER(ER_WRONG_VALUE_FOR_VAR), MYF(0),
+                    name, var->value->str_value.ptr());
   return res;
 }
 
@@ -1159,7 +1159,8 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
       val != (longlong) global_system_variables.max_insert_delayed_threads)
   {
     char buf[64];
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
+    my_printf_error(ER_WRONG_VALUE_FOR_VAR, ER(ER_WRONG_VALUE_FOR_VAR),
+                    MYF(0), var->var->name, llstr(val, buf));
     return 1;
   }
   return 0;
@@ -1457,7 +1458,8 @@ bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
   return 0;
 
 err:
-  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, value);
+  my_printf_error(ER_WRONG_VALUE_FOR_VAR, ER(ER_WRONG_VALUE_FOR_VAR), MYF(0),
+                  name, value);
   return 1;
 }
 
@@ -1496,7 +1498,8 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   return 0;
 
 err:
-  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buff);
+  my_printf_error(ER_WRONG_VALUE_FOR_VAR, ER(ER_WRONG_VALUE_FOR_VAR),
+                  MYF(0), name, buff);
   return 1;
 }
 
@@ -1520,8 +1523,9 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
   {
     if (var_type != OPT_DEFAULT)
     {
-      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
-               name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+      my_printf_error(ER_INCORRECT_GLOBAL_LOCAL_VAR,
+                      ER(ER_INCORRECT_GLOBAL_LOCAL_VAR), MYF(0),
+                      name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
       return 0;
     }
     /* As there was no local variable, return the global value */
@@ -1564,7 +1568,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     return tmp;
   }
   default:
-    my_error(ER_VAR_CANT_BE_READ, MYF(0), name);
+    my_printf_error(ER_VAR_CANT_BE_READ, ER(ER_VAR_CANT_BE_READ), MYF(0),
+                    name);
   }
   return 0;
 }
@@ -1676,7 +1681,8 @@ bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
   if (!(format= date_time_format_make(date_time_type,
 				      res->ptr(), res->length())))
   {
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res->c_ptr());
+    my_printf_error(ER_WRONG_VALUE_FOR_VAR, ER(ER_WRONG_VALUE_FOR_VAR), MYF(0),
+                    name, res->c_ptr());
     return 1;
   }
   
@@ -1774,12 +1780,14 @@ bool sys_var_collation::check(THD *thd, set_var *var)
     String str(buff,sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
-      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+      my_printf_error(ER_WRONG_VALUE_FOR_VAR, ER(ER_WRONG_VALUE_FOR_VAR),
+                      MYF(0), name, "NULL");
       return 1;
     }
     if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
     {
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
+      my_printf_error(ER_UNKNOWN_COLLATION, ER(ER_UNKNOWN_COLLATION), MYF(0),
+                      res->c_ptr());
       return 1;
     }
   }
@@ -1789,7 +1797,8 @@ bool sys_var_collation::check(THD *thd, set_var *var)
     {
       char buf[20];
       int10_to_str((int) var->value->val_int(), buf, -10);
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
+      my_printf_error(ER_UNKNOWN_COLLATION, ER(ER_UNKNOWN_COLLATION), MYF(0),
+                      buf);
       return 1;
     }
   }
@@ -1810,7 +1819,8 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
     {
       if (!nullable)
       {
-        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+        my_printf_error(ER_WRONG_VALUE_FOR_VAR,
+                        ER(ER_WRONG_VALUE_FOR_VAR), MYF(0), name, "NULL");
         return 1;
       }
       tmp= NULL;
@@ -1818,7 +1828,8 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
     else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
              !(tmp=get_old_charset_by_name(res->c_ptr())))
     {
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+      my_printf_error(ER_UNKNOWN_CHARACTER_SET, ER(ER_UNKNOWN_CHARACTER_SET),
+                      MYF(0), res->c_ptr());
       return 1;
     }
   }
@@ -2336,7 +2347,7 @@ bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
   pthread_mutex_lock(&active_mi->rli.run_lock);
   if (active_mi->rli.slave_running)
   {
-    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
     result=1;
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
@@ -2415,7 +2426,8 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
   if (!(var->save_result.time_zone=
         my_tz_find(res, thd->lex->time_zone_tables_used)))
   {
-    my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
+    my_printf_error(ER_UNKNOWN_TIME_ZONE, ER(ER_UNKNOWN_TIME_ZONE), MYF(0),
+                    res ? res->c_ptr() : "NULL");
     return 1;
   }
   return 0;
@@ -2697,7 +2709,8 @@ sys_var *find_sys_var(const char *str, uint length)
 				       length ? length :
 				       strlen(str));
   if (!var)
-    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
+    my_printf_error(ER_UNKNOWN_SYSTEM_VARIABLE, ER(ER_UNKNOWN_SYSTEM_VARIABLE),
+                    MYF(0), (char*) str);
   return var;
 }
 
@@ -2783,9 +2796,8 @@ int set_var::check(THD *thd)
 {
   if (var->check_type(type))
   {
-    my_error(type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE,
-	     MYF(0),
-	     var->name);
+    int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
+    my_printf_error(err, ER(err), MYF(0), var->name);
     return -1;
   }
   if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
@@ -2795,7 +2807,7 @@ int set_var::check(THD *thd)
   {
     if (var->check_default(type))
     {
-      my_error(ER_NO_DEFAULT, MYF(0), var->name);
+      my_printf_error(ER_NO_DEFAULT, ER(ER_NO_DEFAULT), MYF(0), var->name);
       return -1;
     }
     return 0;
@@ -2805,7 +2817,8 @@ int set_var::check(THD *thd)
     return -1;
   if (var->check_update_type(value->result_type()))
   {
-    my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name);
+    my_printf_error(ER_WRONG_TYPE_FOR_VAR, ER(ER_WRONG_TYPE_FOR_VAR), MYF(0),
+                    var->name);
     return -1;
   }
   return var->check(thd, this) ? -1 : 0;
@@ -2828,9 +2841,8 @@ int set_var::light_check(THD *thd)
 {
   if (var->check_type(type))
   {
-    my_error(type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE,
-	     MYF(0),
-	     var->name);
+    int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
+    my_printf_error(err, ER(err), MYF(0), var->name);
     return -1;
   }
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
@@ -2896,7 +2908,7 @@ int set_var_user::update(THD *thd)
   if (user_var_item->update())
   {
     /* Give an error if it's not given already */
-    my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
+    my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY), MYF(0));
     return -1;
   }
   return 0;
@@ -2957,8 +2969,9 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
   value= "unknown";
 
 err:
-  my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), value);
-  return 1;    
+  my_printf_error(ER_UNKNOWN_STORAGE_ENGINE, ER(ER_UNKNOWN_STORAGE_ENGINE),
+                  MYF(0), value);
+  return 1;
 }
 
 

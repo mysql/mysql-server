@@ -695,8 +695,8 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 				      key_length + 1);
   if (!new_table)
   {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
-	     ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
+    my_printf_error(EE_OUTOFMEMORY, ER(EE_OUTOFMEMORY), MYF(ME_BELL),
+                    ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= KILL_CONNECTION;
     return 0;
   }
@@ -953,7 +953,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   (void) fn_format(path, exchange->file_name, path, "", option);
   if (!access(path, F_OK))
   {
-    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
+    my_printf_error(ER_FILE_EXISTS_ERROR, ER(ER_FILE_EXISTS_ERROR), MYF(0),
+                    exchange->file_name);
     return -1;
   }
   /* Create the file world readable */
@@ -1184,7 +1185,7 @@ bool select_dump::send_data(List<Item> &items)
   }
   if (row_count++ > 1) 
   {
-    my_error(ER_TOO_MANY_ROWS, MYF(0));
+    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     goto err;
   }
   while ((item=li++))
@@ -1197,7 +1198,8 @@ bool select_dump::send_data(List<Item> &items)
     }
     else if (my_b_write(&cache,(byte*) res->ptr(),res->length()))
     {
-      my_error(ER_ERROR_ON_WRITE,MYF(0), path, my_errno);
+      my_printf_error(ER_ERROR_ON_WRITE, ER(ER_ERROR_ON_WRITE), MYF(0),
+                      path, my_errno);
       goto err;
     }
   }
@@ -1356,7 +1358,8 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
   if (var_list.elements != list.elements)
   {
-    my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
+    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
+               ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
   }
   while ((item=li++))
@@ -1626,7 +1629,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   }
   if (row_count++) 
   {
-    my_error(ER_TOO_MANY_ROWS, MYF(0));
+    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     DBUG_RETURN(1);
   }
   while ((zz=my_li++) && (item=it++))

@@ -608,8 +608,8 @@ bool mysql_rename_table(enum db_type base,
 bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
                       ALTER_INFO *alter_info);
-int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
-			 Item **conds, uint order_num, ORDER *order);
+bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
+                          Item **conds, uint order_num, ORDER *order);
 bool mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
                   List<Item> &values,COND *conds,
                   uint order_num, ORDER *order, ha_rows limit,
@@ -813,8 +813,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table,
 			     bool return_if_owned_by_thd=0);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
-int fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors);
-int fill_record(Field **field,List<Item> &values, bool ignore_errors);
+bool fill_record(THD *thd, List<Item> &fields, List<Item> &values,
+                 bool ignore_errors);
+bool fill_record(THD *thd, Field **field, List<Item> &values,
+                 bool ignore_errors);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
 
 inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,

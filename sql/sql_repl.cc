@@ -296,7 +296,7 @@ bool purge_error_message(THD* thd, int res)
 
   if (errmsg)
   {
-    my_error(errmsg, MYF(0));
+    my_message(errmsg, ER(errmsg), MYF(0));
     return TRUE;
   }
   send_ok(thd);
@@ -867,7 +867,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
   if (slave_errno)
   {
     if (net_report)
-      my_error(slave_errno, MYF(0));
+      my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);
   }
   else if (net_report)
@@ -917,7 +917,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   if (slave_errno)
   {
     if (net_report)
-      my_error(slave_errno, MYF(0));
+      my_message(slave_errno, ER(slave_errno), MYF(0));
     return 1;
   }
   else if (net_report)
@@ -998,8 +998,8 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
 
 err:
   unlock_slave_threads(mi);
-  if (error) 
-    my_error(sql_errno, MYF(0), errmsg);
+  if (error)
+    my_printf_error(sql_errno, ER(sql_errno), MYF(0), errmsg);
   DBUG_RETURN(error);
 }
 
@@ -1063,7 +1063,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
   if (thread_mask) // We refuse if any slave thread is running
   {
-    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
     unlock_slave_threads(mi);
     DBUG_RETURN(TRUE);
   }
@@ -1073,7 +1073,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
-    my_error(ER_MASTER_INFO, MYF(0));
+    my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
     unlock_slave_threads(mi);
     DBUG_RETURN(TRUE);
   }
@@ -1192,7 +1192,8 @@ bool change_master(THD* thd, MASTER_INFO* mi)
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
     {
-      my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
+      my_printf_error(ER_RELAY_LOG_FAIL, ER(ER_RELAY_LOG_FAIL), MYF(0),
+                      errmsg);
       unlock_slave_threads(mi);
       DBUG_RETURN(TRUE);
     }
@@ -1208,7 +1209,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
 			   0 /*no data lock*/,
 			   &msg, 0))
     {
-      my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
+      my_printf_error(ER_RELAY_LOG_INIT, ER(ER_RELAY_LOG_INIT), MYF(0), msg);
       unlock_slave_threads(mi);
       DBUG_RETURN(TRUE);
     }
@@ -1259,7 +1260,8 @@ int reset_master(THD* thd)
 {
   if (!mysql_bin_log.is_open())
   {
-    my_error(ER_FLUSH_MASTER_BINLOG_CLOSED,  MYF(ME_BELL+ME_WAITTANG));
+    my_message(ER_FLUSH_MASTER_BINLOG_CLOSED,
+               ER(ER_FLUSH_MASTER_BINLOG_CLOSED), MYF(ME_BELL+ME_WAITTANG));
     return 1;
   }
   return mysql_bin_log.reset_logs(thd);
@@ -1401,8 +1403,9 @@ err:
 
   if (errmsg)
   {
-    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
-	     "SHOW BINLOG EVENTS", errmsg);
+    my_printf_error(ER_ERROR_WHEN_EXECUTING_COMMAND,
+                    ER(ER_ERROR_WHEN_EXECUTING_COMMAND), MYF(0),
+                    "SHOW BINLOG EVENTS", errmsg);
     DBUG_RETURN(TRUE);
   }
 
@@ -1470,7 +1473,7 @@ bool show_binlogs(THD* thd)
 
   if (!mysql_bin_log.is_open())
   {
-    my_error(ER_NO_BINARY_LOGGING, MYF(0));
+    my_message(ER_NO_BINARY_LOGGING, ER(ER_NO_BINARY_LOGGING), MYF(0));
     return 1;
   }
 

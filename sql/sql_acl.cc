@@ -1237,7 +1237,8 @@ bool check_change_password(THD *thd, const char *host, const char *user,
   }
   if (!thd->slave_thread && !thd->user[0])
   {
-    my_error(ER_PASSWORD_ANONYMOUS_USER, MYF(0));
+    my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
+               MYF(0));
     return(1);
   }
   uint len=strlen(new_password);
@@ -1282,7 +1283,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (!(acl_user= find_acl_user(host, user)))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
-    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
     DBUG_RETURN(1);
   }
   /* update loaded acl entry: */
@@ -1467,7 +1468,8 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
 				  (byte*) table->field[0]->ptr,0,
 				  HA_READ_KEY_EXACT))
   {
-    my_error(ER_PASSWORD_NO_MATCH,MYF(0));	/* purecov: deadcode */
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
+               MYF(0));	/* purecov: deadcode */
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,record[1]);
@@ -1549,10 +1551,12 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (!create_user)
     {
       if (what == 'N')
-	my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
+	my_printf_error(ER_NONEXISTING_GRANT, ER(ER_NONEXISTING_GRANT),
+                        MYF(0), combo.user.str, combo.host.str);
       else
-	my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
-                 thd->user, thd->host_or_ip);
+	my_printf_error(ER_NO_PERMISSION_TO_CREATE_USER,
+                        ER(ER_NO_PERMISSION_TO_CREATE_USER), MYF(0),
+                        thd->user, thd->host_or_ip);
       goto end;
     }
     old_row_exists = 0;
@@ -1717,7 +1721,7 @@ static int replace_db_table(TABLE *table, const char *db,
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(combo.host.str,combo.user.str))
   {
-    my_error(ER_PASSWORD_NO_MATCH,MYF(0));
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -1729,7 +1733,8 @@ static int replace_db_table(TABLE *table, const char *db,
   {
     if (what == 'N')
     { // no row, no revoke
-      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
+      my_printf_error(ER_NONEXISTING_GRANT, ER(ER_NONEXISTING_GRANT), MYF(0),
+                      combo.user.str, combo.host.str);
       goto abort;
     }
     old_row_exists = 0;
@@ -2036,8 +2041,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
     {
       if (revoke_grant)
       {
-	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
-                 combo.user.str, combo.host.str, table_name); /* purecov: inspected */
+	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
+                        ER(ER_NONEXISTING_TABLE_GRANT), MYF(0),
+                        combo.user.str, combo.host.str,
+                        table_name); /* purecov: inspected */
 	result= -1; /* purecov: inspected */
 	continue; /* purecov: inspected */
       }
@@ -2180,7 +2187,8 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   */
   if (!find_acl_user(combo.host.str,combo.user.str))
   {
-    my_error(ER_PASSWORD_NO_MATCH,MYF(0));	/* purecov: deadcode */
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
+               MYF(0));	/* purecov: deadcode */
     DBUG_RETURN(-1);				/* purecov: deadcode */
   }
 
@@ -2202,9 +2210,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     */
     if (revoke_grant)
     { // no row, no revoke
-      my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
-               combo.user.str, combo.host.str,
-               table_name);		/* purecov: deadcode */
+      my_printf_error(ER_NONEXISTING_TABLE_GRANT,
+                      ER(ER_NONEXISTING_TABLE_GRANT), MYF(0),
+                      combo.user.str, combo.host.str,
+                      table_name);		/* purecov: deadcode */
       DBUG_RETURN(-1);				/* purecov: deadcode */
     }
     old_row_exists = 0;
@@ -2311,7 +2320,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
   if (rights & ~TABLE_ACLS)
   {
-    my_error(ER_ILLEGAL_GRANT_FOR_TABLE,MYF(0));
+    my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
+               MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -2332,8 +2342,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
                                column->column.length(), 0, 0, 0, 0,
                                &unused_field_idx))
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0),
-                 column->column.c_ptr(), table_list->alias);
+	my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+                        column->column.c_ptr(), table_list->alias);
 	DBUG_RETURN(TRUE);
       }
       column_priv|= column->rights;
@@ -2348,7 +2358,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     fn_format(buf,buf,"","",4+16+32);
     if (access(buf,F_OK))
     {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
+      my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
+                      table_list->db, table_list->alias);
       DBUG_RETURN(TRUE);
     }
   }
@@ -2406,7 +2417,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     if (Str->host.length > HOSTNAME_LENGTH ||
 	Str->user.length > USERNAME_LENGTH)
     {
-      my_error(ER_GRANT_WRONG_HOST_OR_USER,MYF(0));
+      my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
+                 MYF(0));
       result= TRUE;
       continue;
     }
@@ -2435,8 +2447,9 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (revoke_grant)
       {
-	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
-                 Str->user.str, Str->host.str, table_list->real_name);
+	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
+                        ER(ER_NONEXISTING_TABLE_GRANT), MYF(0),
+                        Str->user.str, Str->host.str, table_list->real_name);
 	result= TRUE;
 	continue;
       }
@@ -2581,7 +2594,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     if (Str->host.length > HOSTNAME_LENGTH ||
 	Str->user.length > USERNAME_LENGTH)
     {
-      my_error(ER_GRANT_WRONG_HOST_OR_USER,MYF(0));
+      my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
+                 MYF(0));
       result= -1;
       continue;
     }
@@ -2876,11 +2890,12 @@ err:
       command= "create view";
     else if (want_access & SHOW_VIEW_ACL)
       command= "show create view";
-    my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-             command,
-             thd->priv_user,
-             thd->host_or_ip,
-             table ? table->real_name : "unknown");
+    my_printf_error(ER_TABLEACCESS_DENIED_ERROR,
+                    ER(ER_TABLEACCESS_DENIED_ERROR), MYF(0),
+                    command,
+                    thd->priv_user,
+                    thd->host_or_ip,
+                    table ? table->real_name : "unknown");
   }
   DBUG_RETURN(1);
 }
@@ -3168,7 +3183,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
   {
-    my_error(ER_GRANT_WRONG_HOST_OR_USER,MYF(0));
+    my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
+               MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -3186,8 +3202,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
   if (counter == acl_users.elements)
   {
-    my_error(ER_NONEXISTING_GRANT, MYF(0),
-             lex_user->user.str, lex_user->host.str);
+    my_printf_error(ER_NONEXISTING_GRANT,
+                    ER(ER_NONEXISTING_GRANT), MYF(0),
+                    lex_user->user.str, lex_user->host.str);
     DBUG_RETURN(TRUE);
   }
 
@@ -3700,7 +3717,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
-    my_error(ER_DROP_USER, MYF(0));
+    my_message(ER_DROP_USER, ER(ER_DROP_USER), MYF(0));
   DBUG_RETURN(result);
 }
 
@@ -3804,7 +3821,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   /* when this code is deleted, the error slot (error 1268) can be reused,
      as this error code was not present in any MySQL release */
   if (result)
-    my_error(ER_REVOKE_GRANTS, MYF(0));
+    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
   DBUG_RETURN(result);
 }

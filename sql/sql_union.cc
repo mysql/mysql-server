@@ -75,7 +75,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(table->field, values, 1);
+  fill_record(thd, table->field, values, 1);
   if (thd->net.report_error || write_record(thd, table,&info))
   {
     if (thd->net.last_errno == ER_RECORD_FILE_FULL)

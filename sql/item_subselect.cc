@@ -167,7 +167,8 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       // We can't substitute aggregate functions like "SELECT (max(i))"
       if (substype() == SINGLEROW_SUBS && (*ref)->with_sum_func)
       {
-	my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+	my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
+                   MYF(0));
 	return TRUE;
       }
       return ret;

@@ -74,7 +74,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   */
   if (tables->view || table->tmp_table != NO_TMP_TABLE)
   {
-    my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
+    my_printf_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE,
+                    ER(ER_TRG_ON_VIEW_OR_TEMP_TABLE), MYF(0), tables->alias);
     DBUG_RETURN(TRUE);
   }
 
@@ -82,7 +83,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   {
     if (!create)
     {
-      my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
+      my_message(ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST), MYF(0));
       DBUG_RETURN(TRUE);
     }
 
@@ -142,7 +143,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   /* We don't allow creation of several triggers of the same type yet */
   if (bodies[lex->trg_chistics.event][lex->trg_chistics.action_time])
   {
-    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
+    my_message(ER_TRG_ALREADY_EXISTS, ER(ER_TRG_ALREADY_EXISTS), MYF(0));
     return 1;
   }
 
@@ -152,7 +153,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
     if (my_strcasecmp(system_charset_info, lex->name_and_length.str,
                       name->str) == 0)
     {
-      my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
+      my_message(ER_TRG_ALREADY_EXISTS, ER(ER_TRG_ALREADY_EXISTS), MYF(0));
       return 1;
     }
   }
@@ -266,7 +267,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
     }
   }
 
-  my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
+  my_message(ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST), MYF(0));
   return 1;
 }
 
@@ -433,7 +434,8 @@ err_with_lex_cleanup:
       We don't care about this error message much because .TRG files will
       be merged into .FRM anyway.
     */
-    my_error(ER_WRONG_OBJECT, MYF(0), table_name, triggers_file_ext, "TRIGGER");
+    my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
+                    table_name, triggers_file_ext, "TRIGGER");
     DBUG_RETURN(1);
   }
 
