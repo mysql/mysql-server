@@ -193,16 +193,16 @@ args: -n BasicEventOperation T1 T6
 #
 max-time: 1500
 cmd: testSystemRestart
-args: -n SR6 -l 1 T1 
+args: -l 1 -n SR6 T1 
 
 max-time: 1500
 cmd: testSystemRestart
-args: -n SR7 -l 1 T1 
+args: -l 1 -n SR7 T1 
 
 max-time: 1500
 cmd: testSystemRestart
-args: -n S8 -l 1 T1 
+args: -l 1 -n SR8 T1 
 
 max-time: 1500
 cmd: testSystemRestart
-args: -n S9 -l 1 T1 
+args: -l 1 -n SR9 T1 
