@@ -49850,6 +49850,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
 @item
+Fixed bug in @code{CONCAT_WS()} that cut the result.
+@item
 Changed name of variables @code{Com_show_master_stat} to
 @code{Com_show_master_status} and @code{Com_show_slave_stat} to
 @code{Com_show_slave_status}.
