@@ -311,6 +311,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     setTabDescrWord(firstTabDesIndex, attrDescriptor);
     Uint32 attrLen = AttributeDescriptor::getSize(attrDescriptor);
     Uint32 nullBitPos = fragOperPtr.p->currNullBit;
+    Uint32 bitCount = 0;
 
     if (AttributeDescriptor::getNullable(attrDescriptor)) {
       if (!AttributeDescriptor::getDynamic(attrDescriptor)) {
@@ -342,7 +343,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 	else
 	{
 	  ljam();
-	  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+	  bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
 	  fragOperPtr.p->currNullBit += bitCount;
 	  break;
 	}
@@ -351,6 +352,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
         ndbrequire(false);
         break;
       }//switch
+      if(nullBitPos + bitCount + 1 >= MAX_NULL_BITS)
+      {
+	terrorCode = TupAddAttrRef::TooManyBitsUsed;
+        addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+	return;
+      }
       AttributeOffset::setOffset(attrDes2, attributePos);
       AttributeOffset::setNullFlagPos(attrDes2, nullBitPos);
     } else {
