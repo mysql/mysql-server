@@ -257,7 +257,14 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     }
     TABLE_LIST *table;
     for (table=tables ; table ; table=table->next)
+    {
       join.tables++;
+      if (!thd->used_tables)
+      {
+	TABLE *tbl=table->table;
+	tbl->keys_in_use_for_query=tbl->used_keys= tbl->keys_in_use=0;
+      }
+    }
   }
   procedure=setup_procedure(thd,proc_param,result,fields,&error);
   if (error)
