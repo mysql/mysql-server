@@ -45,6 +45,11 @@ print STDERR "Fixing spacing problem with titles...\n";
 $data =~ s{</(\w+)>(\w{2,})}
           {</$1> $2}gs;
 
+# 2002-02-15 arjen@mysql.com
+print STDERR "Adding closing / to XREF...\n";
+$data =~ s{<xref (.+?)>}
+          {<xref $1 />}gs;
+
 # 2002-01-30 arjen@mysql.com
 print STDERR "Removing COLSPEC...\n";
 $data =~ s{\n *<colspec colwidth=\"[0-9]+\*\">}
@@ -65,10 +70,10 @@ print STDERR "Removing lf before /PARA in ENTRY...\n";
 $data =~ s{(<entry><para>(.+?))\n(</para></entry>)}
           {$1$3}gs;
 
-# 2002-01-31 arjen@mysql.com
-print STDERR "Removing whitespace before /PARA...\n";
-$data =~ s{[ ]+</para>}
-          {</para>}gs;
+# 2002-01-31 arjen@mysql.com (2002-02-15 added \n stuff)
+print STDERR "Removing whitespace before /PARA if not on separate line...\n";
+$data =~ s{([^\n ])[ ]+</para>}
+          {$1</para>}gs;
 
 # 2002-01-31 arjen@mysql.com
 print STDERR "Removing empty PARA in ENTRY...\n";
