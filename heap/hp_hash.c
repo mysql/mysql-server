@@ -26,16 +26,17 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
 			       enum ha_rkey_function end_search_flag)
 {
   ha_rows start_pos, end_pos;
-  TREE *rb_tree = &info->s->keydef[inx].rb_tree;
+  HP_KEYDEF *keyinfo= info->s->keydef + inx;
+  TREE *rb_tree = &keyinfo->rb_tree;
   heap_rb_param custom_arg;
 
   info->lastinx = inx;
-  custom_arg.keyseg = info->s->keydef[inx].seg;
+  custom_arg.keyseg = keyinfo->seg;
   custom_arg.search_flag = SEARCH_FIND | SEARCH_SAME;
   custom_arg.key_length = start_key_len;
   if (start_key)
   {
-    hp_rb_pack_key(info, inx, info->recbuf, start_key, start_key_len);
+    hp_rb_pack_key(keyinfo, info->recbuf, start_key);
     start_pos= tree_record_pos(rb_tree, info->recbuf, start_search_flag, 
 				&custom_arg);
   }
@@ -47,7 +48,7 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
   custom_arg.key_length = end_key_len;
   if (end_key)
   {
-    hp_rb_pack_key(info, inx, info->recbuf, end_key, end_key_len);
+    hp_rb_pack_key(keyinfo, info->recbuf, end_key);
     end_pos= tree_record_pos(rb_tree, info->recbuf, end_search_flag, 
 				&custom_arg);
   }
@@ -473,12 +474,10 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
   return key - start_key;
 }
 
-uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
-                  uint k_length)
+uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old)
 {
   HA_KEYSEG *seg, *endseg;
   uchar *start_key= key;
-  HP_KEYDEF *keydef= info->s->keydef + inx;
   
   for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; 
        old+= seg->length, seg++)
@@ -494,28 +493,24 @@ uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
   return key - start_key;
 }
 
-uint hp_rb_key_length(HP_KEYDEF *keydef, const byte *key)
+uint hp_rb_key_length(HP_KEYDEF *keydef, 
+		      const byte *key __attribute__((unused)))
+{
+  return keydef->length;
+}
+
+uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key)
 {
   const byte *start_key= key;
   HA_KEYSEG *seg, *endseg;
   
-  if (keydef->flag & HA_NULL_PART_KEY)
+  for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
   {
-    for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
-    {
-      if (seg->null_bit)
-      {
-	if (!*key++)
-	  continue;
-      }
-      key += seg->length;
-    }
-    return key - start_key;
+    if (seg->null_bit && !*key++)
+      continue;
+    key+= seg->length;
   }
-  else
-  {
-    return keydef->length;
-  }
+  return key - start_key;
 }
                   
 /*

@@ -91,6 +91,7 @@ typedef struct st_hp_keydef		/* Key definition with open */
 		   const byte *record, byte *recpos);
   int (*delete_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo, 
   		   const byte *record, byte *recpos, int flag);
+  uint (*get_key_length)(struct st_hp_keydef *keydef, const byte *key);
 } HP_KEYDEF;
 
 typedef struct st_heap_share
