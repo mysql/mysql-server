@@ -241,7 +241,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   error=0;
   id=0;
   thd->proc_info="update";
-  if (duplic != DUP_ERROR)
+  if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   /*
     let's *try* to start bulk inserts. It won't necessary
@@ -380,7 +380,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   thd->next_insert_id=0;			// Reset this if wrongly used
-  if (duplic != DUP_ERROR)
+  if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /* Reset value of LAST_INSERT_ID if no rows where inserted */
@@ -1345,7 +1345,7 @@ bool delayed_insert::handle_inserts(void)
     info.ignore= row->ignore;
     info.handle_duplicates= row->dup;
     if (info.ignore ||
-	info.handle_duplicates == DUP_REPLACE)
+	info.handle_duplicates != DUP_ERROR)
     {
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
       using_ignore=1;
@@ -1463,7 +1463,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table->next_number_field=table->found_next_number_field;
   thd->cuted_fields=0;
   if (info.ignore ||
-      info.handle_duplicates == DUP_REPLACE)
+      info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
@@ -1649,7 +1649,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   restore_record(table,default_values);			// Get empty record
   thd->cuted_fields=0;
   if (info.ignore ||
-      info.handle_duplicates == DUP_REPLACE)
+      info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
