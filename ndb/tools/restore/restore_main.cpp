@@ -123,15 +123,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'n':
     if (ga_nodeId == 0)
     {
-      printf("Error in --nodeid|-n setting, see --help\n");
+      printf("Error in --nodeid,-n setting, see --help\n");
       exit(1);
     }
+    break;
   case 'b':
     if (ga_backupId == 0)
     {
-      printf("Error in --backupid|-b setting, see --help\n");
+      printf("Error in --backupid,-b setting, see --help\n");
       exit(1);
     }
+    break;
   case '?':
     usage();
     exit(0);
