@@ -463,6 +463,9 @@ page_copy_rec_list_end_no_locks(
 	page_cur_t	cur1;
 	page_cur_t	cur2;
 	rec_t*		sup;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	page_cur_position(rec, &cur1);
 
@@ -483,8 +486,11 @@ page_copy_rec_list_end_no_locks(
 	sup = page_get_supremum_rec(page);
 	
 	while (sup != page_cur_get_rec(&cur1)) {
-		if (!page_cur_rec_insert(&cur2,
-					page_cur_get_rec(&cur1), index, mtr)) {
+		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
+		offsets = rec_get_offsets(cur1_rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
+		if (!page_cur_rec_insert(&cur2, cur1_rec, index,
+							offsets, mtr)) {
 			/* Track an assertion failure reported on the mailing
 			list on June 18th, 2003 */
 
@@ -503,7 +509,11 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 		page_cur_move_to_next(&cur2);
 	}
-}	
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
+}
 
 /*****************************************************************
 Copies records from page to new_page, from a given record onward,
@@ -553,6 +563,9 @@ page_copy_rec_list_start(
 	page_cur_t	cur1;
 	page_cur_t	cur2;
 	rec_t*		old_end;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	page_cur_set_before_first(page, &cur1);
 
@@ -570,8 +583,13 @@ page_copy_rec_list_start(
 	/* Copy records from the original page to the new page */	
 
 	while (page_cur_get_rec(&cur1) != rec) {
-		ut_a(page_cur_rec_insert(&cur2,
-				page_cur_get_rec(&cur1), index, mtr));
+		rec_t*	ins_rec;
+		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
+		offsets = rec_get_offsets(cur1_rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
+		ins_rec = page_cur_rec_insert(&cur2, cur1_rec, index,
+						offsets, mtr);
+		ut_a(ins_rec);
 
 		page_cur_move_to_next(&cur1);
 		page_cur_move_to_next(&cur2);
@@ -584,7 +602,11 @@ page_copy_rec_list_start(
 	page_update_max_trx_id(new_page, page_get_max_trx_id(page));
 
 	btr_search_move_or_delete_hash_entries(new_page, page, index);
-}	
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
+}
 
 /**************************************************************
 Writes a log record of a record list end or start deletion. */
