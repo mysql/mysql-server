@@ -110,10 +110,10 @@ err_new_instance:
 C_MODE_END
 
 
-Instance_map::Instance_map(const char *default_mysqld_path_arg)
+Instance_map::Instance_map(const char *default_mysqld_path_arg,
+                           const char *first_option_arg):
+mysqld_path(default_mysqld_path_arg), first_option(first_option_arg)
 {
-  mysqld_path= default_mysqld_path_arg;
-
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
 
@@ -193,9 +193,10 @@ int Instance_map::complete_initialization()
 
     /*
       After an instance have been added to the instance_map,
-      hash_free should handle it's deletion.
+      hash_free should handle it's deletion => goto err, not
+      err_instance.
     */
-    if (instance->complete_initialization(this, mysqld_path))
+    if (instance->complete_initialization(this, mysqld_path, 1))
       goto err;
   }
   else
@@ -220,7 +221,25 @@ err_instance:
 
 int Instance_map::load()
 {
-  if (process_default_option_files("my", process_option, (void *) this) ||
+  int argc= 1;
+  /* this is a dummy variable for search_option_files() */
+  uint args_used= 0;
+  const char *argv_options[3];
+  char **argv= (char **) &argv_options;
+
+  /* the name of the program may be orbitrary here in fact */
+  argv_options[0]= "mysqlmanager";
+  if (first_option != NULL)
+  {
+    argc= 2;
+    argv_options[1]= first_option;
+    argv_options[2]= '\0';
+  }
+  else
+    argv_options[1]= '\0';
+
+  if (my_search_option_files("my", &argc, (char ***) &argv, &args_used,
+                             process_option, (void *) this) ||
       complete_initialization())
     return 1;
 

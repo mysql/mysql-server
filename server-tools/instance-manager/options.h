@@ -35,6 +35,8 @@ struct Options
   static const char *password_file_name;
   static const char *default_mysqld_path;
   static const char *user;
+  /* the option which should be passed to process_default_option_files */
+  static const char *first_option;
   static uint monitoring_interval;
   static uint port_number;
   static const char *bind_address;
