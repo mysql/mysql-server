@@ -371,3 +371,5 @@ libmysql_r/thr_mutex.c
 libmysql_r/typelib.c
 libmysql_r/violite.c
 linked_libmysql_r_sources
+client/thimble
+support-files/mysql-3.23.29-gamma.spec
