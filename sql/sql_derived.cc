@@ -198,7 +198,10 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  }
 	}
 	else
+	{
 	  unit->exclude_tree();
+	  unit->cleanup();
+	}
 	org_table_list->db= (char *)"";
 	  // Force read of table stats in the optimizer
 	table->file->info(HA_STATUS_VARIABLE);
