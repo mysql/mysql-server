@@ -1635,17 +1635,9 @@ table_to_table:
 select:
 	select_init { Lex->sql_command=SQLCOM_SELECT; };
 
+/* Need select_init2 for subselects. */
 select_init:
-	SELECT_SYM select_part2 
-        { 
-	  LEX *lex= Lex;
-          if (lex->current_select->set_braces(false))
-	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
-	    YYABORT;
-	  }
-	}
-	union
+	SELECT_SYM select_init2
 	|
 	'(' SELECT_SYM 	select_part2 ')' 
 	  { 
@@ -1660,6 +1652,19 @@ select_init:
             sel->master_unit()->global_parameters=
               	sel->master_unit();
           } union_opt;
+
+select_init2:
+	select_part2
+        { 
+	  LEX *lex= Lex;
+          if (lex->current_select->set_braces(false))
+	  {
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
+	}
+	union
+	;
 
 select_part2:
 	{
@@ -4388,7 +4393,7 @@ singleval_subselect:
 	};
 
 singleval_subselect_init:
-	select_init
+	select_init2
 	{
 	  $$= new Item_singleval_subselect(YYTHD,
 					   Lex->current_select->master_unit()->
@@ -4403,7 +4408,7 @@ exists_subselect:
 	};
 
 exists_subselect_init:
-	select_init
+	select_init2
 	{
 	  $$= new Item_exists_subselect(YYTHD,
 					Lex->current_select->master_unit()->
@@ -4418,13 +4423,13 @@ in_subselect:
   };
 
 in_subselect_init:
-  select_init
+  select_init2
   {
     $$= Lex->current_select->master_unit()->first_select();
   };
 
 subselect_start:
-	'('
+	'(' SELECT_SYM
 	{
 	  if (mysql_new_select(Lex, 1))
 	    YYABORT;
