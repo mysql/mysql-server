@@ -1,3 +1,4 @@
+require_manager;
 connect (master,localhost,root,,test,0,master.sock);
 connect (slave,localhost,root,,test,0,slave.sock);
 server_stop master;
