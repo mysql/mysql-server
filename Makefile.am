@@ -101,7 +101,7 @@ tags:
 
 test:
 	cd mysql-test
-        ./mysql-test-run
-        ./mysql-test-run --ps-protocol
+	./mysql-test-run
+	./mysql-test-run --ps-protocol
 
 
