@@ -258,6 +258,7 @@ bool select_union::send_data(List<Item> &values)
     thd->offset_limit--;
     return 0;
   }
+
   fill_record(table->field,values);
   if ((write_record(table,&info)))
   {

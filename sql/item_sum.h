@@ -70,6 +70,7 @@ public:
   void print(String *str);
   void fix_num_length_and_dec();
   virtual bool setup(THD *thd) {return 0;}
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -84,6 +85,7 @@ public:
   longlong val_int() { return (longlong) val(); } /* Real as default */
   String *val_str(String*str);
   void reset_field();
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -98,6 +100,7 @@ public:
   double val() { return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -115,6 +118,7 @@ class Item_sum_sum :public Item_sum_num
   void reset_field();
   void update_field(int offset);
   const char *func_name() const { return "sum"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -137,6 +141,7 @@ class Item_sum_count :public Item_sum_int
   void reset_field();
   void update_field(int offset);
   const char *func_name() const { return "count"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -188,6 +193,7 @@ class Item_sum_count_distinct :public Item_sum_int
   void update_field(int offset) { return ; }	// Never called
   const char *func_name() const { return "count_distinct"; }
   bool setup(THD *thd);
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -207,6 +213,7 @@ public:
   String *val_str(String*);
   void make_field(Send_field *field);
   void fix_length_and_dec() {}
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -228,6 +235,7 @@ class Item_sum_avg :public Item_sum_num
   Item *result_item(Field *field)
   { return new Item_avg_field(this); }
   const char *func_name() const { return "avg"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_sum_std;
@@ -244,6 +252,7 @@ public:
   bool is_null() { (void) val_int(); return null_value; }
   void make_field(Send_field *field);
   void fix_length_and_dec() {}
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_sum_std :public Item_sum_num
@@ -264,6 +273,7 @@ class Item_sum_std :public Item_sum_num
   Item *result_item(Field *field)
   { return new Item_std_field(this); }
   const char *func_name() const { return "std"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -306,6 +316,7 @@ class Item_sum_hybrid :public Item_sum
   void min_max_update_str_field(int offset);
   void min_max_update_real_field(int offset);
   void min_max_update_int_field(int offset);
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -317,6 +328,7 @@ public:
 
   bool add();
   const char *func_name() const { return "min"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -328,6 +340,7 @@ public:
 
   bool add();
   const char *func_name() const { return "max"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -343,6 +356,7 @@ class Item_sum_bit :public Item_sum_int
   void reset();
   longlong val_int();
   void reset_field();
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -353,6 +367,7 @@ class Item_sum_or :public Item_sum_bit
   bool add();
   void update_field(int offset);
   const char *func_name() const { return "bit_or"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -363,6 +378,7 @@ class Item_sum_and :public Item_sum_bit
   bool add();
   void update_field(int offset);
   const char *func_name() const { return "bit_and"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 /*
@@ -393,6 +409,7 @@ public:
   bool add();
   void reset_field() {};
   void update_field(int offset_arg) {};
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 

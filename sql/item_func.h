@@ -121,6 +121,7 @@ public:
   }
   bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -140,6 +141,7 @@ public:
     if (!t_arg) return result_field;
     return new Field_double(max_length, maybe_null, name,t_arg,decimals);
   }  
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_num_func :public Item_func
@@ -154,6 +156,7 @@ public:
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec() { fix_num_length_and_dec(); }
   bool is_null() { (void) val(); return null_value; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -187,6 +190,7 @@ class Item_num_op :public Item_func
       res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
     return res;
   }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -459,6 +463,7 @@ public:
   const char *func_name() const { return truncate ? "truncate" : "round"; }
   double val();
   void fix_length_and_dec();
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -494,6 +499,7 @@ class Item_func_units :public Item_real_func
   double val();
   const char *func_name() const { return name; }
   void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -510,6 +516,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_func_min :public Item_func_min_max
@@ -535,6 +542,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "length"; }
   void fix_length_and_dec() { max_length=10; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_func_bit_length :public Item_func_length
@@ -553,6 +561,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "char_length"; }
   void fix_length_and_dec() { max_length=10; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_func_locate :public Item_int_func
@@ -564,6 +573,7 @@ public:
   const char *func_name() const { return "locate"; }
   longlong val_int();
   void fix_length_and_dec() { maybe_null=0; max_length=11; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -593,6 +603,7 @@ public:
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -604,6 +615,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "ascii"; }
   void fix_length_and_dec() { max_length=3; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_func_ord :public Item_int_func
@@ -613,6 +625,7 @@ public:
   Item_func_ord(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "ord"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_func_find_in_set :public Item_int_func
@@ -625,6 +638,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "find_in_set"; }
   void fix_length_and_dec();
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -700,6 +714,7 @@ class Item_func_benchmark :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -724,6 +739,7 @@ public:
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -832,6 +848,7 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -842,6 +859,7 @@ class Item_func_release_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 /* replication functions */
@@ -854,6 +872,7 @@ class Item_master_pos_wait :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -879,6 +898,7 @@ public:
   void fix_length_and_dec();
   void print(String *str);
   const char *func_name() const { return "set_user_var"; }
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -903,6 +923,7 @@ public:
   table_map used_tables() const
   { return const_var_flag ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -958,6 +979,7 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };
 
 
@@ -1008,4 +1030,5 @@ public:
   longlong val_int();
   const char *func_name() const { return "check_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+  virtual unsigned int size_of () { return sizeof(*this);}  
 };

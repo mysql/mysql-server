@@ -2714,6 +2714,7 @@ mysql_init_query(THD *thd)
   thd->lex.select_lex.table_list.first=0;
   thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
   thd->lex.select_lex.next=0;
+  thd->lex.olap=0;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
@@ -2732,7 +2733,6 @@ mysql_init_select(LEX *lex)
   select_lex->linkage=UNSPECIFIED_TYPE;
   select_lex->olap= NON_EXISTING_ONE;
   lex->exchange = 0;
-  lex->olap = 0;
   lex->proc_list.first=0;
   select_lex->order_list.elements=select_lex->group_list.elements=0;
   select_lex->order_list.first=0;
