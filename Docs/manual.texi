@@ -34298,14 +34298,15 @@ Following are some performance data for the query cache
 
 @itemize @bullet
 @item
-If you don't use the query cache (@code{query_cache_size=0}), there is
-no notable overhead.
+If want to disable the query cache code set @code{query_cache_size=0}.
+By disabling the query cache code there is no noticeable overhead.
 @item
-If all queries are very simple (like selecting a row from a table with
-one row) but still different so that the queries can't be cached, the
-overhead for having the query cache active is 13%. This could be
-regarded as the worst case scenario. In real life queries are much more
-complicated than this so the overhead is normally significantly lower.
+If all of the queries you're preforming are simple (such as selecting a
+row from a table with one row); but still differ so that the queries can
+not be cached, the overhead for having the query cache active is 13%.
+This could be regarded as the worst case scenario. However, in real life,
+queries are much more complicated than our simple example so the overhead
+is normally significantly lower.
 @item
 Searches after one row in a one row table is 238% faster.
 This can be regarded as close to the minimum speedup to be expected for
