@@ -199,6 +199,7 @@ sub new
       $main::opt_create_options =~ /type=gemini/i)
   {
     $limits{'working_blobs'}	= 0; # Blobs not implemented yet
+    $limits{'max_tables'}	= 500;
   }
 
   return $self;
