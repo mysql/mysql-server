@@ -1547,6 +1547,8 @@ void registerwithneb()
 ulong neb_event_callback(struct EventBlock *eblock)
 {
   EventChangeVolStateEnter_s *voldata;
+  extern bool nw_panic;
+
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
@@ -1559,6 +1561,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
     if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      nw_panic = TRUE;
       kill_server(0);
     }
   }
