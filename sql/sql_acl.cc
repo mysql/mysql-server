@@ -847,7 +847,7 @@ static void init_check_host(void)
   DBUG_ENTER("init_check_host");
   VOID(init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
 			  acl_users.elements,1));
-  VOID(hash_init(&acl_check_hosts,acl_users.elements,0,0,
+  VOID(hash_init(&acl_check_hosts,system_charset_info,acl_users.elements,0,0,
 		 (hash_get_key) check_get_key,0,HASH_CASE_INSENSITIVE));
   if (!allow_all_hosts)
   {
@@ -1424,7 +1424,8 @@ public:
     key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
-    (void) hash_init(&hash_columns,0,0,0, (hash_get_key) get_key_column,0,
+    (void) hash_init(&hash_columns,system_charset_info,
+		     0,0,0, (hash_get_key) get_key_column,0,
 		     HASH_CASE_INSENSITIVE);
   }
 
@@ -1456,7 +1457,8 @@ public:
     privs = fix_rights_for_table(privs);
     cols =  fix_rights_for_column(cols);
 
-    (void) hash_init(&hash_columns,0,0,0, (hash_get_key) get_key_column,0,
+    (void) hash_init(&hash_columns,system_charset_info,
+		     0,0,0, (hash_get_key) get_key_column,0,
 		     HASH_CASE_INSENSITIVE);
     if (cols)
     {
@@ -2143,7 +2145,8 @@ int  grant_init (void)
   DBUG_ENTER("grant_init");
 
   grant_option = FALSE;
-  (void) hash_init(&hash_tables,0,0,0, (hash_get_key) get_grant_table,
+  (void) hash_init(&hash_tables,system_charset_info,
+		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
   init_sql_alloc(&memex,1024,0);
 

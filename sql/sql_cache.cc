@@ -1330,9 +1330,9 @@ ulong Query_cache::init_cache()
 
   DUMP(this);
 
-  VOID(hash_init(&queries,def_query_hash_size, 0, 0,
+  VOID(hash_init(&queries,system_charset_info,def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
-  VOID(hash_init(&tables,def_table_hash_size, 0, 0,
+  VOID(hash_init(&tables,system_charset_info,def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0, 0));
 
   queries_in_cache = 0;

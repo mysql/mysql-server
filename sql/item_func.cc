@@ -1421,7 +1421,8 @@ char *ull_get_key(const ULL *ull,uint *length,
 void item_user_lock_init(void)
 {
   pthread_mutex_init(&LOCK_user_locks,MY_MUTEX_INIT_SLOW);
-  hash_init(&hash_user_locks,16,0,0,(hash_get_key) ull_get_key,NULL,0);
+  hash_init(&hash_user_locks,system_charset_info,
+	    16,0,0,(hash_get_key) ull_get_key,NULL,0);
 }
 
 void item_user_lock_free(void)

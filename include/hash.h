@@ -40,10 +40,12 @@ typedef struct st_hash {
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
   hash_get_key get_key;
   void (*free)(void *);
-  uint (*calc_hashnr)(const byte *key,uint length);
+  uint (*calc_hashnr)(CHARSET_INFO *cs, const byte *key,uint length);
+  CHARSET_INFO *charset;
 } HASH;
 
-my_bool hash_init(HASH *hash,uint default_array_elements, uint key_offset,
+my_bool hash_init(HASH *hash,CHARSET_INFO *charset,
+		  uint default_array_elements, uint key_offset,
 		  uint key_length, hash_get_key get_key,
 		  void (*free_element)(void*), uint flags);
 void hash_free(HASH *tree);

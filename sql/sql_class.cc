@@ -137,7 +137,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
   user_connect=(UC *)0;
-  hash_init(&user_vars, USER_VARS_HASH_SIZE, 0, 0,
+  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (void (*)(void*)) free_var,0);
 #ifdef USING_TRANSACTIONS

@@ -319,6 +319,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   use_hash= outparam->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
     use_hash= !hash_init(&outparam->name_hash,
+			 system_charset_info,
 			 outparam->fields,0,0,
 			 (hash_get_key) get_field_name,0,
 			 HASH_CASE_INSENSITIVE);
