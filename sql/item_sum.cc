@@ -22,6 +22,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "sql_select.h"
 
 Item_sum::Item_sum(List<Item> &list)
   :arg_count(list.elements)
@@ -301,6 +302,21 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     hybrid_field_type= Item::field_type();
   fixed= 1;
   return FALSE;
+}
+
+Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
+					 uint convert_blob_length)
+{
+  if (args[0]->type() == Item::FIELD_ITEM)
+  {
+    Field *field= ((Item_field*) args[0])->field;
+    
+    if ((field= create_tmp_field_from_field(current_thd, field, this, table,
+					    0, convert_blob_length)))
+      field->flags&= ~NOT_NULL_FLAG;
+    return field;
+  }
+  return Item_sum::create_tmp_field(group, table, convert_blob_length);
 }
 
 
@@ -2074,8 +2090,6 @@ my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
 /****************************************************************************
 ** COUNT(DISTINCT ...)
 ****************************************************************************/
-
-#include "sql_select.h"
 
 int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {

@@ -57,17 +57,14 @@ public:
 public:
   /* returns a pointer to the instance or NULL, if there is no such instance */
   Instance *find(const char *name, uint name_len);
-  Instance *find(uint instance_number);
 
   int flush_instances();
-  int cleanup();
   int lock();
   int unlock();
   int init();
 
   Instance_map(const char *default_mysqld_path_arg,
-               const char *default_admin_user_arg,
-               const char *default_admin_password_arg);
+               const char *first_option_arg);
   ~Instance_map();
 
   /* loads options from config files */
@@ -75,16 +72,14 @@ public:
   /* adds instance to internal hash */
   int add_instance(Instance *instance);
   /* inits instances argv's after all options have been loaded */
-  void complete_initialization();
+  int complete_initialization();
 
 public:
   const char *mysqld_path;
-  /* user an password to shutdown MySQL */
-  const char *user;
-  const char *password;
   Guardian_thread *guardian;
 
 private:
+  const char *first_option;
   enum { START_HASH_SIZE = 16 };
   pthread_mutex_t LOCK_instance_map;
   HASH hash;

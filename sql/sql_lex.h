@@ -171,27 +171,46 @@ enum tablespace_op_type
 /* 
   The state of the lex parsing for selects 
    
-   All select describing structures linked with following pointers:
-   - list of neighbors (next/prev) (prev of first element point to slave 
-     pointer of upper structure)
-     - one level units for unit (union) structure
-     - member of one union(unit) for ordinary select_lex
-   - pointer to master
-     - outer select_lex for unit (union)
-     - unit structure for ordinary select_lex
-   - pointer to slave
-     - first list element of select_lex belonged to this unit for unit
-     - first unit in list of units that belong to this select_lex (as
-       subselects or derived tables) for ordinary select_lex
-   - list of all select_lex (for group operation like correcting list of opened
-     tables)
-   - if unit contain several selects (union) then it have special 
-     select_lex called fake_select_lex. It used for storing global parameters
-     and executing union. subqueries of global ORDER BY clause will be
-     attached to this fake_select_lex, which will allow them correctly
-     resolve fields of 'upper' union and other more outer selects. 
+   master and slaves are pointers to select_lex.
+   master is pointer to upper level node.
+   slave is pointer to lower level node
+   select_lex is a SELECT without union
+   unit is container of either
+     - One SELECT
+     - UNION of selects
+   select_lex and unit are both inherited form select_lex_node
+   neighbors are two select_lex or units on the same level
 
-   for example for following query:
+   All select describing structures linked with following pointers:
+   - list of neighbors (next/prev) (prev of first element point to slave
+     pointer of upper structure)
+     - For select this is a list of UNION's (or one element list)
+     - For units this is a list of sub queries for the upper level select
+
+   - pointer to master (master), which is
+     If this is a unit
+       - pointer to outer select_lex
+     If this is a select_lex
+       - pointer to outer unit structure for select
+
+   - pointer to slave (slave), which is either:
+     If this is a unit:
+       - first SELECT that belong to this unit
+     If this is a select_lex
+       - first unit that belong to this SELECT (subquries or derived tables)
+
+   - list of all select_lex (link_next/link_prev)
+     This is to be used for things like derived tables creation, where we
+     go through this list and create the derived tables.
+
+   If unit contain several selects (UNION now, INTERSECT etc later)
+   then it have special select_lex called fake_select_lex. It used for
+   storing global parameters (like ORDER BY, LIMIT) and executing union.
+   Subqueries used in global ORDER BY clause will be attached to this
+   fake_select_lex, which will allow them correctly resolve fields of
+   'upper' UNION and outer selects.
+
+   For example for following query:
 
    select *
      from table1
@@ -209,6 +228,11 @@ enum tablespace_op_type
 
    we will have following structure:
 
+   select1: (select * from table1 ...)
+   select2: (select * from table2 ...)
+   select3: (select * from table3)
+   select1.1.1: (select * from table1_1_1)
+   ...
 
      main unit
      fake0
@@ -231,7 +255,12 @@ enum tablespace_op_type
 
 
    relation in main unit will be following:
-                          
+   (bigger picture for:
+      main unit
+      fake0
+      select1 select2 select3
+   in the above picture)
+
          main unit
          |^^^^|fake_select_lex
          |||||+--------------------------------------------+
@@ -427,7 +456,7 @@ public:
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /*
-  SELECT_LEX - store information of parsed SELECT_LEX statment
+  SELECT_LEX - store information of parsed SELECT statment
 */
 class st_select_lex: public st_select_lex_node
 {
