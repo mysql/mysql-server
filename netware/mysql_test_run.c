@@ -16,20 +16,15 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */ 
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
+#include <my_global.h>
+#include <m_string.h>
 #include <dirent.h>
-#include <string.h>
 #include <screen.h>
 #include <nks/vm.h>
 #include <ctype.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/mode.h>
 
-#include "my_config.h"
 #include "my_manage.h"
 
 /******************************************************************************
@@ -1285,7 +1280,6 @@ int main(int argc, char **argv)
 
   return 0;
 }
-
 
 /*
  Synopsis:

@@ -1478,9 +1478,7 @@ NetWare. */
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids + 1 +
 							SRV_MAX_N_IO_THREADS);
-#ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
-#endif /* UNIV_DEBUG */
 
 	sum_of_data_file_sizes = 0;
 	

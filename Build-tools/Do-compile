@@ -249,7 +249,14 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
   $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
   $opt_config_options.= " --with-raid" if ($opt_raid);
-  $opt_config_options.= " --with-readline" if ($opt_readline);
+	if ($opt_readline)
+	{
+  	$opt_config_options.= " --with-readline";
+	}
+	else
+	{
+		$opt_config_options.= " --without-readline --with-libedit";
+	}
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
 

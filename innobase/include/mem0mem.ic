@@ -562,24 +562,6 @@ mem_heap_get_size(
 	return(size);
 }
 
-/*******************************************************************
-Implements realloc. */
-UNIV_INLINE
-void*
-mem_realloc(
-/*========*/
-					/* out, own: free storage,
-					NULL if did not succeed */
-	void*		buf,		/* in: pointer to an old buffer */
-	ulint		n,		/* in: desired number of bytes */
-	const char*	file_name,	/* in: file name where called */
-	ulint		line)		/* in: line where called */
-{
-	mem_free(buf);
-
-	return(mem_alloc_func(n, file_name, line));
-}
-
 /**************************************************************************
 Duplicates a NUL-terminated string. */
 UNIV_INLINE

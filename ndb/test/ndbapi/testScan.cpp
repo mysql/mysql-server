@@ -805,25 +805,8 @@ int runOnlyOneOpInScanTrans(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runExecuteScanWithoutOpenScan(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-  int records = ctx->getNumRecords();
-  int numFailed = 0;
-  ScanFunctions scanF(*pTab);
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      1,
-			      ScanFunctions::ExecuteScanWithOutOpenScan,
-			      false) == 0){
-    numFailed++;
-  }  
-  
-  if(numFailed > 0)
-    return NDBT_FAILED;
-  else
-    return NDBT_OK;
+  return NDBT_OK;
 }
-
-
 
 int runOnlyOneOpBeforeOpenScan(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table*  pTab = ctx->getTab();

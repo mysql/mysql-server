@@ -1,4 +1,4 @@
-# Example mysql config file for medium systems.
+# Example MySQL config file for medium systems.
 #
 # This is for a system with little memory (32M - 64M) where MySQL plays
 # an important part, or systems up to 128M where MySQL is used together with
@@ -10,9 +10,9 @@
 # installation this directory is @localstatedir@) or
 # ~/.my.cnf to set user-specific options.
 #
-# One can in this file use all long options that the program supports.
+# In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
-# with the --help option.
+# with the "--help" option.
 
 # The following options will be passed to all MySQL clients
 [client]

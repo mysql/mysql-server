@@ -79,9 +79,9 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
   const int            retryMax = 100;
   int sleepTime = 10;
   int                  check;
-  NdbConnection	       *pTrans;
-  NdbScanOperation     *pOp;
-  NdbResultSet         *rs;
+  NdbConnection	       *pTrans = 0;
+  NdbScanOperation     *pOp = 0;
+  NdbResultSet         *rs = 0;
 
   while (true){
     if (retryAttempt >= retryMax){
@@ -104,78 +104,75 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     }
     
     // Execute the scan without defining a scan operation
-    if(action != ExecuteScanWithOutOpenScan){
-      
-      pOp = pTrans->getNdbScanOperation(tab.getName());	
-      if (pOp == NULL) {
+    pOp = pTrans->getNdbScanOperation(tab.getName());	
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    
+    
+    rs = pOp->readTuples(exclusive ? 
+			 NdbScanOperation::LM_Exclusive : 
+			 NdbScanOperation::LM_Read);
+    
+    if( rs == 0 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    
+    
+    if (action == OnlyOpenScanOnce){
+      // Call openScan one more time when it's already defined
+      NdbResultSet* rs2 = pOp->readTuples(NdbScanOperation::LM_Read);
+      if( rs2 == 0 ) {
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
       }
-      
-      
-      rs = pOp->readTuples(exclusive ? 
-			   NdbScanOperation::LM_Exclusive : 
-			   NdbScanOperation::LM_Read);
-
-      if( rs == 0 ) {
-	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
-	return NDBT_FAILED;
-      }
-
-      
-      if (action == OnlyOpenScanOnce){
-	// Call openScan one more time when it's already defined
-	NdbResultSet* rs2 = pOp->readTuples(NdbScanOperation::LM_Read);
-	if( rs2 == 0 ) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}
-      }
-      
-      if (action==EqualAfterOpenScan){
-	check = pOp->equal(tab.getColumn(0)->getName(), 10);
-	if( check == -1 ) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}	
-      }
-      
-      check = pOp->interpret_exit_ok();
+    }
+    
+    if (action==EqualAfterOpenScan){
+      check = pOp->equal(tab.getColumn(0)->getName(), 10);
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
-      }
-      
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
-	if(pOp->getValue(tab.getColumn(a)->getName()) == NULL) {
-	  ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return NDBT_FAILED;
-	}
-      }      
+      }	
     }
+    
+    check = pOp->interpret_exit_ok();
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    
+    for(int a = 0; a<tab.getNoOfColumns(); a++){
+      if(pOp->getValue(tab.getColumn(a)->getName()) == NULL) {
+	ERR(pTrans->getNdbError());
+	pNdb->closeTransaction(pTrans);
+	return NDBT_FAILED;
+      }
+    }      
+    
     check = pTrans->execute(NoCommit);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
-
-
+    
     int abortCount = records / 10;
     bool abortTrans = (action==CloseWithoutStop);
     int eof;
     int rows = 0;
     eof = rs->nextResult();
-
+    
     while(eof == 0){
       rows++;
-
+      
       if (abortCount == rows && abortTrans == true){
 	g_info << "Scan is aborted after "<<abortCount<<" rows" << endl;
 	
