@@ -191,6 +191,7 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
+  CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
 
   friend class  Arg_comparator;
 };
@@ -340,6 +341,7 @@ public:
   const char *func_name() const { return "between"; }
   void fix_length_and_dec();
   void print(String *str);
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 
@@ -479,6 +481,7 @@ public:
   const char *func_name() const { return "case"; }
   void print(String *str);
   Item *find_item(String *str);
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 
@@ -726,6 +729,7 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   bool nulls_in_row();
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 /* Functions used by where clause */
@@ -766,6 +770,7 @@ public:
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer();
+  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -800,6 +805,7 @@ public:
   table_map not_null_tables() const { return 0; }
   Item *neg_transformer();
   void print(String *str);
+  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
 };
 
 
@@ -854,6 +860,7 @@ public:
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   const char *func_name() const { return "regexp"; }
   void print(String *str) { print_op(str); }
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 #else
