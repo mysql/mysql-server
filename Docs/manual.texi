@@ -107,7 +107,7 @@ distribution for that version.
 * Installing::                  Installing MySQL
 * Tutorial::                    MySQL Tutorial
 * MySQL Database Administration::  MySQL Database Administration
-* MySQL Optimization::          MySQL Optimization
+* MySQL Optimisation::          MySQL Optimisation
 * Reference::                   MySQL language reference
 * Table types::                 MySQL table types
 * Clients::                     MySQL client tools and APIs
@@ -424,7 +424,7 @@ A relational database stores data in separate tables rather than putting
 all the data in one big storeroom.  This adds speed and flexibility.  The
 tables are linked by defined relations making it possible to combine
 data from several tables on request.  The SQL part of MySQL
-stands for "Structured Query Language" - the most common standardized
+stands for "Structured Query Language" - the most common standardised
 language used to access databases.
 
 @cindex relational databases, defined
@@ -483,7 +483,7 @@ language already supports MySQL.
 @cindex goals of MySQL
 The official way to pronounce MySQL is ``My Ess Que Ell'' (not
 MY-SEQUEL), but we don't mind if you pronounce it as MY-SEQUEL
-or in some other localized way.
+or in some other localised way.
 
 
 @menu
@@ -550,13 +550,13 @@ Very fast B-tree disk tables with index compression.
 @item
 A very fast thread-based memory allocation system.
 @item
-Very fast joins using an optimized one-sweep multi-join.
+Very fast joins using an optimised one-sweep multi-join.
 @item
 In-memory hash tables which are used as temporary tables.
 @item
-SQL functions are implemented through a highly optimized class library and
+SQL functions are implemented through a highly optimised class library and
 should be as fast as possible!  Usually there isn't any memory allocation 
-at all after query initialization.
+at all after query initialisation.
 @end itemize
 
 @item Column Types
@@ -605,7 +605,7 @@ server.
 @item
 The MySQL-specific @code{SHOW} command can be used to retrieve
 information about databases, tables, and indexes.  The @code{EXPLAIN} command
-can be used to determine how the optimizer resolves a query.
+can be used to determine how the optimiser resolves a query.
 @item
 Function names do not clash with table or column names.  For example, 
 @code{ABS} is a valid column name.  The only restriction is that for a 
@@ -648,7 +648,7 @@ ODBC 2.5 functions and many others.  For example, you can use MS Access to
 connect to your MySQL server.  @xref{ODBC}.
 @end itemize
 
-@item Localization
+@item Localisation
 @itemize @bullet
 @item
 The server can provide error messages to clients in many languages. 
@@ -673,7 +673,7 @@ that can be specified at compile and run time.
 @itemize @bullet
 @item
 Includes @code{myisamchk}, a very fast utility for table checking,
-optimization, and repair.  All of the functionality of @code{myisamchk}
+optimisation, and repair.  All of the functionality of @code{myisamchk}
 is also available through the SQL interface as well.  
 @xref{MySQL Database Administration}.
 @item
@@ -753,11 +753,11 @@ These include @code{mysql}, @code{mysqladmin}, @code{mysqlshow},
 The basic SQL function system and string classes and dynamic memory
 handling.  Not a single reported bug in this system.
 
-@item Query optimizer --- Stable
+@item Query optimiser --- Stable
 
-@item Range optimizer --- Stable
+@item Range optimiser --- Stable
 
-@item Join optimizer --- Stable
+@item Join optimiser --- Stable
 
 @item Locking --- Gamma
 This is very system-dependent.  On some systems there are big problems
@@ -1112,7 +1112,7 @@ Internet, please contact our sales staff at @email{sales@@mysql.com}.
 MySQL AB delivers MySQL and related training worldwide. We offer both
 open courses and In-House courses tailored to specific needs of your
 company. MySQL Training is also available through our partners, the
-Authorized MySQL Training Centers.
+Authorised MySQL Training Centers.
 
 Our training material uses the same example databases as our
 documentation and our sample applications, and it is always updated
@@ -1223,7 +1223,7 @@ The MySQL website (@uref{http://www.mysql.com/}) immensely popular among
 developers and users. In October 2001, we served 10 million page views.
 Our visitors represent a group that makes purchase decisions and
 recommendations for both software and hardware. Twelve per cent of our
-visitors authorize purchase decisions, and only nine per cent are not
+visitors authorise purchase decisions, and only nine per cent are not
 involved in purchase decisions at all. More than 65% have made one or
 more online business purchase within the last half-year, and 70% plan
 to make one in the next months.
@@ -1401,7 +1401,7 @@ Also see @ref{MySQL AB Logos and Trademarks}.
 @cindex support costs
 @cindex prices, support
 
-Technical support from MySQL AB means individualized answers to your
+Technical support from MySQL AB means individualised answers to your
 unique problems direct from the software engineers who code the MySQL
 database engine.
 
@@ -1410,7 +1410,7 @@ any problem involving MySQL is important to us if it's important to you.
 Typically customers seek help on how to get different commands and
 utilities to work, remove performance bottlenecks, restore crashed
 systems, understand operating system or networking impacts on MySQL,
-set-up best practises for backup and recovery, utilize APIs, etc.
+set-up best practises for backup and recovery, utilise APIs, etc.
 Our support covers only the MySQL server and our own utilities, not
 third-party products that access MySQL, though we try to help with
 these where we can.
@@ -1991,7 +1991,7 @@ subscribe to.
 
 @item @email{mysql-subscribe@@lists.mysql.com} mysql
 The main list for general MySQL discussion.  Please note that some
-topics are better discussed on the more-specialized lists.  If you post to the
+topics are better discussed on the more-specialised lists.  If you post to the
 wrong list, you may not get an answer!
 
 @item @email{mysql-digest-subscribe@@lists.mysql.com} mysql-digest
@@ -2422,7 +2422,7 @@ For information on reporting bugs in @strong{MyODBC}, see @ref{ODBC Problems}.
 For solutions to some common problems, see @xref{Problems}.
 
 When answers are sent to you individually and not to the mailing list,
-it is considered good etiquette to summarize the answers and send the
+it is considered good etiquette to summarise the answers and send the
 summary to the mailing list so that others may have the benefit of
 responses you received that helped you solve your problem!
 
@@ -2441,7 +2441,7 @@ asked.  Try to make your answer general enough that people other than the
 original poster may benefit from it.  When you post to the list, please make
 sure that your answer is not a duplication of a previous answer.
 
-Try to summarize the essential part of the question in your reply; don't feel
+Try to summarise the essential part of the question in your reply; don't feel
 obliged to quote the entire original message.
 
 Please don't post mail messages from your browser with HTML mode turned on!
@@ -2719,10 +2719,10 @@ facilities for writing portable, international programs in C.
 
 @emph{C++ For Real Programmers} bridges the gap between C++ as described
 in beginner and intermediate-level books and C++ as it is practiced by
-experts.  Numerous valuable techniques are described, organized into
+experts.  Numerous valuable techniques are described, organised into
 three simple themes: indirection, class hierarchies, and memory
 management.  It also provides in-depth coverage of template creation,
-exception handling, pointers and optimization techniques.  The focus of
+exception handling, pointers and optimisation techniques.  The focus of
 the book is on ANSI C++ and, as such, is compiler independent. 
 
 @emph{C++ For Real Programmers} is a revision of 
@@ -2762,7 +2762,7 @@ implement, run, and debug useful algorithms.
 Based on the best-selling @emph{Threads Primer}, 
 @emph{Multithreaded Programming with Pthreads} gives you a solid 
 understanding of Posix threads: what they are, how they work, when to use 
-them, and how to optimize them. It retains the clarity and humor of 
+them, and how to optimise them. It retains the clarity and humor of 
 @emph{Threads Primer}, but includes expanded comparisons to Win32 and OS/2
 implementations.  Code examples tested on all of the major UNIX platforms 
 are featured along with detailed explanations of how and why they use threads.
@@ -2939,14 +2939,14 @@ Bazaar; Interactive Discussion Forums with Web interface.
 @cindex PhoneSweep
 @item @uref{http://www.phonesweep.com/}
 PhoneSweepT is the world's first commercial Telephone Scanner.  Many break-ins
-in recent years have come not through the Internet, but through unauthorized
+in recent years have come not through the Internet, but through unauthorised
 dial-up modems.  PhoneSweep lets you find these modems by repeatedly placing
-phone calls to every phone number that your organization
-controls.  PhoneSweep has a built-in expert system that can recognize
+phone calls to every phone number that your organisation
+controls.  PhoneSweep has a built-in expert system that can recognise
 more than 250 different kinds of remote-access programs, including
 Carbon Copy(TM), pcANYWHERE(TM), and Windows NT RAS.  All information is stored
 in the SQL database.  It then generates a comprehensive report detailing
-which services were discovered on which dial-up numbers in your organization.
+which services were discovered on which dial-up numbers in your organisation.
 @end table
 
 @subheading SQL Clients and Report Writers
@@ -3715,7 +3715,7 @@ extra conditions in this case.
 * ANSI diff comments::          @samp{--} as the Start of a Comment
 @end menu
 
-For a prioritized list indicating when new extensions will be added to
+For a prioritised list indicating when new extensions will be added to
 MySQL, you should consult the online MySQL TODO list at
 @uref{http://www.mysql.com/documentation/manual.php?section=TODO}.
 That is the latest version of the TODO list in this manual. @xref{TODO}.
@@ -4329,7 +4329,7 @@ select * from temporary_table, temporary_table as t2;
 @code{RENAME} doesn't work with @code{TEMPORARY} tables.
 
 @item
-The optimizer may handle @code{DISTINCT} differently if you are using
+The optimiser may handle @code{DISTINCT} differently if you are using
 'hidden' columns in a join or not.  In a join, hidden columns are
 counted as part of the result (even if they are not shown) while in
 normal queries hidden columns doesn't participate in the @code{DISTINCT}
@@ -4366,7 +4366,7 @@ This is just to ensure that MySQL never need to do a rollback
 for a SQL command.  This may be a little awkward at times as column
 values must be checked in the application, but this will actually give
 you a nice speed increase as it allows MySQL to do some
-optimizations that otherwise would be very hard to do.
+optimisations that otherwise would be very hard to do.
 
 If you set a column to an incorrect value, MySQL will, instead of
 doing a rollback, store the @code{best possible value} in the column:
@@ -4575,7 +4575,7 @@ Joins.
 @code{mSQL} can become pathologically slow if you change the order of tables
 in a @code{SELECT}. In the benchmark suite, a time more than 15000 times
 slower than MySQL was seen.  This is due to @code{mSQL}'s lack of a
-join optimizer to order tables in the optimal order. However, if you put the
+join optimiser to order tables in the optimal order. However, if you put the
 tables in exactly the right order in @code{mSQL}2 and the @code{WHERE} is
 simple and uses index columns, the join will be relatively fast!
 @xref{MySQL Benchmarks}.
@@ -4597,7 +4597,7 @@ Using @code{TEXT} or @code{BLOB} columns.
 @code{mSQL} does not support @code{GROUP BY} at all.
 MySQL supports a full @code{GROUP BY} with both @code{HAVING} and
 the following functions: @code{COUNT()}, @code{AVG()}, @code{MIN()},
-@code{MAX()}, @code{SUM()}, and @code{STD()}.  @code{COUNT(*)} is optimized to
+@code{MAX()}, @code{SUM()}, and @code{STD()}.  @code{COUNT(*)} is optimised to
 return very quickly if the @code{SELECT} retrieves from one table, no other
 columns are retrieved, and there is no @code{WHERE} clause.  @code{MIN()} and
 @code{MAX()} may take string arguments.
@@ -4968,7 +4968,7 @@ Retains trailing space.
 
 @table @code
 @item MySQL
-MySQL correctly prioritizes everything (@code{AND} is evaluated
+MySQL correctly prioritises everything (@code{AND} is evaluated
 before @code{OR}). To get @code{mSQL} behavior in MySQL, use
 parentheses (as shown in an example below).
 @item mSQL
@@ -5052,8 +5052,8 @@ about every three weeks, and a major branch every year.  All releases are
 throughly tested with our testing tools on a lot of different platforms.
 
 PostgreSQL is based on a kernel with lots of contributors. In this setup
-it makes sense to prioritize adding a lot of new features, instead of
-implementing them optimally, because one can always optimize things
+it makes sense to prioritise adding a lot of new features, instead of
+implementing them optimally, because one can always optimise things
 later if there arises a need for this.
 
 Another big difference between MySQL and PostgreSQL is that
@@ -5119,7 +5119,7 @@ MySQL works on 24/7 heavy duty systems.  In most circumstances
 you never have to run any cleanups on MySQL.  PostgreSQL doesn't
 yet support 24/7 systems because you have to run @code{VACUUM()}
 once in a while to reclaim space from @code{UPDATE} and @code{DELETE}
-commands and to perform statistics analyzes that are critical to get
+commands and to perform statistics analyses that are critical to get
 good performance with PostgreSQL.  @code{VACUUM()} is also needed after
 adding a lot of new rows to a table.  On a busy system with lots of changes,
 @code{VACUUM()} must be run very frequently, in the worst cases even 
@@ -5180,7 +5180,7 @@ systems where you have log files that you order for example by month.
 
 @item
 The option to compress read-only tables, but still have direct access to
-the rows in the table, gives you better performance by minimizing disk
+the rows in the table, gives you better performance by minimising disk
 reads.  This is very useful when you are archiving things.
 @xref{myisampack}.
 
@@ -5214,7 +5214,7 @@ performance over slow links.
 MySQL employs a ``table handler'' concept, and is the only relational 
 database we know of built around this concept.  This allows different 
 low-level table types to be swapped into the SQL engine, and each table 
-type can be optimized for different performance characteristics.
+type can be optimised for different performance characteristics.
 
 @item
 All MySQL table types (except @strong{InnoDB}) are implemented as files
@@ -5222,7 +5222,7 @@ All MySQL table types (except @strong{InnoDB}) are implemented as files
 and even symlink databases and tables, even when the server is down.
 
 @item
-Tools to repair and optimize @strong{MyISAM} tables (the most common
+Tools to repair and optimise @strong{MyISAM} tables (the most common
 MySQL table type).  A repair tool is only needed when a physical corruption
 of a data file happens, usually from a hardware failure.  It allows a 
 majority of the data to be recovered.
@@ -5304,8 +5304,8 @@ One can speed up PostgreSQL by coding things as stored procedures.
 For geographical data, R-TREES makes PostgreSQL better than MySQL.
 
 @item
-The PostgreSQL optimizer can do some optimization that the current MySQL
-optimizer can't do.  Most notable is doing joins when you don't have the
+The PostgreSQL optimiser can do some optimisation that the current MySQL
+optimiser can't do.  Most notable is doing joins when you don't have the
 proper keys in place and doing a join where you are using different keys
 combined with OR.  The MySQL benchmark suite at
 @uref{http://www.mysql.com/information/benchmarks.html} shows you what
@@ -5394,10 +5394,10 @@ something that is of course not true.  We could make things even worse
 by just taking the test where PostgreSQL performs worst and claim that 
 MySQL is more than 2000 times faster than PostgreSQL.
 
-The case is that MySQL does a lot of optimizations that PostgreSQL
+The case is that MySQL does a lot of optimisations that PostgreSQL
 doesn't do. This is of course also true the other way around.  An SQL
-optimizer is a very complex thing, and a company could spend years on
-just making the optimizer faster and faster.
+optimiser is a very complex thing, and a company could spend years on
+just making the optimiser faster and faster.
 
 When looking at the benchmark results you should look for things that
 you do in your application and just use these results to decide which
@@ -5435,11 +5435,11 @@ a true benchmark tool, but an application/setup testing tool.  To refer
 this as a ``standard'' benchmark tool is to stretch the truth a long way.
 
 @item
-Great Bridge admitted that they had optimized the PostgreSQL database
+Great Bridge admitted that they had optimised the PostgreSQL database
 (with @code{VACUUM()} before the test) and tuned the startup for the tests,
 something they hadn't done for any of the other databases involved.  To
-say ``This process optimizes indexes and frees up disk space a bit.  The
-optimized indexes boost performance by some margin.''  Our benchmarks
+say ``This process optimises indexes and frees up disk space a bit.  The
+optimised indexes boost performance by some margin.''  Our benchmarks
 clearly indicate that the difference in running a lot of selects on a
 database with and without @code{VACUUM()} can easily differ by a factor
 of ten.
@@ -5494,7 +5494,7 @@ some of the obvious mistakes they had done with MySQL:
 Running with a debug version of our ODBC driver
 
 @item
-Running on a Linux system that wasn't optimized for threads
+Running on a Linux system that wasn't optimised for threads
 
 @item
 Using an old MySQL version when there was a recommended newer one available
@@ -5504,7 +5504,7 @@ Not starting MySQL with the right options for heavy multi-user use (the
 default installation of MySQL is tuned for minimal resource use). 
 @end itemize
 
-Great Bridge did run a new test, with our optimized ODBC driver and with 
+Great Bridge did run a new test, with our optimised ODBC driver and with 
 better startup options for MySQL, but refused to either use our updated 
 glibc library or our standard binary (used by 80% of our users), which was
 statically linked with a fixed glibc library.
@@ -5760,7 +5760,7 @@ without threads.
 Add an option to periodically flush key pages for tables with delayed keys
 if they haven't been used in a while.
 @item
-Allow join on key parts (optimization issue).
+Allow join on key parts (optimisation issue).
 @item
 @code{INSERT SQL_CONCURRENT} and @code{mysqld --concurrent-insert} to do
 a concurrent insert at the end of the file if the file is read-locked.
@@ -5801,7 +5801,7 @@ One idea would be to only cache queries of type:
 Fix @file{libmysql.c} to allow two @code{mysql_query()} commands in a row
 without reading results or give a nice error message when one does this.
 @item
-Optimize @code{BIT} type to take 1 bit (now @code{BIT} takes 1 char).
+Optimise @code{BIT} type to take 1 bit (now @code{BIT} takes 1 char).
 @item
 Check why MIT-pthreads @code{ctime()} doesn't work on some FreeBSD systems.
 @item
@@ -5849,7 +5849,7 @@ Automatic output from @code{mysql} to netscape.
 @item
 @code{LOCK DATABASES}. (with various options)
 @item
-Change sort to allocate memory in ``hunks'' to get better memory utilization.
+Change sort to allocate memory in ``hunks'' to get better memory utilisation.
 @item
 @code{DECIMAL} and @code{NUMERIC} types can't read exponential numbers;
 @code{Field_decimal::store(const char *from,uint len)} must be recoded
@@ -5929,9 +5929,9 @@ to handle cases where the data and/or index files are symbolic links.
 Add simulation of @code{pread()}/@code{pwrite()} on Windows to enable
 concurrent inserts.
 @item
-A logfile analyzer that could parsed out information about which tables
+A logfile analyser that could parsed out information about which tables
 are hit most often, how often multi-table joins are executed, etc.  It
-should help users identify areas or table design that could be optimized
+should help users identify areas or table design that could be optimised
 to execute much more efficient queries.
 @item
 Add @code{SUM(DISTINCT)}
@@ -5985,8 +5985,8 @@ is only done for some simple cases.
 @item
 Change all const expressions with calculated expressions if possible.
 @item
-Optimize key = expression. At the moment only key = field or key =
-constant are optimized.
+Optimise key = expression. At the moment only key = field or key =
+constant are optimised.
 @item
 Join some of the copy functions for nicer code.
 @item
@@ -6024,9 +6024,9 @@ Add use of @code{zlib()} for @code{gzip}-ed files to @code{LOAD DATA INFILE}.
 Fix sorting and grouping of @code{BLOB} columns (partly solved now).
 @item
 Stored procedures.  This is currently not regarded to be very
-important as stored procedures are not very standardized yet.
+important as stored procedures are not very standardised yet.
 Another problem is that true stored procedures make it much harder for
-the optimizer and in many cases the result is slower than before
+the optimiser and in many cases the result is slower than before
 We will, on the other hand, add a simple (atomic) update language that
 can be used to write loops and such in the MySQL server.
 @item
@@ -6294,20 +6294,20 @@ Here is a list of the different MySQL servers you can use:
 Compiled with full debugging and automatic memory allocation
 checking, symbolic links, InnoDB and BDB tables.
 @item @code{mysqld-opt} @tab
-Optimized binary with no support for transactional tables.
+Optimised binary with no support for transactional tables.
 @item @code{mysqld-nt} @tab
-Optimized binary for NT with support for named pipes. You can
+Optimised binary for NT with support for named pipes. You can
 run this version on Win98, but in this case no named pipes are
 created and you must have TCP/IP installed.
 @item @code{mysqld-max} @tab
-Optimized binary with support for symbolic links,
+Optimised binary with support for symbolic links,
 InnoDB and BDB tables.
 @item @code{mysqld-max-nt} @tab
 Like @code{mysqld-max}, but compiled with support for named
 pipes.
 @end multitable
 
-All of the above binaries are optimized for the Pentium Pro
+All of the above binaries are optimised for the Pentium Pro
 processor but should work on any Intel processor >= i386.
 
 
@@ -7397,7 +7397,7 @@ efficiently, if your tables are big.
 
 @item
 Our level of expertise here at MySQL AB with the platform. If we know
-a platform well, we introduce platform-specific optimizations/fixes enabled at
+a platform well, we introduce platform-specific optimisations/fixes enabled at
 compile time. We can also provide advice on configuring your system optimally
 for MySQL.
 
@@ -7431,7 +7431,7 @@ for a dedicated purpose - running MySQL, and compare platforms in that
 regard only. With this in mind, the result of this comparison
 would be different if we included more issues into it. And in some cases,
 the reason one OS is better than the other could simply be that we have put
-forth more effort into testing on and optimizing for that particular platform.
+forth more effort into testing on and optimising for that particular platform.
 We are just stating our observations to help you make a
 decision on which platform to use MySQL on in your setup.
 
@@ -7514,7 +7514,7 @@ the same processor family.
 
 If you want a faster MySQL server you may want to recompile it
 with support for only the character sets you need, use a better compiler
-(like @code{pgcc}) or use compiler options that are better optimized for your
+(like @code{pgcc}) or use compiler options that are better optimised for your
 processor.
 
 @item
@@ -7604,7 +7604,7 @@ hundreds of megabytes of data.
 
 @item The MySQL benchmark suite
 This runs a range of common queries.  It is also a test to see whether the
-latest batch of optimizations actually made the code faster.
+latest batch of optimisations actually made the code faster.
 @xref{MySQL Benchmarks}.
 
 @item The @code{crash-me} test
@@ -7953,7 +7953,7 @@ You should add the full pathname of this directory to your
 programs properly. @xref{Environment variables}.
 
 @item scripts
-This directory contains the @code{mysql_install_db} script used to initialize
+This directory contains the @code{mysql_install_db} script used to initialise
 the @code{mysql} database containing the grant tables that store the server
 access permissions.
 @end table
@@ -8012,7 +8012,7 @@ your system has its startup files.  More information can be found in the
 
 @end enumerate
 
-After everything has been unpacked and installed, you should initialize
+After everything has been unpacked and installed, you should initialise
 and test your distribution.
 
 You can start the MySQL server with the following command:
@@ -8143,7 +8143,7 @@ you install the @code{DBI} and @code{Msql-Mysql-modules} Perl modules.
 A more detailed description follows.
 
 To install a source distribution, follow the steps below, then proceed
-to @ref{Post-installation}, for post-installation initialization and testing:
+to @ref{Post-installation}, for post-installation initialisation and testing:
 
 @enumerate
 @item
@@ -8267,7 +8267,7 @@ your system has its startup files.  More information can be found in the
 @ref{Automatic start}.
 @end enumerate
 
-After everything has been installed, you should initialize and test your
+After everything has been installed, you should initialise and test your
 distribution:
 
 @example
@@ -8470,7 +8470,7 @@ CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructor
 @end example
 
 The binaries we provide on the MySQL website at
-@uref{http://www.mysql.com} are all compiled with full optimization and
+@uref{http://www.mysql.com} are all compiled with full optimisation and
 should be perfect for most users.  @xref{MySQL binaries}.  There are some
 things you can tweak to make an even faster binary, but this is only for
 advanced users.  @xref{Compile and link options}.
@@ -8909,7 +8909,7 @@ shell> ./configure --with-mit-threads
 @end example
 
 Building in a non-source directory is not supported when using
-MIT-pthreads, because we want to minimize our changes to this code.
+MIT-pthreads, because we want to minimise our changes to this code.
 
 @item
 The checks that determine whether or not to use MIT-pthreads occur only
@@ -9058,7 +9058,7 @@ Windows distribution. @xref{Windows prepare environment}.
 @end menu
 
 Once you've installed MySQL (from either a binary or source
-distribution), you need to initialize the grant tables, start the server,
+distribution), you need to initialise the grant tables, start the server,
 and make sure that the server works okay.  You may also wish to arrange
 for the server to be started and stopped automatically when your system
 starts up and shuts down.
@@ -9573,7 +9573,7 @@ to find the problem. @xref{Making trace files}.
 If you are using InnoDB tables, refer to the InnoDB-specific startup
 options.  @xref{InnoDB start}.
 
-If you are using BDB (Berkeley DB) tables, you should familiarize
+If you are using BDB (Berkeley DB) tables, you should familiarise
 yourself with the different BDB specific startup options.  @xref{BDB start}.
 
 
@@ -9780,7 +9780,7 @@ because configure didn't detect the @code{readlink} system call).
 
 @item
 @code{OPTIMIZE TABLE} now only works for @strong{MyISAM} tables.
-For other table types, you can use @code{ALTER TABLE} to optimize the table.
+For other table types, you can use @code{ALTER TABLE} to optimise the table.
 During @code{OPTIMIZE TABLE} the table is now locked from other threads.
 
 @item
@@ -10201,7 +10201,7 @@ the more threads you can safely create.  We recommend the values between
 128K and 256K.
 
 If you use a lot of concurrent connections, you may suffer from a "feature" 
-in the 2.2 kernel that penalizes a process for forking or cloning a child
+in the 2.2 kernel that penalises a process for forking or cloning a child
 in an attempt to prevent a fork bomb attack.  This will cause MySQL
 not to scale well as you increase the number of concurrent clients.  On
 single CPU systems, we have seen this manifested in a very slow thread
@@ -10535,7 +10535,7 @@ You can find the above compilers at
 @uref{http://www.support.compaq.com/alpha-tools}).  By using these compilers,
 instead of gcc, we get about 9-14 % better performance with MySQL.
 
-Note that the configure line optimized the binary for the current CPU; This
+Note that the configure line optimised the binary for the current CPU; This
 means you can only use our binary if you have an Alpha EV6 processor. We also
 compile statically to avoid library problems.
 
@@ -11488,7 +11488,7 @@ mysql-server and mysql-client ports available on @uref{http://www.freebsd.org}.
 Using these gives you:
 @itemize @bullet
 @item
-A working MySQL with all optimizations known to work on your version
+A working MySQL with all optimisations known to work on your version
 of FreeBSD enabled.
 
 @item
@@ -11828,7 +11828,7 @@ There are a couple of small problems when compiling MySQL on
 HP-UX.  We recommend that you use @code{gcc} instead of the HP-UX native
 compiler, because @code{gcc} produces better code!
 
-We recommend using gcc 2.95 on HP-UX.  Don't use high optimization
+We recommend using gcc 2.95 on HP-UX.  Don't use high optimisation
 flags (like -O6) as this may not be safe on HP-UX.
 
 Note that MIT-pthreads can't be compiled with the HP-UX compiler
@@ -11940,12 +11940,12 @@ MySQL with HP-UX:x compiler:
 @itemize @bullet
 @item
 I had to use the compile-time flag @code{-D_REENTRANT} to get the compiler 
-to recognize the prototype for @code{localtime_r}. Alternatively I could have
+to recognise the prototype for @code{localtime_r}. Alternatively I could have
 supplied the prototype for @code{localtime_r}. But I wanted to catch other 
 bugs without needing to run into them.  I wasn't sure where I needed it, so I
 added it to all flags.
 @item
-The optimization flags used by MySQL (-O3) are not recognized by HP's
+The optimisation flags used by MySQL (-O3) are not recognised by HP's
 compilers.  I did not change the flags.
 @end itemize
 
@@ -13028,7 +13028,7 @@ that's okay.  At this point, it's more important to find out a little about
 how to issue queries than to jump right in creating tables, loading data
 into them, and retrieving data from them.  This section describes the basic
 principles of entering commands, using several queries you can try out to
-familiarize yourself with how @code{mysql} works.
+familiarise yourself with how @code{mysql} works.
 
 Here's a simple command that asks the server to tell you its version number
 and the current date.  Type it in as shown below following the @code{mysql>}
@@ -13157,7 +13157,7 @@ Here, too, notice the prompt.  It switches back to @code{mysql>} after you
 type @code{\c}, providing feedback to indicate that @code{mysql} is ready
 for a new command.
 
-The following table shows each of the prompts you may see and summarizes what
+The following table shows each of the prompts you may see and summarises what
 they mean about the state that @code{mysql} is in:
 
 @cindex prompts, meanings
@@ -13183,7 +13183,7 @@ mysql> SELECT USER()
 If this happens to you (you think you've entered a statement but the only
 response is a @code{->} prompt), most likely @code{mysql} is waiting for the
 semicolon.  If you don't notice what the prompt is telling you, you might sit
-there for a while before realizing what you need to do.  Enter a semicolon to
+there for a while before realising what you need to do.  Enter a semicolon to
 complete the statement, and @code{mysql} will execute it:
 
 @example
@@ -13788,7 +13788,7 @@ mysql> SELECT owner FROM pet;
 
 @findex DISTINCT
 However, notice that the query simply retrieves the @code{owner} field from
-each record, and some of them appear more than once.  To minimize the output,
+each record, and some of them appear more than once.  To minimise the output,
 retrieve each unique output record just once by adding the keyword
 @code{DISTINCT}:
 
@@ -14381,7 +14381,7 @@ ERROR 1140 at line 1: Mixing of GROUP columns (MIN(),MAX(),COUNT()...)
 with no GROUP columns is illegal if there is no GROUP BY clause
 @end example
 
-@code{COUNT()} and @code{GROUP BY} are useful for characterizing your
+@code{COUNT()} and @code{GROUP BY} are useful for characterising your
 data in various ways.  The following examples show different ways to
 perform animal census operations.
 
@@ -14493,7 +14493,7 @@ A date so you know when the event occurred.
 A field to describe the event.
 
 @item
-An event type field, if you want to be able to categorize events.
+An event type field, if you want to be able to categorise events.
 @end itemize
 
 Given these considerations, the @code{CREATE TABLE} statement for the
@@ -14991,9 +14991,9 @@ SELECT s.* FROM persons p, shirts s
 @cindex searching, two keys
 @cindex keys, searching on two
 
-MySQL doesn't yet optimize when you search on two different
+MySQL doesn't yet optimise when you search on two different
 keys combined with @code{OR} (searching on one key with different @code{OR}
-parts is optimized quite well):
+parts is optimised quite well):
 
 @example
 SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
@@ -15005,9 +15005,9 @@ way to handle this in the general case. (The @code{AND} handling is,
 in comparison, now completely general and works very well.)
 
 For the moment you can solve this very efficiently by using a
-@code{TEMPORARY} table. This type of optimization is also very good if
+@code{TEMPORARY} table. This type of optimisation is also very good if
 you are using very complicated queries where the SQL server does the
-optimizations in the wrong order.
+optimisations in the wrong order.
 
 @example
 CREATE TEMPORARY TABLE tmp
@@ -15348,7 +15348,7 @@ This identifies a twin in a pair. It has a value of @code{1} or @code{2}.
 @item column @code{ptvab}
 This is an inverse of @code{tvab}. When @code{tvab} is @code{1} this is
 @code{2}, and vice versa. It exists to save typing and to make it easier for
-MySQL to optimize the query.
+MySQL to optimise the query.
 @end table
 
 This query demonstrates, among other things, how to do lookups on a
@@ -15436,7 +15436,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 
 
 
-@node MySQL Database Administration, MySQL Optimization, Tutorial, Top
+@node MySQL Database Administration, MySQL Optimisation, Tutorial, Top
 @chapter MySQL Database Administration
 
 @menu
@@ -15445,7 +15445,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 * User Account Management::     MySQL User Account Management
 * Disaster Prevention::         Disaster Prevention and Recovery
 * Database Administration::     Database Administration Language Reference
-* Localization::                MySQL Localization and International Usage
+* Localisation::                MySQL Localisation and International Usage
 * Server-Side Scripts::         MySQL Server-Side Scripts and Utilities
 * Client-Side Scripts::         MySQL Client-Side Scripts and Utilities
 * Log Files::                   The MySQL Log Files
@@ -15641,10 +15641,10 @@ Only use one thread (for debugging under Linux).  @xref{Debugging server}.
 Give a variable a value. @code{--help} lists variables.  You can find a full
 description for all variables in the @code{SHOW VARIABLES} section in this
 manual.  @xref{SHOW VARIABLES}.  The tuning server parameters section includes
-information of how to optimize these.  @xref{Server parameters}.
+information of how to optimise these.  @xref{Server parameters}.
 
 @item --safe-mode
-Skip some optimize stages.  Implies @code{--skip-delay-key-write}.
+Skip some optimise stages.  Implies @code{--skip-delay-key-write}.
 
 @item --safe-show-database
 Don't show databases for which the user doesn't have any privileges.
@@ -16219,7 +16219,7 @@ for someone who does not know it.
 @item
 Invest in a firewall. This protects you from at least 50% of all types of
 exploits in any software. Put MySQL behind the firewall or in
-a demilitarized zone (DMZ).
+a demilitarised zone (DMZ).
 
 Checklist:
 @itemize @minus
@@ -17327,7 +17327,7 @@ tables and adds those to the user's privileges.  Access is allowed or denied
 based on the result.
 
 Expressed in boolean terms, the preceding description of how a user's
-privileges are calculated may be summarized like this:
+privileges are calculated may be summarised like this:
 
 @example
 global privileges
@@ -18087,7 +18087,7 @@ After installing MySQL, you set up the initial access privileges by
 running @code{scripts/mysql_install_db}.
 @xref{Quick install}.
 The @code{mysql_install_db} script starts up the @code{mysqld}
-server, then initializes the grant tables to contain the following set
+server, then initialises the grant tables to contain the following set
 of privileges:
 
 @itemize @bullet
@@ -18475,7 +18475,7 @@ Use a @code{-pyour_pass} or @code{--password=your_pass} option on the command
 line.  This is convenient but insecure, because your password becomes visible
 to system status programs (such as @code{ps}) that may be invoked by other
 users to display command lines.  (MySQL clients typically overwrite
-the command-line argument with zeroes during their initialization sequence,
+the command-line argument with zeroes during their initialisation sequence,
 but there is still a brief interval during which the value is visible.)
 
 @item
@@ -18559,7 +18559,7 @@ unencrypted connection is unacceptable.
 SSL is a protocol which uses different encryption algorithms to ensure
 that data which comes from public network can be trusted. It has
 mechanisms to detect any change, loss or replay of data. SSL also
-incorpores algorithms to recognize and provide identity verification
+incorpores algorithms to recognise and provide identity verification
 using the X509 standard.
 
 @cindex What is encryption
@@ -19059,13 +19059,13 @@ In the following text we will talk about @code{myisamchk}, but everything
 also applies to the old @code{isamchk}.
 
 You can use the @code{myisamchk} utility to get information about your
-database tables, check and repair them, or optimize them.  The following
+database tables, check and repair them, or optimise them.  The following
 sections describe how to invoke @code{myisamchk} (including a
 description of its options), how to set up a table maintenance schedule,
 and how to use @code{myisamchk} to perform its various functions.
 
 You can, in most cases, also use the command @code{OPTIMIZE TABLES} to
-optimize and repair tables, but this is not as fast or reliable (in case
+optimise and repair tables, but this is not as fast or reliable (in case
 of real fatal errors) as @code{myisamchk}.  On the other hand,
 @code{OPTIMIZE TABLE} is easier to use and you don't have to worry about
 flushing tables.
@@ -19085,7 +19085,7 @@ make a lot of changes to a table)
 * Crash recovery::              Using @code{myisamchk} for Crash Recovery
 * Check::                       How to Check Tables for Errors
 * Repair::                      How to Repair Tables
-* Optimization::                Table Optimization
+* Optimisation::                Table Optimisation
 @end menu
 
 
@@ -19367,8 +19367,8 @@ Other actions that @code{myisamchk} can do, besides repair and check tables:
 
 @table @code
 @item -a or --analyze
-Analyze the distribution of keys. This improves join performance by
-enabling the join optimizer to better choose in which order it should
+Analyse the distribution of keys. This improves join performance by
+enabling the join optimiser to better choose in which order it should
 join the tables and which keys it should use:
 @code{myisamchk --describe --verbose table_name'} or using @code{SHOW KEYS} in
 MySQL.
@@ -19380,9 +19380,9 @@ given, then sets the next auto_increment value to the highest used value
 for the auto key + 1.
 @item -S or --sort-index
 Sort the index tree blocks in high-low order.
-This will optimize seeks and will make table scanning by key faster.
+This will optimise seeks and will make table scanning by key faster.
 @item -R or --sort-records=#
-Sorts records according to an index.  This makes your data much more localized
+Sorts records according to an index.  This makes your data much more localised
 and may speed up ranged @code{SELECT} and @code{ORDER BY} operations on
 this index. (It may be VERY slow to do a sort the first time!)
 To find out a table's index numbers, use @code{SHOW INDEX}, which shows a
@@ -19465,7 +19465,7 @@ to check tables at any time.  While you do this, all clients that try
 to update the table will wait until @code{myisamchk} is ready before
 continuing.
 
-If you use @code{myisamchk} to repair or optimize tables, you
+If you use @code{myisamchk} to repair or optimise tables, you
 @strong{MUST} always ensure that the @code{mysqld} server is not using
 the table (this also applies if you are using @code{--skip-locking}).
 If you don't take down @code{mysqld} you should at least do a
@@ -19546,7 +19546,7 @@ print some informational statistics, too.
 @end table
 
 
-@node Repair, Optimization, Check, Table maintenance
+@node Repair, Optimisation, Check, Table maintenance
 @subsubsection How to Repair Tables
 
 @cindex tables, repairing
@@ -19731,11 +19731,11 @@ the index file.
 @end enumerate
 
 
-@node Optimization,  , Repair, Table maintenance
-@subsubsection Table Optimization
+@node Optimisation,  , Repair, Table maintenance
+@subsubsection Table Optimisation
 
-@cindex tables, optimizing
-@cindex optimizing, tables
+@cindex tables, optimising
+@cindex optimising, tables
 
 To coalesce fragmented records and eliminate wasted space resulting from
 deleting or updating records, run @code{myisamchk} in recovery mode:
@@ -19744,9 +19744,9 @@ deleting or updating records, run @code{myisamchk} in recovery mode:
 shell> myisamchk -r tbl_name
 @end example
 
-You can optimize a table in the same way using the SQL @code{OPTIMIZE TABLE}
+You can optimise a table in the same way using the SQL @code{OPTIMIZE TABLE}
 statement.  @code{OPTIMIZE TABLE} does a repair of the table, a key
-analyzes and also sorts the index tree to give faster key lookups.
+analyses and also sorts the index tree to give faster key lookups.
 There is also no possibility of unwanted interaction between a utility
 and the server, because the server does all the work when you use
 @code{OPTIMIZE TABLE}. @xref{OPTIMIZE TABLE}.
@@ -20022,18 +20022,18 @@ How many records are in the table.
 
 @item Deleted blocks
 How many deleted blocks still have reserved space.
-You can optimize your table to minimize this space.
-@xref{Optimization}.
+You can optimise your table to minimise this space.
+@xref{Optimisation}.
 
 @item Datafile: Parts
 For dynamic record format, this indicates how many data blocks there are. For
-an optimized table without fragmented records, this is the same as @code{Data
+an optimised table without fragmented records, this is the same as @code{Data
 records}.
 
 @item Deleted data
 How many bytes of non-reclaimed deleted data there are.
-You can optimize your table to minimize this space.
-@xref{Optimization}.
+You can optimise your table to minimise this space.
+@xref{Optimisation}.
 
 @item Datafile pointer
 The size of the data file pointer, in bytes. It is usually 2, 3, 4, or 5
@@ -20093,7 +20093,7 @@ The size of each index block. By default this is 1024, but the value may be
 changed at compile time.
 
 @item Rec/key
-This is a statistical value used by the optimizer. It tells how many
+This is a statistical value used by the optimiser. It tells how many
 records there are per value for this key. A unique key always has a
 value of 1. This may be updated after a table is loaded (or greatly
 changed) with @code{myisamchk -a}. If this is not updated at all, a default
@@ -20105,7 +20105,7 @@ In the first example above, the 9th key is a multi-part key with two parts.
 
 @item Keyblocks used
 What percentage of the keyblocks are used. Because the table used in the
-examples had just been reorganized with @code{myisamchk}, the values are very
+examples had just been reorganised with @code{myisamchk}, the values are very
 high (very near the theoretical maximum).
 
 @item Packed
@@ -20140,8 +20140,8 @@ What percentage of the data file is unused.
 Average number of blocks per record (that is, how many links a fragmented
 record is composed of). This is always 1 for fixed-format tables. This value
 should stay as close to 1.0 as possible. If it gets too big, you can
-reorganize the table with @code{myisamchk}.
-@xref{Optimization}.
+reorganise the table with @code{myisamchk}.
+@xref{Optimisation}.
 
 @item Recordblocks
 How many blocks (links) are used. For fixed format, this is the same as the number
@@ -20172,7 +20172,7 @@ If a table has been compressed with @code{myisampack}, @code{myisamchk
 information and a description of what it means.
 
 
-@node Database Administration, Localization, Disaster Prevention, MySQL Database Administration
+@node Database Administration, Localisation, Disaster Prevention, MySQL Database Administration
 @section Database Administration Language Reference
 
 
@@ -20208,7 +20208,7 @@ For the moment @code{OPTIMIZE TABLE} only works on @strong{MyISAM} and
 @code{BDB} tables. For @code{BDB} tables, @code{OPTIMIZE TABLE} is
 currently mapped to @code{ANALYZE TABLE}. @xref{ANALYZE TABLE}.
 
-You can get optimize table to work on other table types by starting
+You can get optimise table to work on other table types by starting
 @code{mysqld} with @code{--skip-new} or @code{--safe-mode}, but in this
 case @code{OPTIMIZE TABLE} is just mapped to @code{ALTER TABLE}.
 
@@ -20240,8 +20240,8 @@ running!
 ANALYZE TABLE tbl_name[,tbl_name...]
 @end example
 
-Analyze and store the key distribution for the table.  During the
-analyze the table is locked with a read lock.  This works on
+Analyse and store the key distribution for the table.  During the
+analyse the table is locked with a read lock.  This works on
 @code{MyISAM} and @code{BDB} tables.
 
 This is equivalent to running @code{myisamchk -a} on the table.
@@ -20264,7 +20264,7 @@ You can check the stored key distribution with the @code{SHOW INDEX} command.
 @xref{SHOW DATABASE INFO}.
 
 If the table hasn't changed since the last @code{ANALYZE TABLE} command,
-the table will not be analyzed again.
+the table will not be analysed again.
 
 
 @node FLUSH, KILL, ANALYZE TABLE, Database Administration
@@ -20686,7 +20686,7 @@ open by the slave thread
 acquired immediately. Available after 3.23.33.
 @item @code{Table_locks_waited} @tab Number of times a table lock could not
 be acquired immediately and a wait was needed. If this is high, and you
-have performance problems, you should first optimize your queries, and then
+have performance problems, you should first optimise your queries, and then
 either split your table(s) or use replication. Available after 3.23.33.
 @item @code{Threads_cached} @tab Number of threads in the thread cache.
 @item @code{Threads_connected} @tab Number of currently open connections.
@@ -21058,7 +21058,7 @@ names will be case-insensitive.
 @xref{Name case sensitivity}.
 
 @item @code{max_allowed_packet}
-The maximum size of one packet. The message buffer is initialized to
+The maximum size of one packet. The message buffer is initialised to
 @code{net_buffer_length} bytes, but can grow up to @code{max_allowed_packet}
 bytes when needed.  This value by default is small, to catch big (possibly
 wrong) packets.  You must increase this value if you are using big
@@ -21374,8 +21374,8 @@ Create Table: CREATE TABLE t (
 @ref{SET OPTION, , @code{SET OPTION SQL_QUOTE_SHOW_CREATE}}.
 
 
-@node Localization, Server-Side Scripts, Database Administration, MySQL Database Administration
-@section MySQL Localization and International Usage
+@node Localisation, Server-Side Scripts, Database Administration, MySQL Database Administration
+@section MySQL Localisation and International Usage
 
 @menu
 * Character sets::              The Character Set Used for Data and Sorting
@@ -21388,7 +21388,7 @@ Create Table: CREATE TABLE t (
 @end menu
 
 
-@node Character sets, Languages, Localization, Localization
+@node Character sets, Languages, Localisation, Localisation
 @subsection The Character Set Used for Data and Sorting
 
 @cindex character sets
@@ -21484,7 +21484,7 @@ from all letters except: @code{Ü}, @code{ü}, @code{Ö}, @code{ö},
 @code{Ä} and @code{ä}.
 
 
-@node Languages, Adding character set, Character sets, Localization
+@node Languages, Adding character set, Character sets, Localisation
 @subsection Non-English Error Messages
 
 @cindex error messages, languages
@@ -21526,7 +21526,7 @@ If you upgrade to a newer version of MySQL, remember to repeat
 your changes with the new @file{errmsg.txt} file.
 
 
-@node Adding character set, Character arrays, Languages, Localization
+@node Adding character set, Character arrays, Languages, Localisation
 @subsection Adding a New Character Set
 
 @cindex character sets, adding
@@ -21650,7 +21650,7 @@ If you want to have the character set included in the MySQL
 distribution, mail a patch to @email{internals@@lists.mysql.com}.
 
 
-@node Character arrays, String collating, Adding character set, Localization
+@node Character arrays, String collating, Adding character set, Localisation
 @subsection The character definition arrays
 
 @code{to_lower[]} and @code{to_upper[]} are simple arrays that hold the
@@ -21698,7 +21698,7 @@ _U + _X = 01 + 0200 = 0201
 @end example
 
 
-@node String collating, Multi-byte characters, Character arrays, Localization
+@node String collating, Multi-byte characters, Character arrays, Localisation
 @subsection String Collating Support
 
 @cindex collating, strings
@@ -21718,7 +21718,7 @@ the maximum ratio the strings may grow during @code{my_strxfrm_MYSET} (it
 must be a positive integer).
 
 
-@node Multi-byte characters, Problems with character sets, String collating, Localization
+@node Multi-byte characters, Problems with character sets, String collating, Localisation
 @subsection Multi-byte Character Support
 
 @cindex characters, multi-byte
@@ -21737,7 +21737,7 @@ You must specify the @code{mbmaxlen_MYSET=N} value in the special
 comment at the top of the source file.  @code{N} should be set to the
 size in bytes of the largest character in the set.
 
-@node Problems with character sets,  , Multi-byte characters, Localization
+@node Problems with character sets,  , Multi-byte characters, Localisation
 @subsection Problems With Character Sets
 
 If you try to use a character set that is not compiled into your binary,
@@ -21773,7 +21773,7 @@ For MyISAM tables, you can check the character set name and number for a
 table with @code{myisamchk -dvv table_name}.
 
 
-@node Server-Side Scripts, Client-Side Scripts, Localization, MySQL Database Administration
+@node Server-Side Scripts, Client-Side Scripts, Localisation, MySQL Database Administration
 @section MySQL Server-Side Scripts and Utilities
 
 @menu
@@ -21840,7 +21840,7 @@ The list below briefly describes the MySQL programs:
 
 @cindex @code{myisamchk}
 @item myisamchk
-Utility to describe, check, optimize, and repair MySQL tables.
+Utility to describe, check, optimise, and repair MySQL tables.
 Because @code{myisamchk} has many functions, it is described in its own
 chapter. @xref{MySQL Database Administration}.
 
@@ -22594,7 +22594,7 @@ The number of bits used in the Huffman tree.
 After you have run @code{pack_isam}/@code{myisampack} you must run
 @code{isamchk}/@code{myisamchk} to re-create the index.  At this time you
 can also sort the index blocks and create statistics needed for
-the MySQL optimizer to work more efficiently:
+the MySQL optimiser to work more efficiently:
 
 @example
 myisamchk -rq --analyze --sort-index table_name.MYI
@@ -22769,7 +22769,7 @@ The list below briefly describes the MySQL programs:
 
 @cindex @code{myisamchk}
 @item myisamchk
-Utility to describe, check, optimize, and repair MySQL tables.
+Utility to describe, check, optimise, and repair MySQL tables.
 Because @code{myisamchk} has many functions, it is described in its own
 chapter. @xref{MySQL Database Administration}.
 
@@ -23415,7 +23415,7 @@ Instead of making one query for each table, execute all queries in 1
 query separately for each database. Table names will be in a comma
 separated list.
 @item  -a, --analyze
-Analyze given tables.
+Analyse given tables.
 @item --auto-repair
 If a checked table is corrupted, automatically fix it. Repairing will be
 done after all tables have been checked, if corrupted ones were found.
@@ -23454,7 +23454,7 @@ Connect to host.
 Faster than extended-check, but only finds 99.99 percent of all
 errors. Should be good enough for most cases.
 @item -o, --optimize
-Optimize table
+Optimise table
 @item -p, --password[=...]
 Password to use when connecting to server. If password is not given
 it's solicited on the tty.
@@ -23820,7 +23820,7 @@ See the description for the @code{--replace} option.
 
 @item -l, --lock-tables
 Lock @strong{ALL} tables for writing before processing any text files. This
-ensures that all tables are synchronized on the server.
+ensures that all tables are synchronised on the server.
 
 @item -L, --local
 Read input files from the client.  By default, text files are assumed to be on
@@ -24239,7 +24239,7 @@ suffixed with @code{-slow.log}. If a filename is given, but doesn't
 contain a path, the file is written in the data directory.
 
 The slow query log can be used to find queries that take a long time to
-execute and are thus candidates for optimization. With a large log, that
+execute and are thus candidates for optimisation. With a large log, that
 can become a difficult task. You can pipe the slow query log through the
 @code{mysqldumpslow} command to get a summary of the queries which
 appear in the log.
@@ -24367,7 +24367,7 @@ log (@pxref{Binary log}) and the slave server(s) reading the saved
 queries from the master server's binary log so that the slave can
 execute the same queries on its copy of the data.
 
-It is @strong{very important} to realize that the binary log is simply a
+It is @strong{very important} to realise that the binary log is simply a
 record starting from a fixed point in time (the moment you enable binary
 logging). Any slaves which you set up will need copies of all the data
 from your master as it existed the moment that you enabled binary
@@ -25054,12 +25054,12 @@ can safely happen in any order, or unless you take care of mis-ordered
 updates somehow in the client code.
 
 
-You must also realize that two-way replication actually does not improve
+You must also realise that two-way replication actually does not improve
 performance very much, if at all, as far as updates are concerned. Both
 servers need to do the same amount of updates each, as you would have
 one server do. The only difference is that there will be a little less
 lock contention, because the updates originating on another server will
-be serialized in one slave thread. This benefit, though, might be
+be serialised in one slave thread. This benefit, though, might be
 offset by network delays.
 
 @cindex performance, improving
@@ -25080,7 +25080,7 @@ performance-enhancing replication?
 
 @strong{A}:
 If the part of your code that is responsible for database access has
-been properly abstracted/modularized, converting it to run with the
+been properly abstracted/modularised, converting it to run with the
 replicated setup should be very smooth and easy - just change the
 implementation of your database access to read from some slave or the
 master, and to always write to the master. If your code does not have
@@ -25115,7 +25115,7 @@ query, among your many thousands, gave you an error. If you have written a lot o
 you may want to automate the conversion task by using Monty's
 @code{replace} utility, which comes with the standard distribution of
 MySQL, or just write your own Perl script. Hopefully, your
-code follows some recognizable pattern. If not, then you are probably
+code follows some recognisable pattern. If not, then you are probably
 better off re-writing it anyway, or at least going through and manually
 beating it into a pattern.
 
@@ -25356,33 +25356,33 @@ isolate it into a separate test case first. Then report the problem to
 
 
 
-@node MySQL Optimization, Reference, MySQL Database Administration, Top
-@chapter MySQL Optimization
+@node MySQL Optimisation, Reference, MySQL Database Administration, Top
+@chapter MySQL Optimisation
 
 @menu
-* Optimize Overview::           Optimization Overview
-* Query Speed::                 Optimizing @code{SELECT}s and Other Queries
+* Optimise Overview::           Optimisation Overview
+* Query Speed::                 Optimising @code{SELECT}s and Other Queries
 * Locking Issues::              Locking Issues
-* Optimizing Database Structure::  Optimizing Database Structure
-* Optimizing the Server::       Optimizing the MySQL Server
+* Optimising Database Structure::  Optimising Database Structure
+* Optimising the Server::       Optimising the MySQL Server
 * Disk issues::                 Disk Issues
 @end menu
 
 
-Optimization is a complicated task because it ultimately requires
+Optimisation is a complicated task because it ultimately requires
 understanding of the whole system. While it may be possible to do some
-local optimizations with small knowledge of your system or application,
+local optimisations with small knowledge of your system or application,
 the more optimal you want your system to become the more you will have
 to know about it.
 
 This chapter will try to explain and give some examples of different
-ways to optimize MySQL.  Remember, however, that there are 
+ways to optimise MySQL.  Remember, however, that there are 
 always some (increasingly harder) additional ways to make the system
 even faster.
 
 
-@node Optimize Overview, Query Speed, MySQL Optimization, MySQL Optimization
-@section Optimization Overview
+@node Optimise Overview, Query Speed, MySQL Optimisation, MySQL Optimisation
+@section Optimisation Overview
 
 The most important part for getting a system fast is of course the basic
 design. You also need to know what kinds of things your system will be
@@ -25394,13 +25394,13 @@ The most common bottlenecks are:
 It takes time for the disk to find a piece of data. With modern disks in
 1999, the mean time for this is usually lower than 10ms, so we can in
 theory do about 100 seeks a second. This time improves slowly with new
-disks and is very hard to optimize for a single table. The way to
-optimize this is to spread the data on more than one disk.
+disks and is very hard to optimise for a single table. The way to
+optimise this is to spread the data on more than one disk.
 
 @item Disk reading/writing.
 When the disk is at the correct position we need to read the data. With
 modern disks in 1999, one disk delivers something like 10-20MB/s. This
-is easier to optimize than seeks because you can read in parallel from
+is easier to optimise than seeks because you can read in parallel from
 multiple disks.
 
 @item CPU cycles.
@@ -25425,7 +25425,7 @@ for most systems, but one should be aware of it.
 @end menu
 
 
-@node Design Limitations, Portability, Optimize Overview, Optimize Overview
+@node Design Limitations, Portability, Optimise Overview, Optimise Overview
 @subsection MySQL Design Limitations/Tradeoffs
 
 @cindex design, limitations
@@ -25469,7 +25469,7 @@ happened.
 The above means that one should not use MySQL to check fields content,
 but one should do this in the application.
 
-@node Portability, Internal use, Design Limitations, Optimize Overview
+@node Portability, Internal use, Design Limitations, Optimise Overview
 @subsection Portability
 
 @cindex portability
@@ -25543,7 +25543,7 @@ of the initial size of the cache and how often the table should normally
 be refreshed.
 
 
-@node Internal use, MySQL Benchmarks, Portability, Optimize Overview
+@node Internal use, MySQL Benchmarks, Portability, Optimise Overview
 @subsection What Have We Used MySQL For?
 
 @cindex uses, of MySQL
@@ -25608,7 +25608,7 @@ makes the machine feel very slow and unresponsive while big batches are
 going. Hopefully this will be better handled in future Linux Kernels.
 
 
-@node MySQL Benchmarks, Custom Benchmarks, Internal use, Optimize Overview
+@node MySQL Benchmarks, Custom Benchmarks, Internal use, Optimise Overview
 @subsection The MySQL Benchmark Suite
 
 @cindex benchmark suite
@@ -25698,7 +25698,7 @@ We can find the result from crash-me on a lot of different databases at
 @uref{http://www.mysql.com/information/crash-me.php}.
 
 
-@node Custom Benchmarks,  , MySQL Benchmarks, Optimize Overview
+@node Custom Benchmarks,  , MySQL Benchmarks, Optimise Overview
 @subsection Using Your Own Benchmarks
 
 @cindex benchmarks
@@ -25734,8 +25734,8 @@ As the name suggests, it can bring your system down to its knees if you ask it,
 so make sure to use it only on your development systems.
 
 
-@node Query Speed, Locking Issues, Optimize Overview, MySQL Optimization
-@section Optimizing @code{SELECT}s and Other Queries
+@node Query Speed, Locking Issues, Optimise Overview, MySQL Optimisation
+@section Optimising @code{SELECT}s and Other Queries
 
 @cindex queries, speed of
 @cindex permission checks, effect on speed
@@ -25745,7 +25745,7 @@ First, one thing that affects all queries: The more complex permission
 system setup you have, the more overhead you get.
 
 If you do not have any @code{GRANT} statements done, MySQL will
-optimize the permission checking somewhat. So if you have a very high
+optimise the permission checking somewhat. So if you have a very high
 volume it may be worth the time to avoid grants. Otherwise more
 permission check results in a larger overhead.
 
@@ -25765,7 +25765,7 @@ mysql> select benchmark(1000000,1+1);
 The above shows that MySQL can execute 1,000,000 @code{+}
 expressions in 0.32 seconds on a @code{PentiumII 400MHz}.
 
-All MySQL functions should be very optimized, but there may be
+All MySQL functions should be very optimised, but there may be
 some exceptions, and the @code{benchmark(loop_count,expression)} is a
 great tool to find out if this is a problem with your query.
 
@@ -25773,14 +25773,14 @@ great tool to find out if this is a problem with your query.
 * EXPLAIN::                     @code{EXPLAIN} Syntax (Get Information About a @code{SELECT})
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
-* Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       How MySQL Optimizes @code{DISTINCT}
-* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
-* LIMIT optimization::          How MySQL optimizes @code{LIMIT}
+* Where optimisations::         How MySQL optimises @code{WHERE} clauses
+* DISTINCT optimisation::       How MySQL Optimises @code{DISTINCT}
+* LEFT JOIN optimisation::      How MySQL optimises @code{LEFT JOIN}
+* LIMIT optimisation::          How MySQL optimises @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
 * Update speed::                Speed of @code{UPDATE} queries
 * Delete speed::                Speed of @code{DELETE} queries
-* Tips::                        Other Optimization Tips
+* Tips::                        Other Optimisation Tips
 @end menu
 
 
@@ -25788,7 +25788,7 @@ great tool to find out if this is a problem with your query.
 @subsection @code{EXPLAIN} Syntax (Get Information About a @code{SELECT})
 
 @findex EXPLAIN
-@findex SELECT, optimizing
+@findex SELECT, optimising
 
 @example
     EXPLAIN tbl_name
@@ -25804,8 +25804,8 @@ information about how tables are joined and in which order.
 
 With the help of @code{EXPLAIN}, you can see when you must add indexes
 to tables to get a faster @code{SELECT} that uses indexes to find the
-records. You can also see if the optimizer joins the tables in an optimal
-order. To force the optimizer to use a specific join order for a
+records. You can also see if the optimiser joins the tables in an optimal
+order. To force the optimiser to use a specific join order for a
 @code{SELECT} statement, add a @code{STRAIGHT_JOIN} clause.
 
 For non-simple joins, @code{EXPLAIN} returns a row of information for each
@@ -25875,7 +25875,7 @@ MySQL will not continue searching for more rows for the current row
 combination after it has found the first matching row.
 
 @item Not exists
-MySQL was able to do a @code{LEFT JOIN} optimization on the
+MySQL was able to do a @code{LEFT JOIN} optimisation on the
 query and will not examine more rows in this table for the previous row
 combination after it finds one row that matches the @code{LEFT JOIN} criteria.
 
@@ -25947,7 +25947,7 @@ the @code{const} join type.
 The table has at most one matching row, which will be read at the start
 of the query. Because there is only one row, values from the column in
 this row can be regarded as constants by the rest of the
-optimizer. @code{const} tables are very fast as they are read only once!
+optimiser. @code{const} tables are very fast as they are read only once!
 
 @item eq_ref
 One row will be read from this table for each combination of rows from
@@ -25990,7 +25990,7 @@ number is also used when you restrict queries with the @code{max_join_size}
 variable.
 @xref{Server parameters}.
 
-The following example shows how a @code{JOIN} can be optimized progressively
+The following example shows how a @code{JOIN} can be optimised progressively
 using the information provided by @code{EXPLAIN}.
 
 Suppose you have the @code{SELECT} statement shown below, that you examine
@@ -26042,7 +26042,7 @@ The tables have the indexes shown below:
 The @code{tt.ActualPC} values aren't evenly distributed.
 @end itemize
 
-Initially, before any optimizations have been performed, the @code{EXPLAIN}
+Initially, before any optimisations have been performed, the @code{EXPLAIN}
 statement produces the following information:
 
 @example
@@ -26134,7 +26134,7 @@ do    eq_ref PRIMARY         PRIMARY 15      tt.ClientID    1
 @end example
 
 Note that the @code{rows} column in the output from @code{EXPLAIN} is an
-educated guess from the MySQL join optimizer. To optimize a
+educated guess from the MySQL join optimiser. To optimise a
 query, you should check if the numbers are even close to the truth.  If not,
 you may get better performance by using @code{STRAIGHT_JOIN} in your
 @code{SELECT} statement and trying to list the tables in a different order in
@@ -26178,7 +26178,7 @@ go much slower until your applications is only bound by disk-seeks
 the data grows. @xref{Server parameters}.
 
 
-@node SELECT speed, Where optimizations, Estimating performance, Query Speed
+@node SELECT speed, Where optimisations, Estimating performance, Query Speed
 @subsection Speed of @code{SELECT} Queries
 
 @findex SELECT speed
@@ -26196,7 +26196,7 @@ Some general tips:
 
 @itemize @bullet
 @item
-To help MySQL optimize queries better, run @code{myisamchk
+To help MySQL optimise queries better, run @code{myisamchk
 --analyze} on a table after it has been loaded with relevant data. This
 updates a value for each index part that indicates the average number of
 rows that have the same value.  (For unique indexes, this is always 1,
@@ -26215,21 +26215,21 @@ time for a large table!
 @end itemize
 
 
-@node Where optimizations, DISTINCT optimization, SELECT speed, Query Speed
-@subsection How MySQL Optimizes @code{WHERE} Clauses
+@node Where optimisations, DISTINCT optimisation, SELECT speed, Query Speed
+@subsection How MySQL Optimises @code{WHERE} Clauses
 
 @findex WHERE
 
-@cindex optimizations
+@cindex optimisations
 
-The @code{WHERE} optimizations are put in the @code{SELECT} part here because
-they are mostly used with @code{SELECT}, but the same optimizations apply for
+The @code{WHERE} optimisations are put in the @code{SELECT} part here because
+they are mostly used with @code{SELECT}, but the same optimisations apply for
 @code{WHERE} in @code{DELETE} and @code{UPDATE} statements.
 
 Also note that this section is incomplete. MySQL does many
-optimizations, and we have not had time to document them all.
+optimisations, and we have not had time to document them all.
 
-Some of the optimizations performed by MySQL are listed below:
+Some of the optimisations performed by MySQL are listed below:
 
 @itemize @bullet
 @item
@@ -26343,12 +26343,12 @@ mysql> SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,... ;
 @end example
 
 
-@node DISTINCT optimization, LEFT JOIN optimization, Where optimizations, Query Speed
-@subsection How MySQL Optimizes @code{DISTINCT}
+@node DISTINCT optimisation, LEFT JOIN optimisation, Where optimisations, Query Speed
+@subsection How MySQL Optimises @code{DISTINCT}
 
 @findex DISTINCT
 
-@cindex optimizing, DISTINCT
+@cindex optimising, DISTINCT
 
 @code{DISTINCT} is converted to a @code{GROUP BY} on all columns,
 @code{DISTINCT} combined with @code{ORDER BY} will in many cases also
@@ -26369,12 +26369,12 @@ MySQL will stop reading from t2 (for that particular row in t1)
 when the first row in t2 is found.
 
 
-@node LEFT JOIN optimization, LIMIT optimization, DISTINCT optimization, Query Speed
-@subsection How MySQL Optimizes @code{LEFT JOIN} and @code{RIGHT JOIN}
+@node LEFT JOIN optimisation, LIMIT optimisation, DISTINCT optimisation, Query Speed
+@subsection How MySQL Optimises @code{LEFT JOIN} and @code{RIGHT JOIN}
 
 @findex LEFT JOIN
 
-@cindex optimizing, LEFT JOIN
+@cindex optimising, LEFT JOIN
 
 @code{A LEFT JOIN B} in MySQL is implemented as follows:
 
@@ -26391,12 +26391,12 @@ that are used in the @code{LEFT JOIN} condition.
 All @code{LEFT JOIN} conditions are moved to the @code{WHERE} clause.
 
 @item
-All standard join optimizations are done, with the exception that a table is
+All standard join optimisations are done, with the exception that a table is
 always read after all tables it is dependent on.  If there is a circular
 dependence then MySQL will issue an error.
 
 @item
-All standard @code{WHERE} optimizations are done.
+All standard @code{WHERE} optimisations are done.
 
 @item
 If there is a row in @code{A} that matches the @code{WHERE} clause, but there
@@ -26415,7 +26415,7 @@ matches the @code{LEFT JOIN} condition.
 @code{RIGHT JOIN} is implemented analogously as @code{LEFT JOIN}.
 
 The table read order forced by @code{LEFT JOIN} and @code{STRAIGHT JOIN}
-will help the join optimizer (which calculates in which order tables
+will help the join optimiser (which calculates in which order tables
 should be joined) to do its work much more quickly, as there are fewer
 table permutations to check.
 
@@ -26435,12 +26435,12 @@ SELECT * FROM b,a LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key) WHERE b
 @end example
 
 
-@node LIMIT optimization, Insert speed, LEFT JOIN optimization, Query Speed
-@subsection How MySQL Optimizes @code{LIMIT}
+@node LIMIT optimisation, Insert speed, LEFT JOIN optimisation, Query Speed
+@subsection How MySQL Optimises @code{LIMIT}
 
 @findex LIMIT
 
-@cindex optimizing, LIMIT
+@cindex optimising, LIMIT
 
 In some cases MySQL will handle the query differently when you are
 using @code{LIMIT #} and not using @code{HAVING}:
@@ -26474,7 +26474,7 @@ space is needed to resolve the query.
 @end itemize
 
 
-@node Insert speed, Update speed, LIMIT optimization, Query Speed
+@node Insert speed, Update speed, LIMIT optimisation, Query Speed
 @subsection Speed of @code{INSERT} Queries
 
 @findex INSERT
@@ -26619,7 +26619,7 @@ To get some more speed for both @code{LOAD DATA INFILE} and
 @node Update speed, Delete speed, Insert speed, Query Speed
 @subsection Speed of @code{UPDATE} Queries
 
-Update queries are optimized as a @code{SELECT} query with the additional
+Update queries are optimised as a @code{SELECT} query with the additional
 overhead of a write. The speed of the write is dependent on the size of
 the data that is being updated and the number of indexes that are
 updated.  Indexes that are not changed will not be updated.
@@ -26646,10 +26646,10 @@ the index cache. @xref{Server parameters}.
 
 
 @node Tips,  , Delete speed, Query Speed
-@subsection Other Optimization Tips
+@subsection Other Optimisation Tips
 
-@cindex optimization, tips
-@cindex tips, optimization
+@cindex optimisation, tips
+@cindex tips, optimisation
 
 Unsorted tips for faster systems:
 
@@ -26801,7 +26801,7 @@ the application, and usually it should only be accessed by one process
 above problems by introducing low-level @code{MyISAM} commands in the
 MySQL server (this could be one easy way to get more
 performance if needed).  By carefully designing the database interface,
-it should be quite easy to support this types of optimization.
+it should be quite easy to support this types of optimisation.
 @item
 In many cases it's faster to access data from a database (using a live
 connection) than accessing a text file, just because the database is
@@ -26821,7 +26821,7 @@ from the data, you should not lose anything by using @code{DELAY_KEY_WRITE}.
 @end itemize
 
 
-@node Locking Issues, Optimizing Database Structure, Query Speed, MySQL Optimization
+@node Locking Issues, Optimising Database Structure, Query Speed, MySQL Optimisation
 @section Locking Issues
 
 
@@ -26884,7 +26884,7 @@ mysql> UNLOCK TABLES;
 
 You can use the @code{LOW_PRIORITY} options with @code{INSERT},
 @code{UPDATE} or @code{DELETE} or @code{HIGH_PRIORITY} with
-@code{SELECT} if you want to prioritize retrieval in some specific
+@code{SELECT} if you want to prioritise retrieval in some specific
 cases.  You can also start @code{mysqld} with @code{--low-priority-updates}
 to get the same behaveour.
 
@@ -27005,8 +27005,8 @@ option to @code{DELETE} may help. @xref{DELETE, , @code{DELETE}}.
 @end itemize
 
 
-@node Optimizing Database Structure, Optimizing the Server, Locking Issues, MySQL Optimization
-@section Optimizing Database Structure
+@node Optimising Database Structure, Optimising the Server, Locking Issues, MySQL Optimisation
+@section Optimising Database Structure
 
 
 @menu
@@ -27021,7 +27021,7 @@ option to @code{DELETE} may help. @xref{DELETE, , @code{DELETE}}.
 @end menu
 
 
-@node Design, Data size, Optimizing Database Structure, Optimizing Database Structure
+@node Design, Data size, Optimising Database Structure, Optimising Database Structure
 @subsection Design Choices
 
 @cindex design, choices
@@ -27061,16 +27061,16 @@ It's harder to cache ONLY the index data.
 @end itemize
 
 
-@node Data size, MySQL indexes, Design, Optimizing Database Structure
+@node Data size, MySQL indexes, Design, Optimising Database Structure
 @subsection Get Your Data as Small as Possible
 
 @cindex data, size
 @cindex reducing, data size
-@cindex storage space, minimizing
+@cindex storage space, minimising
 @cindex tables, improving performance
 @cindex performance, improving
 
-One of the most basic optimization is to get your data (and indexes) to
+One of the most basic optimisation is to get your data (and indexes) to
 take as little space on the disk (and in memory) as possible. This can
 give huge improvements because disk reads are faster and normally less
 main memory will be used. Indexing also takes less resources if
@@ -27080,13 +27080,13 @@ MySQL supports a lot of different table types and row formats.
 Choosing the right table format may give you a big performance gain.
 @xref{Table types}.
 
-You can get better performance on a table and minimize storage space
+You can get better performance on a table and minimise storage space
 using the techniques listed below:
 
 @itemize @bullet
 @item
 Use the most efficient (smallest) types possible. MySQL has
-many specialized types that save disk space and memory.
+many specialised types that save disk space and memory.
 
 @item
 Use the smaller integer types if possible to get smaller tables. For
@@ -27136,7 +27136,7 @@ can be used to find the relevant rows when scanning the table.
 @end itemize
 
 
-@node MySQL indexes, Indexes, Data size, Optimizing Database Structure
+@node MySQL indexes, Indexes, Data size, Optimising Database Structure
 @subsection How MySQL Uses Indexes
 
 @cindex indexes, use of
@@ -27165,7 +27165,7 @@ Retrieve rows from other tables when performing joins.
 
 @item
 Find the @code{MAX()} or @code{MIN()} value for a specific indexed
-column. This is optimized by a preprocessor that checks if you are
+column. This is optimised by a preprocessor that checks if you are
 using @code{WHERE} key_part_# = constant on all key parts < N.  In this case
 MySQL will do a single key lookup and replace the @code{MIN()}
 expression with a constant.  If all expressions are replaced with
@@ -27192,7 +27192,7 @@ SELECT * FROM foo WHERE key_part1=const GROUP BY key_part2;
 @end example
 
 @item
-In some cases a query can be optimized to retrieve values without
+In some cases a query can be optimised to retrieve values without
 consulting the data file. If all used columns for some table are numeric
 and form a leftmost prefix for some key, the values may be retrieved
 from the index tree for greater speed:
@@ -27211,14 +27211,14 @@ mysql> SELECT * FROM tbl_name WHERE col1=val1 AND col2=val2;
 
 If a multiple-column index exists on @code{col1} and @code{col2}, the
 appropriate rows can be fetched directly. If separate single-column
-indexes exist on @code{col1} and @code{col2}, the optimizer tries to
+indexes exist on @code{col1} and @code{col2}, the optimiser tries to
 find the most restrictive index by deciding which index will find fewer
 rows and using that index to fetch the rows.
 
 @cindex indexes, leftmost prefix of
 @cindex leftmost prefix of indexes
 If the table has a multiple-column index, any leftmost prefix of the
-index can be used by the optimizer to find rows. For example, if you
+index can be used by the optimiser to find rows. For example, if you
 have a three-column index on @code{(col1,col2,col3)}, you have indexed
 search capabilities on @code{(col1)}, @code{(col1,col2)}, and
 @code{(col1,col2,col3)}.
@@ -27276,7 +27276,7 @@ index is used for columns that you compare with the following operators:
 @code{LIKE} with a non-wild-card prefix like @code{'something%'}.
 
 Any index that doesn't span all @code{AND} levels in the @code{WHERE} clause
-is not used to optimize the query. In other words:  To be able to use an
+is not used to optimise the query. In other words:  To be able to use an
 index, a prefix of the index must be used in every @code{AND} group.
 
 The following @code{WHERE} clauses use indexes:
@@ -27284,7 +27284,7 @@ The following @code{WHERE} clauses use indexes:
 ... WHERE index_part1=1 AND index_part2=2 AND other_column=3
 ... WHERE index=1 OR A=10 AND index=2      /* index = 1 OR index = 2 */
 ... WHERE index_part1='hello' AND index_part_3=5
-          /* optimized like "index_part1='hello'" */
+          /* optimised like "index_part1='hello'" */
 ... WHERE index1=1 and index2=2 or index1=3 and index3=3;
           /* Can use index on index1 but not on index2 or index 3 */
 @end example
@@ -27319,7 +27319,7 @@ much more quickly find the few rows to return in the result.
 @end menu
 
 
-@node Indexes, Multiple-column indexes, MySQL indexes, Optimizing Database Structure
+@node Indexes, Multiple-column indexes, MySQL indexes, Optimising Database Structure
 @subsection Column Indexes
 
 @cindex indexes, columns
@@ -27362,7 +27362,7 @@ created only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column and partial indexing is not
 supported. See @ref{Fulltext Search} for details.
 
-@node Multiple-column indexes, Table cache, Indexes, Optimizing Database Structure
+@node Multiple-column indexes, Table cache, Indexes, Optimising Database Structure
 @subsection Multiple-Column Indexes
 
 @cindex multi-column indexes
@@ -27424,7 +27424,7 @@ improve query performance, see @ref{MySQL indexes, , MySQL
 indexes}.
 
 
-@node Table cache, Creating many tables, Multiple-column indexes, Optimizing Database Structure
+@node Table cache, Creating many tables, Multiple-column indexes, Optimising Database Structure
 @subsection How MySQL Opens and Closes Tables
 
 @findex table_cache
@@ -27502,7 +27502,7 @@ haven't done a lot of @code{FLUSH TABLES}, you should increase your table
 cache. @xref{SHOW STATUS}.
 
 
-@node Creating many tables, Open tables, Table cache, Optimizing Database Structure
+@node Creating many tables, Open tables, Table cache, Optimising Database Structure
 @subsection Drawbacks to Creating Large Numbers of Tables in the Same Database
 
 @cindex tables, too many
@@ -27514,7 +27514,7 @@ every table that has to be opened, another must be closed. You can reduce
 this overhead by making the table cache larger.
 
 
-@node Open tables,  , Creating many tables, Optimizing Database Structure
+@node Open tables,  , Creating many tables, Optimising Database Structure
 @subsection Why So Many Open tables?
 
 @cindex tables, open
@@ -27529,15 +27529,15 @@ Uptime: 426 Running threads: 1 Questions: 11082 Reloads: 1 Open tables: 12
 This can be somewhat perplexing if you only have 6 tables.
 
 MySQL is multithreaded, so it may have many queries on the same
-table simultaneously. To minimize the problem with two threads having
+table simultaneously. To minimise the problem with two threads having
 different states on the same file, the table is opened independently by
 each concurrent thread. This takes some memory and one extra file
 descriptor for the data file. The index file descriptor is shared
 between all threads.
 
 
-@node Optimizing the Server, Disk issues, Optimizing Database Structure, MySQL Optimization
-@section Optimizing the MySQL Server
+@node Optimising the Server, Disk issues, Optimising Database Structure, MySQL Optimisation
+@section Optimising the MySQL Server
 
 
 @menu
@@ -27550,11 +27550,11 @@ between all threads.
 @end menu
 
 
-@node System, Server parameters, Optimizing the Server, Optimizing the Server
+@node System, Server parameters, Optimising the Server, Optimising the Server
 @subsection System/Compile Time and Startup Parameter Tuning
 
-@cindex compiling, optimizing
-@cindex system optimization
+@cindex compiling, optimising
+@cindex system optimisation
 @cindex startup parameters, tuning
 
 We start with the system level things since some of these decisions have
@@ -27605,7 +27605,7 @@ are using @code{--skip-locking}
 @end itemize
 
 
-@node Server parameters, Compile and link options, System, Optimizing the Server
+@node Server parameters, Compile and link options, System, Optimising the Server
 @subsection Tuning Server Parameters
 
 @cindex parameters, server
@@ -27727,7 +27727,7 @@ is done.
 When you have installed MySQL, the @file{support-files} directory will
 contain some different @code{my.cnf} example files, @file{my-huge.cnf},
 @file{my-large.cnf}, @file{my-medium.cnf}, and @file{my-small.cnf}, you can
-use as a base to optimize your system.
+use as a base to optimise your system.
 
 If there are very many connections, ``swapping problems'' may occur unless
 @code{mysqld} has been configured to use very little memory for each
@@ -27748,7 +27748,7 @@ options listed after it on the command line will not be reflected in the
 output.
 
 
-@node Compile and link options, Memory use, Server parameters, Optimizing the Server
+@node Compile and link options, Memory use, Server parameters, Optimising the Server
 @subsection How Compiling and Linking Affects the Speed of MySQL
 
 @cindex linking, speed
@@ -27778,7 +27778,7 @@ important if you compile the SQL server yourself!
 
 We have tested both the Cygnus CodeFusion and Fujitsu compilers, but
 when we tested them, neither was sufficiently bug free to allow
-MySQL to be compiled with optimizations on.
+MySQL to be compiled with optimisations on.
 
 When you compile MySQL you should only include support for the
 character sets that you are going to use. (Option @code{--with-charset=xxx}.)
@@ -27849,7 +27849,7 @@ binary by compiling with @code{pgcc}.  The standard MySQL
 Linux binary is linked statically to get it faster and more portable.
 
 
-@node Memory use, DNS, Compile and link options, Optimizing the Server
+@node Memory use, DNS, Compile and link options, Optimising the Server
 @subsection How MySQL Uses Memory
 
 @cindex memory use
@@ -27958,7 +27958,7 @@ checking available swap with @code{swap -s}. We have tested
 be no memory leaks.
 
 
-@node DNS, SET OPTION, Memory use, Optimizing the Server
+@node DNS, SET OPTION, Memory use, Optimising the Server
 @subsection How MySQL uses DNS
 
 @cindex DNS
@@ -27993,7 +27993,7 @@ If you don't want to allow connections over @code{TCP/IP}, you can do this
 by starting @code{mysqld} with @code{--skip-networking}.
 
 
-@node SET OPTION,  , DNS, Optimizing the Server
+@node SET OPTION,  , DNS, Optimising the Server
 @subsection @code{SET} Syntax
 
 @findex SET OPTION
@@ -28145,7 +28145,7 @@ with the update log.
 
 
 
-@node Disk issues,  , Optimizing the Server, MySQL Optimization
+@node Disk issues,  , Optimising the Server, MySQL Optimisation
 @section Disk Issues
 
 @cindex disk issues
@@ -28158,7 +28158,7 @@ problems gets more and more apparent when the data starts to grow so
 large that effective caching becomes impossible. For large databases,
 where you access data more or less randomly, you can be sure that you
 will need at least one disk seek to read and a couple of disk seeks to
-write things. To minimize this problem, use disks with low seek times.
+write things. To minimise this problem, use disks with low seek times.
 
 @item
 Increase the number of available disk spindles (and thereby reduce
@@ -28185,7 +28185,7 @@ stripe-sizes. @xref{Custom Benchmarks}.
 Note that the speed difference for striping is @strong{very} dependent
 on the parameters. Depending on how you set the striping parameters and
 number of disks you may get a difference in orders of magnitude. Note that
-you have to choose to optimize for random or sequential access.
+you have to choose to optimise for random or sequential access.
 @end table
 
 @item
@@ -28387,7 +28387,7 @@ Things that are not yet supported:
 @end itemize
 
 
-@node Reference, Table types, MySQL Optimization, Top
+@node Reference, Table types, MySQL Optimisation, Top
 @chapter MySQL Language Reference
 
 MySQL has a very complex, but intuitive and easy to learn SQL
@@ -28458,7 +28458,7 @@ if you run in ANSI mode).  Examples:
 
 Within a string, certain sequences have special meaning.  Each of these
 sequences begins with a backslash (@samp{\}), known as the @emph{escape
-character}.  MySQL recognizes the following escape sequences:
+character}.  MySQL recognises the following escape sequences:
 
 @c these aren't really functions, but that's probably the most reasonable index
 @table @code
@@ -28842,7 +28842,7 @@ ISO-8859-1 Latin1; this may be changed with the
 @code{--default-character-set} option to @code{mysqld}. @xref{Character
 sets}.
 
-Variables don't have to be initialized.  They contain @code{NULL} by default
+Variables don't have to be initialised.  They contain @code{NULL} by default
 and can store an integer, real, or string value.  All variables for
 a thread are automatically freed when the thread exits.
 
@@ -28926,7 +28926,7 @@ parses @code{/* ... */} comments:
 @item
 Single-quote and double-quote characters are taken to indicate the beginning
 of a quoted string, even within a comment.  If the quote is not matched by a
-second quote within the comment, the parser doesn't realize the comment has
+second quote within the comment, the parser doesn't realise the comment has
 ended.  If you are running @code{mysql} interactively, you can tell that it
 has gotten confused like this because the prompt changes from @code{mysql>}
 to @code{'>} or @code{">}.
@@ -29102,7 +29102,7 @@ used them.
 MySQL supports a number of column types, which may be grouped into
 three categories: numeric types, date and time types, and string (character)
 types.  This section first gives an overview of the types available and
-summarizes the storage requirements for each column type, then provides a
+summarises the storage requirements for each column type, then provides a
 more detailed description of the properties of the types in each category.
 The overview is intentionally brief.  The more detailed descriptions should
 be consulted for additional information about particular column types, such
@@ -29554,7 +29554,7 @@ digits when the value is stored.
 
 The @code{REAL} and @code{DOUBLE PRECISION} types do not accept
 precision specifications.  As an extension to the ANSI/ISO SQL92
-standard, MySQL recognizes @code{DOUBLE} as a synonym for the
+standard, MySQL recognises @code{DOUBLE} as a synonym for the
 @code{DOUBLE PRECISION} type.  In contrast with the standard's
 requirement that the precision for @code{REAL} be smaller than that used
 for @code{DOUBLE PRECISION}, MySQL implements both as 8-byte
@@ -29763,7 +29763,7 @@ later:
 @itemize @bullet
 @item
 Let MySQL set the column when the row is created.
-This will initialize it to the current date and time.
+This will initialise it to the current date and time.
 
 @item
 When you perform subsequent updates to other columns in the row, set
@@ -29771,7 +29771,7 @@ the @code{TIMESTAMP} column explicitly to its current value.
 @end itemize
 
 On the other hand, you may find it just as easy to use a @code{DATETIME}
-column that you initialize to @code{NOW()} when the row is created and
+column that you initialise to @code{NOW()} when the row is created and
 leave alone for subsequent updates.
 
 @code{TIMESTAMP} values may range from the beginning of 1970 to sometime in
@@ -31566,7 +31566,7 @@ Returns a value @code{1} to @code{N} if the string @code{str} is in the list
 @code{strlist} consisting of @code{N} substrings. A string list is a string
 composed of substrings separated by @samp{,} characters. If the first
 argument is a constant string and the second is a column of type @code{SET},
-the @code{FIND_IN_SET()} function is optimized to use bit arithmetic!
+the @code{FIND_IN_SET()} function is optimised to use bit arithmetic!
 Returns @code{0} if @code{str} is not in @code{strlist} or if @code{strlist}
 is the empty string.  Returns @code{NULL} if either argument is @code{NULL}.
 This function will not work properly if the first argument contains a
@@ -33235,13 +33235,13 @@ above number is calculated as @code{209*255^3 + 207*255^2 + 224*255 +40}.
 @findex MASTER_POS_WAIT()
 @item MASTER_POS_WAIT(log_name, log_pos)
 Blocks until the slave reaches the specified position in the master log during
-replication. If master information is not initialized, returns NULL. If the
+replication. If master information is not initialised, returns NULL. If the
 slave is not running, will block and wait until it is started and goes to or
 past
 the specified position. If the slave is already past the specified position,
 returns immediately. The return value is the number of log events it had to
 wait to get to the specified position, or NULL in case of error. Useful for
-control of master-slave synchronization, but was originally written to
+control of master-slave synchronisation, but was originally written to
 facilitate replication testing.
 @end table
 
@@ -33273,7 +33273,7 @@ mysql> select student.student_name,COUNT(*)
 the number of rows retrieved, whether or not they contain @code{NULL}
 values.
 
-@code{COUNT(*)} is optimized to
+@code{COUNT(*)} is optimised to
 return very quickly if the @code{SELECT} retrieves from one table, no
 other columns are retrieved, and there is no @code{WHERE} clause.
 For example:
@@ -33522,7 +33522,7 @@ MySQL support. @xref{Functions}.
 @item
 The @code{HAVING} clause can refer to any column or alias named in the
 @code{select_expression}. It is applied last, just before items are sent to
-the client, with no optimization. Don't use @code{HAVING} for items that
+the client, with no optimisation. Don't use @code{HAVING} for items that
 should be in the @code{WHERE} clause.  For example, do not write this:
 
 @example
@@ -33563,7 +33563,7 @@ statement that is waiting for the table to be free.
 
 @item
 @code{SQL_BIG_RESULT} can be used with @code{GROUP BY} or @code{DISTINCT}
-to tell the optimizer that the result set will have many rows.  In this case,
+to tell the optimiser that the result set will have many rows.  In this case,
 MySQL will directly use disk-based temporary tables if needed.
 MySQL will also, in this case, prefer sorting to doing a
 temporary table with a key on the @code{GROUP BY} elements.
@@ -33575,7 +33575,7 @@ in cases where it takes a long time to send the result set to the client.
 
 @item
 @code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
-with @code{GROUP BY} or @code{DISTINCT} to tell the optimizer that the
+with @code{GROUP BY} or @code{DISTINCT} to tell the optimiser that the
 result set will be small.  In this case, MySQL will use fast
 temporary tables to store the resulting table instead of using sorting. In
 MySQL Version 3.23 this shouldn't normally be needed.
@@ -33607,16 +33607,16 @@ in cases where it takes a long time to send the result set to the client.
 @item
 @cindex hints
 @code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
-with @code{GROUP BY} or @code{DISTINCT} to tell the optimizer that the
+with @code{GROUP BY} or @code{DISTINCT} to tell the optimiser that the
 result set will be small.  In this case, MySQL will use fast
 temporary tables to store the resulting table instead of using sorting. In
 MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
 @cindex hints
-@code{STRAIGHT_JOIN} forces the optimizer to join the tables in the order in
+@code{STRAIGHT_JOIN} forces the optimiser to join the tables in the order in
 which they are listed in the @code{FROM} clause. You can use this to speed up
-a query if the optimizer joins the tables in non-optimal order.
+a query if the optimiser joins the tables in non-optimal order.
 @xref{EXPLAIN, , @code{EXPLAIN}}.
 
 @item
@@ -33803,7 +33803,7 @@ mysql> select table1.* from table1
 This example finds all rows in @code{table1} with an @code{id} value that is
 not present in @code{table2} (that is, all rows in @code{table1} with no
 corresponding row in @code{table2}).  This assumes that @code{table2.id} is
-declared @code{NOT NULL}, of course. @xref{LEFT JOIN optimization}.
+declared @code{NOT NULL}, of course. @xref{LEFT JOIN optimisation}.
 
 @item
 The @code{USING} @code{(column_list)} clause names a list of columns that must
@@ -33835,7 +33835,7 @@ instead of @code{RIGHT JOIN}.
 @cindex hints
 @code{STRAIGHT_JOIN} is identical to @code{JOIN}, except that the left table
 is always read before the right table. This can be used for those (few)
-cases where the join optimizer puts the tables in the wrong order.
+cases where the join optimiser puts the tables in the wrong order.
 
 @item
 @cindex hints
@@ -33863,7 +33863,7 @@ mysql> select * from table1 IGNORE INDEX (key3) WHERE key1=1 and key2=2 AND
        key3=3;
 @end example
 
-@xref{LEFT JOIN optimization, , @code{LEFT JOIN} optimization}.
+@xref{LEFT JOIN optimisation, , @code{LEFT JOIN} optimisation}.
 
 
 @node UNION,  , JOIN, SELECT
@@ -33913,7 +33913,7 @@ HANDLER table CLOSE
 @end example
 
 The @code{HANDLER} statement provides direct access to MySQL table
-interface, bypassing SQL optimizer. Thus, it is faster then SELECT.
+interface, bypassing SQL optimiser. Thus, it is faster then SELECT.
 
 The first form of @code{HANDLER} statement opens a table, making
 in accessible via the following @code{HANDLER ... READ} routines.
@@ -34363,9 +34363,9 @@ deletes.
 In MyISAM tables deleted records are maintained in a linked list and
 subsequent @code{INSERT} operations reuse old record positions. To
 reclaim unused space and reduce file sizes, use the @code{OPTIMIZE
-TABLE} statement or the @code{myisamchk} utility to reorganize tables.
+TABLE} statement or the @code{myisamchk} utility to reorganise tables.
 @code{OPTIMIZE TABLE} is easier, but @code{myisamchk} is faster.  See
-@ref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and @ref{Optimization}.
+@ref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and @ref{Optimisation}.
 
 The multi table delete format is supported starting from MySQL 4.0.0.
 
@@ -35387,7 +35387,7 @@ specified.  For example, if @code{TYPE=BDB} is specified, and that distribution
 of MySQL does not support @code{BDB} tables, the table will be created
 as @code{MyISAM} instead.
 
-The other table options are used to optimize the behavior of the
+The other table options are used to optimise the behavior of the
 table. In most cases, you don't have to specify any of them.
 The options work for all table types, if not otherwise indicated:
 
@@ -35517,7 +35517,7 @@ If you want to insert data in a @code{MERGE} table, you have to specify with
 @item
 In the created table the @code{PRIMARY} key will be placed first, followed
 by all @code{UNIQUE} keys and then the normal keys.  This helps the
-MySQL optimizer to prioritize which key to use and also more quickly
+MySQL optimiser to prioritise which key to use and also more quickly
 detect duplicated @code{UNIQUE} keys.
 
 @item
@@ -36352,8 +36352,8 @@ Query OK, 0 rows affected (0.00 sec)
 mysql> INSERT INTO articles VALUES
     -> (0,'MySQL Tutorial', 'DBMS stands for DataBase Management ...'),
     -> (0,'How To Use MySQL Efficiently', 'After you went through a ...'),
-    -> (0,'Optimizing MySQL','In this tutorial we will show how to ...'),
-    -> (0,'1001 MySQL Trick','1. Never run mysqld as root. 2. Normalize ...'),
+    -> (0,'Optimising MySQL','In this tutorial we will show how to ...'),
+    -> (0,'1001 MySQL Trick','1. Never run mysqld as root. 2. Normalise ...'),
     -> (0,'MySQL vs. YourSQL', 'In the following database comparison we ...'),
     -> (0,'MySQL Security', 'When configured properly, MySQL could be ...');
 Query OK, 5 rows affected (0.00 sec)
@@ -36410,7 +36410,7 @@ mysql> SELECT id, body, MATCH (title,body) AGAINST (
 +----+-----------------------------------------------+-----------------+
 | id | body                                          | score           |
 +----+-----------------------------------------------+-----------------+
-|  4 | 1. Never run mysqld as root. 2. Normalize ... | 1.5055546709332 |
+|  4 | 1. Never run mysqld as root. 2. Normalise ... | 1.5055546709332 |
 |  6 | When configured properly, MySQL could be ...  |   1.31140957288 |
 +----+-----------------------------------------------+-----------------+
 2 rows in set (0.00 sec)
@@ -36419,7 +36419,7 @@ mysql> SELECT id, body, MATCH (title,body) AGAINST (
 This is more complex example - the query returns the relevance and still
 sorts the rows with relevance decreasing. To achieve it one should specify
 @code{MATCH} twice. Note, that this will cause no additional overhead, as
-MySQL optimizer will notice that these two @code{MATCH} calls are
+MySQL optimiser will notice that these two @code{MATCH} calls are
 identical and will call full-text search code only once.
 
 MySQL uses a very simple parser to split text into words.  A
@@ -36438,7 +36438,7 @@ relevance of the row.
 Such a technique works best with large collections (in fact, it was
 carefully tuned this way).  For very small tables, word distribution
 does not reflect adequately their semantical value, and this model
-may sometimes produce bizarre results.
+may sometimes produce bisarre results.
 
 @example
 mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('MySQL');
@@ -36547,10 +36547,10 @@ word.
 @item @code{*} is a truncation operator.
 @end itemize
 
-Boolean search utilizes a more simplistic way of calculating the relevance,
+Boolean search utilises a more simplistic way of calculating the relevance,
 that does not have a 50% threshold.
 
-@item Searches are now up to 2 times faster due to optimized search algorithm.
+@item Searches are now up to 2 times faster due to optimised search algorithm.
 
 @c @item Utility program @code{ft_dump} added for low-level @code{FULLTEXT}
 @c  index operations (querying/dumping/statistics).
@@ -36609,7 +36609,7 @@ trying to use a table type that is not compiled-in or activated,
 MySQL will instead create a table of type @code{MyISAM}.  This
 is a very useful feature when you want to copy tables between different
 SQL servers that supports different table types (like copying tables to
-a slave that is optimized for speed by not having transactional tables).
+a slave that is optimised for speed by not having transactional tables).
 This automatic table changing can however also be very confusing for new
 MySQL users. We plan to fix this by introducing warnings in
 MySQL 4.0 and giving a warning when a table type is automatically
@@ -36723,7 +36723,7 @@ behavior is still present.
 @item
 When inserted in sorted order (as when you are using an @code{AUTO_INCREMENT}
 column) the key tree will be split so that the high node only contains one
-key. This will improve the space utilization in the key tree.
+key. This will improve the space utilisation in the key tree.
 @item
 @code{BLOB} and @code{TEXT} columns can be indexed.
 @item
@@ -36789,7 +36789,7 @@ The following options to @code{mysqld} can be used to change the behavior of
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
 @item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help MySQL to decide when to use the slow but safe key cache index create method. @strong{NOTE} that this parameter is given in megabytes!
 @item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this.  @strong{NOTE} that this paramter is given in megabytes!
-@item @code{-O myisam_bulk_insert_tree_size=#} @tab Size of tree cache used in bulk insert optimization. @strong{NOTE} that this is a limit @strong{per thread}!
+@item @code{-O myisam_bulk_insert_tree_size=#} @tab Size of tree cache used in bulk insert optimisation. @strong{NOTE} that this is a limit @strong{per thread}!
 @end multitable
 
 The automatic recovery is activated if you start @code{mysqld} with
@@ -36921,7 +36921,7 @@ Easy to cache.
 Easy to reconstruct after a crash, because records are located in fixed
 positions.
 @item
-Doesn't have to be reorganized (with @code{myisamchk}) unless a huge number of
+Doesn't have to be reorganised (with @code{myisamchk}) unless a huge number of
 records are deleted and you want to return free disk space to the operating
 system.
 @item
@@ -37008,7 +37008,7 @@ This is a read-only type that is generated with the optional
 All MySQL distributions, even those that existed before MySQL
 went GPL, can read tables that were compressed with @code{myisampack}.
 @item
-Compressed tables take very little disk space. This minimizes disk usage, which
+Compressed tables take very little disk space. This minimises disk usage, which
 is very nice when using slow disks (like CD-ROMs).
 @item
 Each record is compressed separately (very little access overhead).  The
@@ -37433,7 +37433,7 @@ To free memory, you should execute @code{DELETE FROM heap_table},
 @code{TRUNCATE heap_table} or @code{DROP TABLE heap_table}.
 @item
 MySQL cannot find out approximately how many rows there
-are between two values (this is used by the range optimizer to decide which
+are between two values (this is used by the range optimiser to decide which
 index to use).  This may affect some queries if you change a @code{MyISAM}
 table to a @code{HEAP} table.
 @item
@@ -37791,7 +37791,7 @@ SHOW TABLE STATUS FROM test LIKE 'CUSTOMER'
 @end example
 
 Note that the statistics @code{SHOW} gives about InnoDB tables
-are only approximate: they are used in SQL optimization. Table and
+are only approximate: they are used in SQL optimisation. Table and
 index reserved sizes in bytes are accurate, though.
 
 NOTE: @code{DROP DATABASE} does not currently work for InnoDB tables!
@@ -37804,7 +37804,7 @@ internal data dictionary.
 
 @subsubsection Converting MyISAM tables to InnoDB
 
-InnoDB does not have a special optimization for separate index creation.
+InnoDB does not have a special optimisation for separate index creation.
 Therefore it does not pay to export and import the table and create indexes
 afterwards.
 The fastest way to alter a table to InnoDB is to do the inserts
@@ -38725,16 +38725,16 @@ an explicit value for the column, then InnoDB executes @code{SELECT
 MAX(auto-inc-column) FROM T}, and assigns that value incremented
 by one to the the column and the auto-increment counter of the table.
 We say that
-the auto-increment counter for table @code{T} has been initialized.
+the auto-increment counter for table @code{T} has been initialised.
 
-InnoDB follows the same procedure in initializing the auto-increment counter
+InnoDB follows the same procedure in initialising the auto-increment counter
 for a freshly created table.
 
 Note that if the user specifies in an insert the value 0 to the auto-increment
 column, then InnoDB treats the row like the value would not have been
 specified.
 
-After the auto-increment counter has been initialized, if a user inserts
+After the auto-increment counter has been initialised, if a user inserts
 a row where he explicitly specifies the column value, and the value is bigger
 than the current counter value, then the counter is set to the specified
 column value. If the user does not explicitly specify a value, then InnoDB
@@ -38934,7 +38934,7 @@ they roll back the corresponding SQL statement.
 
 @item @code{SHOW TABLE STATUS} does not give accurate statistics
 on InnoDB tables, except for the physical size reserved by the table.
-The row count is only a rough estimate used in SQL optimization.
+The row count is only a rough estimate used in SQL optimisation.
 
 @item
 If you try to create an unique index on a prefix of a column you will get an
@@ -39000,7 +39000,7 @@ Website: @uref{http://www.innodb.com}. Email:
 
 @example
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
-InnoDB Oy Inc.
+Innobase Oy Inc.
 World Trade Center Helsinki
 Aleksanterinkatu 17
 P.O.Box 800
@@ -39076,7 +39076,7 @@ more updated information.
 
 Even though Berkeley DB is in itself very tested and reliable,
 the MySQL interface is still considered beta quality.
-We are actively improving and optimizing it to get it stable very
+We are actively improving and optimising it to get it stable very
 soon.
 
 
@@ -39103,13 +39103,13 @@ BDB tables:
 @item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
 @item @code{--bdb-no-sync} @tab Don't synchronously flush logs.
 @item @code{--bdb-no-recover} @tab Don't start Berkeley DB in recover mode.
-@item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initializing Berkeley DB)
+@item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initialising Berkeley DB)
 @item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
 @item @code{--skip-bdb} @tab Don't use berkeley db.
 @item @code{-O bdb_max_lock=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
 @end multitable
 
-If you use @code{--skip-bdb}, MySQL will not initialize the
+If you use @code{--skip-bdb}, MySQL will not initialise the
 Berkeley DB library and this will save a lot of memory. Of course,
 you cannot use @code{BDB} tables if you are using this option.
 
@@ -39193,11 +39193,11 @@ There is often holes in the BDB table to allow you to insert new rows in
 the middle of the key tree.  This makes BDB tables somewhat larger than
 MyISAM tables.
 @item
-The optimizer needs to know an approximation of the number of rows in
+The optimiser needs to know an approximation of the number of rows in
 the table.  MySQL solves this by counting inserts and
 maintaining this in a separate segment in each BDB table.  If you don't
 do a lot of @code{DELETE} or @code{ROLLBACK}:s this number should be
-accurate enough for the MySQL optimizer, but as MySQL
+accurate enough for the MySQL optimiser, but as MySQL
 only store the number on close, it may be wrong if MySQL dies
 unexpectedly. It should not be fatal even if this number is not 100 %
 correct.  One can update the number of rows by executing @code{ANALYZE
@@ -39224,7 +39224,7 @@ client.  We plan to partly fix this in 4.0.
 @code{SHOW TABLE STATUS} doesn't yet provide that much information for BDB
 tables.
 @item
-Optimize performance.
+Optimise performance.
 @item
 Change to not use page locks at all when we are scanning tables.
 @end itemize
@@ -40349,7 +40349,7 @@ If you have problems with dates, try to select them as strings using the
 select CONCAT(rise_time), CONCAT(set_time)
     from sunrise_sunset;
 @end example
-Values retrieved as strings this way should be correctly recognized
+Values retrieved as strings this way should be correctly recognised
 as time values by Excel97.
 
 The purpose of @code{CONCAT()} in this example is to fool ODBC into thinking
@@ -40409,7 +40409,7 @@ Click OK and you see the rows in your Word document.
 Test program for ODBC.
 @cindex Delphi program
 @item Delphi
-You must use BDE Version 3.2 or newer.  Set the `Don't optimize column width'
+You must use BDE Version 3.2 or newer.  Set the @code{Don't optimize column width}
 option field when connecting to MySQL.
 
 Also, here is some potentially useful Delphi code that sets up both an
@@ -40458,7 +40458,7 @@ fReg:= TRegistry.Create;
 @item C++ Builder
 Tested with BDE Version 3.0. The only known problem is that when the table
 schema changes, query fields are not updated. BDE, however, does not seem
-to recognize primary keys, only the index PRIMARY, though this has not
+to recognise primary keys, only the index PRIMARY, though this has not
 been a problem.
 
 @item Vision
@@ -40907,7 +40907,7 @@ Returns the server version number.
 Returns information about the most recently executed query.
 
 @item @strong{mysql_init()} @tab
-Gets or initializes a @code{MYSQL} structure.
+Gets or initialises a @code{MYSQL} structure.
 
 @item @strong{mysql_insert_id()} @tab
 Returns the ID generated for an @code{AUTO_INCREMENT} column by the previous
@@ -40982,7 +40982,7 @@ Returns 1 if the clients are compiled as thread safe.
 Initiates a row-by-row result set retrieval.
 @end multitable
 
-To connect to the server, call @code{mysql_init()} to initialize a
+To connect to the server, call @code{mysql_init()} to initialise a
 connection handler, then call @code{mysql_real_connect()} with that
 handler (along with other information such as the hostname, user name,
 and password).  Upon connection, @code{mysql_real_connect()} sets the
@@ -41013,7 +41013,7 @@ retrieve the entire result set all at once by calling
 @code{mysql_store_result()}.  This function acquires from the server all the
 rows returned by the query and stores them in the client.  The second way is
 for the client to initiate a row-by-row result set retrieval by calling
-@code{mysql_use_result()}.  This function initializes the retrieval, but does
+@code{mysql_use_result()}.  This function initialises the retrieval, but does
 not actually get any rows from the server.
 
 In both cases, you access rows by calling @code{mysql_fetch_row()}.  With
@@ -41816,7 +41816,7 @@ for(i = 0; i < num_fields; i++)
 
 Returns the lengths of the columns of the current row within a result set.
 If you plan to copy field values, this length information is also useful for
-optimization, because you can avoid calling @code{strlen()}.  In addition, if
+optimisation, because you can avoid calling @code{strlen()}.  In addition, if
 the result set contains binary data, you @emph{must} use this function to
 determine the size of the data, because @code{strlen()} returns incorrect
 results for any field containing null characters.
@@ -42188,16 +42188,16 @@ None.
 
 @subsubheading Description
 
-Allocates or initializes a @code{MYSQL} object suitable for
+Allocates or initialises a @code{MYSQL} object suitable for
 @code{mysql_real_connect()}.  If @code{mysql} is a @code{NULL} pointer, the
-function allocates, initializes, and returns a new object.  Otherwise the
-object is initialized and the address of the object is returned.  If
+function allocates, initialises, and returns a new object.  Otherwise the
+object is initialised and the address of the object is returned.  If
 @code{mysql_init()} allocates a new object, it will be freed when
 @code{mysql_close()} is called to close the connection.
 
 @subsubheading Return Values
 
-An initialized @code{MYSQL*} handle.  @code{NULL} if there was
+An initialised @code{MYSQL*} handle.  @code{NULL} if there was
 insufficient memory to allocate a new object.
 
 @subsubheading Errors
@@ -42699,7 +42699,7 @@ The parameters are specified as follows:
 @item
 The first parameter should be the address of an existing @code{MYSQL}
 structure.  Before calling @code{mysql_real_connect()} you must call
-@code{mysql_init()} to initialize the @code{MYSQL} structure. You can
+@code{mysql_init()} to initialise the @code{MYSQL} structure. You can
 change a lot of connect options with the @code{mysql_options()}
 call. @xref{mysql_options}.
 
@@ -43300,7 +43300,7 @@ threaded client. @xref{Threaded clients}.
 @subsubheading Description
 
 This function needs to be called once in the program before calling any
-MySQL function.  This initializes some global variables that MySQL
+MySQL function.  This initialises some global variables that MySQL
 needs.  If you are using a thread-safe client library, this will also
 call @code{mysql_thread_init()} for this thread.
 
@@ -43318,7 +43318,7 @@ none.
 
 @subsubheading Description
 
-This function needs to be called for each created thread to initialize
+This function needs to be called for each created thread to initialise
 thread specific variables.
 
 This is automatically called by @code{my_init()} and @code{mysql_connect()}.
@@ -43372,7 +43372,7 @@ a stand-alone server without modifying any code.
 
 This function @strong{must} be called once in the program before
 calling any other MySQL function.  It starts up the server and
-initializes any subsystems (@code{mysys}, InnoDB, etc.) that the
+initialises any subsystems (@code{mysys}, InnoDB, etc.) that the
 server uses.  If this function is not called, the program will
 crash.  If you are using the DBUG package that comes with MySQL,
 you should call this after you have called @code{MY_INIT()}.
@@ -43836,7 +43836,7 @@ in the future we will also provide a shared library for this.
 We are going to provide options to leave out some parts of MySQL to make
 the library smaller.
 @item
-There is still a lot of speed optimization to do.
+There is still a lot of speed optimisation to do.
 @item
 Errors are written to stderr.  We will add an option to specify a
 filename for these.
@@ -43890,7 +43890,7 @@ main(int argc, char **argv)
    * functions.
    *
    * You can use mysql_server_init(0, NULL, NULL), and it will
-   * initialize the server using groups = @{
+   * initialise the server using groups = @{
    *   "server", "embedded", NULL
    *  @}.
    *
@@ -44225,7 +44225,7 @@ to create and drop functions.
 
 All active functions are reloaded each time the server starts, unless
 you start @code{mysqld} with the @code{--skip-grant-tables} option.  In
-this case, UDF initialization is skipped and UDFs are unavailable.
+this case, UDF initialisation is skipped and UDFs are unavailable.
 (An active function is one that has been loaded with @code{CREATE FUNCTION}
 and not removed with @code{DROP FUNCTION}.)
 
@@ -44293,7 +44293,7 @@ function is shown below:
 @end multitable
 
 @item @code{xxx_init()} (optional)
-The initialization function for @code{xxx()}.  It can be used to:
+The initialisation function for @code{xxx()}.  It can be used to:
 
 @itemize @bullet
 @item
@@ -44313,21 +44313,21 @@ Specify whether or not the result can be @code{NULL}.
 @end itemize
 
 @item @code{xxx_deinit()} (optional)
-The deinitialization function for @code{xxx()}.  It should deallocate any
-memory allocated by the initialization function.
+The deinitialisation function for @code{xxx()}.  It should deallocate any
+memory allocated by the initialisation function.
 @end table
 
 When a SQL statement invokes @code{XXX()}, MySQL calls the
-initialization function @code{xxx_init()} to let it perform any required
+initialisation function @code{xxx_init()} to let it perform any required
 setup, such as argument checking or memory allocation.  If @code{xxx_init()}
 returns an error, the SQL statement is aborted with an error message and the
-main and deinitialization functions are not called.  Otherwise, the main
+main and deinitialisation functions are not called.  Otherwise, the main
 function @code{xxx()} is called once for each row.  After all rows have been
-processed, the deinitialization function @code{xxx_deinit()} is called so it
+processed, the deinitialisation function @code{xxx_deinit()} is called so it
 can perform any required cleanup.
 
 All functions must be thread safe (not just the main function,
-but the initialization and deinitialization functions as well). This means
+but the initialisation and deinitialisation functions as well). This means
 that you are not allowed to allocate any global or static variables that
 change!  If you need memory, you should allocate it in @code{xxx_init()}
 and free it in @code{xxx_deinit()}.
@@ -44368,7 +44368,7 @@ double xxx(UDF_INIT *initid, UDF_ARGS *args,
               char *is_null, char *error);
 @end example
 
-The initialization and deinitialization functions are declared like this:
+The initialisation and deinitialisation functions are declared like this:
 
 @example
 my_bool xxx_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
@@ -44379,7 +44379,7 @@ void xxx_deinit(UDF_INIT *initid);
 The @code{initid} parameter is passed to all three functions.  It points to a
 @code{UDF_INIT} structure that is used to communicate information between
 functions.  The @code{UDF_INIT} structure members are listed below.  The
-initialization function should fill in any members that it wishes to change.
+initialisation function should fill in any members that it wishes to change.
 (To use the default for a member, leave it unchanged.):
 
 @table @code
@@ -44432,7 +44432,7 @@ members listed below:
 
 @table @code
 @item unsigned int arg_count
-The number of arguments.  Check this value in the initialization function
+The number of arguments.  Check this value in the initialisation function
 if you want your function to be called with a particular number of arguments.
 For example:
 
@@ -44450,7 +44450,7 @@ The types for each argument.  The possible type values are
 @code{STRING_RESULT}, @code{INT_RESULT}, and @code{REAL_RESULT}.
 
 To make sure that arguments are of a given type and return an
-error if they are not, check the @code{arg_type} array in the initialization
+error if they are not, check the @code{arg_type} array in the initialisation
 function.  For example:
 
 @example
@@ -44463,7 +44463,7 @@ if (args->arg_type[0] != STRING_RESULT ||
 @end example
 
 As an alternative to requiring your function's arguments to be of particular
-types, you can use the initialization function to set the @code{arg_type}
+types, you can use the initialisation function to set the @code{arg_type}
 elements to the types you want.  This causes MySQL to coerce
 arguments to those types for each call to @code{xxx()}.  For example, to
 specify coercion of the first two arguments to string and integer, do this in
@@ -44475,7 +44475,7 @@ args->arg_type[1] = INT_RESULT;
 @end example
 
 @item char **args
-@code{args->args} communicates information to the initialization function
+@code{args->args} communicates information to the initialisation function
 about the general nature of the arguments your function was called with.  For a
 constant argument @code{i}, @code{args->args[i]} points to the argument
 value.  (See below for instructions on how to access the value properly.)
@@ -44518,12 +44518,12 @@ real_val = *((double*) args->args[i]);
 @end itemize
 
 @item unsigned long *lengths
-For the initialization function, the @code{lengths} array indicates the
+For the initialisation function, the @code{lengths} array indicates the
 maximum string length for each argument.  For each invocation of the main
 function, @code{lengths} contains the actual lengths of any string arguments
 that are passed for the row currently being processed.  For arguments of
 types @code{INT_RESULT} or @code{REAL_RESULT}, @code{lengths} still contains
-the maximum length of the argument (as for the initialization function).
+the maximum length of the argument (as for the initialisation function).
 @end table
 
 
@@ -44535,7 +44535,7 @@ the maximum length of the argument (as for the initialization function).
 @cindex errors, handling for UDFs
 @cindex handling, errors
 
-The initialization function should return @code{0} if no error occurred and
+The initialisation function should return @code{0} if no error occurred and
 @code{1} otherwise.  If an error occurs, @code{xxx_init()} should store a
 null-terminated error message in the @code{message} parameter.  The message
 will be returned to the client.  The message buffer is
@@ -44694,7 +44694,7 @@ will continue to use the old version.
 
 Active functions are reloaded each time the server starts, unless you start
 @code{mysqld} with the @code{--skip-grant-tables} option.  In this case, UDF
-initialization is skipped and UDFs are unavailable.  (An active function is
+initialisation is skipped and UDFs are unavailable.  (An active function is
 one that has been loaded with @code{CREATE FUNCTION} and not removed with
 @code{DROP FUNCTION}.)
 
@@ -44934,7 +44934,7 @@ customer data and for that reason has not been publicly available. The only
 publicly available part of our testing process consisted of the @code{crash-me}
 test, a Perl DBI/DBD benchmark found in the @code{sql-bench} directory, and 
 miscellaneous tests located in @code{tests} directory. The lack of a 
-standardized publicly available test suite has made it difficult for our users,
+standardised publicly available test suite has made it difficult for our users,
 as well developers, to do regression tests on the MySQL code. To 
 address this problem, we have created a new test system that is included in
 the source and binary distributions starting in Version 3.23.29.
@@ -44998,7 +44998,7 @@ The tests are located in @code{mysql-test/t/*.test}
 @item
 A test case consists of @code{;} terminated statements and is similar to the
 input of @code{mysql} command line client.  A statement by default is a query
-to be sent to MySQL server, unless it is recognized as internal
+to be sent to MySQL server, unless it is recognised as internal
 command (eg. @code{sleep}).
 
 @item
@@ -47197,7 +47197,7 @@ Ecommerce site that is selling computers.
 @c appendixsec Programming
 
 @cindex web pages, miscellaneous
-@appendixsec Uncategorized Pages
+@appendixsec Uncategorised Pages
 
 @itemize @bullet
 
@@ -47625,7 +47625,7 @@ By Thomas Thaele @email{tthaele@@papenmeier.de}
 @item Graphical clients
 @itemize @minus
 @item @uref{http://www.ideit.com/products/dbvis/, DbVisualizer}.
-Freeware JDBC client to graphically visualize the data and structure
+Freeware JDBC client to graphically visualise the data and structure
 of several databases simultaneously. By Innovative-IT Development AB.
 
 @item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQLGUI}
@@ -48013,7 +48013,7 @@ NOTE: Doesn't work with Access2!
 A script that does the exact reverse of @code{exportsql.txt}.  That is,
 it imports data from MySQL into an Access database via
 ODBC. This is very handy when combined with exportsql, because it lets you
-use Access for all DB design and administration, and synchronize with
+use Access for all DB design and administration, and synchronise with
 your actual MySQL server either way. Free of charge. See
 @uref{http://www.netdive.com/freebies/importsql/} for any updates.
 Created by Laurent Bossavit of NetDIVE.
@@ -48160,7 +48160,7 @@ The program launches the MySQL server, shuts it down, and
 display status information. By Bill Thompson
 @end itemize
 
-@appendixsec Uncategorized
+@appendixsec Uncategorised
 
 @itemize @bullet
 
@@ -48291,7 +48291,7 @@ A lot of extensions to the @code{mysql} client.
 @item
 Compression (with @code{zlib}) in the client/server protocol.
 @item
-Perfect hashing for the lexical analyzer phase.
+Perfect hashing for the lexical analyser phase.
 @item
 The MySQLGUI client.
 @item
@@ -48773,7 +48773,7 @@ Tree-like cache to speed up bulk inserts and
 @item
 Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
 @item
-Optimized queries of type:
+Optimised queries of type:
 @code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
 @item
 @code{SHOW CREATE TABLE} now shows all table attributes.
@@ -48812,7 +48812,7 @@ Allow ANSI SQL syntax @code{X'hexadecimal-number'}
 @item
 Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
 @item
-Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimization.
+Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimisation.
 @item
 Added options @code{--master-data} and @code{--no-autocommit} to
 @code{mysqldump} (Thanks to Brian Aker for this).
@@ -49046,7 +49046,7 @@ Split @code{record_buffer} to @code{record_buffer} and
 versions, if @code{record_rnd_buffer} is not set, then it takes the
 value of @code{record_buffer}.
 @item
-Fixed optimizing bug in @code{ORDER BY} where some @code{ORDER BY} parts
+Fixed optimising bug in @code{ORDER BY} where some @code{ORDER BY} parts
 where wrongly removed.
 @item
 Fixed overflow bug with @code{ALTER TABLE} and @code{MERGE} tables.
@@ -49200,7 +49200,7 @@ Added database name to output for administrative commands like @code{CHECK},
 @item
 Lots of portability fixes for InnoDB.
 @item
-Changed optimizer so that queries like
+Changed optimiser so that queries like
 @code{SELECT * FROM table_name,table_name2 ... ORDER BY key_part1 LIMIT #}
 will use index on @code{key_part1} instead of @code{filesort}.
 @item
@@ -49262,12 +49262,12 @@ Fixed performance bug where reopened tables (tables that had been
 waiting for @code{FLUSH} or @code{REPAIR}) would not use indexes for the
 next query.
 @item
-Fixed problem with @code{ALTER TABLE} to Innobase tables on FreeBSD.
+Fixed problem with @code{ALTER TABLE} to InnoDB tables on FreeBSD.
 @item
 Added @code{mysqld} variables @code{myisam_max_sort_file_size} and
 @code{myisam_max_extra_sort_file_size}.
 @item
-Initialize signals early to avoid problem with signals in Innobase.
+Initialise signals early to avoid problem with signals in InnoDB.
 @item
 Applied patch for the @code{tis620} character set to make comparisons
 case-independent and to fix a bug in @code{LIKE} for this character set.
@@ -49293,7 +49293,7 @@ of connections in a short time).
 Fixed some problems with @code{FLUSH TABLES} and @code{TEMPORARY} tables.
 (Problem with freeing the key cache and error @code{Can't reopen table...}.)
 @item
-Fixed a problem in Innobase with other character sets than @code{latin1}
+Fixed a problem in InnoDB with other character sets than @code{latin1}
 and another problem when using many columns.
 @item
 Fixed bug that caused a core dump when using a very complex query involving
@@ -49399,7 +49399,7 @@ Fixed bug in bidirectional replication.
 Fixed bug in the @code{BDB} table handler that occurred when using an index
 on multi-part key where a key part may be @code{NULL}.
 @item
-Fixed @code{MAX()} optimization on sub-key for @code{BDB} tables.
+Fixed @code{MAX()} optimisation on sub-key for @code{BDB} tables.
 @item
 Fixed problem where garbage results were returned when using @code{BDB} 
 tables and @code{BLOB} or @code{TEXT} fields when joining many tables.
@@ -49597,7 +49597,7 @@ Fixed bug when using expression of type:
 @example
 SELECT ... FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=t2.a
 @end example
-In this case the test in the @code{WHERE} clause was wrongly optimized away.
+In this case the test in the @code{WHERE} clause was wrongly optimised away.
 @item
 Fixed bug in @code{MyISAM} when deleting keys with possible @code{NULL}
 values, but the first key-column was not a prefix-compressed text column.
@@ -49721,7 +49721,7 @@ Added support for @code{auto_increment} on sub-fields for BDB tables.
 @item
 Added @code{ANALYZE} of BDB tables.
 @item
-In BDB tables, we now store the number of rows; This helps to optimize queries
+In BDB tables, we now store the number of rows; This helps to optimise queries
 when we need an approximation of the number of rows.
 @item
 If we get an error in a multi-row statement, we now only rollback the
@@ -49786,7 +49786,7 @@ that caused @code{mysql_install_db} to core dump on some Linux machines.
 @item
 Changed @code{mi_create()} to use less stack space.
 @item
-Fixed bug with optimizer trying to over-optimize @code{MATCH} when used
+Fixed bug with optimiser trying to over-optimise @code{MATCH} when used
 with @code{UNIQUE} key.
 @item
 Changed @code{crash-me} and the MySQL benchmarks to also work
@@ -49912,7 +49912,7 @@ shortage when compiled @code{--with-debug=full}.
 @item
 Fixed several coredumps in out-of-memory conditions.
 @item
-@code{SHOW SLAVE STATUS} was using an uninitialized mutex if the slave had
+@code{SHOW SLAVE STATUS} was using an uninitialised mutex if the slave had
 not been started yet.
 @item
 Fixed bug in @code{ELT()} and @code{MAKE_SET()} when the query used
@@ -49962,7 +49962,7 @@ if the table exists.
 If you don't create a @code{PRIMARY KEY} in a BDB table, a hidden
 @code{PRIMARY KEY} will be created.
 @item
-Added read-only-key optimization to BDB tables.
+Added read-only-key optimisation to BDB tables.
 @item
 @code{LEFT JOIN} in some cases preferred a full table scan when there was
 no @code{WHERE} clause.
@@ -50000,7 +50000,7 @@ Added @code{--skip-slave-start} option to @code{mysqld}.
 Updates that generated an error code (such as @code{INSERT INTO foo(some_key)
 values (1),(1)}) erroneously terminated the slave thread.
 @item
-Added optimization of queries where @code{DISTINCT} is only used on columns
+Added optimisation of queries where @code{DISTINCT} is only used on columns
 from some of the tables.
 @item
 Allow floating-point numbers where there is no sign after the exponent
@@ -50010,7 +50010,7 @@ Allow floating-point numbers where there is no sign after the exponent
 @item
 Added @code{--default-extra-file=#} to all MySQL clients.
 @item
-Columns referenced in @code{INSERT} statements now are initialized properly.
+Columns referenced in @code{INSERT} statements now are initialised properly.
 @item
 @code{UPDATE} didn't always work when used with a range on a timestamp that
 was part of the key that was used to find rows.
@@ -50158,7 +50158,7 @@ still work from the first line.
 Fixed a problem when using many pending @code{DROP TABLE} statements at
 the same time.
 @item
-Optimizer didn't use keys properly when using @code{LEFT JOIN} on an
+Optimiser didn't use keys properly when using @code{LEFT JOIN} on an
 empty table.
 @item
 Added shorter help text when invoking @code{mysqld} with incorrect options.
@@ -50206,7 +50206,7 @@ that don't have the @code{pthread_rwlock_rdlock} code.
 When deleting rows with a non-unique key in a HEAP table, all rows weren't
 always deleted.
 @item
-Fixed bug in range optimizer for HEAP tables for searches on a part index.
+Fixed bug in range optimiser for HEAP tables for searches on a part index.
 @item
 Fixed that @code{SELECT} on part keys works with BDB tables.
 @item
@@ -50216,7 +50216,7 @@ Fixed @code{INSERT INTO bdb_table ... SELECT} to work with BDB tables.
 @item
 @code{ANALYZE TABLE} will now only update tables that have been changed
 since thee last @code{ANALYZE}. Note that this is a new feature and tables
-will not be marked to be analyzed until they are updated in any way with
+will not be marked to be analysed until they are updated in any way with
 3.23.23 or newer.  For older tables, you have to do @code{CHECK TABLE}
 to update the key distribution.
 @item
@@ -50268,7 +50268,7 @@ Added workaround for a bug in @code{gcc} 2.96 (intel) and @code{gcc} 2.9
 Fixed memory leak in the client library when using @code{host=} in the
 @code{my.cnf} file.
 @item
-Optimized functions that manipulate the hours/minutes/seconds.
+Optimised functions that manipulate the hours/minutes/seconds.
 @item
 Fixed bug when comparing the result of @code{DATE_ADD()}/@code{DATE_SUB()}
 against a number.
@@ -50315,7 +50315,7 @@ Fixed @code{chown} warning in @code{safe_mysqld}.
 @item
 Fixed a bug in @code{ORDER BY} that was introduced in 3.23.19.
 @item
-Only optimize the @code{DELETE FROM tbl_name} to do a drop+create of
+Only optimise the @code{DELETE FROM tbl_name} to do a drop+create of
 the table if we are in @code{AUTOCOMMIT} mode (needed for BDB tables).
 @item
 Added extra checks to avoid index corruption when the @code{ISAM}/@code{MyISAM}
@@ -50556,7 +50556,7 @@ Optimised MyISAM to be faster when inserting keys in sorted order.
 @code{EXPLAIN SELECT ...} now also prints out whether MySQL needs to
 create a temporary table or use file sorting when resolving the @code{SELECT}.
 @item
-Added optimization to skip @code{ORDER BY} parts where the part is a
+Added optimisation to skip @code{ORDER BY} parts where the part is a
 constant expression in the @code{WHERE} part.  Indexes can now be used
 even if the @code{ORDER BY} doesn't match the index exactly, as long as
 all the not used index parts and all the extra @code{ORDER BY}
@@ -50703,7 +50703,7 @@ join parameters in @code{SELECT}.
 @item
 Allow the @code{ALTER TABLE tbl_name ADD (field_list)} syntax.
 @item
-Fixed problem with optimizer that could sometimes use wrong keys.
+Fixed problem with optimiser that could sometimes use wrong keys.
 @item
 Fixed that @code{GRANT/REVOKE ALL PRIVILEGES} doesn't affect
 @code{GRANT OPTION}.
@@ -50769,7 +50769,7 @@ Fixed that @code{date_column BETWEEN const_date AND const_date} works.
 Fixed problem when only changing a 0 to @code{NULL} in a table with
 @code{BLOB/TEXT} columns.
 @item
-Fixed bug in range optimizer when using many key parts and or on the middle
+Fixed bug in range optimiser when using many key parts and or on the middle
 key parts:  @code{WHERE K1=1 and K3=2 and (K2=2 and K4=4 or K2=3 and K4=5)}
 @item
 Added command @code{source} to @code{mysql} to allow reading of batch files
@@ -50783,11 +50783,11 @@ databases in the same query.
 Added VIO wrapper (needed for SSL support ; By Andrei Errapart and
 Tõnu Samuel).
 @item
-Fixed optimizer problem on @code{SELECT} when using many overlapping indexes.
+Fixed optimiser problem on @code{SELECT} when using many overlapping indexes.
 MySQL should now be able to choose keys even better when there
 is many keys to choose from.
 @item
-Changed optimizer to prefer a range key instead of a ref key when the
+Changed optimiser to prefer a range key instead of a ref key when the
 range key can uses more columns than the ref key (which only can use
 columns with @code{=}).  For example, the following type of queries should now
 be faster: @code{SELECT * from key_part_1=const and key_part_2 > const2}
@@ -50811,7 +50811,7 @@ long time to a separate log file with a time of how long the query took.
 @item
 Fixed core dump when doing @code{WHERE key_column=RAND(...)}
 @item
-Fixed optimization bug in @code{SELECT ... LEFT JOIN ... key_column IS NULL},
+Fixed optimisation bug in @code{SELECT ... LEFT JOIN ... key_column IS NULL},
 when @code{key_column} could contain @code{NULL} values.
 @item
 Fixed problem with 8-bit characters as separators in @code{LOAD DATA INFILE}.
@@ -51115,7 +51115,7 @@ New function @code{COALESCE()}.
 
 @itemize @bullet
 @item
-Fixed range optimizer bug: @code{SELECT * FROM table_name WHERE
+Fixed range optimiser bug: @code{SELECT * FROM table_name WHERE
 key_part1 >= const AND (key_part2 = const OR key_part2 = const)}.  The
 bug was that some rows could be duplicated in the result.
 @item
@@ -51132,11 +51132,11 @@ Date handling should now be a bit faster.
 Added handling of fuzzy dates (dates where day or month is 0):
 (Like: 1999-01-00)
 @item
-Fixed optimization of @code{SELECT ... WHERE key_part1=const1 AND
+Fixed optimisation of @code{SELECT ... WHERE key_part1=const1 AND
 key_part_2=const2 AND key_part1=const4 AND key_part2=const4} ; Indextype
 should be @code{range} instead of @code{ref}.
 @item
-Fixed @code{egcs} 1.1.2 optimizer bug (when using @code{BLOB}s) on Linux Alpha.
+Fixed @code{egcs} 1.1.2 optimiser bug (when using @code{BLOB}s) on Linux Alpha.
 @item
 Fixed problem with @code{LOCK TABLES} combined with @code{DELETE FROM table}.
 @item
@@ -51297,7 +51297,7 @@ Added aggregate UDF functions. Thanks to Andreas F. Bobak
 @item
 @code{LAST_INSERT_ID()} is now updated for @code{INSERT INTO ... SELECT}.
 @item
-Some small changes to the join table optimizer to make some joins faster.
+Some small changes to the join table optimiser to make some joins faster.
 @item
 @code{SELECT DISTINCT} is much faster; It uses the new @code{UNIQUE}
 functionality in @code{MyISAM}. One difference compared to MySQL Version 3.22
@@ -51460,7 +51460,7 @@ A few small fixes for the Windows version.
 
 @itemize @bullet
 @item
-Fixed optimizer problem on @code{SELECT} when using many overlapping indexes.
+Fixed optimiser problem on @code{SELECT} when using many overlapping indexes.
 @item
 Disabled floating-point exceptions for FreeBSD to fix core dump when
 doing @code{SELECT floor(pow(2,63))}.
@@ -51552,7 +51552,7 @@ Fixed problem that INSERT ... SELECT didn't use SQL_BIG_TABLES.
 Password wasn't updated correctly if privileges didn't change on:
 @code{GRANT ... IDENTIFIED BY}
 @item
-Fixed range optimizer bug in
+Fixed range optimiser bug in
 @code{SELECT * FROM table_name WHERE key_part1 >= const AND (key_part2 = const OR key_part2 = const)}
 @item
 Fixed bug in compression key handling in ISAM.
@@ -51575,7 +51575,7 @@ Fixed some small problems with the installation.
 @item
 @code{DATA} is not a reserved word anymore.
 @item
-Fixed optimizer bug with tables with only one row.
+Fixed optimiser bug with tables with only one row.
 @item
 Fixed bug when using @code{LOCK TABLES table_name READ; FLUSH TABLES;}
 @item
@@ -51743,7 +51743,7 @@ rows.  Fixed.
 Extended @code{ENCRYPT()} to take longer salt strings than 2 characters.
 @item
 @code{longlong2str} is now much faster than before.  For @code{Intel x86}
-platforms, this function is written in optimized assembler.
+platforms, this function is written in optimised assembler.
 @item
 Added the @code{MODIFY} keyword to @code{ALTER TABLE}.
 @end itemize
@@ -51759,7 +51759,7 @@ were flushed.
 @item
 Name change of some variables in @code{SHOW STATUS}.
 @item
-Fixed problem with @code{ORDER BY} with 'only index' optimization when there
+Fixed problem with @code{ORDER BY} with 'only index' optimisation when there
 were multiple key definitions for a used column.
 @item
 @code{DATE} and @code{DATETIME} columns are now up to 5 times faster than
@@ -52076,7 +52076,7 @@ Upgraded @code{libtool} to get the configure more portable.
 Fixed slow @code{UPDATE} and @code{DELETE} operations when using
 @code{DATETIME} or @code{DATE} keys.
 @item
-Changed optimizer to make it better at deciding when to do a full join
+Changed optimiser to make it better at deciding when to do a full join
 and when using keys.
 @item
 You can now use @code{mysqladmin proc} to display information about your own
@@ -52096,7 +52096,7 @@ and INSERT_ID's in the update log.
 @item
 Added @code{--where} option to @code{mysqldump} (patch by Jim Faucette).
 @item
-The lexical analyzer now uses ``perfect hashing'' for faster parsing of SQL
+The lexical analyser now uses ``perfect hashing'' for faster parsing of SQL
 statements.
 @end itemize
 
@@ -52112,7 +52112,7 @@ For the @code{LOAD DATA INFILE} statement, you can now use the new @code{LOCAL}
 keyword to read the file from the client.  @code{mysqlimport} will
 automatically use @code{LOCAL} when importing with the TCP/IP protocol.
 @item
-Fixed small optimize problem when updating keys.
+Fixed small optimise problem when updating keys.
 @item
 Changed makefiles to support shared libraries.
 @item
@@ -52177,7 +52177,7 @@ the @strong{process} privilege to bypass the update log.
 @item
 Fixed fatal bug in @code{LPAD()}.
 @item
-Initialize line buffer in @file{mysql.cc} to make @code{BLOB} reading from
+Initialise line buffer in @file{mysql.cc} to make @code{BLOB} reading from
 pipes safer.
 @item
 Added @code{-O max_connect_errors=#} option to @code{mysqld}.
@@ -52227,7 +52227,7 @@ there is no @code{GROUP BY} specification.
 Added @code{--vertical} option to @code{mysql}, for printing results in
 vertical mode.
 @item
-Index-only optimization; some queries are now resolved using
+Index-only optimisation; some queries are now resolved using
 only indexes.  Until MySQL 4.0, this works only for numeric columns.
 @xref{MySQL indexes, , MySQL indexes}.
 @item
@@ -52268,7 +52268,7 @@ Added function @code{SUBSTRING()} with 2 arguments.
 If you created a table with a record length smaller than 5, you couldn't
 delete rows from the table.
 @item
-Added optimization to remove const reference tables from @code{ORDER BY} and
+Added optimisation to remove const reference tables from @code{ORDER BY} and
 @code{GROUP BY}.
 @item
 @code{mysqld} now automatically disables system locking on Linux and Windows,
@@ -52326,7 +52326,7 @@ a chroot environment (by Nikki Chumakov @email{nikkic@@cityline.ru}).
 Trailing spaces are now ignored when comparing case-sensitive strings;
 this should fix some problems with ODBC and flag 512!
 @item
-Fixed a core-dump bug in the range optimizer.
+Fixed a core-dump bug in the range optimiser.
 @item
 Added @code{--one-thread} option to @code{mysqld}, for debugging with
 LinuxThreads (or @code{glibc}).  (This replaces the @code{-T32} flag)
@@ -52457,10 +52457,10 @@ Added @code{-T32} option to @code{mysqld}, for running all queries under the
 main thread.  This makes it possible to debug @code{mysqld} under Linux with
 @code{gdb}!
 @item
-Added optimization of @code{not_null_column IS NULL} (needed for some Access
+Added optimisation of @code{not_null_column IS NULL} (needed for some Access
 queries).
 @item
-Allow @code{STRAIGHT_JOIN} to be used between two tables to force the optimizer
+Allow @code{STRAIGHT_JOIN} to be used between two tables to force the optimiser
 to join them in a specific order.
 @item
 String functions now return @code{VARCHAR} rather than @code{CHAR} and
@@ -52588,7 +52588,7 @@ returned a row in some contexts (bug only in 3.21.31).
 @code{GROUP BY} + @code{ORDER BY} returned one empty row when no rows where
 found.
 @item
-Fixed a bug in the range optimizer that wrote
+Fixed a bug in the range optimiser that wrote
 @code{Use_count: Wrong count for ...} in the error log file.
 @end itemize
 
@@ -52675,7 +52675,7 @@ Fixed permission problem with @code{umask()} and creating new databases.
 @item
 Fixed permission problem on result file with @code{SELECT ... INTO OUTFILE ...}
 @item
-Fixed problem in range optimizer (core dump) for a very complex query.
+Fixed problem in range optimiser (core dump) for a very complex query.
 @item
 Fixed problem when using @code{MIN(integer)} or @code{MAX(integer)} in
 @code{GROUP BY}.
@@ -52711,7 +52711,7 @@ Added @code{opened_tables} to @code{show status}.
 Changed connect timeout to 3 seconds to make it somewhat harder
 for crackers to kill @code{mysqld} through telnet + TCP/IP.
 @item
-Fixed bug in range optimizer when using
+Fixed bug in range optimiser when using
 @code{WHERE key_part_1 >= something AND key_part_2 <= something_else}.
 @item
 Changed @code{configure} for detection of FreeBSD 3.0 9803xx and above
@@ -52750,10 +52750,10 @@ An @code{ENUM} field that is not declared @code{NOT NULL} has @code{NULL} as
 the default value.
 (Previously, the default value was the first enumeration value.)
 @item
-Fixed bug in the join optimizer code when using many part keys
-on the same key:  @code{INDEX (Organization,Surname(35),Initials(35))}.
+Fixed bug in the join optimiser code when using many part keys
+on the same key:  @code{INDEX (Organisation,Surname(35),Initials(35))}.
 @item
-Added some tests to the table order optimizer to get some cases with
+Added some tests to the table order optimiser to get some cases with
 @code{SELECT ... FROM many_tables} much faster.
 @item
 Added a retry loop around @code{accept()} to possibly fix some problems on some
@@ -52791,7 +52791,7 @@ Dynamic loadable functions. Based on source from Alexis Mikhailov.
 You couldn't delete from a table if no one had done a @code{SELECT} on the
 table.
 @item
-Fixed problem with range optimizer with many @code{OR} operators on key parts
+Fixed problem with range optimiser with many @code{OR} operators on key parts
 inside each other.
 @item
 Recoded @code{MIN()} and @code{MAX()} to work properly with strings and
@@ -52806,7 +52806,7 @@ Added Italian error messages from @email{brenno@@dewinter.com}.
 @item
 @code{configure} now works better on OSF1 (tested on 4.0D).
 @item
-Added hooks to allow @code{LIKE} optimization with international character
+Added hooks to allow @code{LIKE} optimisation with international character
 support.
 @item
 Upgraded @code{DBI} to 0.93.
@@ -52827,7 +52827,7 @@ The following symbols are now reserved words:
 Setting a @code{TIMESTAMP} to @code{NULL} in @code{LOAD DATA INFILE ...} didn't
 set the current time for the @code{TIMESTAMP}.
 @item
-Fix @code{BETWEEN} to recognize binary strings. Now @code{BETWEEN} is
+Fix @code{BETWEEN} to recognise binary strings. Now @code{BETWEEN} is
 case sensitive.
 @item
 Added @code{--skip-thread-priority} option to @code{mysqld}, for systems
@@ -52838,7 +52838,7 @@ Added ODBC functions @code{DAYNAME()} and @code{MONTHNAME()}.
 Added function @code{TIME_FORMAT()}.  This works like @code{DATE_FORMAT()},
 but takes a time string (@code{'HH:MM:DD'}) as argument.
 @item
-Fixed unlikely(?) key optimizer bug when using @code{OR}s of key parts
+Fixed unlikely(?) key optimiser bug when using @code{OR}s of key parts
 inside @code{AND}s.
 @item
 Added command @code{variables} to @code{mysqladmin}.
@@ -52880,7 +52880,7 @@ Fixed bug that core dumped when using many @code{LEFT OUTER JOIN} clauses.
 @item
 Fixed bug in @code{ORDER BY} on string formula with possible @code{NULL} values.
 @item
-Fixed problem in range optimizer when using <= on sub index.
+Fixed problem in range optimiser when using <= on sub index.
 @item
 Added functions @code{DAYOFYEAR()}, @code{DAYOFMONTH()}, @code{MONTH()},
 @code{YEAR()}, @code{WEEK()}, @code{QUARTER()}, @code{HOUR()}, @code{MINUTE()},
@@ -52919,7 +52919,7 @@ Configure changes for some operating systems.
 
 @itemize @bullet
 @item
-Fixed optimizer bug when using
+Fixed optimiser bug when using
 @code{WHERE data_field = date_field2 AND date_field2 = constant}.
 @item
 Added command @code{SHOW STATUS}.
@@ -53024,7 +53024,7 @@ restart if one thread was reading data that another thread modified.
 @item
 @code{LIMIT offset,count} didn't work in @code{INSERT ... SELECT}.
 @item
-Optimized key block caching. This will be quicker than the old algorithm when
+Optimised key block caching. This will be quicker than the old algorithm when
 using bigger key caches.
 @end itemize
 
@@ -53088,7 +53088,7 @@ New portable benchmark suite with @code{DBD}, with test results from
 designed to find as many limits as possible in a SQL server. Tested with
 @code{mSQL}, PostgreSQL, Solid and MySQL.
 @item
-Fixed bug in range-optimizer that crashed MySQL on some queries.
+Fixed bug in range-optimiser that crashed MySQL on some queries.
 @item
 Table and column name completion for @code{mysql} command line tool, by Zeev
 Suraski and Andi Gutmans.
@@ -53330,7 +53330,7 @@ Fixed some @code{configure} issues.
 Made the locking code a bit safer. Fixed very unlikely
 deadlock situation.
 @item
-Fixed a couple of bugs in the range optimizer. Now the new range benchmark
+Fixed a couple of bugs in the range optimiser. Now the new range benchmark
 @code{test-select} works.
 @end itemize
 
@@ -53380,7 +53380,7 @@ Fixed bug with @code{GROUP BY} and @code{SELECT} on key with many values.
 @code{mysql_use_result()}. This affected at least some cases of
 @code{mysqldump --quick}.
 @item
-Fixed bug in optimization of @code{WHERE const op field}.
+Fixed bug in optimisation of @code{WHERE const op field}.
 @item
 Fixed problem when sorting on @code{NULL} fields.
 @item
@@ -53390,7 +53390,7 @@ Added @code{--pid-file=#} option to @code{mysqld}.
 @item
 Added date formatting to @code{FROM_UNIXTIME()}, originally by Zeev Suraski.
 @item
-Fixed bug in @code{BETWEEN} in range optimizer (did only test = of the first
+Fixed bug in @code{BETWEEN} in range optimiser (did only test = of the first
 argument).
 @item
 Added machine-dependent files for MIT-pthreads i386-SCO. There is probably
@@ -53532,7 +53532,7 @@ Changed the default sort buffer size from 2M to 1M.
 
 @itemize @bullet
 @item
-The range optimizer is coded, but only 85% tested. It can be enabled with
+The range optimiser is coded, but only 85% tested. It can be enabled with
 @code{--new}, but it crashes core a lot yet...
 @item
 More portable. Should compile on AIX and alpha-digital.
@@ -53609,7 +53609,7 @@ Added @code{--log-update} option to @code{mysqld}, to get a log suitable for
 incremental updates.
 @item
 New command @code{EXPLAIN SELECT ...} to get information about how the
-optimizer will do the join.
+optimiser will do the join.
 @item
 For easier client code, the client should no longer use
 @code{FIELD_TYPE_TINY_BLOB}, @code{FIELD_TYPE_MEDIUM_BLOB},
@@ -53654,7 +53654,7 @@ will also work with @code{NULL} values.
 @item
 Full @code{WHERE} with expressions.
 @item
-New range optimizer that can resolve ranges when some keypart prefix is
+New range optimiser that can resolve ranges when some keypart prefix is
 constant. Example:
 @example
 mysql> SELECT * FROM tbl_name
@@ -53736,7 +53736,7 @@ Arithmetic error on Sparc-386.
 Added @code{--unbuffered} option to @code{mysql}, for new @code{mysqlaccess}.
 @item
 When using overlapping (unnecessary) keys and join over many tables,
-the optimizer could get confused and return 0 records.
+the optimiser could get confused and return 0 records.
 @end itemize
 
 
@@ -53768,7 +53768,7 @@ works.
 @item
 A couple of bugs fixed in @code{SELECT ... GROUP BY}.
 @item
-Fixed memory overrun bug in @code{WHERE} with many unoptimizable brace levels.
+Fixed memory overrun bug in @code{WHERE} with many unoptimisable brace levels.
 @item
 Fixed some small bugs in the grant code.
 @item
@@ -53819,7 +53819,7 @@ bugs that appear during the build with it.
 Changed @file{libmysql.c} to prefer @code{getpwuid()} instead of
 @code{cuserid()}.
 @item
-Fixed bug in @code{SELECT} optimizer when using many tables with the same
+Fixed bug in @code{SELECT} optimiser when using many tables with the same
 column used as key to different tables.
 @item
 Added new latin2 and Russian KOI8 character tables.
@@ -54102,10 +54102,10 @@ returns an array of column lengths (of type @code{uint}).
 @item
 Fixed bug with @code{IS NULL} in @code{WHERE} clause.
 @item
-Changed the optimizer a little to get better results when searching on a key
+Changed the optimiser a little to get better results when searching on a key
 part.
 @item
-Added @code{SELECT} option @code{STRAIGHT_JOIN} to tell the optimizer that
+Added @code{SELECT} option @code{STRAIGHT_JOIN} to tell the optimiser that
 it should join tables in the given order.
 @item
 Added support for comments starting with @code{'--'} in @file{mysql.cc}
@@ -54265,7 +54265,7 @@ information is kept here for historical purposes only.
 
 @itemize @bullet
 @item
-Some new functions, some more optimization on joins.
+Some new functions, some more optimisation on joins.
 @item
 Should now compile clean on Linux (2.0.x).
 @item
@@ -54429,7 +54429,7 @@ will ensure that your thread installation has even a remote chance to work!
 If you are using some functionality that is very new in MySQL,
 you can try to run @code{mysqld} with the @code{--skip-new} (which will disable all
 new, potentially unsafe functionality) or with @code{--safe-mode} which
-disables a lot of optimization that may cause problems.
+disables a lot of optimisation that may cause problems.
 @xref{Crashing}.
 
 If @code{mysqld} doesn't want to start, you should check that you don't have
@@ -54449,7 +54449,7 @@ may help solve some problems.  This command also provides some useful
 information even if you haven't compiled MySQL for debugging!
 
 If the problem is that some tables are getting slower and slower you
-should try to optimize the table with @code{OPTIMIZE TABLE} or
+should try to optimise the table with @code{OPTIMIZE TABLE} or
 @code{myisamchk}.  @xref{MySQL Database Administration}. You should also
 check the slow queries with @code{EXPLAIN}.
 
@@ -54893,7 +54893,7 @@ an optional "," and comma-separated list of modifiers:
 flag[,modifier,modifier,...,modifier]
 @end example
 
-The currently recognized flag characters are:
+The currently recognised flag characters are:
 
 @multitable @columnfractions .1 .9
 @item d	@tab Enable output from DBUG_<N> macros for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. An empty list of keywords implies output for all macros.
@@ -54942,7 +54942,7 @@ for @code{BDB} tables. @xref{Internal locking}.  With @code{MyISAM}
 tables one can freely mix @code{INSERT} and @code{SELECT} without locks
 (@code{Versioning}).
 
-Starting in version 3.23.33, you can analyze the table lock contention
+Starting in version 3.23.33, you can analyse the table lock contention
 on your system by checking @code{Table_locks_waited} and
 @code{Table_locks_immediate} environment variables.
 
@@ -55041,7 +55041,7 @@ If you get speed problems with the table locks in MySQL, you
 may be able to solve these to convert some of your tables to @code{BDB} tables.
 @xref{BDB}.
 
-The optimization section in the manual covers a lot of different aspects of
+The optimisation section in the manual covers a lot of different aspects of
 how to tune ones application. @xref{Tips}.
 
 
