@@ -955,6 +955,7 @@ void st_select_lex::init_query()
   table_list.first= 0; 
   table_list.next= (byte**) &table_list.first;
   item_list.empty();
+  join= 0;
 }
 
 void st_select_lex::init_select()
@@ -973,7 +974,6 @@ void st_select_lex::init_select()
   ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
   depended= having_fix_field= 0;
-  
 }
 
 /*
