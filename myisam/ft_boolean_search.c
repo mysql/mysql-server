@@ -168,11 +168,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbw->word[0]=w.len;
         if (param.yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
-#ifdef TO_BE_REMOVED
-        /* after removing the following line,
-           ftb->with_scan handling can be simplified (no longer a bitmap) */
         ftb->with_scan|=(param.trunc & FTB_FLAG_TRUNC);
-#endif
         break;
       case 2: /* left bracket */
         ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
