@@ -30,7 +30,7 @@ which ()
   do
     for dir in $PATH
     do
-      if test -f $dir/$file
+      if test -e $dir/$file
       then
         echo "$dir/$file"
         continue 2
@@ -49,8 +49,7 @@ sleep_until_file_deleted ()
   loop=$SLEEP_TIME_FOR_DELETE
   while (test $loop -gt 0)
   do
-    sleep 1
-    if [ ! -f $file ]
+    if [ ! -e $file ]
     then
       return
     fi
@@ -65,11 +64,11 @@ sleep_until_file_exists ()
   org_time=$2
   while (test $loop -gt 0)
   do
-    sleep 1
-    if [ -f $file ]
+    if [ -e $file ]
     then
       return
     fi
+    sleep 1
     loop=`expr $loop - 1`
   done
   echo "ERROR: $file was not created in $org_time seconds;  Aborting"
@@ -772,7 +771,7 @@ EOF
   else
     manager_launch master $MYSQLD $master_args
   fi
-  sleep_until_file_exists $MASTER_MYPID $wait_for_master
+  sleep_until_file_exists $MASTER_MYSOCK $wait_for_master
   wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
   MASTER_RUNNING=1
 }
@@ -872,7 +871,7 @@ start_slave()
     manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
   fi
   eval "SLAVE$1_RUNNING=1"
-  sleep_until_file_exists $slave_pid $wait_for_slave
+  sleep_until_file_exists $slave_sock $wait_for_slave
   wait_for_slave=$SLEEP_TIME_FOR_SECOND_SLAVE
 }
 
