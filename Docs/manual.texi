@@ -4398,7 +4398,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: peter@proserve.nl (ProServe - Peter Batenburg)
-@image{Flags/netherlands} Netherlands [ProServe/AMS-IX] @
+@image{Flags/netherlands} Netherlands [ProServe] @
 @uref{http://mysql.proserve.nl/, WWW}
 
 @item
