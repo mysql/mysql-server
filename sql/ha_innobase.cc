@@ -196,7 +196,7 @@ convert_error_code_to_mysql(
 
     		return(HA_ERR_TO_BIG_ROW);
     	} else {
-    		dbug_assert(0);
+    		DBUG_ASSERT(0);
 
     		return(-1);			// Unknown error
     	}
@@ -259,7 +259,7 @@ check_trx_exists(
 	trx = (trx_t*) thd->transaction.all.innobase_tid;
 
 	if (trx == NULL) {
-	        dbug_assert(thd != NULL);
+	        DBUG_ASSERT(thd != NULL);
 		trx = trx_allocate_for_mysql();
 
 		trx->mysql_thd = thd;
@@ -852,7 +852,7 @@ normalize_table_name(
 
 	name_ptr = ptr + 1;
 
-	dbug_assert(ptr > name);
+	DBUG_ASSERT(ptr > name);
 
 	ptr--;
 
@@ -975,7 +975,7 @@ ha_innobase::open(
 
   		ref_length = DATA_ROW_ID_LEN + 10;
 				
-		dbug_assert(key_used_on_scan == MAX_KEY);
+		DBUG_ASSERT(key_used_on_scan == MAX_KEY);
 	}
 
 	auto_inc_counter_for_this_stat = 0;
@@ -1119,8 +1119,8 @@ innobase_mysql_cmp(
 	enum_field_types	mysql_tp;
 	int                     ret;
 
-	dbug_assert(a_length != UNIV_SQL_NULL);
-	dbug_assert(b_length != UNIV_SQL_NULL);
+	DBUG_ASSERT(a_length != UNIV_SQL_NULL);
+	DBUG_ASSERT(b_length != UNIV_SQL_NULL);
 
 	mysql_tp = (enum_field_types) mysql_type;
 
@@ -1158,11 +1158,11 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is
 	ORed to the type */
 
-	dbug_assert((ulint)FIELD_TYPE_STRING < 256);
-	dbug_assert((ulint)FIELD_TYPE_VAR_STRING < 256);
-	dbug_assert((ulint)FIELD_TYPE_DOUBLE < 256);
-	dbug_assert((ulint)FIELD_TYPE_FLOAT < 256);
-	dbug_assert((ulint)FIELD_TYPE_DECIMAL < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_STRING < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_VAR_STRING < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_DOUBLE < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_FLOAT < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_DECIMAL < 256);
 
 	switch (field->type()) {
 		case FIELD_TYPE_VAR_STRING: if (field->flags & BINARY_FLAG) {
@@ -2368,7 +2368,7 @@ ha_innobase::position(
 		len = store_key_val_for_row(primary_key, (char*) ref, record);
 	}
 
-	dbug_assert(len <= ref_length);
+	DBUG_ASSERT(len <= ref_length);
 
 	ref_stored_len = len;
 }

@@ -324,11 +324,6 @@ typedef unsigned short ushort;
 #endif
 
 #include <dbug.h>
-#ifndef DBUG_OFF
-#define dbug_assert(A) assert(A)
-#else
-#define dbug_assert(A)
-#endif
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */

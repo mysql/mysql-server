@@ -1687,7 +1687,7 @@ static void init_pid_file()
   if (!fp)
     die("Could not open pid file %s", pid_file);
   created_pid_file=1;
-  fprintf(fp, "%d\n", getpid());
+  fprintf(fp, "%d\n", (int) getpid());
   fclose(fp);
 }
 

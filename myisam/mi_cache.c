@@ -45,11 +45,11 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
     buff+=read_length;
   }
   if ((offset= (my_off_t) (pos - info->pos_in_file)) <
-      (my_off_t) (info->rc_end - info->rc_request_pos))
+      (my_off_t) (info->read_end - info->request_pos))
   {
-    in_buff_pos=info->rc_request_pos+(uint) offset;
-    in_buff_length= min(length,(uint) (info->rc_end-in_buff_pos));
-    memcpy(buff,info->rc_request_pos+(uint) offset,(size_t) in_buff_length);
+    in_buff_pos=info->request_pos+(uint) offset;
+    in_buff_length= min(length,(uint) (info->read_end-in_buff_pos));
+    memcpy(buff,info->request_pos+(uint) offset,(size_t) in_buff_length);
     if (!(length-=in_buff_length))
       DBUG_RETURN(0);
     pos+=in_buff_length;
@@ -60,14 +60,14 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
   if (flag & READING_NEXT)
   {
     if (pos != ((info)->pos_in_file +
-		(uint) ((info)->rc_end - (info)->rc_request_pos)))
+		(uint) ((info)->read_end - (info)->request_pos)))
     {
       info->pos_in_file=pos;				/* Force start here */
-      info->rc_pos=info->rc_end=info->rc_request_pos;	/* Everything used */
+      info->read_pos=info->read_end=info->request_pos;	/* Everything used */
       info->seek_not_done=1;
     }
     else
-      info->rc_pos=info->rc_end;			/* All block used */
+      info->read_pos=info->read_end;			/* All block used */
     if (!(*info->read_function)(info,buff,length))
       DBUG_RETURN(0);
     if (!(flag & READING_HEADER) || info->error == -1 ||

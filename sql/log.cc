@@ -774,13 +774,13 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
     length=my_b_bytes_in_cache(cache);
     do
     {
-      if (my_b_write(&log_file, cache->rc_pos, length))
+      if (my_b_write(&log_file, cache->read_pos, length))
       {
 	if (!write_error)
 	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	goto err;
       }
-      cache->rc_pos=cache->rc_end;		// Mark buffer used up
+      cache->read_pos=cache->read_end;		// Mark buffer used up
     } while ((length=my_b_fill(cache)));
     if (flush_io_cache(&log_file))
     {

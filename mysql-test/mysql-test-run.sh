@@ -19,7 +19,7 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 # Program Definitions
 #--
 
-PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin
+PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin
 
 # Standard functions
 
@@ -49,6 +49,7 @@ BASENAME=`which basename | head -1`
 DIFF=`which diff | head -1`
 CAT=cat
 CUT=cut
+HEAD=head
 TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
@@ -118,7 +119,7 @@ MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
 #
 # Set LD_LIBRARY_PATH if we are using shared libraries
 #
-LD_LIBRARY_PATH="$BASEDIR/lib:$LD_LIBRARY_PATH"
+LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$LD_LIBRARY_PATH"
 export LD_LIBRARY_PATH
 
 MASTER_RUNNING=0
@@ -225,6 +226,8 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
+      # We must use manager, as things doesn't work on Linux without it
+      USE_MANAGER=1
       USE_RUNNING_SERVER=""
       ;;
     --client-gdb )
@@ -310,6 +313,8 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
  if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
    MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
+ elif [ -f "$BASEDIR/client/.libs/mysqltest" ] ; then
+   MYSQL_TEST="$BASEDIR/client/.libs/mysqltest"
  else
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
@@ -428,7 +433,7 @@ do_gdb_test ()
   $ECHO "set args $mysql_test_args < $2" > $GDB_CLIENT_INIT
   echo "Set breakpoints ( if needed) and type 'run' in gdb window"
   #this xterm should not be backgrounded
-  xterm -title "Client" -e gdb -x $GDB_CLIENT_INIT $MYSQL_TEST_BIN
+  $XTERM -title "Client" -e gdb -x $GDB_CLIENT_INIT $MYSQL_TEST_BIN
 }
 
 error () {
@@ -437,7 +442,7 @@ error () {
 }
 
 error_is () {
-    $TR "\n" " " < $TIMEFILE | $SED -e 's/.* At line \(.*\)\: \(.*\)Command .*$/   \>\> Error at line \1: \2<\</'
+    $CAT < $TIMEFILE | $SED -e 's/.* At line \(.*\)\: \(.*\)/   \>\> Error at line \1: \2<\</' | $HEAD -1
 }
 
 prefix_to_8() {
@@ -802,8 +807,8 @@ start_slave()
     elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
-      manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e gdb -x \
-       $GDB_SLAVE_INIT $SLAVE_MYSQLD 
+      manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
+      gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD 
     else
       manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
     fi
