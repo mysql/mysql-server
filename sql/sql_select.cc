@@ -4401,19 +4401,6 @@ optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
   if (conds)
   {
     DBUG_EXECUTE("where", print_where(conds, "original"););
-    /* Eliminate NOT operators; in case of PS/SP do it once */
-    if (thd->current_arena->is_first_stmt_execute())
-    {
-      Item_arena *arena= thd->current_arena, backup;
-      thd->set_n_backup_item_arena(arena, &backup);
-      conds= eliminate_not_funcs(thd, conds);
-      select->prep_where= conds->copy_andor_structure(thd);
-      thd->restore_backup_item_arena(arena, &backup);
-    }
-    else
-      conds= eliminate_not_funcs(thd, conds);
-    DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
-
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants((I_List<COND_CMP> *) 0, conds, conds);
     /*
