@@ -443,14 +443,18 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 }
 
 
-int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
+int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
 		       pthread_mutex_t *cond_lock,
-		       pthread_cond_t* start_cond,
-		       volatile bool* slave_running,
+		       pthread_cond_t *start_cond,
+		       volatile bool *slave_running,
+		       volatile ulong *slave_run_id,
 		       MASTER_INFO* mi)
 {
   pthread_t th;
+  ulong start_id;
   DBUG_ASSERT(mi->inited);
+  DBUG_ENTER("start_slave_thread");
+
   if (start_lock)
     pthread_mutex_lock(start_lock);
   if (!server_id)
@@ -460,7 +464,7 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
     if (start_lock)
       pthread_mutex_unlock(start_lock);
     sql_print_error("Server id not set, will not start slave");
-    return ER_BAD_SLAVE;
+    DBUG_RETURN(ER_BAD_SLAVE);
   }
   
   if (*slave_running)
@@ -469,39 +473,36 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
       pthread_cond_broadcast(start_cond);
     if (start_lock)
       pthread_mutex_unlock(start_lock);
-    return ER_SLAVE_MUST_STOP;
+    DBUG_RETURN(ER_SLAVE_MUST_STOP);
   }
+  start_id= *slave_run_id;
+  DBUG_PRINT("info",("Creating new slave thread"));
   if (pthread_create(&th, &connection_attrib, h_func, (void*)mi))
   {
     if (start_lock)
       pthread_mutex_unlock(start_lock);
-    return ER_SLAVE_THREAD;
+    DBUG_RETURN(ER_SLAVE_THREAD);
   }
   if (start_cond && cond_lock)
   {
     THD* thd = current_thd;
-    while (!*slave_running)
+    while (start_id == *slave_run_id)
     {
+      DBUG_PRINT("sleep",("Waiting for slave thread to start"));
       const char* old_msg = thd->enter_cond(start_cond,cond_lock,
 					    "Waiting for slave thread to start");
       pthread_cond_wait(start_cond,cond_lock);
       thd->exit_cond(old_msg);
-      /*
-	TODO: in a very rare case of init_slave_thread failing, it is
-	possible that we can get stuck here since slave_running will not
-	be set. We need to change slave_running to int and have -1 as
-	error code.
-      */
       if (thd->killed)
       {
 	pthread_mutex_unlock(cond_lock);
-	return ER_SERVER_SHUTDOWN;
+	DBUG_RETURN(ER_SERVER_SHUTDOWN);
       }
     }
   }
   if (start_lock)
     pthread_mutex_unlock(start_lock);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -535,13 +536,15 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 
   if (thread_mask & SLAVE_IO)
     error=start_slave_thread(handle_slave_io,lock_io,lock_cond_io,
-			     cond_io,&mi->slave_running,
+			     cond_io,
+			     &mi->slave_running, &mi->slave_run_id,
 			     mi);
   if (!error && (thread_mask & SLAVE_SQL))
   {
     error=start_slave_thread(handle_slave_sql,lock_sql,lock_cond_sql,
 			     cond_sql,
-			     &mi->rli.slave_running,mi);
+			     &mi->rli.slave_running, &mi->rli.slave_run_id,
+			     mi);
     if (error)
       terminate_slave_threads(mi, thread_mask & SLAVE_IO, 0);
   }
@@ -1807,23 +1810,30 @@ This may also be a network problem, or just a bug in the master or slave code.\
 /* slave I/O thread */
 pthread_handler_decl(handle_slave_io,arg)
 {
+  THD *thd; // needs to be first for thread_stack
+  MYSQL *mysql;
+  MASTER_INFO *mi = (MASTER_INFO*)arg; 
+  char llbuff[22];
+  uint retry_count;
+  
+  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
+  my_thread_init();
+
 #ifndef DBUG_OFF
 slave_begin:  
 #endif  
-  THD *thd; // needs to be first for thread_stack
-  MYSQL *mysql = NULL ;
-  MASTER_INFO* mi = (MASTER_INFO*)arg; 
-  char llbuff[22];
-  uint retry_count= 0;
   DBUG_ASSERT(mi->inited);
-  
+  mysql= NULL ;
+  retry_count= 0;
+
   pthread_mutex_lock(&mi->run_lock);
+  /* Inform waiting threads that slave has started */
+  mi->slave_run_id++;
+
 #ifndef DBUG_OFF  
   mi->events_till_abort = abort_slave_event_count;
 #endif  
   
-  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
-  my_thread_init();
   thd= new THD; // note that contructor of THD uses DBUG_ !
   DBUG_ENTER("handle_slave_io");
   THD_CHECK_SENTRY(thd);
@@ -2071,26 +2081,32 @@ err:
 
 pthread_handler_decl(handle_slave_sql,arg)
 {
-#ifndef DBUG_OFF
-slave_begin:  
-#endif  
   THD *thd;			/* needs to be first for thread_stack */
   char llbuff[22],llbuff1[22];
   RELAY_LOG_INFO* rli = &((MASTER_INFO*)arg)->rli; 
-  const char* errmsg=0;
+  const char *errmsg;
+
+  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
+  my_thread_init();
+
+#ifndef DBUG_OFF
+slave_begin:  
+#endif  
+
   DBUG_ASSERT(rli->inited);
   pthread_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(!rli->slave_running);
+  errmsg= 0;
 #ifndef DBUG_OFF  
   rli->events_till_abort = abort_slave_event_count;
 #endif  
-  
-  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
-  my_thread_init();
-  thd = new THD; // note that contructor of THD uses DBUG_ !
   DBUG_ENTER("handle_slave_sql");
 
+  thd = new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
+  /* Inform waiting threads that slave has started */
+  rli->slave_run_id++;
+
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {

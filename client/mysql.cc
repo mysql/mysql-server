@@ -112,6 +112,7 @@ typedef struct st_status
 
 
 static HashTable ht;
+static char **defaults_argv;
 
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
@@ -317,15 +318,19 @@ int main(int argc,char *argv[])
     status.add_to_history=1;
   status.exit_status=1;
   load_defaults("my",load_default_groups,&argc,&argv);
+  defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
+    free_defaults(defaults_argv);
     my_end(0);
     exit(1);
   }
-  free_defaults(argv);
   if (status.batch && !status.line_buff &&
       !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
+  {
+    free_defaults(defaults_argv);
     exit(1);
+  }
   glob_buffer.realloc(512);
   mysql_server_init(0, NULL, (char**) server_default_groups);
   completion_hash_init(&ht, 128);
@@ -420,6 +425,7 @@ sig_handler mysql_end(int sig)
   my_free(default_prompt,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
   mysql_server_end();
+  free_defaults(defaults_argv);
   my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(status.exit_status);
 }

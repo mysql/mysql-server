@@ -154,6 +154,7 @@ typedef struct st_relay_log_info
   */
   volatile uint32 slave_skip_counter;
   volatile ulong abort_pos_wait;	/* Incremented on change master */
+  volatile ulong slave_run_id;		/* Incremented on slave start */
   pthread_mutex_t log_space_lock;
   pthread_cond_t log_space_cond;
   THD * sql_thd;
@@ -171,8 +172,8 @@ typedef struct st_relay_log_info
   
   st_relay_log_info()
   :info_fd(-1),cur_log_fd(-1), cur_log_old_open_count(0), abort_pos_wait(0),
-   inited(0), abort_slave(0), slave_running(0), log_pos_current(0),
-   skip_log_purge(0)
+   slave_run_id(0), inited(0), abort_slave(0), slave_running(0),
+   log_pos_current(0), skip_log_purge(0)
   {
     relay_log_name[0] = master_log_name[0] = 0;
     bzero(&info_file,sizeof(info_file));
@@ -283,11 +284,13 @@ typedef struct st_master_info
   bool inited;
   bool old_format;			/* master binlog is in 3.23 format */
   volatile bool abort_slave, slave_running;
+  volatile ulong slave_run_id;
   bool ignore_stop_event;
   
   
-  st_master_info():fd(-1), io_thd(0), inited(0), old_format(0),abort_slave(0),
-		   slave_running(0)
+  st_master_info()
+    :fd(-1), io_thd(0), inited(0), old_format(0),abort_slave(0),
+     slave_running(0), slave_run_id(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     bzero(&file, sizeof(file));
@@ -360,7 +363,8 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       pthread_mutex_t *cond_lock,
 		       pthread_cond_t* start_cond,
-		       volatile bool* slave_running,
+		       volatile bool *slave_running,
+		       volatile ulong *slave_run_id,
 		       MASTER_INFO* mi);
 
 /* If fd is -1, dump to NET */
