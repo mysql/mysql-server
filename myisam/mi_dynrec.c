@@ -1275,7 +1275,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
   if (info->lock_type == F_UNLCK)
   {
 #ifndef UNSAFE_LOCKING
-    if (share->r_locks == 0 && share->w_locks == 0)
+    if (share->tot_locks == 0)
     {
       if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
 		  MYF(MY_SEEK_NOT_DONE) | info->lock_wait))

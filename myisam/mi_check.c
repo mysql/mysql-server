@@ -1551,7 +1551,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   old_state=share->state;			/* save state if not stored */
   r_locks=share->r_locks; w_locks=share->w_locks;
 	/* Put same locks as old file */
-  share->r_locks=share->w_locks=0;
+  share->r_locks= share->w_locks= share->tot_locks= 0;
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   VOID(my_close(share->kfile,MYF(MY_WME)));
   share->kfile = -1;
@@ -1564,6 +1564,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   _mi_readinfo(info,F_WRLCK,0);			/* Will lock the table */
   info->lock_type=F_WRLCK;
   share->r_locks=r_locks; share->w_locks=w_locks;
+  share->tot_locks= r_locks+w_locks;
   share->state=old_state;			/* Restore old state */
 
   info->state->key_file_length=param->new_file_pos;
@@ -3139,9 +3140,11 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
   {						/* Force update of status */
     int error;
     uint r_locks=share->r_locks,w_locks=share->w_locks;
-    share->r_locks=share->w_locks=0;
+    share->r_locks= share->w_locks= share->tot_locks= 0;
     error=_mi_writeinfo(info,WRITEINFO_NO_UNLOCK);
-    share->r_locks=r_locks; share->w_locks=w_locks;
+    share->r_locks=r_locks;
+    share->w_locks=w_locks;
+    share->tot_locks=r_locks+w_locks;
     if (!error)
       return 0;
   }

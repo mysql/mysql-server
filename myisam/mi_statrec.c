@@ -239,7 +239,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, byte *buf,
     {						/* We don't nead new info */
 #ifndef UNSAFE_LOCKING
       if ((! cache_read || share->base.reclength > cache_length) &&
-	  share->r_locks == 0 && share->w_locks == 0)
+	  share->tot_locks == 0)
       {						/* record not in cache */
 	if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
 		    MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
