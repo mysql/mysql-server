@@ -363,7 +363,7 @@ static void usage(void)
                       directly with '--variable-name=value'.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by "
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
    "semicolon (;)"
 #else
    "colon (:)"
@@ -1685,9 +1685,19 @@ err:
   DBUG_RETURN(1);
 } /* sort_record_index */
 
-volatile bool *killed_ptr(MI_CHECK *param)
+
+
+/*
+  Check if myisamchk was killed by a signal
+  This is overloaded by other programs that want to be able to abort
+  sorting
+*/
+
+static my_bool not_killed= 0;
+
+volatile my_bool *killed_ptr(MI_CHECK *param)
 {
-  return (bool *)(& param->thd); /* always NULL */
+  return &not_killed; 			/* always NULL */
 }
 
 	/* print warnings and errors */
