@@ -1011,6 +1011,24 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << "Type" << (Uint32)col.getType();
     break;
   }
+  // show unusual (non-MySQL) array size
+  if (col.getLength() != 1) {
+    switch (col.getType()) {
+    case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Varchar:
+    case NdbDictionary::Column::Binary:
+    case NdbDictionary::Column::Varbinary:
+    case NdbDictionary::Column::Blob:
+    case NdbDictionary::Column::Text:
+    case NdbDictionary::Column::Bit:
+    case NdbDictionary::Column::Longvarchar:
+    case NdbDictionary::Column::Longvarbinary:
+      break;
+    default:
+      out << " [" << col.getLength() << "]";
+      break;
+    }
+  }
   if (col.getPrimaryKey())
     out << " PRIMARY KEY";
   else if (! col.getNullable())
