@@ -9092,23 +9092,27 @@ tested on Linux-Alpha.  If you plan to use MySQL on Linux-Alpha,
 you should ensure that you have this version or newer.
 
 We have tested MySQL on Alpha with our benchmarks and test suite,
-and it appears to work nicely.  The main thing we haven't yet had time to
-test is how things works with many concurrent users.
+and it appears to work nicely. 
 
-When we compiled the standard MySQL binary we are using SuSE 6.4,
-kernel 2.2.13-SMP, Compaq C compiler (V6.2-504) and Compaq C++ compiler
-(V6.3-005) on a Comaq DS20 machine with an Alpha EV6 processor.
+We currently build the MySQL binary packages on SuSE Linux 7.0 for AXP,
+kernel 2.4.4-SMP, Compaq C compiler (V6.2-505) and Compaq C++ compiler
+(V6.3-006) on a Compaq DS20 machine with an Alpha EV6 processor.
 
 You can find the above compilers at
 @uref{http://www.support.compaq.com/alpha-tools/}).  By using these compilers,
 instead of gcc, we get about 9-14% better performance with MySQL.
 
-Note that the configure line optimised the binary for the current CPU; this
-means you can only use our binary if you have an Alpha EV6 processor. We also
-compile statically to avoid library problems.
+Note that until MySQL version 3.23.52 and 4.0.2 we optimised the binary for
+the current CPU only (by using the @code{-fast} compile option); this meant
+that you could only use our binaries if you had an Alpha EV6 processor.
+
+Starting with all following releases we added the @code{-arch generic} flag
+to our compile options, which makes sure the binary runs on all Alpha
+processors. We also compile statically to avoid library problems.
 
 @example
-CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" \
+CC=ccc CFLAGS="-fast -arch generic" CXX=cxx \
+CXXFLAGS="-fast -arch generic -noexceptions -nortti" \
 ./configure --prefix=/usr/local/mysql --disable-shared \
 --with-extra-charsets=complex --enable-thread-safe-client \
 --with-mysqld-ldflags=-non_shared --with-client-ldflags=-non_shared
@@ -50324,14 +50328,23 @@ each individual 4.0.x release.
 
 
 @menu
-* News-4.0.3::                  Changes in release 4.0.3 (Aug 2002: Beta)
+* News-4.0.4::                  Changes in release 4.0.4
+* News-4.0.3::                  Changes in release 4.0.3 (27 Aug 2002: Beta)
 * News-4.0.2::                  Changes in release 4.0.2 (01 Jul 2002)
 * News-4.0.1::                  Changes in release 4.0.1 (23 Dec 2001)
 * News-4.0.0::                  Changes in release 4.0.0 (Oct 2001: Alpha)
 @end menu
 
+@node News-4.0.4, News-4.0.3, News-4.0.x, News-4.0.x
+@appendixsubsec Changes in release 4.0.4
+
+@itemize @bullet
+@item
+Fixed bug in checking for output file name of the @code{tee} option
+@end itemize
+
 @node News-4.0.3, News-4.0.2, News-4.0.x, News-4.0.x
-@appendixsubsec Changes in release 4.0.3 (Aug 2002: Beta)
+@appendixsubsec Changes in release 4.0.3 (27 Aug 2002: Beta)
 
 @itemize @bullet
 @item
