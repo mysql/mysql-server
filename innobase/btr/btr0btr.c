@@ -274,6 +274,7 @@ btr_page_create(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
 	page_create(page, mtr);
+	buf_block_align(page)->check_index_page_at_flush = TRUE;
 	
 	btr_page_set_index_id(page, tree->id, mtr);
 }
@@ -713,6 +714,7 @@ btr_create(
 	
 	/* Create a new index page on the the allocated segment page */
 	page = page_create(frame, mtr);
+	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 	/* Set the index id of the page */
 	btr_page_set_index_id(page, index_id, mtr);
@@ -847,6 +849,7 @@ btr_page_reorganize_low(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	page_create(page, mtr);
+	buf_block_align(page)->check_index_page_at_flush = TRUE;
 	
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -919,6 +922,7 @@ btr_page_empty(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	page_create(page, mtr);
+	buf_block_align(page)->check_index_page_at_flush = TRUE;
 }
 
 /*****************************************************************

@@ -507,13 +507,13 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     exit(1);
   }
   opt_noacl = 1;				// No permissions
-  if (acl_init(opt_noacl))
+  if (acl_init((THD*) 0,opt_noacl))
   {
     mysql_server_end();
     return 1;
   }
   if (!opt_noacl)
-    (void) grant_init();
+    (void) grant_init((THD*) 0);
   init_max_user_conn();
   init_update_queries();
 
