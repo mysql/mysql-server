@@ -193,6 +193,13 @@ static LEX_STRING get_token(LEX *lex,uint length)
   return tmp;
 }
 
+/* 
+ todo: 
+   There are no dangerous charsets in mysql for function 
+   get_quoted_token yet. But it should be fixed in the 
+   future to operate multichar strings (like ucs2)
+*/
+
 static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
 {
   LEX_STRING tmp;
@@ -667,32 +674,17 @@ int yylex(void *arg, void *yythd)
 
     case MY_LEX_USER_VARIABLE_DELIMITER:
     {
-      char delim= c;				// Used char
+      uint double_quotes= 0;
+      char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
+      while ((c=yyGet()))
+      {  
 #ifdef USE_MB
-      if (use_mb(cs))
-      {
-	while ((c=yyGet()) && c != delim && c != (uchar) NAMES_SEP_CHAR)
-	{
-          if (my_mbcharlen(cs, c) > 1)
-          {
-            int l;
-            if ((l = my_ismbchar(cs,
-                                 (const char *)lex->ptr-1,
-                                 (const char *)lex->end_of_query)) == 0)
-              break;
-            lex->ptr += l-1;
-          }
-        }
-	yylval->lex_str=get_token(lex,yyLength());
-      }
-      else
+	if (my_mbcharlen(cs, c) == 1)
 #endif
-      {
-	uint double_quotes= 0;
-	char quote_char= c;
-	while ((c=yyGet()))
 	{
+	  if (c == (uchar) NAMES_SEP_CHAR)
+	    break; /* Old .frm format can't handle this char */
 	  if (c == quote_char)
 	  {
 	    if (yyPeek() != quote_char)
@@ -701,16 +693,25 @@ int yylex(void *arg, void *yythd)
 	    double_quotes++;
 	    continue;
 	  }
-	  if (c == (uchar) NAMES_SEP_CHAR)
-	    break;
 	}
-	if (double_quotes)
-	  yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
-					   quote_char);
+#ifdef USE_MB
 	else
-	  yylval->lex_str=get_token(lex,yyLength());
+	{
+	  int l;
+	  if ((l = my_ismbchar(cs,
+			       (const char *)lex->ptr-1,
+			       (const char *)lex->end_of_query)) == 0)
+	    break;
+	  lex->ptr += l-1;
+	}
+#endif
       }
-      if (c == delim)
+      if (double_quotes)
+	yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
+					 quote_char);
+      else
+	yylval->lex_str=get_token(lex,yyLength());
+      if (c == quote_char)
 	yySkip();			// Skip end `
       lex->next_state= MY_LEX_START;
       return(IDENT_QUOTED);

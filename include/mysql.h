@@ -57,9 +57,6 @@ typedef int my_socket;
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "typelib.h"
-#ifndef DBUG_OFF
-#define CHECK_EXTRA_ARGUMENTS
-#endif
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
 
@@ -575,6 +572,7 @@ typedef struct st_mysql_methods
   int (*unbuffered_fetch)(MYSQL *mysql, char **row);
   void (*free_embedded_thd)(MYSQL *mysql);
   const char *(*read_statistic)(MYSQL *mysql);
+  int (*next_result)(MYSQL *mysql);
 #endif
 } MYSQL_METHODS;
 

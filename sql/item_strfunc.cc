@@ -2124,42 +2124,6 @@ void Item_func_conv_charset::print(String *str)
   str->append(')');
 }
 
-String *Item_func_conv_charset3::val_str(String *str)
-{
-  char cs1[30], cs2[30];
-  String to_cs_buff(cs1, sizeof(cs1), default_charset_info);
-  String from_cs_buff(cs2, sizeof(cs2), default_charset_info);
-  String *arg= args[0]->val_str(str);
-  String *to_cs= args[1]->val_str(&to_cs_buff);
-  String *from_cs= args[2]->val_str(&from_cs_buff);
-  CHARSET_INFO *from_charset;
-  CHARSET_INFO *to_charset;
-
-  if (!arg     || args[0]->null_value ||
-      !to_cs   || args[1]->null_value ||
-      !from_cs || args[2]->null_value ||
-      !(from_charset=get_charset_by_name(from_cs->ptr(), MYF(MY_WME))) ||
-      !(to_charset=get_charset_by_name(to_cs->ptr(), MYF(MY_WME))))
-  {
-    null_value= 1;
-    return 0;
-  }
-
-  if (str_value.copy(arg->ptr(), arg->length(), from_charset, to_charset))
-  {
-    null_value= 1;
-    return 0;
-  }
-  null_value= 0;
-  return &str_value;
-}
-
-
-void Item_func_conv_charset3::fix_length_and_dec()
-{
-  max_length = args[0]->max_length;
-}
-
 String *Item_func_set_collation::val_str(String *str)
 {
   str=args[0]->val_str(str);
@@ -2226,7 +2190,7 @@ String *Item_func_charset::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->csname,strlen(res->charset()->csname),
-	    &my_charset_latin1, default_charset());
+	    &my_charset_latin1, collation.collation);
   return str;
 }
 
@@ -2237,7 +2201,7 @@ String *Item_func_collation::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    &my_charset_latin1, default_charset());
+	    &my_charset_latin1, collation.collation);
   return str;
 }
 

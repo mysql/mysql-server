@@ -568,6 +568,8 @@ void Item_param::set_time(TIME *tm, timestamp_type type)
 
   ltime.second_part= tm->second_part;
 
+  ltime.neg= tm->neg;
+
   ltime.time_type= type;
   
   item_is_time= true;
