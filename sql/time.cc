@@ -426,7 +426,6 @@ timestamp_type
 str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
 {
   uint field_length,year_length,digits,i,number_of_fields,date[7];
-  bool date_used=0;
   const char *pos;
   const char *end=str+length;
   DBUG_ENTER("str_to_TIME");
@@ -452,8 +451,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
       str++;
     }
-    if ((date[i]=tmp_value))
-      date_used=1;				// Found something
+    date[i]=tmp_value;
     if (i == 2 && str != end && *str == 'T')
       str++;					// ISO8601:  CCYYMMDDThhmmss
     else if ( i != 5 ) 				// Skip inter-field delimiters 
@@ -486,7 +484,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   number_of_fields=i;
   while (i < 6)
     date[i++]=0;
-  if (number_of_fields < 3 || !date_used || date[1] > 12 ||
+  if (number_of_fields < 3 || date[1] > 12 ||
       date[2] > 31 || date[3] > 23 || date[4] > 59 || date[5] > 59 ||
       !fuzzy_date && (date[1] == 0 || date[2] == 0))
   {

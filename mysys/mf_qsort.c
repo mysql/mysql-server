@@ -25,6 +25,7 @@
 */
 
 #include "mysys_priv.h"
+#include <m_string.h>
 
 /* Envoke the comparison function, returns either 0, < 0, or > 0. */
 #ifdef QSORT_EXTRA_CMP_ARGUMENT

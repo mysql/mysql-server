@@ -200,3 +200,21 @@ month(updated)
 NULL
 year(updated)
 NULL
+dayofyear("0000-00-00")	dayofyear(d)	dayofyear(dt)	dayofyear(t)	dayofyear(c)
+NULL	NULL	NULL	NULL	NULL
+dayofmonth("0000-00-00")	dayofmonth(d)	dayofmonth(dt)	dayofmonth(t)	dayofmonth(c)
+0	0	0	0	0
+month("0000-00-00")	month(d)	month(dt)	month(t)	month(c)
+0	0	0	0	0
+quarter("0000-00-00")	quarter(d)	quarter(dt)	quarter(t)	quarter(c)
+0	0	0	0	0
+week("0000-00-00")	week(d)	week(dt)	week(t)	week(c)
+NULL	NULL	NULL	NULL	NULL
+year("0000-00-00")	year(d)	year(dt)	year(t)	year(c)
+0	0	0	0	0
+yearweek("0000-00-00")	yearweek(d)	yearweek(dt)	yearweek(t)	yearweek(c)
+NULL	NULL	NULL	NULL	NULL
+to_days("0000-00-00")	to_days(d)	to_days(dt)	to_days(t)	to_days(c)
+NULL	NULL	NULL	NULL	NULL
+extract(MONTH FROM "0000-00-00")	extract(MONTH FROM d)	extract(MONTH FROM dt)	extract(MONTH FROM t)	extract(MONTH FROM c)
+0	0	0	0	0

@@ -292,6 +292,7 @@ public:
   Item_result_field() :result_field(0) {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
   Field *tmp_table_field() { return result_field; }
+  table_map used_tables() const { return 1; }
   virtual void fix_length_and_dec()=0;
 };
 

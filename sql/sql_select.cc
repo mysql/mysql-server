@@ -5302,6 +5302,7 @@ static bool fix_having(JOIN *join, Item **having)
   JOIN_TAB *table=&join->join_tab[join->const_tables];
   table_map used_tables= join->const_table_map | table->table->map;
 
+  DBUG_EXECUTE("where",print_where(*having,"having"););
   Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
   if (sort_table_cond)
   {

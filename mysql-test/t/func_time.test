@@ -131,3 +131,21 @@ INSERT INTO t1 VALUES ('');
 SELECT month(updated) from t1;
 SELECT year(updated) from t1;
 drop table t1;
+
+#
+# Check that functions work identically on 0000-00-00 as a constant and on a
+# column
+#
+
+create table t1 (d date, dt datetime, t timestamp, c char(10));
+insert into t1 values ("0000-00-00", "0000-00-00", "0000-00-00", "0000-00-00");
+select dayofyear("0000-00-00"),dayofyear(d),dayofyear(dt),dayofyear(t),dayofyear(c) from t1;
+select dayofmonth("0000-00-00"),dayofmonth(d),dayofmonth(dt),dayofmonth(t),dayofmonth(c) from t1;
+select month("0000-00-00"),month(d),month(dt),month(t),month(c) from t1;
+select quarter("0000-00-00"),quarter(d),quarter(dt),quarter(t),quarter(c) from t1;
+select week("0000-00-00"),week(d),week(dt),week(t),week(c) from t1;
+select year("0000-00-00"),year(d),year(dt),year(t),year(c) from t1;
+select yearweek("0000-00-00"),yearweek(d),yearweek(dt),yearweek(t),yearweek(c) from t1;
+select to_days("0000-00-00"),to_days(d),to_days(dt),to_days(t),to_days(c) from t1;
+select extract(MONTH FROM "0000-00-00"),extract(MONTH FROM d),extract(MONTH FROM dt),extract(MONTH FROM t),extract(MONTH FROM c) from t1;
+drop table t1;
