@@ -257,7 +257,7 @@ call p()|
 drop procedure p|
 
 --error 1282
-alter procedure bar3 SECURITY INVOKER|
+alter procedure bar3 sql security invoker|
 --error 1059
 alter procedure bar3 name
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|

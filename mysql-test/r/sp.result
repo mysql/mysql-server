@@ -75,6 +75,23 @@ id	data
 locset	21
 delete from t1;
 drop procedure locset;
+drop table if exists t3;
+create table t3 ( d date, i int, f double, s varchar(32) );
+create procedure nullset()
+begin
+declare ld date;
+declare li int;
+declare lf double;
+declare ls varchar(32);
+set ld = null, li = null, lf = null, ls = null;
+insert into t3 values (ld, li, lf, ls);
+end;
+call nullset();
+select * from t3;
+d	i	f	s
+NULL	NULL	NULL	NULL
+drop table t3;
+drop procedure nullset;
 create procedure mixset(x char(16), y int)
 begin
 declare z int;
@@ -390,6 +407,47 @@ into	100	100
 into2	102	100
 delete from t1;
 drop procedure into_test2;
+create procedure into_test3()
+begin
+declare x char(16);
+declare y int;
+select * into x,y from test.t1 limit 1;
+insert into test.t2 values (x, y, 0.0);
+end;
+insert into t1 values ("into3", 19);
+delete from t2;
+call into_test3();
+call into_test3();
+select * from t2;
+s	i	d
+into3	19	0
+into3	19	0
+delete from t1;
+delete from t2;
+drop procedure into_test3;
+create procedure into_test4()
+begin
+declare x int;
+select data into x from test.t1 limit 1;
+insert into test.t3 values ("into4", x);
+end;
+delete from t1;
+drop table if exists t3;
+create table t3 ( s char(16), d int);
+call into_test4();
+Warnings:
+select * from t3;
+s	d
+into4	NULL
+insert into t1 values ("i4", 77);
+call into_test4();
+select * from t3;
+s	d
+into4	NULL
+into4	77
+delete from t1;
+drop table t3;
+drop procedure into_test4;
 create procedure into_outfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
@@ -475,9 +533,6 @@ s	i	d
 xxxyyy	12	2.71828182845905
 select * from t2;
 s	i	d
-a	1	1.1
-b	2	1.2
-c	3	1.3
 xxxyyy	12	2.71828182845905
 ab	24	1324.36598821719
 delete from t2;
@@ -551,7 +606,7 @@ create procedure hndlr4()
 begin
 declare x int default 0;
 declare val int;	                           # No default
-declare continue handler for sqlexception set x=1;
+declare continue handler for 1306 set x=1;
 select data into val from test.t3 where id='z' limit 1;  # No hits
 insert into test.t3 values ('z', val);
 end;
@@ -695,6 +750,21 @@ select @1, @2;
 2	NULL
 drop table t70;
 drop procedure bug1656;
+drop table if exists t3;
+create table t3(a int);
+create procedure bug1862()
+begin
+insert into t3 values(2);    
+flush tables;
+end;
+call bug1862();
+call bug1862();
+select * from t3;
+a
+2
+2
+drop table t3;
+drop procedure bug1862;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)
@@ -839,21 +909,22 @@ drop table primes;
 drop procedure opp;
 drop procedure ip;
 create procedure bar(x char(16), y int)
-comment "111111111111" SECURITY INVOKER
+comment "111111111111" sql security invoker
 insert into test.t1 values (x, y);
 show procedure status like 'bar';
 Name	Type	Creator	Modified	Created	Suid	Comment
 bar	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	N	111111111111
-alter procedure bar name bar2 comment "2222222222" SECURITY DEFINER;
+alter procedure bar name bar2 comment "2222222222" sql security definer;
 alter procedure bar2 name bar comment "3333333333";
 alter procedure bar;
 show create procedure bar;
 Procedure	Create Procedure
 bar	create procedure bar(x char(16), y int)
-comment "111111111111" SECURITY INVOKER
+comment "111111111111" sql security invoker
 insert into test.t1 values (x, y)
 show procedure status like 'bar';
 Name	Type	Creator	Modified	Created	Suid	Comment
 bar	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	3333333333
+drop procedure bar;
 drop table t1;
 drop table t2;

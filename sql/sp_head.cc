@@ -234,7 +234,9 @@ sp_head::execute(THD *thd)
     DBUG_PRINT("execute", ("Instruction %u", ip));
     ret= i->execute(thd, &ip);
     // Check if an exception has occurred and a handler has been found
-    if (ret && !thd->killed && ctx)
+    // Note: We havo to check even if ret==0, since warnings (and some
+    //       errors don't return a non-zero value.
+    if (!thd->killed && ctx)
     {
       uint hf;
 
@@ -509,12 +511,20 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   oldlex->ptr= sublex->ptr;
   oldlex->next_state= sublex->next_state;
-  // Save WHERE clause pointers to avoid damaging by optimisation
   for (SELECT_LEX *sl= sublex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
+    // Save WHERE clause pointers to avoid damaging by optimisation
     sl->prep_where= sl->where;
+    if (sl->with_wild)
+    {
+      // Copy item_list. We will restore it before calling the
+      // sub-statement, so it's ok to pop them.
+      sl->item_list_copy.empty();
+      while (Item *it= sl->item_list.pop())
+	sl->item_list_copy.push_back(it);
+    }
   }
 
   // Collect some data from the sub statement lex.
@@ -687,14 +697,22 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
        sl ;
        sl= sl->next_select_in_list())
   {
+    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
+	lex->sql_command == SQLCOM_INSERT_SELECT)
+    {				// Destroys sl->table_list.first
+      sl->table_list_first_copy= sl->table_list.first;
+    }
     if (sl->with_wild)
     {
-      List_iterator_fast<Item> li(sl->item_list);
+      // Restore item_list
+      // Note: We have to do this before executing the sub-statement,
+      //       to make sure that the list nodes are in the right
+      //       memroot.
+      List_iterator_fast<Item> li(sl->item_list_copy);
 
-      // Copy item_list
-      sl->item_list_copy.empty();
+      sl->item_list.empty();
       while (Item *it= li++)
-	sl->item_list_copy.push_back(it);
+	sl->item_list.push_back(it);
     }
     sl->ref_pointer_array= 0;
     if (sl->prep_where)
@@ -725,12 +743,19 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
        sl ;
        sl= sl->next_select_in_list())
   {
-    if (sl->with_wild)
+    TABLE_LIST *tabs;
+
+    // We have closed all tables, get rid of pointers to them
+    for (tabs=(TABLE_LIST *)sl->table_list.first ;
+	 tabs ;
+	 tabs= tabs->next)
     {
-      // Restore item_list
-      sl->item_list.empty();
-      while (Item *it= sl->item_list_copy.pop())
-	sl->item_list.push_back(it);
+      tabs->table= NULL;
+    }
+    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
+	lex->sql_command == SQLCOM_INSERT_SELECT)
+    {				// Restore sl->table_list.first
+      sl->table_list.first= sl->table_list_first_copy;
     }
     for (ORDER *order= (ORDER *)sl->order_list.first ;
 	 order ;

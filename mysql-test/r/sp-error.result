@@ -187,7 +187,7 @@ end;
 call p();
 ERROR HY000: Cursor is not open
 drop procedure p;
-alter procedure bar3 SECURITY INVOKER;
+alter procedure bar3 sql security invoker;
 ERROR HY000: PROCEDURE bar3 does not exist
 alter procedure bar3 name
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
