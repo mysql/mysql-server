@@ -48,6 +48,7 @@ static my_bool win32_init_tcp_ip();
 static my_bool my_init_done=0;
 
 
+
 static ulong atoi_octal(const char *str)
 {
   long int tmp;
@@ -76,6 +77,7 @@ void my_init(void)
 #ifndef __WIN__
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
+  pthread_mutex_init(&LOCK_bitmap, NULL);
 #endif
   {
     DBUG_ENTER("my_init");
@@ -127,7 +129,12 @@ void my_end(int infoflag)
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
     if (!getrusage(RUSAGE_SELF, &rus))
-      fprintf(info_file,"\nUser time %.2f, System time %.2f\nMaximum resident set size %ld, Integral resident set size %ld\nNon physical pagefaults %ld, Physical pagefaults %ld, Swaps %ld\nBlocks in %ld out %ld, Messages in %ld out %ld, Signals %ld\nVouluntary context switches %ld, Invouluntary context switches %ld\n",
+      fprintf(info_file,"\n\
+User time %.2f, System time %.2f\n\
+Maximum resident set size %ld, Integral resident set size %ld\n\
+Non-physical pagefaults %ld, Physical pagefaults %ld, Swaps %ld\n\
+Blocks in %ld out %ld, Messages in %ld out %ld, Signals %ld\n\
+Voluntary context switches %ld, Involuntary context switches %ld\n",
 	      (rus.ru_utime.tv_sec * SCALE_SEC +
 	       rus.ru_utime.tv_usec / SCALE_USEC) / 100.0,
 	      (rus.ru_stime.tv_sec * SCALE_SEC +
@@ -159,6 +166,7 @@ void my_end(int infoflag)
   pthread_mutex_destroy(&THR_LOCK_keycache);
   pthread_mutex_destroy(&THR_LOCK_malloc);
   pthread_mutex_destroy(&THR_LOCK_open);
+  pthread_mutex_destroy(&LOCK_bitmap);
   DBUG_POP();				/* Must be done before my_thread_end */
   my_thread_end();
   my_thread_global_end();
