@@ -77,6 +77,11 @@ msg ('Adding "see " to (XREFs) that used to be (@pxref)...');
 $data =~ s{([([,;])(\s*)<xref }
           {$1$2see <xref }gs;
 
+# arjen 2002-04-26
+msg ("Removing separate target titles from LINKs and make them XREFs...");
+$data =~ s{<link (linkend=.+?)>.+?</link>}
+          {<xref $1 />}gs;
+
 msg ("Making first row in table THEAD...");
 $data =~ s{( *)<tbody>(\s*<row>.+?</row>)}
           {$1<thead>$2\n$1</thead>\n$1<tbody>}gs;
