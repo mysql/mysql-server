@@ -4843,8 +4843,17 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     nullCount += attrDesc.AttributeNullableFlag;
     
     const Uint32 aSz = (1 << attrDesc.AttributeSize);
-    const Uint32 sz = ((aSz * attrDesc.AttributeArraySize) + 31) >> 5;
-    
+    Uint32 sz;
+    if(aSz != 1)
+    {
+      sz = ((aSz * attrDesc.AttributeArraySize) + 31) >> 5;
+    }    
+    else
+    {
+      sz = 0;
+      nullCount += attrDesc.AttributeArraySize;      
+    }
+
     recordLength += sz;
     if(attrDesc.AttributeKeyFlag){
       keyLength += sz;
