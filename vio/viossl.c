@@ -58,7 +58,7 @@ report_errors()
   if (!any_ssl_error) {
     DBUG_PRINT("info", ("No OpenSSL errors."));
   }
-  DBUG_PRINT("info", ("BTW, errno=%d", scoket_errno));
+  DBUG_PRINT("info", ("BTW, errno=%d", socket_errno));
   DBUG_VOID_RETURN;
 }
 
