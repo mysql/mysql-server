@@ -120,7 +120,7 @@ longlong Item_func_not_all::val_int()
 
   /*
     return TRUE if there was records in underlaying select in max/min
-    optimisation
+    optimisation (ALL subquery)
   */
   if (empty_underlying_subquery())
     return 1;
@@ -157,11 +157,11 @@ longlong Item_func_nop_all::val_int()
   double value= args[0]->val();
 
   /*
-    return TRUE if there was records in underlaying select in max/min
-    optimisation
+    return FALSE if there was records in underlaying select in max/min
+    optimisation (SAME/ANY subquery)
   */
   if (empty_underlying_subquery())
-    return 1;
+    return 0;
 
   null_value= args[0]->null_value;
   return (null_value || value == 0) ? 0 : 1;
