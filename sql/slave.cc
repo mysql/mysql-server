@@ -42,7 +42,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
 static inline char* rewrite_db(char* db);
 static void free_table_ent(TABLE_RULE_ENT* e)
 {
-  my_free((byte*)e, MYF(0));
+  my_free((gptr) e, MYF(0));
 }
 
 static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
@@ -74,12 +74,12 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
       uint len = strmov(p, tables->real_name) - hash_key ;
       if(do_table_inited) // if there are any do's
 	{
-	  if(hash_search(&replicate_do_table, hash_key, len))
+	  if(hash_search(&replicate_do_table, (byte*) hash_key, len))
 	    return 1;
 	}
       if(ignore_table_inited) // if there are any do's
 	{
-	  if(hash_search(&replicate_ignore_table, hash_key, len))
+	  if(hash_search(&replicate_ignore_table, (byte*) hash_key, len))
 	    return 0; 
 	}
     }

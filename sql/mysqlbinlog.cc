@@ -330,12 +330,12 @@ static void dump_local_log_entries(const char* logname)
     if (position)
     {
       /* skip 'position' characters from stdout */
-      char buff[IO_SIZE];
+      byte buff[IO_SIZE];
       my_off_t length,tmp;
       for (length=position ; length > 0 ; length-=tmp)
       {
 	tmp=min(length,sizeof(buff));
-	if (my_b_read(file,buff,tmp))
+	if (my_b_read(file,buff, (uint) tmp))
 	  exit(1);
       }
     }
