@@ -16,7 +16,7 @@ LDADD_LOC = $(top_builddir)/ndb/src/mgmclient/CpcClient.o \
 	    $(top_builddir)/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
-            $(top_builddir)/strings/libmystrings.a
+            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
 
 wrappersdir=$(prefix)/bin
 wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run

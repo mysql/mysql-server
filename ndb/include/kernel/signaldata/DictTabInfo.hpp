@@ -438,8 +438,8 @@ public:
       case DictTabInfo::ExtText:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
-        // head + inline part [ attr precision ]
-        AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + AttributeExtPrecision;
+        // head + inline part [ attr precision lower half ]
+        AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
         return true;
       };
       return false;

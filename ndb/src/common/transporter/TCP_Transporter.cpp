@@ -70,11 +70,10 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
                                  int r_port,
 				 NodeId lNodeId,
                                  NodeId rNodeId,
-                                 int byte_order,
-                                 bool compr, bool chksm, bool signalId,
+                                 bool chksm, bool signalId,
                                  Uint32 _reportFreq) :
   Transporter(t_reg, lHostName, rHostName, r_port, lNodeId, rNodeId,
-	      byte_order, compr, chksm, signalId),
+	      0, false, chksm, signalId),
   m_sendBuffer(sendBufSize)
 {
   maxReceiveSize = maxRecvSize;
@@ -106,12 +105,14 @@ TCP_Transporter::~TCP_Transporter() {
 
 bool TCP_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
 {
-  return connect_common(sockfd);
+  DBUG_ENTER("TCP_Transpporter::connect_server_impl");
+  DBUG_RETURN(connect_common(sockfd));
 }
 
 bool TCP_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 {
-  return connect_common(sockfd);
+  DBUG_ENTER("TCP_Transpporter::connect_client_impl");
+  DBUG_RETURN(connect_common(sockfd));
 }
 
 bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
@@ -119,6 +120,8 @@ bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   theSocket = sockfd;
   setSocketOptions();
   setSocketNonBlocking(theSocket);
+  DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
+              remoteNodeId));
   return true;
 }
 
@@ -359,50 +362,56 @@ TCP_Transporter::doReceive() {
   // Select-function must return the socket for read
   // before this method is called
   // It reads the external TCP/IP interface once
-  
-  const int nBytesRead = recv(theSocket, 
-                              receiveBuffer.insertPtr, maxReceiveSize, 0);
-  
-  if (nBytesRead > 0) {
-    receiveBuffer.sizeOfData += nBytesRead;
-    receiveBuffer.insertPtr  += nBytesRead;
+  int size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
+  if(size > 0){
+    const int nBytesRead = recv(theSocket, 
+				receiveBuffer.insertPtr, 
+				size < maxReceiveSize ? size : maxReceiveSize, 
+				0);
     
-    if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
+    if (nBytesRead > 0) {
+      receiveBuffer.sizeOfData += nBytesRead;
+      receiveBuffer.insertPtr  += nBytesRead;
+      
+      if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER
-      ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-               receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-      ndbout_c("nBytesRead = %d", nBytesRead);
+	ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
+	ndbout_c("nBytesRead = %d", nBytesRead);
 #endif
-      ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-               receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-      report_error(TE_INVALID_MESSAGE_LENGTH);
-      return 0;
-    }
-    
-    receiveCount ++;
-    receiveSize  += nBytesRead;
-
-    if(receiveCount == reportFreq){
-      reportReceiveLen(get_callback_obj(), remoteNodeId, receiveCount, receiveSize);
-      receiveCount = 0;
-      receiveSize  = 0;
+	ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
+	report_error(TE_INVALID_MESSAGE_LENGTH);
+	return 0;
+      }
+      
+      receiveCount ++;
+      receiveSize  += nBytesRead;
+      
+      if(receiveCount == reportFreq){
+	reportReceiveLen(get_callback_obj(), remoteNodeId, receiveCount, receiveSize);
+	receiveCount = 0;
+	receiveSize  = 0;
+      }
+      return nBytesRead;
+    } else {
+#if defined DEBUG_TRANSPORTER
+      ndbout_c("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
+	       "errno = %d strerror = %s",
+	       DISCONNECT_ERRNO(InetErrno, nBytesRead),
+	       remoteNodeId, nBytesRead, InetErrno, 
+	       (char*)ndbstrerror(InetErrno));
+#endif   
+      if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
+	// The remote node has closed down
+	doDisconnect();
+	report_disconnect(InetErrno);
+      } 
     }
     return nBytesRead;
   } else {
-#if defined DEBUG_TRANSPORTER
-    ndbout_c("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
-             "errno = %d strerror = %s",
-             DISCONNECT_ERRNO(InetErrno, nBytesRead),
-             remoteNodeId, nBytesRead, InetErrno, 
-	     (char*)ndbstrerror(InetErrno));
-#endif   
-    if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
-      // The remote node has closed down
-      doDisconnect();
-      report_disconnect(InetErrno);
-    } 
+    return 0;
   }
-  return nBytesRead;
 }
 
 void

@@ -206,6 +206,7 @@ free_data_callback()
 int
 main(int argc, const char** argv)
 {
+  ndb_init();
   if (!readArguments(argc, argv))
   {
     return -1;
@@ -331,7 +332,7 @@ main(int argc, const char** argv)
       
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfTuples();
-      
+
       RestoreLogIterator logIter(metaData);
       if (!logIter.readHeader())
       {
@@ -357,7 +358,7 @@ main(int argc, const char** argv)
     }
   }
   clearConsumers();
-  return 1;
+  return 0;
 } // main
 
 template class Vector<BackupConsumer*>;

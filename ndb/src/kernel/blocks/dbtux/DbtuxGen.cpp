@@ -16,8 +16,6 @@
 
 #define DBTUX_GEN_CPP
 #include "Dbtux.hpp"
-#include <signaldata/TuxContinueB.hpp>
-#include <signaldata/TuxContinueB.hpp>
 
 Dbtux::Dbtux(const Configuration& conf) :
   SimulatedBlock(DBTUX, conf),
@@ -202,8 +200,9 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   }
   // allocate buffers
   c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
-  c_searchKey = (TableData)allocRecord("c_searchKey", sizeof(Uint32*), MaxIndexAttributes);
-  c_entryKey = (TableData)allocRecord("c_entryKey", sizeof(Uint32*), MaxIndexAttributes);
+  c_sqlCmp = (NdbSqlUtil::Cmp**)allocRecord("c_sqlCmp", sizeof(NdbSqlUtil::Cmp*), MaxIndexAttributes);
+  c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
+  c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
   c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -218,7 +217,8 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 void
 Dbtux::setKeyAttrs(const Frag& frag)
 {
-  Data keyAttrs = c_keyAttrs;   // global
+  Data keyAttrs = c_keyAttrs; // global
+  NdbSqlUtil::Cmp** sqlCmp = c_sqlCmp; // global
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   for (unsigned i = 0; i < numAttrs; i++) {
@@ -227,75 +227,71 @@ Dbtux::setKeyAttrs(const Frag& frag)
     // set attr id and fixed size
     keyAttrs.ah() = AttributeHeader(descAttr.m_primaryAttrId, size);
     keyAttrs += 1;
+    // set comparison method pointer
+    const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getTypeBinary(descAttr.m_typeId);
+    ndbrequire(sqlType.m_cmp != 0);
+    *(sqlCmp++) = sqlType.m_cmp;
   }
 }
 
 void
-Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData keyData)
+Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
 {
   ConstData keyAttrs = c_keyAttrs; // global
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   const TupLoc tupLoc = ent.m_tupLoc;
   const Uint32 tupVersion = ent.m_tupVersion;
   ndbrequire(start < frag.m_numAttrs);
-  const unsigned numAttrs = frag.m_numAttrs - start;
-  // start applies to both keys and output data
+  const Uint32 numAttrs = frag.m_numAttrs - start;
+  // skip to start position in keyAttrs only
   keyAttrs += start;
-  keyData += start;
-  c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupVersion, numAttrs, keyAttrs, keyData);
+  int ret = c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupVersion, keyAttrs, numAttrs, keyData);
   jamEntry();
+  // TODO handle error
+  ndbrequire(ret > 0);
 }
 
 void
-Dbtux::readTablePk(const Frag& frag, TreeEnt ent, unsigned& pkSize, Data pkData)
+Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
 {
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   const TupLoc tupLoc = ent.m_tupLoc;
-  Uint32 size = 0;
-  c_tup->tuxReadKeys(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, &size, pkData);
-  ndbrequire(size != 0);
-  pkSize = size;
+  int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, pkData);
+  jamEntry();
+  // TODO handle error
+  ndbrequire(ret > 0);
+  pkSize = ret;
 }
 
 /*
- * Input is pointers to table attributes.  Output is array of attribute
- * data with headers.  Copies whatever fits.
+ * Copy attribute data with headers.  Input is all index key data.
+ * Copies whatever fits.
  */
 void
-Dbtux::copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2)
+Dbtux::copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2)
 {
-  ConstData keyAttrs = c_keyAttrs; // global
-  const unsigned numAttrs = frag.m_numAttrs;
+  unsigned n = frag.m_numAttrs;
   unsigned len2 = maxlen2;
-  for (unsigned n = 0; n < numAttrs; n++) {
+  while (n != 0) {
     jam();
-    const unsigned attrId = keyAttrs.ah().getAttributeId();
-    const unsigned dataSize = keyAttrs.ah().getDataSize();
-    const Uint32* const p1 = *data1;
-    if (p1 != 0) {
+    const unsigned dataSize = data1.ah().getDataSize();
+    // copy header
+    if (len2 == 0)
+      return;
+    data2[0] = data1[0];
+    data1 += 1;
+    data2 += 1;
+    len2 -= 1;
+    // copy data
+    for (unsigned i = 0; i < dataSize; i++) {
       if (len2 == 0)
         return;
-      data2.ah() = AttributeHeader(attrId, dataSize);
-      data2 += 1;
-      len2 -= 1;
-      unsigned n = dataSize;
-      for (unsigned i = 0; i < dataSize; i++) {
-        if (len2 == 0)
-          return;
-        *data2 = p1[i];
-        data2 += 1;
-        len2 -= 1;
-      }
-    } else {
-      if (len2 == 0)
-        return;
-      data2.ah() = AttributeHeader(attrId, 0);
-      data2.ah().setNULL();
-      data2 += 1;
+      data2[i] = data1[i];
       len2 -= 1;
     }
-    keyAttrs += 1;
-    data1 += 1;
+    data1 += dataSize;
+    data2 += dataSize;
+    n -= 1;
   }
 #ifdef VM_TRACE
   memset(data2, DataFillByte, len2 << 2);

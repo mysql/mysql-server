@@ -27,6 +27,7 @@
 #include <HugoTransactions.hpp>
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   int _records = 0;
   int _loops = 1;
