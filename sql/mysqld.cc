@@ -366,7 +366,7 @@ char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *mysqld_user,*mysqld_chroot, *opt_init_file,
-     *opt_init_connect, *opt_init_slave,
+     *opt_init_connect, *opt_init_slave, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
 const char *opt_date_time_formats[3];
@@ -457,7 +457,7 @@ static my_bool opt_do_pstack, opt_noacl, opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
-static char *opt_slow_logname, *opt_tc_log_file, *opt_tc_heuristic_recover;
+static char *opt_slow_logname, *opt_tc_heuristic_recover;
 static char *mysql_home_ptr, *pidfile_name_ptr;
 static char **defaults_argv;
 static char *opt_bin_logname;
@@ -2797,6 +2797,11 @@ server.");
   if (tc_log->open(opt_bin_logname))
   {
     sql_print_error("Can't init tc log");
+    unireg_abort(1);
+  }
+
+  if (ha_recover(0))
+  {
     unireg_abort(1);
   }
 
