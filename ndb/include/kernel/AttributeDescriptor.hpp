@@ -19,6 +19,8 @@
 
 class AttributeDescriptor {
   friend class Dbdict;
+  friend class Dbtc;
+  friend class Dbacc;
   friend class Dbtup;
   friend class Dbtux;
   
@@ -36,6 +38,7 @@ private:
   
   static Uint32 getType(const Uint32 &);
   static Uint32 getSize(const Uint32 &);
+  static Uint32 getSizeInBytes(const Uint32 &);
   static Uint32 getSizeInWords(const Uint32 &);
   static Uint32 getArrayType(const Uint32 &);
   static Uint32 getArraySize(const Uint32 &);
@@ -78,6 +81,8 @@ private:
 
 #define AD_SIZE_SHIFT       (4)
 #define AD_SIZE_MASK        (7)
+
+#define AD_SIZE_IN_BYTES_SHIFT (3)
 
 #define AD_SIZE_IN_WORDS_OFFSET (31)
 #define AD_SIZE_IN_WORDS_SHIFT  (5)
@@ -183,6 +188,13 @@ inline
 Uint32
 AttributeDescriptor::getSize(const Uint32 & desc){
   return (desc >> AD_SIZE_SHIFT) & AD_SIZE_MASK;
+}
+
+inline
+Uint32
+AttributeDescriptor::getSizeInBytes(const Uint32 & desc){
+  return (getArraySize(desc) << getSize(desc))
+                             >> AD_SIZE_IN_BYTES_SHIFT;
 }
 
 inline

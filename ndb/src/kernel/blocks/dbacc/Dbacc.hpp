@@ -607,8 +607,7 @@ struct Fragmentrec {
 
 //-----------------------------------------------------------------------------
 // elementLength: Length of element in bucket and overflow pages
-// keyLength: Length of key (== 0 if long key or variable key length)
-// wl-2066 always Length of key
+// keyLength: Length of key
 //-----------------------------------------------------------------------------
   Uint8 elementLength;
   Uint16 keyLength;
@@ -637,6 +636,11 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
   Uint8 nodetype;
   Uint8 stopQueOp;
+
+//-----------------------------------------------------------------------------
+// flag to avoid accessing table record if no char attributes
+//-----------------------------------------------------------------------------
+  Uint8 hasCharAttr;
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
@@ -719,6 +723,7 @@ struct Operationrec {
   State transactionstate;
   Uint16 elementContainer;
   Uint16 tupkeylen;
+  Uint32 xfrmtupkeylen;
   Uint32 userblockref;
   Uint32 scanBits;
   Uint8 elementIsDisappeared;
@@ -846,6 +851,13 @@ struct Tabrec {
   Uint32 fragptrholder[MAX_FRAG_PER_NODE];
   Uint32 tabUserPtr;
   BlockReference tabUserRef;
+
+  Uint8 noOfKeyAttr;
+  Uint8 hasCharAttr;
+  struct KeyAttr {
+    Uint32 attributeDescriptor;
+    CHARSET_INFO* charsetInfo;
+  } keyAttr[MAX_ATTRIBUTES_IN_INDEX];
 };
   typedef Ptr<Tabrec> TabrecPtr;
 
@@ -891,6 +903,7 @@ private:
   void execACCKEYREQ(Signal* signal);
   void execACCSEIZEREQ(Signal* signal);
   void execACCFRAGREQ(Signal* signal);
+  void execTC_SCHVERREQ(Signal* signal);
   void execACC_SRREQ(Signal* signal);
   void execNEXT_SCANREQ(Signal* signal);
   void execACC_ABORTREQ(Signal* signal);
@@ -1016,7 +1029,7 @@ private:
   void increaselistcont(Signal* signal);
   void seizeLeftlist(Signal* signal);
   void seizeRightlist(Signal* signal);
-  void readTablePk(Uint32 localkey1);
+  Uint32 readTablePk(Uint32 localkey1);
   void getElement(Signal* signal);
   void getdirindex(Signal* signal);
   void commitdelete(Signal* signal, bool systemRestart);
@@ -1123,6 +1136,8 @@ private:
   void lcp_write_op_to_undolog(Signal* signal);
   void reenable_expand_after_redo_log_exection_complete(Signal*);
 
+  // charsets
+  void xfrmKeyData(Signal* signal);
 
   // Initialisation
   void initData();
