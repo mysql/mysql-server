@@ -244,13 +244,11 @@ pars_resolve_func_data_type(
 		/* Inherit the data type from the first argument (which must
 		not be the SQL null literal whose type is DATA_ERROR) */
 
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-								!= DATA_ERROR);
 		dtype_copy(que_node_get_data_type(node),
 					que_node_get_data_type(arg));
 
-		ut_a(dtype_get_mtype(que_node_get_data_type(node)) == DATA_INT);
-		
+		ut_a(dtype_get_mtype(que_node_get_data_type(node))
+								== DATA_INT);
 	} else if (func == PARS_COUNT_TOKEN) {
 		ut_a(arg);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
@@ -1596,7 +1594,7 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		dict_mem_index_add_field(index, column->name, 0);
+		dict_mem_index_add_field(index, column->name, 0, 0);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;

@@ -43,7 +43,10 @@ struct fil_addr_struct{
 extern fil_addr_t	fil_addr_null;
 
 /* The byte offsets on a file page for various variables */
-#define FIL_PAGE_SPACE		0	/* space id the page belongs to */
+#define FIL_PAGE_SPACE_OR_CHKSUM 0	/* in < MySQL-4.0.14 space id the
+					page belongs to (== 0) but in later
+					versions the 'new' checksum of the
+					page */
 #define FIL_PAGE_OFFSET		4	/* page offset inside space */
 #define FIL_PAGE_PREV		8	/* if there is a 'natural' predecessor
 					of the page, its offset */
@@ -64,7 +67,7 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_DATA		38	/* start of the data on the page */
 
 /* File page trailer */
-#define FIL_PAGE_END_LSN	8	/* the low 4 bytes of this are used
+#define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/* the low 4 bytes of this are used
 					to store the page checksum, the
 					last 4 bytes should be identical
 					to the last 4 bytes of FIL_PAGE_LSN */

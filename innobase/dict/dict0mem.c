@@ -266,10 +266,13 @@ by the column name may be released only after publishing the index. */
 void
 dict_mem_index_add_field(
 /*=====================*/
-	dict_index_t*	index,	/* in: index */
-	char*		name,	/* in: column name */
-	ulint		order)	/* in: order criterion; 0 means an ascending
-				order */
+	dict_index_t*	index,		/* in: index */
+	char*		name,		/* in: column name */
+	ulint		order,		/* in: order criterion; 0 means an
+					ascending order */
+	ulint		prefix_len)	/* in: 0 or the column prefix length
+					in a MySQL index like
+					INDEX (textcol(25)) */
 {
 	dict_field_t*	field;
 	
@@ -282,6 +285,8 @@ dict_mem_index_add_field(
 
 	field->name = name;
 	field->order = order;
+
+	field->prefix_len = prefix_len;
 }
 
 /**************************************************************************

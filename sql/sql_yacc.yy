@@ -3922,11 +3922,10 @@ rollback:
 	ROLLBACK_SYM 
 	{
 	  Lex->sql_command = SQLCOM_ROLLBACK;
-	  Lex->savepoint_name = NULL;
 	}
 	| ROLLBACK_SYM TO_SYM SAVEPOINT_SYM ident
 	{
-	  Lex->sql_command = SQLCOM_ROLLBACK;
+	  Lex->sql_command = SQLCOM_ROLLBACK_TO_SAVEPOINT;
 	  Lex->savepoint_name = $4.str;
 	};
 savepoint:

@@ -135,6 +135,8 @@ trx_create(
 	trx->lock_heap = mem_heap_create_in_buffer(256);
 	UT_LIST_INIT(trx->trx_locks);
 
+	UT_LIST_INIT(trx->trx_savepoints);
+
 	trx->dict_operation_lock_mode = 0;
 	trx->has_search_latch = FALSE;
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
@@ -806,6 +808,9 @@ trx_commit_off_kernel(
 	
 		mutex_enter(&kernel_mutex);
 	}
+
+	/* Free savepoints */
+	trx_roll_savepoints_free(trx, NULL);
 
 	trx->conc_state = TRX_NOT_STARTED;
 	trx->rseg = NULL;

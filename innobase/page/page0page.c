@@ -353,7 +353,7 @@ page_create(
 	
 	infimum_rec = rec_convert_dtuple_to_rec(heap_top, tuple);
 
-	ut_ad(infimum_rec == page + PAGE_INFIMUM);
+	ut_a(infimum_rec == page + PAGE_INFIMUM);
 	
 	rec_set_n_owned(infimum_rec, 1);
 	rec_set_heap_no(infimum_rec, 0);
@@ -370,7 +370,7 @@ page_create(
 
 	supremum_rec = rec_convert_dtuple_to_rec(heap_top, tuple);
 
-	ut_ad(supremum_rec == page + PAGE_SUPREMUM);
+	ut_a(supremum_rec == page + PAGE_SUPREMUM);
 
 	rec_set_n_owned(supremum_rec, 1);
 	rec_set_heap_no(supremum_rec, 1);
@@ -389,6 +389,8 @@ page_create(
 	page_header_set_ptr(page, PAGE_FREE, NULL);
 	page_header_set_field(page, PAGE_GARBAGE, 0);
 	page_header_set_ptr(page, PAGE_LAST_INSERT, NULL);
+	page_header_set_field(page, PAGE_DIRECTION, PAGE_NO_DIRECTION);
+	page_header_set_field(page, PAGE_N_DIRECTION, 0);
 	page_header_set_field(page, PAGE_N_RECS, 0);
 	page_set_max_trx_id(page, ut_dulint_zero);
 	
@@ -402,17 +404,22 @@ page_create(
 	slot = page_dir_get_nth_slot(page, 1);
 	page_dir_slot_set_rec(slot, supremum_rec);
 
-	/* Set next pointers in infimum and supremum */
+	/* Set the next pointers in infimum and supremum */
 	
 	rec_set_next_offs(infimum_rec, (ulint)(supremum_rec - page)); 
 	rec_set_next_offs(supremum_rec, 0);
+
+#ifdef notdefined
+        /* Disable the use of page_template: there is a race condition here:
+	while one thread is creating page_template, another one can start
+	using it before the memcpy completes! */
 
 	if (page_template == NULL) {
 		page_template = mem_alloc(UNIV_PAGE_SIZE);
 
 		ut_memcpy(page_template, page, UNIV_PAGE_SIZE);
 	}
-	
+#endif	
 	return(page);
 }
 
@@ -439,6 +446,9 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 	}
 	
+	/* Track a memory corruption bug in Windows */
+	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == PAGE_INFIMUM);
+
 	page_cur_set_before_first(new_page, &cur2);
 	
 	/* Copy records from the original page to the new page */	
@@ -449,6 +459,8 @@ page_copy_rec_list_end_no_locks(
 		ut_a(
 		page_cur_rec_insert(&cur2, page_cur_get_rec(&cur1), mtr));
 
+		ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10)
+							== PAGE_INFIMUM);
 		page_cur_move_to_next(&cur1);
 		page_cur_move_to_next(&cur2);
 	}
@@ -1315,6 +1327,37 @@ page_rec_validate(
 	
 	return(TRUE);
 }
+
+/*******************************************************************
+Checks that the first directory slot points to the infimum record and
+the last to the supremum. This function is intended to track if the
+bug fixed in 4.0.14 has caused corruption to users' databases. */
+
+void
+page_check_dir(
+/*===========*/
+	page_t*	page)	/* in: index page */
+{
+	ulint	n_slots;
+
+	n_slots = page_dir_get_n_slots(page);
+
+	if (page_dir_slot_get_rec(page_dir_get_nth_slot(page, 0))
+	    != page_get_infimum_rec(page)) {
+
+	        fprintf(stderr,
+"InnoDB: Page directory corruption: supremum not pointed to\n");
+		buf_page_print(page);
+       	}
+
+	if (page_dir_slot_get_rec(page_dir_get_nth_slot(page, n_slots - 1))
+	    != page_get_supremum_rec(page)) {
+
+	        fprintf(stderr,
+"InnoDB: Page directory corruption: supremum not pointed to\n");
+		buf_page_print(page);
+       	}
+}
 	
 /*******************************************************************
 This function checks the consistency of an index page when we do not
@@ -1598,7 +1641,8 @@ page_validate(
 				"InnoDB: previous record %s\n", err_buf);
 				
 	 		 	rec_sprintf(err_buf, 900, rec);
-	  			fprintf(stderr, "InnoDB: record %s\n", err_buf);
+	  			fprintf(stderr,
+				"InnoDB: record %s\n", err_buf);
 				
 				goto func_exit;
 			}
