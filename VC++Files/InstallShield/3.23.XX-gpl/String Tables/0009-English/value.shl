@@ -1,19 +1,19 @@
 [Data]
-TITLE_MAIN=MySQL Servers and Clients 3.23.56
+TITLE_MAIN=MySQL Servers and Clients @VERSION@
 COMPANY_NAME=MySQL AB
 ERROR_COMPONENT=Component:
 COMPANY_NAME16=Company
-PRODUCT_VERSION=3.23.56
+PRODUCT_VERSION=@VERSION@
 ERROR_MOVEDATA=An error occurred during the move data process: %d
 ERROR_FILEGROUP=File Group:
-UNINST_KEY=MySQL Servers and Clients 3.23.56
-TITLE_CAPTIONBAR=MySQL Servers and Clients 3.23.56 Setup
+UNINST_KEY=MySQL Servers and Clients @VERSION@
+TITLE_CAPTIONBAR=MySQL Servers and Clients @VERSION@ Setup
 PRODUCT_NAME16=Product
 ERROR_VGARESOLUTION=This program requires VGA or better resolution.
 ERROR_FILE=File:
-UNINST_DISPLAY_NAME=MySQL Servers and Clients 3.23.56
+UNINST_DISPLAY_NAME=MySQL Servers and Clients @VERSION@
 PRODUCT_KEY=yourapp.Exe
-PRODUCT_NAME=MySQL Servers and Clients 3.23.56
+PRODUCT_NAME=MySQL Servers and Clients @VERSION@
 ERROR_UNINSTSETUP=unInstaller setup failed to initialize.  You may not be able to uninstall this product.
 
 [General]
