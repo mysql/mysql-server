@@ -1463,8 +1463,8 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   if (name)
   {
     stmt->name.length= name->length;
-    if (!(stmt->name.str= my_memdup((byte*)name->str, name->length, 
-                                    MYF(MY_WME))))
+    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (byte*)name->str,
+                                      name->length)))
     {
       delete stmt;
       send_error(thd, ER_OUT_OF_RESOURCES);
@@ -1874,8 +1874,6 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
 Prepared_statement::~Prepared_statement()
 {
   free_items(free_list);
-  if (name.str)
-    my_free(name.str, MYF(0));
 }
 
 
