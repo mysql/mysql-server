@@ -47,6 +47,9 @@
 #define INADDR_NONE	-1
 #endif
 
+extern ulong net_buffer_length;
+extern ulong max_allowed_packet;
+
 #if defined(MSDOS) || defined(__WIN__)
 #define ERRNO WSAGetLastError()
 #define perror(A)
@@ -81,7 +84,17 @@ static void end_server(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-static inline int mysql_init_charset(MYSQL *mysql)
+
+static MYSQL_PARAMETERS mysql_internal_parameters=
+{&max_allowed_packet, &net_buffer_length};
+
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters()
+{
+  return &mysql_internal_parameters;
+}
+
+
+static int mysql_init_charset(MYSQL *mysql)
 {
   char charset_name_buff[16], *charset_name;
 
@@ -123,6 +136,7 @@ static inline int mysql_init_charset(MYSQL *mysql)
   }
   return 0;
 }
+
 
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
