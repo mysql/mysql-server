@@ -413,43 +413,6 @@ AC_ARG_WITH(named-z-libs,
     [ with_named_zlib=z ]
     )
 
-AC_MSG_CHECKING(whether to use libwrap)
-AC_ARG_WITH(libwrap,
-[  --with-libwrap[=PATH]   Compile in libwrap (tcp_wrappers) support.],
-[ case "$withval" in
-  no)
-    AC_MSG_RESULT(no)
-    ;;
-  yes)
-    AC_MSG_RESULT(yes)
-    AC_CHECK_LIB(wrap, request_init, [
-	AC_DEFINE(LIBWRAP)
-        WRAPLIBS="-lwrap"
-        AC_DEFINE(HAVE_LIBWRAP) ])
-    ;;
-  *)
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(LIBWRAP)
-    if test -d "$withval"; then
-    	WRAPLIBS="-L$withval -lwrap"
-    else
-	WRAPLIBS="$withval"
-    fi
-    AC_DEFINE(HAVE_LIBWRAP)
-    OLDLIBS="$LIBS"
-    LIBS="$WRAPLIBS $LIBS"
-    AC_TRY_LINK([ int allow_severity; int deny_severity; ],
-                [ hosts_access(); ],
-		[],
-		[ AC_MSG_ERROR(Could not find the $withval library.  You must first install tcp_wrappers.) ])
-    LIBS="$OLDLIBS"
-    ;;
-  esac ],
-  AC_MSG_RESULT(no)
-)
-
-AC_SUBST(WRAPLIBS)
-
 # Make thread safe client
 AC_ARG_ENABLE(thread-safe-client,
     [  --enable-thread-safe-client   
@@ -507,8 +470,7 @@ AC_ARG_WITH(mysqld-user,
     )
 AC_SUBST(MYSQLD_USER)
 
-# Use Paul Eggerts macros from GNU tar to check for large file
-# support.
+# Use Paul Eggert's macros to check for large file support
 AC_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
@@ -533,28 +495,60 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
 # and defines HAVE_LIBM etc
 #--------------------------------------------------------------------
 
-AC_CHECK_LIB(m, floor)
-if test "$ac_cv_lib_m_floor" = "no"
-then
-  AC_CHECK_LIB(m, __infinity)
-fi
-AC_CHECK_LIB(nsl_r, gethostbyname_r)
-if test "$ac_cv_lib_nsl_r_gethostbyname_r" = "no"
-then
-  AC_CHECK_LIB(nsl, gethostbyname_r)
-fi
-LIBS_BEFORE_SOCKET=$LIBS
-LIBS=
-AC_CHECK_LIB(socket, socket)
-LIBS_SOCKET=$LIBS
-LIBS=
-AC_CHECK_LIB(gen, p2open)
+AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
+AC_CHECK_FUNC(gethostbyname_r, [], [
+  AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
+    AC_CHECK_LIB(nsl, gethostbyname_r))])
+AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
+AC_CHECK_FUNC(yp_get_default_domain, ,
+  AC_CHECK_LIB(nsl, yp_get_default_domain))
+AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 # This may get things to compile even if bind-8 is installed
-AC_CHECK_LIB(bind, bind)
+AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # For crypt() on Linux
-AC_CHECK_LIB(crypt,crypt)
+AC_CHECK_FUNC(crypt, , AC_CHECK_LIB(crypt, crypt))
 # For compress in zlib
 MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
+
+#--------------------------------------------------------------------
+# Check for TCP wrapper support
+#--------------------------------------------------------------------
+
+AC_ARG_WITH(libwrap,
+[  --with-libwrap[=DIR]    Compile in libwrap (tcp_wrappers) support],[
+  case "$with_libwrap" in
+  no) : ;;
+  yes|*)
+    _cppflags=${CPPFLAGS}
+    _ldflags=${LDFLAGS}
+
+    if test "$with_libwrap" != "yes"; then
+      CPPFLAGS="${CPPFLAGS} -I$with_libwrap/include"
+      LDFLAGS="${LDFLAGS} -L$with_libwrap/lib"
+    fi
+
+    _libs=${LIBS}
+    AC_CHECK_HEADER(tcpd.h,
+      LIBS="$LIBS -lwrap"
+      AC_MSG_CHECKING(for TCP wrappers library -lwrap)
+      AC_TRY_LINK([#include <tcpd.h>
+int allow_severity = 0;
+int deny_severity  = 0;
+
+struct request_info *req;
+],[hosts_access (req)],
+        AC_MSG_RESULT(yes)
+        AC_DEFINE(LIBWRAP)
+        AC_DEFINE(HAVE_LIBWRAP)
+        WRAPLIBS="-L$with_libwrap/lib -lwrap",
+        AC_MSG_RESULT(no)
+        CPPFLAGS=${_cppflags} LDFLAGS=${_ldflags}),
+      CPPFLAGS=${_cppflags} LDFLAGS=${_ldflags})
+    LDFLAGS=${_ldflags} LIBS=${_libs}
+    ;;
+  esac
+])
+AC_SUBST(WRAPLIBS)
 
 if test "$IS_LINUX" = "true"; then
   AC_MSG_CHECKING([for atomic operations])
@@ -592,7 +586,7 @@ fi
 # Check for gtty if termio.h doesn't exists
 if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
 then
-  AC_CHECK_LIB(compat, gtty)
+  AC_CHECK_FUNC(gtty, , AC_CHECK_LIB(compat, gtty))
 fi
 # We make a special variable for client library's to avoid including
 # thread libs in the client.
@@ -1272,7 +1266,7 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1304,7 +1298,7 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1335,7 +1329,7 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1361,7 +1355,7 @@ then
   # Check definition of pthread_getspecific
   AC_CACHE_CHECK("args to pthread_getspecific", mysql_cv_getspecific_args,
   AC_TRY_COMPILE(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 
@@ -1377,7 +1371,7 @@ mysql_cv_getspecific_args=POSIX, mysql_cv_getspecific_args=other))
   # Check definition of pthread_mutex_init
   AC_CACHE_CHECK("args to pthread_mutex_init", mysql_cv_mutex_init_args,
   AC_TRY_COMPILE(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 
@@ -1398,7 +1392,7 @@ fi
 # Check definition of readdir_r
 AC_CACHE_CHECK("args to readdir_r", mysql_cv_readdir_r,
 AC_TRY_LINK(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 
@@ -1415,7 +1409,7 @@ fi
 # Check definition av posix sigwait()
 AC_CACHE_CHECK("style of sigwait", mysql_cv_sigwait,
 AC_TRY_LINK(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 
@@ -1438,7 +1432,7 @@ unset mysql_cv_sigwait
 # Check definition av posix sigwait()
 AC_CACHE_CHECK("style of sigwait", mysql_cv_sigwait,
 AC_TRY_LINK(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 
@@ -1458,7 +1452,7 @@ fi
 # Check if pthread_attr_setscope() exists
 AC_CACHE_CHECK("for pthread_attr_setscope", mysql_cv_pthread_attr_setscope,
 AC_TRY_LINK(
-[#ifndef SCO
+[#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 

@@ -22,14 +22,20 @@ You can create your own test cases. To create a test case:
  If you are using mysqltest commands (like result file names) in your
  test case you should do create the result file as follows:
 
- mysql-test-run --record < t/test_case_name.test
+ mysql-test-run --record test_case_name
+
+ or
+
+ mysqltest --record < t/test_case_name.test
 
  If you only have a simple test cases consistent of SQL commands and comments
  you can create the test case one of the following ways:
 
- mysql < t/test_case_name.test > r/test_case_name.result
+ mysql-test-run --record test_case_name
 
- mysql-test-run --record --record-file=r/test_case_name.result < t/test_case_name.test
+ mysql test < t/test_case_name.test > r/test_case_name.result
+
+ mysqltest --record --record-file=r/test_case_name.result < t/test_case_name.test
 
  When this is done, take a look at r/test_case_name.result
  - If the result is wrong, you have found a bug;  In this case you should
