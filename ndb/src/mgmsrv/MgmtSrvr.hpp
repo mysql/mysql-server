@@ -175,11 +175,10 @@ public:
 
   /* Constructor */
 
-  MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
-	   SocketServer *socket_server,
-	   const BaseString &config_filename,      /* Where to save config */
-	   LocalConfig &local_config,  /* Ndb.cfg filename */
-	   Config * config); 
+  MgmtSrvr(SocketServer *socket_server,
+	   const char *config_filename,      /* Where to save config */
+	   const char *connect_string); 
+  int init();
   NodeId getOwnNodeId() const {return _ownNodeId;};
 
   /**
@@ -538,7 +537,6 @@ private:
   NdbMutex *m_configMutex;
   const Config * _config;
   Config * m_newConfig;
-  LocalConfig &m_local_config;
   BaseString m_configFilename;
   Uint32 m_nextConfigGenerationNumber;
   
@@ -755,6 +753,9 @@ private:
   Config *_props;
 
   int send(class NdbApiSignal* signal, Uint32 node, Uint32 node_type);
+
+  ConfigRetriever *m_config_retriever;
+
 public:
   /**
    * This method does not exist
