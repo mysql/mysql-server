@@ -264,6 +264,12 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 /* Flag set if setup_tables already done */
 #define OPTION_SETUP_TABLES_DONE        (1L << 30)
 
+/* 
+  Maximum length of time zone name that we support 
+  (Time zone name is char(64) in db). mysqlbinlog needs it.
+*/
+#define MAX_TIME_ZONE_NAME_LENGTH 72
+
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
 
