@@ -462,3 +462,12 @@ a	b
 6	1
 6	2
 drop table if exists t6, t5, t4, t3, t2, t1;
+CREATE TABLE t1 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,1);
+CREATE TABLE t2 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
+INSERT INTO t2 VALUES (1,2), (2,2);
+CREATE TABLE t (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  KEY a (a,b)) TYPE=MRG_MyISAM UNION=(t1,t2);
+select max(b) from t where a = 2;
+max(b)
+NULL
+drop table if exists t,t1,t2;
