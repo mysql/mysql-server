@@ -19,6 +19,7 @@
 # the USE_PSTACK hack to get all files into distribution
 #
 
+SUBDIRS =		aout
 INCLUDES =		-I$(srcdir)/../include -I../include
 noinst_HEADERS =	bucomm.h debug.h ieee.h budbg.h demangle.h \
 			linuxthreads.h pstack.h pstacktrace.h
