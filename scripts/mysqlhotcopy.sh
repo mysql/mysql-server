@@ -25,7 +25,7 @@ WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.5";
+my $VERSION = "1.6";
 
 my $OPTIONS = <<"_OPTIONS";
 
@@ -180,6 +180,7 @@ if ( defined $opt{regexp} ) {
 # --- get list of tables to hotcopy ---
 
 my $hc_locks = "";
+my $hc_tables = "";
 my $num_tables = 0;
 my $num_files = 0;
 
@@ -208,6 +209,7 @@ foreach my $rdb ( @db_desc ) {
 
     $hc_locks .= ", "  if ( length $hc_locks && @hc_tables );
     $hc_locks .= join ", ", map { "$_ READ" } @hc_tables;
+    $hc_tables .= join ", ", @hc_tables;
 
     $num_tables += scalar @hc_tables;
     $num_files  += scalar @{$rdb->{files}};
@@ -286,7 +288,7 @@ my $hc_started = time;	# count from time lock is granted
 
 if ( $opt{dryrun} ) {
     print "LOCK TABLES $hc_locks\n";
-    print "FLUSH TABLES\n";
+    print "FLUSH TABLES /*!32323 $hc_tables */\n";
     print "FLUSH LOGS\n" if ( $opt{flushlog} );
 }
 else {
@@ -297,8 +299,8 @@ else {
 
     # flush tables to make on-disk copy uptodate
     $start = time;
-    $dbh->do("FLUSH TABLES");
-    printf "Flushed tables in %d seconds.\n", time-$start unless $opt{quiet};
+    $dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
+    printf "Flushed tables ($hc_tables) in %d seconds.\n", time-$start unless $opt{quiet};
     $dbh->do( "FLUSH LOGS" ) if ( $opt{flushlog} );
 }
     
