@@ -2617,7 +2617,7 @@ null:
 }
 
 #ifdef HAVE_COMPRESS
-#include "../zlib/zlib.h"
+#include "zlib.h"
 
 String *Item_func_compress::val_str(String *str)
 {
