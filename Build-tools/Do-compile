@@ -4,10 +4,10 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_suffix="";
 $opt_tmp=$version_suffix="";
-$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=0;
+$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=$opt_no_strip=0;
 $opt_innodb=$opt_bdb=0;
 
-GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution") || usage();
+GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution","no-strip") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
@@ -19,7 +19,7 @@ if ($opt_innodb || $opt_bdb)
 
 chomp($host=`hostname`);
 $full_host_name=$host;
-print "$host: Compiling MySQL$version_suffix at $host$suffix, stage: $opt_stage\n"  if ($opt_debug);
+info("Compiling MySQL$version_suffix at $host$suffix, stage: $opt_stage\n");
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
@@ -146,10 +146,13 @@ if ($opt_stage <= 2)
 #
 if ($opt_stage <= 3)
 {
+  my ($flags);
   log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
   log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
-  log_system("strip sql/mysqld extra/comp_err client/mysql sql/mysqld client/mysqlshow extra/replace isam/isamchk client/mysqladmin client/mysqldump extra/perror");
-  check_system("scripts/make_binary_distribution $opt_tmp $opt_suffix",".tar.gz created");
+
+  $flags="";
+  $flags.="--no-strip" if ($opt_no_strip);
+  check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
   safe_system("mv mysql*.tar.gz $pwd/$host");
   safe_system("cp client/mysqladmin $pwd/$host/bin");
   safe_system("$make clean") if ($opt_with_small_disk);
@@ -174,6 +177,7 @@ if ($opt_stage <= 4 && !$opt_no_test)
 $tar_file =~ /(mysql-[^\/]*)\.tar/;
 $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
+$ENV{"LD_LIBRARY_PATH"}= "$testdir/lib:" . $ENV{"LD_LIBRARY_PATH"};
 
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
