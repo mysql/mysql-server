@@ -2364,9 +2364,8 @@ Now disabling --log-slave-updates.");
     {
       if (global_system_variables.log_warnings)
 	sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+      locked_in_memory= 0;
     }
-    else
-      locked_in_memory=1;
   }
 #else
   locked_in_memory=0;

@@ -52,21 +52,22 @@ int mi_rprev(MI_INFO *info, byte *buf, int inx)
     error=_mi_search(info,share->keyinfo+inx,info->lastkey,
 		     USE_WHOLE_KEY, flag, share->state.key_root[inx]);
 
-  if (!error)
-  {
-    while (info->lastpos >= info->state->data_file_length)
-    {
-      /* Skip rows that are inserted by other threads since we got a lock */
-      if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
-				  info->lastkey_length,
-				  SEARCH_SMALLER,
-				  share->state.key_root[inx])))
-	break;
-    }
-  }
-
   if (share->concurrent_insert)
+  {
+    if (!error)
+    {
+      while (info->lastpos >= info->state->data_file_length)
+      {
+	/* Skip rows that are inserted by other threads since we got a lock */
+	if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
+				    info->lastkey_length,
+				    SEARCH_SMALLER,
+				    share->state.key_root[inx])))
+	  break;
+      }
+    }
     rw_unlock(&share->key_root_lock[inx]);
+  }
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
   if (error)
