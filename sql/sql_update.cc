@@ -38,15 +38,15 @@ static bool compare_record(TABLE *table, ulong query_id)
   if (memcmp(table->null_flags,
 	     table->null_flags+table->rec_buff_length,
 	     table->null_bytes))
-    return 1;					// Diff in NULL value
+    return TRUE;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
     if ((*ptr)->query_id == query_id &&
 	(*ptr)->cmp_binary_offset(table->rec_buff_length))
-      return 1;
+      return TRUE;
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -73,8 +73,7 @@ static bool check_fields(THD *thd, List<Item> &items)
     if (!(field= item->filed_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
-      my_printf_error(ER_NONUPDATEABLE_COLUMN, ER(ER_NONUPDATEABLE_COLUMN),
-                      MYF(0), item->name);
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
       return TRUE;
     }
     /*
@@ -134,8 +133,8 @@ bool mysql_update(THD *thd,
                    table_list->grant.want_privilege :
                    table->grant.want_privilege);
 #endif
-  if ((error= mysql_prepare_update(thd, table_list, &conds, order_num, order)))
-    DBUG_RETURN(error);
+  if (mysql_prepare_update(thd, table_list, &conds, order_num, order))
+    DBUG_RETURN(TRUE);
 
   old_used_keys= table->used_keys;		// Keys used in WHERE
   /*
@@ -165,8 +164,7 @@ bool mysql_update(THD *thd,
   }
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
-    my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
-                    MYF(0), table_list->alias, "UPDATE");
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(TRUE);
   }
   if (table->timestamp_field)
@@ -532,8 +530,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   /* Check that we are not using table that we are updating in a sub select */
   if (unique_table(table_list, table_list->next_global))
   {
-    my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED), MYF(0),
-                    table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
@@ -591,7 +588,7 @@ bool mysql_multi_update_prepare(THD *thd)
   /* open tables and create derived ones, but do not lock and fill them */
   if (open_tables(thd, table_list, & table_count) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1);
+    DBUG_RETURN(TRUE);
   /*
     Ensure that we have update privilege for all tables and columns in the
     SET part
@@ -658,9 +655,7 @@ bool mysql_multi_update_prepare(THD *thd)
     {
       if (!tl->updatable || check_key_in_view(thd, tl))
       {
-        my_printf_error(ER_NON_UPDATABLE_TABLE,
-                        ER(ER_NON_UPDATABLE_TABLE), MYF(0),
-                        tl->alias, "UPDATE");
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
         DBUG_RETURN(TRUE);
       }
 
@@ -671,8 +666,7 @@ bool mysql_multi_update_prepare(THD *thd)
       if (lex->select_lex.check_updateable_in_subqueries(tl->db,
                                                          tl->real_name))
       {
-        my_printf_error(ER_UPDATE_TABLE_USED,
-                        ER(ER_UPDATE_TABLE_USED), MYF(0), tl->real_name);
+        my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->real_name);
         DBUG_RETURN(TRUE);
       }
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
@@ -727,7 +721,7 @@ bool mysql_multi_update_prepare(THD *thd)
   }
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1);
+    DBUG_RETURN(TRUE);
   DBUG_RETURN (FALSE);
 }
 
@@ -749,8 +743,8 @@ bool mysql_multi_update(THD *thd,
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res= mysql_multi_update_prepare(thd)))
-    DBUG_RETURN(res);
+  if (mysql_multi_update_prepare(thd))
+    DBUG_RETURN(TRUE);
 
   if (!(result= new multi_update(thd, table_list, fields, values,
 				 handle_duplicates)))
@@ -1021,7 +1015,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
   case JT_SYSTEM:
   case JT_CONST:
   case JT_EQ_REF:
-    return 1;					// At most one matching row
+    return TRUE;				// At most one matching row
   case JT_REF:
     return !check_if_key_used(table, join_tab->ref.key, *fields);
   case JT_ALL:
@@ -1032,11 +1026,11 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->primary_key < MAX_KEY)
       return !check_if_key_used(table, table->primary_key, *fields);
-    return 1;
+    return TRUE;
   default:
     break;					// Avoid compler warning
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -1360,7 +1354,7 @@ bool multi_update::send_eof()
     /* Safety: If we haven't got an error before (should not happen) */
     my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
 	       MYF(0));
-    return 1;
+    return TRUE;
   }
 
 
@@ -1370,5 +1364,5 @@ bool multi_update::send_eof()
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
   ::send_ok(thd, (ulong) thd->row_count_func,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
-  return 0;
+  return FALSE;
 }

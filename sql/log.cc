@@ -1517,8 +1517,7 @@ err:
       if (my_errno == EFBIG)
 	my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(0));
       else
-	my_printf_error(ER_ERROR_ON_WRITE, ER(ER_ERROR_ON_WRITE), MYF(0),
-                        name, errno);
+	my_error(ER_ERROR_ON_WRITE, MYF(0), name, errno);
       write_error=1;
     }
     if (file == &log_file)

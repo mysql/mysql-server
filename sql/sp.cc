@@ -1001,8 +1001,7 @@ sp_cache_functions(THD *thd, LEX *lex)
       {
 	delete newlex;
 	thd->lex= oldlex;
-	my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-                        "FUNCTION", ls->str);
+	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", ls->str);
 	ret= 1;
 	break;
       }
@@ -1164,7 +1163,7 @@ sp_change_db(THD *thd, char *name, bool no_access_check)
   {
     if ((db_length > NAME_LEN) || check_db_name(dbname))
     {
-      my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0), dbname);
+      my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
       x_free(dbname);
       DBUG_RETURN(1);
     }
@@ -1183,11 +1182,10 @@ sp_change_db(THD *thd, char *name, bool no_access_check)
       if (!(db_access & DB_ACLS) &&
 	  (!grant_option || check_grant_db(thd,dbname)))
       {
-	my_printf_error(ER_DBACCESS_DENIED_ERROR, ER(ER_DBACCESS_DENIED_ERROR),
-			MYF(0),
-			thd->priv_user,
-			thd->priv_host,
-			dbname);
+	my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+                 thd->priv_user,
+                 thd->priv_host,
+                 dbname);
 	mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 			thd->priv_user,
 			thd->priv_host,
@@ -1203,7 +1201,7 @@ sp_change_db(THD *thd, char *name, bool no_access_check)
       path[length-1]=0;				// remove ending '\'
     if (access(path,F_OK))
     {
-      my_printf_error(ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR), MYF(0), dbname);
+      my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
       my_free(dbname,MYF(0));
       DBUG_RETURN(1);
     }

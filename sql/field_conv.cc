@@ -126,8 +126,7 @@ set_field_to_null(Field *field)
     return 0;
   }
   if (!current_thd->no_errors)
-    my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
-		    field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return -1;
 }
 
@@ -185,8 +184,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return 0;
   }
   if (!current_thd->no_errors)
-    my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
-		    field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return -1;
 }
 

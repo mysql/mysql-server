@@ -408,8 +408,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   {
    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
-      my_printf_error(ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), MYF(0),
-                      db);
+      my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
       error= -1;
       goto exit;
     }
@@ -419,13 +418,12 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   {
     if (my_errno != ENOENT)
     {
-      my_printf_error(EE_STAT, ER(EE_STAT), MYF(0), path, my_errno);
+      my_error(EE_STAT, MYF(0), path, my_errno);
       goto exit;
     }
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
-      my_printf_error(ER_CANT_CREATE_DB, ER(ER_CANT_CREATE_DB),
-                      MYF(0), db, my_errno);
+      my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno);
       error= -1;
       goto exit;
     }
@@ -579,7 +577,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     if (!if_exists)
     {
       error= -1;
-      my_printf_error(ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), MYF(0), db);
+      my_error(ER_DB_DROP_EXISTS, MYF(0), db);
       goto exit;
     }
     else
@@ -803,8 +801,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   */
   if (found_other_files)
   {
-    my_printf_error(ER_DB_DROP_RMDIR, ER(ER_DB_DROP_RMDIR), MYF(0),
-                    org_path, EEXIST);
+    my_error(ER_DB_DROP_RMDIR, MYF(0), org_path, EEXIST);
     DBUG_RETURN(-1);
   }
   else
@@ -867,8 +864,7 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
     *--pos=0;
   if (rmdir(path) < 0 && send_error)
   {
-    my_printf_error(ER_DB_DROP_RMDIR, ER(ER_DB_DROP_RMDIR), MYF(0),
-                    path, errno);
+    my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno);
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
@@ -995,7 +991,7 @@ bool mysql_change_db(THD *thd, const char *name)
   }
   if (check_db_name(dbname))
   {
-    my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0), dbname);
+    my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
     x_free(dbname);
     DBUG_RETURN(1);
   }
@@ -1008,11 +1004,10 @@ bool mysql_change_db(THD *thd, const char *name)
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
-    my_printf_error(ER_DBACCESS_DENIED_ERROR,
-                    ER(ER_DBACCESS_DENIED_ERROR), MYF(0),
-                    thd->priv_user,
-                    thd->priv_host,
-                    dbname);
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             thd->priv_user,
+             thd->priv_host,
+             dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 		    thd->priv_user,
 		    thd->priv_host,
@@ -1027,7 +1022,7 @@ bool mysql_change_db(THD *thd, const char *name)
     path[length-1]=0;				// remove ending '\'
   if (access(path,F_OK))
   {
-    my_printf_error(ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR), MYF(0), dbname);
+    my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
   }

@@ -1467,8 +1467,7 @@ sp_fdparam:
 
 	    if (spc->find_pvar(&$1, TRUE))
 	    {
-	      my_printf_error(ER_SP_DUP_PARAM, ER(ER_SP_DUP_PARAM), MYF(0),
-                              $1.str);
+	      my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$1, (enum enum_field_types)$2, sp_param_in);
@@ -1494,8 +1493,7 @@ sp_pdparam:
 
 	    if (spc->find_pvar(&$2, TRUE))
 	    {
-	      my_printf_error(ER_SP_DUP_PARAM, ER(ER_SP_DUP_PARAM), MYF(0),
-                              $2.str);
+	      my_error(ER_SP_DUP_PARAM, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$2, (enum enum_field_types)$3,
@@ -1588,8 +1586,7 @@ sp_decl:
 
 	    if (spc->find_cond(&$2, TRUE))
 	    {
-	      my_printf_error(ER_SP_DUP_COND, ER(ER_SP_DUP_COND), MYF(0),
-                              $2.str);
+	      my_error(ER_SP_DUP_COND, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    YYTHD->lex->spcont->push_cond(&$2, $5);
@@ -1646,8 +1643,7 @@ sp_decl:
 
 	    if (ctx->find_cursor(&$2, &offp, TRUE))
 	    {
-	      my_printf_error(ER_SP_DUP_CURS, ER(ER_SP_DUP_CURS), MYF(0),
-                              $2.str);
+	      my_error(ER_SP_DUP_CURS, MYF(0), $2.str);
 	      delete $5;
 	      YYABORT;
 	    }
@@ -1751,8 +1747,7 @@ sp_hcond:
 	    $$= Lex->spcont->find_cond(&$1);
 	    if ($$ == NULL)
 	    {
-	      my_printf_error(ER_SP_COND_MISMATCH, ER(ER_SP_COND_MISMATCH),
-                              MYF(0), $1.str);
+	      my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	  }
@@ -1781,8 +1776,7 @@ sp_decl_idents:
 
 	    if (spc->find_pvar(&$1, TRUE))
 	    {
-	      my_printf_error(ER_SP_DUP_VAR, ER(ER_SP_DUP_VAR), MYF(0),
-                              $1.str);
+	      my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$1, (enum_field_types)0, sp_param_in);
@@ -1795,8 +1789,7 @@ sp_decl_idents:
 
 	    if (spc->find_pvar(&$3, TRUE))
 	    {
-	      my_printf_error(ER_SP_DUP_VAR, ER(ER_SP_DUP_VAR), MYF(0),
-                              $3.str);
+	      my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$3, (enum_field_types)0, sp_param_in);
@@ -1950,9 +1943,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      my_printf_error(ER_SP_LILABEL_MISMATCH,
-                              ER(ER_SP_LILABEL_MISMATCH), MYF(0),
-                              "LEAVE", $2.str);
+	      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "LEAVE", $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -1982,9 +1973,7 @@ sp_proc_stmt:
 
 	    if (! lab || lab->type != SP_LAB_ITER)
 	    {
-	      my_printf_error(ER_SP_LILABEL_MISMATCH,
-                              ER(ER_SP_LILABEL_MISMATCH), MYF(0),
-                              "ITERATE", $2.str);
+	      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "ITERATE", $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -2012,8 +2001,7 @@ sp_proc_stmt:
 
 	    if (lab)
 	    {
-	      my_printf_error(ER_SP_LABEL_REDEFINE,
-                              ER(ER_SP_LABEL_REDEFINE), MYF(0), $2.str);
+	      my_error(ER_SP_LABEL_REDEFINE, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -2088,8 +2076,7 @@ sp_proc_stmt:
 
 	    if (! lex->spcont->find_cursor(&$2, &offset))
 	    {
-	      my_printf_error(ER_SP_CURSOR_MISMATCH,
-                              ER(ER_SP_CURSOR_MISMATCH), MYF(0), $2.str);
+	      my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
@@ -2104,8 +2091,7 @@ sp_proc_stmt:
 
 	    if (! lex->spcont->find_cursor(&$3, &offset))
 	    {
-	      my_printf_error(ER_SP_CURSOR_MISMATCH,
-                              ER(ER_SP_CURSOR_MISMATCH), MYF(0), $3.str);
+	      my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $3.str);
 	      YYABORT;
 	    }
 	    i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
@@ -2122,8 +2108,7 @@ sp_proc_stmt:
 
 	    if (! lex->spcont->find_cursor(&$2, &offset))
 	    {
-	      my_printf_error(ER_SP_CURSOR_MISMATCH,
-                              ER(ER_SP_CURSOR_MISMATCH), MYF(0), $2.str);
+	      my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
@@ -2147,8 +2132,7 @@ sp_fetch_list:
 
 	    if (!spc || !(spv = spc->find_pvar(&$1)))
 	    {
-	      my_printf_error(ER_SP_UNDECLARED_VAR,
-                              ER(ER_SP_UNDECLARED_VAR), MYF(0), $1.str);
+	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    else
@@ -2170,8 +2154,7 @@ sp_fetch_list:
 
 	    if (!spc || !(spv = spc->find_pvar(&$3)))
 	    {
-	      my_printf_error(ER_SP_UNDECLARED_VAR,
-                              ER(ER_SP_UNDECLARED_VAR), MYF(0), $3.str);
+	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $3.str);
 	      YYABORT;
 	    }
 	    else
@@ -2295,8 +2278,7 @@ sp_labeled_control:
 
 	    if (lab)
 	    {
-	      my_printf_error(ER_SP_LABEL_REDEFINE,
-                              ER(ER_SP_LABEL_REDEFINE), MYF(0), $1.str);
+	      my_error(ER_SP_LABEL_REDEFINE, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    else
@@ -2317,8 +2299,7 @@ sp_labeled_control:
 	      if (!lab ||
 	          my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
 	      {
-	        my_printf_error(ER_SP_LABEL_MISMATCH,
-                                ER(ER_SP_LABEL_MISMATCH), MYF(0), $5.str);
+	        my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
 	        YYABORT;
 	      }
 	    }
@@ -2576,11 +2557,9 @@ default_charset:
                cinfo->default_table_charset && $4 &&
                !my_charset_same(cinfo->default_table_charset,$4))
           {
-            my_printf_error(ER_CONFLICTING_DECLARATIONS,
-                            ER(ER_CONFLICTING_DECLARATIONS), MYF(0),
-                            "CHARACTER SET ",
-                            cinfo->default_table_charset->csname,
-                            "CHARACTER SET ", $4->csname);
+            my_error(ER_CONFLICTING_DECLARATIONS, MYF(0),
+                     "CHARACTER SET ", cinfo->default_table_charset->csname,
+                     "CHARACTER SET ", $4->csname);
             YYABORT;
           }
 	  Lex->create_info.default_table_charset= $4;
@@ -2595,9 +2574,8 @@ default_collation:
                cinfo->default_table_charset && $4 &&
                !my_charset_same(cinfo->default_table_charset,$4))
             {
-              my_printf_error(ER_COLLATION_CHARSET_MISMATCH,
-                              ER(ER_COLLATION_CHARSET_MISMATCH), MYF(0),
-                              $4->name, cinfo->default_table_charset->csname);
+              my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                       $4->name, cinfo->default_table_charset->csname);
               YYABORT;
             }
             Lex->create_info.default_table_charset= $4;
@@ -2609,8 +2587,7 @@ storage_engines:
 	{
 	  $$ = ha_resolve_by_name($1.str,$1.length);
 	  if ($$ == DB_TYPE_UNKNOWN) {
-	    my_printf_error(ER_UNKNOWN_STORAGE_ENGINE,
-                            ER(ER_UNKNOWN_STORAGE_ENGINE), MYF(0), $1.str);
+	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	};
@@ -2807,10 +2784,8 @@ type:
             Lex->uint_geom_type= (uint)$1;
             $$=FIELD_TYPE_GEOMETRY;
 #else
-            my_printf_error(ER_FEATURE_DISABLED,
-                            ER(ER_FEATURE_DISABLED), MYF(0)
-                            sym_group_geom.name,
-                            sym_group_geom.needed_define);
+            my_error(ER_FEATURE_DISABLED, MYF(0)
+                     sym_group_geom.name, sym_group_geom.needed_define);
             YYABORT;
 #endif
           }
@@ -2977,9 +2952,8 @@ attribute:
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
 	    {
-	      my_printf_error(ER_COLLATION_CHARSET_MISMATCH,
-                              ER(ER_COLLATION_CHARSET_MISMATCH), MYF(0),
-                              $2->name,Lex->charset->csname);
+	      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                       $2->name,Lex->charset->csname);
 	      YYABORT;
 	    }
 	    else
@@ -3004,8 +2978,7 @@ charset_name:
 	{
 	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))))
 	  {
-	    my_printf_error(ER_UNKNOWN_CHARACTER_SET,
-                            ER(ER_UNKNOWN_CHARACTER_SET), MYF(0), $1.str);
+	    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	}
@@ -3023,8 +2996,7 @@ old_or_new_charset_name:
 	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))) &&
 	      !($$=get_old_charset_by_name($1.str)))
 	  {
-	    my_printf_error(ER_UNKNOWN_CHARACTER_SET,
-                            ER(ER_UNKNOWN_CHARACTER_SET), MYF(0), $1.str);
+	    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	}
@@ -3040,8 +3012,7 @@ collation_name:
 	{
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
-	    my_printf_error(ER_UNKNOWN_COLLATION,
-                            ER(ER_UNKNOWN_COLLATION), MYF(0), $1.str);
+	    my_error(ER_UNKNOWN_COLLATION, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	};
@@ -3130,9 +3101,8 @@ key_type:
 #ifdef HAVE_SPATIAL
 	    $$= Key::SPATIAL;
 #else
-	    my_printf_error(ER_FEATURE_DISABLED,
-                            ER(ER_FEATURE_DISABLED), MYF(0),
-                            sym_group_geom.name, sym_group_geom.needed_define);
+	    my_error(ER_FEATURE_DISABLED, MYF(0),
+                     sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  };
@@ -3195,9 +3165,7 @@ key_part:
           int key_part_len= atoi($3.str);
           if (!key_part_len)
           {
-            my_printf_error(ER_UNKNOWN_ERROR,
-                            "Key part '%s' length cannot be 0",
-                            MYF(0), $1.str);
+            my_error(ER_KEY_PART_0, MYF(0), $1.str);
           }
           $$=new key_part_spec($1.str,(uint) key_part_len);
         };
@@ -3406,8 +3374,7 @@ alter_list_item:
             if (check_table_name($3->table.str,$3->table.length) ||
                 $3->db.str && check_db_name($3->db.str))
             {
-              my_printf_error(ER_WRONG_TABLE_NAME, ER(ER_WRONG_TABLE_NAME),
-                              MYF(0), $3->table.str);
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               YYABORT;
             }
 	    lex->alter_info.flags|= ALTER_RENAME;
@@ -3422,9 +3389,8 @@ alter_list_item:
 	    $5= $5 ? $5 : $4;
 	    if (!my_charset_same($4,$5))
 	    {
-	      my_printf_error(ER_COLLATION_CHARSET_MISMATCH,
-                              ER(ER_COLLATION_CHARSET_MISMATCH), MYF(0),
-                              $5->name, $4->csname);
+	      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                       $5->name, $4->csname);
 	      YYABORT;
 	    }
 	    LEX *lex= Lex;
@@ -4269,10 +4235,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      my_printf_error(ER_FEATURE_DISABLED,
-                              ER(ER_FEATURE_DISABLED), MYF(0),
-                              $1.symbol->group->name,
-                              $1.symbol->group->needed_define);
+              my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(void))($1.symbol->create_func))();
@@ -4281,10 +4246,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      my_printf_error(ER_FEATURE_DISABLED,
-                              ER(ER_FEATURE_DISABLED), MYF(0),
-                              $1.symbol->group->name,
-                              $1.symbol->group->needed_define);
+              my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(Item*))($1.symbol->create_func))($3);
@@ -4293,10 +4257,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      my_printf_error(ER_FEATURE_DISABLED,
-                              ER(ER_FEATURE_DISABLED), MYF(0),
-                              $1.symbol->group->name,
-                              $1.symbol->group->needed_define);
+	      my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);
@@ -4305,10 +4268,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      my_printf_error(ER_FEATURE_DISABLED,
-                              ER(ER_FEATURE_DISABLED), MYF(0),
-                              $1.symbol->group->name,
-                              $1.symbol->group->needed_define);
+              my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);
@@ -4411,9 +4373,8 @@ simple_expr:
 #ifdef HAVE_SPATIAL
 	    $$= $1;
 #else
-	    my_printf_error(ER_FEATURE_DISABLED,
-                            ER(ER_FEATURE_DISABLED), MYF(0),
-                            sym_group_geom.name, sym_group_geom.needed_define);
+	    my_error(ER_FEATURE_DISABLED, MYF(0),
+                     sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  }
@@ -5469,8 +5430,7 @@ select_var_ident:
 
 	     if (!lex->spcont || !(t=lex->spcont->find_pvar(&$1)))
 	     {
-	       my_printf_error(ER_SP_UNDECLARED_VAR,
-                               ER(ER_SP_UNDECLARED_VAR), MYF(0), $1.str);
+	       my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	       YYABORT;
 	     }
 	     if (! lex->result)
@@ -5826,9 +5786,8 @@ update:
 	  else if (lex->select_lex.get_table_list()->derived)
 	  {
 	    /* it is single table update and it is update of derived table */
-	    my_printf_error(ER_NON_UPDATABLE_TABLE,
-                            ER(ER_NON_UPDATABLE_TABLE), MYF(0),
-                            lex->select_lex.get_table_list()->alias, "UPDATE");
+	    my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
+                     lex->select_lex.get_table_list()->alias, "UPDATE");
 	    YYABORT;
 	  }
 	  else
@@ -6686,9 +6645,8 @@ simple_ident_q:
                 FIXME. Far from perfect solution. See comment for 
                 "SET NEW.field_name:=..." for more info.
               */
-              my_printf_error(ER_BAD_FIELD_ERROR,
-                              ER(ER_BAD_FIELD_ERROR), MYF(0),
-                              $3.str, new_row ? "NEW": "OLD");
+              my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                       $3.str, new_row ? "NEW": "OLD");
               YYABORT;
             }
             
@@ -6699,9 +6657,8 @@ simple_ident_q:
 	    SELECT_LEX *sel= lex->current_select;
 	    if (sel->no_table_names_allowed)
 	    {
-	      my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE,
-	  		      ER(ER_TABLENAME_NOT_ALLOWED_HERE),
-			      MYF(0), $1.str, thd->where);
+	      my_error(ER_TABLENAME_NOT_ALLOWED_HERE,
+                       MYF(0), $1.str, thd->where);
 	    }
 	    $$= (sel->parsing_place != IN_HAVING ||
 	         sel->get_in_sum_expr() > 0) ?
@@ -6716,9 +6673,8 @@ simple_ident_q:
 	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
-	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE,
-			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
-			    MYF(0), $2.str, thd->where);
+	    my_error(ER_TABLENAME_NOT_ALLOWED_HERE,
+                     MYF(0), $2.str, thd->where);
 	  }
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
@@ -6732,9 +6688,8 @@ simple_ident_q:
 	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
-	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE,
-			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
-			    MYF(0), $3.str, thd->where);
+	    my_error(ER_TABLENAME_NOT_ALLOWED_HERE,
+                     MYF(0), $3.str, thd->where);
 	  }
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
@@ -6775,9 +6730,8 @@ IDENT_sys:
                                                    $1.length);
               if (wlen < $1.length)
               {
-                my_printf_error(ER_INVALID_CHARACTER_STRING,
-                                ER(ER_INVALID_CHARACTER_STRING), MYF(0),
-                                cs->csname, $1.str + wlen);
+                my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+                         cs->csname, $1.str + wlen);
                 YYABORT;
               }
 	      $$= $1;
@@ -7214,8 +7168,7 @@ option_value:
 
                   Error message also should be improved.
                 */
-                my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
-                                MYF(0), $1.base_name, "NEW");
+                my_error(ER_BAD_FIELD_ERROR, MYF(0), $1.base_name, "NEW");
                 YYABORT;
               }
               lex->sphead->add_instr(i);
@@ -7281,9 +7234,8 @@ option_value:
 	  $3= $3 ? $3 : $2;
 	  if (!my_charset_same($2,$3))
 	  {
-	    my_printf_error(ER_COLLATION_CHARSET_MISMATCH,
-                            ER(ER_COLLATION_CHARSET_MISMATCH), MYF(0),
-                            $3->name, $2->csname);
+	    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                     $3->name, $2->csname);
 	    YYABORT;
 	  }
 	  lex->var_list.push_back(new set_var_collation_client($3,$3,$3));
@@ -7373,8 +7325,7 @@ internal_variable_name:
               if (!tmp)
                 YYABORT;
               if (!tmp->is_struct())
-                my_printf_error(ER_VARIABLE_IS_NOT_STRUCT,
-                                ER(ER_VARIABLE_IS_NOT_STRUCT), MYF(0), $3.str);
+                my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), $3.str);
               $$.var= tmp;
               $$.base_name= $1;
             }
@@ -7385,8 +7336,7 @@ internal_variable_name:
 	    if (!tmp)
 	      YYABORT;
 	    if (!tmp->is_struct())
-	      my_printf_error(ER_VARIABLE_IS_NOT_STRUCT,
-                              ER(ER_VARIABLE_IS_NOT_STRUCT), MYF(0), $3.str);
+	      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), $3.str);
 	    $$.var= tmp;
 	    $$.base_name.str=    (char*) "default";
 	    $$.base_name.length= 7;

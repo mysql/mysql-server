@@ -1002,7 +1002,7 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
 err:
   unlock_slave_threads(mi);
   if (error)
-    my_printf_error(sql_errno, ER(sql_errno), MYF(0), errmsg);
+    my_error(sql_errno, MYF(0), errmsg);
   DBUG_RETURN(error);
 }
 
@@ -1195,8 +1195,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
     {
-      my_printf_error(ER_RELAY_LOG_FAIL, ER(ER_RELAY_LOG_FAIL), MYF(0),
-                      errmsg);
+      my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
       unlock_slave_threads(mi);
       DBUG_RETURN(TRUE);
     }
@@ -1212,7 +1211,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
 			   0 /*no data lock*/,
 			   &msg, 0))
     {
-      my_printf_error(ER_RELAY_LOG_INIT, ER(ER_RELAY_LOG_INIT), MYF(0), msg);
+      my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
       unlock_slave_threads(mi);
       DBUG_RETURN(TRUE);
     }
@@ -1406,9 +1405,8 @@ err:
 
   if (errmsg)
   {
-    my_printf_error(ER_ERROR_WHEN_EXECUTING_COMMAND,
-                    ER(ER_ERROR_WHEN_EXECUTING_COMMAND), MYF(0),
-                    "SHOW BINLOG EVENTS", errmsg);
+    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+             "SHOW BINLOG EVENTS", errmsg);
     DBUG_RETURN(TRUE);
   }
 

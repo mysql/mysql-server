@@ -299,5 +299,5 @@ drop table t1;
 # create dedicated error code for this and
 # and change my_printf_error() to my_error
 
---error 1105
+--error 1391
 create table t1 (c char(10), index (c(0)));

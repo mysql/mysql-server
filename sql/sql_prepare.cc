@@ -926,9 +926,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
       counter++;
       if (values->elements != value_count)
       {
-        my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-			ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-			MYF(0), counter);
+        my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
       if (setup_fields(thd, 0, table_list, *values, 0, 0, 0))
@@ -1062,15 +1060,13 @@ static int mysql_test_select(Prepared_statement *stmt,
     DBUG_RETURN(TRUE);
 #endif
 
-  if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
-  {
-    send_error(thd);
-    goto err;
-  }
-
-  if ((result= open_and_lock_tables(thd, tables)))
-    goto err;
   result= TRUE;
+  if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
+    goto err;
+
+  if (open_and_lock_tables(thd, tables))
+    goto err;
+
 
   thd->used_tables= 0;                        // Updated by setup_fields
 
@@ -1518,9 +1514,8 @@ static bool init_param_array(Prepared_statement *stmt)
     if (stmt->param_count > (uint) UINT_MAX16)
     {
       /* Error code to be defined in 5.0 */
-      send_error(thd, ER_UNKNOWN_ERROR,
-                 "Prepared statement contains too many placeholders.");
-      return 1;
+      my_message(ER_PS_MANY_PARAM, ER(ER_PS_MANY_PARAM), MYF(0));
+      return TRUE;
     }
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
@@ -1529,7 +1524,7 @@ static bool init_param_array(Prepared_statement *stmt)
                        alloc_root(stmt->thd->mem_root,
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
-      return 1;
+      return TRUE;
     for (to= stmt->param_array;
          to < stmt->param_array + stmt->param_count;
          ++to)
@@ -1537,7 +1532,7 @@ static bool init_param_array(Prepared_statement *stmt)
       *to= param_iterator++;
     }
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -1659,9 +1654,6 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     stmt= NULL;
-    if (thd->net.report_error)
-      send_error(thd);
-    /* otherwise the error is sent inside yyparse/check_preapred_statement */
   }
   else
   {
@@ -1968,7 +1960,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
       alloc_query(thd, (char *)expanded_query->ptr(),
                   expanded_query->length()+1))
   {
-    my_error(ER_OUTOFMEMORY, 0, expanded_query->length());
+    my_error(ER_OUTOFMEMORY, MYF(0), expanded_query->length());
     DBUG_VOID_RETURN;
   }
   /*

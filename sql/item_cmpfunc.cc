@@ -53,11 +53,10 @@ static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
-  my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
-                  ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
-                  c1.collation->name,c1.derivation_name(),
-                  c2.collation->name,c2.derivation_name(),
-                  fname);
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+           c1.collation->name,c1.derivation_name(),
+           c2.collation->name,c2.derivation_name(),
+           fname);
 }
 
 
@@ -2437,7 +2436,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 		       cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
-      my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
+      my_error(ER_REGEXP_ERROR, MYF(0), buff);
       return TRUE;
     }
     regex_compiled=regex_is_const=1;

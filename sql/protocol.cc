@@ -127,7 +127,6 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   thd->net.report_error= 0;
 
   /* Abort multi-result sets */
-  thd->lex->found_colon= 0;
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }

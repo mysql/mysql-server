@@ -1621,8 +1621,8 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
           best match, they must reference the same column, otherwise the field
           is ambiguous.
         */
-        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
-                        MYF(0), find_item->full_name(), current_thd->where);
+        my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                 find_item->full_name(), current_thd->where);
         return NULL;
       }
     }
@@ -1713,8 +1713,8 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
       DBUG_ASSERT(*select_ref);
       if (! (*select_ref)->fixed)
       {
-        my_error(ER_ILLEGAL_REFERENCE, MYF(0), ref->name,
-                 "forward reference in item list");
+        my_error(ER_ILLEGAL_REFERENCE, MYF(0),
+                 ref->name, "forward reference in item list");
         return NULL;
       }
       return (select->ref_pointer_array + counter);
@@ -1895,8 +1895,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	if (upward_lookup)
 	{
 	  // We can't say exactly what absent table or field
-	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-			  full_name(), thd->where);
+	  my_error(ER_BAD_FIELD_ERROR, MYF(0), full_name(), thd->where);
 	}
 	else
 	{
@@ -1988,14 +1987,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
                                              db, tab, field_name) &
                             VIEW_ANY_ACL)))
     {
-      my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-                      ER(ER_COLUMNACCESS_DENIED_ERROR),
-                      MYF(0),
-                      "ANY",
-                      thd->priv_user,
-                      thd->host_or_ip,
-                      field_name,
-                      tab);
+      my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+               "ANY", thd->priv_user, thd->host_or_ip,
+               field_name, tab);
       return TRUE;
     }
   }
@@ -2455,8 +2449,7 @@ Item_real::Item_real(const char *str_arg, uint length)
       when we are in the parser
     */
     DBUG_ASSERT(str_arg[length] == 0);
-    my_printf_error(ER_ILLEGAL_VALUE_FOR_TYPE, ER(ER_ILLEGAL_VALUE_FOR_TYPE),
-                    MYF(0), "double", (char*) str_arg);
+    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
   }
   presentation= name=(char*) str_arg;
   decimals=(uint8) nr_of_decimals(str_arg);
@@ -2846,8 +2839,8 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
           return TRUE;
         if (ref == not_found_item && from_field == not_found_field)
         {
-          my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-                          this->full_name(), current_thd->where);
+          my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                   this->full_name(), current_thd->where);
           ref= 0;                                 // Safety
           return TRUE;
         }
@@ -2889,8 +2882,8 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       else
       {
         /* The current reference cannot be resolved in this query. */
-        my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-                        this->full_name(), current_thd->where);
+        my_error(ER_BAD_FIELD_ERROR,MYF(0),
+                 this->full_name(), current_thd->where);
         return TRUE;
       }
     }
@@ -2907,11 +2900,10 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
           current_sel->having_fix_field))) ||
       !(*ref)->fixed)
   {
-    my_printf_error(ER_ILLEGAL_REFERENCE, ER(ER_ILLEGAL_REFERENCE), MYF(0),
-                    name,
-                    ((*ref)->with_sum_func?
-                     "reference to group function":
-                     "forward reference in item list"));
+    my_error(ER_ILLEGAL_REFERENCE, MYF(0),
+             name, ((*ref)->with_sum_func?
+                    "reference to group function":
+                    "forward reference in item list"));
     return TRUE;
   }
   max_length= (*ref)->max_length;
@@ -2932,8 +2924,6 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
-  if (hook_ptr)
-    *hook_ptr= orig_item;
   DBUG_VOID_RETURN;
 }
 
@@ -3046,8 +3036,7 @@ bool Item_default_value::fix_fields(THD *thd,
   field_arg= (Item_field *)arg;
   if (field_arg->field->flags & NO_DEFAULT_VALUE_FLAG)
   {
-    my_printf_error(ER_NO_DEFAULT_FOR_FIELD, ER(ER_NO_DEFAULT_FOR_FIELD),
-                    MYF(0), field_arg->field->field_name);
+    my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
     return TRUE;
   }
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
@@ -3603,12 +3592,11 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     old_derivation= collation.derivation_name();
     if (item_type == STRING_RESULT && collation.aggregate(item->collation))
     {
-      my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
-                      ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
-                      old_cs, old_derivation,
-                      item->collation.collation->name,
-                      item->collation.derivation_name(),
-                      "UNION");
+      my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+               old_cs, old_derivation,
+               item->collation.collation->name,
+               item->collation.derivation_name(),
+               "UNION");
       return 1;
     }
 

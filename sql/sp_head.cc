@@ -544,8 +544,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   {
     // Need to use my_printf_error here, or it will not terminate the
     // invoking query properly.
-    my_printf_error(ER_SP_WRONG_NO_OF_ARGS, ER(ER_SP_WRONG_NO_OF_ARGS), MYF(0),
-		    "FUNCTION", m_name.str, params, argcount);
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
+             "FUNCTION", m_name.str, params, argcount);
     DBUG_RETURN(-1);
   }
 
@@ -596,8 +596,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
       *resp= it;
     else
     {
-      my_printf_error(ER_SP_NORETURNEND, ER(ER_SP_NORETURNEND), MYF(0),
-		      m_name.str);
+      my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
       ret= -1;
     }
   }
@@ -623,8 +622,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   if (args->elements != params)
   {
-    my_printf_error(ER_SP_WRONG_NO_OF_ARGS, ER(ER_SP_WRONG_NO_OF_ARGS), MYF(0),
-             "PROCEDURE", m_name.str, params, args->elements);
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
+             m_name.str, params, args->elements);
     DBUG_RETURN(-1);
   }
 
@@ -893,8 +892,7 @@ sp_head::check_backpatch(THD *thd)
   {
     if (bp->lab->type == SP_LAB_REF)
     {
-      my_printf_error(ER_SP_LILABEL_MISMATCH, ER(ER_SP_LILABEL_MISMATCH),
-                      MYF(0), "GOTO", bp->lab->name);
+      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "GOTO", bp->lab->name);
       return -1;
     }
   }
