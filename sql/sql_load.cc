@@ -81,6 +81,9 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &set_values, READ_INFO &read_info,
 			  String &enclosed, ulong skip_lines,
 			  bool ignore_check_option_errors);
+static bool write_execute_load_query_log_event(THD *thd,
+					       bool duplicates, bool ignore,
+					       bool transactional_table);
 
 
 /*
@@ -413,8 +416,14 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       /* If the file was not empty, wrote_create_file is true */
       if (lf_info.wrote_create_file)
       {
-        Delete_file_log_event d(thd, db, transactional_table);
-        mysql_bin_log.write(&d);
+	if ((info.copied || info.deleted) && !transactional_table)
+	  write_execute_load_query_log_event(thd, handle_duplicates,
+					     ignore, transactional_table);
+	else
+	{
+	  Delete_file_log_event d(thd, db, transactional_table);
+	  mysql_bin_log.write(&d);
+	}
       }
     }
 #endif /*!EMBEDDED_LIBRARY*/
@@ -437,16 +446,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     */
     read_info.end_io_cache();
     if (lf_info.wrote_create_file)
-    {
-      Execute_load_query_log_event e(thd, thd->query, thd->query_length,
-        (char*)thd->lex->fname_start - (char*)thd->query,
-        (char*)thd->lex->fname_end - (char*)thd->query,
-        (handle_duplicates == DUP_REPLACE) ?  LOAD_DUP_REPLACE :
-                                              (ignore ? LOAD_DUP_IGNORE :
-                                                        LOAD_DUP_ERROR),
-        transactional_table, FALSE);
-      mysql_bin_log.write(&e);
-    }
+      write_execute_load_query_log_event(thd, handle_duplicates,
+					 ignore, transactional_table);
   }
 #endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
@@ -461,6 +462,23 @@ err:
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
+
+
+/* Not a very useful function; just to avoid duplication of code */
+static bool write_execute_load_query_log_event(THD *thd,
+					       bool duplicates, bool ignore,
+					       bool transactional_table)
+{
+  Execute_load_query_log_event
+    e(thd, thd->query, thd->query_length,
+      (char*)thd->lex->fname_start - (char*)thd->query,
+      (char*)thd->lex->fname_end - (char*)thd->query,
+      (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
+      (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
+      transactional_table, FALSE);
+  return mysql_bin_log.write(&e);
+}
+
 
 /****************************************************************************
 ** Read of rows of fixed size + optional garage + optonal newline
