@@ -30,11 +30,6 @@ const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
-const char *known_exts[]=
-{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db", ".ibd", NullS};
-static TYPELIB known_extentions=
-{array_elements(known_exts)-1,"known_exts", known_exts, NULL};
-
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
 				 uint level);
@@ -737,7 +732,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     extension= fn_ext(file->name);
     if (find_type(extension, &deletable_extentions,1+2) <= 0)
     {
-      if (find_type(extension, &known_extentions,1+2) <= 0)
+      if (find_type(extension, ha_known_exts(),1+2) <= 0)
 	found_other_files++;
       continue;
     }
