@@ -3374,7 +3374,7 @@ greedy_search(JOIN      *join,
       pos= join->best_ref[++best_idx];
     DBUG_ASSERT((pos != NULL)); // should always find 'best_table'
     /* move 'best_table' at the first free position in the array of joins */
-    swap(JOIN_TAB*, join->best_ref[idx], join->best_ref[best_idx]);
+    swap_variables(JOIN_TAB*, join->best_ref[idx], join->best_ref[best_idx]);
 
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].records_read;
@@ -3580,7 +3580,7 @@ best_extension_by_limited_search(JOIN      *join,
 
       if ( (search_depth > 1) && (remaining_tables & ~real_table_bit) )
       { /* Recursively expand the current partial plan */
-        swap(JOIN_TAB*, join->best_ref[idx], *pos);
+        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
         best_extension_by_limited_search(join,
                                          remaining_tables & ~real_table_bit,
                                          idx + 1,
@@ -3590,7 +3590,7 @@ best_extension_by_limited_search(JOIN      *join,
                                          prune_level);
         if (thd->killed)
           DBUG_VOID_RETURN;
-        swap(JOIN_TAB*, join->best_ref[idx], *pos);
+        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       else
       { /*
