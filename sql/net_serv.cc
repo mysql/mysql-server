@@ -165,8 +165,8 @@ my_bool net_realloc(NET *net, ulong length)
 
   if (length >= net->max_packet_size)
   {
-    DBUG_PRINT("error",("Packet too large. Max sixe: %lu",
-			net->max_packet_size));
+    DBUG_PRINT("error", ("Packet too large. Max size: %lu",
+               net->max_packet_size));
     net->error= 1;
     net->report_error= 1;
     net->last_errno= ER_NET_PACKET_TOO_LARGE;
