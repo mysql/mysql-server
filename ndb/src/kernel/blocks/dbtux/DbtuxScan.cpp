@@ -108,15 +108,23 @@ Dbtux::execACC_SCANREQ(Signal* signal)
 /*
  * Receive bounds for scan in single direct call.  The bounds can arrive
  * in any order.  Attribute ids are those of index table.
+ *
+ * Replace EQ by equivalent LE + GE.  Check for conflicting bounds.
+ * Check that sets of lower and upper bounds are on initial sequences of
+ * keys and that all but possibly last bound is non-strict.
+ *
+ * Finally save the sets of lower and upper bounds (i.e. start key and
+ * end key).  Full bound type (< 4) is included but only the strict bit
+ * is used since lower and upper have now been separated.
  */
 void
 Dbtux::execTUX_BOUND_INFO(Signal* signal)
 {
   jamEntry();
   struct BoundInfo {
+    int type;
     unsigned offset;
     unsigned size;
-    int type;
   };
   TuxBoundInfo* const sig = (TuxBoundInfo*)signal->getDataPtrSend();
   const TuxBoundInfo reqCopy = *(const TuxBoundInfo*)sig;
@@ -124,18 +132,11 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   // get records
   ScanOp& scan = *c_scanOpPool.getPtr(req->tuxScanPtrI);
   Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  // collect bound info for each index attribute
-  BoundInfo boundInfo[MaxIndexAttributes][2];
+  // collect lower and upper bounds
+  BoundInfo boundInfo[2][MaxIndexAttributes];
   // largest attrId seen plus one
-  Uint32 maxAttrId = 0;
-  // skip 5 words
+  Uint32 maxAttrId[2] = { 0, 0 };
   unsigned offset = 0;
-  if (req->boundAiLength < offset) {
-    jam();
-    scan.m_state = ScanOp::Invalid;
-    sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
-    return;
-  }
   const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
   // walk through entries
   while (offset + 2 <= req->boundAiLength) {
@@ -156,32 +157,35 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
       return;
     }
-    while (maxAttrId <= attrId) {
-      BoundInfo* b = boundInfo[maxAttrId++];
-      b[0].type = b[1].type = -1;
-    }
-    BoundInfo* b = boundInfo[attrId];
-    if (type == 0 || type == 1  || type == 4) {
-      if (b[0].type != -1) {
-        jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::InvalidBounds;
-        return;
+    for (unsigned j = 0; j <= 1; j++) {
+      // check if lower/upper bit matches
+      const unsigned luBit = (j << 1);
+      if ((type & 0x2) != luBit && type != 4)
+        continue;
+      // EQ -> LE, GE
+      const unsigned type2 = (type & 0x1) | luBit;
+      // fill in any gap
+      while (maxAttrId[j] <= attrId) {
+        BoundInfo& b = boundInfo[j][maxAttrId[j]++];
+        b.type = -1;
       }
-      b[0].offset = offset;
-      b[0].size = 2 + dataSize;
-      b[0].type = type;
-    }
-    if (type == 2 || type == 3 || type == 4) {
-      if (b[1].type != -1) {
-        jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::InvalidBounds;
-        return;
+      BoundInfo& b = boundInfo[j][attrId];
+      if (b.type != -1) {
+        // compare with previous bound
+        if (b.type != type2 ||
+            b.size != 2 + dataSize ||
+            memcmp(&data[b.offset + 2], &data[offset + 2], dataSize << 2) != 0) {
+          jam();
+          scan.m_state = ScanOp::Invalid;
+          sig->errorCode = TuxBoundInfo::InvalidBounds;
+          return;
+        }
+      } else {
+        // enter new bound
+        b.type = type2;
+        b.offset = offset;
+        b.size = 2 + dataSize;
       }
-      b[1].offset = offset;
-      b[1].size = 2 + dataSize;
-      b[1].type = type;
     }
     // jump to next
     offset += 2 + dataSize;
@@ -192,34 +196,27 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
     return;
   }
-  // save the bounds in index attribute id order
-  scan.m_boundCnt[0] = 0;
-  scan.m_boundCnt[1] = 0;
-  for (unsigned i = 0; i < maxAttrId; i++) {
-    jam();
-    const BoundInfo* b = boundInfo[i];
-    // current limitation - check all but last is equality
-    if (i + 1 < maxAttrId) {
-      if (b[0].type != 4 || b[1].type != 4) {
+  for (unsigned j = 0; j <= 1; j++) {
+    // save lower/upper bound in index attribute id order
+    for (unsigned i = 0; i < maxAttrId[j]; i++) {
+      jam();
+      const BoundInfo& b = boundInfo[j][i];
+      // check for gap or strict bound before last
+      if (b.type == -1 || (i + 1 < maxAttrId[j] && (b.type & 0x1))) {
         jam();
         scan.m_state = ScanOp::Invalid;
         sig->errorCode = TuxBoundInfo::InvalidBounds;
         return;
       }
-    }
-    for (unsigned j = 0; j <= 1; j++) {
-      if (b[j].type != -1) {
+      bool ok = scan.m_bound[j]->append(&data[b.offset], b.size);
+      if (! ok) {
         jam();
-        bool ok = scan.m_bound[j]->append(&data[b[j].offset], b[j].size);
-        if (! ok) {
-          jam();
-          scan.m_state = ScanOp::Invalid;
-          sig->errorCode = TuxBoundInfo::OutOfBuffers;
-          return;
-        }
-        scan.m_boundCnt[j]++;
+        scan.m_state = ScanOp::Invalid;
+        sig->errorCode = TuxBoundInfo::OutOfBuffers;
+        return;
       }
     }
+    scan.m_boundCnt[j] = maxAttrId[j];
   }
   // no error
   sig->errorCode = 0;

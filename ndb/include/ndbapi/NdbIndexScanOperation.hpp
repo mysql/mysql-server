@@ -56,27 +56,11 @@ public:
   }
 
   /**
-   * @name Define Range Scan
-   *
-   * A range scan is a scan on an ordered index.  The operation is on
-   * the index table but tuples are returned from the primary table.
-   * The index contains all tuples where at least one index key has not
-   * null value.
-   *
-   * A range scan is currently opened via a normal open scan method.
-   * Bounds can be defined for each index key.  After setting bounds,
-   * usual scan methods can be used (get value, interpreter, take over).
-   * These operate on the primary table.
-   *
-   * @{
-   */
-
-  /**
    * Type of ordered index key bound.  The values (0-4) will not change
    * and can be used explicitly (e.g. they could be computed).
    */
   enum BoundType {
-    BoundLE = 0,        ///< lower bound,
+    BoundLE = 0,        ///< lower bound
     BoundLT = 1,        ///< lower bound, strict
     BoundGE = 2,        ///< upper bound
     BoundGT = 3,        ///< upper bound, strict
@@ -86,20 +70,28 @@ public:
   /**
    * Define bound on index key in range scan.
    *
-   * Each index key can have lower and/or upper bound, or can be set
-   * equal to a value.  The bounds can be defined in any order but
-   * a duplicate definition is an error.
+   * Each index key can have lower and/or upper bound.  Setting the key
+   * equal to a value defines both upper and lower bounds.  The bounds
+   * can be defined in any order.  Conflicting definitions is an error.
    *
-   * The bounds must specify a single range i.e. they are on an initial
-   * sequence of index keys and the condition is equality for all but
-   * (at most) the last key which has a lower and/or upper bound.
+   * For equality, it is better to use BoundEQ instead of the equivalent
+   * pair of BoundLE and BoundGE.  This is especially true when table
+   * distribution key is an initial part of the index key.
+   *
+   * The sets of lower and upper bounds must be on initial sequences of
+   * index keys.  All but possibly the last bound must be non-strict.
+   * So "a >= 2 and b > 3" is ok but "a > 2 and b >= 3" is not.
+   *
+   * The scan may currently return tuples for which the bounds are not
+   * satisfied.  For example, "a <= 2 and b <= 3" scans the index up to
+   * (a=2, b=3) but also returns any (a=1, b=4).
    *
    * NULL is treated like a normal value which is less than any not-NULL
-   * value and equal to another NULL value.  To search for NULL use
+   * value and equal to another NULL value.  To compare against NULL use
    * setBound with null pointer (0).
    *
-   * An index stores also all-NULL keys (this may become optional).
-   * Doing index scan with empty bound set returns all table tuples.
+   * An index stores also all-NULL keys.  Doing index scan with empty
+   * bound set returns all table tuples.
    *
    * @param attrName    Attribute name, alternatively:
    * @param anAttrId    Index column id (starting from 0)
@@ -116,8 +108,6 @@ public:
    * See the other setBound() method for details.
    */
   int setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len = 0);
-
-  /** @} *********************************************************************/
 
   /**
    * Reset bounds and put operation in list that will be
