@@ -233,6 +233,7 @@ DBUSER=""
 START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
 MYSQL_TEST_SSL_OPTS=""
+USE_TIMER=""
 USE_EMBEDDED_SERVER=""
 RESULT_EXT=""
 
@@ -242,6 +243,7 @@ while test $# -gt 0; do
       USE_RUNNING_SERVER="" RESULT_EXT=".es" ;;
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
+    --timer)  USE_TIMER=1 ;;
     --verbose-manager)  MANAGER_QUIET_OPT="" ;;
     --old-master) MASTER_40_ARGS="";;
     --master-binary=*)
@@ -584,8 +586,10 @@ export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
- --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT --timer-file=$MY_LOG_DIR/timer \
- $MYSQL_TEST_SSL_OPTS"
+ --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT $MYSQL_TEST_SSL_OPTS"
+if [ x$USE_TIMER = x1 ] ; then
+  MYSQL_TEST_ARGS="$MYSQL_TEST_ARGS --timer-file=$MY_LOG_DIR/timer"
+fi
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
@@ -1444,7 +1448,7 @@ run_testcase ()
       total_inc
       pass_inc
       TIMER=""
-      if [ -f "$MY_LOG_DIR/timer" ]; then
+      if [ x$USE_TIMER = x1 -a -f "$MY_LOG_DIR/timer" ]; then
 	TIMER=`cat $MY_LOG_DIR/timer`
 	TIMER=`$PRINTF "%13s" $TIMER`
       fi
@@ -1623,7 +1627,11 @@ then
 fi
 
 $ECHO
+if [ x$USE_TIMER = x1 ] ; then
 $ECHO "TEST                            RESULT        TIME (ms)"
+else
+$ECHO "TEST                            RESULT"
+fi
 $ECHO $DASH72
 
 if [ -z "$1" ] ;
