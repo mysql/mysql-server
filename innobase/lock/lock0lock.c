@@ -395,19 +395,6 @@ lock_rec_get_nth_bit(
 	return(ut_bit_get_nth(b, bit_index));
 }	
 
-/*************************************************************************
-Gets the table covered by an IX table lock. */
-
-dict_table_t*
-lock_get_ix_table(
-/*==============*/
-			/* out: the table covered by the lock */
-	lock_t*	lock)	/* in: table lock */
-{
-	ut_a(lock->type_mode == (LOCK_TABLE | LOCK_IX));
-	return(lock->un_member.tab_lock.table);
-}
-
 /*************************************************************************/
 
 #define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
@@ -612,6 +599,45 @@ lock_get_wait(
 	}
 
 	return(FALSE);
+}
+
+/*************************************************************************
+Gets the table covered by an IX or IS table lock, if there are no
+other locks on the table. */
+
+dict_table_t*
+lock_get_table(
+/*===========*/
+			/* out: the table covered by the lock,
+			or NULL if it is not an IX or IS table lock,
+			or there are other locks on the table */
+	lock_t*	lock,	/* in: lock */
+	ulint*	mode)	/* out: lock mode of table */
+{
+	dict_table_t*	table;
+	ulint		lock_mode;
+
+	table = NULL;
+	*mode = LOCK_NONE;
+
+	if (lock_get_type(lock) != LOCK_TABLE) {
+		return(table);
+	}
+
+	lock_mode = lock_get_mode(lock);
+	switch (lock_mode) {
+	case LOCK_IS:
+	case LOCK_IX:
+		*mode = lock_mode;
+		table = lock->un_member.tab_lock.table;
+		if (UT_LIST_GET_LEN(table->locks) != 1 ||
+		    UT_LIST_GET_FIRST(table->locks) != lock) {
+			/* We only support the case when
+			there is only one lock on this table. */
+			table = NULL;
+		}
+	}
+	return(table);
 }
 
 /*************************************************************************
