@@ -190,7 +190,6 @@ class ha_innobase: public handler
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
 };
 
-extern bool innodb_skip;
 extern uint innobase_init_flags, innobase_lock_type;
 extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_cache_size;
