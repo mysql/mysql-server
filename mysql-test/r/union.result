@@ -655,7 +655,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` binary(24) default NULL
+  `f` varbinary(24) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
@@ -666,7 +666,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` binary(10) default NULL
+  `y` varbinary(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
@@ -677,7 +677,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` binary(19) default NULL
+  `y` varbinary(19) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
@@ -699,7 +699,7 @@ testc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` binary(19) default NULL
+  `dt` varbinary(19) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
@@ -710,7 +710,7 @@ testv
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` binary(19) default NULL
+  `dt` varbinary(19) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sc from t2 UNION select sv from t2;
@@ -732,7 +732,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` blob
+  `dt` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
@@ -755,7 +755,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` blob
+  `i` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select tx from t2;
@@ -766,7 +766,7 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `sv` text
+  `sv` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT b from t2 UNION select tx from t2;
@@ -1069,7 +1069,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `_latin1'test' collate latin1_bin` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+  `_latin1'test' collate latin1_bin` varchar(4) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1082,7 +1082,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+  `test` varchar(4) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1095,7 +1095,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+  `test` varchar(4) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1195,3 +1195,38 @@ a	b
 2	b
 3	c
 drop table t1;
+CREATE TABLE t1 (
+a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
+b ENUM("one", "two") character set utf8,
+c ENUM("one", "two")
+);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('ä','ö','ü') character set utf8 NOT NULL default 'ü',
+  `b` enum('one','two') character set utf8 default NULL,
+  `c` enum('one','two') default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
+create table t2 select NULL union select a from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+NULL	enum('ä','ö','ü')	YES		NULL	
+drop table t2;
+create table t2 select a from t1 union select NULL;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+a	enum('ä','ö','ü')	YES		NULL	
+drop table t2;
+create table t2 select a from t1 union select a from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+a	char(1)				
+drop table t2;
+create table t2 select a from t1 union select c from t1;
+ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation 'UNION'
+create table t2 select a from t1 union select b from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+a	varchar(3)	YES		NULL	
+drop table t2, t1;
