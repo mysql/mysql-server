@@ -949,11 +949,7 @@ static void do_exec(struct st_query* q)
     while (fgets(buf, sizeof(buf), res_file))
       replace_dynstr_append_mem(ds, buf, strlen(buf));
   }
-#ifndef __WIN__
   error= pclose(res_file);
-#else  
-  error= _pclose(res_file);
-#endif  
 
   if (error != 0)
     die("command \"%s\" failed", cmd);
@@ -4610,11 +4606,7 @@ FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
   FILE *res_file;
 
   subst_cmd= subst_env_var(cmd);
-#ifndef __WIN__
   res_file= popen(subst_cmd, "r0");
-#else
-  res_file= _popen(subst_cmd, "r0");
-#endif
   my_free(subst_cmd, MYF(0));
   return res_file;
 }

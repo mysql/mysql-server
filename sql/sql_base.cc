@@ -499,7 +499,7 @@ void close_temporary_tables(THD *thd)
     */
     query_buf_size+= table->key_length+1;
 
-  if ((query = alloc_root(&thd->mem_root, query_buf_size)))
+  if ((query = alloc_root(thd->mem_root, query_buf_size)))
     // Better add "if exists", in case a RESET MASTER has been done
     end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
 
@@ -2311,18 +2311,16 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   if (!wild_num)
     DBUG_RETURN(0);
 
-  Item_arena *arena= thd->current_arena, backup;
-
+  reg2 Item *item;
+  List_iterator<Item> it(fields);
+  Item_arena *arena, backup;
   /*
     If we are in preparing prepared statement phase then we have change
     temporary mem_root to statement mem root to save changes of SELECT list
   */
-  if ((is_stmt_prepare= arena->is_stmt_prepare()))
-    thd->set_n_backup_item_arena(arena, &backup);
+  arena= thd->change_arena_if_needed(&backup);
 
-  reg2 Item *item;
-  List_iterator<Item> it(fields);
-  while ( wild_num && (item= it++))
+  while (wild_num && (item= it++))
   {    
     if (item->type() == Item::FIELD_ITEM &&
         ((Item_field*) item)->field_name &&
@@ -2344,7 +2342,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it))
       {
-        if (is_stmt_prepare)
+        if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
 	DBUG_RETURN(-1);
       }
@@ -2360,7 +2358,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
   }
-  if (is_stmt_prepare)
+  if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(0);
 }
@@ -2589,11 +2587,10 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
-  Item_arena *arena= thd->current_arena, backup;
-  bool is_stmt_prepare= arena->is_stmt_prepare();
+  Item_arena *arena= 0, backup;
   DBUG_ENTER("setup_conds");
+
   thd->set_query_id=1;
-  
   thd->lex->current_select->cond_count= 0;
   if (*conds)
   {
@@ -2628,12 +2625,14 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (is_stmt_prepare)
-	  thd->set_n_backup_item_arena(arena, &backup);
+        arena= thd->change_arena_if_needed(&backup);
 	*conds= and_conds(*conds, table->on_expr);
 	table->on_expr=0;
-	if (is_stmt_prepare)
+	if (arena)
+        {
 	  thd->restore_backup_item_arena(arena, &backup);
+          arena= 0;                             // Safety if goto err
+        }
 	if ((*conds) && !(*conds)->fixed &&
 	    (*conds)->fix_fields(thd, tables, conds))
 	  DBUG_RETURN(1);
@@ -2641,8 +2640,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     }
     if (table->natural_join)
     {
-      if (is_stmt_prepare)
-	thd->set_n_backup_item_arena(arena, &backup);
+      arena= thd->change_arena_if_needed(&backup);
       /* Make a join of all fields with have the same name */
       TABLE *t1= table->table;
       TABLE *t2= table->natural_join->table;
@@ -2683,7 +2681,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           *conds= and_conds(*conds, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (is_stmt_prepare)
+          if (arena)
             thd->restore_backup_item_arena(arena, &backup);
           if (*conds && !(*conds)->fixed)
           {
@@ -2695,7 +2693,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           table->on_expr= and_conds(table->on_expr, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (is_stmt_prepare)
+          if (arena)
             thd->restore_backup_item_arena(arena, &backup);
           if (table->on_expr && !table->on_expr->fixed)
           {
@@ -2704,12 +2702,15 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           }
         }
       }
-      else if (is_stmt_prepare)
+      else if (arena)
+      {
         thd->restore_backup_item_arena(arena, &backup);
+        arena= 0;                               // Safety if goto err
+      }
     }
   }
 
-  if (is_stmt_prepare)
+  if (thd->current_arena->is_stmt_prepare())
   {
     /*
       We are in prepared statement preparation code => we should store
@@ -2722,8 +2723,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
-  if (is_stmt_prepare)
-      thd->restore_backup_item_arena(arena, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
 }
 
