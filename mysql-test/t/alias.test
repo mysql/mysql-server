@@ -81,3 +81,5 @@ INSERT INTO t1 VALUES ('40004712','000001','0020',0);
 UPDATE t1 SET t1.xstatus_vor = Greatest(t1.xstatus_vor,1) WHERE t1.aufnr =
 "40004712" AND t1.plnfl = "000001" AND t1.vornr > "0010" ORDER BY t1.vornr
 ASC LIMIT 1;
+
+drop table t1;
