@@ -136,7 +136,7 @@ err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
   unireg_abort(1);
-  DEBUG_RETURN(1);					// Impossible
+  DBUG_RETURN(1);					// Impossible
 } /* read_texts */
 
 
