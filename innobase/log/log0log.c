@@ -1857,7 +1857,7 @@ log_group_archive(
 	os_file_t file_handle;
 	dulint	start_lsn;
 	dulint	end_lsn;
-	char	name[100];
+	char	name[1024];
 	byte*	buf;
 	ulint	len;
 	ibool	ret;

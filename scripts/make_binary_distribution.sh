@@ -66,10 +66,12 @@ for i in extra/comp_err extra/replace extra/perror extra/resolveip \
   myisam/myisampack sql/mysqld sql/mysqlbinlog \
   client/mysql sql/mysqld client/mysqlshow client/mysqlcheck \
   client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
-  tools/mysqlmanager \
+  client/mysqlmanagerc client/mysqlmanager-pwgen tools/mysqlmanager \
   client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
   client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest \
-  client/.libs/mysqlcheck tools/.libs/mysqlmanager
+  client/.libs/mysqlcheck \
+  client/.libs/mysqlmanagerc client/libs/mysqlmanager-pwgen \
+  tools/.libs/mysqlmanager
 do
   if [ -f $i ]
   then

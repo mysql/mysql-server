@@ -1543,10 +1543,11 @@ static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
     tmp->error="Too few arguments";
     return tmp;
   }
-  tmp->data_buf=(char*)tmp+sizeof(*tmp);
+  /* We have to allocate 'args' first as this must be alligned */
+  tmp->args=(char**)(tmp +1);
+  tmp->data_buf= (char*) (tmp->args + num_args);
   memcpy(tmp->data_buf,arg_start,arg_len);
   tmp->data_buf_size=arg_len;
-  tmp->args=(char**)(tmp->data_buf+arg_len);
   tmp->num_args=num_args; 
   tmp->ident=tmp->data_buf;
   tmp->ident_len=strlen(tmp->ident);

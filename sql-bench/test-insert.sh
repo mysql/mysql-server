@@ -917,13 +917,19 @@ print "Time for update_with_key (" . ($opt_loop_count*3) . "):  " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 $loop_time=new Benchmark;
-for ($i=0 ; $i < $opt_loop_count*3 ; $i+=3)
+$count=0;
+for ($i=1 ; $i < $opt_loop_count*3 ; $i+=3)
 {
   $sth = $dbh->do("update bench1 set dummy1='updated' where id=$i") or die $DBI::errstr;
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$tests,
+					 $opt_loop_count));
 }
-
-$end_time=new Benchmark;
-print "Time for update_with_key_prefix (" . ($opt_loop_count) . "):  " .
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for update_with_key_prefix (" . ($opt_loop_count) . "):  " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 print "\nTesting update of all rows\n";
