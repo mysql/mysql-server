@@ -2588,7 +2588,7 @@ opt_distinct:
     |DISTINCT   { $$ = 1; };
 
 opt_gconcat_separator:
-    /* empty */        { $$ = new String(" ",1,default_charset_info); }
+    /* empty */        { $$ = new String(",",1,default_charset_info); }
     |SEPARATOR_SYM text_string  { $$ = $2; };
    
 
