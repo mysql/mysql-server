@@ -303,14 +303,14 @@ date	format	str_to_date
 2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
 03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	0003-01-02 22:11:12
 Warnings:
-Note	1292	Truncated wrong string value: '10:20:10AM'
+Note	1292	Truncated incorrect string value: '10:20:10AM'
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 date	format	con
 10:20:10AM	%h:%i:%s	0000-00-00 10:20:10
 2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
 03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	0003-01-02 22:11:12
 Warnings:
-Note	1292	Truncated wrong string value: '10:20:10AM'
+Note	1292	Truncated incorrect string value: '10:20:10AM'
 drop table t1;
 select get_format(DATE, 'USA') as a;
 a
@@ -374,7 +374,7 @@ str_to_date("02 10", "%d %f") as f6;
 f1	f2	f3	f4	f5	f6
 2003-01-02 10:11:12.001200	2003-01-02 10:11:12	2003-01-02	58:11:12	58:11:12	48:00:00.100000
 Warnings:
-Note	1292	Truncated wrong datetime value: '2003-01-02 10:11:12.0012'
+Note	1292	Truncated incorrect datetime value: '2003-01-02 10:11:12.0012'
 drop table t1, t2;
 select str_to_date("2003-01-02 10:11:12.0012ABCD", "%Y-%m-%d %H:%i:%S.%f") as f1,
 addtime("-01:01:01.01 GGG", "-23:59:59.1") as f2,
@@ -382,13 +382,13 @@ microsecond("1997-12-31 23:59:59.01XXXX") as f3;
 f1	f2	f3
 2003-01-02 10:11:12.001200	-25:01:00.110000	10000
 Warnings:
-Note	1292	Truncated wrong datetime value: '2003-01-02 10:11:12.0012ABCD'
-Note	1292	Truncated wrong time value: '-01:01:01.01 GG'
-Note	1292	Truncated wrong datetime value: '1997-12-31 23:59:59.01XXXX'
+Note	1292	Truncated incorrect datetime value: '2003-01-02 10:11:12.0012ABCD'
+Note	1292	Truncated incorrect time value: '-01:01:01.01 GG'
+Note	1292	Truncated incorrect datetime value: '1997-12-31 23:59:59.01XXXX'
 select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
 str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;
 f1	f2
 2003-04-05	2003-04-05 10:11:12.101010
 Warnings:
-Note	1292	Truncated wrong date value: '2003-04-05  g'
-Note	1292	Truncated wrong datetime value: '2003-04-05 10:11:12.101010234567'
+Note	1292	Truncated incorrect date value: '2003-04-05  g'
+Note	1292	Truncated incorrect datetime value: '2003-04-05 10:11:12.101010234567'
