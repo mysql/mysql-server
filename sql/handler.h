@@ -42,16 +42,13 @@
 #define HA_ADMIN_INVALID         -5
 
 /* Bits in bas_flag to show what database can do */
-
 #define HA_READ_NEXT		1	/* Read next record with same key */
 #define HA_READ_PREV		2	/* Read prev. record with same key */
 #define HA_READ_ORDER		4	/* Read through record-keys in order */
 #define HA_READ_RND_SAME	8	/* Read RND-record to KEY-record
 					   (To update with RND-read)	   */
 #define HA_KEYPOS_TO_RNDPOS	16	/* ha_info gives pos to record */
-#define HA_LASTKEY_ORDER	32	/* Next record gives next record
-					  according last record read (even
-					  if database is updated after read) */
+#define HA_TABLE_SCAN_ON_INDEX  32	/* No separate data/index file */
 #define HA_REC_NOT_IN_SEQ	64	/* ha_info don't return recnumber;
 					   It returns a position to ha_r_rnd */
 #define HA_ONLY_WHOLE_INDEX	128	/* Can't use part key searches */
@@ -77,6 +74,13 @@
 #define HA_NO_PREFIX_CHAR_KEYS	(HA_NO_TEMP_TABLES*2) 
 #define HA_CAN_FULLTEXT         (HA_NO_PREFIX_CHAR_KEYS*2)
 #define HA_CAN_SQL_HANDLER      (HA_CAN_FULLTEXT*2)
+
+/* Old not used flags */
+/*
+  Next record gives next record according last record read (even
+  if database is updated after read)
+*/
+#define HA_LASTKEY_ORDER	0
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does an implicit HA_ABORT_IF_LOCKED */
