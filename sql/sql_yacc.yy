@@ -3060,7 +3060,8 @@ join_table:
         | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_UPDATE)
+	  if (lex->sql_command == SQLCOM_UPDATE &&
+	      &lex->select_lex == lex->current_select->outer_select())
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
