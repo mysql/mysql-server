@@ -97,6 +97,13 @@ public:
   bool preallocate_row();
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool is_null();
+  /*
+    Item_in_optimizer item is special boolean function. On value request 
+    (one of val, val_int or val_str methods) it evaluate left expression 
+    of IN by storing it value in cache item (one of Item_cache* items), 
+    then it test cache is it NULL. If left expression (cache) is NULL then
+    Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
+  */
   longlong val_int();
   
   Item_cache **get_cache() { return &cache; }
@@ -546,8 +553,10 @@ public:
   {
     if (comparators)
       for (uint i= 0; i < n; i++)
+      {
 	if (comparators[i])
 	  delete comparators[i];
+      }
   }
   void store_value(Item *item);
   int cmp(Item *arg);
