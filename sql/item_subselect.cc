@@ -883,9 +883,7 @@ subselect_single_select_engine(st_select_lex *select,
 {
   select_lex= select;
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
-  unit->set_limit(unit->global_parameters->select_limit,
-		  unit->global_parameters->offset_limit,
-		  select_lex);
+  unit->set_limit(unit->global_parameters, select_lex);
   unit->item= item;
   this->select_lex= select_lex;
 }

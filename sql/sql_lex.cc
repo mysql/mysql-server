@@ -1635,12 +1635,20 @@ void st_select_lex::print_limit(THD *thd, String *str)
   }
 }
 
-void st_select_lex_unit::set_limit(ha_rows limit, ha_rows offset,
+/*
+  initialize limit counters
+
+  SYNOPSIS
+    st_select_lex_unit::set_limit()
+    values	- SELECT_LEX with initial values for counters
+    sl		- SELECT_LEX for options set
+*/
+void st_select_lex_unit::set_limit(SELECT_LEX *values,
 				   SELECT_LEX *sl)
 {
-  offset_limit_cnt= offset;
-  select_limit_cnt= limit+offset;
-  if (select_limit_cnt < limit)
+  offset_limit_cnt= values->offset_limit;
+  select_limit_cnt= values->select_limit+values->offset_limit;
+  if (select_limit_cnt < values->select_limit)
     select_limit_cnt= HA_POS_ERROR;		// no limit
   if (select_limit_cnt == HA_POS_ERROR)
     sl->options&= ~OPTION_FOUND_ROWS;

@@ -151,7 +151,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
     thd_arg->lex->current_select= sl;
-    set_limit(sl->select_limit, sl->offset_limit, sl);
+    set_limit(sl, sl);
     if (sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
     
@@ -375,9 +375,7 @@ int st_select_lex_unit::exec()
     {
       thd->lex->current_select= fake_select_lex;
       fake_select_lex->options= thd->options;
-      set_limit(global_parameters->select_limit,
-		global_parameters->offset_limit,
-		fake_select_lex); 
+      set_limit(global_parameters, fake_select_lex); 
 
       if (found_rows_for_union && !thd->lex->describe &&
 	  select_limit_cnt != HA_POS_ERROR)
