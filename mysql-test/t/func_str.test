@@ -110,9 +110,9 @@ CREATE TABLE t1 (
 ) TYPE=MyISAM;
 
 INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','2001-02-28 08:40:16',20010228084016,0,4);
-SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter), '"') FROM t1;
+SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"') FROM t1;
 SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
-SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter) FROM t1;
+SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter) FROM t1;
 drop table t1;
 
 #

@@ -565,6 +565,7 @@ public:
 
 class Item_copy_string :public Item
 {
+  enum enum_field_types cached_field_type;
 public:
   Item *item;
   Item_copy_string(Item *i) :item(i)
@@ -573,11 +574,12 @@ public:
     decimals=item->decimals;
     max_length=item->max_length;
     name=item->name;
+    cached_field_type= item->field_type();
   }
   ~Item_copy_string() { delete item; }
   enum Type type() const { return COPY_STR_ITEM; }
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  enum_field_types field_type() const { return cached_field_type; }
   double val()
   { return null_value ? 0.0 : my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),NULL); }
   longlong val_int()

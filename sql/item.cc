@@ -873,8 +873,15 @@ bool Item::send(Protocol *protocol, String *buffer)
 
   switch ((type=field_type())) {
   default:
-    DBUG_ASSERT(1);
-    /* If not assert on, send as a string */
+  case MYSQL_TYPE_NULL:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VAR_STRING:
   {
@@ -899,6 +906,7 @@ bool Item::send(Protocol *protocol, String *buffer)
       result= protocol->store_short(nr);
     break;
   }
+  case MYSQL_TYPE_INT24:
   case MYSQL_TYPE_LONG:
   {
     longlong nr;
@@ -925,6 +933,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   }
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
   {
     TIME tm;
     get_date(&tm, 1);

@@ -802,6 +802,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(table->table_name);
+  buffer.length(0);
   if (store_create_info(thd, table, &buffer))
     DBUG_RETURN(-1);
   protocol->store(buffer.ptr(), buffer.length());

@@ -940,6 +940,11 @@ public:
   void fix_length_and_dec();
   void print(String *str);
   enum Item_result result_type() const;
+  /*
+    We must always return variables as strings to guard against selects of type
+    select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
+  */
+  enum_field_types field_type() const  { return MYSQL_TYPE_STRING; }
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const { return const_var_flag; }
   table_map used_tables() const

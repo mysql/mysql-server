@@ -183,3 +183,34 @@ select * from t1, t2 where t1.start between t2.ctime1 and t2.ctime2;
 select * from t1, t2 where t1.start >= t2.ctime1 and t1.start <= t2.ctime2;
 select * from t1, t3 where t1.start between t3.ctime1 and t3.ctime2;
 drop table t1,t2,t3;
+
+#
+# Test types from + INTERVAL
+#
+
+CREATE TABLE t1 (datetime datetime, timestamp timestamp, date date, time time);
+INSERT INTO t1 values ("2001-01-02 03:04:05", "2002-01-02 03:04:05", "2003-01-02", "06:07:08");
+SELECT * from t1;
+select date_add("1997-12-31",INTERVAL 1 SECOND);
+select date_add("1997-12-31",INTERVAL "1 1" YEAR_MONTH);
+
+select date_add(datetime, INTERVAL 1 SECOND) from t1;
+select date_add(datetime, INTERVAL 1 YEAR) from t1;
+
+select date_add(date,INTERVAL 1 SECOND) from t1;
+select date_add(date,INTERVAL 1 MINUTE) from t1;
+select date_add(date,INTERVAL 1 HOUR) from t1;
+select date_add(date,INTERVAL 1 DAY) from t1;
+select date_add(date,INTERVAL 1 MONTH) from t1;
+select date_add(date,INTERVAL 1 YEAR) from t1;
+select date_add(date,INTERVAL "1:1" MINUTE_SECOND) from t1;
+select date_add(date,INTERVAL "1:1" HOUR_MINUTE) from t1;
+select date_add(date,INTERVAL "1:1" DAY_HOUR) from t1;
+select date_add(date,INTERVAL "1 1" YEAR_MONTH) from t1;
+select date_add(date,INTERVAL "1:1:1" HOUR_SECOND) from t1;
+select date_add(date,INTERVAL "1 1:1" DAY_MINUTE) from t1;
+select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
+
+# The following is not as one would expect...
+select date_add(time,INTERVAL 1 SECOND) from t1;
+drop table t1;

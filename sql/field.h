@@ -561,14 +561,15 @@ public:
 };
 
 
-class Field_timestamp :public Field_num {
+class Field_timestamp :public Field_str {
 public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
-		  struct st_table *table_arg);
-  enum Item_result result_type () const { return field_length == 8 || field_length == 14 ? INT_RESULT : STRING_RESULT; }
+		  struct st_table *table_arg,
+		  CHARSET_INFO *cs);
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
+  enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
@@ -598,7 +599,6 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
-  void fill_and_store(char *from,uint len);
   bool get_date(TIME *ltime,bool fuzzydate);
   bool get_time(TIME *ltime);
 };
