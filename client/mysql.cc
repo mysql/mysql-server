@@ -664,21 +664,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     case 'p':
       if (argument == disabled_my_option)
-	opt_password= (char*) "";
-      else
+	argument= (char*) "";			// Don't require password
+      if (argument)
       {
-	if (argument)
-	{
-	  char *start= argument;
-	  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-	  opt_password= my_strdup(argument, MYF(MY_FAE));
-	  while (*argument) *argument++= 'x';		// Destroy argument
-	  if (*start)
-	    start[1]=0 ;
-	}
-	else
-	  tty_password= 1;
+	char *start= argument;
+	my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+	opt_password= my_strdup(argument, MYF(MY_FAE));
+	while (*argument) *argument++= 'x';		// Destroy argument
+	if (*start)
+	  start[1]=0 ;
       }
+      else
+	tty_password= 1;
       break;
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
