@@ -1,6 +1,10 @@
 #ifndef SLAVE_H
 #define SLAVE_H
 
+#define SLAVE_NET_TIMEOUT  3600
+
+extern ulong slave_net_timeout;
+
 typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
