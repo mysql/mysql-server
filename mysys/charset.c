@@ -215,7 +215,7 @@ static int add_collation(CHARSET_INFO *cs)
 
       if (!strcmp(cs->csname,"ucs2") )
       {
-#ifdef HAVE_CHARSET_ucs2
+#if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
         new->cset= my_charset_ucs2_general_uca.cset;
         new->coll= my_charset_ucs2_general_uca.coll;
         new->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
