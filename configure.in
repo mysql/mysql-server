@@ -1823,7 +1823,7 @@ AC_ARG_WITH(embedded-server,
 )
 
 AC_ARG_WITH(query_cache,
-    [  --without-query-cache  Don not build query cache in embedded server.],
+    [  --without-query-cache   Do not build query cache.],
     [with_query_cache=$withval],
     [with_query_cache=yes]
 )
