@@ -54,7 +54,7 @@ static const char* helpText =
 #endif
 "START BACKUP                           Start backup\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
-"SHUTDOWN                               Shutdown all processed in cluster and quit\n"
+"SHUTDOWN                               Shutdown all processes in cluster and quit\n"
 "CLUSTERLOG ON                          Enable Cluster logging\n"
 "CLUSTERLOG OFF                         Disable Cluster logging\n"
 "CLUSTERLOG FILTER <severity>           Toggle severity filter on/off\n"
@@ -78,8 +78,10 @@ static const char* helpTextShow =
 "---------------------------------------------------------------------------\n"
 "SHOW prints NDB Cluster information\n\n"
 "SHOW               Print information about cluster\n" 
+#if 0
 "SHOW CONFIG        Print configuration (in initial config file format)\n" 
 "SHOW PARAMETERS    Print information about configuration parameters\n\n"
+#endif
 ;
 
 #ifdef HAVE_GLOBAL_REPLICATION
