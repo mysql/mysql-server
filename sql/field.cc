@@ -2738,7 +2738,7 @@ String *Field_double::val_str(String *val_buffer,
   else
   {
 #ifdef HAVE_FCONVERT
-    char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE],
+    char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
     char *pos= buff;
     int decpt,sign,tmp_dec=dec;
 
