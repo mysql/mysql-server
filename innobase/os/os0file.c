@@ -1740,7 +1740,7 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-#ifdef HAVE_PREAD
+#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
         os_mutex_exit(os_file_count_mutex);
@@ -1815,7 +1815,7 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#ifdef HAVE_PWRITE
+#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
         os_mutex_exit(os_file_count_mutex);
