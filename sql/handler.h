@@ -67,12 +67,14 @@
 #define HA_CAN_FULLTEXT         (HA_NO_PREFIX_CHAR_KEYS*2)
 #define HA_CAN_SQL_HANDLER      (HA_CAN_FULLTEXT*2)
 #define HA_NO_AUTO_INCREMENT	(HA_CAN_SQL_HANDLER*2)
+/* Table data are stored in separate files */
+#define HA_FILE_BASED		(HA_NO_AUTO_INCREMENT*2)
 
 /*
   Next record gives next record according last record read (even
   if database is updated after read).  Not used at this point.
 */
-#define HA_LASTKEY_ORDER	(HA_NO_AUTO_INCREMENT*2)
+#define HA_LASTKEY_ORDER	(HA_FILE_BASED*2)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -149,8 +151,9 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 
 typedef struct st_ha_create_information
 {
-  char *comment,*password;
-  char *data_file_name, *index_file_name;
+  const char *comment,*password;
+  const char *data_file_name, *index_file_name;
+  const char *alias;
   ulonglong max_rows,min_rows;
   ulonglong auto_increment_value;
   ulong table_options;

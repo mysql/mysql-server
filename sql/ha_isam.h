@@ -34,7 +34,7 @@ class ha_isam: public handler
     :handler(table), file(0),
     int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 		    HA_KEY_READ_WRONG_STR | HA_DUPP_POS |
-		    HA_NOT_DELETE_WITH_CACHE)
+		    HA_NOT_DELETE_WITH_CACHE | HA_FILE_BASED)
   {}
   ~ha_isam() {}
   const char *table_type() const { return "ISAM"; }

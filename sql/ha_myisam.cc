@@ -1054,9 +1054,10 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 			&recinfo,(table_arg->fields*2+2)*sizeof(MI_COLUMNDEF),
 			&keydef, table_arg->keys*sizeof(MI_KEYDEF),
 			&keyseg,
-			((table_arg->key_parts + table_arg->keys) * sizeof(MI_KEYSEG)),
+			((table_arg->key_parts + table_arg->keys) *
+			 sizeof(MI_KEYSEG)),
 			NullS)))
-    DBUG_RETURN(1);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   pos=table_arg->key_info;
   for (i=0; i < table_arg->keys ; i++, pos++)

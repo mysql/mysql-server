@@ -290,6 +290,7 @@ bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_enable_named_pipe= 0, opt_debugging= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
+uint lower_case_table_names;
 
 static my_bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
@@ -305,7 +306,7 @@ char* log_error_file_ptr= log_error_file;
 static pthread_t select_thread;
 static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool lower_case_table_names, opt_old_rpl_compat;
+my_bool opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0, opt_console= 0;
 my_bool opt_readonly = 0;
@@ -2097,6 +2098,18 @@ int main(int argc, char **argv)
     exit(1);
   charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
 
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  if (!lower_case_table_names &&
+      test_if_case_insensitive(mysql_real_data_home) == 1)
+  {
+    sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+    lower_case_table_names= 2;
+  }
+
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
@@ -3841,15 +3854,15 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &max_system_variables.long_query_time, 0, GET_ULONG,
    REQUIRED_ARG, 10, 1, LONG_TIMEOUT, 0, 1, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
-   "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.",
+   "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.  Should be set to 2 if you are using a case insensitive file system",
    (gptr*) &lower_case_table_names,
-   (gptr*) &lower_case_table_names, 0, GET_BOOL, NO_ARG,
+   (gptr*) &lower_case_table_names, 0, GET_UINT, OPT_ARG,
 #ifdef FN_NO_CASE_SENCE
     1
 #else
     0
 #endif
-   , 0, 1, 0, 1, 0},
+   , 0, 2, 0, 1, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
@@ -4814,6 +4827,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     sf_malloc_quick=1;
 #endif
     break;
+  case OPT_LOWER_CASE_TABLE_NAMES:
+    lower_case_table_names= argument ? atoi(argument) : 1;
+    break;
   }
   return 0;
 }
@@ -4945,18 +4961,6 @@ static void fix_paths(void)
   {
     if (!(slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE))))
       exit(1);
-  }
-
-  /*
-    Ensure that lower_case_table_names is set on system where we have case
-    insensitive names.  If this is not done the users MyISAM tables will
-    get corrupted if accesses with names of different case.
-  */
-  if (!lower_case_table_names &&
-      test_if_case_insensitive(mysql_real_data_home) == 1)
-  {
-    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitive", mysql_real_data_home);
-    lower_case_table_names= 1;
   }
 }
 

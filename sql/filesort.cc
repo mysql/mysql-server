@@ -759,6 +759,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 						sort_length));
     if (error == -1)
       goto err;					/* purecov: inspected */
+    buffpek->max_keys= buffpek->mem_count;	// If less data in buffers than expected
     queue_insert(&queue,(byte*) buffpek);
   }
 

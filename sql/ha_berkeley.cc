@@ -544,7 +544,10 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 	(*ptr)->set_bt_compare(*ptr, berkeley_cmp_packed_key);
 	(*ptr)->app_private= (void*) (table->key_info+i);
 	if (!(table->key_info[i].flags & HA_NOSAME))
+	{
+	  DBUG_PRINT("bdb",("Setting DB_DUP for key %u", i));
 	  (*ptr)->set_flags(*ptr, DB_DUP);
+	}
 	if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
 				 open_mode, 0))))
 	{
@@ -1635,8 +1638,9 @@ void ha_berkeley::info(uint flag)
 	share->rec_per_key[i];
     }
   }
-  else if (flag & HA_STATUS_ERRKEY)
-    errkey=last_dup_key;
+  /* Don't return key if we got an error for the internal primary key */
+  if (flag & HA_STATUS_ERRKEY && last_dup_key < table->keys)
+    errkey= last_dup_key;
   DBUG_VOID_RETURN;
 }
 
@@ -1834,7 +1838,7 @@ static int create_sub_table(const char *table_name, const char *sub_name,
   int error;
   DB *file;
   DBUG_ENTER("create_sub_table");
-  DBUG_PRINT("enter",("sub_name: %s",sub_name));
+  DBUG_PRINT("enter",("sub_name: %s  flags: %d",sub_name, flags));
 
   if (!(error=db_create(&file, db_env, 0)))
   {
@@ -1866,14 +1870,14 @@ int ha_berkeley::create(const char *name, register TABLE *form,
   char name_buff[FN_REFLEN];
   char part[7];
   uint index=1;
-  int error=1;
+  int error;
   DBUG_ENTER("ha_berkeley::create");
 
   fn_format(name_buff,name,"", ha_berkeley_ext,2 | 4);
 
   /* Create the main table that will hold the real rows */
-  if (create_sub_table(name_buff,"main",DB_BTREE,0))
-    DBUG_RETURN(1); /* purecov: inspected */
+  if ((error= create_sub_table(name_buff,"main",DB_BTREE,0)))
+    DBUG_RETURN(error); /* purecov: inspected */
 
   primary_key=table->primary_key;
   /* Create the keys */
@@ -1882,10 +1886,10 @@ int ha_berkeley::create(const char *name, register TABLE *form,
     if (i != primary_key)
     {
       sprintf(part,"key%02d",index++);
-      if (create_sub_table(name_buff, part, DB_BTREE,
-			   (table->key_info[i].flags & HA_NOSAME) ? 0 :
-			   DB_DUP))
-	DBUG_RETURN(1); /* purecov: inspected */
+      if ((error= create_sub_table(name_buff, part, DB_BTREE,
+				   (table->key_info[i].flags & HA_NOSAME) ? 0 :
+				   DB_DUP)))
+	DBUG_RETURN(error); /* purecov: inspected */
     }
   }
 
@@ -1893,21 +1897,21 @@ int ha_berkeley::create(const char *name, register TABLE *form,
   /* Is DB_BTREE the best option here ? (QUEUE can't be used in sub tables) */
 
   DB *status_block;
-  if (!db_create(&status_block, db_env, 0))
+  if (!(error=(db_create(&status_block, db_env, 0))))
   {
-    if (!status_block->open(status_block, name_buff,
-			    "status", DB_BTREE, DB_CREATE, 0))
+    if (!(error=(status_block->open(status_block, name_buff,
+				    "status", DB_BTREE, DB_CREATE, 0))))
     {
       char rec_buff[4+MAX_KEY*4];
       uint length= 4+ table->keys*4;
       bzero(rec_buff, length);
-      if (!write_status(status_block, rec_buff, length))
-	error=0;
+      error= write_status(status_block, rec_buff, length);
       status_block->close(status_block,0);
     }
   }
   DBUG_RETURN(error);
 }
+
 
 
 int ha_berkeley::delete_table(const char *name)

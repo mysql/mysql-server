@@ -88,10 +88,11 @@ class ha_berkeley: public handler
  public:
   ha_berkeley(TABLE *table): handler(table), alloc_ptr(0),rec_buff(0), file(0),
     int_table_flags(HA_REC_NOT_IN_SEQ |
-		     HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		     HA_NULL_KEY | HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
-		     HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
-		     HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
+		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+		    HA_NULL_KEY | HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
+		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
+		    HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX |
+		    HA_FILE_BASED),
     changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0)
   {
   }

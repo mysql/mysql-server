@@ -116,12 +116,21 @@ const char *known_exts[]=
 static TYPELIB known_extentions=
 {array_elements(known_exts)-1,"known_exts", known_exts};
 
-/*
-  Drop all tables in a database.
 
-  db-name is already validated when we come here
-  If thd == 0, do not write any messages; This is useful in replication
-  when we want to remove a stale database before replacing it with the new one
+/*
+  Drop all tables in a database and the database itself
+
+  SYNOPSIS
+    mysql_rm_db()
+    thd			Thread handle
+    db			Database name in the case given by user
+		        It's already validated when we come here
+    if_exists		Don't give error if database doesn't exists
+    silent		Don't generate errors
+
+  RETURN
+    0   ok (Database dropped)
+    -1	Error generated
 */
 
 
@@ -129,7 +138,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
   int error = 0;
-  char	path[FN_REFLEN+16];
+  char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
   MY_DIR *dirp;
   DBUG_ENTER("mysql_rm_db");
 
@@ -156,6 +165,14 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       send_ok(&thd->net,0);
     goto exit;
   }
+  if (lower_case_table_names)
+  {
+    /* Convert database to lower case */
+    strmov(tmp_db, db);
+    casedn_str(tmp_db);
+    db= tmp_db;
+  }
+
   pthread_mutex_lock(&LOCK_open);
   remove_db_from_cache(db);
   pthread_mutex_unlock(&LOCK_open);

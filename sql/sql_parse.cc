@@ -59,8 +59,8 @@ static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
-static bool append_file_to_dir(THD *thd, char **filename_ptr,
-			       char *table_name);
+static bool append_file_to_dir(THD *thd, const char **filename_ptr,
+			       const char *table_name);
 static bool create_total_list(THD *thd, LEX *lex,
 			      TABLE_LIST **result, bool skip_first);
 
@@ -1121,10 +1121,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   case COM_CREATE_DB:				// QQ: To be removed
     {
+      char *db=thd->strdup(packet), *alias;
+
       statistic_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
-      char *db=thd->strdup(packet);
       // null test to handle EOM
-      if (!db || !strip_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || !(alias= thd->strdup(db)) ||
+	  check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1132,15 +1134,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
-      mysql_create_db(thd,db,0,0);
+      mysql_create_db(thd,(lower_case_table_names == 2 ? alias : db),0,0);
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
     {
       statistic_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
-      char *db=thd->strdup(packet);
+      char *db=thd->strdup(packet), *alias;
       // null test to handle EOM
-      if (!db || !strip_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || !(alias= thd->strdup(db)) ||
+	  check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1153,7 +1156,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd,db,0,0);
+      mysql_rm_db(thd,alias,0,0);
       break;
     }
   case COM_BINLOG_DUMP:
@@ -1599,6 +1602,7 @@ mysql_execute_command(void)
 		      CREATE_TMP_ACL : CREATE_ACL);
     if (!tables->db)
       tables->db=thd->db;
+    lex->create_info.alias= tables->alias;
     if (check_access(thd,want_priv,tables->db,&tables->grant.privilege) ||
 	check_merge_table_access(thd, tables->db,
 				 (TABLE_LIST *)
@@ -1664,7 +1668,8 @@ mysql_execute_command(void)
       if (!(res=open_and_lock_tables(thd,tables->next)))
       {
         if ((result=new select_create(tables->db ? tables->db : thd->db,
-                                      tables->real_name, &lex->create_info,
+                                      tables->real_name,
+				      &lex->create_info,
                                       lex->create_list,
                                       lex->key_list,
                                       select_lex->item_list,lex->duplicates)))
@@ -1676,7 +1681,8 @@ mysql_execute_command(void)
     else // regular create
     {
       res = mysql_create_table(thd,tables->db ? tables->db : thd->db,
-			       tables->real_name, &lex->create_info,
+			       tables->real_name,
+			       &lex->create_info,
 			       lex->create_list,
 			       lex->key_list,0, 0); // do logging
       if (!res)
@@ -2341,7 +2347,9 @@ mysql_execute_command(void)
     break;
   case SQLCOM_CREATE_DB:
   {
-    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    char *alias;
+    if (!strip_sp(lex->name) || !(alias=thd->strdup(lex->name)) ||
+	check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2363,12 +2371,15 @@ mysql_execute_command(void)
 
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
-    res=mysql_create_db(thd,lex->name,lex->create_info.options,0);
+    res=mysql_create_db(thd,(lower_case_table_names == 2 ? alias : lex->name),
+			lex->create_info.options,0);
     break;
   }
   case SQLCOM_DROP_DB:
   {
-    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    char *alias;
+    if (!strip_sp(lex->name) || !(alias=thd->strdup(lex->name)) ||
+	check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2394,7 +2405,7 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_rm_db(thd,lex->name,lex->drop_if_exists,0);
+    res=mysql_rm_db(thd,alias,lex->drop_if_exists,0);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:
@@ -3779,7 +3790,8 @@ static void refresh_status(void)
 
 	/* If pointer is not a null pointer, append filename to it */
 
-static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
+static bool append_file_to_dir(THD *thd, const char **filename_ptr,
+			       const char *table_name)
 {
   char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)
