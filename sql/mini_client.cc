@@ -330,8 +330,14 @@ mc_net_safe_read(MYSQL *mysql)
     if(errno != EINTR)
       {
         mc_end_server(mysql);
-        net->last_errno=CR_SERVER_LOST;
-        strmov(net->last_error,ER(net->last_errno));
+	if(net->last_errno != ER_NET_PACKET_TOO_LARGE)
+	  {
+            net->last_errno=CR_SERVER_LOST;
+            strmov(net->last_error,ER(net->last_errno));
+	  }
+	else
+	  strmov(net->last_error, "Packet too large - increase \
+max_allowed_packet on this server");
       }	
     return(packet_error);
   }
