@@ -3134,8 +3134,17 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
     opt_skip_slave_start= 1;
-  /* init_slave() must be called after the thread keys are created */
-  init_slave();
+  /*
+    init_slave() must be called after the thread keys are created.
+    Some parts of the code (e.g. SHOW STATUS LIKE 'slave_running' and other
+    places) assume that active_mi != 0, so let's fail if it's 0 (out of
+    memory); a message has already been printed.
+  */
+  if (init_slave() && !active_mi)
+  {
+    end_thr_alarm(1);				// Don't allow alarms
+    unireg_abort(1);
+  }
 
   if (opt_bootstrap)
   {
@@ -5689,7 +5698,8 @@ struct show_var_st status_vars[]= {
   {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONG_STATUS},
   {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count), SHOW_LONG_STATUS},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
-  {"Slave_running",            (char*) 0, SHOW_SLAVE_RUNNING},
+  {"Slave_running",            (char*) 0,                       SHOW_SLAVE_RUNNING},
+  {"Slave_retried_transactions",(char*) 0,                      SHOW_SLAVE_RETRIED_TRANS},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count), SHOW_LONG_STATUS},
   {"Sort_merge_passes",	       (char*) offsetof(STATUS_VAR, filesort_merge_passes), SHOW_LONG_STATUS},
