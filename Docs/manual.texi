@@ -729,6 +729,7 @@ MySQL Utilites
 Maintaining a MySQL Installation
 
 * Table maintenance::           Table maintenance and crash recovery
+* Using mysqlcheck::            Using mysqlcheck for maintenance and recovery
 * Maintenance regimen::         Setting up a table maintenance regimen
 * Table-info::                  Getting information about a table
 * Crash recovery::              Using @code{myisamchk} for crash recovery
@@ -34598,7 +34599,8 @@ to start using the new table.
 @cindex maintaining, tables
 @cindex tables, maintaining
 @cindex databases, maintaining
-@cindex @code{mysiamchk}
+@cindex @code{myisamchk}
+@cindex @code{mysqlcheck}
 @cindex crash, recovery
 @cindex recovery, from crash
 @node Maintenance, Adding functions, Tools, Top
@@ -34606,6 +34608,7 @@ to start using the new table.
 
 @menu
 * Table maintenance::           Table maintenance and crash recovery
+* Using mysqlcheck::            Using mysqlcheck for maintenance and recovery
 * Maintenance regimen::         Setting up a table maintenance regimen
 * Table-info::                  Getting information about a table
 * Crash recovery::              Using @code{myisamchk} for crash recovery
@@ -34616,7 +34619,7 @@ This chapter covers what you should know about maintaining a @strong{MySQL}
 distribution.  You will learn how to care for your tables on a regular
 basis, and what to do when disaster strikes.
 
-@node Table maintenance, Maintenance regimen, Maintenance, Maintenance
+@node Table maintenance, Using mysqlcheck, Maintenance, Maintenance
 @section Using @code{myisamchk} for Table Maintenance and Crash Recovery
 
 Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM
@@ -34998,9 +35001,132 @@ This space is allocated on the temporary disk (specified by @code{TMPDIR} or
 If you have a problem with disk space during repair, you can try to use
 @code{--safe-recover} instead of @code{--recover}.
 
+@node Using mysqlcheck, Maintenance regimen, Table maintenance, Maintenance
+@section Using @code{mysqlcheck} for Table Maintenance and Crash Recovery
+
+Since @strong{MySQL} version 3.23.38 you will be able to use a new
+checking and repairing tool for @code{MyISAM} tables. The difference to
+@code{myisamchk} is that @code{mysqlcheck} should be used when the
+@code{mysqld} server is running, where as @code{myisamchk} should be used
+when it is not. The benefit is that you no longer have to take the
+server down for checking or repairing your tables.
+
+@code{mysqlcheck} uses @strong{MySQL} server commands @code{CHECK},
+@code{REPAIR}, @code{ANALYZE} and @code{OPTIMIZE} in a convenient way
+for the user.
+
+There are three alternative ways to invoke @code{mysqlcheck}:
+
+@example
+shell> mysqlcheck [OPTIONS] database [tables]
+shell> mysqlcheck [OPTIONS] --databases DB1 [DB2 DB3...]
+shell> mysqlcheck [OPTIONS] --all-databases
+@end example
+
+So it can be used in a similar way as @code{mysqldump} when it
+comes to what databases and tables you want to choose.
+
+@code{mysqlcheck} does have a special feature compared to the other
+clients; the default behavior, checking tables (-c), can be changed by
+renaming the binary. So if you want to have a tool that repairs tables
+by default, you should just copy @code{mysqlcheck} to your harddrive
+with a new name, @code{mysqlrepair}, or alternatively make a symbolic
+link to @code{mysqlrepair} and name the symbolic link as
+@code{mysqlrepair}. If you invoke @code{mysqlrepair} now, it will repair
+tables by default.
+
+The names that you can use to change @code{mysqlcheck} default behavior
+are here:
+
+@example
+mysqlrepair:   The default option will be -r
+mysqlanalyze:  The default option will be -a
+mysqloptimize: The default option will be -o
+@end example
+
+The options available for @code{mysqlcheck} are listed here, please
+check what your version supports with @code{mysqlcheck --help}.
+
+@table @code
+@item -A, --all-databases
+Check all the databases. This will be same as --databases with all
+databases selected
+@item -1, --all-in-1
+Instead of making one query for each table, execute all queries in 1
+query separately for each database. Table names will be in a comma
+separated list.
+@item  -a, --analyze
+Analyze given tables.
+@item --auto-repair
+If a checked table is corrupted, automatically fix it. Repairing will be
+done after all tables have been checked, if corrupted ones were found.
+@item -#, --debug=...
+Output debug log. Often this is 'd:t:o,filename'
+@item --character-sets-dir=...
+Directory where character sets are
+@item -c, --check
+Check table for errors
+@item -C, --check-only-changed
+Check only tables that have changed since last check or haven't been
+closed properly.
+@item --compress
+Use compression in server/client protocol.
+@item -?, --help
+Display this help message and exit.
+@item -B, --databases
+To check several databases. Note the difference in usage; In this case
+no tables are given. All name arguments are regarded as database names.
+@item --default-character-set=...
+Set the default character set
+@item -F, --fast
+Check only tables that hasn't been closed properly
+@item -f, --force
+Continue even if we get an sql-error.
+@item -e, --extended
+If you are using this option with CHECK TABLE, it will ensure that the
+table is 100 percent consistent, but will take a long time.
+
+If you are using this option with REPAIR TABLE, it will run an extended
+repair on the table, which may not only take a long time to execute, but
+may produce a lot of garbage rows also!
+@item -h, --host=...
+Connect to host.
+@item -m, --medium-check
+Faster than extended-check, but only finds 99.99 percent of all
+errors. Should be good enough for most cases.
+@item -o, --optimize
+Optimize table
+@item -p, --password[=...]
+Password to use when connecting to server. If password is not given
+it's solicited on the tty.
+@item -P, --port=...
+Port number to use for connection.
+@item -q, --quick
+If you are using this option with CHECK TABLE, it prevents the check
+from scanning the rows to check for wrong links. This is the fastest
+check.
+
+If you are using this option with REPAIR TABLE, it will try to repair
+only the index tree. This is the fastest repair method for a table.
+@item -r, --repair
+Can fix almost anything except unique keys that aren't unique.
+@item -s, --silent
+Print only error messages.
+@item -S, --socket=...
+Socket file to use for connection.
+@item --tables
+Overrides option --databases (-B).
+@item -u, --user=#
+User for login if not current user.
+@item -v, --verbose
+Print info about the various stages.
+@item -V, --version
+Output version information and exit.
+@end table
+
 @cindex maintaining, tables
 @cindex tables, maintenance regimen
-@node Maintenance regimen, Table-info, Table maintenance, Maintenance
+@node Maintenance regimen, Table-info, Using mysqlcheck, Maintenance
 @section Setting Up a Table Maintenance Regimen
 
 Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM
