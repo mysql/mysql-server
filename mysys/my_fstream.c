@@ -114,13 +114,15 @@ uint my_fwrite(FILE *stream, const byte *Buffer, uint Count, myf MyFlags)
       if (my_thread_var->abort)
 	MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 #endif
-      if (errno == ENOSPC && (MyFlags & MY_WAIT_IF_FULL))
+      if ((errno == ENOSPC || errno == EDQUOT) &&
+          (MyFlags & MY_WAIT_IF_FULL))
       {
-	if (!(errors++ % MY_WAIT_GIVE_USER_A_MESSAGE))
-	  my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH));
-	sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);
-	VOID(my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0)));
-	continue;
+        if (!(errors++ % MY_WAIT_GIVE_USER_A_MESSAGE))
+          my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
+                   "[stream]",my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
+        VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
+        VOID(my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0)));
+        continue;
       }
 #endif
       if (ferror(stream) || (MyFlags & (MY_NABP | MY_FNABP)))
