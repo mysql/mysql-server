@@ -33,7 +33,7 @@ INCLUDES = @MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include -I../include \
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ libmysqld.la
 pkglib_LTLIBRARIES =		libmysqld.la
 
-libmysqld_la_SOURCES = libmysqld.c lib_sql.cc
+libmysqld_la_SOURCES = libmysqld.c lib_sql.cc lib_load.cc
 
 libmysqlsources = errmsg.c get_password.c password.c
 ## XXX: we should not have to duplicate info from the sources list
@@ -50,7 +50,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	opt_sum.cc procedure.cc records.cc slave.cc sql_acl.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_insert.cc sql_lex.cc \
-	sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc \
+	sql_list.cc sql_manager.cc sql_map.cc sql_parse.cc \
 	sql_rename.cc sql_repl.cc sql_select.cc sql_show.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
@@ -68,7 +68,7 @@ sqlobjects = convert.lo derror.lo field.lo field_conv.lo filesort.lo \
 	opt_sum.lo procedure.lo records.lo slave.lo sql_acl.lo \
 	sql_analyse.lo sql_base.lo sql_cache.lo sql_class.lo \
 	sql_crypt.lo sql_db.lo sql_delete.lo sql_insert.lo sql_lex.lo \
-	sql_list.lo sql_load.lo sql_manager.lo sql_map.lo sql_parse.lo \
+	sql_list.lo sql_manager.lo sql_map.lo sql_parse.lo \
 	sql_rename.lo sql_repl.lo sql_select.lo sql_show.lo \
 	sql_string.lo sql_table.lo sql_test.lo sql_udf.lo \
 	sql_update.lo sql_yacc.lo table.lo thr_malloc.lo time.lo \
