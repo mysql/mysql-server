@@ -159,9 +159,10 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
   while(_mi_ft_segiterator(&ftsi1) && _mi_ft_segiterator(&ftsi2))
   {
     if ((ftsi1.pos != ftsi2.pos) &&
+        (!ftsi1.pos || !ftsi2.pos ||
           _mi_compare_text(default_charset_info,
 	                 (uchar*) ftsi1.pos,ftsi1.len,
-			 (uchar*) ftsi2.pos,ftsi2.len,0))
+			 (uchar*) ftsi2.pos,ftsi2.len,0)))
       return THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT;
   }
   return GEE_THEY_ARE_ABSOLUTELY_IDENTICAL;
