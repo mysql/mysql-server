@@ -106,7 +106,7 @@ drop table t1;
 # Do a create table that tries to cover all types and options
 #
 create table t1 (
-type_bool bool not null default false,
+type_bool bool not null default 0,
 type_tiny tinyint not null auto_increment primary key,
 type_short smallint(3),
 type_mediumint mediumint,
