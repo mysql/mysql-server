@@ -72,3 +72,14 @@ col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	101	3	4	5		PENDING		0000-00-00 00:00:00
 2	102	4	3	5	99	PENDING	EXTRA	2004-01-01 00:00:00
 drop table t1;
+DROP TABLE IF EXISTS t2;
+create table t2 (a int NOT NULL PRIMARY KEY) engine=myisam;
+alter table t2 engine=ndbcluster;
+select count(*) from t2;
+count(*)
+15001
+truncate table t2;
+select count(*) from t2;
+count(*)
+0
+drop table t2;
