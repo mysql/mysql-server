@@ -85,13 +85,7 @@ public:
   bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
-  void print(String *str)
-  {
-    if (name)
-      str->append(name);
-    else
-      str->append("-subselect-");
-  }
+  void print(String *str);
   bool change_engine(subselect_engine *eng)
   {
     engine= eng;
@@ -138,8 +132,10 @@ public:
 /* used in static ALL/ANY optimisation */
 class Item_maxmin_subselect: public Item_singlerow_subselect
 {
+  bool max;
 public:
   Item_maxmin_subselect(st_select_lex *select_lex, bool max);
+  void print(String *str);
 };
 
 /* exists subselect */
@@ -164,6 +160,7 @@ public:
   double val();
   String *val_str(String*);
   void fix_length_and_dec();
+  void print(String *str);
 
   friend class select_exists_subselect;
   friend class subselect_uniquesubquery_engine;
@@ -184,12 +181,15 @@ protected:
   Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
+  bool transformed;
 public:
   Item_func_not_all *upper_not; // point on NOT before ALL subquery
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
-    :Item_exists_subselect(), abort_on_null(0), upper_not(0) {}
+    :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_not(0)
+     
+  {}
 
   subs_type substype() { return IN_SUBS; }
   void reset() 
@@ -209,6 +209,7 @@ public:
   String *val_str(String*);
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);
+  void print(String *str);
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
@@ -223,12 +224,15 @@ protected:
   compare_func_creator func;
 
 public:
+  bool all;
+
   Item_allany_subselect(Item * left_expr, compare_func_creator f,
-		     st_select_lex *select_lex);
+		     st_select_lex *select_lex, bool all);
 
   // only ALL subquery has upper not
   subs_type substype() { return upper_not?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
+  void print(String *str);
 };
 
 
@@ -264,6 +268,7 @@ public:
   enum Item_result type() { return res_type; }
   virtual void exclude()= 0;
   bool may_be_null() { return maybe_null; };
+  virtual void print(String *str)= 0;
 };
 
 
@@ -285,6 +290,7 @@ public:
   bool dependent();
   bool uncacheable();
   void exclude();
+  void print (String *str);
 };
 
 
@@ -302,6 +308,7 @@ public:
   bool dependent();
   bool uncacheable();
   void exclude();
+  void print (String *str);
 };
 
 
@@ -328,6 +335,7 @@ public:
   bool dependent() { return 1; }
   bool uncacheable() { return 1; }
   void exclude();
+  void print (String *str);
 };
 
 
@@ -344,4 +352,5 @@ public:
      check_null(chk_null)
   {}
   int exec();
+  void print (String *str);
 };

@@ -79,6 +79,10 @@ enum enum_sql_command {
   SQLCOM_END
 };
 
+// describe/explain types
+#define DESCRIBE_NORMAL		1
+#define DESCRIBE_EXTENDED	2
+
 typedef List<Item> List_item;
 
 typedef struct st_lex_master_info
@@ -327,7 +331,9 @@ public:
   int prepare(THD *thd, select_result *result, bool tables_and_fields_initied);
   int exec();
   int cleanup();
-  
+
+  void print(String *str);
+
   friend void mysql_init_query(THD *thd);
   friend int subselect_union_engine::exec();
 private:
@@ -468,6 +474,9 @@ public:
     init_select();
   }
   bool setup_ref_array(THD *thd, uint order_group_num);
+  void print(THD *thd, String *str);
+  static void print_order(String *str, ORDER *order);
+  void print_limit(THD *thd, String *str);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -542,9 +551,10 @@ typedef struct st_lex
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint param_count;
   uint slave_thd_opt;
+  uint8 describe;
   bool drop_primary, drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
-  bool derived_tables, describe;
+  bool derived_tables;
   bool safe_to_cache_query;
   st_lex() {}
   inline void uncacheable()

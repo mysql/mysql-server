@@ -2271,6 +2271,14 @@ String *Item_func_hex::val_str(String *str)
 }
 
 
+void Item_func_binary::print(String *str)
+{
+  str->append("cast(");
+  args[0]->print(str);
+  str->append("as binary)");
+}
+
+
 #include <my_dir.h>				// For my_stat
 
 String *Item_load_file::val_str(String *str)
