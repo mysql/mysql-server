@@ -1040,7 +1040,7 @@ LOG_MSG_FUNC(log_info,LOG_INFO)
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 #else
-inline void log_debug(char* __attribute__((unused)) fmt,...) {}
+inline void log_debug(const char* __attribute__((unused)) fmt,...) {}
 #endif
 
 static pthread_handler_decl(process_launcher_messages,
@@ -1065,7 +1065,7 @@ static pthread_handler_decl(process_launcher_messages,
       char* ident=buf+1;
       int ident_len=strlen(ident);
       memcpy(&pid,ident+ident_len+1,sizeof(pid));
-      log_debug("process message - ident=%s,ident_len=%d,pid=%d",ident,
+      log_debug("process message - ident=%s  ident_len=%d  pid=%d",ident,
 		ident_len,pid);
       pthread_mutex_lock(&lock_exec_hash);
       log_debug("hash has %d records",exec_hash.records);
