@@ -1309,6 +1309,12 @@ static void fix_server_id(THD *thd, enum_var_type type)
   server_id_supplied = 1;
 }
 
+bool sys_var_long_ptr::check(THD *thd, set_var *var)
+{
+  longlong v= var->value->val_int();
+  var->save_result.ulonglong_value= v < 0 ? 0 : v;
+  return 0;
+}
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
