@@ -250,6 +250,9 @@ public:
     THD_TRANS stmt;			/* Trans for current statement */
     uint bdb_lock_count;
   } transaction;
+#ifdef HAVE_GEMINI_DB
+  struct st_gemini gemini;
+#endif
   Item	     *free_list;
   CONVERT    *convert_set;
   Field      *dupp_field;
@@ -265,10 +268,11 @@ public:
           max_join_size,sent_row_count;
   table_map	used_tables;
   ulong query_id,version, inactive_timeout,options,thread_id;
+  ulong      gemini_spin_retries;
   long  dbug_thread_id;
   pthread_t  real_id;
   uint	current_tablenr,tmp_table,cond_count,col_access,query_length;
-  uint  server_status,open_options, gemini_spin_retries;
+  uint  server_status,open_options;
   enum_tx_isolation tx_isolation, session_tx_isolation;
   char	     scramble[9];
   bool       slave_thread;

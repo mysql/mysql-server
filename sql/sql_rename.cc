@@ -31,7 +31,7 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 {
-  bool error=1,got_all_locks=1;
+  bool error=1,cerror,got_all_locks=1;
   TABLE_LIST *lock_table,*ren_table=0;
   DBUG_ENTER("mysql_rename_tables");
   
@@ -85,7 +85,14 @@ end:
     rename_tables(thd, table, 1);
     /* Note that lock_table == 0 here, so the unlock loop will work */
   }
-  if (!error)
+
+  /* Lets hope this doesn't fail as the result will be messy */ 
+  if ((cerror=ha_commit_rename(thd)))
+  {
+    my_error(ER_GET_ERRNO,MYF(0),cerror); 
+    error= 1;
+  }
+  else if (!error)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
@@ -95,6 +102,7 @@ end:
     }
     send_ok(&thd->net);
   }
+
   for (TABLE_LIST *table=table_list ; table != lock_table ; table=table->next)
     unlock_table_name(thd,table);
   pthread_cond_broadcast(&COND_refresh);

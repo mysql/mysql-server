@@ -2400,15 +2400,22 @@ int QUICK_SELECT::get_next()
 
   for (;;)
   {
+    int result;
     if (range)
     {						// Already read through key
-      int result=((range->flag & EQ_RANGE) ?
-		  file->index_next_same(record, (byte*) range->min_key,
-					range->min_length) :
-		  file->index_next(record));
-      if (!result && !cmp_next(*it.ref()))
-	DBUG_RETURN(0);
+       result=((range->flag & EQ_RANGE) ?
+	       file->index_next_same(record, (byte*) range->min_key,
+				     range->min_length) :
+	       file->index_next(record));
+      if (!result)
+      {
+	if (!cmp_next(*it.ref()))
+	  DBUG_RETURN(0);
+      }
+      else if (result != HA_ERR_END_OF_FILE)
+	DBUG_RETURN(result);
     }
+
     if (!(range=it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
     if (range->flag & NO_MIN_RANGE)		// Read first record
@@ -2421,15 +2428,17 @@ int QUICK_SELECT::get_next()
       range=0;					// To next range
       continue;
     }
-    if (file->index_read(record,(byte*) range->min_key,
+    if ((result = file->index_read(record,(byte*) range->min_key,
 			 range->min_length,
 			 ((range->flag & NEAR_MIN) ?
 			  HA_READ_AFTER_KEY:
 			  (range->flag & EQ_RANGE) ?
 			  HA_READ_KEY_EXACT :
-			  HA_READ_KEY_OR_NEXT)))
+			  HA_READ_KEY_OR_NEXT))))
 
     {
+      if (result != HA_ERR_KEY_NOT_FOUND)
+	DBUG_RETURN(result);
       range=0;					// Not found, to next range
       continue;
     }

@@ -117,6 +117,9 @@
 /* POSIX readdir_r */
 #undef HAVE_READDIR_R
 
+/* Have Gemini db installed */
+#undef HAVE_GEMINI_DB
+
 /* POSIX sigwait */
 #undef HAVE_SIGWAIT
 

@@ -105,6 +105,9 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 #ifdef	__WIN__
   real_id = 0;
 #endif
+#ifdef HAVE_GEMINI_DB
+  bzero((char *)&gemini, sizeof(gemini));
+#endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
   pthread_mutex_init(&active_vio_lock, NULL);

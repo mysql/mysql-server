@@ -21,7 +21,7 @@ MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ \
-			@bdb_includes@ @innobase_includes@ \
+			@bdb_includes@ @innobase_includes@ @gemini_includes@ \
 			-I$(srcdir)/../include \
 			-I$(srcdir)/../regex \
 			-I$(srcdir) -I../include -I.. -I.
@@ -40,7 +40,7 @@ LDADD =			../isam/libnisam.a \
 			../regex/libregex.a \
 			../strings/libmystrings.a
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
-			@bdb_libs@ @innobase_libs@ \
+			@bdb_libs@ @innobase_libs@ @gemini_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS)
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
@@ -50,7 +50,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			field.h handler.h \
 			ha_isammrg.h ha_isam.h ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innobase.h \
-			opt_range.h opt_ft.h \
+			ha_gemini.h opt_range.h opt_ft.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h md5.h \
                         log_event.h mini_client.h sql_repl.h slave.h
@@ -71,7 +71,7 @@ mysqld_SOURCES =	sql_lex.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_isam.cc ha_isammrg.cc ha_heap.cc \
 			ha_myisam.cc ha_myisammrg.cc ha_berkeley.cc \
-	                ha_innobase.cc \
+	                ha_innobase.cc ha_gemini.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
