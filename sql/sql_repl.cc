@@ -21,6 +21,7 @@
 #include "sql_repl.h"
 #include "sql_acl.h"
 #include "log_event.h"
+#include "mini_client.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
 
@@ -843,6 +844,221 @@ err2:
 err:
   send_error(net, 0, errmsg);
   return 1;
+}
+
+int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
+{
+  if(!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
+		   mi->port, 0, 0))
+  {
+    sql_print_error("Connection to master failed: %s",
+		    mc_mysql_error(mysql));
+    return 1;
+  }
+  return 0;
+}
+
+static inline void cleanup_mysql_results(MYSQL_RES* db_res,
+				  MYSQL_RES** cur, MYSQL_RES** start)
+{
+  for( ; cur >= start; --cur)
+    if(*cur)
+      mc_mysql_free_result(*cur);
+  mc_mysql_free_result(db_res);
+}
+
+static inline int fetch_db_tables(THD* thd, MYSQL* mysql, const char* db,
+				  MYSQL_RES* table_res)
+{
+  MYSQL_ROW row;
+  
+  for( row = mc_mysql_fetch_row(table_res); row;
+       row = mc_mysql_fetch_row(table_res))
+  {
+    TABLE_LIST table;
+    const char* table_name = row[0];
+    int error;
+    if(table_rules_on)
+    {
+      table.next = 0;
+      table.db = (char*)db;
+      table.real_name = (char*)table_name;
+      if(!tables_ok(thd, &table))
+	continue;
+    }
+    
+    if((error = fetch_nx_table(thd, db, table_name, &glob_mi, mysql)))
+      return error;
+  }
+
+  return 0;
+}
+
+int load_master_data(THD* thd)
+{
+  MYSQL mysql;
+  MYSQL_RES* master_status_res = 0;
+  bool slave_was_running = 0;
+  int error = 0;
+  
+  mc_mysql_init(&mysql);
+
+  pthread_mutex_lock(&LOCK_slave);
+  // we do not want anyone messing with the slave at all for the entire
+  // duration of the data load;
+
+  // first, kill the slave
+  if((slave_was_running = slave_running))
+  {
+    abort_slave = 1;
+    thr_alarm_kill(slave_real_id);
+    thd->proc_info = "waiting for slave to die";
+    while(slave_running)
+      pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
+  }
+  
+
+  if(connect_to_master(thd, &mysql, &glob_mi))
+  {
+    net_printf(&thd->net, error = ER_CONNECT_TO_MASTER,
+		 mc_mysql_error(&mysql));
+    goto err;
+  }
+
+  // now that we are connected, get all database and tables in each
+  {
+    MYSQL_RES *db_res, **table_res, **table_res_end, **cur_table_res;
+    uint num_dbs;
+    MYSQL_ROW row;
+    
+    if(mc_mysql_query(&mysql, "show databases", 0) ||
+       !(db_res = mc_mysql_store_result(&mysql)))
+    {
+      net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+		 mc_mysql_error(&mysql));
+      goto err;
+    }
+
+    if(!(num_dbs = mc_mysql_num_rows(db_res)))
+      goto err;
+    // in theory, the master could have no databases at all
+    // and run with skip-grant
+    
+    if(!(table_res = (MYSQL_RES**)thd->alloc(num_dbs * sizeof(MYSQL_RES*))))
+    {
+      net_printf(&thd->net, error = ER_OUTOFMEMORY);
+      goto err;
+    }
+
+    // this is a temporary solution until we have online backup
+    // capabilities - to be replaced once online backup is working
+    // we wait to issue FLUSH TABLES WITH READ LOCK for as long as we
+    // can to minimize the lock time
+    if(mc_mysql_query(&mysql, "FLUSH TABLES WITH READ LOCK", 0)
+       || mc_mysql_query(&mysql, "SHOW MASTER STATUS",0) ||
+       !(master_status_res = mc_mysql_store_result(&mysql)))
+    {
+      net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+		 mc_mysql_error(&mysql));
+      goto err;
+    }
+    
+    // go through every table in every database, and if the replication
+    // rules allow replicating it, get it
+
+    table_res_end = table_res + num_dbs;
+
+    for(cur_table_res = table_res; cur_table_res < table_res_end;
+	++cur_table_res)
+    {
+      MYSQL_ROW row = mc_mysql_fetch_row(db_res);
+      // since we know how many rows we have, this can never be NULL
+
+      char* db = row[0];
+      int drop_error = 0;
+
+      // do not replicate databases excluded by rules
+      // also skip mysql database - in most cases the user will
+      // mess up and not exclude mysql database with the rules when
+      // he actually means to - in this case, he is up for a surprise if
+      // his priv tables get dropped and downloaded from master
+      // TO DO - add special option, not enabled
+      // by default, to allow inclusion of mysql database into load
+      // data from master
+      if(!db_ok(db, replicate_do_db, replicate_ignore_db) ||
+	 !strcmp(db,"mysql"))
+      {
+	*cur_table_res = 0;
+	continue;
+      }
+      
+      if((drop_error = mysql_rm_db(0, db, 1)) ||
+	 mysql_create_db(0, db, 0))
+      {
+	error = (drop_error) ? ER_DB_DROP_DELETE : ER_CANT_CREATE_DB;
+	net_printf(&thd->net, error, db, my_error);
+	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
+	goto err;
+      }
+
+      if(mc_mysql_select_db(&mysql, db) ||
+	 mc_mysql_query(&mysql, "show tables", 0) ||
+	 !(*cur_table_res = mc_mysql_store_result(&mysql)))
+      {
+	net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+		   mc_mysql_error(&mysql));
+	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
+	goto err;
+      }
+
+      if((error = fetch_db_tables(thd, &mysql, db, *cur_table_res)))
+      {
+	// we do not report the error - fetch_db_tables handles it
+	cleanup_mysql_results(db_res, cur_table_res, table_res);
+	goto err;
+      }
+    }
+
+    cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
+
+    // adjust position in the master
+    if(master_status_res)
+    {
+      MYSQL_ROW row = mc_mysql_fetch_row(master_status_res);
+
+      // we need this check because the master may not be running with
+      // log-bin, but it will still allow us to do all the steps
+      // of LOAD DATA FROM MASTER - no reason to forbid it, really,
+      // although it does not make much sense for the user to do it 
+      if(row[0] && row[1])
+      {
+	strmake(glob_mi.log_file_name, row[0], sizeof(glob_mi.log_file_name));
+	glob_mi.pos = atoi(row[1]); // atoi() is ok, since offset is <= 1GB
+	if(glob_mi.pos < 4)
+	  glob_mi.pos = 4; // don't hit the magic number
+	glob_mi.pending = 0;
+	flush_master_info(&glob_mi);
+      }
+
+      mc_mysql_free_result(master_status_res);
+    }
+    
+    if(mc_mysql_query(&mysql, "UNLOCK TABLES", 0))
+    {
+      net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+		 mc_mysql_error(&mysql));
+      goto err;
+    }
+  }
+err:  
+  pthread_mutex_unlock(&LOCK_slave);
+  if(slave_was_running)
+    start_slave(0, 0);
+  mc_mysql_close(&mysql); // safe to call since we always do mc_mysql_init()
+  if(!error)
+    send_ok(&thd->net);
+  
+  return error;
 }
 
 

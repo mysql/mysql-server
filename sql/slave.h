@@ -1,6 +1,8 @@
 #ifndef SLAVE_H
 #define SLAVE_H
 
+#include "mysql.h"
+
 typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
@@ -65,11 +67,14 @@ typedef struct st_table_rule_ent
 
 int flush_master_info(MASTER_INFO* mi);
 
-int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd = -1);
+int mysql_table_dump(THD* thd, const char* db,
+		     const char* tbl_name, int fd = -1);
 // if fd is -1, dump to NET
-int fetch_nx_table(THD* thd, MASTER_INFO* mi);
+
+int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
+		   MASTER_INFO* mi, MYSQL* mysql);
 // retrieve non-exitent table from master
-// the caller must set thd->last_nx_table and thd->last_nx_db first
+
 int show_master_info(THD* thd);
 int show_binlog_info(THD* thd);
 

@@ -1203,6 +1203,13 @@ mysql_execute_command(void)
       res = show_binlog_info(thd);
       break;
     }
+    
+  case SQLCOM_LOAD_MASTER_DATA: // sync with master
+    if(check_process_priv(thd))
+      goto error;
+    res = load_master_data(thd);
+    break;
+    
   case SQLCOM_LOAD_MASTER_TABLE:
 
     if (!tables->db)
@@ -1226,9 +1233,7 @@ mysql_execute_command(void)
       break;
     }
 
-    thd->last_nx_table = tables->real_name;
-    thd->last_nx_db = tables->db;
-    if(fetch_nx_table(thd, &glob_mi))
+    if(fetch_nx_table(thd, tables->db, tables->real_name, &glob_mi, 0))
       // fetch_nx_table is responsible for sending
       // the error
       {
