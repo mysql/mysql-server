@@ -33,14 +33,14 @@ noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc
-libmysqlsources =	errmsg.c get_password.c password.c
+libmysqlsources =	errmsg.c get_password.c
 
 noinst_HEADERS =	embedded_priv.h
 
 sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	ha_innodb.cc ha_berkeley.cc ha_heap.cc ha_isam.cc ha_isammrg.cc \
 	ha_myisam.cc ha_myisammrg.cc handler.cc sql_handler.cc \
-	hostname.cc init.cc \
+	hostname.cc init.cc password.c \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
 	item_uniq.cc key.cc lock.cc log.cc log_event.cc mf_iocache.cc\

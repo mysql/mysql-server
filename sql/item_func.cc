@@ -736,7 +736,7 @@ void Item_func_rand::fix_length_and_dec()
 
 double Item_func_rand::val()
 {
-  return rnd(rand);
+  return my_rnd(rand);
 }
 
 longlong Item_func_sign::val_int()

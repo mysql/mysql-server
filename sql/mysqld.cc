@@ -2668,7 +2668,7 @@ static void create_new_thread(THD *thd)
     max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
   for (uint i=0; i < 8 ; i++)			// Generate password teststring
-    thd->scramble[i]= (char) (rnd(&sql_rand)*94+33);
+    thd->scramble[i]= (char) (my_rnd(&sql_rand)*94+33);
   thd->scramble[8]=0;
 
   thd->real_id=pthread_self();			// Keep purify happy
