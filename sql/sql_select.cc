@@ -5961,6 +5961,8 @@ create_sort_index(JOIN_TAB *tab, ORDER *order, ha_rows filesort_limit,
       /*
 	We have a ref on a const;  Change this to a range that filesort
 	can use.
+	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
+	field, quick will contain an empty record set.
       */
       if (!(select->quick=get_ft_or_quick_select_for_ref(table, tab)))
 	goto err;
