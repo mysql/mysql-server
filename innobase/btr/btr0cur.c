@@ -1323,66 +1323,6 @@ btr_cur_parse_update_in_place(
 }
 
 /*****************************************************************
-Updates a secondary index record when the update causes no size
-changes in its fields. The only case when this function is currently
-called is that in a char field characters change to others which
-are identified in the collation order. */
-
-ulint
-btr_cur_update_sec_rec_in_place(
-/*============================*/
-				/* out: DB_SUCCESS or error number */
-	btr_cur_t*	cursor,	/* in: cursor on the record to update;
-				cursor stays valid and positioned on the
-				same record */
-	upd_t*		update,	/* in: update vector */
-	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr)	/* in: mtr */
-{
-	dict_index_t*	index 		= cursor->index;
-	dict_index_t*	clust_index;
-	ulint		err;
-	rec_t*		rec;
-	dulint		roll_ptr	= ut_dulint_zero;
-	trx_t*		trx		= thr_get_trx(thr);
-
-	/* Only secondary index records are updated using this function */
-	ut_ad(0 == (index->type & DICT_CLUSTERED));
-
-	rec = btr_cur_get_rec(cursor);
-	
-	if (btr_cur_print_record_ops && thr) {
-		printf(
-	"Trx with id %lu %lu going to update table %s index %s\n",
-		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
-		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
-		index->table_name, index->name);
-		rec_print(rec);
-	}
-
-	err = lock_sec_rec_modify_check_and_lock(0, rec, index, thr);
-
-	if (err != DB_SUCCESS) {
-
-		return(err);
-	}
-
-	/* Remove possible hash index pointer to this record */
-	btr_search_update_hash_on_delete(cursor);
-
-	row_upd_rec_in_place(rec, update);
-
-	clust_index = dict_table_get_first_index(index->table);
-
-	/* Note that roll_ptr is really just a dummy value since
-	a secondary index record does not contain any sys columns */
-
-	btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec, clust_index,
-						update, trx, roll_ptr, mtr);
-	return(DB_SUCCESS);
-}
-
-/*****************************************************************
 Updates a record when the update causes no size changes in its fields.
 We assume here that the ordering fields of the record do not change. */
 
