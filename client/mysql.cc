@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "13.2";
+const char *VER= "13.3";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -195,7 +195,7 @@ static void end_pager();
 static int init_tee(char *);
 static void end_tee();
 static const char* construct_prompt();
-static char *get_arg(char *line);
+static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 
@@ -2231,23 +2231,21 @@ com_print(String *buffer,char *line __attribute__((unused)))
 static int
 com_connect(String *buffer, char *line)
 {
-  char *tmp,buff[256];
+  char *tmp, buff[256];
   bool save_rehash= rehash;
   int error;
 
+  bzero(buff, sizeof(buff));
   if (buffer)
   {
-    while (my_isspace(system_charset_info,*line))
-      line++;
-    strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
-    if (buff[0] == '\\')			// Short command
-      buff[1]=' ';
-    tmp=(char *) strtok(buff," \t");		// Skip connect command
-    if (tmp && (tmp=(char *) strtok(NullS," \t;")))
+    strmov(buff, line);
+    tmp= get_arg(buff, 0);
+    if (tmp && *tmp)
     {
-      my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-      current_db=my_strdup(tmp,MYF(MY_WME));
-      if ((tmp=(char *) strtok(NullS," \t;")))
+      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+      current_db= my_strdup(tmp, MYF(MY_WME));
+      tmp= get_arg(buff, 1);
+      if (tmp)
       {
 	my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
 	current_host=my_strdup(tmp,MYF(MY_WME));
@@ -2333,8 +2331,9 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp;
   char buff[256];
 
+  bzero(buff, sizeof(buff));
   strmov(buff, line);
-  tmp= get_arg(buff);
+  tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)
   {
     put_info("USE must be followed by a database name", INFO_ERROR);
@@ -2376,9 +2375,20 @@ com_use(String *buffer __attribute__((unused)), char *line)
 }
 
 
+
+/*
+  Gets argument from a command on the command line. If get_next_arg is
+  not defined, skips the command and returns the first argument. The
+  line is modified by adding zero to the end of the argument. If
+  get_next_arg is defined, then the function searches for end of string
+  first, after found, returns the next argument and adds zero to the
+  end. If you ever wish to use this feature, remember to initialize all
+  items in the array to zero first.
+*/
+
 enum quote_type { NO_QUOTE, SQUOTE, DQUOTE, BTICK };
 
-char *get_arg(char *line)
+char *get_arg(char *line, my_bool get_next_arg)
 {
   char *ptr;
   my_bool quoted= 0, valid_arg= 0;
@@ -2386,13 +2396,22 @@ char *get_arg(char *line)
   enum quote_type qtype= NO_QUOTE;
 
   ptr= line;
-  /* skip leading white spaces */
-  while (my_isspace(system_charset_info, *ptr))
-    ptr++;
-  if (*ptr == '\\') // short command was used
-    ptr+= 2;
-  while (!my_isspace(system_charset_info, *ptr)) // skip command
-    ptr++;
+  if (get_next_arg)
+  {
+    for (; ptr && *ptr; ptr++);
+    if ((ptr + 1) && *(ptr + 1))
+      ptr++;
+  }
+  else
+  {
+    /* skip leading white spaces */
+    while (my_isspace(system_charset_info, *ptr))
+      ptr++;
+    if (*ptr == '\\') // short command was used
+      ptr+= 2;
+    while (!my_isspace(system_charset_info, *ptr)) // skip command
+      ptr++;
+  }
   while (my_isspace(system_charset_info, *ptr))
     ptr++;
   if ((*ptr == '\'' && (qtype= SQUOTE)) ||
@@ -2415,9 +2434,8 @@ char *get_arg(char *line)
       ptr= line;
       ptr+= count;
     }
-    else if (!quoted && *ptr == ' ')
-      *(ptr + 1) = 0;
-    else if ((*ptr == '\'' && qtype == SQUOTE) ||
+    else if ((!quoted && *ptr == ' ') ||
+	     (*ptr == '\'' && qtype == SQUOTE) ||
 	     (*ptr == '\"' && qtype == DQUOTE) ||
 	     (*ptr == '`' && qtype == BTICK))
     {
