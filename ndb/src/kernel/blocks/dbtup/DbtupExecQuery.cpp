@@ -319,24 +319,20 @@ void Dbtup::linkOpIntoFragList(OperationrecPtr regOperPtr,
                                Fragrecord* const regFragPtr) 
 {
   OperationrecPtr sopTmpOperPtr;
-/* ----------------------------------------------------------------- */
-/*       LINK THE OPERATION INTO A DOUBLY LINKED LIST ON THE FRAGMENT*/
-/*       PUT IT FIRST IN THIS LIST SINCE IT DOESN'T MATTER WHERE IT  */
-/*       IS PUT.                                                     */
-/* ----------------------------------------------------------------- */
+  Uint32 tail = regFragPtr->lastusedOprec;
   ndbrequire(regOperPtr.p->inFragList == ZFALSE);
   regOperPtr.p->inFragList = ZTRUE;
-  regOperPtr.p->prevOprecInList = RNIL;
-  sopTmpOperPtr.i = regFragPtr->firstusedOprec;
-  regFragPtr->firstusedOprec = regOperPtr.i;
-  regOperPtr.p->nextOprecInList = sopTmpOperPtr.i;
-  if (sopTmpOperPtr.i == RNIL) {
-    return;
+  regOperPtr.p->prevOprecInList = tail;
+  regOperPtr.p->nextOprecInList = RNIL;
+  sopTmpOperPtr.i = tail;
+  if (tail == RNIL) {
+    regFragPtr->firstusedOprec = regOperPtr.i;
   } else {
     jam();
     ptrCheckGuard(sopTmpOperPtr, cnoOfOprec, operationrec);
-    sopTmpOperPtr.p->prevOprecInList = regOperPtr.i;
+    sopTmpOperPtr.p->nextOprecInList = regOperPtr.i;
   }//if
+  regFragPtr->lastusedOprec = regOperPtr.i;
 }//Dbtup::linkOpIntoFragList()
 
 /*
@@ -903,7 +899,8 @@ int Dbtup::handleReadReq(Signal* signal,
                                           &cinBuffer[0],
                                           regOperPtr->attrinbufLen,
                                           dst,
-					  dstLen);
+					  dstLen,
+                                          false);
     if (TnoOfDataRead != (Uint32)-1) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
@@ -1274,7 +1271,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &cinBuffer[5],
 				 RinitReadLen,
 				 &dst[0],
-				 dstLen);
+				 dstLen,
+                                 false);
       if (TnoDataRW != (Uint32)-1) {
 	RattroutCounter = TnoDataRW;
 	RinstructionCounter += RinitReadLen;
@@ -1347,7 +1345,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &cinBuffer[RinstructionCounter],
 				 RfinalRLen,
 				 &dst[RattroutCounter],
-				 (dstLen - RattroutCounter));
+				 (dstLen - RattroutCounter),
+                                 false);
       if (TnoDataRW != (Uint32)-1) {
 	RattroutCounter += TnoDataRW;
       } else {
@@ -1487,7 +1486,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 				     &theAttrinfo,
 				     (Uint32)1,
 				     &TregMemBuffer[theRegister],
-				     (Uint32)3);
+				     (Uint32)3,
+                                     false);
 	  if (TnoDataRW == 2) {
 	    /* ------------------------------------------------------------- */
 	    // Two words read means that we get the instruction plus one 32 
@@ -1833,7 +1833,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
@@ -1929,7 +1930,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
@@ -1957,7 +1959,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();

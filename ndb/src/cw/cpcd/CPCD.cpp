@@ -378,7 +378,7 @@ CPCD::getProcessList() {
 }
 
 void
-CPCD::RequestStatus::err(enum RequestStatusCode status, char *msg) {
+CPCD::RequestStatus::err(enum RequestStatusCode status, const char *msg) {
   m_status = status;
   snprintf(m_errorstring, sizeof(m_errorstring), "%s", msg);
 }

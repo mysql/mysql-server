@@ -137,6 +137,7 @@ NDBT_TESTSUITE_END(test_event);
 #endif
 
 int main(int argc, const char** argv){
+  ndb_init();
   return test_event.execute(argc, argv);
 }
 

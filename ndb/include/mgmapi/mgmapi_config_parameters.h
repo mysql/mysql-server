@@ -1,7 +1,6 @@
 #ifndef MGMAPI_CONFIG_PARAMTERS_H
 #define MGMAPI_CONFIG_PARAMTERS_H
 
-
 #define CFG_SYS_NAME                  3
 #define CFG_SYS_PRIMARY_MGM_NODE      1
 #define CFG_SYS_CONFIG_GENERATION     2
@@ -64,16 +63,6 @@
 #define CFG_DB_BACKUP_LOG_BUFFER_MEM      135
 #define CFG_DB_BACKUP_WRITE_SIZE          136
 
-#define CFG_LOGLEVEL_STARTUP          137
-#define CFG_LOGLEVEL_SHUTDOWN         138
-#define CFG_LOGLEVEL_STATISTICS       139
-#define CFG_LOGLEVEL_CHECKPOINT       140
-#define CFG_LOGLEVEL_NODERESTART      141
-#define CFG_LOGLEVEL_CONNECTION       142
-#define CFG_LOGLEVEL_INFO             143
-#define CFG_LOGLEVEL_WARNING          144
-#define CFG_LOGLEVEL_ERROR            145
-#define CFG_LOGLEVEL_GREP             146
 #define CFG_LOG_DESTINATION           147
 
 #define CFG_DB_DISCLESS               148
@@ -95,6 +84,21 @@
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 
+#define CFG_MIN_LOGLEVEL          250
+#define CFG_LOGLEVEL_STARTUP      250
+#define CFG_LOGLEVEL_SHUTDOWN     251
+#define CFG_LOGLEVEL_STATISTICS   252
+#define CFG_LOGLEVEL_CHECKPOINT   253
+#define CFG_LOGLEVEL_NODERESTART  254
+#define CFG_LOGLEVEL_CONNECTION   255
+#define CFG_LOGLEVEL_INFO         256
+#define CFG_LOGLEVEL_WARNING      257
+#define CFG_LOGLEVEL_ERROR        258
+#define CFG_LOGLEVEL_GREP         259
+#define CFG_LOGLEVEL_DEBUG        260
+#define CFG_LOGLEVEL_BACKUP       261
+#define CFG_MAX_LOGLEVEL          261
+
 #define CFG_MGM_PORT                  300
 
 #define CFG_CONNECTION_NODE_1         400
@@ -104,9 +108,9 @@
 #define CFG_CONNECTION_NODE_1_SYSTEM  404
 #define CFG_CONNECTION_NODE_2_SYSTEM  405
 #define CFG_CONNECTION_SERVER_PORT    406
+#define CFG_CONNECTION_HOSTNAME_1     407
+#define CFG_CONNECTION_HOSTNAME_2     408
 
-#define CFG_TCP_HOSTNAME_1            450
-#define CFG_TCP_HOSTNAME_2            451
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454
 #define CFG_TCP_RECEIVE_BUFFER_SIZE   455
@@ -117,19 +121,13 @@
 #define CFG_SHM_KEY                   502
 #define CFG_SHM_BUFFER_MEM            503
 
-#define CFG_SCI_ID_0                  550
-#define CFG_SCI_ID_1                  551
-#define CFG_SCI_SEND_LIMIT            552
-#define CFG_SCI_BUFFER_MEM            553
-#define CFG_SCI_NODE1_ADAPTERS        554
-#define CFG_SCI_NODE1_ADAPTER0        555
-#define CFG_SCI_NODE1_ADAPTER1        556
-#define CFG_SCI_NODE2_ADAPTERS        554
-#define CFG_SCI_NODE2_ADAPTER0        555
-#define CFG_SCI_NODE2_ADAPTER1        556
+#define CFG_SCI_HOST1_ID_0            550
+#define CFG_SCI_HOST1_ID_1            551
+#define CFG_SCI_HOST2_ID_0            552
+#define CFG_SCI_HOST2_ID_1            553
+#define CFG_SCI_SEND_LIMIT            554
+#define CFG_SCI_BUFFER_MEM            555
 
-#define CFG_OSE_HOSTNAME_1            600
-#define CFG_OSE_HOSTNAME_2            601
 #define CFG_OSE_PRIO_A_SIZE           602
 #define CFG_OSE_PRIO_B_SIZE           603
 #define CFG_OSE_RECEIVE_ARRAY_SIZE    604
