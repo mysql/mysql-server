@@ -543,7 +543,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	if (next_page+info->s->blocksize > max_length)
 	  goto err;
 	info->state->key_file_length=(max_length &
-					~ (my_off_t) (info->s->blocksize-1));
+				      ~ (my_off_t) (info->s->blocksize-1));
       }
       if (!_mi_fetch_keypage(info,keyinfo,next_page,temp_buff,0))
       {

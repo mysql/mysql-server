@@ -200,7 +200,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.40 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.41 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -506,6 +506,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     param->error_printed=1;
     switch (my_errno) {
     case HA_ERR_CRASHED:
+      mi_check_print_error(param,"'%s' doesn't have a correct index definition. You need to recreate it before you can do a repair",filename);
+      break;
     case HA_ERR_WRONG_TABLE_DEF:
       mi_check_print_error(param,"'%s' is not a MyISAM-table",filename);
       break;
@@ -1205,9 +1207,10 @@ static int mi_sort_records(MI_CHECK *param,
 			 param->temp_filename);
     goto err;
   }
-  if (filecopy(param,new_file,info->dfile,0L,share->pack.header_length,
-	       "datafile-header"))
-    goto err;
+  if (share->pack.header_length)
+    if (filecopy(param,new_file,info->dfile,0L,share->pack.header_length,
+		 "datafile-header"))
+      goto err;
   info->rec_cache.file=new_file;		/* Use this file for cacheing*/
 
   lock_memory(param);

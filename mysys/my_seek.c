@@ -24,8 +24,8 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
 {
   reg1 os_off_t newpos;
   DBUG_ENTER("my_seek");
-  DBUG_PRINT("my",("Fd: %d  Pos: %lu  Whence: %d  MyFlags: %d",
-		   fd, (ulong) pos, whence, MyFlags));
+  DBUG_PRINT("my",("Fd: %d  Hpos: %lu  Pos: %lu  Whence: %d  MyFlags: %d",
+		   fd, ((ulonglong) pos) >> 32, (ulong) pos, whence, MyFlags));
   newpos=lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {
