@@ -743,11 +743,11 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   if (query_cache_size == 0)
     DBUG_VOID_RETURN;
 
-  if ((local_tables = is_cacheable(thd, thd->query_length,
+  if ((local_tables= is_cacheable(thd, thd->query_length,
 			     thd->query, &thd->lex, tables_used)))
   {
-    NET *net = &thd->net;
-    byte flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
+    NET *net= &thd->net;
+    byte flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -775,8 +775,10 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       flags|= (byte) thd->variables.convert_set->number();
       DBUG_ASSERT(thd->variables.convert_set->number() < 128);
     }
-    tot_length=thd->query_length+thd->db_length+2;
-    thd->query[tot_length-1] = (char) flags;
+    tot_length= thd->query_length+thd->db_length+2+sizeof(ha_rows);
+    thd->query[tot_length-1]= (char) flags;
+    memcpy((void *)(thd->query + (tot_length-sizeof(ha_rows)-1)),
+	   (const void *)&thd->variables.select_limit, sizeof(ha_rows));
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
@@ -910,7 +912,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   }
   Query_cache_block *query_block;
 
-  tot_length=query_length+thd->db_length+2;
+  tot_length= query_length+thd->db_length+2+sizeof(ha_rows);
   if (thd->db_length)
   {
     memcpy(sql+query_length+1, thd->db, thd->db_length);
@@ -926,15 +928,18 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
      Most significant bit - CLIENT_LONG_FLAG,
      Other - charset number (0 no charset convertion)
   */
-  flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
+  flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
   if (thd->variables.convert_set != 0)
   {
-    flags |= (byte) thd->variables.convert_set->number();
+    flags|= (byte) thd->variables.convert_set->number();
     DBUG_ASSERT(thd->variables.convert_set->number() < 128);
   }
-  sql[tot_length-1] = (char) flags;
-  query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
+  sql[tot_length-1]= (char) flags;
+  memcpy((void *)(sql + (tot_length-sizeof(ha_rows)-1)),
+ 	 (const void *)&thd->variables.select_limit, sizeof(ha_rows));
+  query_block= (Query_cache_block *)  hash_search(&queries, (byte*) sql,
 						   tot_length);
+
   /* Quick abort on unlocked data */
   if (query_block == 0 ||
       query_block->query()->result() == 0 ||
@@ -2439,7 +2444,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 
   if (lex->sql_command == SQLCOM_SELECT &&
       (thd->variables.query_cache_type == 1 ||
-       (thd->variables.query_cache_type == 2 && (lex->select->options &
+       (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
 						 OPTION_TO_QUERY_CACHE))) &&
       thd->safe_to_cache_query)
   {
