@@ -813,6 +813,12 @@ bool select_send::send_data(List<Item> &items)
 
   DBUG_ENTER("send_data");
 
+  if (unit->offset_limit_cnt)
+  {						// using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
+
   thd->packet.length(0);
   while ((item=li++))
   {

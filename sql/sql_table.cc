@@ -1101,7 +1101,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
       net_store_data(packet, err_msg);
       thd->net.last_error[0]=0;
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
+      if (SEND_ROW(thd, &thd->net, field_list.elements, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
       continue;
@@ -1116,7 +1116,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       net_store_data(packet, buff);
       close_thread_tables(thd);
       table->table=0;				// For query cache
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
+      if (SEND_ROW(thd, &thd->net, field_list.elements, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
       continue;
