@@ -571,7 +571,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   int4store(header+ SERVER_ID_OFFSET, server_id);
   int4store(header+ EVENT_LEN_OFFSET, data_written);
   int4store(header+ LOG_POS_OFFSET, log_pos);
-  int4store(header+ FLAGS_OFFSET, flags);
+  int2store(header+ FLAGS_OFFSET, flags);
 
   DBUG_RETURN(my_b_safe_write(file, header, sizeof(header)) != 0);
 }
