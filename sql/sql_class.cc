@@ -177,6 +177,7 @@ THD::THD()
   lock=locked_tables=0;
   used_tables=0;
   cuted_fields= sent_row_count= 0L;
+  limit_found_rows= 0;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
