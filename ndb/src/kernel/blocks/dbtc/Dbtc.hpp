@@ -33,6 +33,7 @@
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/TcIndx.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include <signaldata/EventReport.hpp>
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
 
@@ -191,7 +192,8 @@ public:
     OS_WAIT_ATTR = 14,
     OS_WAIT_COMMIT_CONF = 15,
     OS_WAIT_ABORT_CONF = 16,
-    OS_WAIT_COMPLETE_CONF = 17
+    OS_WAIT_COMPLETE_CONF = 17,
+    OS_WAIT_SCAN = 18
   };
 
   enum AbortState {
@@ -542,13 +544,11 @@ public:
       attrInfo(abp),
       expectedTransIdAI(0),
       transIdAI(abp),
-      tcIndxReq(new TcIndxReq()),
       indexReadTcConnect(RNIL)
     {}
 
     ~TcIndexOperation()
     {
-      delete tcIndxReq;    
     }
     
     // Index data
@@ -561,7 +561,7 @@ public:
     Uint32 expectedTransIdAI;
     AttributeBuffer transIdAI; // For accumulating TransId_AI
     
-    TcIndxReq* tcIndxReq;
+    TcIndxReq tcIndxReq;
     UintR connectionIndex;
     UintR indexReadTcConnect; //
     
@@ -928,17 +928,22 @@ public:
     UintR  distributionGroup;
     UintR  nextCacheRec;
     UintR  distributionKeySize;
-    Uint16 scanNode;
-    unsigned  scanTakeOverInd : 1;
-    unsigned  scanInfo : 15;    // 12 bits used currently
+    Uint32 scanInfo;
     
     //---------------------------------------------------
-    // Third and fourth 16 byte cache line in second 64
-    // byte cache line. Not used currently.
+    // Third 16 byte cache line in second 64
+    // byte cache line. Diverse use.
     //---------------------------------------------------
+    Uint32 scanNode;
+    Uint32 scanTakeOverInd;
     UintR  firstKeybuf;   /* POINTER THE LINKED LIST OF KEY BUFFERS       */
     UintR  lastKeybuf;    /* VARIABLE POINTING TO THE LAST KEY BUFFER     */
-    UintR  packedCacheVar[6];
+
+    //---------------------------------------------------
+    // Fourth 16 byte cache line in second 64
+    // byte cache line. Not used currently.
+    //---------------------------------------------------
+    UintR  packedCacheVar[4];
   };
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
@@ -1151,7 +1156,6 @@ public:
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
     DLList<ScanFragRec>::Head m_queued_scan_frags;   // In TC !sent to API
     DLList<ScanFragRec>::Head m_delivered_scan_frags;// Delivered to API
-    DLList<ScanFragRec>::Head m_completed_scan_frags;// Completed
     
     // Id of the next fragment to be scanned. Used by scan fragment 
     // processes when they are ready for the next fragment
@@ -1165,6 +1169,8 @@ public:
 
     // Length of expected attribute information
     Uint32 scanAiLength;
+
+    Uint32 scanKeyLen;
 
     // Reference to ApiConnectRecord
     Uint32 scanApiRec;
@@ -1185,20 +1191,13 @@ public:
     Uint32 scanTableref;
 
     // Number of operation records per scanned fragment
+    // Number of operations in first batch
+    // Max number of bytes per batch
     Uint16 noOprecPerFrag;
+    Uint16 first_batch_size;
+    Uint32 batch_byte_size;
 
-    // Shall the locks be held until the application have read the 
-    // records
-    Uint8 scanLockHold;
-
-    // Shall the locks be read or write locks
-    Uint8 scanLockMode;
-
-    // Skip locks by other transactions and read latest committed
-    Uint8 readCommitted;
-
-    // Scan is on ordered index
-    Uint8 rangeScan;
+    Uint32 scanRequestInfo; // ScanFrag format
 
     // Close is ordered
     bool m_close_scan_req;
@@ -1418,18 +1417,14 @@ private:
                            UintR anApiConnectPtr);
   void handleScanStop(Signal* signal, UintR aFailedNode);
   void initScanTcrec(Signal* signal);
-  void initScanApirec(Signal* signal, 
-		      Uint32 buddyPtr,
-		      UintR transid1, 
-		      UintR transid2);
-  void initScanrec(ScanRecordPtr, const class ScanTabReq*,
+  void initScanrec(ScanRecordPtr,  const class ScanTabReq*,
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(ScanRecordPtr);
   ScanRecordPtr seizeScanrec(Signal* signal);
-  void sendScanFragReq(Signal* signal, ScanRecord*, ScanFragRec*);
-  void sendScanTabConf(Signal* signal, ScanRecord*);
+  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*);
+  void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
   
@@ -1464,7 +1459,7 @@ private:
   void releaseAttrinfo();
   void releaseGcp(Signal* signal);
   void releaseKeys();
-  void releaseSimpleRead(Signal* signal);
+  void releaseSimpleRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
@@ -1568,7 +1563,7 @@ private:
   void diFcountReqLab(Signal* signal, ScanRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
-  void packKeyData000Lab(Signal* signal, BlockReference TBRef);
+  void packKeyData000Lab(Signal* signal, BlockReference TBRef, Uint32 len);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
   void abort010Lab(Signal* signal);
@@ -1673,16 +1668,40 @@ private:
 
   ApiConnectRecordPtr tmpApiConnectptr;
   UintR tcheckGcpId;
-  UintR cconcurrentOp;
 
-  UintR cattrinfoCount;
-  UintR ctransCount;
-  UintR ccommitCount;
-  UintR creadCount;
-
-  UintR csimpleReadCount;
-  UintR cwriteCount;
-  UintR cabortCount;
+  struct TransCounters {
+    enum { Off, Timer, Started } c_trans_status;
+    UintR cattrinfoCount;
+    UintR ctransCount;
+    UintR ccommitCount;
+    UintR creadCount;
+    UintR csimpleReadCount;
+    UintR cwriteCount;
+    UintR cabortCount;
+    UintR cconcurrentOp;
+    Uint32 c_scan_count;
+    Uint32 c_range_scan_count;
+    void reset () { 
+      cattrinfoCount = ctransCount = ccommitCount = creadCount =
+	csimpleReadCount = cwriteCount = cabortCount =
+	c_scan_count = c_range_scan_count = 0; 
+    }
+    Uint32 report(Signal* signal){
+      signal->theData[0] = EventReport::TransReportCounters;
+      signal->theData[1] = ctransCount;
+      signal->theData[2] = ccommitCount;
+      signal->theData[3] = creadCount;
+      signal->theData[4] = csimpleReadCount;
+      signal->theData[5] = cwriteCount;
+      signal->theData[6] = cattrinfoCount;
+      signal->theData[7] = cconcurrentOp;
+      signal->theData[8] = cabortCount;
+      signal->theData[9] = c_scan_count;
+      signal->theData[10] = c_range_scan_count;
+      return 11;
+    }
+  } c_counters;
+  
   Uint16 cownNodeid;
   Uint16 terrorCode;
 

@@ -1,3 +1,8 @@
+MYSQLDATAdir =		$(localstatedir)
+MYSQLSHAREdir =		$(pkgdatadir)
+MYSQLBASEdir=		$(prefix)
+#MYSQLCLUSTERdir=        $(prefix)/mysql-cluster
+MYSQLCLUSTERdir=        .
 
 ndbbin_PROGRAMS = ndb_mgmd
 
@@ -7,10 +12,11 @@ ndb_mgmd_SOURCES = \
 	main.cpp \
 	Services.cpp \
 	convertStrToInt.cpp \
-        NodeLogLevel.cpp \
-	NodeLogLevelList.cpp \
 	SignalQueue.cpp \
 	MgmtSrvrConfig.cpp \
+	ConfigInfo.cpp \
+	InitConfigFileParser.cpp \
+	Config.cpp \
 	CommandInterpreter.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
@@ -19,7 +25,16 @@ INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
 
 LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
 	    $(top_builddir)/ndb/src/common/editline/libeditline.a \
+            $(top_builddir)/dbug/libdbug.a \
+            $(top_builddir)/mysys/libmysys.a \
+            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
 	    @TERMCAP_LIB@
+
+DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
+			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
+			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\"" \
+			-DNDB_BASE_PORT="\"@ndb_port_base@\""
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am

@@ -51,6 +51,9 @@ fi
 # libtool 1.4.2 workaround
 SED=${SED:-sed}
 
+# workaround against unset 'max_cmd_len': assume at least 4 kB
+max_cmd_len=${max_cmd_len:-4096}
+
 # The name of this program.
 progname=`$echo "$0" | ${SED} 's%^.*/%%'`
 modename="$progname"

@@ -111,3 +111,17 @@ create table t2 (a int) engine=innodb;
 insert into t2 values (1),(2),(3),(4);
 select a, sum(b) as b from t1 group by a having b > (select max(a) from t2);
 drop table t1, t2;
+
+#
+# bug #5220 test suite
+#
+CREATE TABLE `t1` ( `unit` varchar(50) NOT NULL default '', `ingredient` varchar(50) NOT NULL default '') ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE `t2` ( `ingredient` varchar(50) NOT NULL default '', `unit` varchar(50) NOT NULL default '', PRIMARY KEY (ingredient, unit)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO `t1` VALUES ('xx','yy');
+INSERT INTO `t2` VALUES ('yy','xx');
+
+SELECT R.unit, R.ingredient FROM t1 R WHERE R.ingredient IN (SELECT N.ingredient FROM t2 N WHERE N.unit = R.unit);
+
+drop table t1, t2;

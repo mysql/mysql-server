@@ -287,7 +287,6 @@ public:
     {}
   virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
   int ha_open(const char *name, int mode, int test_if_locked);
-  void update_timestamp(byte *record);
   void update_auto_increment();
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
@@ -300,7 +299,15 @@ public:
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   virtual bool has_transactions(){ return 0;}
   virtual uint extra_rec_buf_length() { return 0; }
-  virtual ha_rows estimate_number_of_rows() { return records+EXTRA_RECORDS; }
+  
+  /*
+    Return upper bound of current number of records in the table
+    (max. of how many records one will retrieve when doing a full table scan)
+    If upper bound is not known, HA_POS_ERROR should be returned as a max
+    possible upper bound.
+  */
+  virtual ha_rows estimate_rows_upper_bound()
+  { return records+EXTRA_RECORDS; }
 
   virtual const char *index_type(uint key_number) { DBUG_ASSERT(0); return "";}
 
@@ -546,6 +553,8 @@ void ha_close_connection(THD* thd);
 enum db_type ha_checktype(enum db_type database_type);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
+int ha_create_table_from_engine(THD* thd, const char *db, const char *name,
+				bool create_if_found);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
@@ -564,8 +573,13 @@ int ha_savepoint(THD *thd, char *savepoint_name);
 int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
-int ha_recovery_logging(THD *thd, bool on);
+int ha_enable_transaction(THD *thd, bool on);
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache);
-int ha_discover(const char* dbname, const char* name,
+int ha_discover(THD* thd, const char* dbname, const char* name,
 		const void** frmblob, uint* frmlen);
+int ha_find_files(THD *thd,const char *db,const char *path,
+		  const char *wild, bool dir,List<char>* files);
+int ha_table_exists(THD* thd, const char* db, const char* name);
+
+

@@ -93,7 +93,7 @@ ndberror(char const* fmt, ...)
     va_list ap;
     char buf[200];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << buf << " --" << endl;
     if (ndb)
@@ -115,7 +115,7 @@ chkerror(char const* fmt, ...)
     va_list ap;
     char buf[200];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << "*** check failed: " << buf << " ***" << endl;
     return -1;
@@ -545,6 +545,7 @@ testcase(int flag)
 
 NDB_COMMAND(testDataBuffers, "testDataBuffers", "testDataBuffers", "testDataBuffers", 65535)
 {
+    ndb_init();
     while (++argv, --argc > 0) {
 	char const* p = argv[0];
 	if (*p++ != '-' || strlen(p) != 1)

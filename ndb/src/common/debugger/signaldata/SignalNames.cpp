@@ -446,6 +446,8 @@ const GsnName SignalNames [] = {
 
   ,{ GSN_STOP_REQ,               "STOP_REQ" }
   ,{ GSN_STOP_REF,               "STOP_REF" }
+  ,{ GSN_API_VERSION_REQ,        "API_VERSION_REQ" }
+  ,{ GSN_API_VERSION_CONF,       "API_VERSION_CONF" }
 
   ,{ GSN_ABORT_ALL_REQ,          "ABORT_ALL_REQ" }
   ,{ GSN_ABORT_ALL_REF,          "ABORT_ALL_REF" }

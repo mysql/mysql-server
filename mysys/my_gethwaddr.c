@@ -107,7 +107,7 @@ my_bool my_gethwaddr(uchar *to __attribute__((unused)))
 }
 #endif
 
-#else MAIN
+#else /* MAIN */
 int main(int argc __attribute__((unused)),char **argv)
 {
   uchar mac[6];

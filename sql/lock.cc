@@ -794,9 +794,15 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   {
     if (thd->global_read_lock)		// This thread had the read locks
     {
-      my_error(ER_CANT_UPDATE_WITH_READLOCK,MYF(0));
+      if (is_not_commit)
+        my_error(ER_CANT_UPDATE_WITH_READLOCK,MYF(0));
       (void) pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(1);
+      /*
+        We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
+        This allowance is needed to not break existing versions of innobackup
+        which do a BEGIN; INSERT; FLUSH TABLES WITH READ LOCK; COMMIT.
+      */
+      DBUG_RETURN(is_not_commit);
     }
     old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 				"Waiting for release of readlock");

@@ -23,16 +23,16 @@ void
 print(char *buf, size_t buf_len, MasterLCPConf::State s){
   switch(s){
   case MasterLCPConf::LCP_STATUS_IDLE:
-    snprintf(buf, buf_len, "LCP_STATUS_IDLE");
+    BaseString::snprintf(buf, buf_len, "LCP_STATUS_IDLE");
     break;
   case MasterLCPConf::LCP_STATUS_ACTIVE:
-    snprintf(buf, buf_len, "LCP_STATUS_ACTIVE");
+    BaseString::snprintf(buf, buf_len, "LCP_STATUS_ACTIVE");
     break;
   case MasterLCPConf::LCP_TAB_COMPLETED:
-    snprintf(buf, buf_len, "LCP_TAB_COMPLETED");
+    BaseString::snprintf(buf, buf_len, "LCP_TAB_COMPLETED");
     break;
   case MasterLCPConf::LCP_TAB_SAVED:
-    snprintf(buf, buf_len, "LCP_TAB_SAVED");
+    BaseString::snprintf(buf, buf_len, "LCP_TAB_SAVED");
     break;
   }
 }

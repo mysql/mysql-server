@@ -3743,7 +3743,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   create_info.raid_chunksize= share.base.raid_chunksize;
   create_info.language = (param->language ? param->language :
 			  share.state.header.language);
-
+  create_info.key_file_length=  status_info.key_file_length;
   /* We don't have to handle symlinks here because we are using
      HA_DONT_TOUCH_DATA */
   if (mi_create(filename,

@@ -8,6 +8,8 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
+# The following may be left from older tests
+drop table if exists t1_1,t1_2,t9_1,t9_2;
 drop view if exists v1;
 --enable_warnings
 
@@ -1705,12 +1707,18 @@ select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.compan
 
 select count(*) from t2;
 select count(*) from t2 where fld1 < 098024;
+# PS does correct pre-zero here. MySQL can't do it as it returns a number.
+--disable_ps_protocol
 select min(fld1) from t2 where fld1>= 098024;
+--enable_ps_protocol
 select max(fld1) from t2 where fld1>= 098024;
 select count(*) from t3 where price2=76234234;
 select count(*) from t3 where companynr=512 and price2=76234234;
 explain select min(fld1),max(fld1),count(*) from t2;
+# PS does correct pre-zero here. MySQL can't do it as it returns a number.
+--disable_ps_protocol
 select min(fld1),max(fld1),count(*) from t2;
+--enable_ps_protocol
 select min(t2nr),max(t2nr) from t3 where t2nr=2115 and price2=823742;
 select count(*),min(t2nr),max(t2nr) from t3 where name='spates' and companynr=78;
 select t2nr,count(*) from t3 where name='gems' group by t2nr limit 20;
@@ -1881,3 +1889,24 @@ select * from t3 where s = 'one';
 select * from t1,t2 where t1.s = t2.s;
 select * from t2,t3 where t2.s = t3.s;
 drop table t1, t2, t3;
+
+#
+# Covering index is mentioned in EXPLAIN output for const tables (bug #5333)
+#
+
+CREATE TABLE t1 (
+  i int(11) NOT NULL default '0',
+  c char(10) NOT NULL default '',
+  PRIMARY KEY  (i),
+  UNIQUE KEY c (c)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1,'a');
+INSERT INTO t1 VALUES (2,'b');
+INSERT INTO t1 VALUES (3,'c');
+
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+
+DROP TABLE t1;

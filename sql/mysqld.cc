@@ -225,7 +225,7 @@ const char *sql_mode_names[] =
   NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
-			    sql_mode_names };
+			    sql_mode_names, NULL };
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
@@ -327,6 +327,7 @@ const char *opt_date_time_formats[3];
 
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+struct passwd *user_info;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
@@ -449,9 +450,9 @@ pthread_cond_t eventShutdown;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-bool mysql_embedded=0;
+bool mysqld_embedded=0;
 #else
-bool mysql_embedded=1;
+bool mysqld_embedded=1;
 #endif
 
 #ifndef DBUG_OFF
@@ -965,7 +966,7 @@ void clean_up(bool print_message)
 
   if (print_message && errmesg)
     sql_print_information(ER(ER_SHUTDOWN_COMPLETE),my_progname);
-#if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
@@ -1050,71 +1051,97 @@ static void set_ports()
 #ifndef EMBEDDED_LIBRARY
 /* Change to run as another user if started with --user */
 
-static void set_user(const char *user)
+static struct passwd *check_user(const char *user)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  struct passwd *ent;
+  struct passwd *user_info;
   uid_t user_id= geteuid();
 
-  // don't bother if we aren't superuser
+  // Don't bother if we aren't superuser
   if (user_id)
   {
     if (user)
     {
-      /* Don't give a warning, if real user is same as given with --user */
-      struct passwd *user_info= getpwnam(user);
+      // Don't give a warning, if real user is same as given with --user
+      user_info= getpwnam(user);
       if ((!user_info || user_id != user_info->pw_uid) &&
 	  global_system_variables.log_warnings)
         sql_print_warning(
                     "One can only use the --user switch if running as root\n");
     }
-    return;
+    return NULL;
   }
   if (!user)
   {
     if (!opt_bootstrap)
     {
-      fprintf(stderr,"Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
+      sql_print_error("Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(1);
     }
-    return;
+    return NULL;
   }
   if (!strcmp(user,"root"))
-    return;				// Avoid problem with dynamic libraries
+    return NULL;                        // Avoid problem with dynamic libraries
 
-  uid_t uid;
-  if (!(ent = getpwnam(user)))
+  if (!(user_info= getpwnam(user)))
   {
-    // allow a numeric uid to be used
+    // Allow a numeric uid to be used
     const char *pos;
-    for (pos=user; my_isdigit(mysqld_charset,*pos); pos++) ;
-    if (*pos)					// Not numeric id
-    {
-      fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-      unireg_abort(1);
-    }
-    uid=atoi(user);				// Use numberic uid
+    for (pos= user; my_isdigit(mysqld_charset,*pos); pos++) ;
+    if (*pos)                                   // Not numeric id
+      goto err;
+    if (!(user_info= getpwuid(atoi(user))))
+      goto err;
+    else
+      return user_info;
   }
   else
-  {
-#ifdef HAVE_INITGROUPS
-    initgroups((char*) user,ent->pw_gid);
-#endif
-    if (setgid(ent->pw_gid) == -1)
-    {
-      sql_perror("setgid");
-      unireg_abort(1);
-    }
-    uid=ent->pw_uid;
-  }
+    return user_info;
 
-  if (setuid(uid) == -1)
+err:
+  sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
+#endif
+  return NULL;
+}
+
+static void set_user(const char *user, struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+#ifdef HAVE_INITGROUPS
+  initgroups((char*) user,user_info->pw_gid);
+#endif
+  if (setgid(user_info->pw_gid) == -1)
+  {
+    sql_perror("setgid");
+    unireg_abort(1);
+  }
+  if (setuid(user_info->pw_uid) == -1)
   {
     sql_perror("setuid");
     unireg_abort(1);
   }
 #endif
 }
+
+
+static void set_effective_user(struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+  if (setregid((gid_t)-1, user_info->pw_gid) == -1)
+  {
+    sql_perror("setregid");
+    unireg_abort(1);
+  }
+  if (setreuid((uid_t)-1, user_info->pw_uid) == -1)
+  {
+    sql_perror("setreuid");
+    unireg_abort(1);
+  }
+#endif
+}
+
 
 /* Change root user if started with  --chroot */
 
@@ -1191,7 +1218,16 @@ static void server_init(void)
       unireg_abort(1);
     }
   }
-  set_user(mysqld_user);		// Works also with mysqld_user==NULL
+
+  if ((user_info= check_user(mysqld_user)))
+  {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
+    if (locked_in_memory) // getuid() == 0 here
+      set_effective_user(user_info);
+    else
+#endif
+      set_user(mysqld_user, user_info);
+  }
 
 #ifdef __NT__
   /* create named pipe */
@@ -1467,7 +1503,11 @@ static void init_signals(void)
 }
 
 static void start_signal_handler(void)
-{}
+{
+  // Save vm id of this process
+  if (!opt_bootstrap)
+    create_pid_file();
+}
 
 static void check_data_home(const char *path)
 {}
@@ -2085,8 +2125,7 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-extern "C" int my_message_sql(uint error, const char *str,
-			      myf MyFlags __attribute__((unused)))
+extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
@@ -2105,7 +2144,11 @@ extern "C" int my_message_sql(uint error, const char *str,
     if (thd->lex->current_select &&
 	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
-      DBUG_PRINT("error", ("above error converted to warning"));
+      DBUG_PRINT("error", ("Error converted to warning: current_select: no_error %d  fatal_error: %d",
+                           (thd->lex->current_select ?
+                            thd->lex->current_select->no_error : 0),
+                           (int) thd->is_fatal_error));
+                           
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else
@@ -2119,7 +2162,7 @@ extern "C" int my_message_sql(uint error, const char *str,
       }
     }
   }
-  else
+  if (!thd || MyFlags & ME_NOREFRESH)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -2672,19 +2715,26 @@ server.");
   /* We must set dflt_key_cache in case we are using ISAM tables */
   dflt_key_cache= sql_key_cache;
 
-#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
-  if (locked_in_memory && !geteuid())
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
+  if (locked_in_memory && !getuid())
   {
+    if (setreuid((uid_t)-1, 0) == -1)
+    {                        // this should never happen
+      sql_perror("setreuid");
+      unireg_abort(1);
+    }
     if (mlockall(MCL_CURRENT))
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Failed to lock memory. Errno: %d\n",errno);
       locked_in_memory= 0;
     }
+    if (user_info)
+      set_user(mysqld_user, user_info);
   }
-#else
-  locked_in_memory=0;
+  else
 #endif
+    locked_in_memory=0;
 
   ft_init_stopwords();
 
@@ -2945,10 +2995,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifndef __NETWARE__
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
 #endif /* __NETWARE__ */
-#ifndef __WIN__
+    
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
-#endif
+
     if (unix_sock != INVALID_SOCKET)
       unlink(mysqld_unix_port);
     exit(1);
@@ -4036,13 +4086,16 @@ enum options_mysqld
   OPT_INNODB_BUFFER_POOL_SIZE,
   OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
   OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
+  OPT_INNODB_MAX_PURGE_LAG,
   OPT_INNODB_FILE_IO_THREADS,
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
   OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
+  OPT_INNODB_TABLE_LOCKS,
   OPT_INNODB_OPEN_FILES,
+  OPT_INNODB_AUTOEXTEND_INCREMENT,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -4284,10 +4337,20 @@ Disable with --skip-innodb (will save memory).",
   {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
    "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
+  {"innodb_max_purge_lag", OPT_INNODB_MAX_PURGE_LAG,
+   "",
+   (gptr*) &srv_max_purge_lag,
+   (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
+   0, 1L, 0},
   {"innodb_status_file", OPT_INNODB_STATUS_FILE,
    "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"innodb_table_locks", OPT_INNODB_TABLE_LOCKS,
+   "If Innodb should enforce LOCK TABLE",
+   (gptr*) &global_system_variables.innodb_table_locks,
+   (gptr*) &global_system_variables.innodb_table_locks,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Enable ISAM (if this version of MySQL supports it). \
 Disable with --skip-isam.",
@@ -4764,6 +4827,11 @@ log and this option does nothing anymore.",
    (gptr*) &innobase_additional_mem_pool_size,
    (gptr*) &innobase_additional_mem_pool_size, 0, GET_LONG, REQUIRED_ARG,
    1*1024*1024L, 512*1024L, ~0L, 0, 1024, 0},
+  {"innodb_autoextend_increment", OPT_INNODB_AUTOEXTEND_INCREMENT,
+   "Data file autoextend increment in megabytes",
+   (gptr*) &srv_auto_extend_increment,
+   (gptr*) &srv_auto_extend_increment,
+   0, GET_LONG, REQUIRED_ARG, 8L, 1L, ~0L, 0, 1L, 0},
   {"innodb_buffer_pool_awe_mem_mb", OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
    "If Windows AWE is used, the size of InnoDB buffer pool allocated from the AWE memory.",
    (gptr*) &innobase_buffer_pool_awe_mem_mb, (gptr*) &innobase_buffer_pool_awe_mem_mb, 0,
@@ -4846,7 +4914,7 @@ log and this option does nothing anymore.",
    (gptr*) &dflt_key_cache_var.param_buff_size,
    (gptr*) 0,
    0, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, UINT_MAX32, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",

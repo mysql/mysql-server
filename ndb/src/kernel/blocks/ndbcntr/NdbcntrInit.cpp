@@ -37,10 +37,10 @@ void Ndbcntr::initRecords()
 
 Ndbcntr::Ndbcntr(const class Configuration & conf):
   SimulatedBlock(NDBCNTR, conf),
-  c_stopRec(* this),
-  c_missra(* this),
   cnoWaitrep6(0),
-  cnoWaitrep7(0)
+  cnoWaitrep7(0),
+  c_stopRec(* this),
+  c_missra(* this)
 {
 
   BLOCK_CONSTRUCTOR(Ndbcntr);
