@@ -34,10 +34,6 @@
 #include <ndb_version.h>
 #include <SignalLoggerManager.hpp>
 
-#if !defined NDB_OSE && !defined NDB_SOFTOSE
-#include <signal.h>
-#endif
-
 //#define REPORT_TRANSPORTER
 //#define API_TRACE;
 
