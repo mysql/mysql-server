@@ -940,3 +940,7 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 server-tools/instance-manager/thr_alarm.c
+mysql-5.0.2-alpha.tar.gz
+server-tools/instance-manager/client.c
+server-tools/instance-manager/client_settings.h
+server-tools/instance-manager/errmsg.c
