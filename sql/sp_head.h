@@ -83,7 +83,7 @@ public:
 
   // Initialize strings after parsing header
   void
-  init_strings(LEX_STRING *name, LEX *lex);
+  init_strings(THD *thd, LEX *lex, LEX_STRING *name);
 
   int
   create(THD *thd);

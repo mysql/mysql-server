@@ -1078,7 +1078,7 @@ create:
 	  {
 	    LEX *lex= Lex;
 
-	    lex->sphead->init_strings(&$3, lex);
+	    lex->sphead->init_strings(YYTHD, lex, &$3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	    /* Restore flag if it was cleared above */
 	    if (lex->sphead->m_old_cmq)
@@ -1158,7 +1158,7 @@ create_function_tail:
 	    sp_head *sp= lex->sphead;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(&lex->udf.name, lex);
+	    sp->init_strings(YYTHD, lex, &lex->udf.name);
 	    /* Restore flag if it was cleared above */
 	    if (sp->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
