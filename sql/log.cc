@@ -31,11 +31,50 @@
 #include <m_ctype.h>				// For test_if_number
 #include <assert.h>
 
+#ifdef __NT__
+#include "message.h"
+#endif
+
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
+
+#ifdef __NT__
+static int eventSource = 0;
+void setupWindowsEventSource() 
+{
+	if (eventSource) return;
+
+	eventSource = 1;
+    HKEY    hRegKey = NULL; 
+    DWORD   dwError = 0;
+    TCHAR   szPath[ MAX_PATH ];
+    
+    // Create the event source registry key
+    dwError = RegCreateKey( HKEY_LOCAL_MACHINE, 
+		"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL", 
+		&hRegKey );
+
+    // Name of the PE module that contains the message resource
+    GetModuleFileName( NULL, szPath, MAX_PATH );
+
+    // Register EventMessageFile
+    dwError = RegSetValueEx( hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ, 
+                            (PBYTE) szPath, strlen(szPath)+1 ); 
+    
+
+    // Register supported event types
+    DWORD dwTypes = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE; 
+    dwError = RegSetValueEx( hRegKey, "TypesSupported", 0, REG_DWORD, 
+                            (LPBYTE) &dwTypes, sizeof dwTypes );
+
+    RegCloseKey( hRegKey );
+}
+
+#endif
+
 
 /****************************************************************************
 ** Find a uniq filename for 'filename.#'.
@@ -1677,41 +1716,42 @@ static bool test_if_number(register const char *str,
 } /* test_if_number */
 
 
-void sql_print_error(const char *format,...)
+void print_buffer_to_log( my_bool timestamp, const char *buffer )
 {
-  va_list args;
   time_t skr;
   struct tm tm_tmp;
   struct tm *start;
-  va_start(args,format);
-  DBUG_ENTER("sql_print_error");
 
+  DBUG_ENTER("sql_print_buffer_to_log");
+
+#if !defined(__WIN__) && !defined(__NT__)
   VOID(pthread_mutex_lock(&LOCK_error_log));
-#ifndef DBUG_OFF
-  {
-    char buff[1024];
-    my_vsnprintf(buff,sizeof(buff)-1,format,args);
-    DBUG_PRINT("error",("%s",buff));
-    va_end(args);
-    va_start(args,format);
-  }
 #endif
-  skr=time(NULL);
-  localtime_r(&skr,&tm_tmp);
-  start=&tm_tmp;
-  fprintf(stderr,"%02d%02d%02d %2d:%02d:%02d  ",
-	  start->tm_year % 100,
-	  start->tm_mon+1,
+
+  if (timestamp)
+  {
+    skr=time(NULL);
+    localtime_r(&skr, &tm_tmp);
+    start=&tm_tmp;
+    fprintf( stderr, "%02d%02d%02d %2d:%02d:%02d  %s",
+    	  start->tm_year % 100,
+  	  start->tm_mon+1,
 	  start->tm_mday,
 	  start->tm_hour,
 	  start->tm_min,
-	  start->tm_sec);
-  (void) vfprintf(stderr,format,args);
-  (void) fputc('\n',stderr);
-  fflush(stderr);
-  va_end(args);
+	  start->tm_sec,
+	  buffer );
+  }
+  else
+    fprintf( stderr, "%s", buffer );
 
+  fputc('\n', stderr);
+  fflush(stderr);
+
+#if !defined(__WIN__) && !defined(__NT__)
   VOID(pthread_mutex_unlock(&LOCK_error_log));
+#endif
+
   DBUG_VOID_RETURN;
 }
 
@@ -1770,3 +1810,125 @@ bool flush_error_log()
   }
    return result;
 }
+
+/**
+  * prints a printf style message to the error log and, under NT, to the Windows event log.
+  * @param event_type type of even to log.
+  * @param timestamp true to add a timestamp to the entry, false otherwise.
+  * @param format The printf style format of the message
+  * @param ... values for the message
+  * @return void
+*/
+void print_msg_to_log( long event_type, my_bool timestamp, const char *format, ... )
+{
+  va_list args;
+
+  DBUG_ENTER("startup_print_msg_to_logo");
+
+  va_start( args, format );
+  vprint_msg_to_log( event_type, timestamp, format, args );
+  va_end( args );
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  * prints a printf style message to the error log and, under NT, to the Windows event log.
+  * @param event_type type of even to log.
+  * @param timestamp true to add a timestamp to the entry, false otherwise.
+  * @param format The printf style format of the message
+  * @param args va_list prepped arument list
+  * @return void
+*/
+void vprint_msg_to_log(long event_type, my_bool timestamp, const char *format, va_list args)
+{
+  char   buff[1024];
+
+  DBUG_ENTER("startup_vprint_msg_to_log");
+
+  my_vsnprintf( buff, sizeof(buff)-5, format, args );
+
+  print_buffer_to_log( timestamp, buff );
+
+#ifndef DBUG_OFF
+    DBUG_PRINT("error",("%s",buff));
+#endif
+
+#ifdef __NT__
+  HANDLE event;
+  LPSTR  buffptr;
+
+  strcat( buff, "\r\n\r\n" );
+  buffptr = (LPSTR)&buff;
+  setupWindowsEventSource();
+  if (event = RegisterEventSource(NULL,"MySQL"))
+  {
+    switch (event_type){
+      case MY_ERROR_TYPE:
+        ReportEvent(event, (WORD)event_type, 0, MSG_DEFAULT, NULL, 1, 0, (LPCSTR*)&buffptr, NULL);
+        break;
+      case MY_WARNING_TYPE:
+        ReportEvent(event, (WORD)event_type, 0, MSG_DEFAULT, NULL, 1, 0, (LPCSTR*)&buffptr, NULL);
+        break;
+      case MY_INFORMATION_TYPE:
+        ReportEvent(event, (WORD)event_type, 0, MSG_DEFAULT, NULL, 1, 0, (LPCSTR*)&buffptr, NULL);
+        break; 
+    }
+    DeregisterEventSource(event); 
+  }
+#endif
+  DBUG_VOID_RETURN;
+}
+
+void sql_print_error( const char *format, ... ) 
+{
+  DBUG_ENTER( "startup_sql_print_error" );
+
+  va_list args;
+  va_start( args, format );
+  print_msg_to_log( MY_ERROR_TYPE, true, format, args );
+  va_end( args );
+
+  DBUG_VOID_RETURN;
+}
+
+void sql_print_warning( const char *format, ... ) 
+{
+  DBUG_ENTER( "startup_sql_print_warning" );
+
+  va_list args;
+  va_start( args, format );
+  print_msg_to_log( MY_WARNING_TYPE, true, format, args );
+  va_end( args );
+
+  DBUG_VOID_RETURN;
+}
+
+void sql_print_information( const char *format, ... ) 
+{
+  DBUG_ENTER( "startup_sql_print_information" );
+
+  va_list args;
+  va_start( args, format );
+  print_msg_to_log( MY_INFORMATION_TYPE, true, format, args );
+  va_end( args );
+
+  DBUG_VOID_RETURN;
+}
+
+/*void sql_init_fprintf(const char *format,...)
+{
+  va_list args;
+  char buff[255];
+  buff[0]= 0;
+  va_start(args,format);
+  my_vsnprintf(buff,sizeof(buff)-1,format,args);
+#ifdef __NT__
+  sql_nt_print_error(MY_ERROR_TYPE,buff);
+#else
+  sql_win_print_error(buff);
+#endif
+  va_end(args);
+}
+*/
+
