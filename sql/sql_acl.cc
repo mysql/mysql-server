@@ -855,6 +855,9 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 
 /*
   Get privilege for a host, user and db combination
+
+  as db_is_pattern changes the semantics of comparison,
+  acl_cache is not used if db_is_pattern is set.
 */
 
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
@@ -875,7 +878,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
     db=tmp_db;
   }
   key_length=(uint) (end-key);
-  if ((entry=(acl_entry*) acl_cache->search(key,key_length)))
+  if (!db_is_pattern && (entry=(acl_entry*) acl_cache->search(key,key_length)))
   {
     db_access=entry->access;
     VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -923,7 +926,8 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
   }
 exit:
   /* Save entry in cache for quick retrieval */
-  if ((entry= (acl_entry*) malloc(sizeof(acl_entry)+key_length)))
+  if (!db_is_pattern &&
+      (entry= (acl_entry*) malloc(sizeof(acl_entry)+key_length)))
   {
     entry->access=(db_access & host_access);
     entry->length=key_length;
