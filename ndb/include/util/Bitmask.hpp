@@ -131,10 +131,26 @@ public:
   static void setField(unsigned size, Uint32 data[],
       unsigned pos, unsigned len, Uint32 val);
 
+
+  /**
+   * getField - Get bitfield at given position and length
+   */
+  static void getField(unsigned size, const Uint32 data[],
+		       unsigned pos, unsigned len, Uint32 dst[]);
+  
+  /**
+   * setField - Set bitfield at given position and length
+   */
+  static void setField(unsigned size, Uint32 data[],
+		       unsigned pos, unsigned len, const Uint32 src[]);
+  
   /**
    * getText - Return as hex-digits (only for debug routines).
    */
   static char* getText(unsigned size, const Uint32 data[], char* buf);
+private:
+  static void getFieldImpl(const Uint32 data[], unsigned, unsigned, Uint32 []);
+  static void setFieldImpl(Uint32 data[], unsigned, unsigned, const Uint32 []);
 };
 
 inline bool
@@ -793,5 +809,39 @@ class Bitmask : public BitmaskPOD<size> {
 public:
   Bitmask() { this->clear();}
 };
+
+inline void
+BitmaskImpl::getField(unsigned size, const Uint32 data[],
+		      unsigned pos, unsigned len, Uint32 dst[])
+{
+  assert(len > 0);
+  assert(pos + len < (size << 5));
+  Uint32 word = pos >> 5;
+  Uint32 offset = pos & 31;
+  if(offset + len <= 32)
+  {
+    dst[0] = (data[word] >> offset) & ((1 << len) - 1);
+    return;
+  }
+  getFieldImpl(data, pos, len, dst);
+}
+
+inline void
+BitmaskImpl::setField(unsigned size, Uint32 data[],
+		      unsigned pos, unsigned len, const Uint32 src[])
+{
+  assert(len > 0);
+  assert(pos + len < (size << 5));
+  Uint32 word = pos >> 5;
+  Uint32 offset = pos & 31;
+  Uint32 mask = ((1 << len) - 1) << offset;
+  data[word] = (data[word] & ~mask) | ((src[0] << offset) & mask);
+  if(offset + len <= 32)
+  {
+    return;
+  }
+  setFieldImpl(data, pos, len, src);
+}
+
 
 #endif
