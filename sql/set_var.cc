@@ -101,6 +101,7 @@ static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
+static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
@@ -201,10 +202,13 @@ sys_var_long_ptr	sys_max_connections("max_connections",
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
 sys_var_thd_ulong       sys_max_insert_delayed_threads("max_insert_delayed_threads",
-						       &SV::max_insert_delayed_threads);
+						       &SV::max_insert_delayed_threads,
+                                                       check_max_delayed_threads,
+                                                       fix_max_connections);
 sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
 						&SV::max_insert_delayed_threads,
-						0, fix_max_connections);
+                                                check_max_delayed_threads,
+                                                fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
@@ -1083,6 +1087,19 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
   DBUG_VOID_RETURN;
 }
 
+
+static int check_max_delayed_threads(THD *thd, set_var *var)
+{
+  int val= var->value->val_int();
+  if (var->type != OPT_GLOBAL && val != 0 &&
+      val != global_system_variables.max_insert_delayed_threads)
+  {
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
+    return 1;
+  }
+  return 0;
+}
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
