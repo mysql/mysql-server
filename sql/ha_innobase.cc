@@ -18,12 +18,6 @@
 Innobase */
 
 /* TODO list for the Innobase handler:
-  - How to check for deadlocks if Innobase tables are used alongside
-    other MySQL table types? Solution: we will use a timeout.
-  - Innobase currently includes the path to a table name: the path should
-    actually be dropped off, because we may move a whole database to a new
-    directory.
-  - Add a deadlock error message to MySQL.
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in near future yes, but not yet.
 */
@@ -415,10 +409,10 @@ innobase_init(void)
 /*===============*/
 			/* out: TRUE if error */
 {
-	int	err;
-	bool	ret;
-	ibool	test_bool;
-	static  char current_dir[3];
+	static char 	current_dir[3];
+	int		err;
+	bool		ret;
+
   	DBUG_ENTER("innobase_init");
 
 	/* Use current_dir if no paths are set */
@@ -1659,7 +1653,7 @@ ha_innobase::change_active_index(
 
   	statistic_increment(ha_read_key_count, &LOCK_status);
 
-  	DBUG_ENTER("ha_innobase::change_active_index");
+  	DBUG_ENTER("index_read_idx");
 
 	active_index = keynr;
 
@@ -1685,7 +1679,7 @@ ha_innobase::change_active_index(
 
 	build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
 
-	DBUG_RETURN(0);
+	return(0);
 }
 
 /**************************************************************************
@@ -2219,7 +2213,6 @@ ha_innobase::create(
 {
 	int		error;
 	dict_table_t*	innobase_table;
-	uint		name_len;
 	trx_t*		trx;
 	int		primary_key_no	= -1;
 	KEY*		key;
@@ -2237,7 +2230,7 @@ ha_innobase::create(
 
   	/* Create the table definition in Innobase */
 
-  	if ((error = create_table_def(trx, form, norm_name))) {
+  	if (error = create_table_def(trx, form, norm_name)) {
 
 		trx_commit_for_mysql(trx);
 
@@ -2255,6 +2248,11 @@ ha_innobase::create(
     			primary_key_no = (int) i;
     		}
 	}
+
+	/* Our function row_get_mysql_key_number_for_index assumes
+	the primary key is always number 0, if it exists */
+
+	assert(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Create the keys */
 
@@ -2569,9 +2567,9 @@ ha_innobase::info(
 	}
 
   	if (flag & HA_STATUS_ERRKEY) {
-
-		errkey = (unsigned int)-1; /* TODO: get the key number from
-                                           Innobase */
+		errkey = (unsigned int) row_get_mysql_key_number_for_index(
+						(dict_index_t*)
+						prebuilt->trx->error_info);
   	}
 
   	DBUG_VOID_RETURN;
