@@ -2341,21 +2341,24 @@ os_file_dirname(
 				pathname */
 	const char*	path)	/* in: pathname */
 {
-	/* find the offset of the last slash */
+	/* Find the offset of the last slash */
 	const char* last_slash = strrchr(path, OS_FILE_PATH_SEPARATOR);
 	if (!last_slash) {
-		/* no slash in the path, return "." */
+		/* No slash in the path, return "." */
+
 		return(mem_strdup("."));
 	}
 
-	/* ok, there is a slash */
+	/* Ok, there is a slash */
 
 	if (last_slash == path) {
 		/* last slash is the first char of the path */
+
 		return(mem_strdup("/"));
 	}
 
-	/* non-trivial directory component */
+	/* Non-trivial directory component */
+
 	return(mem_strdupl(path, last_slash - path));
 }
 	
@@ -2377,23 +2380,26 @@ os_file_create_subdirs_if_needed(
 	if (strlen(subdir) == 1
 	    && (*subdir == OS_FILE_PATH_SEPARATOR || *subdir == '.')) {
 		/* subdir is root or cwd, nothing to do */
-		ut_free(subdir);
+		mem_free(subdir);
+
 		return(TRUE);
 	}
 
-	/* test if subdir exists */
+	/* Test if subdir exists */
 	success = os_file_status(subdir, &subdir_exists, &type);
 	if (success && !subdir_exists) {
 		/* subdir does not exist, create it */
 		success = os_file_create_subdirs_if_needed(subdir);
 		if (!success) {
-			ut_free(subdir);
+			mem_free(subdir);
+
 			return(FALSE);
 		}
 		success = os_file_create_directory(subdir, FALSE);
 	}
 
-	ut_free(subdir);
+	mem_free(subdir);
+
 	return(success);
 }
 
