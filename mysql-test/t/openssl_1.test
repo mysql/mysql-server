@@ -1,0 +1,5 @@
+# We test openssl. Result set is optimized to be compiled with --with-openssl but 
+# SSL is swithced off in some reason
+
+SHOW STATUS LIKE 'SSL%';
+
