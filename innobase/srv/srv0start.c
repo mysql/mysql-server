@@ -608,6 +608,19 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
+	sum_of_new_sizes = 0;
+
+	for (i = 0; i < srv_n_data_files; i++) {
+	  sum_of_new_sizes += srv_data_file_sizes[i];
+	}
+
+	if (sum_of_new_sizes < 640) {
+	  fprintf(stderr,
+		  "InnoDB: Error: tablespace size must be at least 10 MB\n");
+
+	  return(DB_ERROR);
+	}
+
 	err = open_or_create_data_files(&create_new_db,
 					&min_flushed_lsn, &min_arch_log_no,
 					&max_flushed_lsn, &max_arch_log_no,
