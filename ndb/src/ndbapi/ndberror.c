@@ -282,7 +282,7 @@ ErrorBundle ErrorCodes[] = {
   { 741,  SE, "Unsupported alter table" },
   { 742,  SE, "Unsupported attribute type in index" },
   { 743,  SE, "Unsupported character set in table or index" },
-  { 744,  SE, "Character conversion error" },
+  { 744,  SE, "Character string is invalid for given character set" },
   { 241,  SE, "Invalid schema object version" },
   { 283,  SE, "Table is being dropped" },
   { 284,  SE, "Table not defined in transaction coordinator" },

@@ -201,8 +201,8 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   // allocate buffers
   c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
   c_sqlCmp = (NdbSqlUtil::Cmp**)allocRecord("c_sqlCmp", sizeof(NdbSqlUtil::Cmp*), MaxIndexAttributes);
-  c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32*), MaxIndexAttributes);
-  c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32*), MaxIndexAttributes);
+  c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
+  c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
   c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();

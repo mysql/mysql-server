@@ -160,7 +160,7 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tu
   operPtr.i = RNIL;
   operPtr.p = NULL;
   // do it
-  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL);
+  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL, true);
   // restore globals
   tabptr = tabptr_old;
   fragptr = fragptr_old;
@@ -200,7 +200,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
   operPtr.i = RNIL;
   operPtr.p = NULL;
   // do it
-  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL);
+  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL, true);
   // restore globals
   tabptr = tabptr_old;
   fragptr = fragptr_old;

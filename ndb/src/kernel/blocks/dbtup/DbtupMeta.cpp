@@ -332,11 +332,11 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       }
       if (i == fragOperPtr.p->charsetIndex) {
         ljam();
-        ndbrequire(i < regTabPtr.p->noOfCharsets);
-        regTabPtr.p->charsetArray[i] = cs;
-        AttributeOffset::setCharsetPos(attrDes2, i);
         fragOperPtr.p->charsetIndex++;
       }
+      ndbrequire(i < regTabPtr.p->noOfCharsets);
+      regTabPtr.p->charsetArray[i] = cs;
+      AttributeOffset::setCharsetPos(attrDes2, i);
     }
     setTabDescrWord(firstTabDesIndex + 1, attrDes2);
 

@@ -903,7 +903,8 @@ int Dbtup::handleReadReq(Signal* signal,
                                           &cinBuffer[0],
                                           regOperPtr->attrinbufLen,
                                           dst,
-					  dstLen);
+					  dstLen,
+                                          false);
     if (TnoOfDataRead != (Uint32)-1) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
@@ -1274,7 +1275,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &cinBuffer[5],
 				 RinitReadLen,
 				 &dst[0],
-				 dstLen);
+				 dstLen,
+                                 false);
       if (TnoDataRW != (Uint32)-1) {
 	RattroutCounter = TnoDataRW;
 	RinstructionCounter += RinitReadLen;
@@ -1347,7 +1349,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &cinBuffer[RinstructionCounter],
 				 RfinalRLen,
 				 &dst[RattroutCounter],
-				 (dstLen - RattroutCounter));
+				 (dstLen - RattroutCounter),
+                                 false);
       if (TnoDataRW != (Uint32)-1) {
 	RattroutCounter += TnoDataRW;
       } else {
@@ -1487,7 +1490,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 				     &theAttrinfo,
 				     (Uint32)1,
 				     &TregMemBuffer[theRegister],
-				     (Uint32)3);
+				     (Uint32)3,
+                                     false);
 	  if (TnoDataRW == 2) {
 	    /* ------------------------------------------------------------- */
 	    // Two words read means that we get the instruction plus one 32 
@@ -1833,7 +1837,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
@@ -1929,7 +1934,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
@@ -1957,7 +1963,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
