@@ -21,3 +21,7 @@ t2	CREATE TABLE `t2` (
   FULLTEXT KEY `tix` (`inhalt`)
 ) TYPE=MyISAM
 ticket	inhalt
+ticket	inhalt
+3	foobar
+ticket	inhalt
+3	foobar
