@@ -140,7 +140,7 @@ class TableS {
 
 public:
   class NdbDictionary::Table* m_dictTable;
-  TableS (class NdbTableImpl* dictTable);
+  TableS (Uint32 version, class NdbTableImpl* dictTable);
   ~TableS();
 
   Uint32 getTableId() const { 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,16 +14,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Denna fil includeras i alla merge-filer */
+#include <ndb_global.h>
+#include "NdbTCP.h"
 
-#ifndef N_MAXKEY
-#include "../isam/isamdef.h"
-#endif
+int 
+Ndb_getInAddr(struct in_addr * dst, const char *address) 
+{
+    struct hostent * hostPtr;
 
-#include "merge.h"
+    /* Try it as aaa.bbb.ccc.ddd. */
+    dst->s_addr = inet_addr(address);
+    if (dst->s_addr != -1) {
+        return 0;
+    }
 
-extern LIST *mrg_open_list;
+    hostPtr = gethostbyname(address);
+    if (hostPtr != NULL) {
+        dst->s_addr = ((struct in_addr *) *hostPtr->h_addr_list)->s_addr;
+        return 0;
+    }
+    
+    return -1;
+}
 
-#ifdef THREAD
-extern pthread_mutex_t THR_LOCK_open;
-#endif

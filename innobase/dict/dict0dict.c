@@ -2391,6 +2391,8 @@ dict_scan_id(
 	ulint		len	= 0;
 	const char*	s;
 	char*		d;
+	ulint		id_len;
+	byte*		b;
 
 	*id = NULL;
 
@@ -2452,6 +2454,28 @@ dict_scan_id(
 		*id = s;
 	}
 
+	if (heap && !quote) {
+		/* EMS MySQL Manager sometimes adds characters 0xA0 (in
+		latin1, a 'non-breakable space') to the end of a table name.
+		But isspace(0xA0) is not true, which confuses our foreign key
+		parser. After the UTF-8 conversion in ha_innodb.cc, bytes 0xC2
+		and 0xA0 are at the end of the string.
+
+		TODO: we should lex the string using thd->charset_info, and
+		my_isspace(). Only after that, convert id names to UTF-8. */
+
+		b = (byte*)(*id);
+		id_len = strlen(b);
+		
+		if (id_len >= 3 && b[id_len - 1] == 0xA0
+			       && b[id_len - 2] == 0xC2) {
+
+			/* Strip the 2 last bytes */
+
+			b[id_len - 2] = '\0';
+		}
+	}
+
 	return(ptr);
 }
 
@@ -2506,7 +2530,7 @@ dict_scan_col(
 }
 
 /*************************************************************************
-Scans the referenced table name from an SQL string. */
+Scans a table name from an SQL string. */
 static
 const char*
 dict_scan_table_name(
@@ -2517,7 +2541,7 @@ dict_scan_table_name(
 	const char*	name,	/* in: foreign key table name */
 	ibool*		success,/* out: TRUE if ok name found */
 	mem_heap_t*	heap,	/* in: heap where to allocate the id */
-	const char**	ref_name)/* out,own: the referenced table name;
+	const char**	ref_name)/* out,own: the table name;
 				NULL if no name was scannable */
 {
 	const char*	database_name	= NULL;

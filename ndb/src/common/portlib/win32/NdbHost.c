@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,13 +14,39 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Static variables for pisam library. All definied here for easy making of
-  a shared library
-*/
 
-#ifndef stdin
-#include "mrg_def.h"
-#endif
+#include <ndb_global.h>
+#include "NdbHost.h"
 
-LIST	*mrg_open_list=0;
+
+int NdbHost_GetHostName(char* buf)
+{
+    /* We must initialize TCP/IP if we want to call gethostname */
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    int err; 
+    
+    wVersionRequested = MAKEWORD( 2, 0 ); 
+    err = WSAStartup( wVersionRequested, &wsaData );
+    if ( err != 0 ) {    
+    /**
+    * Tell the user that we couldn't find a usable
+    * WinSock DLL.                               
+        */
+        return -1;
+    }
+    
+    /* Get host name */
+    if(gethostname(buf, MAXHOSTNAMELEN))
+    {
+        return -1;
+    }
+    return 0;
+}
+
+
+int NdbHost_GetProcessId(void)
+{
+    return _getpid();
+}
+

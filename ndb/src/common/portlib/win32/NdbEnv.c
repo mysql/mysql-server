@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,18 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Update last read record */
+#include <ndb_global.h>
+#include "NdbEnv.h"
 
-#include "mrg_def.h"
-
-int mrg_update(
-register MRG_INFO *info,
-const byte *oldrec, const byte *newrec)
+const char* NdbEnv_GetEnv(const char* name, char * buf, int buflen)
 {
-  if (!info->current_table)
-  {
-    my_errno=HA_ERR_NO_ACTIVE_RECORD;
-    return(-1);
-  }
-  return nisam_update(info->current_table->table,oldrec,newrec);
+    char* p = NULL;
+    p = getenv(name);
+    
+    if (p != NULL && buf != NULL){
+        strncpy(buf, p, buflen);
+        buf[buflen-1] = 0;
+    }
+    return p;
 }
+

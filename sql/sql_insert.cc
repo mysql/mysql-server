@@ -18,7 +18,6 @@
 /* Insert of records */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_select.h"
@@ -181,6 +180,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   char *query= thd->query;
 #endif
   thr_lock_type lock_type = table_list->lock_type;
+  Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -244,15 +244,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->used_tables=0;
   values= its++;
 
-  if (duplic == DUP_UPDATE)
-  {
-    /* it should be allocated before Item::fix_fields() */
-    if (table_list->set_insert_values(thd->mem_root))
-      goto abort;
-  }
-
   if (mysql_prepare_insert(thd, table_list, table, fields, values,
-			   update_fields, update_values, duplic))
+			   update_fields, update_values, duplic, &unused_conds,
+                           FALSE))
     goto abort;
 
   /* mysql_prepare_insert set table_list->table if it was not set */
@@ -659,6 +653,10 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     mysql_prepare_insert()
     thd			Thread handler
     table_list	        Global/local table list
+    table		Table to insert into (can be NULL if table should be taken from
+			table_list->table)    
+    where		Where clause (for insert ... select)
+    select_insert	TRUE if INSERT ... SELECT statement
 
   RETURN VALUE
     FALSE OK
@@ -666,26 +664,33 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 */
 
 bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
-			 List<Item> &fields, List_item *values,
-			 List<Item> &update_fields, List<Item> &update_values,
-			 enum_duplicates duplic)
+                          List<Item> &fields, List_item *values,
+                          List<Item> &update_fields, List<Item> &update_values,
+                          enum_duplicates duplic,
+                          COND **where, bool select_insert)
 {
   bool insert_into_view= (table_list->view != 0);
   /* TODO: use this condition for 'WITH CHECK OPTION' */
-  Item *unused_conds= 0;
   bool res;
   DBUG_ENTER("mysql_prepare_insert");
-
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
 		       (ulong)table_list, (ulong)table,
 		       (int)insert_into_view));
-  if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds,
-                                       FALSE))
+
+  if (duplic == DUP_UPDATE)
+  {
+    /* it should be allocated before Item::fix_fields() */
+    if (table_list->set_insert_values(thd->mem_root))
+      DBUG_RETURN(TRUE);
+  }
+
+  if (mysql_prepare_insert_check_table(thd, table_list, fields, where,
+                                       select_insert))
     DBUG_RETURN(TRUE);
 
-  if (check_insert_fields(thd, table_list, fields, *values, 1,
-                          !insert_into_view) ||
-      setup_fields(thd, 0, table_list, *values, 0, 0, 0) ||
+  if ((values && check_insert_fields(thd, table_list, fields, *values, 1,
+                                     !insert_into_view)) ||
+      (values && setup_fields(thd, 0, table_list, *values, 0, 0, 0)) ||
       (duplic == DUP_UPDATE &&
        ((thd->lex->select_lex.no_wrap_view_item= 1,
          (res= setup_fields(thd, 0, table_list, update_fields, 1, 0, 0)),
@@ -697,7 +702,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   if (!table)
     table= table_list->table;
 
-  if (unique_table(table_list, table_list->next_global))
+  if ((thd->lex->sql_command == SQLCOM_INSERT ||
+       thd->lex->sql_command == SQLCOM_REPLACE) &&
+      unique_table(table_list, table_list->next_global))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(TRUE);
@@ -795,8 +802,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
            that matches, is updated. If update causes a conflict again,
            an error is returned
         */
+	DBUG_ASSERT(table->insert_values != NULL);
         store_record(table,insert_values);
         restore_record(table,record[1]);
+        DBUG_ASSERT(info->update_fields->elements ==
+                    info->update_values->elements);
         if (fill_record(thd, *info->update_fields, *info->update_values, 0))
           goto err;
 
@@ -805,7 +815,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             (res= info->view->view_check_option(current_thd, info->ignore)) ==
             VIEW_CHECK_SKIP)
           break;
-        else if (res == VIEW_CHECK_ERROR)
+        if (res == VIEW_CHECK_ERROR)
           goto err;
 
         if ((error=table->file->update_row(table->record[1],table->record[0])))
@@ -1712,23 +1722,25 @@ bool delayed_insert::handle_inserts(void)
 bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  TABLE_LIST* first_select_table=
-    (TABLE_LIST*)lex->select_lex.table_list.first;
-  TABLE_LIST* first_select_leaf_table;
+  TABLE_LIST *first_select_table=
+    (TABLE_LIST*) lex->select_lex.table_list.first;
+  TABLE_LIST *first_select_leaf_table;
   int res;
   DBUG_ENTER("mysql_insert_select_prepare");
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
-    clasue if table is VIEW
+    clause if table is VIEW
   */
   lex->query_tables->no_where_clause= 1;
-  if (mysql_prepare_insert_check_table(thd, lex->query_tables,
-                                       lex->field_list,
-                                       &lex->select_lex.where,
-                                       TRUE))
+  if (mysql_prepare_insert(thd, lex->query_tables,
+                           lex->query_tables->table, lex->field_list, 0,
+                           lex->update_list, lex->value_list,
+                           lex->duplicates,
+                           &lex->select_lex.where, TRUE))
     DBUG_RETURN(TRUE);
+
   /*
-    setup was done in mysql_insert_select_prepare, but we have to mark
+    setup was done in mysql_prepare_insert_check_table, but we have to mark
     first local table
   */
   if (first_select_table)
@@ -1753,17 +1765,21 @@ bool mysql_insert_select_prepare(THD *thd)
 
 
 select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
-                             List<Item> *fields_par, enum_duplicates duplic,
+                             List<Item> *fields_par,
+                             List<Item> *update_fields, List<Item> *update_values,
+                             enum_duplicates duplic,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    last_insert_id(0),
    insert_into_view(table_list_par && table_list_par->view != 0)
 {
   bzero((char*) &info,sizeof(info));
-  info.handle_duplicates=duplic;
+  info.handle_duplicates= duplic;
+  info.ignore= ignore_check_option_errors;
+  info.update_fields= update_fields;
+  info.update_values= update_values;
   if (table_list_par)
     info.view= (table_list_par->view ? table_list_par : 0);
-  info.ignore= ignore_check_option_errors;
 }
 
 

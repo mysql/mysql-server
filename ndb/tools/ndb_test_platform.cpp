@@ -33,14 +33,14 @@ int test_snprintf(const char * fmt, int buf_sz, int result)
   if(ret < 0)
   {
     printf("BaseString::snprint returns %d with size=%d and strlen(fmt)=%d\n",
-	   ret, buf_sz, strlen(fmt));
+	   ret, buf_sz, (int) strlen(fmt));
     return -1;
   }
   
   if(ret+1 == buf_sz)
   {
     printf("BaseString::snprint truncates returns %d with size=%d and strlen(fmt)=%d\n",
-	   ret, buf_sz, strlen(fmt));
+	   ret, buf_sz, (int) strlen(fmt));
     return -1;
   }
   
@@ -87,7 +87,7 @@ main(void)
   if (sizeof(UintPtr) != sizeof(Uint32*))
   {
     printf("sizeof(UintPtr)=%d != sizeof(Uint32*)=%d\n",
-	   sizeof(UintPtr), sizeof(Uint32*));
+	   (int) sizeof(UintPtr), (int) sizeof(Uint32*));
     return -1;
   }
 
