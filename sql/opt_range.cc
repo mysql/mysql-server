@@ -585,6 +585,9 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
+  DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
+		      (ulong) keys_to_use, (ulong) prev_tables,
+		      (ulong) const_tables));
 
   delete quick;
   quick=0;
