@@ -313,3 +313,4 @@ WHERE
 a	b
 15	1
 47	1
+DROP TABLE t1;

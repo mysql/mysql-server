@@ -194,6 +194,11 @@ AC_PROG_RANLIB
 #AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 
+# Ensure that we have --preserve-dup-deps defines, otherwise we get link
+# problems of 'mysql' with CXX=g++
+LIBTOOL="$LIBTOOL --preserve-dup-deps"
+AC_SUBST(LIBTOOL)dnl
+
 #AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
 
 # AC_PROG_INSTALL
