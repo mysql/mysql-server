@@ -191,8 +191,7 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
 #ifdef USING_TRANSACTIONS
-  if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
-      !thd->locked_tables)
+  if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
   {
     if (!error)
     {
@@ -211,6 +210,16 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
   int error=0;
   DBUG_ENTER("ha_commit");
+#ifdef USING_TRANSACTIONS
+  /* Update the binary log if we have cached some queries */
+  if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
+      my_b_tell(&thd->transaction.trans_log))
+  {
+    mysql_bin_log.write(&thd->transaction.trans_log);
+    reinit_io_cache(&thd->transaction.trans_log,
+		    WRITE_CACHE, (my_off_t) 0, 0, 1);
+    thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+  }
 #ifdef HAVE_BERKELEY_DB
   if (trans->bdb_tid)
   {
@@ -224,13 +233,16 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #endif
 #ifdef HAVE_INNOBASE_DB
   {
-    if ((error=innobase_commit(thd,trans->innobase_tid))
+    if ((error=innobase_commit(thd,trans->innobase_tid)))
     {
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
     trans->innobase_tid=0;
   }
+#endif
+  if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
+    sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
 #endif
   DBUG_RETURN(error);
 }
@@ -260,6 +272,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
     trans->innobase_tid=0;
   }
+#endif
+#ifdef USING_TRANSACTIONS
+  if (trans == &thd->transaction.all)
+    reinit_io_cache(&thd->transaction.trans_log,
+		    WRITE_CACHE, (my_off_t) 0, 0, 1);
+  thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
 #endif
   DBUG_RETURN(error);
 }

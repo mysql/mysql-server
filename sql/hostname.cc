@@ -180,20 +180,21 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
   VOID(pthread_mutex_lock(&hostname_cache->lock));
   if (!(hp=gethostbyaddr((char*) in,sizeof(*in), AF_INET)))
   {
-    DBUG_PRINT("error",("gethostbyaddr returned %d",errno));
     VOID(pthread_mutex_unlock(&hostname_cache->lock));
-    add_wrong_ip(in);
-    DBUG_RETURN(0);
+    DBUG_PRINT("error",("gethostbyaddr returned %d",errno));
+    goto err;
   }
-  if (!hp->h_name[0])
+  if (!hp->h_name[0])				// Don't allow empty hostnames
   {
     VOID(pthread_mutex_unlock(&hostname_cache->lock));
     DBUG_PRINT("error",("Got an empty hostname"));
-    add_wrong_ip(in);
-    DBUG_RETURN(0);				// Don't allow empty hostnames
+    goto err;
   }
   if (!(name=my_strdup(hp->h_name,MYF(0))))
+  {
+    VOID(pthread_mutex_unlock(&hostname_cache->lock));
     DBUG_RETURN(0);				// out of memory
+  }
   check=gethostbyname(name);
   VOID(pthread_mutex_unlock(&hostname_cache->lock));
   if (!check)
@@ -214,8 +215,7 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
     {
       DBUG_PRINT("error",("mysqld doesn't accept hostnames that starts with a number followed by a '.'"));
       my_free(name,MYF(0));
-      add_wrong_ip(in);
-      DBUG_RETURN(0);
+      goto err;
     }
   }
 
@@ -230,6 +230,8 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
   }
   DBUG_PRINT("error",("Couldn't verify hostname with gethostbyname"));
   my_free(name,MYF(0));
+
+err:
   add_wrong_ip(in);
   DBUG_RETURN(0);
 }

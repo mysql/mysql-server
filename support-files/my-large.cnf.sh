@@ -34,10 +34,12 @@ set-variable	= record_buffer=1M
 set-variable	= myisam_sort_buffer_size=64M
 set-variable	= thread_cache=8
 set-variable	= thread_concurrency=8	# Try number of CPU's*2
-log-update
+log-bin
+server-id	= 1
 
 # Uncomment the following if you are using BDB tables
 #set-variable	= bdb_cache_size=64M
+#set-variable	= bdb_max_lock=100000
 
 # Point the following paths to different dedicated disks
 #tmpdir		= /tmp/		
