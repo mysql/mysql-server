@@ -1478,8 +1478,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
 
   db=table_list->db;
-  if (!new_db || !strcmp(new_db, db))
-    new_db=db;
+  if (!new_db ||
+      lower_case_table_names && !my_strcasecmp(new_db, db) ||
+      !lower_case_table_names && !strcmp(new_db, db))
+  {
+    new_db= db;
+  }
   used_fields=create_info->used_fields;
   
   mysql_ha_closeall(thd, table_list);
