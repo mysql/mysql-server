@@ -114,3 +114,5 @@ SELECT s1,COUNT(*) FROM t1 GROUP BY s1;
 SELECT COUNT(DISTINCT s1) FROM t1;
 SELECT FIELD('ue',s1), FIELD('Ü',s1), s1='ue', s1='Ü' FROM t1;
 DROP TABLE t1;
+
+-- source include/ctype_filesort.inc
