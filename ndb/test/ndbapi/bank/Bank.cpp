@@ -670,15 +670,15 @@ int Bank::findLastGL(Uint64 &lastTime){
     return NDBT_FAILED;
   }
       
-  NdbOperation* pOp = pScanTrans->getNdbOperation("GL");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanRead(64);
-  if( check == -1 ) {
+  NdbResultSet * rs = pOp->readTuples();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -698,7 +698,7 @@ int Bank::findLastGL(Uint64 &lastTime){
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -707,7 +707,7 @@ int Bank::findLastGL(Uint64 &lastTime){
     
   int eof;
   int rows = 0;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
   lastTime = 0;
     
   while(eof == 0){
@@ -717,7 +717,7 @@ int Bank::findLastGL(Uint64 &lastTime){
     if (t > lastTime)
       lastTime = t;
     
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());
@@ -1002,15 +1002,15 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
     return NDBT_FAILED;
   }
       
-  NdbOperation* pOp = pScanTrans->getNdbOperation("TRANSACTION");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanExclusive(64);
-  if( check == -1 ) {
+  NdbResultSet * rs = pOp->readTuplesExclusive();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -1051,7 +1051,7 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -1061,7 +1061,7 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
   int eof;
   int rows = 0;
   int rowsFound = 0;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
     
   while(eof == 0){
     rows++;
@@ -1085,7 +1085,7 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
       }
     }
 
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
 
     if ((rows % 100) == 0){
       // "refresh" ownner transaction every 100th row
@@ -1162,15 +1162,15 @@ int Bank::performValidateGL(Uint64 glTime){
      return NDBT_FAILED;
    }
    
-   NdbOperation* pOp = pScanTrans->getNdbOperation("GL");	
+   NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
    if (pOp == NULL) {
      ERR(pScanTrans->getNdbError());
      m_ndb.closeTransaction(pScanTrans);
      return NDBT_FAILED;
    }
    
-   check = pOp->openScanRead(64);
-   if( check == -1 ) {
+   NdbResultSet * rs = pOp->readTuples();
+   if( rs == 0 ) {
      ERR(pScanTrans->getNdbError());
      m_ndb.closeTransaction(pScanTrans);
      return NDBT_FAILED;
@@ -1238,7 +1238,7 @@ int Bank::performValidateGL(Uint64 glTime){
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -1249,7 +1249,7 @@ int Bank::performValidateGL(Uint64 glTime){
   int rows = 0;
   int countGlRecords = 0;
   int result = NDBT_OK;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
     
   while(eof == 0){
     rows++;
@@ -1336,7 +1336,7 @@ int Bank::performValidateGL(Uint64 glTime){
       }
 
     }
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());
@@ -1426,15 +1426,15 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
     return NDBT_FAILED;
   }
       
-  NdbOperation* pOp = pScanTrans->getNdbOperation("GL");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanRead(64);
-  if( check == -1 ) {
+  NdbResultSet * rs = pOp->readTuples();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -1468,7 +1468,7 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -1477,7 +1477,7 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
     
   int eof;
   int rows = 0;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
   oldest = 0;
     
   while(eof == 0){
@@ -1491,7 +1491,7 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
       if (t > oldest)
 	oldest = t;
     }
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());
@@ -1518,15 +1518,15 @@ int Bank::getOldestNotPurgedGL(Uint64 &oldest,
     return NDBT_FAILED;
   }
       
-  NdbOperation* pOp = pScanTrans->getNdbOperation("GL");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanRead(64);
-  if( check == -1 ) {
+  NdbResultSet * rs = pOp->readTuples();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -1560,7 +1560,7 @@ int Bank::getOldestNotPurgedGL(Uint64 &oldest,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -1569,7 +1569,7 @@ int Bank::getOldestNotPurgedGL(Uint64 &oldest,
     
   int eof;
   int rows = 0;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
   oldest = (Uint64)-1;
   found = false;
     
@@ -1586,7 +1586,7 @@ int Bank::getOldestNotPurgedGL(Uint64 &oldest,
 	accountTypeId = a;
       }
     }
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());
@@ -1615,15 +1615,15 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     return NDBT_FAILED;
   }
       
-  NdbOperation* pOp = pScanTrans->getNdbOperation("TRANSACTION");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");	
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanRead(64);
-  if( check == -1 ) {
+  NdbResultSet * rs = pOp->readTuples();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -1657,7 +1657,7 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);   
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -1667,7 +1667,7 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
   int eof;
   int rows = 0;
   int found = 0;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
     
   while(eof == 0){
     rows++;
@@ -1683,7 +1683,7 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
 	    << "  ti = " << ti << endl;
       found++;
     }
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());
@@ -1859,15 +1859,15 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
     return NDBT_FAILED;
   }
       
-  NdbOperation* pOp = pScanTrans->getNdbOperation("TRANSACTION");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");	
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanExclusive(64);
-  if( check == -1 ) {
+  NdbResultSet * rs = pOp->readTuplesExclusive();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -1894,7 +1894,7 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);   
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -1904,7 +1904,7 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
   int eof;
   int rows = 0;
   int rowsFound = 0;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
     
   while(eof == 0){
     rows++;
@@ -1914,8 +1914,8 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
     if (a == accountType && t == glTime){
       rowsFound++;
       // One record found
-      NdbOperation* pDelOp = pOp->takeOverForDelete(pTrans);
-      if (pDelOp == NULL){
+      check = rs->deleteTuple(pTrans);
+      if (check == -1){
 	ERR(m_ndb.getNdbError());
 	m_ndb.closeTransaction(pScanTrans);
 	return NDBT_FAILED;
@@ -1929,7 +1929,7 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
 	return NDBT_FAILED;
       }       
     }
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());
@@ -2348,15 +2348,15 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
     return NDBT_FAILED;
   }
 
-  NdbOperation* pOp = pScanTrans->getNdbOperation("ACCOUNT");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("ACCOUNT");	
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanExclusive(64);
-  if( check == -1 ) {
+  NdbResultSet * rs = pOp->readTuplesExclusive();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -2376,7 +2376,7 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);   
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -2391,7 +2391,7 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
   }   
 
   int eof;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
     
   while(eof == 0){
     Uint32 b = balanceRec->u_32_value();
@@ -2403,7 +2403,7 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
     //	   << ", sum="<< sumAccounts << endl;
 
     // Take over the operation so that the lock is kept in db
-    NdbOperation* pLockOp = pOp->takeOverForUpdate(pTrans);
+    NdbOperation* pLockOp = rs->updateTuple(pTrans);
     if (pLockOp == NULL){
       ERR(m_ndb.getNdbError());
       m_ndb.closeTransaction(pScanTrans);
@@ -2429,7 +2429,7 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
       return NDBT_FAILED;
     }       
 
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());
