@@ -26,7 +26,7 @@ parse_arguments() {
       --datadir=*)  DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
       --socket=*)   MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
-      --port=*)     MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
+      --port=*)     MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--port=;;"` ;;
       --log=*)      log=`echo "$arg" | sed -e "s;--log=;;"` ;;
       --err-log=*)  err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
       --basedir=*)  MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
