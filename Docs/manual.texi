@@ -40779,8 +40779,8 @@ The effect of this is that @code{BDB} tables are not movable between directories
 @item
 When taking backups of @code{BDB} tables, you have to either use
 @code{mysqldump} or take a backup of all @code{table_name.db} files and
-the @code{BDB} log files.  The @code{BDB} log files are the files in the base data
-directory named @code{log.XXXXXXXXXX} (ten digits);
+the @code{BDB} log files.  The @code{BDB} log files are the files in the base
+data directory named @code{log.XXXXXXXXXX} (ten digits);
 The @code{BDB} table handler stores unfinished transactions in the log files
 and requires these to be present when @code{mysqld} starts.
 @end itemize
