@@ -7,5 +7,11 @@ sum(length(word))
 0
 count(*)
 10
+select_priv	user
+N	blafasel2
+select_priv	user
+Y	blafasel2
 n
 3456
+select_priv	user
+Y	blafasel2
