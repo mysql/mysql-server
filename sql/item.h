@@ -1199,6 +1199,7 @@ public:
   String *val_str(String*);
   bool join_types(THD *thd, Item *);
   Field *example() { return field_example; }
+  static uint32 real_length(Item *item);
   void cleanup()
   {
     DBUG_ENTER("Item_type_holder::cleanup");
