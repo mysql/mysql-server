@@ -94,10 +94,12 @@ mutex_test_and_set(
 
 	/* In assembly we use the so-called AT & T syntax where
 	the order of operands is inverted compared to the ordinary Intel
-	syntax. The 'l' after the mnemonics denotes a 32-bit operation. */
+	syntax. The 'l' after the mnemonics denotes a 32-bit operation.
+	The line after the code tells which values come out of the asm
+	code, and the second line tells the input to the asm code. */
 
 	asm volatile("movl $1, %%eax; xchgl (%%ecx), %%eax" :
-	              "=eax" (res):
+	              "=eax" (res), "=m" (*lw) :
 	              "ecx" (lw));
 	return(res);
 #else
@@ -132,11 +134,25 @@ mutex_reset_lock_word(
 	__asm   MOV     EDX, 0
         __asm   MOV     ECX, lw
         __asm   XCHG    EDX, DWORD PTR [ECX]                    
+#elif defined(__GNUC__) && defined(UNIV_INTEL_X86)
+	ulint*	lw;
+
+	lw = &(mutex->lock_word);
+
+	/* In assembly we use the so-called AT & T syntax where
+	the order of operands is inverted compared to the ordinary Intel
+	syntax. The 'l' after the mnemonics denotes a 32-bit operation. */
+
+	asm volatile("movl $0, %%eax; xchgl (%%ecx), %%eax" :
+	              "=m" (*lw) :
+	              "ecx" (lw) :
+		      "eax");	/* gcc does not seem to understand
+				that our asm code resets eax: tell it
+				explicitly that after the third ':' */
 #else
 	mutex->lock_word = 0;
-#if !(defined(__GNUC__) && defined(UNIV_INTEL_X86))
+
 	os_fast_mutex_unlock(&(mutex->os_fast_mutex));
-#endif
 #endif
 }
 
