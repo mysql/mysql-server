@@ -2370,6 +2370,16 @@ fil_reset_too_high_lsns(
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
 	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+
+		ut_print_timestamp(stderr);
+
+	        fputs(
+"  InnoDB: Error: trying to open a table, but could not\n"
+"InnoDB: open the tablespace file ", stderr);
+		ut_print_filename(stderr, filepath);
+		fputs("!\n", stderr);
 		mem_free(filepath);
 
 		return(FALSE);
