@@ -2913,7 +2913,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 	{
 	  /* Add not used table to the total table list */
 	  aux->lock_type= lex->lock_option;
-	  if (!(cursor = (TABLE_LIST *) thd->memdup((byte*) aux,
+	  if (!(cursor = (TABLE_LIST *) thd->memdup((char*) aux,
 						    sizeof(*aux))))
 	  {
 	    send_error(&thd->net,0);

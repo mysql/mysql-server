@@ -2534,7 +2534,9 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
   : QUICK_SELECT(*q), rev_it(rev_ranges)
 {
   bool not_read_after_key = file->option_flag() & HA_NOT_READ_AFTER_KEY;
-  for (QUICK_RANGE *r = it++; r; r = it++)
+  QUICK_RANGE *r;
+
+  for (r = it++; r; r = it++)
   {
     rev_ranges.push_front(r);
     if (not_read_after_key && range_reads_after_key(r) ||
@@ -2547,7 +2549,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
     }
   }
   /* Remove EQ_RANGE flag for keys that are not using the full key */
-  for (QUICK_RANGE *r = rev_it++; r; r = rev_it++)
+  for (r = rev_it++; r; r = rev_it++)
   {
     if ((r->flag & EQ_RANGE) &&
 	head->key_info[index].key_length != r->max_length)

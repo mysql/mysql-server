@@ -320,7 +320,7 @@ void Log_event::init_show_field_list(List<Item>* field_list)
   field_list->push_back(new Item_empty_string("Info", 20));
 }
 
-int Log_event::net_send(THD* thd, const char* log_name, ulong pos)
+int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
 {
   String* packet = &thd->packet;
   const char* p = strrchr(log_name, FN_LIBCHAR);
@@ -330,7 +330,7 @@ int Log_event::net_send(THD* thd, const char* log_name, ulong pos)
   
   packet->length(0);
   net_store_data(packet, log_name, strlen(log_name));
-  net_store_data(packet, (longlong)pos);
+  net_store_data(packet, (longlong) pos);
   event_type = get_type_str();
   net_store_data(packet, event_type, strlen(event_type));
   net_store_data(packet, server_id);
@@ -907,16 +907,16 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
     db_len = (db) ? (uint32) strlen(db) : 0;
     table_name_len = (table_name) ? (uint32) strlen(table_name) : 0;
     fname_len = (fname) ? (uint) strlen(fname) : 0;
-    sql_ex.field_term = (char*)ex->field_term->ptr();
-    sql_ex.field_term_len = ex->field_term->length();
-    sql_ex.enclosed = (char*)ex->enclosed->ptr();
-    sql_ex.enclosed_len = ex->enclosed->length();
-    sql_ex.line_term = (char*)ex->line_term->ptr();
-    sql_ex.line_term_len = ex->line_term->length();
-    sql_ex.line_start = (char*)ex->line_start->ptr();
-    sql_ex.line_start_len = ex->line_start->length();
-    sql_ex.escaped = (char*)ex->escaped->ptr();
-    sql_ex.escaped_len = ex->escaped->length();
+    sql_ex.field_term = (char*) ex->field_term->ptr();
+    sql_ex.field_term_len = (uint8) ex->field_term->length();
+    sql_ex.enclosed = (char*) ex->enclosed->ptr();
+    sql_ex.enclosed_len = (uint8) ex->enclosed->length();
+    sql_ex.line_term = (char*) ex->line_term->ptr();
+    sql_ex.line_term_len = (uint8) ex->line_term->length();
+    sql_ex.line_start = (char*) ex->line_start->ptr();
+    sql_ex.line_start_len = (uint8) ex->line_start->length();
+    sql_ex.escaped = (char*) ex->escaped->ptr();
+    sql_ex.escaped_len = (uint8) ex->escaped->length();
     sql_ex.opt_flags = 0;
     sql_ex.cached_new_format = -1;
     
@@ -991,7 +991,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len)
   num_fields = uint4korr(buf + L_NUM_FIELDS_OFFSET + LOG_EVENT_HEADER_LEN);
 	  
   int body_offset = get_data_body_offset();
-  if ((int)event_len < body_offset)
+  if ((int) event_len < body_offset)
     return 1;
   //sql_ex.init() on success returns the pointer to the first byte after
   //the sql_ex structure, which is the start of field lengths array
@@ -1233,7 +1233,8 @@ int Create_file_log_event::write_data_body(IO_CACHE* file)
   int res;
   if ((res = Load_log_event::write_data_body(file)) || fake_base)
     return res;
-  return my_b_write(file, "", 1) || my_b_write(file, block, block_len);
+  return (my_b_write(file, (byte*) "", 1) ||
+	  my_b_write(file, (byte*) block, block_len));
 }
 
 int Create_file_log_event::write_data_header(IO_CACHE* file)
@@ -1241,7 +1242,7 @@ int Create_file_log_event::write_data_header(IO_CACHE* file)
   int res;
   if ((res = Load_log_event::write_data_header(file)) || fake_base)
     return res;
-  char buf[CREATE_FILE_HEADER_LEN];
+  byte buf[CREATE_FILE_HEADER_LEN];
   int4store(buf + CF_FILE_ID_OFFSET, file_id);
   return my_b_write(file, buf, CREATE_FILE_HEADER_LEN);
 }
@@ -1321,10 +1322,10 @@ Append_block_log_event::Append_block_log_event(const char* buf, int len):
 
 int Append_block_log_event::write_data(IO_CACHE* file)
 {
-  char buf[APPEND_BLOCK_HEADER_LEN];
+  byte buf[APPEND_BLOCK_HEADER_LEN];
   int4store(buf + AB_FILE_ID_OFFSET, file_id);
-  return my_b_write(file, buf, APPEND_BLOCK_HEADER_LEN) ||
-    my_b_write(file, block, block_len);
+  return (my_b_write(file, buf, APPEND_BLOCK_HEADER_LEN) ||
+	  my_b_write(file, (byte*) block, block_len));
 }
 
 #ifdef MYSQL_CLIENT  
@@ -1371,7 +1372,7 @@ Delete_file_log_event::Delete_file_log_event(const char* buf, int len):
 
 int Delete_file_log_event::write_data(IO_CACHE* file)
 {
- char buf[DELETE_FILE_HEADER_LEN];
+ byte buf[DELETE_FILE_HEADER_LEN];
  int4store(buf + DF_FILE_ID_OFFSET, file_id);
  return my_b_write(file, buf, DELETE_FILE_HEADER_LEN);
 }
@@ -1418,9 +1419,9 @@ Execute_load_log_event::Execute_load_log_event(const char* buf,int len):
 
 int Execute_load_log_event::write_data(IO_CACHE* file)
 {
- char buf[EXEC_LOAD_HEADER_LEN];
- int4store(buf + EL_FILE_ID_OFFSET, file_id);
- return my_b_write(file, buf, EXEC_LOAD_HEADER_LEN);
+  byte buf[EXEC_LOAD_HEADER_LEN];
+  int4store(buf + EL_FILE_ID_OFFSET, file_id);
+  return my_b_write(file, buf, EXEC_LOAD_HEADER_LEN);
 }
 
 #ifdef MYSQL_CLIENT  
@@ -1711,13 +1712,14 @@ int Slave_log_event::exec_event(struct st_master_info* mi)
 int Create_file_log_event::exec_event(struct st_master_info* mi)
 {
   char fname_buf[FN_REFLEN+10];
-  char* p,*p1;
+  char *p;
   int fd = -1;
   IO_CACHE file;
   int error = 1;
-  p = slave_load_file_stem(fname_buf, file_id, server_id);
-  memcpy(p, ".info", 6);
+
   bzero((char*)&file, sizeof(file));
+  p = slave_load_file_stem(fname_buf, file_id, server_id);
+  strmov(p, ".info");			// strmov takes less code than memcpy
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
@@ -1728,12 +1730,12 @@ int Create_file_log_event::exec_event(struct st_master_info* mi)
   }
   
   // a trick to avoid allocating another buffer
-  memcpy(p, ".data", 6);
+  strmov(p, ".data");
   fname = fname_buf;
   fname_len = (uint)(p-fname) + 5;
   if (write_base(&file))
   {
-    memcpy(p, ".info", 6); // to have it right in the error message
+    strmov(p, ".info"); // to have it right in the error message
     slave_print_error(my_errno, "Could not write to file '%s'", fname_buf);
     goto err;
   }
@@ -1747,7 +1749,7 @@ int Create_file_log_event::exec_event(struct st_master_info* mi)
     slave_print_error(my_errno, "Could not open file '%s'", fname_buf);
     goto err;
   }
-  if (my_write(fd, block, block_len, MYF(MY_WME+MY_NABP)))
+  if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     slave_print_error(my_errno, "Write to '%s' failed", fname_buf);
     goto err;
@@ -1790,7 +1792,7 @@ int Append_block_log_event::exec_event(struct st_master_info* mi)
     slave_print_error(my_errno, "Could not open file '%s'", fname);
     goto err;
   }
-  if (my_write(fd, block, block_len, MYF(MY_WME+MY_NABP)))
+  if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     slave_print_error(my_errno, "Write to '%s' failed", fname);
     goto err;
@@ -1810,7 +1812,7 @@ int Execute_load_log_event::exec_event(struct st_master_info* mi)
   char* p;
   int fd = -1;
   int error = 1;
-  int save_options;
+  ulong save_options;
   IO_CACHE file;
   Load_log_event* lev = 0;
   p = slave_load_file_stem(fname, file_id, server_id);
@@ -1835,7 +1837,7 @@ int Execute_load_log_event::exec_event(struct st_master_info* mi)
   // can preserve ascending order of log sequence numbers - needed
   // to handle failover 
   save_options = thd->options;
-  thd->options &= ~ (ulong) OPTION_BIN_LOG;
+  thd->options &= ~ (ulong) (OPTION_BIN_LOG);
   lev->thd = thd;
   if (lev->exec_event(0,0))
   {
