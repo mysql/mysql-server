@@ -1428,7 +1428,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     # Kill any running ndbcluster stuff
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
+    ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
   fi
   fi
 
@@ -1549,7 +1549,7 @@ then
 if [ -z "$USE_RUNNING_NDBCLUSTER" ]
 then
   # Kill any running ndbcluster stuff
-  ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
+  ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
 fi
 fi
 
