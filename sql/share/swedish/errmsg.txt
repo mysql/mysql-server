@@ -211,6 +211,7 @@
 "Updaterings-lås kan inte göras när man använder READ UNCOMMITTED",
 "DROP DATABASE är inte tillåtet när man har ett globalt läs-lås",
 "CREATE DATABASE är inte tillåtet när man har ett globalt läs-lås",
+"Felaktiga argument till %s",
 "Fick fel vid anslutning till master: %-.128s",
 "Fick fel vid utförande av command på mastern: %-.128s",
 "Fick fel vid utförande av %s: %-.128s",

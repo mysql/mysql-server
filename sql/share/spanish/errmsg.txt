@@ -212,6 +212,7 @@
 "Bloqueos de actualización no pueden ser adqueridos durante una transición READ UNCOMMITTED",
 "DROP DATABASE no permitido mientras un thread está ejerciendo un bloqueo de lectura global",
 "CREATE DATABASE no permitido mientras un thread está ejerciendo un bloqueo de lectura global",
+"Wrong arguments to %s",
 "Error de coneccion a master: %-128s",
 "Error executando el query en master: %-128%",
 "Error de %s: %-128%",
