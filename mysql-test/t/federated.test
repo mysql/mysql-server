@@ -68,12 +68,14 @@ select * from federated.t1 where id = 5;
 delete from federated.t1;
 select * from federated.t1 where id = 5;
 
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-
 connection slave;
 drop table if exists federated.t1;
 CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`) );
+
+connection master;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+
 insert into federated.t1 (name, other) values ('First Name', 11111);
 insert into federated.t1 (name, other) values ('Second Name', NULL);
 insert into federated.t1 (name, other) values ('Third Name', 33333);
@@ -90,19 +92,78 @@ select * from federated.t1 where name IS NULL;
 select * from federated.t1 where name IS NULL and other IS NULL;
 select * from federated.t1 where name IS NULL or other IS NULL;
 update federated.t1 set name = 'Fourth Name', other = 'four four four' where name IS NULL and other IS NULL;
-update federated.t1 set other = 'two two two two' where name = 'Secend Name';
+update federated.t1 set other = 'two two two two' where name = 'Second Name';
 update federated.t1 set other = 'seven seven' where name like 'Sec%';
 update federated.t1 set other = 'seven seven' where name = 'Seventh Name';
 update federated.t1 set name = 'Tenth Name' where other like 'fee fie%';
 select * from federated.t1 where name IS NULL or other IS NULL ;
 select * from federated.t1;
 
+# test multi-keys
+connection slave;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name`
+varchar(32) NOT NULL DEFAULT '', `other` varchar(20) NOT NULL DEFAULT '', PRIMARY KEY  (`id`), key nameoth (name, other) );
+
+connection master;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32) NOT NULL DEFAULT '', `other` varchar(20) NOT NULL DEFAULT '', PRIMARY KEY  (`id`), key nameoth (name, other)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+insert into federated.t1 (name, other) values ('First Name', '1111');
+insert into federated.t1 (name, other) values ('Second Name', '2222');
+insert into federated.t1 (name, other) values ('Third Name', '3333');
+select * from federated.t1 where name = 'Second Name';
+select * from federated.t1 where other = '2222';
+select * from federated.t1 where name = 'Third Name';
+select * from federated.t1 where name = 'Third Name' and other = '3333';
+
+connection slave;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 
+ (id int NOT NULL auto_increment,
+  name char(32) NOT NULL DEFAULT '',
+  bincol binary(4) NOT NULL,
+  floatval decimal(5,2) NOT NULL DEFAULT 0.0,
+  other int NOT NULL DEFAULT 0,
+  primary key(id),
+  key nameoth(name, other),
+  key bincol(bincol),
+  key floatval(floatval));
+
+# test other types of indexes
+connection master;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 
+ (id int NOT NULL auto_increment,
+  name char(32) NOT NULL DEFAULT '',
+  bincol binary(4) NOT NULL,
+  floatval decimal(5,2) NOT NULL DEFAULT 0.0,
+  other int NOT NULL DEFAULT 0,
+  primary key(id),
+  key nameoth(name,other),
+  key bincol(bincol),
+  key floatval(floatval))
+ ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+
+insert into federated.t1 (name, bincol, floatval, other) values ('first', 0x65, 11.11, 1111);
+insert into federated.t1 (name, bincol, floatval, other) values ('second', 0x66, 22.22, 2222);
+insert into federated.t1 (name, bincol, floatval, other) values ('third', 'g', 22.22, 2222);
+select * from federated.t1;
+select * from federated.t1 where name = 'second';
+select * from federated.t1 where bincol= 'f';
+select * from federated.t1 where bincol= 0x66;
+select * from federated.t1 where bincol= 0x67;
+select * from federated.t1 where bincol= 'g';
+select * from federated.t1 where floatval=11.11;
+select * from federated.t1 where name='third';
+select * from federated.t1 where other=2222;
+select * from federated.t1 where name='third' and other=2222;
+
+# test NULLs
 connection slave;
 drop table if exists federated.t1;
 CREATE TABLE federated.t1 (id int, name varchar(32), floatval float, other int) DEFAULT CHARSET=latin1;
 
 connection master;
-# test NULLs
 drop table if exists federated.t1;
 CREATE TABLE federated.t1 (id int, name varchar(32), floatval float, other int) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
 # these both should be the same
@@ -452,15 +513,17 @@ select * from federated.t1;
 
 connection slave;
 drop table if exists federated.t1;
-create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code)) DEFAULT CHARSET=latin1;
+create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob NOT NULL, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code), index(fileguts(10))) DEFAULT CHARSET=latin1;
 
 connection master;
 drop table if exists federated.t1;
-create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1'; 
+create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob NOT NULL, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code), index(fileguts(10))) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1'; 
 insert into federated.t1 (code, fileguts, creation_date) values ('ASDFWERQWETWETAWETA', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2003-03-03 03:03:03');
 insert into federated.t1 (code, fileguts, creation_date) values ('DEUEUEUEUEUEUEUEUEU', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2004-04-04 04:04:04');
+insert into federated.t1 (code, fileguts, creation_date) values ('DEUEUEUEUEUEUEUEUEU', 'jimbob', '2004-04-04 04:04:04');
 select * from federated.t1;
-drop table if exists federated.t1;
+select * from federated.t1 where fileguts = 'jimbob';
+# test blob indexes
 
 # TODO
 # 
@@ -490,11 +553,36 @@ drop table if exists federated.t1;
 # drop table if exists federated.t1;
 # 
 
+# test joins with non-federated table
 connection slave;
 drop table if exists federated.t1;
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `country_id` int(20) NOT NULL DEFAULT 0, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`), key (country_id));
+
+connection master;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `country_id` int(20) NOT NULL DEFAULT 0, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`), key (country_id) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+insert into federated.t1 (name, country_id, other) values ('Kumar', 1, 11111);
+insert into federated.t1 (name, country_id, other) values ('Lenz', 2, 22222);
+insert into federated.t1 (name, country_id, other) values ('Marizio', 3, 33333);
+insert into federated.t1 (name, country_id, other) values ('Monty', 4, 33333);
+insert into federated.t1 (name, country_id, other) values ('Sanja', 5, 33333);
+
+
+drop table if exists federated.countries;
+CREATE TABLE federated.countries ( `id` int(20) NOT NULL auto_increment, `country` varchar(32), primary key (id));
+insert into federated.countries (country) values ('India');
+insert into federated.countries (country) values ('Germany');
+insert into federated.countries (country) values ('Italy');
+insert into federated.countries (country) values ('Finland');
+insert into federated.countries (country) values ('Ukraine');
+
+select federated.t1.*, federated.countries.country from federated.t1 left join federated.countries on federated.t1.country_id = federated.countries.id;
+
+drop table federated.countries;
 
 connection master;
 --disable_warnings
+drop table if exists federated.t1;
 drop database if exists federated;
 --enable_warnings
 
