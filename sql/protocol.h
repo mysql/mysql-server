@@ -33,6 +33,9 @@ protected:
 #ifndef DEBUG_OFF
   enum enum_field_types *field_types;
 #endif
+#ifdef EMBEDDED_LIBRARY
+  uint n_fields;
+#endif
 
 public:
   CONVERT *convert;
@@ -52,6 +55,12 @@ public:
   { return store_longlong((longlong) from, 0); }
   inline  bool store(ulonglong from)
   { return store_longlong((longlong) from, 1); }
+
+#ifdef EMBEDDED_LIBRARY
+  inline void set_nfields(uint fields_count) { n_fields= fields_count; }
+#else
+  inline void set_nfields(uint fields_count) {}
+#endif
   
   virtual bool prepare_for_send(List<Item> *item_list) { return 0;}
   virtual void prepare_for_resend()=0;

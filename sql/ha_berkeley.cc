@@ -255,6 +255,7 @@ int berkeley_show_logs(Protocol *protocol)
   /* Error is 0 here */
   if (all_logs)
   {
+    protocol->set_nfields(3);
     for (a = all_logs, f = free_logs; *a; ++a)
     {
       protocol->prepare_for_resend();
@@ -2075,6 +2076,7 @@ static void print_msg(THD *thd, const char *table_name, const char *op_name,
   msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
 
+  protocol->set_nfields(4);
   protocol->prepare_for_resend();
   protocol->store(table_name);
   protocol->store(op_name);
