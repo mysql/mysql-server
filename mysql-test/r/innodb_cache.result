@@ -98,3 +98,13 @@ commit;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
+drop table if exists t1;
+CREATE TABLE t1 (id int(11) NOT NULL auto_increment, PRIMARY KEY  (id)) TYPE=InnoDB;
+select count(*) from t1;
+count(*)
+0
+insert into t1 (id) values (0);
+select count(*) from t1;
+count(*)
+1
+drop table t1;
