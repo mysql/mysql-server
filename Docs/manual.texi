@@ -35442,8 +35442,10 @@ mysql> CREATE TABLE test (a INT NOT NULL AUTO_INCREMENT,
 
 This will create a @code{MyISAM} table with three columns, a, b, and c.
 Notice that the columns from the @code{SELECT} statement are appended to
-the right side of the table, not overlapped onto it.  Take the following
-example:
+the right side of the table, not overlapped onto it.
+Still, the column from the @code{SELECT} will overlap the column from
+the @code{CREATE} clause if they both have the same name.  Take the following
+examples:
 
 @example
 mysql> SELECT * FROM foo;
@@ -35463,6 +35465,18 @@ mysql> SELECT * FROM bar;
 +------+---+
 | NULL | 1 |
 +------+---+
+1 row in set (0.00 sec)
+
+mysql> CREATE TABLE foobar (n FLOAT(3,2), m INT) SELECT n FROM foo;
+Query OK, 1 row affected (0.02 sec)
+Records: 1  Duplicates: 0  Warnings: 0
+
+mysql> SELECT * FROM foobar;
++------+------+
+| n    | m    |
++------+------+
+| 1.00 | NULL |
++------+------+
 1 row in set (0.00 sec)
 @end example
 

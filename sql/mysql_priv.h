@@ -382,9 +382,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields, List<Key> &keys,
-		       bool tmp_table, bool no_log);
-// no_log is needed for the case of CREATE TABLE ... SELECT , as the logging
-// will be done later in sql_insert.cc
+		       bool tmp_table, bool no_log, uint select_field_count);
+/*
+  no_log is needed for the case of CREATE ... SELECT,
+  as the logging will be done later in sql_insert.cc
+  select_field_count is also used for CREATE ... SELECT,
+  and must be zero for standart create of table
+*/
 
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       const char *db, const char *name,
