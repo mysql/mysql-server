@@ -917,8 +917,8 @@ bool load_master_data(THD* thd)
         */
         int error;
 
-        if (init_master_info(active_mi, master_info_file, relay_log_info_file,
-			     0))
+        if (init_master_info(active_mi, master_info_file, relay_log_info_file, 
+			     0, (SLAVE_IO | SLAVE_SQL)))
           my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
