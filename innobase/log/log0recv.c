@@ -58,12 +58,16 @@ yet: the variable name is misleading */
 
 ibool	recv_no_ibuf_operations = FALSE;
 
-/* the following counter is used to decide when to print info on
+/* The following counter is used to decide when to print info on
 log scan */
 ulint	recv_scan_print_counter	= 0;
 
 ibool	recv_is_from_backup	= FALSE;
 ibool	recv_is_making_a_backup = FALSE;
+
+ulint	recv_previous_parsed_rec_type	= 999999;
+ulint	recv_previous_parsed_rec_offset	= 0;
+ulint	recv_previous_parsed_rec_is_multi = 0;
 
 /************************************************************
 Creates the recovery system. */
@@ -695,7 +699,7 @@ byte*
 recv_parse_or_apply_log_rec_body(
 /*=============================*/
 			/* out: log record end, NULL if not a complete
-			record, or a corrupt record */
+			record */
 	byte	type,	/* in: type */
 	byte*	ptr,	/* in: pointer to a buffer */
 	byte*	end_ptr,/* in: pointer to the buffer end */
@@ -770,15 +774,6 @@ recv_parse_or_apply_log_rec_body(
 		new_ptr = mlog_parse_string(ptr, end_ptr, page);
 	} else {
 		new_ptr = NULL;
-
-	        fprintf(stderr,
-		 "InnoDB: WARNING: the log file may have been corrupt and it\n"
-		 "InnoDB: is possible that the log scan did not proceed\n"
-		 "InnoDB: far enough in recovery. Please run CHECK TABLE\n"
-		 "InnoDB: on your InnoDB tables to check that they are ok!\n"
-		 "InnoDB: Corrupt log record type %lu\n, lsn %lu %lu\n",
-		(ulint)type, ut_dulint_get_high(recv_sys->recovered_lsn),
-		ut_dulint_get_low(recv_sys->recovered_lsn));
 		 
 		recv_sys->found_corrupt_log = TRUE;
 	}
@@ -1651,7 +1646,7 @@ ulint
 recv_parse_log_rec(
 /*===============*/
 			/* out: length of the record, or 0 if the record was
-			not complete or it was corrupt */
+			not complete */
 	byte*	ptr,	/* in: pointer to a buffer */
 	byte*	end_ptr,/* in: pointer to the buffer end */
 	byte*	type,	/* out: type */
@@ -1691,16 +1686,6 @@ recv_parse_log_rec(
 	/* Check that space id and page_no are sensible */
 
 	if (*space != 0 || *page_no > 0x8FFFFFFF) {
-	        fprintf(stderr,
-	"InnoDB: WARNING: the log file may have been corrupt and it\n"
-	"InnoDB: is possible that the log scan did not proceed\n"
-	"InnoDB: far enough in recovery. Please run CHECK TABLE\n"
-	"InnoDB: on your InnoDB tables to check that they are ok!\n"
-	"InnoDB: Corrupt log record type %lu, space id %lu, page no %lu\n",
-	"InnoDB: lsn %lu %lu\n",
-			(ulint)(*type), *space, *page_no,
-		ut_dulint_get_high(recv_sys->recovered_lsn),
-		ut_dulint_get_low(recv_sys->recovered_lsn));
 
 		recv_sys->found_corrupt_log = TRUE;
 
@@ -1767,14 +1752,70 @@ recv_check_incomplete_log_recs(
 }		
 
 /***********************************************************
+Prints diagnostic info of corrupt log. */
+static
+void
+recv_report_corrupt_log(
+/*====================*/
+	byte*	ptr,	/* in: pointer to corrupt log record */
+	byte	type,	/* in: type of the record */
+	ulint	space,	/* in: space id, this may also be garbage */
+	ulint	page_no)/* in: page number, this may also be garbage */
+{
+	char*	err_buf;
+
+	fprintf(stderr,
+"InnoDB: ############### CORRUPT LOG RECORD FOUND\n"
+"InnoDB: Log record type %lu, space id %lu, page number %lu\n"
+"InnoDB: Log parsing proceeded successfully up to %lu %lu\n",
+	(ulint)type, space, page_no,
+	ut_dulint_get_high(recv_sys->recovered_lsn),
+	ut_dulint_get_low(recv_sys->recovered_lsn));
+
+	err_buf = ut_malloc(1000000);
+
+	fprintf(stderr,
+"InnoDB: Previous log record type %lu, is multi %lu\n"
+"InnoDB: Recv offset %lu, prev %lu\n",
+		recv_previous_parsed_rec_type,
+		recv_previous_parsed_rec_is_multi,
+		ptr - recv_sys->buf,
+		recv_previous_parsed_rec_offset);
+
+	if ((ulint)(ptr - recv_sys->buf + 100)
+					> recv_previous_parsed_rec_offset
+	    && (ulint)(ptr - recv_sys->buf + 100
+					- recv_previous_parsed_rec_offset)
+	       < 200000) {
+ 
+		ut_sprintf_buf(err_buf,
+		     recv_sys->buf + recv_previous_parsed_rec_offset - 100,
+		     ptr - recv_sys->buf + 200 -
+					recv_previous_parsed_rec_offset);
+		fprintf(stderr,
+"InnoDB: Hex dump of corrupt log starting 100 bytes before the start\n"
+"InnoDB: of the previous log rec,\n"
+"InnoDB: and ending 100 bytes after the start of the corrupt rec:\n%s\n",
+			err_buf);
+	}
+
+	ut_free(err_buf);
+
+	fprintf(stderr,
+	"InnoDB: WARNING: the log file may have been corrupt and it\n"
+	"InnoDB: is possible that the log scan did not proceed\n"
+	"InnoDB: far enough in recovery! Please run CHECK TABLE\n"
+	"InnoDB: on your InnoDB tables to check that they are ok!\n");
+}
+
+/***********************************************************
 Parses log records from a buffer and stores them to a hash table to wait
 merging to file pages. */
 static
 ibool
 recv_parse_log_recs(
 /*================*/
-				/* out: TRUE if the hash table of parsed log
-				records became full */
+				/* out: currently always returns FALSE */
 	ibool	store_to_hash)	/* in: TRUE if the records should be stored
 				to the hash table; this is set to FALSE if just
 				debug checking is needed */
@@ -1791,7 +1832,6 @@ recv_parse_log_recs(
 	ulint	page_no;
 	byte*	body;
 	ulint	n_recs;
-	char	err_buf[2500];
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
 	ut_ad(!ut_dulint_is_zero(recv_sys->parse_start_lsn));
@@ -1814,17 +1854,11 @@ loop:
 
 		len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
 							&page_no, &body);
-		if (len == 0) {
+		if (len == 0 || recv_sys->found_corrupt_log) {
 			if (recv_sys->found_corrupt_log) {
-				
-				ut_sprintf_buf(err_buf,
-				  recv_sys->buf + ut_calc_align_down(
-						recv_sys->recovered_offset,
-						OS_FILE_LOG_BLOCK_SIZE) - 8,
-				  OS_FILE_LOG_BLOCK_SIZE + 16);
-				
-				fprintf(stderr,
-"InnoDB: hex dump of a corrupt log segment: %s\n", err_buf);
+
+				recv_report_corrupt_log(ptr,
+						type, space, page_no);
 			}
 		
 			return(FALSE);
@@ -1841,6 +1875,10 @@ loop:
 			return(FALSE);
 		}
 		
+		recv_previous_parsed_rec_type = (ulint)type;
+		recv_previous_parsed_rec_offset = recv_sys->recovered_offset;
+		recv_previous_parsed_rec_is_multi = 0;
+
 		recv_sys->recovered_offset += len;
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
@@ -1879,21 +1917,21 @@ loop:
 		for (;;) {
 			len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
 							&page_no, &body);
-			if (len == 0) {
+			if (len == 0 || recv_sys->found_corrupt_log) {
 
-			    if (recv_sys->found_corrupt_log) {
-				ut_sprintf_buf(err_buf,
-				  recv_sys->buf + ut_calc_align_down(
-						recv_sys->recovered_offset,
-						OS_FILE_LOG_BLOCK_SIZE) - 8,
-				  OS_FILE_LOG_BLOCK_SIZE + 16);
-				
-				fprintf(stderr,
-"InnoDB: hex dump of a corrupt log segment: %s\n", err_buf);
-			    }
+			    	if (recv_sys->found_corrupt_log) {
 
-			    return(FALSE);
+					recv_report_corrupt_log(ptr,
+						type, space, page_no);
+			    	}
+
+			    	return(FALSE);
 			}
+
+			recv_previous_parsed_rec_type = (ulint)type;
+			recv_previous_parsed_rec_offset
+				= recv_sys->recovered_offset + total_len;
+			recv_previous_parsed_rec_is_multi = 1;
 
 			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
 				/* In debug checking, update a replicate page
@@ -1946,6 +1984,12 @@ loop:
 			old_lsn = recv_sys->recovered_lsn;
 			len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
 							&page_no, &body);
+			if (recv_sys->found_corrupt_log) {
+
+				recv_report_corrupt_log(ptr,
+							type, space, page_no);
+			}
+
 			ut_a(len != 0);
 			ut_a(0 == ((ulint)*ptr & MLOG_SINGLE_REC_FLAG));
 
@@ -2206,11 +2250,14 @@ recv_scan_log_recs(
 						>= RECV_PARSING_BUF_SIZE) {
 				fprintf(stderr,
 "InnoDB: Error: log parsing buffer overflow. Recovery may have failed!\n");
-				finished = TRUE;
+
+				recv_sys->found_corrupt_log = TRUE;
+
+			} else if (!recv_sys->found_corrupt_log) {
+				more_data = recv_sys_add_to_parsing_buf(
+						log_block, scanned_lsn);
 			}
 
-			more_data = recv_sys_add_to_parsing_buf(log_block,
-								scanned_lsn);
 			recv_sys->scanned_lsn = scanned_lsn;
 			recv_sys->scanned_checkpoint_no =
 					log_block_get_checkpoint_no(log_block);
@@ -2240,7 +2287,7 @@ recv_scan_log_recs(
 		}
 	}
 
-	if (more_data) {
+	if (more_data && !recv_sys->found_corrupt_log) {
 		/* Try to parse more log records */
 
 		recv_parse_log_recs(store_to_hash);
@@ -2615,6 +2662,17 @@ recv_recovery_from_checkpoint_finish(void)
 	if (recv_needed_recovery) {
 		trx_sys_print_mysql_master_log_pos();
 		trx_sys_print_mysql_binlog_offset();
+	}
+
+	if (recv_sys->found_corrupt_log) {
+
+		fprintf(stderr,
+	"InnoDB: WARNING: the log file may have been corrupt and it\n"
+	"InnoDB: is possible that the log scan or parsing did not proceed\n"
+	"InnoDB: far enough in recovery. Please run CHECK TABLE\n"
+	"InnoDB: on your InnoDB tables to check that they are ok!\n"
+	"InnoDB: It may be safest to recover your InnoDB database from\n"
+	"InnoDB: a backup!\n");
 	}
 
 	/* Free the resources of the recovery system */

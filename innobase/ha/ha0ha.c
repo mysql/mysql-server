@@ -298,6 +298,7 @@ ha_print_info(
 	ulint		cells	= 0;
 	ulint		len	= 0;
 	ulint		max_len	= 0;
+	ulint		n_bufs;
 	ulint		i;
 	
 	if (buf_end - buf < 200) {
@@ -339,7 +340,16 @@ ha_print_info(
 "Hash table size %lu, used cells %lu", hash_get_n_cells(table), cells);
 
 	if (table->heaps == NULL && table->heap != NULL) {
-	        buf += sprintf(buf,
-", node heap has %lu buffer(s)\n", UT_LIST_GET_LEN(table->heap->base));
+
+		/* This calculation is intended for the adaptive hash
+		index: how many buffer frames we have reserved? */
+
+		n_bufs = UT_LIST_GET_LEN(table->heap->base) - 1;
+
+		if (table->heap->free_block) {
+			n_bufs++;
+		}
+				
+	        buf += sprintf(buf, ", node heap has %lu buffer(s)\n", n_bufs);
 	}
 }	

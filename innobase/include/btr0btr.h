@@ -313,14 +313,6 @@ btr_discard_page(
 	btr_cur_t*	cursor,	/* in: cursor on the page to discard: not on
 				the root page */
 	mtr_t*		mtr);	/* in: mtr */
-/************************************************************************
-Declares the latching order level for the page latch in the debug version. */
-
-void
-btr_declare_page_latch(
-/*===================*/
-	page_t*	page,	/* in: page */
-	ibool	leaf);	/* in: TRUE if a leaf */
 /********************************************************************
 Parses the redo log record for setting an index record as the predefined
 minimum record. */

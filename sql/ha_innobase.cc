@@ -2474,7 +2474,7 @@ ha_innobase::position(
 	that len is always fixed for this table. The following assertion
 	checks this. */
 
-	DBUG_ASSERT(len == ref_length);
+	ut_a(len == ref_length);
 }
 
 /*********************************************************************

@@ -316,7 +316,8 @@ struct recv_sys_struct{
 	ibool		found_corrupt_log;
 				/* this is set to TRUE if we during log
 				scan find a corrupt log block, or a corrupt
-				log record */
+				log record, or there is a log parsing
+				buffer overflow */
 	log_group_t*	archive_group;
 				/* in archive recovery: the log group whose
 				archive is read */
