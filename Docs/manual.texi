@@ -15139,7 +15139,7 @@ There are two separte fixes for this:
 If one doesn't configure with @code{--enable-local-infile} then
 @code{LOAD DATA LOCAL} will be disabled by all clients, unless one
 calls @code{mysql_options(... MYSQL_OPT_LOCAL_INFILE, 0)} in the client.
-@xref{mysql_options, , @code{mysql_options}}.
+@xref{mysql_options, , @code{mysql_options()}}.
 
 One can enable this command in the @code{mysql} command line client by
 specify the option @code{--local-infile[=1]} and disable it with
@@ -40276,7 +40276,7 @@ is used.
 If you specify the option @code{Read options from C:\my.cnf}, the groups
 @code{client} and @code{odbc} will be read from the @file{C:\my.cnf} file.
 You can use all options that are usable by @code{mysql_options()}.
-@xref{mysql_options, , @code{mysql_options}}.
+@xref{mysql_options, , @code{mysql_options()}}.
 
 
 @node MyODBC connect parameters, ODBC Problems, ODBC administrator, ODBC
@@ -41008,18 +41008,18 @@ greater detail in the next section.
 Returns the number of rows changed/deleted/inserted by the last @code{UPDATE},
 @code{DELETE}, or @code{INSERT} query.
 
+@item @strong{mysql_change_user()} @tab
+Changes user and database on an open connection.
+
+@item @strong{mysql_character_set_name()} @tab
+Returns the name of the default character set for the connection.
+
 @item @strong{mysql_close()} @tab
 Closes a server connection.
 
 @item @strong{mysql_connect()} @tab
 Connects to a MySQL server. This function is deprecated; use
 @code{mysql_real_connect()} instead.
-
-@item @strong{mysql_change_user()} @tab
-Changes user and database on an open connection.
-
-@item @strong{mysql_character_set_name()} @tab
-Returns the name of the default character set for the connection.
 
 @item @strong{mysql_create_db()} @tab
 Creates a database. This function is deprecated; use the SQL command
@@ -41048,10 +41048,6 @@ Returns the error number for the most recently invoked MySQL function.
 
 @item @strong{mysql_error()} @tab
 Returns the error message for the most recently invoked MySQL function.
-
-@item @strong{mysql_real_escape_string()} @tab
-Escapes special characters in a string for use in a SQL statement, taking
-into account the current charset of the connection.
 
 @item @strong{mysql_escape_string()} @tab
 Escapes special characters in a string for use in a SQL statement.
@@ -41139,6 +41135,10 @@ Executes a SQL query specified as a null-terminated string.
 
 @item @strong{mysql_real_connect()} @tab
 Connects to a MySQL server.
+
+@item @strong{mysql_real_escape_string()} @tab
+Escapes special characters in a string for use in a SQL statement, taking
+into account the current charset of the connection.
 
 @item @strong{mysql_real_query()} @tab
 Executes a SQL query specified as a counted string.
@@ -41280,10 +41280,10 @@ when an error occurred and what it was.
 
 @menu
 * mysql_affected_rows::         @code{mysql_affected_rows()}
-* mysql_close::                 @code{mysql_close()}
-* mysql_connect::               @code{mysql_connect()}
 * mysql_change_user::           @code{mysql_change_user()}
 * mysql_character_set_name::    @code{mysql_character_set_name()}
+* mysql_close::                 @code{mysql_close()}
+* mysql_connect::               @code{mysql_connect()}
 * mysql_create_db::             @code{mysql_create_db()}
 * mysql_data_seek::             @code{mysql_data_seek()}
 * mysql_debug::                 @code{mysql_debug()}
@@ -41363,7 +41363,7 @@ A string representation of the error may be obtained by calling
 @code{mysql_error()}.
 
 
-@node mysql_affected_rows, mysql_close, C API functions, C API functions
+@node mysql_affected_rows, mysql_change_user, C API functions, C API functions
 @subsubsection @code{mysql_affected_rows()}
 
 @findex @code{mysql_affected_rows()}
@@ -41410,63 +41410,7 @@ old row.  This is because in this case one row was inserted and then the
 duplicate was deleted.
 
 
-@node mysql_close, mysql_connect, mysql_affected_rows, C API functions
-@subsubsection @code{mysql_close()}
-
-@findex @code{mysql_close()}
-
-@code{void mysql_close(MYSQL *mysql)}
-
-@subsubheading Description
-Closes a previously opened connection.  @code{mysql_close()} also deallocates
-the connection handle pointed to by @code{mysql} if the handle was allocated
-automatically by @code{mysql_init()} or @code{mysql_connect()}.
-
-@subsubheading Return Values
-
-None.
-
-@subsubheading Errors
-
-None.
-
-
-@node mysql_connect, mysql_change_user, mysql_close, C API functions
-@subsubsection @code{mysql_connect()}
-
-@findex @code{mysql_connect()}
-
-@code{MYSQL *mysql_connect(MYSQL *mysql, const char *host, const char *user, const char *passwd)}
-
-@subsubheading Description
-
-This function is deprecated.  It is preferable to use
-@code{mysql_real_connect()} instead.
-
-@code{mysql_connect()} attempts to establish a connection to a MySQL
-database engine running on @code{host}.  @code{mysql_connect()} must complete
-successfully before you can execute any of the other API functions, with the
-exception of @code{mysql_get_client_info()}.
-
-The meanings of the parameters are the same as for the corresponding
-parameters for @code{mysql_real_connect()} with the difference that the
-connection parameter may be @code{NULL}. In this case the C API
-allocates memory for the connection structure automatically and frees it
-when you call @code{mysql_close()}. The disadvantage of this approach is
-that you can't retrieve an error message if the connection fails.  (To
-get error information from @code{mysql_errno()} or @code{mysql_error()},
-you must provide a valid @code{MYSQL} pointer.)
-
-@subsubheading Return Values
-
-Same as for @code{mysql_real_connect()}.
-
-@subsubheading Errors
-
-Same as for @code{mysql_real_connect()}.
-
-
-@node mysql_change_user, mysql_character_set_name, mysql_connect, C API functions
+@node mysql_change_user, mysql_character_set_name, mysql_affected_rows, C API functions
 @subsubsection @code{mysql_change_user()}
 
 @findex @code{mysql_change_user()}
@@ -41530,7 +41474,7 @@ if (mysql_change_user(&mysql, "user", "password", "new_database"))
 @end example
 
 
-@node mysql_character_set_name, mysql_create_db, mysql_change_user, C API functions
+@node mysql_character_set_name, mysql_close, mysql_change_user, C API functions
 @subsubsection @code{mysql_character_set_name()}
 
 @findex @code{mysql_character_set_name()}
@@ -41549,7 +41493,63 @@ The default character set
 None.
 
 
-@node mysql_create_db, mysql_data_seek, mysql_character_set_name, C API functions
+@node mysql_close, mysql_connect, mysql_character_set_name, C API functions
+@subsubsection @code{mysql_close()}
+
+@findex @code{mysql_close()}
+
+@code{void mysql_close(MYSQL *mysql)}
+
+@subsubheading Description
+Closes a previously opened connection.  @code{mysql_close()} also deallocates
+the connection handle pointed to by @code{mysql} if the handle was allocated
+automatically by @code{mysql_init()} or @code{mysql_connect()}.
+
+@subsubheading Return Values
+
+None.
+
+@subsubheading Errors
+
+None.
+
+
+@node mysql_connect, mysql_create_db, mysql_close, C API functions
+@subsubsection @code{mysql_connect()}
+
+@findex @code{mysql_connect()}
+
+@code{MYSQL *mysql_connect(MYSQL *mysql, const char *host, const char *user, const char *passwd)}
+
+@subsubheading Description
+
+This function is deprecated.  It is preferable to use
+@code{mysql_real_connect()} instead.
+
+@code{mysql_connect()} attempts to establish a connection to a MySQL
+database engine running on @code{host}.  @code{mysql_connect()} must complete
+successfully before you can execute any of the other API functions, with the
+exception of @code{mysql_get_client_info()}.
+
+The meanings of the parameters are the same as for the corresponding
+parameters for @code{mysql_real_connect()} with the difference that the
+connection parameter may be @code{NULL}. In this case the C API
+allocates memory for the connection structure automatically and frees it
+when you call @code{mysql_close()}. The disadvantage of this approach is
+that you can't retrieve an error message if the connection fails.  (To
+get error information from @code{mysql_errno()} or @code{mysql_error()},
+you must provide a valid @code{MYSQL} pointer.)
+
+@subsubheading Return Values
+
+Same as for @code{mysql_real_connect()}.
+
+@subsubheading Errors
+
+Same as for @code{mysql_real_connect()}.
+
+
+@node mysql_create_db, mysql_data_seek, mysql_connect, C API functions
 @subsubsection @code{mysql_create_db()}
 
 @findex @code{mysql_create_db()}
@@ -41599,7 +41599,7 @@ if(mysql_create_db(&mysql, "my_database"))
 
 @findex @code{mysql_data_seek()}
 
-@code{void mysql_data_seek(MYSQL_RES *result, unsigned long long offset)}
+@code{void mysql_data_seek(MYSQL_RES *result, my_ulonglong long offset)}
 
 @subsubheading Description
 Seeks to an arbitrary row in a query result set.  This requires that the
@@ -41623,7 +41623,7 @@ None.
 
 @findex @code{mysql_debug()}
 
-@code{void mysql_debug(char *debug)}
+@code{void mysql_debug(const char *debug)}
 
 @subsubheading Description
 Does a @code{DBUG_PUSH} with the given string. @code{mysql_debug()} uses the
@@ -42851,7 +42851,7 @@ query string.)
 
 If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
-@xref{mysql_field_count, , @code{mysql_field_count}}.
+@xref{mysql_field_count, , @code{mysql_field_count()}}.
 
 @subsubheading Return Values
 
@@ -42897,7 +42897,7 @@ The first parameter should be the address of an existing @code{MYSQL}
 structure.  Before calling @code{mysql_real_connect()} you must call
 @code{mysql_init()} to initialise the @code{MYSQL} structure. You can
 change a lot of connect options with the @code{mysql_options()}
-call. @xref{mysql_options}.
+call.  @xref{mysql_options, @code{mysql_options()}}.
 
 @item
 The value of @code{host} may be either a hostname or an IP address.  If
@@ -43112,7 +43112,7 @@ the query string.
 
 If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
-@xref{mysql_field_count, @code{mysql_field_count}}.
+@xref{mysql_field_count, @code{mysql_field_count()}}.
 
 @subsubheading Return Values
 
@@ -43334,7 +43334,7 @@ checking if @code{mysql_store_result()} returns 0 (more about this later one).
 
 If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
-@xref{mysql_field_count, @code{mysql_field_count}}.
+@xref{mysql_field_count, @code{mysql_field_count()}}.
 
 @code{mysql_store_result()} reads the entire result of a query to the client,
 allocates a @code{MYSQL_RES} structure, and places the result into this
