@@ -205,8 +205,6 @@ eval_node_copy_and_alloc_val(
 {
 	byte*		data;
 	
-	ut_ad(UNIV_SQL_NULL > ULINT_MAX);
-
 	if (len == UNIV_SQL_NULL) {
 		dfield_set_len(que_node_get_val(node), len);
 
