@@ -1,22 +1,22 @@
 reset master;
 drop table if exists t1;
-create table t1 (a int) type=HEAP;
-insert into t1 values(10);
+create table t1 type=HEAP select 10 as a;
+insert into t1 values(11);
 show binlog events from 79;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.001	79	Query	1	79	use `test`; create table t1 (a int) type=HEAP
-master-bin.001	147	Query	1	147	use `test`; DELETE FROM `test`.`t1`
-master-bin.001	205	Query	1	205	use `test`; insert into t1 values(10)
+master-bin.001	79	Query	1	79	use `test`; create table t1 type=HEAP select 10 as a
+master-bin.001	154	Query	1	154	use `test`; insert into t1 values(11)
 reset slave;
 start slave;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) default NULL
+  `a` bigint(2) NOT NULL default '0'
 ) TYPE=HEAP
 select * from t1;
 a
 10
+11
 select * from t1;
 a
 select * from t1 limit 10;
