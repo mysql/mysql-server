@@ -133,7 +133,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
 
     thd->spcont= spcont;
     thd->no_warnings_for_error= no_warnings_for_error;
-    /* Store error in error list (as my_message() didn't do it in this case */
+    /* Store error in error list (as my_message() didn't do it) */
     level= MYSQL_ERROR::WARN_LEVEL_ERROR;
   }
 

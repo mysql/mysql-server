@@ -2199,7 +2199,7 @@ String *Item_char_typecast::val_str(String *str)
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), char_type,
-                        res->c_ptr());
+                        res->c_ptr_safe());
     res->length((uint) length);
   }
   null_value= 0;
