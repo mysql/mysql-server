@@ -300,7 +300,25 @@ static CHARSET_INFO *find_charset_by_name(CHARSET_INFO **table,
   return NULL;
 }
 
-static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
+/*
+  Read charset from file.
+
+  NOTES
+    One never has to deallocate character sets. They will all be deallocated
+    by my_once_free() when program ends.
+  
+    If my_once_alloc() fails then this function may 'leak' some memory
+    which my_once_free() will deallocate, but this is so unlikely to happen
+    that this can be ignored.
+
+  RETURN
+   0	Error
+   #	Pointer to allocated charset structure
+*/
+ 
+
+static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name,
+				 myf flags)
 {
   CHARSET_INFO tmp_cs,*cs;
   uchar tmp_ctype[CTYPE_TABLE_SIZE];
@@ -317,21 +335,27 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->sort_order=tmp_sort_order;
   cs->strxfrm_multiply=cs->mbmaxlen=1;
   if (read_charset_file(cs_number, cs, flags))
-    return NULL;
+    return 0;
 
-  cs           = (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),
-                                               MYF(MY_WME));
-  *cs=tmp_cs;
-  cs->name     = (char *) my_once_alloc((uint) strlen(cs_name)+1, MYF(MY_WME));
-  cs->ctype    = (uchar*) my_once_alloc(CTYPE_TABLE_SIZE,      MYF(MY_WME));
-  cs->to_lower = (uchar*) my_once_alloc(TO_LOWER_TABLE_SIZE,   MYF(MY_WME));
-  cs->to_upper = (uchar*) my_once_alloc(TO_UPPER_TABLE_SIZE,   MYF(MY_WME));
+  if (!(cs= (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),
+					  MYF(MY_WME))))
+    return 0;
+
+  *cs= tmp_cs;
+  cs->name=	(char *) my_once_alloc((uint) strlen(cs_name)+1, MYF(MY_WME));
+  cs->ctype= 	(uchar*) my_once_alloc(CTYPE_TABLE_SIZE,      MYF(MY_WME));
+  cs->to_lower= (uchar*) my_once_alloc(TO_LOWER_TABLE_SIZE,   MYF(MY_WME));
+  cs->to_upper= (uchar*) my_once_alloc(TO_UPPER_TABLE_SIZE,   MYF(MY_WME));
   cs->sort_order=(uchar*) my_once_alloc(SORT_ORDER_TABLE_SIZE, MYF(MY_WME));
-  cs->number   = cs_number;
-  memcpy((char*) cs->name,	 (char*) cs_name,	strlen(cs_name) + 1);
-  memcpy((char*) cs->ctype,	 (char*) tmp_ctype,	sizeof(tmp_ctype));
-  memcpy((char*) cs->to_lower, (char*) tmp_to_lower,	sizeof(tmp_to_lower));
-  memcpy((char*) cs->to_upper, (char*) tmp_to_upper,	sizeof(tmp_to_upper));
+  if (!cs->name || !cs->ctype || !cs->to_lower || !cs->to_upper ||
+      !cs->sort_order)
+    return 0;
+
+  cs->number=    cs_number;
+  memcpy((char*) cs->name,	 (char*) cs_name,    strlen(cs_name) + 1);
+  memcpy((char*) cs->ctype,	 (char*) tmp_ctype,  sizeof(tmp_ctype));
+  memcpy((char*) cs->to_lower, (char*) tmp_to_lower, sizeof(tmp_to_lower));
+  memcpy((char*) cs->to_upper, (char*) tmp_to_upper, sizeof(tmp_to_upper));
   memcpy((char*) cs->sort_order, (char*) tmp_sort_order,
 	 sizeof(tmp_sort_order));
   insert_dynamic(&cs_info_table, (gptr) &cs);
