@@ -152,7 +152,7 @@ database server.
 production systems as well as for embedding into mass-deployed software.
 @code{MySQL} is a trademark of @code{MySQL AB}.
 
-The @code{MySQL} software has @code{Dual licensing}, you can use
+The @code{MySQL} software has @code{Dual Licensing}, you can use
 @code{MySQL Server} free of charge under the
 @code{GNU GENERAL PUBLIC LICENSE} (@uref{http://www.gnu.org/licenses/}).
 You can also purchase commercial @code{MySQL Server} licenses from
