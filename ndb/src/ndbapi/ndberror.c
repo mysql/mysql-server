@@ -424,7 +424,8 @@ ErrorBundle ErrorCodes[] = {
   { 4266, AE, "Invalid blob seek position" },
   { 4267, IE, "Corrupted blob value" },
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
-  { 4268, IE, "Unknown blob error" }
+  { 4268, IE, "Unknown blob error" },
+  { 4269, IE, "No connection to ndb management server" }
 };
 
 static

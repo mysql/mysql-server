@@ -185,10 +185,10 @@ Ndb::executeMessage(void* NdbObject,
 void Ndb::connected(Uint32 ref)
 {
   theMyRef= ref;
-  theNode= refToNode(ref);
+  Uint32 tmpTheNode= refToNode(ref);
   Uint64 tBlockNo= refToBlock(ref);
   if (theNdbBlockNumber >= 0){
-    assert(theMyRef == numberToRef(theNdbBlockNumber, theNode));
+    assert(theMyRef == numberToRef(theNdbBlockNumber, tmpTheNode));
   }
   
   TransporterFacade * theFacade =  TransporterFacade::instance();
@@ -201,18 +201,19 @@ void Ndb::connected(Uint32 ref)
     }
   }
   theFirstTransId = ((Uint64)tBlockNo << 52)+
-    ((Uint64)theNode << 40);
+    ((Uint64)tmpTheNode << 40);
   theFirstTransId += theFacade->m_max_trans_id;
   //      assert(0);
   DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%lx",
 		     theMyRef,
-		     theNode,
+		     tmpTheNode,
 		     theNoOfDBnodes,
 		     theFirstTransId));
   startTransactionNodeSelectionData.init(theNoOfDBnodes, theDBnodes);
   theCommitAckSignal = new NdbApiSignal(theMyRef);
 
   theDictionary->m_receiver.m_reference= theMyRef;
+  theNode= tmpTheNode; // flag that Ndb object is initialized
 }
 
 void
