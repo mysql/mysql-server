@@ -267,3 +267,18 @@ select * from t1 where word like CAST(0xDF as CHAR);
 word	word2
 ß	ß
 drop table t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+autor varchar(80) NOT NULL default '',
+PRIMARY KEY  (autor)
+);
+INSERT INTO t1 VALUES ('Powell, B.'),('Powell, Bud.'),('Powell, L. H.'),('Power, H.'),
+('Poynter, M. A. L. Lane'),('Poynting, J. H. und J. J. Thomson.'),('Pozzi, S(amuel-Jean).'),
+('Pozzi, Samuel-Jean.'),('Pozzo, A.'),('Pozzoli, Serge.');
+SELECT * FROM t1 WHERE autor LIKE 'Poz%' ORDER BY autor;
+autor
+Pozzi, S(amuel-Jean).
+Pozzi, Samuel-Jean.
+Pozzo, A.
+Pozzoli, Serge.
+DROP TABLE t1;
