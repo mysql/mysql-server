@@ -730,7 +730,7 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
   change= new (change_mem) Item_change_record;
   change->place= place;
   change->old_value= old_value;
-  change_list.push_back(change);
+  change_list.append(change);
 }
 
 
