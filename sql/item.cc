@@ -862,7 +862,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	     sl= sl->outer_select())
 	{
 	  table_list= (last= sl)->get_table_list();
-	  if (sl->insert_select && table_list)
+	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
 	    // it is primary INSERT st_select_lex => skip first table resolving
 	    table_list= table_list->next;
@@ -871,7 +871,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 table_list, &where,
 					 0)) != not_found_field)
 	    break;
-	  if ((refer= find_item_in_list(this, sl->item_list, &counter, 
+	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
+	      (refer= find_item_in_list(this, sl->item_list, &counter, 
 					 REPORT_EXCEPT_NOT_FOUND)) != 
 	       (Item **) not_found_item)
 	    break;
@@ -1348,13 +1349,15 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       SELECT_LEX *last=0;
       for ( ; sl ; sl= sl->outer_select())
       {
-	if ((ref= find_item_in_list(this, (last= sl)->item_list,
+	last= sl;
+	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
+	    (ref= find_item_in_list(this, sl->item_list,
 				    &counter,
 				    REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
 	  break;
 	table_list= sl->get_table_list();
-	if (sl->insert_select && table_list)
+	if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	{
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next;
