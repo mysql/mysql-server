@@ -34,8 +34,6 @@ HASH open_cache;				/* Used by mysql_test */
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias, bool locked);
-static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
-			  List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static key_map get_key_map_from_key_list(TABLE *table,
@@ -409,7 +407,7 @@ void close_thread_tables(THD *thd, bool locked)
 {
   DBUG_ENTER("close_thread_tables");
 
-  if (thd->locked_tables)
+  if (thd->locked_tables || thd->manual_open)
     DBUG_VOID_RETURN;				// LOCK TABLES in use
 
   TABLE *table,*next;
@@ -1807,7 +1805,7 @@ static key_map get_key_map_from_key_list(TABLE *table,
 **	Returns pointer to last inserted field if ok
 ****************************************************************************/
 
-static bool
+bool
 insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
 	      List_iterator<Item> *it)
 {
