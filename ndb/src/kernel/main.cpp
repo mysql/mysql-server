@@ -335,7 +335,13 @@ handler_error(int signum){
   static long thread_id= 0;
 
   if (thread_id != 0 && thread_id == my_thread_id())
-    ; // Shutdown thread received signal
+  {
+    // Shutdown thread received signal
+    signal(signum, SIG_DFL);
+    kill(getpid(), signum);
+    while(true)
+      NdbSleep_MilliSleep(10);
+  }
   if(theShutdownMutex && NdbMutex_Trylock(theShutdownMutex) != 0)
     while(true)
       NdbSleep_MilliSleep(10);
@@ -344,5 +350,5 @@ handler_error(int signum){
   // restart the system
   char errorData[40];
   snprintf(errorData, 40, "Signal %d received", signum);
-  ERROR_SET(fatal, 0, errorData, __FILE__);
+  ERROR_SET_SIGNAL(fatal, 0, errorData, __FILE__);
 }
