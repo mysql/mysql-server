@@ -150,6 +150,15 @@ parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysq
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 
+# Make sure that directory for $safe_mysql_unix_port exists
+mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
+if [ ! -d $mysql_unix_port_dir ]
+then
+  mkdir $mysql_unix_port_dir
+  chown $user $mysql_unix_port_dir
+fi
+
+
 if test ! -x $ledir/$MYSQLD
 then
   echo "The file $ledir/$MYSQLD doesn't exist or is not executable"
