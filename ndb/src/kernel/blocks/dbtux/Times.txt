@@ -11,6 +11,7 @@ testOIBasic -case u -table 2 -index 4 -fragtype small -threads 10 -rows 100000 -
 
 1 million rows, pk update without index, pk update with index
 shows ms / 1000 rows for each and pct overhead
+the figures are based on single run on idle machine
 
 040616          mc02/a  40 ms   87 ms   114 pct
                 mc02/b  51 ms  128 ms   148 pct
@@ -26,6 +27,10 @@ optim 3         mc02/a  43 ms   80 ms    85 pct
 
 optim 4         mc02/a  42 ms   80 ms    87 pct
                 mc02/b  51 ms  119 ms   129 pct
+
+optim 5         mc02/a  43 ms   77 ms    77 pct
+                mc02/b  54 ms  118 ms   117 pct
+
 
 
 vim: set et:

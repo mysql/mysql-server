@@ -505,17 +505,15 @@ private:
   struct NodeHandle;
   friend struct NodeHandle;
   struct NodeHandle {
-    Dbtux& m_tux;               // this block
     Frag& m_frag;               // fragment using the node
     TupLoc m_loc;               // physical node address
+    TreeNode* m_node;           // pointer to node storage
     AccSize m_acc;              // accessed size
     union {
     Uint32 m_next;              // next active node under fragment
     Uint32 nextPool;
     };
-    TreeNode* m_node;           // pointer to node storage
-    Uint32 m_cache[MaxTreeNodeSize];
-    NodeHandle(Dbtux& tux, Frag& frag);
+    NodeHandle(Frag& frag);
     // getters
     TupLoc getLink(unsigned i);
     unsigned getChilds();       // cannot spell
@@ -532,17 +530,8 @@ private:
     void setOccup(unsigned n);
     void setBalance(int b);
     void setNodeScan(Uint32 scanPtrI);
-    // operations  XXX maybe these should move to Dbtux level
-    void pushUp(Signal* signal, unsigned pos, const TreeEnt& ent);
-    void popDown(Signal* signal, unsigned pos, TreeEnt& ent);
-    void pushDown(Signal* signal, unsigned pos, TreeEnt& ent);
-    void popUp(Signal* signal, unsigned pos, TreeEnt& ent);
-    void slide(Signal* signal, Ptr<NodeHandle> nodePtr, unsigned i);
-    void linkScan(Dbtux::ScanOpPtr scanPtr);
-    void unlinkScan(Dbtux::ScanOpPtr scanPtr);
-    bool islinkScan(Dbtux::ScanOpPtr scanPtr);
-    // for ndbrequire
-    void progError(int line, int cause, const char* extra);
+    // for ndbrequire and ndbassert
+    void progError(int line, int cause, const char* file);
   };
   typedef Ptr<NodeHandle> NodeHandlePtr;
   ArrayPool<NodeHandle> c_nodeHandlePool;
@@ -656,7 +645,6 @@ private:
   void execTUX_MAINT_REQ(Signal* signal);
   void tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar);
   void tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar);
-  void tupStoreTh(Signal* signal, const Frag& frag, NodeHandlePtr nodePtr, StorePar storePar);
   
   /*
    * DbtuxNode.cpp
@@ -668,8 +656,18 @@ private:
   void insertNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc);
   void deleteNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr);
   void accessNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc);
-  void setNodePref(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
+  void setNodePref(Signal* signal, NodeHandle& node, unsigned i);
   void commitNodes(Signal* signal, Frag& frag, bool updateOk);
+  // node operations
+  void nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt& ent);
+  void nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
+  void nodePushDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
+  void nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
+  void nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned i);
+  // scans linked to node
+  void linkScan(NodeHandle& node, ScanOpPtr scanPtr);
+  void unlinkScan(NodeHandle& node, ScanOpPtr scanPtr);
+  bool islinkScan(NodeHandle& node, ScanOpPtr scanPtr);
 
   /*
    * DbtuxTree.cpp
@@ -1084,13 +1082,12 @@ Dbtux::FragOp::FragOp() :
 // Dbtux::NodeHandle
 
 inline
-Dbtux::NodeHandle::NodeHandle(Dbtux& tux, Frag& frag) :
-  m_tux(tux),
+Dbtux::NodeHandle::NodeHandle(Frag& frag) :
   m_frag(frag),
   m_loc(),
+  m_node(0),
   m_acc(AccNone),
-  m_next(RNIL),
-  m_node(0)
+  m_next(RNIL)
 {
 }
 
