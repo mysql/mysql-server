@@ -88,6 +88,10 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
       my_errno=HA_ERR_END_OF_FILE;
   }
+  else if (!buf)
+  {
+    DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
+  }
   else if (!(*info->read_record)(info,info->lastpos,buf))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
