@@ -377,6 +377,7 @@ Item *negate_expression(THD *thd, Item *expr);
 struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
+  unsigned int client_protocol_41:1;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;
@@ -564,6 +565,10 @@ int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       COND *conds, ulong options,
 		       enum enum_duplicates handle_duplicates, bool ignore,
 		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
+int mysql_multi_update_lock(THD *thd,
+			    TABLE_LIST *table_list,
+			    List<Item> *fields,
+			    SELECT_LEX *select_lex);
 int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 			 TABLE_LIST *insert_table_list, TABLE *table,
 			 List<Item> &fields, List_item *values,
