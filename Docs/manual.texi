@@ -4685,9 +4685,15 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.islnet.net, WWW}
 
 @item
+@c EMAIL: xcyber@yahoo.com (xcyber)
+@image{Flags/china} China [xcyber.org/Hong Kong] @
+@uref{http://mysql.xcyber.org/, WWW}
+
+@c @item
+@c Not ok 20010330; Non-existent! (Matt)
 @c EMAIL: marquischan@hotmail.com (Marquis Chan)
-@image{Flags/china} China [TraLand.com/Hong Kong] @
-@uref{http://www.traland.com/mysql/, WWW}
+@c @image{Flags/china} China [TraLand.com/Hong Kong] @
+@c @uref{http://www.traland.com/mysql/, WWW}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
