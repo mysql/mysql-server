@@ -533,6 +533,21 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     create_flag=MY_DELETE_OLD;
   }
 
+  /*
+    If a MRG_MyISAM table is in use, the mapped MyISAM tables are open,
+    but no entry is made in the table cache for them.
+    A TRUNCATE command checks for the table in the cache only and could
+    be fooled to believe, the table is not open.
+    Pull the emergency brake in this situation. (Bug #8306)
+  */
+  if (test_if_reopen(filename))
+  {
+    my_printf_error(0, "MyISAM table '%s' is in use "
+                    "(most likely by a MERGE table). Try FLUSH TABLES.",
+                    MYF(0), name + dirname_length(name));
+    goto err;
+  }
+
   if ((file= my_create_with_symlink(linkname_ptr,
 				    filename,
 				    0, O_RDWR | O_TRUNC,
