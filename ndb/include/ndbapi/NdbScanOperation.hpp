@@ -70,7 +70,8 @@ public:
    * NdbOperation::getValue are updated with values 
    * from the scanned tuple. 
    *
-   * @param  fetchAllowed  If set to false, then fetching is disabled
+   * @param fetchAllowed  If set to false, then fetching is disabled
+   * @param forceSend If true send will occur immediately (see @ref secAdapt)
    *
    * The NDB API will contact the NDB Kernel for more tuples 
    * when necessary to do so unless you set the fetchAllowed 
@@ -122,6 +123,13 @@ public:
    * @return an NdbOperation or NULL.
    */
   NdbOperation* updateCurrentTuple();
+  /**
+   * Update current tuple
+   *
+   * @param updateTrans Transaction that should perform the update
+   *
+   * @return an NdbOperation or NULL.
+   */
   NdbOperation*	updateCurrentTuple(NdbTransaction* updateTrans);
 
   /**
@@ -129,6 +137,13 @@ public:
    * @return 0 on success or -1 on failure
    */
   int deleteCurrentTuple();
+  /**
+   * Delete current tuple
+   *
+   * @param takeOverTransaction Transaction that should perform the delete
+   *
+   * @return 0 on success or -1 on failure
+   */
   int deleteCurrentTuple(NdbTransaction* takeOverTransaction);
   
   /**

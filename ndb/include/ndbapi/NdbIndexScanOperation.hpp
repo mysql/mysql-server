@@ -45,7 +45,7 @@ public:
    * @returns 0 for success and -1 for failure
    * @see NdbScanOperation::readTuples
    */ 
-  int readTuples(LockMode = LM_Read,
+  int readTuples(LockMode lock_mode = LM_Read,
 		 Uint32 batch = 0, 
 		 Uint32 parallel = 0,
 		 bool order_by = false,
@@ -90,15 +90,14 @@ public:
    * An index stores also all-NULL keys.  Doing index scan with empty
    * bound set returns all table tuples.
    *
-   * @param attrName    Attribute name, alternatively:
-   * @param anAttrId    Index column id (starting from 0)
+   * @param attr        Attribute name, alternatively:
    * @param type        Type of bound
    * @param value       Pointer to bound value, 0 for NULL
    * @param len         Value length in bytes.
    *                    Fixed per datatype and can be omitted
    * @return            0 if successful otherwise -1
    */
-  int setBound(const char* attr, int type, const void* aValue, Uint32 len = 0);
+  int setBound(const char* attr, int type, const void* value, Uint32 len = 0);
 
   /**
    * Define bound on index key in range scan using index column id.
