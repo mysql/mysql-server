@@ -1,3 +1,8 @@
 select length(encrypt('foo', 'ff')) <> 0;
 --replace_result $1$aa$4OSUA5cjdx0RUQ08opV27/ aaqPiZY5xR5l.
-select old_password('test'),length(password("1")),length(encrypt('test')),encrypt('test','aa');
+
+# Test new and old password handling functions 
+select password("a",""), password("a",NULL), password("","a"), password(NULL,"a");
+select password("aaaaaaaaaaaaaaaa","a"), password("a","aaaaaaaaaaaaaaaa");
+select old_password('test'), length(password("1")), length(encrypt('test')), encrypt('test','aa');
+select old_password(""), old_password(NULL), password(""), password(NULL);

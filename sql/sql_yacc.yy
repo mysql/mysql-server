@@ -2209,9 +2209,9 @@ simple_expr:
 	| NOW_SYM '(' expr ')'
 	  { $$= new Item_func_now($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
-	  {
-	    $$= new Item_func_password($3);
-	   }
+	  { $$= new Item_func_password($3); }
+        | PASSWORD '(' expr ',' expr ')'
+          { $$= new Item_func_password($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POINTFROMTEXT '(' expr ',' expr ')'
