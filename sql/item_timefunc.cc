@@ -137,14 +137,12 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
 static bool extract_date_time(DATE_TIME_FORMAT *format,
 			      const char *val, uint length, TIME *l_time)
 {
-  int weekday= 0, yearday= 0, daypart= 0, len;
+  int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
   CHARSET_INFO *cs= &my_charset_bin;
   int error= 0;
   bool usa_time= 0;
   bool sunday_first= 0;
-  uint part_len= 0;
-  const char *val_ptr= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
   const char *end= ptr+ format->format.length;
@@ -1385,7 +1383,6 @@ String *Item_func_from_unixtime::val_str(String *str)
 {
   struct tm tm_tmp,*start;
   time_t tmp=(time_t) args[0]->val_int();
-  CHARSET_INFO *cs= &my_charset_bin;
   TIME ltime;
   
   if ((null_value=args[0]->null_value))
@@ -1759,6 +1756,7 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const
   return 1;
 }
 
+
 void Item_typecast::print(String *str)
 {
   str->append("cast(", 5);
@@ -1767,6 +1765,7 @@ void Item_typecast::print(String *str)
   str->append(cast_type());
   str->append(')');
 }
+
 
 void Item_char_typecast::print(String *str)
 {

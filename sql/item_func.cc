@@ -2321,9 +2321,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 bool
 Item_func_set_user_var::check()
 {
-  bool res;
   DBUG_ENTER("Item_func_set_user_var::check");
-  LINT_INIT(res);
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -3013,7 +3011,6 @@ longlong Item_func_is_free_lock::val_int()
   String *res=args[0]->val_str(&value);
   THD *thd=current_thd;
   ULL *ull;
-  int error=0;
 
   null_value=0;
   if (!res || !res->length())

@@ -973,16 +973,16 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
   DBUG_RETURN (mysql_store_result(mysql));
 }
 
-MYSQL_FIELD * STDCALL cli_list_fields(MYSQL *mysql)
+MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
 {
   MYSQL_DATA *query;
   if (!(query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
 			     protocol_41(mysql) ? 8 : 6)))
     return NULL;
 
-  mysql->field_count= query->rows;
+  mysql->field_count= (uint) query->rows;
   return unpack_fields(query,&mysql->field_alloc,
-		       query->rows, 1, mysql->server_capabilities);
+		       mysql->field_count, 1, mysql->server_capabilities);
 }
 
 
@@ -1112,7 +1112,7 @@ mysql_dump_debug_info(MYSQL *mysql)
   DBUG_RETURN(simple_command(mysql,COM_DEBUG,0,0,0));
 }
 
-const char * STDCALL cli_read_statistic(MYSQL *mysql)
+const char *cli_read_statistic(MYSQL *mysql)
 {
   mysql->net.read_pos[mysql->packet_length]=0;	/* End of stat string */
   if (!mysql->net.read_pos[0])
@@ -1589,7 +1589,7 @@ static my_bool my_realloc_str(NET *net, ulong length)
     1	error
 */
 
-my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   uchar *pos;
   uint field_count;
@@ -2010,7 +2010,8 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
   DBUG_RETURN(0);
 }
 
-int STDCALL cli_stmt_execute(MYSQL_STMT *stmt)
+
+int cli_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("cli_stmt_execute");
 
@@ -2985,7 +2986,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   return 0;
 }
 
-int STDCALL cli_unbuffered_fetch(MYSQL *mysql, char **row)
+int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   if (packet_error == net_safe_read(mysql))
     return 1;
@@ -3109,7 +3110,7 @@ no_data:
   Read all rows of data from server  (binary format)
 */
 
-MYSQL_DATA * STDCALL cli_read_binary_rows(MYSQL_STMT *stmt)
+MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
 {
   ulong      pkt_len;
   uchar      *cp;

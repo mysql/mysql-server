@@ -397,13 +397,12 @@ int Arg_comparator::compare_row()
 
 int Arg_comparator::compare_e_row()
 {
-  int res= 0;
   (*a)->bring_value();
   (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
-    if ((res= !comparators[i].compare()))
+    if (!comparators[i].compare())
       return 0;
   }
   return 1;
@@ -1096,8 +1095,10 @@ void Item_func_case::fix_length_and_dec()
     return;
   
   
-  //  Aggregate first expression and all THEN expression types
-  //  and collations when string comparison
+  /*
+    Aggregate first expression and all THEN expression types
+    and collations when string comparison
+  */
   if (first_expr_num != -1)
   {
     agg[0]= args[first_expr_num];
@@ -1110,7 +1111,7 @@ void Item_func_case::fix_length_and_dec()
     return;
   }
   
-  if (!else_expr_num != -1 || args[else_expr_num]->maybe_null)
+  if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
     maybe_null=1;
   
   max_length=0;
@@ -1126,6 +1127,7 @@ void Item_func_case::fix_length_and_dec()
     set_if_bigger(decimals,args[else_expr_num]->decimals);
   }
 }
+
 
 /* TODO:  Fix this so that it prints the whole CASE expression */
 
@@ -1538,7 +1540,6 @@ void Item_func_in::fix_length_and_dec()
   {
     switch (cmp_type) {
     case STRING_RESULT:
-      uint i;
       array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
 			  cmp_collation.collation);
       break;

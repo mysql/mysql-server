@@ -34,7 +34,7 @@ void end_server(MYSQL *mysql);
 my_bool mysql_reconnect(MYSQL *mysql);
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
-my_bool STDCALL
+my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check);

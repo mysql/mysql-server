@@ -126,6 +126,10 @@ SOURCE=.\array.c
 # End Source File
 # Begin Source File
 
+SOURCE=".\charset-def.c"
+# End Source File
+# Begin Source File
+
 SOURCE=.\charset.c
 # End Source File
 # Begin Source File

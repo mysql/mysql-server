@@ -53,7 +53,7 @@ int mi_delete_all_rows(MI_INFO *info)
     If we are using delayed keys or if the user has done changes to the tables
     since it was locked then there may be key blocks in the key cache
   */
-  flush_key_blocks(*share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
   if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;

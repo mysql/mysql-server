@@ -432,7 +432,7 @@ int yylex(void *arg, void *yythd)
   reg1	uchar c;
   int	tokval, result_state;
   uint length;
-  enum my_lex_states state,prev_state;
+  enum my_lex_states state;
   LEX	*lex= &(((THD *)yythd)->lex);
   YYSTYPE *yylval=(YYSTYPE*) arg;
   CHARSET_INFO *cs= ((THD *) yythd)->charset();
@@ -441,7 +441,7 @@ int yylex(void *arg, void *yythd)
 
   lex->yylval=yylval;			// The global state
   lex->tok_start=lex->tok_end=lex->ptr;
-  prev_state=state=lex->next_state;
+  state=lex->next_state;
   lex->next_state=MY_LEX_OPERATOR_OR_IDENT;
   LINT_INIT(c);
   for (;;)
@@ -1175,7 +1175,7 @@ void st_select_lex_unit::exclude_level()
 */
 void st_select_lex_unit::exclude_tree()
 {
-  SELECT_LEX_UNIT *units= 0, **units_last= &units;
+  SELECT_LEX_UNIT *units= 0;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     // unlink current level from global SELECTs list
