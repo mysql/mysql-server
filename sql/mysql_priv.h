@@ -38,6 +38,7 @@ typedef ulong key_part_map;           /* Used for finding key parts */
 /* useful constants */
 extern const key_map key_map_empty;
 extern const key_map key_map_full;
+extern const char *primary_key_name;
 
 #include "mysql_com.h"
 #include <violite.h>
@@ -664,7 +665,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);
-bool setup_tables(TABLE_LIST *tables);
+bool setup_tables(TABLE_LIST *tables, my_bool reinit);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,

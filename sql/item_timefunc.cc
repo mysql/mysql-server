@@ -1848,6 +1848,8 @@ String *Item_char_typecast::val_str(String *str)
     }
     res= str;
   }
+
+  res->set_charset(cast_cs);
   
   /*
      Cut the tail if cast with length

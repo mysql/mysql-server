@@ -228,6 +228,52 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
   return FALSE;
 }
 
+/*
+** For real multi-byte, ascii incompatible charactser sets,
+** like UCS-2, add leading zeros if we have an incomplete character.
+** Thus, 
+**   SELECT _ucs2 0xAA 
+** will automatically be converted into
+**   SELECT _ucs2 0x00AA
+*/
+
+bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
+				 CHARSET_INFO *cs)
+{
+  /* How many bytes are in incomplete character */
+  uint32 offs= (arg_length % cs->mbminlen); 
+
+  if (!offs) /* All characters are complete, just copy */
+  {
+    set(str, arg_length, cs);
+    return FALSE;
+  }
+  
+  offs= cs->mbmaxlen - offs; /* How many zeros we should prepend */
+  uint32 aligned_length= arg_length + offs;
+  if (alloc(aligned_length))
+    return TRUE;
+  
+  /*
+    Probably this condition is not really necessary
+    because if aligned_length is 0 then offs is 0 too
+    and we'll return after calling set().
+  */
+  if ((str_length= aligned_length))
+  {
+    /*
+      Note, this is only safe for little-endian UCS-2.
+      If we add big-endian UCS-2 sometimes, this code
+      will be more complicated. But it's OK for now.
+    */
+    bzero((char*)Ptr, offs);
+    memcpy(Ptr + offs, str, arg_length);
+  }
+  Ptr[aligned_length]=0;
+  str_charset=cs;
+  return FALSE;
+}
+
 	/* Copy with charset convertion */
 
 bool String::copy(const char *str, uint32 arg_length,
@@ -235,7 +281,7 @@ bool String::copy(const char *str, uint32 arg_length,
 {
   if ((from_cs == &my_charset_bin) || (to_cs == &my_charset_bin))
   {
-    return copy(str, arg_length, &my_charset_bin);
+    return copy(str, arg_length, to_cs);
   }
   uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))

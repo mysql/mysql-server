@@ -477,7 +477,7 @@ public:
   	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
     collation.set(cs, dv);
-    str_value.set(str,length,cs);
+    str_value.set_or_copy_aligned(str,length,cs);
     /*
       We have to have a different max_length than 'length' here to
       ensure that we get the right length if we do use the item
@@ -493,7 +493,7 @@ public:
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
     collation.set(cs, dv);
-    str_value.set(str,length,cs);
+    str_value.set_or_copy_aligned(str,length,cs);
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
@@ -878,13 +878,15 @@ public:
   void set_used_tables(table_map map) { used_table_map= map; }
 
   virtual bool allocate(uint i) { return 0; };
-  virtual bool setup(Item *item) { example= item;  return 0; };
-  virtual void store(Item *)= 0;
-  void set_len_n_dec(uint32 max_len, uint8 dec)
+  virtual bool setup(Item *item)
   {
-    max_length= max_len;
-    decimals= dec;
-  }
+    example= item;
+    max_length= item->max_length;
+    decimals= item->decimals;
+    collation.set(item->collation);
+    return 0;
+  };
+  virtual void store(Item *)= 0;
   enum Type type() const { return CACHE_ITEM; }
   static Item_cache* get_cache(Item_result type);
   table_map used_tables() const { return used_table_map; }
@@ -909,7 +911,7 @@ class Item_cache_real: public Item_cache
   double value;
 public:
   Item_cache_real(): Item_cache() {}
-  
+
   void store(Item *item);
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }

@@ -68,6 +68,7 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EXIT_UNKNOWN_SUFFIX		9
 #define EXIT_NO_PTR_TO_VARIABLE		10
 #define EXIT_CANNOT_CONNECT_TO_SERVICE	11
+#define EXIT_OPTION_DISABLED            12
 
 
 #ifdef	__cplusplus

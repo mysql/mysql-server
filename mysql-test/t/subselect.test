@@ -1009,3 +1009,15 @@ INSERT INTO t1 VALUES (1,1,'1A3240'), (1,2,'4W2365');
 INSERT INTO t2 VALUES (100, 200, 'C');
 SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
 DROP TABLE t1, t2;
+
+#
+# Bug 2198
+#
+
+create table t1 (a int, b decimal(13, 3)); 
+insert into t1 values (1, 0.123);
+select a, (select max(b) from t1) into outfile "subselect.out.file.1" from t1;
+delete from t1;
+load data infile "subselect.out.file.1" into table t1;
+select * from t1;
+drop table t1;
