@@ -847,7 +847,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
         full_b_length=b_length;
         next_key_length=key_length-b_length-pack_length;
 
-	if (!(nextflag & (SEARCH_PREFIX | SEARCH_UPDATE)))
+	if ((nextflag & (SEARCH_FIND | SEARCH_UPDATE)) == SEARCH_FIND)
 	{
 	  while (a_length && a[a_length-1] == ' ')
 	    a_length--;

@@ -385,3 +385,21 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+create table t1 ( a text not null, key a (a(20)));
+insert into t1 values ('aaa   '),('aaa');
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select concat(a,'.') from t1 where a='aaa';
+concat(a,'.')
+aaa.
+aaa   .
+drop table t1;
+create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
+insert into t1 values('807780', '477', '165');
+insert into t1 values('807780', '477', '162');
+insert into t1 values('807780', '472', '162');
+select * from t1 where a='807780' and b='477' and c='165';
+a	b	c
+807780	477	165
+drop table t1;

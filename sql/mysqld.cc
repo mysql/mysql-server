@@ -306,7 +306,6 @@ char* log_error_file_ptr= log_error_file;
 static pthread_t select_thread;
 static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0, opt_console= 0;
 my_bool opt_readonly = 0;
@@ -3198,7 +3197,7 @@ enum options_mysqld {
   OPT_HAVE_NAMED_PIPE,
   OPT_DO_PSTACK, OPT_REPORT_HOST,
   OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
-  OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
+  OPT_SHOW_SLAVE_AUTH_INFO,
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
   OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
   OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
@@ -3544,10 +3543,6 @@ Does nothing yet.",
   {"old-protocol", 'o', "Use the old (3.20) protocol client/server protocol",
    (gptr*) &protocol_version, (gptr*) &protocol_version, 0, GET_UINT, NO_ARG,
    PROTOCOL_VERSION, 0, 0, 0, 0, 0},
-  {"old-rpl-compat", OPT_OLD_RPL_COMPAT,
-   "Use old LOAD DATA format in the binary log (don't save data in file)",
-   (gptr*) &opt_old_rpl_compat, (gptr*) &opt_old_rpl_compat, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef ONE_THREAD
   {"one-thread", OPT_ONE_THREAD,
    "Only use one thread (for debugging under Linux)", 0, 0, 0, GET_NO_ARG,
