@@ -38,6 +38,7 @@ typedef ulong key_part_map;           /* Used for finding key parts */
 /* useful constants */
 extern const key_map key_map_empty;
 extern const key_map key_map_full;
+extern const char *primary_key_name;
 
 #include "mysql_com.h"
 #include <violite.h>

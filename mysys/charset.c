@@ -357,7 +357,7 @@ static int add_collation(CHARSET_INFO *cs)
 }
 
 
-#define MAX_BUF 1024*16
+#define MY_MAX_ALLOWED_BUF 1024*1024
 #define MY_CHARSET_INDEX "Index.xml"
 
 const char *charsets_dir= NULL;
@@ -369,16 +369,19 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   char *buf;
   int  fd;
   uint len;
+  MY_STAT stat_info;
   
-  if (!(buf= (char *)my_malloc(MAX_BUF,myflags)))
-    return FALSE;
+  if (!my_stat(filename, &stat_info, MYF(MY_WME)) ||
+       ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
+       !(buf= (char *)my_malloc(len,myflags)))
+    return TRUE;
   
   if ((fd=my_open(filename,O_RDONLY,myflags)) < 0)
   {
     my_free(buf,myflags);
     return TRUE;
   }
-  len=read(fd,buf,MAX_BUF);
+  len=read(fd,buf,len);
   my_close(fd,myflags);
   
   if (my_parse_charset_xml(buf,len,add_collation))
