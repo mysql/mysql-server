@@ -16423,8 +16423,9 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
 	[CIPHER cipher [AND]]
 	[ISSUER issuer [AND]]
 	[SUBJECT subject]]
-    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=# | MAX_UPDATES_PER_HOUR=#|
-     MAX_CONNECTIONS_PER_HOUR=#]]
+    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=# |
+                          MAX_UPDATES_PER_HOUR=# |
+                          MAX_CONNECTIONS_PER_HOUR=#]]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
@@ -16588,7 +16589,7 @@ You should be careful to whom you give the @strong{grant} privilege, as two
 users with different privileges may be able to join privileges!
 
 @code{MAX_QUERIES_PER_HOUR=#}, @code{MAX_UPDATES_PER_HOUR=#} and
-@code{MAX_CONNECTIONS_PER_HOUR=#} limits the limits the number of
+@code{MAX_CONNECTIONS_PER_HOUR=#} limit the number of
 queries/updates and logins the user can do during one hour. 
 If @code{#} is 0 (default), then this means that there is no limitations
 for the user. @xref{User resources}.
@@ -17074,71 +17075,65 @@ You can also use @code{xmysqladmin}, @code{mysql_webadmin}, and even
 You can find these utilities in the Contrib directory of the
 MySQL web site (@uref{http://www.mysql.com/Downloads/Contrib/}).
 
-
 @node User resources, Passwords, Adding users, User Account Management
 @subsection Limiting user resources
 
 Starting from MySQL 4.0.2 one can limit certain resources per user.
 
-Before the only available method of limiting user usage of MySQL server
-resources has been setting @code{max_user_connections} startup variable
-to some non-zero value at MySQL startup. But this method is strictly a
-global one and does not allow management of individual users, which
-could be of paricular interest to Interent Service Providers.
+So far, the only available method of limiting user usage of MySQL
+server resources has been setting the @code{max_user_connections}
+startup variable to a non-zero value. But this method is strictly
+global and does not allow for management of individual users, which
+could be of paricular interest to Internet Service Providers.
 
 Therefore, management of three resources is introduced on the
-individual user level :
+individual user level:
 
 @itemize @bullet
-@item
-Number of all queries per hour
-@item
-Number of all updates per hour.  As updates is considered any command that
-changes any table or database.
-@item
-Number of connections made per hour
+@item Number of all queries per hour:
+All commands that could be run by a user.
+@item Number of all updates per hour:
+Any command that changes any table or database.
+@item Number of connections made per hour:
+New connections opened per hour.
 @end itemize
 
-A user in the above context is single entry in user table, which is
-uniquely identified by user and host columns.
+A user in the aforementioned context is a single entry in the
+@code{user} table, which is uniquely identified by its @code{user}
+and @code{host} columns.
 
 All users are by default not limited in using the above resources,
-unless the limits are GRANTed to them. These limits can be granted
-ONLY by global GRANT (*.*) and with a following syntax :
+unless the limits are granted to them. These limits can be granted
+@strong{only} via global @code{GRANT (*.*)}, using this syntax:
 
 @example
-GRANT ... WITH MAX_QUERIES_PER_HOUR = N1 MAX_UPDATES_PER_HOUR = N2
-MAX_CONNECTIONS_PER_HOUR = N3;
+GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
+               MAX_UPDATES_PER_HOUR = N2
+               MAX_CONNECTIONS_PER_HOUR = N3;
 @end example
 
 One can specify any combination of the above resources.
 N1, N2 and N3 are integers and stands for count / hour.
 
-If user reaches any of the above limits withing one hour, his connection
-will be broken or refused and the appropriate error message shall be
-issued.
+If user reaches any of the above limits withing one hour, his
+connection will be terminated or refused and the appropriate error
+message shall be issued.
 
-Current values of particular user resources can be flushed (set to
-zero) by issuing a grant statement with any of the above limiting
-clauses, including a GRANT statement with current value(s) of tha
-resource(s).
+Current usage values for a particular user can be flushed (set to zero)
+by issuing a @code{GRANT} statement with any of the above clauses,
+including a @code{GRANT} statement with the current values.
 
 Also, current values for all users will be flushed if privileges are
-reloaded or if the folloing new flush command is issuedd :
+reloaded (in the server or using @code{mysqladmin reload})
+or if the @code{FLUSH USER_RESOURCES} command is issued.
 
-@example
-FLUSH USER_RESOURCES
-@end example
+The feature is enabled as soon as a single user is granted with any
+of the limiting @code{GRANT} clauses.
 
-Also, current values for all users will be flushed with mysqladmin
-reload command.
-
-This new feature is enabled as soon as single user is @code{GRANT}ed with
-some of the limiting @code{GRANT} clauses.
-
-As a prerequisite for enabling this features, user table in mysql
-database must have the additional columns, just as defined in table
-creation scripts @code{mysql_install_db} in the @code{scripts} directory.
+As a prerequisite for enabling this feature, the @code{user} table in
+the @code{mysql} database must contain the additional columns, as
+defined in the table creation scripts @code{mysql_install_db} and
+@code{mysql_install_db.sh} in @file{scripts} subdirectory.
 
 @node Passwords, Password security, User resources, User Account Management
 @subsection Setting Up Passwords
@@ -19105,7 +19100,7 @@ memory.  This command will not remove any queries from the cache, unlike
 
 @item @code{STATUS} @tab Resets most status variables to zero. This is something one should only use when debugging a query.
 
-@item @code{USER_RESOURCES} @tab Resets all user resources to zero. This will enalbe blocked users to login again. @xref{User resources}.
+@item @code{USER_RESOURCES} @tab Resets all user resources to zero. This will enable blocked users to login again. @xref{User resources}.
 @end multitable
 
 You can also access each of the commands shown above with the @code{mysqladmin}
@@ -49493,62 +49488,14 @@ Added new columns @code{Null} and @code{Index_type} to @code{SHOW INDEX}
 output.
 @item
 Added @code{--no-beep} and @code{--prompt} options to @code{mysql} command-line client.
-@c FIX arjen 2002-05-16 below also needs to be added elsewhere in the manual.
-@item New feature: management of user resources
-
-So far, the only available method of limiting user usage of MySQL
-server resources has been setting the @code{max_user_connections}
-startup variable to a non-zero value. But this method is strictly
-global and does not allow for management of individual users, which
-could be of paricular interest to Internent Service Providers.
-
-Therefore, management of three resources is introduced on the
-individual user level :
-
-@itemize @bullet
-@item number of all queries per hour:
-any command that cahnges any table or database.
-@item number of all updates per hour:
-all commands that could be run by a user.
-@item number of connections made per hour:
-a user is a single entry in the @code{user} table, which is uniquely
-identified by its @code{user} and @code{host} columns.
-@end itemize
-
-All users are by default not limited in using the above resources,
-unless the limits are granted to them. These limits can be granted
-@strong{only} via global @code{GRANT (*.*)}, using this syntax:
-
+@item
+New feature: management of user resources.
 @example
 GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
                MAX_UPDATES_PER_HOUR = N2
                MAX_CONNECTIONS_PER_HOUR = N3;
 @end example
-
-It is not required that all three resources are specified.
-N1, N2, and N3 are integers and limit the number of times that a user
-can perform the corresponding type of command or number of logins,
-per hour.
-
-If user reaches any of the above limits withing one hour, his
-connection will be terminated or refused and the appropriate error
-message shall be issued.
-
-Current usage values for a particular user can be flushed (set to zero)
-by issuing a grant statement with any of the above clauses, including
-a @code{GRANT} statement with current values.
-
-Also, current values for all users will be flushed if privileges are
-reloaded (in the server or using @code{mysqladmin reload})
-or if the @code{FLUSH USER_RESOURCES} command is issued.
-
-The feature is enabled as soon as single user is granted with some
-some of the limiting @code{GRANT} clauses.
-
-As a prerequisite for enabling this feature, the @code{user} table in
-the @code{mysql} database must contain the additional columns, as
-defined in the table creation scripts @code{mysql_install_db} and
-@code{mysql_install_db.sh} in @file{scripts} subdirectory.
+@xref{User resources}.
 @end itemize
 
 @node News-4.0.1, News-4.0.0, News-4.0.2, News-4.0.x
