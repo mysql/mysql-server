@@ -2038,7 +2038,7 @@ mysql_execute_command(void)
 		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
 		       (ORDER *)NULL,
 		       select_lex->options | thd->options |
-		       SELECT_NO_JOIN_CACHE,
+		       SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
 		       result);
       delete result;
     }
