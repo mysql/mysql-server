@@ -479,8 +479,8 @@ AC_ARG_WITH(other-libc,
    then
      # libc has been compiled with --enable-static-nss
      # we need special flags, but we will have to add those later
-     STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
-  -Wl,--end-group"
+     STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
+     STATIC_NSS_FLAGS="$STATIC_NSS_FLAGS $STATIC_NSS_FLAGS"
      OTHER_LIBC_LIB="-L$other_libc_lib"
      static_nss=1
    else
@@ -520,8 +520,8 @@ then
   tmp=`nm /usr/lib/libc.a  | grep _nss_files_getaliasent_r`
   if test -n "$tmp"
   then
-     STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
-  -Wl,--end-group"
+     STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
+     STATIC_NSS_FLAGS="$STATIC_NSS_FLAGS $STATIC_NSS_FLAGS"
      static_nss=1
   fi
 fi
