@@ -2980,7 +2980,7 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
   ha_ndbcluster error_handler(&tab);
   tab.file= &error_handler;
   error_handler.print_error(error, MYF(0));
-  DBUG_VOID_RETURN
+  DBUG_VOID_RETURN;
 }
 
 /*
