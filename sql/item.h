@@ -310,6 +310,7 @@ public:
 class st_select_lex;
 class Item_ident :public Item
 {
+protected:
   /* 
     We have to store initial values of db_name, table_name and field_name
     to be able to restore them during cleanup() because they can be 
@@ -347,7 +348,6 @@ public:
 
 class Item_field :public Item_ident
 {
-  void set_field(Field *field);
 public:
   Field *field,*result_field;
 
@@ -356,13 +356,21 @@ public:
     :Item_ident(db_par,table_name_par,field_name_par),
      field(0), result_field(0)
   { collation.set(DERIVATION_IMPLICIT); }
-  // Constructor need to process subselect with temporary tables (see Item)
+  /*
+    Constructor needed to process subselect with temporary tables (see Item)
+  */
   Item_field(THD *thd, Item_field *item);
   /*
-    Constructor used inside setup_wild(), ensures that field and table
-    names will live as long as Item_field (important in prep. stmt.)
+    Constructor used inside setup_wild(), ensures that field, table,
+    and database names will live as long as Item_field (this is important
+    in prepared statements).
   */
   Item_field(THD *thd, Field *field);
+  /*
+    If this constructor is used, fix_fields() won't work, because
+    db_name, table_name and column_name are unknown. It's necessary to call
+    set_field() before fix_fields() for all fields created this way.
+  */
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -373,6 +381,7 @@ public:
   longlong val_int_result();
   String *str_result(String* tmp);
   bool send(Protocol *protocol, String *str_arg);
+  void set_field(Field *field);
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);

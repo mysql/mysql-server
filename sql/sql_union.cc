@@ -266,14 +266,14 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
   if (first_select->next_select())
   {
-
-  // it is not single select
+    /* This is not a single select */
 
     /*
       Check that it was possible to aggregate
       all collations together for UNION.
     */
     List_iterator_fast<Item> tp(types);
+    Item_arena *arena= thd->current_arena;
     Item *type;
     while ((type= tp++))
     {
@@ -305,7 +305,11 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
-      Item_arena *arena= thd->current_arena, backup;
+      /*
+        We're in statement prepare or in execution
+        of a conventional statement.
+      */
+      Item_arena backup;
       if (arena->is_stmt_prepare())
 	thd->set_n_backup_item_arena(arena, &backup);
       Field **field;
@@ -343,6 +347,20 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 		  (ORDER*) NULL, NULL, (ORDER*) NULL,
 		  fake_select_lex, this);
 	fake_select_lex->table_list.empty();
+      }
+    }
+    else if (arena->is_stmt_execute())
+    {
+      /*
+        We're in execution of a prepared statement: reset field items
+        to point at fields from the created temporary table.
+      */
+      List_iterator_fast<Item> it(item_list);
+      for (Field **field= table->field; *field; field++)
+      {
+        Item_field *item_field= (Item_field*) it++;
+        DBUG_ASSERT(item_field);
+        item_field->set_field(*field);
       }
     }
   }
