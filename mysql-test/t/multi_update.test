@@ -4,6 +4,7 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3;
+drop database if exists mysqltest;
 --enable_warnings
 
 create table t1(id1 int not null auto_increment primary key, t char(12));
@@ -354,7 +355,7 @@ CREATE TABLE t2 ( a int );
 DELETE t1 FROM t1, t2 AS t3;
 DELETE t4 FROM t1, t1 AS t4;
 DELETE t3 FROM t1 AS t3, t1 AS t4;
---error 1066
+--error 1109
 DELETE t1 FROM t1 AS t3, t2 AS t4;
 INSERT INTO t1 values (1),(2);
 INSERT INTO t2 values (1),(2);
@@ -369,7 +370,6 @@ DROP TABLE t1,t2;
 #
 # Test update with const tables
 #
-
 create table `t1` (`p_id` int(10) unsigned NOT NULL auto_increment, `p_code` varchar(20) NOT NULL default '', `p_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`p_id`) );
 create table `t2` (`c2_id` int(10) unsigned NULL auto_increment, `c2_p_id` int(10) unsigned NOT NULL default '0', `c2_note` text NOT NULL, `c2_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`c2_id`), KEY `c2_p_id` (`c2_p_id`) );
 insert into t1 values (0,'A01-Comp',1);
@@ -379,3 +379,36 @@ update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2;
 select * from t1;
 select * from t2;
 drop table t1, t2;
+
+#
+# prevelege chexk for multiupdate with other tables
+#
+
+connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+create table mysqltest.t1 (a int, b int, primary key (a));
+create table mysqltest.t2 (a int, b int, primary key (a));
+create table mysqltest.t3 (a int, b int, primary key (a));
+grant select on mysqltest.* to mysqltest_1@localhost;
+grant update on mysqltest.t1 to mysqltest_1@localhost;
+connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,master.sock);
+connection user1;
+update t1, t2 set t1.b=1 where t1.a=t2.a;
+update t1, t2 set t1.b=(select t3.b from t3 where t1.a=t3.a) where t1.a=t2.a;
+connection root;
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+drop database mysqltest;
+
+#
+# multi delete wrong table check
+#
+create table t1 (a int, primary key (a));
+create table t2 (a int, primary key (a));
+create table t3 (a int, primary key (a));
+-- error 1109
+delete t1,t3 from t1,t2 where t1.a=t2.a and t2.a=(select t3.a from t3 where t1.a=t3.a);
+drop table t1, t2, t3;

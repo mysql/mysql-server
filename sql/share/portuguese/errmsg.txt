@@ -299,3 +299,4 @@ character-set=latin1
 "Truncado errado %-.32s valor: '%-.128s'"
 "Incorreta definição de tabela; Pode ter somente uma coluna TIMESTAMP com CURRENT_TIMESTAMP em DEFAULT ou ON UPDATE cláusula"
 "Inválida cláusula ON UPDATE para campo '%-.64s'",
+"This command is not supported in the prepared statement protocol yet",
