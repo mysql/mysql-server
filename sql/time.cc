@@ -410,7 +410,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   else
     date[6]=0;
 
-  if (year_length == 2 && i >=2 && (date[1] || date[2]))
+  if (year_length == 2 && not_zero_date)
     date[0]+= (date[0] < YY_PART_YEAR ? 2000 : 1900);
   number_of_fields=i;
   while (i < 6)
