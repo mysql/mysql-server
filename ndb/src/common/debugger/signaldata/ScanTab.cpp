@@ -41,7 +41,7 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
 	  sig->getDistributionKeyFlag(requestInfo));
   
   if(sig->getDistributionKeyFlag(requestInfo))
-    fprintf(output, " DKey: %u", sig->distributionKey);
+    fprintf(output, " DKey: %x", sig->distributionKey);
   
   Uint32 keyLen = (sig->attrLenKeyLen >> 16);
   Uint32 attrLen = (sig->attrLenKeyLen & 0xFFFF);
