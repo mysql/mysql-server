@@ -316,11 +316,8 @@ try_again:
 	UT_NOT_USED(purpose);
 
 	if (create_mode == OS_FILE_CREATE) {
-#ifndef S_IRWXU
-                file = open(name, create_flag);
-#else
-	        file = open(name, create_flag, S_IRWXU | S_IRWXG | S_IRWXO);
-#endif
+	        file = open(name, create_flag, S_IRUSR | S_IRGRP | S_IROTH
+			                     | S_IWUSR | S_IWGRP | S_IWOTH);
         } else {
                 file = open(name, create_flag);
         }
