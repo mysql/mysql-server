@@ -181,7 +181,7 @@ connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 
 create view v1 as select * from mysqltest.t1;
-# try to modify view without DELETE privilege on it
+# try to modify view without DROP privilege on it
 -- error 1142
 alter view v1 as select * from mysqltest.t1;
 -- error 1142
@@ -192,6 +192,16 @@ create view mysqltest.v2  as select * from mysqltest.t1;
 # no SELECT privilege
 -- error 1142
 create view v2 as select * from mysqltest.t2;
+
+connection root;
+grant create view,drop,select on test.* to mysqltest_1@localhost;
+
+connection user1;
+# following 'use' command is workaround of bug #9582 and should be removed
+# when that bug will be fixed
+use test;
+alter view v1 as select * from mysqltest.t1;
+create or replace view v1 as select * from mysqltest.t1;
 
 connection root;
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
