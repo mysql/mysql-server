@@ -43087,7 +43087,7 @@ try reconnecting to the server before giving up.
 
 @findex @code{mysql_real_escape_string()}
 
-@code{unsigned int mysql_real_escape_string(MYSQL *mysql, char *to, const char *from, unsigned int length)}
+@code{unsigned long mysql_real_escape_string(MYSQL *mysql, char *to, const char *from, unsigned long length)}
 
 @subsubheading Description
 
@@ -43148,7 +43148,7 @@ None.
 
 @findex @code{mysql_real_query()}
 
-@code{int mysql_real_query(MYSQL *mysql, const char *query, unsigned int length)}
+@code{int mysql_real_query(MYSQL *mysql, const char *query, unsigned long length)}
 
 @subsubheading Description
 
