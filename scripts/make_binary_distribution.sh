@@ -55,7 +55,7 @@ mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
 chmod o-rwx $BASE/data $BASE/data/*
 
 for i in ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         LICENSE Docs/manual.html Docs/manual.txt Docs/manual_toc.html
+         MySQLEULA.txt Docs/manual.html Docs/manual.txt Docs/manual_toc.html
 do
   if [ -f $i ]
   then
