@@ -169,17 +169,18 @@ extern "C"
 int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
 {
+  DBUG_ENTER("ndb_mgm_set_connectstring");
   new (&(handle->cfg)) LocalConfig;
   if (!handle->cfg.init(mgmsrv, 0) ||
       handle->cfg.ids.size() == 0)
   {
     new (&(handle->cfg)) LocalConfig;
-    handle->cfg.init(0, 0); /* reset the LocalCongig */
+    handle->cfg.init(0, 0); /* reset the LocalConfig */
     SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
-    return -1;
+    DBUG_RETURN(-1);
   }
   handle->cfg_i= -1;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /**
@@ -356,6 +357,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_connect");
   CHECK_HANDLE(handle, -1);
 
+  DBUG_ENTER("ndb_mgm_connect");
 #ifdef MGMAPI_LOG
   /**
   * Open the log file
@@ -385,6 +387,13 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
     }
     if (sockfd != NDB_INVALID_SOCKET)
       break;
+#ifndef DBUG_OFF
+    {
+      char buf[1024];
+      DBUG_PRINT("info",("Unable to connect with connect string: %s",
+			 cfg.makeConnectString(buf,sizeof(buf))));
+    }
+#endif
     if (verbose > 0) {
       char buf[1024];
       ndbout_c("Unable to connect with connect string: %s",
@@ -398,7 +407,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 	       cfg.makeConnectString(buf,sizeof(buf)));
       if (verbose == -2)
 	ndbout << ", failed." << endl;
-      return -1;
+      DBUG_RETURN(-1);
     }
     if (verbose == -1) {
       ndbout << "Retrying every " << retry_delay_in_seconds << " seconds";
@@ -426,7 +435,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   handle->socket    = sockfd;
   handle->connected = 1;
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /**
