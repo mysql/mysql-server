@@ -30,9 +30,13 @@ Created 3/26/1996 Heikki Tuuri
 /* This many pages must be undone before a truncate is tried within rollback */
 #define TRX_ROLL_TRUNC_THRESHOLD	1
 
+/* In crash recovery, the current trx to be rolled back */
+trx_t*		trx_roll_crash_recv_trx	= NULL;
+
 /* In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
 ib_longlong	trx_roll_max_undo_no;
+
 /* Auxiliary variable which tells the previous progress % we printed */
 ulint		trx_roll_progress_printed_pct;
 
@@ -432,6 +436,7 @@ loop:
 
 	ut_a(thr == que_fork_start_command(fork));
 	
+	trx_roll_crash_recv_trx	= trx;
 	trx_roll_max_undo_no = ut_conv_dulint_to_longlong(trx->undo_no);
 	trx_roll_progress_printed_pct = 0;
 	rows_to_undo = trx_roll_max_undo_no;
@@ -443,7 +448,7 @@ loop:
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-"  InnoDB: Rolling back trx with id %lu %lu, %lu%s rows to undo",
+"  InnoDB: Rolling back trx with id %lu %lu, %lu%s rows to undo\n",
 					(ulong) ut_dulint_get_high(trx->id),
 					(ulong) ut_dulint_get_low(trx->id),
 					(ulong) rows_to_undo, unit);
@@ -501,6 +506,8 @@ loop:
 					(ulong) ut_dulint_get_high(trx->id),
 					(ulong) ut_dulint_get_low(trx->id));
 	mem_heap_free(heap);
+
+	trx_roll_crash_recv_trx	= NULL;
 
 	goto loop;
 
@@ -877,17 +884,17 @@ try_again:
 	ut_ad(ut_dulint_cmp(ut_dulint_add(undo_no, 1), trx->undo_no) == 0);
 
 	/* We print rollback progress info if we are in a crash recovery
-	and the transaction has at least 1000 row operations to undo.
-	Transactions in crash recovery have sess == NULL. */
+	and the transaction has at least 1000 row operations to undo. */
 
-	if (trx->sess == NULL && trx_roll_max_undo_no > 1000) {
+	if (trx == trx_roll_crash_recv_trx && trx_roll_max_undo_no > 1000) {
+
 	  	progress_pct = 100 - (ulint)
 				((ut_conv_dulint_to_longlong(undo_no) * 100)
 				/ trx_roll_max_undo_no);
 		if (progress_pct != trx_roll_progress_printed_pct) {
 			if (trx_roll_progress_printed_pct == 0) {
 				fprintf(stderr,
-"\nInnoDB: Progress in percents: %lu", (ulong) progress_pct);
+"\nInnoDB: Progress in percents: %lu\n", (ulong) progress_pct);
 			} else {
 				fprintf(stderr,
 				" %lu", (ulong) progress_pct);
