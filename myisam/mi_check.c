@@ -1368,6 +1368,7 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,info->s->base.raid_chunks,
 			  MYF(MY_WME)));
+      info->rec_cache.file=-1; /* don't flush data to new_file, it's closed */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -2852,8 +2853,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	    if (!(to=mi_alloc_rec_buff(info,block_info.rec_len,
 				       &(sort_param->rec_buff))))
 	    {
-	      mi_check_print_error(param,"Not enough memory for blob at %s",
-			  llstr(sort_param->start_recpos,llbuff));
+	      mi_check_print_error(param,"Not enough memory for blob at %s (need %lu)",
+			  llstr(sort_param->start_recpos,llbuff), block_info.rec_len);
 	      DBUG_RETURN(1);
 	    }
 	  }
