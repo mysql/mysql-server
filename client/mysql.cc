@@ -22,7 +22,7 @@
  *   Andi Gutmans <andi@zend.com>
  *   Zeev Suraski <zeev@zend.com>
  *   Jani Tolonen <jani@mysql.com>
- *   Matt Wagner  <mwagner@mysql.com>
+ *   Matt Wagner  <matt@mysql.com>
  *   Jeremy Cole  <jcole@mysql.com>
  *   Tonu Samuel  <tonu@mysql.com>
  *
