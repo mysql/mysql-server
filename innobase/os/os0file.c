@@ -377,16 +377,33 @@ Creates a temporary file. In case of error, causes abnormal termination. */
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
-				/* out: temporary file handle (never NULL) */
+				/* out: temporary file handle, or NULL */
 {
-	FILE*	file	= tmpfile();
+	FILE*	file;
+#ifdef __WIN__
+	int	fd	= -1;
+	char*	name;
+	file = NULL;
+	if (NULL == (name = tempnam(fil_path_to_mysql_datadir, "ib"))
+		|| -1 == (fd = _open(name, _O_CREAT | _O_EXCL | _O_RDWR
+			| _O_SEQUENTIAL | _O_SHORT_LIVED | _O_TEMPORARY))
+		|| NULL == (file = fdopen(fd, "w+b"))) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Error: unable to create"
+			" temporary file %s\n", name ? name : "name");
+		if (fd != -1) {
+			_close(fd);
+		}
+	}
+	free(name);
+#else /* __WIN__ */
+	file = tmpfile();
 	if (file == NULL) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: unable to create temporary file\n",
 			stderr);
-		os_file_handle_error(NULL, "tmpfile");
-		ut_error;
 	}
+#endif /* __WIN__ */
 	return(file);
 }
 
