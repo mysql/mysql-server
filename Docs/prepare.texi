@@ -117,6 +117,8 @@
 * C Prepared statement datatypes::  
 * C Prepared statements function overview::  
 * C Prepared statement functions::  
+* multiple queries::            
+* date handling::               
 @end menu
 
 @node C Prepared statements, C Prepared statement datatypes, MySQL prepared statements, MySQL prepared statements
@@ -160,8 +162,10 @@ Prepared statements mainly uses the following two @code{MYSQL_STMT} and
 @sp 1
 
 @table @code
-@tindex MYSQL C type
+@tindex MYSQL_STMT C type
+
 @item MYSQL_STMT
+
 This structure represents a statement handle to prepared statements.It
 is used for all statement related functions. 
 
@@ -178,11 +182,14 @@ the system resources.
 @sp 1
 
 @tindex MYSQL_BIND C type
+
 @item MYSQL_BIND
-This structure is used in order to bind parameter buffers inorder to
-send the parameters data to @code{mysql_execute()} call; as well as to
-bind row buffers to fetch the result set data using @code{mysql_fetch()}.
-@end table
+
+This structure is used in order to bind parameter
+buffers(@code{mysql_bind_param()}) inorder to the parameters data to
+@code{mysql_execute()} call; as well as to  bind row
+buffers(@code{mysql_bind_result()}) to fetch the result set data using
+@code{mysql_fetch()}.
 
 @sp 1
 
@@ -191,6 +198,7 @@ The @code{MYSQL_BIND} structure contains the members listed here:
 
 
 @table @code
+
 @item enum enum_field_types buffer_type [input]
 The type of the buffer. The @code{type} value must be one of the following:
 
@@ -202,6 +210,10 @@ The type of the buffer. The @code{type} value must be one of the following:
 @item @code{MYSQL_TYPE_LONGLONG}
 @item @code{MYSQL_TYPE_FLOAT}
 @item @code{MYSQL_TYPE_DOUBLE}
+@item @code{MYSQL_TYPE_TIME}
+@item @code{MYSQL_TYPE_DATE}
+@item @code{MYSQL_TYPE_DATETIME}
+@item @code{MYSQL_TYPE_TIMESTAMP}
 @item @code{MYSQL_TYPE_STRING}
 @item @code{MYSQL_TYPE_VAR_STRING}
 @item @code{MYSQL_TYPE_TINY_BLOB}
@@ -218,49 +230,62 @@ data when the structure is used for result set bind.
 
 @sp 1
 
+@item unsigned long buffer_length [input]
+Length of the @code{*buffer} in bytes. For character and binary C data,
+the buffer_length specifies the length of the @code{*buffer} to be used
+as a parameter data in case if it is used with @code{mysql_bind_param()}
+or to return that many bytes when fetching results when this is used
+with @code{mysql_bind_result()}.
+
+
 @item long *length [input/output]
 Pointer to the buffer for the parameter's length. When the structure is
 used as a input parameter data binding, then this argument points to a
-buffer that, when @code{mysql_execute()} is called, contains one of the 
-following:
-
-@itemize @bullet
-@item
-The length of the parameter value stored in *buffer. This is ignored
-except for character or binary C data.
-@item 
-MYSQL_NULL_DATA. The parameter value is NULL.
-@item
-MYSQL_LONG_DATA. The parameter value is a long data and is supplied in
-chunks through @code{mysql_send_long_data()}.
-@end itemize
+buffer that, when @code{mysql_execute()} is called, contains the length
+of the parameter value stored in *buffer. This is ignored except for
+character or binary C data.
 
 If the length is a null pointer, then the protocol assumes that all
-input parameter values are non-NULL and that character and binary data
-are null terminated.
-
+character and binary data are null terminated.
 
 When this structure is used in output binding, then @code{mysql_fetch()}
-return the following values in the length buffer:
+return the the length of the data that is returned.
 
-@itemize @bullet
-@item
-The length of the data that is returned
-@item
-MYSQL_NULL_DATA, indicating the data returned is a NULL data.
-@end itemize
+@sp 1
 
+@item bool *is_null [input/output]
+Indicates if the parameter data is NULL or fetched data is NULL.
+@end table
 
-@c @item bool is_null [input]
-@c To indicate the parameter data is NULL. This is same as supplying
-@c MYSQL_NULL_DATA, -1 as the length in length pointer.
+@sp 1
 
+@tindex MySQL C type
 
-@c @item bool is_long_data [input]
-@c To indicate the parameter data is a long data, and the data will be
-@c supplied in chunks through @code{mysql_send_long_data()}.This is also
-@c same as supplying MYSQL_LONG_DATA, -2 as the length in length pointer.
-@c @end table
+@item MYSQL_TIME
+
+This structure is used to send and receive DATE, TIME and
+TIMESTAMP data directly to/from server.
+
+@sp 1
+
+@noindent
+The @code{MYSQL_TIME} structure contains the members listed here:
+
+@multitable @columnfractions .20  .20  .68
+
+@item @strong{Member}  @tab @strong{Type}  @tab  @strong{Description}
+
+@item @code{year}      @tab unsigned int   @tab Year.
+@item @code{month}     @tab unsigned int   @tab Month of the year.
+@item @code{day}       @tab unsigned int   @tab Day of the month.
+@item @code{hour}      @tab unsigned int   @tab Hour of the day(TIME).
+@item @code{minute}    @tab unsigned int   @tab Minute of the hour.
+@item @code{second}    @tab unsigned int   @tab Second of the minute.
+@item @code{neg}       @tab my_bool        @tab A boolean flag to
+indicate if the time is negative.
+@item @code{second_part} @tab unsigned long @tab Fraction part of the
+second(not yet used)
+@end multitable
 @end table
 
 
@@ -289,7 +314,10 @@ are described in greater detail in the later section.
 
 @item @strong{mysql_stmt_affected_rows()} @tab Returns the number of rows changes/deleted/inserted by the last UPDATE,DELETE,or INSERT query
 
-@item @strong{mysql_bind_result()} @tab Binds application data buffers to columns in the resultset.
+@item @strong{mysql_bind_result()} @tab Binds application data buffers
+to columns in the resultset.
+
+@item @strong{mysql_stmt_store_result()} @tab Retrieves the complete result set to the client
 
 @item @strong{mysql_fetch()} @tab Fetches the next rowset of data from the result set and returns data for all bound columns.
 
@@ -315,6 +343,7 @@ are described in greater detail in the later section.
 @end multitable
 
 @sp 1
+
 Call @code{mysql_prepare()} to prepare and initialize the statement
 handle, then call @code{mysql_bind_param()} to supply the parameters
 data, and then call @code{mysql_execute()} to execute the query. You can
@@ -421,7 +450,7 @@ You can get the statement error code and message using
 @code{mysql_stmt_errno()} and @code{mysql_stmt_error()} respectively.
 
 
-@node C Prepared statement functions,  , C Prepared statements function overview, MySQL prepared statements
+@node C Prepared statement functions, multiple queries, C Prepared statements function overview, MySQL prepared statements
 @subsection C Prepared Statement Function Descriptions
 
 You need to use the following functions when you want to prepare and
@@ -429,21 +458,24 @@ execute the queries.
 
 
 @menu
-* mysql_prepare::               
-* mysql_param_count::           
-* mysql_prepare_result::        
-* mysql_bind_param::            
-* mysql_execute::               
-* mysql_stmt_affected_rows::    
-* mysql_bind_result::           
-* mysql_fetch::                 
-* mysql_send_long_data::        
-* mysql_stmt_close::            
-* mysql_stmt_errno::            
-* mysql_stmt_error::            
-* mysql_commit::                
-* mysql_rollback::              
-* mysql_autocommit::            
+* mysql_prepare::               @code{mysql_prepare()}
+* mysql_param_count::           @code{mysql_param_count()}
+* mysql_prepare_result::        @code{mysql_prepare_result()}
+* mysql_bind_param::            @code{mysql_bind_param()}
+* mysql_execute::               @code{mysql_execute()}
+* mysql_stmt_affected_rows::    @code{mysql_stmt_affected_rows()}
+* mysql_bind_result::           @code{mysql_bind_result()}
+* mysql_stmt_store_result::     @code{mysql_stmt_store_result()}
+* mysql_fetch::                 @code{mysql_fetch()}
+* mysql_send_long_data::        @code{mysql_send_long_data()}
+* mysql_stmt_close::            @code{mysql_stmt_close()}
+* mysql_stmt_errno::            @code{mysql_stmt_errno()}
+* mysql_stmt_error::            @code{mysql_stmt_error()}
+* mysql_commit::                @code{mysql_commit()}
+* mysql_rollback::              @code{mysql_rollback()}
+* mysql_autocommit::            @code{mysql_autocommit()}
+* mysql_more_results::          @code{mysql_more_results()}
+* mysql_next_result::           @code{mysql_next_result()}
 @end menu
 
 @node mysql_prepare, mysql_param_count, C Prepared statement functions, C Prepared statement functions
@@ -487,6 +519,18 @@ The parameter markers are then bound to application variables using
 occured.
 
 @subsubheading Errors
+
+@item CR_COMMANDS_OUT_OF_SYNC
+Commands were executed in an improper order
+@item CR_OUT_OF_MEMORY
+Out of memory
+@item CR_SERVER_GONE_ERROR
+The MySQL server has gone away
+@item CR_SERVER_LOST
+The connection to the server was lost during the query
+@item CR_UNKNOWN_ERROR
+An unkown error occured
+@end table
 
 If the prepare is not successful, i.e. when @code{mysql_prepare()} returned a
 NULL statement, errors can be obtained by calling @code{mysql_error()}. 
@@ -573,6 +617,11 @@ the prepared query.
 
 @subsubheading Errors
 
+@item CR_OUT_OF_MEMOR
+Out of memory
+@item CR_UNKNOWN_ERROR
+An unknown error occured
+
 None
 
 
@@ -611,6 +660,14 @@ MYSQL_TYPE_LONGLONG
 MYSQL_TYPE_FLOAT
 @item
 MYSQL_TYPE_DOUBLE
+@item 
+MYSQL_TYPE_TIME
+@item 
+MYSQL_TYPE_DATE
+@item 
+MYSQL_TYPE_DATETIME
+@item 
+MYSQL_TYPE_TIMESTAMP
 @item
 MYSQL_TYPE_STRING
 @item
@@ -639,6 +696,10 @@ buffer type is non string or binary
 @item CR_UNSUPPORTED_PARAM_TYPE
 The conversion is not supported, possibly the buffer_type is illegal or
 its not from the above list of supported types.
+@item CR_OUT_OF_MEMOR
+Out of memory
+@item CR_UNKNOWN_ERROR
+An unknown error occured
 @end table
 
 @subsubheading Example
@@ -677,12 +738,10 @@ how to fetch the statement binary data, refer to @ref{mysql_fetch}.
 @code{mysql_execute()} returns the following return values:
 
 @multitable @columnfractions .30 .65
-@item @strong{Return Value}         @tab @strong{Description}
-@item MYSQL_SUCCESS,      0            @tab Successful
-@item MYSQL_STATUS_ERROR, 1            @tab Error occured. Error code and
+@item @strong{Return Value}    @tab @strong{Description}
+@item 0                        @tab Successful
+@item 1                        @tab Error occured. Error code and
 message can be obtained by calling @code{mysql_stmt_errno()} and @code{mysql_stmt_error()}.
-@item MYSQL_NEED_DATA,    99           @tab One of the parameter buffer is
-indicating the data suppy in chunks, and the supply is not yet complete.
 @end multitable
 
 
@@ -693,10 +752,16 @@ indicating the data suppy in chunks, and the supply is not yet complete.
 No query prepared prior to execution
 @item CR_ALL_PARAMS_NOT_BOUND
 Not all parameters data is supplied
-@item CR_SERVER_GONE_ERROR
-The MySQL server has gone away
-@item CR_UNKNOWN_ERROR
-An unkown error occured
+@item CR_COMMANDS_OUT_OF_SYNC 
+Commands were executed in an improper order. 
+@item CR_OUT_OF_MEMORY 
+Out of memory. 
+@item CR_SERVER_GONE_ERROR 
+The MySQL server has gone away. 
+@item CR_SERVER_LOST 
+The connection to the server was lost during the query. 
+@item CR_UNKNOWN_ERROR 
+An unknown error occurred. 
 @end table
 
 
@@ -714,7 +779,9 @@ ulonglong    affected_rows;
 long         length;
 unsigned int param_count;
 int          int_data;
+short        small_data;
 char         str_data[50], query[255];
+my_bool      is_null;
 
   /* Set autocommit mode to true */
   mysql_autocommit(mysql, 1);
@@ -735,8 +802,8 @@ char         str_data[50], query[255];
   @}
   
   /* Prepare a insert query with 3 parameters */
-  strcpy(query, "INSERT INTO test_table(col1,col2,col3) values(?,?,?)");
-  if(!(stmt = mysql_prepare(mysql,query,strlen(query))))
+  strmov(query, "INSERT INTO test_table(col1,col2,col3) values(?,?,?)");
+  if(!(stmt = mysql_prepare(mysql, query, strlen(query))))
   @{
     fprintf(stderr, "\n prepare, insert failed");
     fprintf(stderr, "\n %s", mysql_error(mysql));
@@ -757,19 +824,25 @@ char         str_data[50], query[255];
   /* Bind the data for the parameters */
 
   /* INTEGER PART */
-  memset(bind,0,sizeof(bind));
   bind[0].buffer_type= MYSQL_TYPE_LONG;
-  bind[0].buffer= (void *)&int_data;
- 
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+
   /* STRING PART */
   bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
-  bind[1].buffer= (void *)str_data;
+  bind[1].buffer= (char *)str_data;
   bind[1].buffer_length= sizeof(str_data);
- 
+  bind[1].is_null= 0;
+  bind[1].length= 0;
+
   /* SMALLINT PART */
   bind[2].buffer_type= MYSQL_TYPE_SHORT;
-  bind[2].buffer= (void *)&small_data;       
-  bind[2].length= (long *)&length;
+  bind[2].buffer= (char *)&small_data;
+  bind[2].is_null= &is_null;
+  bind[2].length= 0;
+  is_null= 0;
+
 
   /* Bind the buffers */
   if (mysql_bind_param(stmt, bind))
@@ -782,8 +855,9 @@ char         str_data[50], query[255];
   /* Specify the data */
   int_data= 10;             /* integer */
   strcpy(str_data,"MySQL"); /* string  */
+
   /* INSERT SMALLINT data as NULL */
-  length= MYSQL_NULL_DATA;
+  is_null= 1;
 
   /* Execute the insert statement - 1*/
   if (mysql_execute(stmt))
@@ -808,8 +882,8 @@ char         str_data[50], query[255];
   int_data= 1000;             
   strcpy(str_data,"The most popular open source database"); 
   small_data= 1000;         /* smallint */
-  length= 0;
-
+  is_null= 0;               /* reset NULL */
+ 
   /* Execute the insert statement - 2*/
   if (mysql_execute(stmt))
   @{
@@ -843,7 +917,7 @@ char         str_data[50], query[255];
     fprintf(stderr, "\n %s", mysql_error(mysql));
     exit(0);
   @}
-  fprintf(stdout, "Success, MySQL prepared statements are working great !!!");
+  fprintf(stdout, "Success, MySQL prepared statements are working!!!");
 @end example
 
 
@@ -885,7 +959,7 @@ from @ref{mysql_execute,mysql_execute()}.
 
 
 
-@node mysql_bind_result, mysql_fetch, mysql_stmt_affected_rows, C Prepared statement functions
+@node mysql_bind_result, mysql_stmt_store_result, mysql_stmt_affected_rows, C Prepared statement functions
 @subsubsection @code{mysql_bind_result()}
 
 @findex @code{mysql_bind_result()}
@@ -894,7 +968,7 @@ from @ref{mysql_execute,mysql_execute()}.
 
 @subsubheading Description
 
-@code{mysql_bind_result()} is ised to associate, or bind, columns in the
+@code{mysql_bind_result()} is used to associate, or bind, columns in the
 resultset to data buffers and length buffers. When @code{mysql_fetch()} is
 called to fetch data, the MySQL client protocol returns the data for the
 bound columns in the specified buffers.
@@ -937,6 +1011,14 @@ MYSQL_TYPE_LONGLONG
 MYSQL_TYPE_FLOAT
 @item
 MYSQL_TYPE_DOUBLE
+@item 
+MYSQL_TYPE_TIME
+@item 
+MYSQL_TYPE_DATE
+@item 
+MYSQL_TYPE_DATETIME
+@item 
+MYSQL_TYPE_TIMESTAMP
 @item
 MYSQL_TYPE_STRING
 @item
@@ -956,12 +1038,17 @@ MYSQL_TYPE_LONG_BLOB
 Zero if the bind was successful. Non-zero if an error occured.
 
 @subsubheading Errors
+
 @table @code
 @item CR_NO_PREPARE_STMT
 No prepared statement exists
 @item CR_UNSUPPORTED_PARAM_TYPE
 The conversion is not supported, possibly the buffer_type is illegal or
 its not from the list of supported types.
+@item CR_OUT_OF_MEMOR
+Out of memory
+@item CR_UNKNOWN_ERROR
+An unknown error occured
 @end table
 
 @subsubheading Example
@@ -971,7 +1058,53 @@ For the usage of @code{mysql_bind_result()} refer to the Example from
 
 
 
-@node mysql_fetch, mysql_send_long_data, mysql_bind_result, C Prepared statement functions
+
+@node mysql_stmt_store_result, mysql_fetch, mysql_bind_result, C Prepared statement functions
+@subsubsection @code{mysql_stmt_store_result()}
+
+@findex code{mysql_stmt_store_result()}
+
+@code{int mysql_stmt_store_result(MYSQL_STMT *stmt)}
+
+@subsubheading Description
+
+You must call @code{mysql_stmt_store_result()} for every query that
+successfully retrieves
+data(@code{SELECT},@code{SHOW},@code{DESCRIBE},@code{EXPLAIN}), and only
+if you want to buffer the complete result set by the client, so that the
+subsequent @code{mysql_fetch()} call returns buffered data.
+
+@sp 1
+
+You don't have to call @code{mysql_stmt_store_result()} for other
+queries, but it will not harm or cause any notable performance in all
+cases.You can detect if the query didn't have a result set by checking
+if @code{mysql_prepare_result()} returns 0. For more information refer
+to @ref{mysql_prepare_result}.
+
+@subsubheading Return Values
+
+@code{Zero} if the results are buffered successfully or @code{Non Zero} in case of an error.
+
+
+@subsubheading Errors
+
+@table @code
+@item CR_COMMANDS_OUT_OF_SYNC 
+Commands were executed in an improper order. 
+@item CR_OUT_OF_MEMORY 
+Out of memory. 
+@item CR_SERVER_GONE_ERROR 
+The MySQL server has gone away. 
+@item CR_SERVER_LOST 
+The connection to the server was lost during the query. 
+@item CR_UNKNOWN_ERROR 
+An unknown error occurred. 
+@end table
+
+
+
+@node mysql_fetch, mysql_send_long_data, mysql_stmt_store_result, C Prepared statement functions
 @subsubsection @code{mysql_fetch()}
 
 @findex code{mysql_fetch()}
@@ -982,7 +1115,9 @@ For the usage of @code{mysql_bind_result()} refer to the Example from
 
 @code{mysql_fetch()} returns the next rowset in the result set. It can
 be called only while the result set exists i.e. after a call to
-@code{mysql_execute()} that creates a result set.
+@code{mysql_execute()} that creates a result set or after
+@code{mysql_stmt_store_result()}, which is called after
+@code{mysql_execute()} to buffer the entire resultset.
 
 @sp 1
 
@@ -994,11 +1129,12 @@ set and the lengths are returned to the length pointer.
 Note that, all columns must be bound by the application.
 
 @sp 1
-If the data fetched is a NULL data, then the length buffer will have a
-value of @strong{MYSQL_NULL_DATA}, -1, else it will have the length of
-the data being fetched based on the buffer type specified by the
-application. All numeric, float and double types have the
-fixed length(in bytes) as listed below:
+If the data fetched is a NULL data, then the @code{is_null} value from
+@code{MYSQL_BIND} contains TRUE, 1, else the data and its length is
+returned to @code{*buffer} and @code{*length} variables based on the
+buffer type specified by the application. All numeric, float and double
+types have the fixed length(in bytes) as listed below:
+
 
 @multitable @columnfractions .10 .30
 @item @strong{Type}           @tab @strong{Length} 
@@ -1008,6 +1144,10 @@ fixed length(in bytes) as listed below:
 @item MYSQL_TYPE_FLOAT        @tab 4
 @item MYSQL_TYPE_LONGLONG     @tab 8
 @item MYSQL_TYPE_DOUBLE       @tab 8
+@item MYSQL_TYPE_TIME         @tab sizeof(MYSQL_TIME)
+@item MYSQL_TYPE_DATE         @tab sizeof(MYSQL_TIME)
+@item MYSQL_TYPE_DATETIME     @tab sizeof(MYSQL_TIME)
+@item MYSQL_TYPE_TIMESTAMP    @tab sizeof(MYSQL_TIME)
 @item MYSQL_TYPE_STRING       @tab data length
 @item MYSQL_TYPE_VAR_STRING   @tab data_length
 @item MYSQL_TYPE_BLOB         @tab data_length
@@ -1023,21 +1163,31 @@ where @code{*data_length} is nothing but the 'Actual length of the data'.
 
 @multitable @columnfractions .30 .65
 @item @strong{Return Value}         @tab @strong{Description}
-@item MYSQL_SUCCESS,      0            @tab Successful, the data has been
+@item 0            @tab Successful, the data has been
 fetched to application data buffers.
-@item MYSQL_STATUS_ERROR, 1            @tab Error occured. Error code and
+@item 1            @tab Error occured. Error code and
 message can be obtained by calling @code{mysql_stmt_errno()} and @code{mysql_stmt_error()}.
-@item MYSQL_NO_DATA,      100           @tab No more rows/data exists
+@item 100, MYSQL_NO_DATA           @tab No more rows/data exists
 @end multitable
 
 
 @subsubheading Errors
 @table @code
+@item CR_COMMANDS_OUT_OF_SYNC 
+Commands were executed in an improper order. 
+@item CR_OUT_OF_MEMORY 
+Out of memory. 
+@item CR_SERVER_GONE_ERROR 
+The MySQL server has gone away. 
+@item CR_SERVER_LOST 
+The connection to the server was lost during the query. 
+@item CR_UNKNOWN_ERROR 
+An unknown error occurred. 
 @item CR_UNSUPPORTED_PARAM_TYPE
-If the field type is DATE,DATETIME,TIME,or TIMESTAMP; and the
-application buffer type is non string based.
+If the buffer type is MYSQL_TYPE_DATE,DATETIME,TIME,or TIMESTAMP; and if
+the field type is not DATE, TIME, DATETIME or TIMESTAMP.
 @item
-All other un-supported conversions are returned from
+All other unsupported conversion errors are returned from
 @code{mysql_bind_result()}.
 @end table
 
@@ -1054,6 +1204,7 @@ MYSQL_RES  *result;
 int        int_data;
 long       int_length, str_length;
 char       str_data[50];
+my_bool    is_null[2];
 
   query= "SELECT col1, col2 FROM test_table WHERE col1= 10)");
   if (!(stmt= mysql_prepare(&mysql, query, strlen(query)))
@@ -1082,19 +1233,20 @@ char       str_data[50];
   /* Execute the SELECT query */
   if (mysql_execute(stmt))
   @{
-    fprintf(stderr, "\n execute didn't retuned expected return code, MYSQL_NEED_DATA");
+    fprintf(stderr, "\n execute failed");
+    fprintf(stderr, "\n %s", mysql_stmt_error(stmt));  
     exit(0);
   @}
 
   /* Bind the result data buffers */
-  bzero(bind, 0, sizeof(bind));
-
   bind[0].buffer_type= MYSQL_TYPE_LONG;
-  bind[0].buffer= (void *)&int_data;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
   bind[0].length= &int_length;
 
   bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
   bind[1].buffer= (void *)str_data;
+  bind[1].is_null= &is_null[1];
   bind[1].length= &str_length;
 
   if (mysql_bind_result(stmt, bind))
@@ -1111,9 +1263,17 @@ char       str_data[50];
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
     exit(0);
   @}  
+  
+  if (is_null[0])
+    fprintf(stdout, "\n Col1 data is NULL");
+  else
+    fprintf(stdout, "\n Col1: %d, length: %ld", int_data, int_length);
    
-  fprintf(stdout, "\n int_data: %d, length: %ld", int_data, int_length);
-  fprintf(stdout, "\n str_data: %s, length: %ld", str_data, str_length);
+   if (is_null[1])
+     fprintf(stdout, "\n Col2 data is NULL");
+   else
+    fprintf(stdout, "\n Col2: %s, length: %ld", str_data, str_length);
+
    
   /* call mysql_fetch again */
   if (mysql_fetch(stmt) |= MYSQL_NO_DATA)
@@ -1122,7 +1282,7 @@ char       str_data[50];
     exit(0);
   @}  
 
-  /* Free the prepare result */
+  /* Free the prepare result meta information */
   mysql_free_result(result);
 
   /* Free the statement handle */
@@ -1144,7 +1304,7 @@ char       str_data[50];
 @findex @code{mysql_send_long_data()}.
 
 @code{int mysql_send_long_data(MYSQL_STMT *stmt, unsigned int
-parameter_number, const char *data, ulong length, my_bool is_last_data)}
+parameter_number, const char *data, ulong length)}
 
 @subsubheading Description
 
@@ -1156,13 +1316,7 @@ binary data type.
 @sp 1
 The @code{data} is a pointer to buffer containing the actual data for
 the parameter represendted by @code{parameter_number}. The @code{length}
-indicates the amount of data to be sent in bytes, and @code{is_last_data} is a
-boolean flag to indicate the end of the data. If it is != 0, then the
-current call will be the end of the data, else it waits for the
-application to send all data. If the application doesn't ended the data
-supply from @code{mysql_send_long_data()}, then the
-@code{mysql_execute()} will return @strong{MYSQL_NEED_DATA}.
-
+indicates the amount of data to be sent in bytes.
 
 
 @subsubheading Return Values
@@ -1176,10 +1330,14 @@ occured.
 @table @code
 @item CR_INVALID_PARAMETER_NO
 Invalid parameter number
+@item CR_COMMANDS_OUT_OF_SYNC
+Commands were executed in an improper order.
 @item CR_SERVER_GONE_ERROR
 The MySQL server has gone away
+@item CR_OUT_OF_MEMOR
+Out of memory
 @item CR_UNKNOWN_ERROR
-An unkown error occured
+An unknown error occured
 @end table
 
 @subsubheading Example
@@ -1200,9 +1358,7 @@ long       length;
    memset(bind, 0, sizeof(bind));
    bind[0].buffer_type= MYSQL_TYPE_STRING;
    bind[0].length= &length;
-
-   /* Indicate that the data supply is in CHUNKS */
-   length= MYSQL_LONG_DATA;
+   bind[0].is_null= 0;
 
   /* Bind the buffers */
   if (mysql_bind_param(stmt, bind))
@@ -1212,22 +1368,16 @@ long       length;
     exit(0);
   @}
 
-  /* Execute the insert statement - It should return MYSQL_NEED_DATA */
-  if (mysql_execute(stmt) != MYSQL_NEED_DATA)
-  @{
-    fprintf(stderr, "\n execute didn't retuned expected return code, MYSQL_NEED_DATA");
-    exit(0);
-  @}
-
    /* Supply data in chunks to server */
-   if (!mysql_send_long_data(stmt,1,"MySQL",5,0))
+   if (!mysql_send_long_data(stmt,1,"MySQL",5))
   @{
     fprintf(stderr, "\n send_long_data failed");
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
     exit(0);
   @}
-   /* Supply the last piece of data */
-   if (mysql_send_long_data(stmt,1," - The most popular open source database",40,1))
+
+   /* Supply the next piece of data */
+   if (mysql_send_long_data(stmt,1," - The most popular open source database",40))
   @{
     fprintf(stderr, "\n send_long_data failed");
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
@@ -1258,7 +1408,10 @@ long       length;
 @subsubheading Description
 
 Closes the prepared statement. @code{mysql_stmt_close()} also
-deallocates the statement handle pointed to by @code{stmt}.
+deallocates the statement handle pointed to by @code{stmt}. 
+
+If the current query results are pending or un-read; this cancels the
+query results; so that next call can be executed.
 
 @subsubheading Return Values
 
@@ -1398,7 +1551,7 @@ None.
 
 
 
-@node mysql_autocommit,  , mysql_rollback, C Prepared statement functions
+@node mysql_autocommit, mysql_more_results, mysql_rollback, C Prepared statement functions
 @subsubsection @code{mysql_autocommit()}
 
 
@@ -1418,5 +1571,166 @@ Zero if successful. Non-zero if an error occured
 @subsubheading Errors
 
 None.
+
+
+@node mysql_more_results, mysql_next_result, mysql_autocommit, C Prepared statement functions
+@subsubsection @code{mysql_more_results()}
+
+
+@findex @code{mysql_more_results()}.
+
+@code{my_bool mysql_more_results(MYSQL *mysql)}
+
+@subsubheading Description
+
+Returns true if more results exists from the currently executed query,
+and the application must call @code{mysql_next_result()} to fetch the
+results.
+
+
+@subsubheading Return Values
+
+@code{TRUE} if more results exists. @code{FALSE} if no more results exists.
+
+@subsubheading Errors
+
+None.
+
+
+@node mysql_next_result,  , mysql_more_results, C Prepared statement functions
+@subsubsection @code{mysql_next_result()}
+
+
+@findex @code{mysql_next_result()}.
+
+@code{int mysql_next_result(MYSQL *mysql)}
+
+@subsubheading Description
+
+If more query results exists, then @code{mysql_next_result()} reads the
+next query results and returns the status back to application.
+
+@subsubheading Return Values
+
+Zero if successful. Non-zero if an error occured
+
+@subsubheading Errors
+
+None.
+
+
+
+@node multiple queries, date handling, C Prepared statement functions, MySQL prepared statements
+@subsection Handling multiple query executions
+
+
+From version 4.1 and above, MySQL supports the multi query execution
+using the single command. In order to do this, you must set the client flag
+@code{CLIENT_MULTI_QUERIES} option during the connection. 
+
+@sp 1
+
+By default @code{mysql_query()} or @code{mysql_real_query()} returns
+only the first query status and the subsequent queries status can
+be processed using @code{mysql_more_results()} and
+@code{mysql_next_result()}.
+
+
+@example
+
+  /* Connect to server with option CLIENT_MULTI_QUERIES */
+  mysql_real_query(..., CLIENT_MULTI_QUERIES);
+
+  /* Now execute multiple queries */
+  mysql_query(mysql,"DROP TABLE IF EXISTS test_table;\
+                     CREATE TABLE test_table(id int);\
+                     INSERT INTO test_table VALUES(10);\
+                     UPDATE test_table SET id=20 WHERE id=10;\
+                     SELECT * FROM test_table;\
+                     DROP TABLE test_table";
+  while (mysql_more_results(mysql))
+  {
+    /* Process all results */
+    mysql_next_result(mysql);
+    ...
+    printf("total affected rows: %lld", mysql_affected_rows(mysql));
+    ...
+    if ((result= mysql_store_result(mysql))
+    {
+      /* Returned a result set, process it */
+    }
+  }
+
+@end example
+
+
+
+@node date handling,  , multiple queries, MySQL prepared statements
+@subsection Handling DATE, TIME and TIMESTAMP
+
+Using the new binary protocol from MySQL 4.1 and above, one can send and
+receive the DATE, TIME and TIMESTAMP data using the @code{MYSQL_TIME}
+structure. 
+
+@code{MYSQL_TIME} structure consites of the following members:
+
+@itemize @bullet
+@item year
+@item month
+@item day
+@item hour
+@item minute
+@item second
+@item second_part
+@end itemize
+
+
+In order to send the data, one must use the prepared statements through
+@code{mysql_prepare()} and @code{mysql_execute()}; and must bind the
+parameter using type as @code{MYSQL_TYPE_DATE} inorder to process date
+value, @code{MYSQL_TYPE_TIME} for time and @code{MYSQL_TYPE_DATETIME} or
+@code{MYSQL_TYPE_TIMESTAMP} for datetime/timestamp using
+@code{mysql_bind_param()} when sending and @code{mysql_bind_results()}
+while receiving the data.
+
+@sp 1
+Here is a simple example; which inserts the DATE, TIME and TIMESTAMP data.
+
+@example
+
+MYSQL_TIME  ts;
+MYSQL_BIND  bind[3];
+MYSQL_STMT  *stmt;
+  
+  strmov(query, "INSERT INTO test_table(date_field, time_field,
+                                        timestamp_field) VALUES(?,?,?");
+
+  stmt= mysql_prepare(mysql, query, strlen(query))); 
+
+  /* setup input buffers for all 3 parameters */
+  bind[0].buffer_type= MYSQL_TYPE_DATE;
+  bind[0].buffer= (char *)&ts;
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+  ..
+  bind[1]= bind[2]= bind[0];
+  ..
+
+  mysql_bind_param(stmt, bind);
+
+  /* supply the data to be sent is the ts structure */
+  ts.year= 2002;
+  ts.month= 02;
+  ts.day= 03;
+
+  ts.hour= 10;
+  ts.minute= 45;
+  ts.second= 20;
+
+  mysql_execute(stmt);
+  .. 
+
+@end example
+
 
 @bye
