@@ -18,8 +18,28 @@ begin;
 insert t2 values (5);
 commit;
 # first COMMIT must be Query_log_event, second - Xid_log_event
---replace_result "xid=891" "xid=318" "xid=11" "xid=318" "xid=18" "xid=318"
+--replace_result "xid=18" "xid=11"
 show binlog events from 96;
-reset master;
 drop table t1,t2;
+
+#
+# binlog rotation after one big transaction
+#
+reset master;
+let $1=100;
+
+create table t1 (n int) engine=innodb;
+begin;
+--disable_query_log
+while ($1)
+{
+ eval insert into t1 values($1 + 4);
+ dec $1;
+}
+--enable_query_log
+commit;
+drop table t1;
+--replace_result "xid=29" "xid=18"
+show binlog events in 'master-bin.000001' from 96;
+show binlog events in 'master-bin.000002' from 96;
 
