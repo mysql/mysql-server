@@ -201,10 +201,11 @@ NdbReceiver::do_get_value(NdbReceiver * org,
   return;
 }
 
-void
+NdbRecAttr*
 NdbReceiver::copyout(NdbReceiver & dstRec){
-  NdbRecAttr* src = m_rows[m_current_row++];
-  NdbRecAttr* dst = dstRec.theFirstRecAttr;
+  NdbRecAttr *src = m_rows[m_current_row++];
+  NdbRecAttr *dst = dstRec.theFirstRecAttr;
+  NdbRecAttr *start = src;
   Uint32 tmp = m_hidden_count;
   while(tmp--)
     src = src->next();
@@ -215,6 +216,8 @@ NdbReceiver::copyout(NdbReceiver & dstRec){
     src = src->next();
     dst = dst->next();
   }
+
+  return start;
 }
 
 int
