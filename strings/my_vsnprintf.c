@@ -37,7 +37,6 @@ int my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
   int result;
   va_list args;
-  int result;
   va_start(args,fmt);
   result= my_vsnprintf(to, n, fmt, args);
   va_end(args);
