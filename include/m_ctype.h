@@ -144,6 +144,8 @@ typedef struct charset_info_st
   int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n,
 			   int radix, longlong val);
   
+  void (*fill)(struct charset_info_st *, char *to, uint len, int fill);
+  
   /* String-to-number convertion routines */
   long        (*strntol)(struct charset_info_st *, const char *s, uint l,
 			 int base, char **e, int *err);
@@ -219,6 +221,8 @@ int  my_long10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix,
 			   long int val);
 int my_longlong10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix,
 			      longlong val);
+
+void my_fill_8bit(CHARSET_INFO *cs, char* to, uint l, int fill);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      const char *ptr, uint ptr_length,
