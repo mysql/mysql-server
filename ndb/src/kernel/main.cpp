@@ -143,7 +143,7 @@ NDB_MAIN(ndb_kernel){
   // Set thread concurrency for Solaris' light weight processes
   int status;
   status = NdbThread_SetConcurrencyLevel(30);
-  NDB_ASSERT(status == 0, "Can't set appropriate concurrency level.");
+  assert(status == 0);
   
 #ifdef VM_TRACE
   // Create a signal logger
@@ -168,7 +168,7 @@ NDB_MAIN(ndb_kernel){
     globalEmulatorData.theThreadConfig->doStart(NodeState::SL_STARTING);
     break;
   default:
-    NDB_ASSERT(0, "Illegal state globalData.theRestartFlag");
+    assert("Illegal state globalData.theRestartFlag" == 0);
   }
 
   SocketServer socket_server;

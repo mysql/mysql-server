@@ -19,11 +19,6 @@
 
 #include <ndb_global.h>
 
-#ifndef NDB_ASSERT
-#define NDB_ASSERT(x, s) \
-  do { if (!(x)) { printf("%s\n", s); abort(); } } while (0)
-#endif
-
 /**
  * Bitmask implementation.  Size is given explicitly
  * (as first argument).  All methods are static.
@@ -140,7 +135,7 @@ public:
 inline bool
 BitmaskImpl::get(unsigned size, const Uint32 data[], unsigned n)
 {
-  NDB_ASSERT(n < (size << 5), "bit get out of range");
+  assert(n < (size << 5));
   return (data[n >> 5] & (1 << (n & 31))) != 0;
 }
 
@@ -153,7 +148,7 @@ BitmaskImpl::set(unsigned size, Uint32 data[], unsigned n, bool value)
 inline void
 BitmaskImpl::set(unsigned size, Uint32 data[], unsigned n)
 {
-  NDB_ASSERT(n < (size << 5), "bit set out of range");
+  assert(n < (size << 5));
   data[n >> 5] |= (1 << (n & 31));
 }
 
@@ -176,7 +171,7 @@ BitmaskImpl::assign(unsigned size, Uint32 dst[], const Uint32 src[])
 inline void
 BitmaskImpl::clear(unsigned size, Uint32 data[], unsigned n)
 {
-  NDB_ASSERT(n < (size << 5), "bit clear out of range");
+  assert(n < (size << 5));
   data[n >> 5] &= ~(1 << (n & 31));
 }
 

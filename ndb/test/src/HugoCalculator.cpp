@@ -28,7 +28,8 @@
 HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
 
   // The "id" column of this table is found in the first integer column
-  for (int i=0; i<m_tab.getNoOfColumns(); i++){ 
+  int i;
+  for (i=0; i<m_tab.getNoOfColumns(); i++){ 
     const NdbDictionary::Column* attr = m_tab.getColumn(i);
     if (attr->getType() == NdbDictionary::Column::Unsigned){
       m_idCol = i;
@@ -37,7 +38,7 @@ HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
   }
   
   // The "number of updates" column for this table is found in the last column
-  for (int i=m_tab.getNoOfColumns()-1; i>=0; i--){
+  for (i=m_tab.getNoOfColumns()-1; i>=0; i--){
     const NdbDictionary::Column* attr = m_tab.getColumn(i);
     if (attr->getType() == NdbDictionary::Column::Unsigned){
       m_updatesCol = i;
@@ -102,7 +103,8 @@ HugoCalculator::calcValue(int record,
     
     // Fill buf with some pattern so that we can detect
     // anomalies in the area that we don't fill with chars
-    for (int i = 0; i<attr->getLength(); i++)
+    int i;
+    for (i = 0; i<attr->getLength(); i++)
       buf[i] = ((i+2) % 255);
     
     // Calculate length of the string to create. We want the string 
@@ -116,7 +118,7 @@ HugoCalculator::calcValue(int record,
       else
 	len++;
     }
-    for(int i=0; i < len; i++)
+    for(i=0; i < len; i++)
       buf[i] = a[((val^i)%25)];
     buf[len] = 0;
   }
