@@ -44,6 +44,16 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     }
   }
   ref_length= sizeof(HEAP_PTR);
+  if (file)
+  {
+    /* Initialize variables for the opened table */
+    btree_keys.clear_all();
+    for (uint i= 0 ; i < table->keys ; i++)
+    {
+      if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
+	btree_keys.set_bit(i);
+    }
+  }
   return (file ? 0 : 1);
 }
 

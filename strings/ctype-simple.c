@@ -60,24 +60,68 @@ int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen,
 }
 
 
-int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
+/*
+  Compare strings, discarding end space
+
+  SYNOPSIS
+    my_strnncollsp_simple()
+    cs			character set handler
+    a			First string to compare
+    a_length		Length of 'a'
+    b			Second string to compare
+    b_length		Length of 'b'
+
+  IMPLEMENTATION
+    If one string is shorter as the other, then we space extend the other
+    so that the strings have equal length.
+
+    This will ensure that the following things hold:
+
+    "a"  == "a "
+    "a\0" < "a"
+    "a\0" < "a "
+
+  RETURN
+    < 0	 a <  b
+    = 0	 a == b
+    > 0	 a > b
+*/
+
+int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length, 
+			  const uchar *b, uint b_length)
 {
-  uchar *map= cs->sort_order;
-  int len;
-  
-  for ( ; slen && s[slen-1] == ' ' ; slen--);
-  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  
-  len  = ( slen > tlen ) ? tlen : slen;
-  
-  while (len--)
+  const uchar *map= cs->sort_order, *end;
+  uint length;
+
+  end= a + (length= min(a_length, b_length));
+  while (a < end)
   {
-    if (map[*s++] != map[*t++])
-      return ((int) map[s[-1]] - (int) map[t[-1]]);
+    if (map[*a++] != map[*b++])
+      return ((int) map[a[-1]] - (int) map[b[-1]]);
   }
-  return (int) (slen-tlen);
+  if (a_length != b_length)
+  {
+    int swap= 0;
+    /*
+      Check the next not space character of the longer key. If it's < ' ',
+      then it's smaller than the other key.
+    */
+    if (a_length < b_length)
+    {
+      /* put shorter key in s */
+      a_length= b_length;
+      a= b;
+      swap= -1;					/* swap sign of result */
+    }
+    for (end= a + a_length-length; a < end ; a++)
+    {
+      if (*a != ' ')
+	return ((int) *a - (int) ' ') ^ swap;
+    }
+  }
+  return 0;
 }
+
 
 void my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
 {
@@ -169,8 +213,8 @@ int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
 
 
 void my_hash_sort_simple(CHARSET_INFO *cs,
-				const uchar *key, uint len,
-				ulong *nr1, ulong *nr2)
+			 const uchar *key, uint len,
+			 ulong *nr1, ulong *nr2)
 {
   register uchar *sort_order=cs->sort_order;
   const uchar *pos = key;
@@ -953,22 +997,16 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
     {
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
-      do {
-	*min_str++ = ' ';		/* Because if key compression */
-	*max_str++ = (char) cs->max_sort_char;
+      do
+      {
+	*min_str++= 0;
+	*max_str++= (char) cs->max_sort_char;
       } while (min_str != min_end);
       return 0;
     }
     *min_str++= *max_str++ = *ptr;
   }
   *min_length= *max_length = (uint) (min_str - min_org);
-
-  /* Temporary fix for handling w_one at end of string (key compression) */
-  {
-    char *tmp;
-    for (tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
-      *--tmp=' ';
-  }
 
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' ';	/* Because if key compression */

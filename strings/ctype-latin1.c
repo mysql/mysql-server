@@ -319,51 +319,105 @@ uchar combo2map[]={
 
 
 static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-				  const uchar *s1, uint len1,
-				  const uchar *s2, uint len2)
+				  const uchar *a, uint a_length,
+				  const uchar *b, uint b_length)
 {
-  const uchar *e1 = s1 + len1;
-  const uchar *e2 = s2 + len2;
-  uchar c1, c12=0, c2, c22=0;
+  const uchar *a_end= a + a_length;
+  const uchar *b_end= b + b_length;
+  uchar a_char, a_extend= 0, b_char, b_extend= 0;
 
-  while ((s1 < e1 || c12) && (s2 < e2 || c22))
+  while ((a < a_end || a_extend) && (b < b_end || b_extend))
   {
-    if (c12)
+    if (a_extend)
     {
-      c1=c12; c12=0;
+      a_char=a_extend; a_extend=0;
     }
     else
     {
-      c12=combo2map[*s1];
-      c1=combo1map[*s1++];
+      a_extend=combo2map[*a];
+      a_char=combo1map[*a++];
     }
-    if (c22)
+    if (b_extend)
     {
-      c2=c22; c22=0;
+      b_char=b_extend; b_extend=0;
     }
     else
     {
-      c22=combo2map[*s2];
-      c2=combo1map[*s2++];
+      b_extend=combo2map[*b];
+      b_char=combo1map[*b++];
     }
-    if (c1 != c2) return (int)c1 - (int)c2;
+    if (a_char != b_char)
+      return (int) a_char - (int) b_char;
   }
-
   /*
     A simple test of string lengths won't work -- we test to see
     which string ran out first
   */
-  return (s1 < e1 || c12) ? 1 : (s2 < e2 || c22) ? -1 : 0;
+  return ((a < a_end || a_extend) ? 1 :
+	  (b < b_end || b_extend) ? -1 : 0);
 }
 
 
-static int my_strnncollsp_latin1_de(CHARSET_INFO *cs,
-				    const uchar *s, uint slen,
-				    const uchar *t, uint tlen)
+static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+				    const uchar *a, uint a_length,
+				    const uchar *b, uint b_length)
 {
-  for ( ; slen && s[slen-1] == ' ' ; slen--);
-  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_latin1_de(cs,s,slen,t,tlen);
+  const uchar *a_end= a + a_length;
+  const uchar *b_end= b + b_length;
+  uchar a_char, a_extend= 0, b_char, b_extend= 0;
+
+  while ((a < a_end || a_extend) && (b < b_end || b_extend))
+  {
+    if (a_extend)
+    {
+      a_char=a_extend;
+      a_extend= 0;
+    }
+    else
+    {
+      a_extend= combo2map[*a];
+      a_char=   combo1map[*a++];
+    }
+    if (b_extend)
+    {
+      b_char= b_extend;
+      b_extend= 0;
+    }
+    else
+    {
+      b_extend= combo2map[*b];
+      b_char=   combo1map[*b++];
+    }
+    if (a_char != b_char)
+      return (int) a_char - (int) b_char;
+  }
+  /* Check if double character last */
+  if (a_extend)
+    return 1;
+  if (b_extend)
+    return -1;
+
+  if (a != a_end || b != b_end)
+  {
+    int swap= 0;
+    /*
+      Check the next not space character of the longer key. If it's < ' ',
+      then it's smaller than the other key.
+    */
+    if (a == a_end)
+    {
+      /* put shorter key in a */
+      a_end= b_end;
+      a= b;
+      swap= -1;					/* swap sign of result */
+    }
+    for ( ; a < a_end ; a++)
+    {
+      if (*a != ' ')
+	return ((int) *a - (int) ' ') ^ swap;
+    }
+  }
+  return 0;
 }
 
 
@@ -385,6 +439,32 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+void my_hash_sort_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+			    const uchar *key, uint len,
+			    ulong *nr1, ulong *nr2)
+{
+  const uchar *end= key+len;
+  /*
+    Remove end space. We have to do this to be able to compare
+    'AE' and 'Ä' as identical
+  */
+  while (end > key && end[-1] == ' ')
+    end--;
+
+  for (; key < end ; key++)
+  {
+    uint X= (uint) combo1map[(uint) *key];
+    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * X) + (nr1[0] << 8);
+    nr2[0]+=3;
+    if ((X= combo2map[*key]))
+    {
+      nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * X) + (nr1[0] << 8);
+      nr2[0]+=3;
+    }
+  }
+}
+
+
 static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
 {
   my_strnncoll_latin1_de,
@@ -394,7 +474,7 @@ static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
   my_wildcmp_8bit,
   my_strcasecmp_8bit,
   my_instr_simple,
-  my_hash_sort_simple
+  my_hash_sort_latin1_de
 };
 
 

@@ -3536,7 +3536,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  {
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
-	    sel->cond=and_conds(sel->cond, tab->on_expr, 0);
+	    sel->cond=and_conds(join->thd, sel->cond, tab->on_expr, 0);
 	    if (sel->test_quick_select(join->thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
