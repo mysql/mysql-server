@@ -156,10 +156,8 @@ int main(int argc, char *argv[])
     uint row_count;
     struct errors *error_head;
     struct languages *lang_head;
-
     DBUG_ENTER("main");
-    LINT_INIT(error_head);
-    LINT_INIT(lang_head);
+
     charsets_dir= DEFAULT_CHARSET_DIR;
     if (get_options(&argc, &argv))
       DBUG_RETURN(1);
@@ -751,12 +749,9 @@ static struct errors *parse_error_string(char *str, int er_count)
 
 static struct languages *parse_charset_string(char *str)
 {
-  struct languages *head, *new_lang;
-
+  struct languages *head=0, *new_lang;
   DBUG_ENTER("parse_charset_string");
   DBUG_PRINT("enter", ("str: %s", str));
-
-  LINT_INIT(head);
 
   /* skip over keyword */
   str= find_end_of_word(str);
