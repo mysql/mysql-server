@@ -410,7 +410,6 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_VARCHAR:
-  case MYSQL_TYPE_BIT:
     break;
   }
   return FALSE;
@@ -498,20 +497,17 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
       }
       else // if (field->type() == MYSQL_TYPE_BIT)
       {
-	char buf[8];
-        String str(buf, (uint32) sizeof(buf), NULL);
+	longlong bits= field->val_int();
  
-        if (pack_len % 4)
-          // Round up bit field length to nearest word boundry
-          pack_len+= 4 - (pack_len % 4);
+	// Round up bit field length to nearest word boundry
+	pack_len= ((pack_len + 3) >> 2) << 2;
         DBUG_ASSERT(pack_len <= 8);
         if (field->is_null())
           // Set value to NULL
           DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL, pack_len) != 0));
         DBUG_PRINT("info", ("bit field"));
-        DBUG_DUMP("value", (char*)field->val_str(&str)->ptr(), pack_len);
-        DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)field->val_str(&str)->ptr(),
-                                     pack_len) != 0);
+        DBUG_DUMP("value", (char*)&bits, pack_len);
+	DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits, pack_len) != 0);
       }
     }
     // Blob type
