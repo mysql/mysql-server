@@ -304,6 +304,7 @@ select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
 select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
 select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
+select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
 
 create table t1 
 select
@@ -336,7 +337,8 @@ select
   soundex(_latin2'ab'),
   substring(_latin2'ab',1),
   insert(_latin2'abcd',2,3,_latin2'ef'),
-  replace(_latin2'abcd',_latin2'b',_latin2'B')
+  replace(_latin2'abcd',_latin2'b',_latin2'B'),
+  encode('abcd','ab')
 ;
 show create table t1;
 drop table t1;

@@ -1461,6 +1461,7 @@ void Item_func_encode::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
   maybe_null=args[0]->maybe_null;
+  collation.set(&my_charset_bin);
 }
 
 String *Item_func_encode::val_str(String *str)
@@ -1476,6 +1477,7 @@ String *Item_func_encode::val_str(String *str)
   res=copy_if_not_alloced(str,res,res->length());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
+  res->set_charset(&my_charset_bin);
   return res;
 }
 
