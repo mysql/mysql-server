@@ -26,3 +26,21 @@ Field 3,'Field 4|
 |Field 5' ,'Field 6|	NULL
 |Field 6|	| 'Field 7'|
 drop table t1;
+create table t1 (a int, b char(10));
+load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+a	b
+1	row 1
+2	row 2
+0	1234567890
+3	row 3
+0	1234567890
+truncate table t1;
+load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+select * from t1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+0	
+drop table t1;

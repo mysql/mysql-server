@@ -440,7 +440,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
    updated(0), found(0), fields(field_list), values(value_list),
    table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0)
+   do_update(1), trans_safe(0), transactional_tables(1)
 {}
 
 

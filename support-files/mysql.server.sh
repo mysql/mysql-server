@@ -145,7 +145,7 @@ case "$mode" in
     then
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file &
+      $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file >/dev/null 2>&1 &
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then

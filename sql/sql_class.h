@@ -608,7 +608,7 @@ public:
   String *field_term,*enclosed,*line_term,*line_start,*escaped;
   bool opt_enclosed;
   bool dumpfile;
-  uint skip_lines;
+  ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
   ~sql_exchange() {}
 };
