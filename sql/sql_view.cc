@@ -19,6 +19,7 @@
 #include "sql_acl.h"
 #include "sql_select.h"
 #include "parse_file.h"
+#include "sp.h"
 
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
@@ -523,9 +524,15 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   table->view_name.str= table->real_name;
   table->view_name.length= table->real_name_length;
 
-  //TODO: md5 test here and warning if it is differ
+  /*TODO: md5 test here and warning if it is differ */
 
-  table->view= lex= thd->lex= new st_lex;
+  /*
+    TODO: TABLE mem root should be used here when VIEW will be stored in
+    TABLE cache
+
+    now Lex placed in statement memory
+  */
+  table->view= lex= thd->lex= (LEX*) new(&thd->mem_root) st_lex_local;
   lex_start(thd, (uchar*)table->query.str, table->query.length);
   mysql_init_query(thd, true);
   lex->select_lex.select_number= ++thd->select_number;
@@ -563,6 +570,12 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   }
   if (!res && !thd->is_fatal_error)
   {
+
+    /* move SP to main LEX */
+    sp_merge_funs(old_lex, lex);
+    if (lex->spfuns.array.buffer)
+      hash_free(&lex->spfuns);
+
     old_next= table->next_global;
     if ((table->next_global= lex->query_tables))
       table->next_global->prev_global= &table->next_global;
