@@ -15,6 +15,8 @@ SELECT (SELECT 1), a;
 SELECT 1 as a FROM (SELECT 1) HAVING (SELECT a)=1;
 -- error 1054
 SELECT 1 FROM (SELECT (SELECT a));
+SELECT * FROM (SELECT 1 as id) WHERE id IN (SELECT * FROM (SELECT 1 as id) ORDER BY id LIMIT 1);
+
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);

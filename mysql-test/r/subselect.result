@@ -32,6 +32,9 @@ a
 1
 SELECT 1 FROM (SELECT (SELECT a));
 Unknown column 'a' in 'field list'
+SELECT * FROM (SELECT 1 as id) WHERE id IN (SELECT * FROM (SELECT 1 as id) ORDER BY id LIMIT 1);
+id
+1
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
