@@ -458,3 +458,13 @@ INSERT INTO t1 VALUES
 
 select val, count(*) from t1 group by val;
 drop table t1;
+
+#
+# Bug #5615: type of aggregate function column wrong when using group by
+#
+
+create table t1(a int, b datetime);
+insert into t1 values (1, NOW()), (2, NOW());
+create table t2 select MAX(b) from t1 group by a;
+show create table t2;
+drop table t1, t2;
