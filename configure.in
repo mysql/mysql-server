@@ -2659,6 +2659,7 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
 fi
 AC_SUBST(netware_dir)
 AC_SUBST(linked_netware_sources)
+AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 
 if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
