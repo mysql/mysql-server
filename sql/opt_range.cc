@@ -919,14 +919,13 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
 
   if (type == Item_func::LIKE_FUNC)
   {
-    if (!field->optimize_range())
-      DBUG_RETURN(0);				// Can't optimize this
-
     bool like_error;
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
     String tmp(buff1,sizeof(buff1)),*res;
     uint length,offset,min_length,max_length;
 
+    if (!field->optimize_range())
+      DBUG_RETURN(0);				// Can't optimize this
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
 
