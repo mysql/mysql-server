@@ -1351,10 +1351,10 @@ innobase_commit_low(
                 return;
         }
 
-/* The following will be enabled later when we put the 4.1 functionality back
-to 5.0. */
-#ifdef DISABLE_HAVE_REPLICATION
-        if (current_thd->slave_thread) {
+#ifdef HAVE_REPLICATION
+        THD *thd=current_thd;
+
+        if (thd && thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 
                 trx->mysql_master_log_file_name
@@ -6328,13 +6328,7 @@ innobase_xa_prepare(
                 /* We were instructed to prepare the whole transaction, or
                 this is an SQL statement end and autocommit is on */
 
-		/* If there is no active InnoDB transaction,
-		trx_prepare_for_mysql() will (temporarily) start one */
-	
-        	if (trx->active_trans == 0) {
-
-                	trx->active_trans = 1;
-        	}
+                ut_ad(trx->active_trans);
 
 		error = trx_prepare_for_mysql(trx);
 	} else {
@@ -6344,7 +6338,7 @@ innobase_xa_prepare(
 		if (trx->auto_inc_lock) {
 			/* If we had reserved the auto-inc lock for some
 			table in this SQL statement we release it now */
-		  	
+
 			row_unlock_table_autoinc_for_mysql(trx);
 		}
 		/* Store the current undo_no of the transaction so that we
