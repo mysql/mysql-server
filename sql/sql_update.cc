@@ -152,7 +152,7 @@ int mysql_update(THD *thd,
   table->used_keys=0;
   select=make_select(table,0,0,conds,&error);
   if (error ||
-      (select && select->check_quick(safe_update, limit)) || !limit)
+      (select && select->check_quick(thd, safe_update, limit)) || !limit)
   {
     delete select;
     free_underlaid_joins(thd, &thd->lex.select_lex);

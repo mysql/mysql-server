@@ -392,10 +392,15 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
-  /* Determines if which non-standard SQL behaviour should be enabled */
+  /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   ulong default_week_format;
   ulong max_seeks_for_key;
+  ulong range_alloc_block_size;
+  ulong query_alloc_block_size;
+  ulong query_prealloc_size;
+  ulong trans_alloc_block_size;
+  ulong trans_prealloc_size;
   ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which

@@ -128,7 +128,7 @@ void udf_init()
 
   my_rwlock_init(&THR_LOCK_udf,NULL);
   
-  init_sql_alloc(&mem, 1024,0);
+  init_sql_alloc(&mem, UDF_ALLOC_BLOCK_SIZE, 0);
   THD *new_thd = new THD;
   if (!new_thd ||
       hash_init(&udf_hash,system_charset_info,32,0,0,get_hash_key, NULL, 0))
