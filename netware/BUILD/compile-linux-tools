@@ -29,7 +29,7 @@ rm -f */*.linux
 ./configure --without-innodb --without-docs
 
 # build	tools only
-make clean config.h
+make clean all-local
 (cd dbug; make libdbug.a)
 (cd strings; make libmystrings.a)
 (cd mysys; make libmysys.a)

@@ -24,8 +24,8 @@ public:
     ValueType m_type;
     union {
       Uint32 m_int;
-      const char * m_string;
       Uint64 m_int64;
+      const char * m_string;
     };
   };
   
@@ -72,14 +72,14 @@ private:
   friend class ConstIterator;
 
   bool getByPos(Uint32 pos, Entry *) const;
-  Uint64 & get64(Uint32 index) const;
-  char * & getString(Uint32 index) const;
+  Uint64 * get64(Uint32 index) const;
+  char ** getString(Uint32 index) const;
 
   Uint32 m_size;
   Uint32 m_dataSize;
   Uint32 m_stringCount;
   Uint32 m_int64Count;
-  
+
   Uint32 m_values[1];
   void * m_data[1];
 };
