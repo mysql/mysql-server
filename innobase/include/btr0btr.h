@@ -315,7 +315,7 @@ btr_discard_page(
 	mtr_t*		mtr);	/* in: mtr */
 /************************************************************************
 Declares the latching order level for the page latch in the debug version. */
-UNIV_INLINE
+
 void
 btr_declare_page_latch(
 /*===================*/

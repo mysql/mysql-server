@@ -127,7 +127,7 @@ dyn_block_get_data(
 	dyn_block_t*	block);	/* in: dyn array block */
 /************************************************************************
 Gets the next block in a dyn array. */
-UNIV_INLINE
+
 dyn_block_t*
 dyn_block_get_next(
 /*===============*/
