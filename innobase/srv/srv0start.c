@@ -56,6 +56,8 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "que0que.h"
 
+ibool           srv_start_has_been_called  = FALSE;
+
 ulint           srv_sizeof_trx_t_in_ha_innodb_cc;
 
 ibool           srv_startup_is_before_trx_rollback_phase = FALSE;
@@ -970,6 +972,20 @@ innobase_start_or_create_for_mysql(void)
 		  srv_sizeof_trx_t_in_ha_innodb_cc, (ulint)sizeof(trx_t));
 		return(DB_ERROR);
 	}
+
+	/* Since InnoDB does not currently clean up all its internal data
+	   structures in MySQL Embedded Server Library server_end(), we
+	   print an error message if someone tries to start up InnoDB a
+	   second time during the process lifetime. */
+
+	if (srv_start_has_been_called) {
+	        fprintf(stderr,
+"InnoDB: Error:startup called second time during the process lifetime.\n"
+"InnoDB: In the MySQL Embedded Server Library you cannot call server_init()\n"
+"InnoDB: more than once during the process lifetime.\n");
+	}
+
+	srv_start_has_been_called = TRUE;
 
 	log_do_write = TRUE;
 /*	yydebug = TRUE; */
