@@ -1758,3 +1758,16 @@ SELECT * FROM v2;
 C1
 drop view v2, v1;
 drop table t1, t2;
+create table t1 (col1 char(5),col2 int,col3 int);
+insert into t1 values ('one',10,25), ('two',10,50), ('two',10,50), ('one',20,25), ('one',30,25);
+create view v1 as select * from t1;
+select col1,group_concat(col2,col3) from t1 group by col1;
+col1	group_concat(col2,col3)
+one	1025,2025,3025
+two	1050,1050
+select col1,group_concat(col2,col3) from v1 group by col1;
+col1	group_concat(col2,col3)
+two	1025,2025,3025
+two	1050,1050
+drop view v1;
+drop table t1;

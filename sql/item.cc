@@ -1853,6 +1853,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   {
     bool upward_lookup= FALSE;
     Field *from_field= (Field *)not_found_field;
+    /*
+      In case of view, find_field_in_tables() write pointer to view field
+      expression to 'reference', i.e. it substitute that expression instead
+      of this Item_field
+    */
     if ((from_field= find_field_in_tables(thd, this, tables, reference,
                                    IGNORE_EXCEPT_NON_UNIQUE,
                                    !any_privileges)) ==
@@ -1898,6 +1903,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
             Check table fields only if the subquery is used somewhere out of
             HAVING, or the outer SELECT does not use grouping (i.e. tables are
             accessible).
+
+            In case of view, find_field_in_tables() write pointer to view
+            field expression to 'reference', i.e. it substitute that
+            expression instead of this Item_field
           */
           if ((place != IN_HAVING ||
                (outer_sel->with_sum_func == 0 &&
@@ -2951,6 +2960,11 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
                (!outer_sel->with_sum_func &&
                 outer_sel->group_list.elements == 0)))
           {
+            /*
+              In case of view, find_field_in_tables() write pointer to view
+              field expression to 'reference', i.e. it substitute that
+              expression instead of this Item_ref
+            */
             if ((from_field= find_field_in_tables(thd, this, table_list,
                                                   reference,
                                                   IGNORE_EXCEPT_NON_UNIQUE,
