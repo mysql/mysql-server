@@ -38,7 +38,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.17";
+const char *VER="11.18";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -159,7 +159,7 @@ static int com_quit(String *str,char*),
 	   com_connect(String *str,char*), com_status(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
-           com_notee(String *str, char*);
+           com_notee(String *str, char*), com_shell(String *str, char *);
 
 #ifndef __WIN__
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -217,6 +217,9 @@ static COMMANDS commands[] = {
   { "source", '.', com_source, 1,
     "Execute a SQL script file. Takes a file name as an argument."},
   { "status", 's', com_status, 0, "Get status information from the server."},
+#ifndef __WIN__
+  { "system", '!', com_shell,  1, "Execute a system shell command."},
+#endif
   { "tee",    'T', com_tee,    1, 
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
@@ -2052,6 +2055,29 @@ com_rehash(String *buffer __attribute__((unused)),
 #endif
   return 0;
 }
+
+
+#ifndef __WIN__
+static int
+com_shell(String *buffer, char *line __attribute__((unused)))
+{
+  char *shell_cmd;
+  if (!(shell_cmd = strchr(line, ' ')))
+  {
+    put_info("Usage: \\! shell-command", INFO_ERROR);
+    return -1;
+  }
+  /* The output of the shell command does not
+     get directed to the pager or the outfile */
+  if(system(shell_cmd) == -1)
+  {
+    put_info(strerror(errno), INFO_ERROR, errno);
+    return -1;
+  }
+  return 0;
+}
+#endif
+
 
 static int
 com_print(String *buffer,char *line __attribute__((unused)))
