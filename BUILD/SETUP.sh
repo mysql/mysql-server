@@ -43,7 +43,13 @@ global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wch
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
+base_max_configs="--with-innodb --with-bdb --with-ndbcluster --with-archive-storage-engine --with-raid --with-openssl --with-raid --with-vio"
+max_leave_isam_configs="--with-innodb --with-bdb --with-ndbcluster --with-archive-storage-engine --with-raid --with-openssl --with-raid --with-vio --with-embedded-server"
+max_no_es_configs="$max_leave_isam_configs --without-isam"
+max_configs="$max_no_es_configs --with-embedded-server"
+
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
+amd64_cflags="-DBIG_TABLES"
 pentium_cflags="-mcpu=pentiumpro"
 pentium64_cflags="-mcpu=nocona -m64"
 ppc_cflags="-mpowerpc -mcpu=powerpc"
@@ -58,9 +64,11 @@ reckless_cflags="-O3 -fomit-frame-pointer "
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
+amd64_cxxflags="-DBIG_TABLES"
 
 base_configs="--prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline"
 static_link="--with-mysqld-ldflags=-all-static --with-client-ldflags=-all-static"
+amd64_configs=""
 alpha_configs=""	# Not used yet
 pentium_configs=""
 sparc_configs=""
