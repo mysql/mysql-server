@@ -144,7 +144,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
       return NDBT_FAILED;
     }
   
-    Uint32 tmp;
+    Uint64 tmp;
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&tmp);
     
     check = pTrans->execute(NoCommit);
