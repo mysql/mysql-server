@@ -116,9 +116,11 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
       }
       while ((maxbuffer= (int) (records/(keys-1)+1)) != skr);
 
-    if (sort_keys=(uchar **)my_malloc(keys*(sort_length+sizeof(char*))+HA_FT_MAXLEN, MYF(0)))
+    if ((sort_keys=(uchar **)my_malloc(keys*(sort_length+sizeof(char*))+
+				       HA_FT_MAXLEN, MYF(0))))
     {
-      if (init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer, maxbuffer/2))
+      if (init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
+			     maxbuffer/2))
 	my_free((gptr) sort_keys,MYF(0));
       else
 	break;
