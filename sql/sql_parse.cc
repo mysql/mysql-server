@@ -2146,11 +2146,12 @@ mysql_execute_command(void)
     break;
   case SQLCOM_SHOW_STATUS:
     res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars,
-		     OPT_GLOBAL);
+		     OPT_GLOBAL, &LOCK_status);
     break;
   case SQLCOM_SHOW_VARIABLES:
     res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     init_vars, lex->option_type);
+		     init_vars, lex->option_type,
+		     &LOCK_global_system_variables);
     break;
   case SQLCOM_SHOW_LOGS:
   {
@@ -3579,8 +3580,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   if (options & REFRESH_LOG)
   {
     /*
-      Flush the normal query log, the update log, the binary log, the slow query
-      log, and the relay log (if it exists).
+      Flush the normal query log, the update log, the binary log,
+      the slow query log, and the relay log (if it exists).
     */
     mysql_log.new_file(1);
     mysql_update_log.new_file(1);

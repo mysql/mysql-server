@@ -1020,14 +1020,25 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 
 void ha_key_cache(void)
 {
-  if (keybuff_size)
-    (void) init_key_cache((ulong) keybuff_size);
+  /*
+    The following mutex is not really needed as long as keybuff_size is
+    treated as a long value, but we use the mutex here to guard for future
+    changes.
+  */
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  long tmp= keybuff_size;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  if (tmp)
+    (void) init_key_cache(tmp);
 }
 
 
 void ha_resize_key_cache(void)
 {
-  (void) resize_key_cache((ulong) keybuff_size);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  long tmp= keybuff_size;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  (void) resize_key_cache(tmp);
 }
 
 

@@ -2370,7 +2370,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
       else
       {
 	net_printf(&thd->net,ER_WRONG_USAGE,"DB GRANT","GLOBAL PRIVILEGES");
-	result= -1;
+	result= 1;
       }
     }
   }

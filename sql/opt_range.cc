@@ -798,7 +798,8 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   table_map ref_tables=cond->used_tables();
   if (cond->type() != Item::FUNC_ITEM)
   {						// Should be a field
-    if (ref_tables & param->current_table)
+    if ((ref_tables & param->current_table) ||
+	(ref_tables & ~(param->prev_tables | param->read_tables)))
       DBUG_RETURN(0);
     DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE));
   }
