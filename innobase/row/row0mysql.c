@@ -1997,8 +1997,15 @@ row_drop_table_for_mysql(
 		goto funct_exit;
 	}
 
+	/* Check if the table is referenced by foreign key constraints from
+	some other table (not the table itself) */
+
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 	
+	while (foreign && foreign->foreign_table == table) {
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+
 	if (foreign && trx->check_foreigns) {
 		char*	buf	= dict_foreign_err_buf;
 

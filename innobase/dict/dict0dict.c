@@ -1846,6 +1846,24 @@ dict_index_build_internal_non_clust(
 /*====================== FOREIGN KEY PROCESSING ========================*/
 
 /*************************************************************************
+Checks if a table is referenced by foreign keys. */
+
+ibool
+dict_table_referenced_by_foreign_key(
+/*=================================*/
+				/* out: TRUE if table is referenced by a
+				foreign key */
+	dict_table_t*	table)	/* in: InnoDB table */
+{
+	if (UT_LIST_GET_LEN(table->referenced_list) > 0) {
+		
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
 Frees a foreign key struct. */
 static
 void
