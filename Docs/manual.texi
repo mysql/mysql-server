@@ -3118,7 +3118,7 @@ All things concerning programming with the C++ API to @strong{MySQL}.
 @item @email{plusplus-digest-subscribe@@lists.mysql.com} plusplus-digest
 A digest version of the @code{plusplus} list.
 
-@item @email{msql-mysql-modules-subscribe@@lists.mysql.com}
+@item @email{msql-mysql-modules-subscribe@@lists.mysql.com} msql-mysql-modules
 A list about the Perl support in @strong{MySQL}. msql-mysql-modules
 
 @item @email{msql-mysql-modules-digest-subscribe@@lists.mysql.com} msql-mysql-modules-digest
