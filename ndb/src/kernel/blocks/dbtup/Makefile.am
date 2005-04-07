@@ -18,6 +18,7 @@ libdbtup_a_SOURCES = \
 	DbtupGen.cpp \
         DbtupSystemRestart.cpp \
 	DbtupIndex.cpp \
+	DbtupScan.cpp \
         DbtupDebug.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am

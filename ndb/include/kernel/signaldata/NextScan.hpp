@@ -23,6 +23,7 @@ class NextScanReq {
   friend class Dblqh;
   friend class Dbacc;
   friend class Dbtux;
+  friend class Dbtup;
 public:
   // two sets of defs picked from lqh/acc
   enum ScanFlag {
@@ -50,6 +51,7 @@ private:
 class NextScanConf {
   friend class Dbacc;
   friend class Dbtux;
+  friend class Dbtup;
   friend class Dblqh;
 public:
   // length is less if no keyinfo or no next result

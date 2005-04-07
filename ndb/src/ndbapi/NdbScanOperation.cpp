@@ -113,7 +113,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
 
 int 
 NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
-			     Uint32 batch, 
+			     Uint32 scan_flags, 
 			     Uint32 parallel)
 {
   m_ordered = m_descending = false;
@@ -159,7 +159,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 
   m_keyInfo = lockExcl ? 1 : 0;
 
-  bool range = false;
+  bool rangeScan = false;
   if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
   {
     if (m_currentTable == m_accessTable){
@@ -172,8 +172,12 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     // Modify operation state
     theStatus = GetValue;
     theOperationType  = OpenRangeScanRequest;
-    range = true;
+    rangeScan = true;
   }
+
+  bool tupScan = (scan_flags & SF_TupScan);
+  if (tupScan && rangeScan)
+    tupScan = false;
   
   theParallelism = parallel;
 
@@ -202,7 +206,8 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   ScanTabReq::setLockMode(reqInfo, lockExcl);
   ScanTabReq::setHoldLockFlag(reqInfo, lockHoldMode);
   ScanTabReq::setReadCommittedFlag(reqInfo, readCommitted);
-  ScanTabReq::setRangeScanFlag(reqInfo, range);
+  ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
+  ScanTabReq::setTupScanFlag(reqInfo, tupScan);
   req->requestInfo = reqInfo;
 
   Uint64 transId = theNdbCon->getTransactionId();
@@ -1177,12 +1182,14 @@ error:
 
 int
 NdbIndexScanOperation::readTuples(LockMode lm,
-				  Uint32 batch,
-				  Uint32 parallel,
-				  bool order_by,
-                                  bool order_desc,
-				  bool read_range_no){
-  int res = NdbScanOperation::readTuples(lm, batch, 0);
+				  Uint32 scan_flags,
+				  Uint32 parallel)
+{
+  const bool order_by = scan_flags & SF_OrderBy;
+  const bool order_desc = scan_flags & SF_Descending;
+  const bool read_range_no = scan_flags & SF_ReadRangeNo;
+
+  int res = NdbScanOperation::readTuples(lm, scan_flags, 0);
   if(!res && read_range_no)
   {
     m_read_range_no = 1;

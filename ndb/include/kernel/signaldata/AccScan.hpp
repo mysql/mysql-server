@@ -34,6 +34,7 @@ class AccScanReq {
    */
   friend class Dbacc;
   friend class Dbtux;
+  friend class Dbtup;
 public:
   STATIC_CONST( SignalLength = 8 );
   
@@ -120,6 +121,7 @@ class AccScanConf {
    */
   friend class Dbacc;
   friend class Dbtux;
+  friend class Dbtup;
 
   /**
    * Reciver(s)
@@ -148,6 +150,7 @@ private:
 class AccCheckScan {
   friend class Dbacc;
   friend class Dbtux;
+  friend class Dbtup;
   friend class Dblqh;
   enum {
     ZCHECK_LCP_STOP = 0,

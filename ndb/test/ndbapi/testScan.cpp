@@ -316,11 +316,15 @@ int runScanReadIndex(NDBT_Context* ctx, NDBT_Step* step){
   while (pIdx && i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
     bool sort = (rand() % 100) > 50 ? true : false;
+    bool desc = (rand() % 100) > 50 ? true : false;
+    int scan_flags =
+      (NdbScanOperation::SF_OrderBy & -(int)sort) |
+      (NdbScanOperation::SF_Descending & -(int)desc);
     NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
     if (hugoTrans.scanReadRecords(GETNDB(step), pIdx,
 				  records, abort, parallelism,
 				  lm,
-				  sort) != 0){
+				  scan_flags) != 0){
       return NDBT_FAILED;
     }
     i++;
@@ -333,6 +337,8 @@ int runScanReadCommitted(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
+  bool tupScan = ctx->getProperty("TupScan");
+  int scan_flags = (NdbScanOperation::SF_TupScan & -(int)tupScan);
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -340,7 +346,8 @@ int runScanReadCommitted(NDBT_Context* ctx, NDBT_Step* step){
     g_info << i << ": ";
     if (hugoTrans.scanReadRecords(GETNDB(step), records, 
 				  abort, parallelism, 
-				  NdbOperation::LM_CommittedRead) != 0){
+				  NdbOperation::LM_CommittedRead,
+                                  scan_flags) != 0){
       return NDBT_FAILED;
     }
     i++;
@@ -1150,6 +1157,18 @@ TESTCASE("ScanReadCommitted240",
 	 "downgraded to the maximum parallelism value for the current config)"){
   INITIALIZER(runLoadTable);
   TC_PROPERTY("Parallelism", 240);
+  TC_PROPERTY("TupScan", (Uint32)0);
+  STEP(runScanReadCommitted);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanTupReadCommitted240", 
+	 "Verify scan requirement: It should be possible to scan read committed with "\
+	 "parallelism, test with parallelism 240(240 would automatically be "\
+	 "downgraded to the maximum parallelism value for the current config). "\
+         "Scans TUP pages directly without using ACC."){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("Parallelism", 240);
+  TC_PROPERTY("TupScan", 1);
   STEP(runScanReadCommitted);
   FINALIZER(runClearTable);
 }
