@@ -127,7 +127,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   param.ref_length= table->file->ref_length;
   param.addon_field= 0;
   param.addon_length= 0;
-  if (!(table->s->tmp_table || table->fulltext_searched))
+  if (!(table->file->table_flags() & HA_FAST_KEY_READ) &&
+      !table->fulltext_searched)
   {
     /* 
       Get the descriptors of all fields whose values are appended 
@@ -1301,27 +1302,29 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
   uint length= 0;
   uint fields= 0;
   uint null_fields= 0;
-
-  /* 
-     If there is a reference to a field in the query add it
-     to the the set of appended fields.
-     Note for future refinement:
-     This this a too strong condition.
-     Actually we need only the fields referred in the
-     result set. And for some of them it makes sense to use 
-     the values directly from sorted fields.
+  query_id_t query_id= thd->query_id;
+  /*
+    If there is a reference to a field in the query add it
+    to the the set of appended fields.
+    Note for future refinement:
+    This this a too strong condition.
+    Actually we need only the fields referred in the
+    result set. And for some of them it makes sense to use 
+    the values directly from sorted fields.
   */
   *plength= 0;
+
   /*
-     The following statement is added to avoid sorting in alter_table.
-     The fact is the filter 'field->query_id != thd->query_id'
-     doesn't work for alter table
+    The following statement is added to avoid sorting in alter_table.
+    The fact is the filter 'field->query_id != thd->query_id'
+    doesn't work for alter table
   */
-  if (thd->lex->sql_command != SQLCOM_SELECT)
+  if (thd->lex->sql_command != SQLCOM_SELECT &&
+      thd->lex->sql_command != SQLCOM_INSERT_SELECT)
     return 0;
   for (pfield= ptabfield; (field= *pfield) ; pfield++)
   {
-    if (field->query_id != thd->query_id)
+    if (field->query_id != query_id)
       continue;
     if (field->flags & BLOB_FLAG)
       return 0;
