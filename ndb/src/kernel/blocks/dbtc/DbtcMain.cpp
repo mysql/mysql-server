@@ -8840,6 +8840,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setReadCommittedFlag(tmp,ScanTabReq::getReadCommittedFlag(ri));
   ScanFragReq::setRangeScanFlag(tmp, ScanTabReq::getRangeScanFlag(ri));
   ScanFragReq::setDescendingFlag(tmp, ScanTabReq::getDescendingFlag(ri));
+  ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
   ScanFragReq::setAttrLen(tmp, scanTabReq->attrLenKeyLen & 0xFFFF);
   
   scanptr.p->scanRequestInfo = tmp;

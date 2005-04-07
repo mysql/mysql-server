@@ -55,7 +55,6 @@ struct Opt {
   unsigned m_pctnull;
   unsigned m_rows;
   unsigned m_samples;
-  unsigned m_scanbat;
   unsigned m_scanpar;
   unsigned m_scanstop;
   int m_seed;
@@ -83,7 +82,6 @@ struct Opt {
     m_pctnull(10),
     m_rows(1000),
     m_samples(0),
-    m_scanbat(0),
     m_scanpar(0),
     m_scanstop(0),
     m_seed(-1),
@@ -121,7 +119,6 @@ printhelp()
     << "  -pctnull N    pct NULL values in nullable column [" << d.m_pctnull << "]" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
-    << "  -scanbat N    scan batch per fragment (ignored by ndb api) [" << d.m_scanbat << "]" << endl
     << "  -scanpar N    scan parallelism [" << d.m_scanpar << "]" << endl
     << "  -seed N       srandom seed 0=loop number -1=random [" << d.m_seed << "]" << endl
     << "  -subloop N    subtest loop count [" << d.m_subloop << "]" << endl
@@ -1369,7 +1366,7 @@ int
 Con::readTuples(Par par)
 {
   assert(m_tx != 0 && m_scanop != 0);
-  CHKCON(m_scanop->readTuples(par.m_lockmode, par.m_scanbat, par.m_scanpar) == 0, *this);
+  CHKCON(m_scanop->readTuples(par.m_lockmode, 0, par.m_scanpar) == 0, *this);
   return 0;
 }
 
@@ -1377,7 +1374,7 @@ int
 Con::readIndexTuples(Par par)
 {
   assert(m_tx != 0 && m_indexscanop != 0);
-  CHKCON(m_indexscanop->readTuples(par.m_lockmode, par.m_scanbat, par.m_scanpar, par.m_ordered, par.m_descending) == 0, *this);
+  CHKCON(m_indexscanop->readTuples(par.m_lockmode, 0, par.m_scanpar, par.m_ordered, par.m_descending) == 0, *this);
   return 0;
 }
 
@@ -4949,12 +4946,6 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
     if (strcmp(arg, "-samples") == 0) {
       if (++argv, --argc > 0) {
         g_opt.m_samples = atoi(argv[0]);
-        continue;
-      }
-    }
-    if (strcmp(arg, "-scanbat") == 0) {
-      if (++argv, --argc > 0) {
-        g_opt.m_scanbat = atoi(argv[0]);
         continue;
       }
     }

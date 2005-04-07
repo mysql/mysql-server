@@ -7176,10 +7176,7 @@ void Dblqh::continueScanReleaseAfterBlockedLab(Signal* signal)
                                 scanptr.p->scanReleaseCounter -1,
                                 false);
   signal->theData[2] = NextScanReq::ZSCAN_COMMIT;
-  if (! scanptr.p->rangeScan)
-    sendSignal(tcConnectptr.p->tcAccBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
-  else
-    sendSignal(tcConnectptr.p->tcTuxBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
+  sendSignal(scanptr.p->scanBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
 }//Dblqh::continueScanReleaseAfterBlockedLab()
 
 /* -------------------------------------------------------------------------
@@ -7492,6 +7489,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
   const Uint8 keyinfo = ScanFragReq::getKeyinfoFlag(reqinfo);
   const Uint8 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
+  const Uint8 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED){
@@ -7641,13 +7639,8 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
   req->savePointId = tcConnectptr.p->savePointId;
-  // always use if-stmt to switch (instead of setting a "scan block ref")
-  if (! scanptr.p->rangeScan)
-    sendSignal(tcConnectptr.p->tcAccBlockref, GSN_ACC_SCANREQ, signal, 
-               AccScanReq::SignalLength, JBB);
-  else
-    sendSignal(tcConnectptr.p->tcTuxBlockref, GSN_ACC_SCANREQ, signal, 
-               AccScanReq::SignalLength, JBB);
+  sendSignal(scanptr.p->scanBlockref, GSN_ACC_SCANREQ, signal, 
+             AccScanReq::SignalLength, JBB);
 }//Dblqh::continueAfterReceivingAllAiLab()
 
 void Dblqh::scanAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length) 
@@ -8002,10 +7995,7 @@ void Dblqh::continueFirstScanAfterBlockedLab(Signal* signal)
   signal->theData[0] = scanptr.p->scanAccPtr;
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_NEXT;
-  if (! scanptr.p->rangeScan)
-    sendSignal(tcConnectptr.p->tcAccBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
-  else
-    sendSignal(tcConnectptr.p->tcTuxBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
+  sendSignal(scanptr.p->scanBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
   return;
 }//Dblqh::continueFirstScanAfterBlockedLab()
 
@@ -8075,10 +8065,8 @@ void Dblqh::continueAfterCheckLcpStopBlocked(Signal* signal)
   c_scanRecordPool.getPtr(scanptr);
   signal->theData[0] = scanptr.p->scanAccPtr;
   signal->theData[1] = AccCheckScan::ZNOT_CHECK_LCP_STOP;
-  if (! scanptr.p->rangeScan)
-    EXECUTE_DIRECT(DBACC, GSN_ACC_CHECK_SCAN, signal, 2);
-  else
-    EXECUTE_DIRECT(DBTUX, GSN_ACC_CHECK_SCAN, signal, 2);
+  EXECUTE_DIRECT(refToBlock(scanptr.p->scanBlockref), GSN_ACC_CHECK_SCAN,
+      signal, 2);
 }//Dblqh::continueAfterCheckLcpStopBlocked()
 
 /* -------------------------------------------------------------------------
@@ -8168,12 +8156,8 @@ void Dblqh::nextScanConfScanLab(Signal* signal)
 
     signal->theData[0] = scanptr.p->scanAccPtr;
     signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-    if (! scanptr.p->rangeScan)
-      sendSignal(tcConnectptr.p->tcAccBlockref,
-                 GSN_ACC_CHECK_SCAN, signal, 2, JBB);
-    else
-      sendSignal(tcConnectptr.p->tcTuxBlockref,
-                 GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+    sendSignal(scanptr.p->scanBlockref,
+               GSN_ACC_CHECK_SCAN, signal, 2, JBB);
     return;
   }//if
   jam();
@@ -8416,10 +8400,7 @@ void Dblqh::continueScanAfterBlockedLab(Signal* signal)
   signal->theData[0] = scanptr.p->scanAccPtr;
   signal->theData[1] = accOpPtr;
   signal->theData[2] = scanptr.p->scanFlag;
-  if (! scanptr.p->rangeScan)
-    sendSignal(tcConnectptr.p->tcAccBlockref, GSN_NEXT_SCANREQ, signal, 3,JBB);
-  else
-    sendSignal(tcConnectptr.p->tcTuxBlockref, GSN_NEXT_SCANREQ, signal, 3,JBB);
+  sendSignal(scanptr.p->scanBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
 }//Dblqh::continueScanAfterBlockedLab()
 
 /* -------------------------------------------------------------------------
@@ -8541,10 +8522,7 @@ void Dblqh::continueCloseScanAfterBlockedLab(Signal* signal)
   signal->theData[0] = scanptr.p->scanAccPtr;
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
-  if (! scanptr.p->rangeScan)
-    sendSignal(tcConnectptr.p->tcAccBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
-  else
-    sendSignal(tcConnectptr.p->tcTuxBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
+  sendSignal(scanptr.p->scanBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
 }//Dblqh::continueCloseScanAfterBlockedLab()
 
 /* ------------------------------------------------------------------------- 
@@ -8628,8 +8606,9 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   const Uint32 scanLockHold = ScanFragReq::getHoldLockFlag(reqinfo);
   const Uint32 keyinfo = ScanFragReq::getKeyinfoFlag(reqinfo);
   const Uint32 readCommitted = ScanFragReq::getReadCommittedFlag(reqinfo);
-  const Uint32 idx = ScanFragReq::getRangeScanFlag(reqinfo);
+  const Uint32 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
   const Uint32 descending = ScanFragReq::getDescendingFlag(reqinfo);
+  const Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   const Uint32 attrLen = ScanFragReq::getAttrLen(reqinfo);
   const Uint32 scanPrio = ScanFragReq::getScanPrio(reqinfo);
 
@@ -8647,11 +8626,19 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->m_max_batch_size_rows = max_rows;
   scanptr.p->m_max_batch_size_bytes = max_bytes;
 
+  if (! rangeScan && ! tupScan)
+    scanptr.p->scanBlockref = tcConnectptr.p->tcAccBlockref;
+  else if (! tupScan)
+    scanptr.p->scanBlockref = tcConnectptr.p->tcTuxBlockref;
+  else
+    scanptr.p->scanBlockref = tcConnectptr.p->tcTupBlockref;
+
   scanptr.p->scanErrorCounter = 0;
   scanptr.p->scanLockMode = scanLockMode;
   scanptr.p->readCommitted = readCommitted;
-  scanptr.p->rangeScan = idx;
+  scanptr.p->rangeScan = rangeScan;
   scanptr.p->descending = descending;
+  scanptr.p->tupScan = tupScan;
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->scanLocalref[0] = 0;
@@ -8683,8 +8670,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
    */
-  Uint32 start = (idx ? MAX_PARALLEL_SCANS_PER_FRAG : 1 );
-  Uint32 stop = (idx ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : MAX_PARALLEL_SCANS_PER_FRAG - 1);
+  Uint32 start = (rangeScan ? MAX_PARALLEL_SCANS_PER_FRAG : 1 );
+  Uint32 stop = (rangeScan ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : MAX_PARALLEL_SCANS_PER_FRAG - 1);
   stop += start;
   Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
     
@@ -9111,6 +9098,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
 /* ------------------------------------------------------------------------- */
   scanptr.p->m_max_batch_size_rows = 0;
   scanptr.p->rangeScan = 0;
+  scanptr.p->tupScan = 0;
   seizeTcrec();
   
   /**

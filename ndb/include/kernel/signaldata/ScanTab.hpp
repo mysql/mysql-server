@@ -81,6 +81,7 @@ private:
   static Uint8 getReadCommittedFlag(const UintR & requestInfo);
   static Uint8 getRangeScanFlag(const UintR & requestInfo);
   static Uint8 getDescendingFlag(const UintR & requestInfo);
+  static Uint8 getTupScanFlag(const UintR & requestInfo);
   static Uint8 getKeyinfoFlag(const UintR & requestInfo);
   static Uint16 getScanBatch(const UintR & requestInfo);
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
@@ -95,6 +96,7 @@ private:
   static void setReadCommittedFlag(UintR & requestInfo, Uint32 flag);
   static void setRangeScanFlag(UintR & requestInfo, Uint32 flag);
   static void setDescendingFlag(UintR & requestInfo, Uint32 flag);
+  static void setTupScanFlag(UintR & requestInfo, Uint32 flag);
   static void setKeyinfoFlag(UintR & requestInfo, Uint32 flag);
   static void setScanBatch(Uint32& requestInfo, Uint32 sz);
   static void setDistributionKeyFlag(Uint32& requestInfo, Uint32 flag);
@@ -108,6 +110,7 @@ private:
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11
  k = Keyinfo               - 1  Bit 12
+ t = Tup scan              - 1  Bit 13
  z = Descending (TUX)      - 1  Bit 14
  x = Range Scan (TUX)      - 1  Bit 15
  b = Scan batch            - 10 Bit 16-25 (max 1023)
@@ -115,7 +118,7 @@ private:
 
            1111111111222222222233
  01234567890123456789012345678901
- ppppppppl hck zxbbbbbbbbbb
+ ppppppppl hcktzxbbbbbbbbbb
 */
 
 #define PARALLELL_SHIFT     (0)
@@ -138,6 +141,9 @@ private:
 
 #define DESCENDING_SHIFT        (14)
 #define DESCENDING_MASK         (1)
+
+#define TUP_SCAN_SHIFT          (13)
+#define TUP_SCAN_MASK           (1)
 
 #define SCAN_BATCH_SHIFT (16)
 #define SCAN_BATCH_MASK  (1023)
@@ -178,6 +184,12 @@ inline
 Uint8
 ScanTabReq::getDescendingFlag(const UintR & requestInfo){
   return (Uint8)((requestInfo >> DESCENDING_SHIFT) & DESCENDING_MASK);
+}
+
+inline
+Uint8
+ScanTabReq::getTupScanFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> TUP_SCAN_SHIFT) & TUP_SCAN_MASK);
 }
 
 inline
@@ -232,6 +244,13 @@ void
 ScanTabReq::setDescendingFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setDescendingFlag");
   requestInfo |= (flag << DESCENDING_SHIFT);
+}
+
+inline
+void 
+ScanTabReq::setTupScanFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "ScanTabReq::setTupScanFlag");
+  requestInfo |= (flag << TUP_SCAN_SHIFT);
 }
 
 inline

@@ -64,6 +64,7 @@
 // DbtupSystemRestart.cpp 26000
 // DbtupIndex.cpp         28000
 // DbtupDebug.cpp         30000
+// DbtupScan.cpp          32000
 //------------------------------------------------------------------
 
 /*
@@ -511,6 +512,49 @@ struct Fragoperrec {
 };
 typedef Ptr<Fragoperrec> FragoperrecPtr;
 
+  // Position for use by scan
+  struct PagePos {
+    Uint32 m_fragId;            // "base" fragment id
+    Uint32 m_fragBit;           // two fragments in 5.0
+    Uint32 m_pageId;
+    Uint32 m_tupleNo;
+    bool m_match;
+  };
+
+  // Tup scan op (compare Dbtux::ScanOp)
+  struct ScanOp {
+    enum {
+      Undef = 0,
+      First = 1,                // before first entry
+      Locked = 4,               // at current entry (no lock needed)
+      Next = 5,                 // looking for next extry
+      Last = 6,                 // after last entry
+      Invalid = 9               // cannot return REF to LQH currently
+    };
+    Uint16 m_state;
+    Uint16 m_lockwait;          // unused
+    Uint32 m_userPtr;           // scanptr.i in LQH
+    Uint32 m_userRef;
+    Uint32 m_tableId;
+    Uint32 m_fragId;            // "base" fragment id
+    Uint32 m_fragPtrI[2];
+    Uint32 m_transId1;
+    Uint32 m_transId2;
+    PagePos m_scanPos;
+    union {
+    Uint32 nextPool;
+    Uint32 nextList;
+    };
+    Uint32 prevList;
+  };
+  typedef Ptr<ScanOp> ScanOpPtr;
+  ArrayPool<ScanOp> c_scanOpPool;
+
+  void scanFirst(Signal* signal, ScanOpPtr scanPtr);
+  void scanNext(Signal* signal, ScanOpPtr scanPtr);
+  void scanClose(Signal* signal, ScanOpPtr scanPtr);
+  void releaseScanOp(ScanOpPtr& scanPtr);
+
 struct Fragrecord {
   Uint32 nextStartRange;
   Uint32 currentPageRange;
@@ -532,6 +576,9 @@ struct Fragrecord {
   Uint32 fragTableId;
   Uint32 fragmentId;
   Uint32 nextfreefrag;
+
+  DLList<ScanOp> m_scanList;
+  Fragrecord(ArrayPool<ScanOp> & scanOpPool) : m_scanList(scanOpPool) {}
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
 
@@ -1083,6 +1130,11 @@ private:
   void execBUILDINDXREQ(Signal* signal);
   void buildIndex(Signal* signal, Uint32 buildPtrI);
   void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
+
+  // Tup scan
+  void execACC_SCANREQ(Signal* signal);
+  void execNEXT_SCANREQ(Signal* signal);
+  void execACC_CHECK_SCAN(Signal* signal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------

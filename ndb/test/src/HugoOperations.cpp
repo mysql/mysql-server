@@ -613,7 +613,7 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
   if(!pOp)
     return -1;
 
-  if(pOp->readTuples(lm, 1, 1)){
+  if(pOp->readTuples(lm, 0, 1)){
     return -1;
   }
   
