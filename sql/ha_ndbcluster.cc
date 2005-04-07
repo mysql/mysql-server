@@ -192,6 +192,8 @@ static const err_code_mapping err_map[]=
   { 827, HA_ERR_RECORD_FILE_FULL, 1 },
   { 832, HA_ERR_RECORD_FILE_FULL, 1 },
 
+  { 284, HA_ERR_TABLE_DEF_CHANGED, 0 },
+
   { 0, 1, 0 },
 
   { -1, -1, 1 }
@@ -470,16 +472,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
         if (err.code != 709)
           DBUG_RETURN(1);
       }
-      else
-      {
-        DBUG_PRINT("info", ("Table exist but must have changed"));
-        /* In 5.0, this should be replaced with a mapping to a mysql error */
-        my_printf_error(ER_UNKNOWN_ERROR,
-                        "Table definition has changed, "\
-                        "please retry transaction",
-                        MYF(0));
-        DBUG_RETURN(1);
-      }
+      DBUG_PRINT("info", ("Table exists but must have changed"));
     }
     break;
   default:
