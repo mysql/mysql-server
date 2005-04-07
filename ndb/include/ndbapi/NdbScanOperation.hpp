@@ -37,6 +37,29 @@ class NdbScanOperation : public NdbOperation {
 
 public:
   /**
+   * Scan flags.  OR-ed together and passed as second argument to
+   * readTuples.
+   */
+  enum ScanFlag {
+    SF_TupScan = (1 << 16),     // scan TUP - only LM_CommittedRead
+    SF_OrderBy = (1 << 24),     // index scan in order
+    SF_Descending = (2 << 24),  // index scan in descending order
+    SF_ReadRangeNo = (4 << 24)  // enable @ref get_range_no
+  };
+
+  /**
+   * readTuples
+   * 
+   * @param lock_mode Lock mode
+   * @param scan_flags see @ref ScanFlag
+   * @param parallel No of fragments to scan in parallel (0=max)
+   */ 
+  virtual
+  int readTuples(LockMode lock_mode = LM_Read, 
+                 Uint32 scan_flags = 0, Uint32 parallel = 0);
+
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  /**
    * readTuples
    * 
    * @param lock_mode Lock mode
@@ -44,10 +67,11 @@ public:
    * @param parallel No of fragments to scan in parallell
    * @note specifying 0 for batch and parallall means max performance
    */ 
+#ifdef ndb_readtuples_impossible_overload
   int readTuples(LockMode lock_mode = LM_Read, 
 		 Uint32 batch = 0, Uint32 parallel = 0);
+#endif
   
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   inline int readTuples(int parallell){
     return readTuples(LM_Read, 0, parallell);
   }
