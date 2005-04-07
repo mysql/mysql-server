@@ -116,7 +116,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
   The following parameters is to decide when to use an extra cache to
   optimise seeks when reading a big table in sorted order
 */
-#define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
+#define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (10L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
 #define MIN_ROWS_TO_USE_BULK_INSERT	 100
 
