@@ -8157,6 +8157,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
             */
             (*argp)->maybe_null=1;
           }
+          new_field->query_id= thd->query_id;
 	}
       }
     }
@@ -8203,6 +8204,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	group_null_items++;
 	new_field->flags|= GROUP_FLAG;
       }
+      new_field->query_id= thd->query_id;
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
