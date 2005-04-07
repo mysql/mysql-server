@@ -2235,6 +2235,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
         if (s->dependent & table->map)
           s->dependent |= table->reginfo.join_tab->dependent;
       }
+      if (s->dependent)
+        s->table->maybe_null= 1;
     }
     /* Catch illegal cross references for outer joins */
     for (i= 0, s= stat ; i < table_count ; i++, s++)
@@ -2484,6 +2486,11 @@ typedef struct key_field_t {		// Used when finding key fields
   uint		level;
   uint		optimize;
   bool		eq_func;
+  /*
+    If true, the condition this struct represents will not be satisfied
+    when val IS NULL.
+  */
+  bool          null_rejecting; 
 } KEY_FIELD;
 
 /* Values in optimize */
@@ -2500,6 +2507,12 @@ typedef struct key_field_t {		// Used when finding key fields
   that are internally transformed to something like:
 
   SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL 
+
+  KEY_FIELD::null_rejecting is processed as follows:
+  result has null_rejecting=true if it is set for both ORed references.
+  for example:
+    (t2.key = t1.field OR t2.key  =  t1.field) -> null_rejecting=true
+    (t2.key = t1.field OR t2.key <=> t1.field) -> null_rejecting=false
 */
 
 static KEY_FIELD *
@@ -2533,6 +2546,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 			     KEY_OPTIMIZE_EXISTS) |
 			    ((old->optimize | new_fields->optimize) &
 			     KEY_OPTIMIZE_REF_OR_NULL));
+            old->null_rejecting= old->null_rejecting && 
+                                 new_fields->null_rejecting;
 	  }
 	}
 	else if (old->eq_func && new_fields->eq_func &&
@@ -2544,6 +2559,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 			   KEY_OPTIMIZE_EXISTS) |
 			  ((old->optimize | new_fields->optimize) &
 			   KEY_OPTIMIZE_REF_OR_NULL));
+          old->null_rejecting= old->null_rejecting && 
+                               new_fields->null_rejecting;
 	}
 	else if (old->eq_func && new_fields->eq_func &&
 		 (old->val->is_null() || new_fields->val->is_null()))
@@ -2554,6 +2571,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  /* Remember the NOT NULL value */
 	  if (old->val->is_null())
 	    old->val= new_fields->val;
+          /* The referred expression can be NULL: */ 
+          old->null_rejecting= false;
 	}
 	else
 	{
@@ -2609,7 +2628,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 */
 
 static void
-add_key_field(KEY_FIELD **key_fields, uint and_level, COND *cond,
+add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
 	      Field *field, bool eq_func, Item **value, uint num_values,
 	      table_map usable_tables)
 {
@@ -2711,9 +2730,16 @@ add_key_field(KEY_FIELD **key_fields, uint and_level, COND *cond,
   (*key_fields)->val=		*value;
   (*key_fields)->level=		and_level;
   (*key_fields)->optimize=	exists_optimize;
+  /*
+    If the condition has form "tbl.keypart = othertbl.field" and 
+    othertbl.field can be NULL, there will be no matches if othertbl.field 
+    has NULL value.
+  */
+  (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
+                                 ((*value)->type() == Item::FIELD_ITEM) &&
+                                 ((Item_field*)*value)->field->maybe_null();
   (*key_fields)++;
 }
-
 
 /*
   Add possible keys to array of possible keys originated from a simple predicate
@@ -2739,7 +2765,7 @@ add_key_field(KEY_FIELD **key_fields, uint and_level, COND *cond,
 
 static void
 add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
-                     COND *cond, Item_field *field_item,
+                     Item_func *cond, Item_field *field_item,
                      bool eq_func, Item **val,
                      uint num_values, table_map usable_tables)
 {
@@ -2767,7 +2793,7 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
 }
 
 static void
-add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
+add_key_fields(KEY_FIELD **key_fields,uint *and_level,
 	       COND *cond, table_map usable_tables)
 {
   if (cond->type() == Item_func::COND_ITEM)
@@ -2779,20 +2805,20 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     {
       Item *item;
       while ((item=li++))
-	add_key_fields(stat,key_fields,and_level,item,usable_tables);
+	add_key_fields(key_fields,and_level,item,usable_tables);
       for (; org_key_fields != *key_fields ; org_key_fields++)
 	org_key_fields->level= *and_level;
     }
     else
     {
       (*and_level)++;
-      add_key_fields(stat,key_fields,and_level,li++,usable_tables);
+      add_key_fields(key_fields,and_level,li++,usable_tables);
       Item *item;
       while ((item=li++))
       {
 	KEY_FIELD *start_key_fields= *key_fields;
 	(*and_level)++;
-	add_key_fields(stat,key_fields,and_level,item,usable_tables);
+	add_key_fields(key_fields,and_level,item,usable_tables);
 	*key_fields=merge_key_fields(org_key_fields,start_key_fields,
 				     *key_fields,++(*and_level));
       }
@@ -2880,7 +2906,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       */   
       while ((item= it++))
       {
-        add_key_field(key_fields, *and_level, cond, item->field,
+        add_key_field(key_fields, *and_level, cond_func, item->field,
                       TRUE, &const_item, 1, usable_tables);
       }
     }
@@ -2900,7 +2926,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
         {
           if (!field->eq(item->field))
           {
-            add_key_field(key_fields, *and_level, cond, field,
+            add_key_field(key_fields, *and_level, cond_func, field,
                           TRUE, (Item **) &item, 1, usable_tables);
           }
         }
@@ -2952,6 +2978,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.keypart_map= (key_part_map) 1 << part;
 	  keyuse.used_tables=key_field->val->used_tables();
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.null_rejecting= key_field->null_rejecting;
 	  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 	}
       }
@@ -3045,8 +3072,22 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
 /*
   Update keyuse array with all possible keys we can use to fetch rows
-  join_tab is a array in tablenr_order
-  stat is a reference array in 'prefered' order.
+  
+  SYNOPSIS
+    update_ref_and_keys()
+      thd 
+      keyuse     OUT Put here ordered array of KEYUSE structures
+      join_tab       Array in tablenr_order
+      tables         Number of tables in join
+      cond           WHERE condition (note that the function analyzes 
+                     join_tab[i]->on_expr too)
+      normal_tables  tables not inner w.r.t some outer join (ones for which
+                     we can make ref access based the WHERE clause)
+      select_lex     current SELECT
+      
+  RETURN 
+   0 - OK
+   1 - Out of memory.
 */
 
 static bool
@@ -3071,7 +3112,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     return TRUE;
   if (cond)
   {
-    add_key_fields(join_tab,&end,&and_level,cond,normal_tables);
+    add_key_fields(&end,&and_level,cond,normal_tables);
     for (; field != end ; field++)
     {
       add_key_part(keyuse,field);
@@ -3094,7 +3135,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     */ 
     if (*join_tab[i].on_expr_ref)
     {
-      add_key_fields(join_tab,&end,&and_level,*join_tab[i].on_expr_ref,
+      add_key_fields(&end,&and_level,*join_tab[i].on_expr_ref,
 		     join_tab[i].table->map);
     }
     else 
@@ -3105,7 +3146,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       {
         NESTED_JOIN *nested_join= embedding->nested_join;
         if (nested_join->join_list.head() == tab)
-          add_key_fields(join_tab, &end, &and_level, embedding->on_expr,
+          add_key_fields(&end, &and_level, embedding->on_expr,
                          nested_join->used_tables);
       }
     }
@@ -4879,6 +4920,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   }
   j->ref.key_buff2=j->ref.key_buff+ALIGN_SIZE(length);
   j->ref.key_err=1;
+  j->ref.null_rejecting= 0;
   keyuse=org_keyuse;
 
   store_key **ref_key= j->ref.key_copy;
@@ -4903,6 +4945,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
       uint maybe_null= test(keyinfo->key_part[i].null_bit);
       j->ref.items[i]=keyuse->val;		// Save for cond removal
+      if (keyuse->null_rejecting) 
+        j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
       if (!keyuse->used_tables &&
 	  !(join->select_options & SELECT_DESCRIBE))
@@ -5061,6 +5105,91 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
 }
 
 
+inline void add_cond_and_fix(Item **e1, Item *e2)
+{
+  if (*e1)
+  {
+    Item *res;
+    if ((res= new Item_cond_and(*e1, e2)))
+    {
+      *e1= res;
+      res->quick_fix_field();
+    }
+  }
+  else
+    *e1= e2;
+}
+
+
+/*
+  Add to join_tab->select_cond[i] "table.field IS NOT NULL" conditions we've
+  inferred from ref/eq_ref access performed.
+
+  SYNOPSIS
+    add_not_null_conds()
+      join  Join to process
+
+  NOTES
+    This function is a part of "Early NULL-values filtering for ref access"
+    optimization.
+
+    Example of this optimization:
+      For query SELECT * FROM t1,t2 WHERE t2.key=t1.field
+      and plan " any-access(t1), ref(t2.key=t1.field) "
+      add "t1.field IS NOT NULL" to t1's table condition.
+    Description of the optimization:
+    
+      We look through equalities choosen to perform ref/eq_ref access,
+      pick equalities that have form "tbl.part_of_key = othertbl.field"
+      (where othertbl is a non-const table and othertbl.field may be NULL)
+      and add them to conditions on correspoding tables (othertbl in this
+      example).
+      
+      This optimization doesn't affect the choices that ref, range, or join
+      optimizer make. This was intentional because this was added after 4.1
+      was GA.
+      
+    Implementation overview
+      1. update_ref_and_keys() accumulates info about null-rejecting
+         predicates in in KEY_FIELD::null_rejecting
+      1.1 add_key_part saves these to KEYUSE.
+      2. create_ref_for_key copies them to TABLE_REF.
+      3. add_not_null_conds adds "x IS NOT NULL" to join_tab->select_cond of
+         appropiate JOIN_TAB members.
+*/
+
+static void add_not_null_conds(JOIN *join)
+{
+  DBUG_ENTER("add_not_null_conds");
+  for (uint i=join->const_tables ; i < join->tables ; i++)
+  {
+    JOIN_TAB *tab=join->join_tab+i;
+    if ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
+         !tab->table->maybe_null)
+    {
+      for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
+      {
+        if (tab->ref.null_rejecting & (1 << keypart))
+        {
+          Item *item= tab->ref.items[keypart];
+          DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
+          Item_field *not_null_item= (Item_field*)item;
+          JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
+          Item_func_isnotnull *notnull;
+          if (!(notnull= new Item_func_isnotnull(not_null_item)))
+            DBUG_VOID_RETURN;
+
+          notnull->quick_fix_field();
+          DBUG_EXECUTE("where",print_where(notnull,
+                                           referred_tab->table->alias););
+          add_cond_and_fix(&referred_tab->select_cond, notnull);
+        }
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
 /*
   Build a predicate guarded by match variables for embedding outer joins
 
@@ -5198,6 +5327,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   DBUG_ENTER("make_join_select");
   if (select)
   {
+    add_not_null_conds(join);
     table_map used_tables;
     if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
     {                        /* there may be a select without a cond. */    
@@ -5331,6 +5461,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond= sel->cond= NULL;
 
 	sel->head=tab->table;
+	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
 	if (tab->quick)
 	{
 	  /* Use quick key read if it's a constant and it's not used
