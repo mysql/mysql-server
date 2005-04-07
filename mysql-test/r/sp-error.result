@@ -503,4 +503,14 @@ ERROR 0A000: LOCK is not allowed in stored procedures
 create procedure bug6600()
 unlock table t1|
 ERROR 0A000: UNLOCK is not allowed in stored procedures
+drop procedure if exists bug9566|
+create procedure bug9566()
+begin
+select * from t1;
+end|
+lock table t1 read|
+call bug9566()|
+ERROR HY000: Table 'proc' was not locked with LOCK TABLES
+unlock tables|
+drop procedure bug9566|
 drop table t1|
