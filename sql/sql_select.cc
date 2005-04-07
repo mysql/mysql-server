@@ -2231,6 +2231,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
         if (s->dependent & table->map)
           s->dependent |= table->reginfo.join_tab->dependent;
       }
+      if (s->dependent)
+        s->table->maybe_null= 1;
     }
     /* Catch illegal cross references for outer joins */
     for (i= 0, s= stat ; i < table_count ; i++, s++)
@@ -2623,6 +2625,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 
 static void
 add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
+	      Field *field, bool eq_func, Item **value, uint num_values,
 	      table_map usable_tables)
 {
   uint exists_optimize= 0;
@@ -2758,7 +2761,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
 
 static void
 add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
-                     COND *cond, Item_field *field_item,
+                     Item_func *cond, Item_field *field_item,
                      bool eq_func, Item **val,
                      uint num_values, table_map usable_tables)
 {
@@ -2899,7 +2902,7 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
       */   
       while ((item= it++))
       {
-        add_key_field(key_fields, *and_level, cond, item->field,
+        add_key_field(key_fields, *and_level, cond_func, item->field,
                       TRUE, &const_item, 1, usable_tables);
       }
     }
@@ -2919,7 +2922,7 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
         {
           if (!field->eq(item->field))
           {
-            add_key_field(key_fields, *and_level, cond, field,
+            add_key_field(key_fields, *and_level, cond_func, field,
                           TRUE, (Item **) &item, 1, usable_tables);
           }
         }
@@ -3139,7 +3142,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       {
         NESTED_JOIN *nested_join= embedding->nested_join;
         if (nested_join->join_list.head() == tab)
-          add_key_fields(join_tab, &end, &and_level, embedding->on_expr,
+          add_key_fields(&end, &and_level, embedding->on_expr,
                          nested_join->used_tables);
       }
     }
@@ -5174,7 +5177,7 @@ static void add_not_null_conds(JOIN *join)
 
           null_rej->quick_fix_field();
           DBUG_EXECUTE("where",print_where(null_rej,
-                                           referred_tab->table->table_name););
+                                           referred_tab->table->alias););
           add_cond_and_fix(&referred_tab->select_cond, null_rej);
         }
       }
@@ -5454,7 +5457,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond= sel->cond= NULL;
 
 	sel->head=tab->table;
-	DBUG_EXECUTE("where",print_where(tmp,tab->table->table_name););
+	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
 	if (tab->quick)
 	{
 	  /* Use quick key read if it's a constant and it's not used
