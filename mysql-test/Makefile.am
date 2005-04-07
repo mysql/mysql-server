@@ -32,7 +32,7 @@ endif
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
-EXTRA_SCRIPTS = 	mysql-test-run.sh mysql-test-run.pl install_test_db.sh
+EXTRA_SCRIPTS = 	mysql-test-run.sh mysql-test-run.pl install_test_db.sh valgrind.supp
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
 test_SCRIPTS = 		mysql-test-run install_test_db 
 test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
@@ -59,7 +59,6 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/lib/init_db.sql $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
-	$(INSTALL_DATA) $(srcdir)/*.supp $(distdir)/
 
 install-data-local:
 	$(mkinstalldirs) \
