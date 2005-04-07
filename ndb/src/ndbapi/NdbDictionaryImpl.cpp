@@ -1501,7 +1501,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     if (col->m_autoIncrement) {
       if (haveAutoIncrement) {
         m_error.code = 4335;
-        return -1;
+        DBUG_RETURN(-1);
       }
       haveAutoIncrement = true;
       autoIncrementValue = col->m_autoIncrementInitialValue;
@@ -1622,7 +1622,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     ret= createTable(&tSignal, ptr);
 
     if (ret)
-      return ret;
+      DBUG_RETURN(ret);
 
     if (haveAutoIncrement) {
       if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
