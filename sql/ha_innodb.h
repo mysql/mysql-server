@@ -85,7 +85,6 @@ class ha_innobase: public handler
   	ha_innobase(TABLE *table): handler(table),
 	  int_table_flags(HA_REC_NOT_IN_SEQ |
 			  HA_NULL_IN_KEY |
-			  HA_FAST_KEY_READ |
 			  HA_CAN_INDEX_BLOBS |
 			  HA_CAN_SQL_HANDLER |
 			  HA_NOT_EXACT_COUNT |
