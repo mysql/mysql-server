@@ -70,9 +70,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
 		       type, name->m_name.length, name->m_name.str));
 
   /*
-    Speed up things if mysql.proc doesn't exists
-    mysql_proc_table_exists is set when on creates a stored procedure
-    or on flush privileges
+    Speed up things if mysql.proc doesn't exists. mysql_proc_table_exists
+    is set when we create or read stored procedure or on flush privileges.
   */
   if (!mysql_proc_table_exists && ltype == TL_READ)
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
@@ -98,7 +97,13 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
     if (! (table= open_ltable(thd, &tables, ltype)))
     {
       *tablep= NULL;
-      mysql_proc_table_exists= 0;
+      /*
+        Under explicit LOCK TABLES or in prelocked mode we should not
+        say that mysql.proc table does not exist if we are unable to
+        open it since this condition may be transient.
+      */
+      if (!(thd->locked_tables || thd->prelocked_mode))
+        mysql_proc_table_exists= 0;
       DBUG_RETURN(SP_OPEN_TABLE_FAILED);
     }
     *opened= TRUE;
