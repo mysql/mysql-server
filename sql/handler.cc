@@ -304,6 +304,7 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_NO_SUCH_TABLE,          "No such table: '%.64s'");
   SETMSG(HA_ERR_TABLE_EXIST,            ER(ER_TABLE_EXISTS_ERROR));
   SETMSG(HA_ERR_NO_CONNECTION,          "Could not connect to storage engine");
+  SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1645,6 +1646,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_NO_REFERENCED_ROW:
     textno=ER_NO_REFERENCED_ROW;
+    break;
+  case HA_ERR_TABLE_DEF_CHANGED:
+    textno=ER_TABLE_DEF_CHANGED;
     break;
   case HA_ERR_NO_SUCH_TABLE:
   {
