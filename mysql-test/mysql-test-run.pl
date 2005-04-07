@@ -635,7 +635,6 @@ sub command_line_setup () {
     {
       mtr_error("Can't use --extern with --embedded-server");
     }
-    $opt_result_ext=  ".es";
   }
 
   # FIXME don't understand what this is

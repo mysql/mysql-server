@@ -413,25 +413,16 @@ eval set storage_engine=$default;
 
 create table t1 (a bigint unsigned auto_increment primary key, b int,
   key (b, a)) engine=heap;
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-select * from t1;                                                               
+insert t1 (b) values (1),(1),(1),(1),(1),(1),(1),(1);
+select * from t1;
 drop table t1;
+
 create table t1 (a int not null, b int not null auto_increment,
   primary key(a, b), key(b)) engine=heap;
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-select * from t1;                                                               
+insert t1 (a) values (1),(1),(1),(1),(1),(1),(1),(1);
+select * from t1;
 drop table t1;
+
+--error 1075
+create table t1 (a int not null, b int not null auto_increment,
+  primary key(a, b)) engine=heap;
