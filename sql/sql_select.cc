@@ -5171,14 +5171,14 @@ static void add_not_null_conds(JOIN *join)
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
-          Item_func_isnotnull *null_rej;
-          if (!(null_rej= new Item_func_isnotnull(not_null_item)))
+          Item_func_isnotnull *notnull;
+          if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
 
-          null_rej->quick_fix_field();
-          DBUG_EXECUTE("where",print_where(null_rej,
+          notnull->quick_fix_field();
+          DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias););
-          add_cond_and_fix(&referred_tab->select_cond, null_rej);
+          add_cond_and_fix(&referred_tab->select_cond, notnull);
         }
       }
     }
