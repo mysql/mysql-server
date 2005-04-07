@@ -8417,7 +8417,10 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
     {
       ch= *b++;
       if (b >= (uchar*) end)
+      {
+        *error= 1;
         return chbeg - beg;         /* unexpected EOL */
+      }
     }
 
     if (ch >= 0xA1 && ch <= 0xFE &&
