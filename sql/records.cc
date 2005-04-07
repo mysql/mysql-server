@@ -89,7 +89,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 	(ulonglong) MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&
 	info->io_cache->end_of_file/info->ref_length * table->s->reclength >
 	(my_off_t) MIN_ROWS_TO_USE_TABLE_CACHE &&
-	!table->s->blob_fields)
+	!table->s->blob_fields &&
+        info->ref_length <= MAX_REFLENGTH)
     {
       if (! init_rr_cache(thd, info))
       {
@@ -348,7 +349,8 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
 					   MYF(0))))
     DBUG_RETURN(1);
 #ifdef HAVE_purify
-  bzero(info->cache,rec_cache_size);		// Avoid warnings in qsort
+  // Avoid warnings in qsort
+  bzero(info->cache,rec_cache_size+info->cache_records* info->struct_length+1);
 #endif
   DBUG_PRINT("info",("Allocated buffert for %d records",info->cache_records));
   info->read_positions=info->cache+rec_cache_size;

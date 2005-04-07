@@ -1179,7 +1179,7 @@ start_master()
           --default-character-set=$CHARACTER_SET \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
-          --innodb_data_file_path=ibdata1:50M \
+          --innodb_data_file_path=ibdata1:128M:autoextend \
 	  --open-files-limit=1024 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
@@ -1200,7 +1200,7 @@ start_master()
           $USE_NDBCLUSTER \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
-          --innodb_data_file_path=ibdata1:50M \
+          --innodb_data_file_path=ibdata1:128M:autoextend \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
