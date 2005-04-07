@@ -343,8 +343,9 @@ void THD::change_user(void)
 void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
-  /* TODO uncomment the line below when binlog will be able to prepare */
-  // if (transaction.xa_state != XA_PREPARED)
+#ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
+  if (transaction.xa_state != XA_PREPARED)
+#endif
     ha_rollback(this);
   if (locked_tables)
   {
