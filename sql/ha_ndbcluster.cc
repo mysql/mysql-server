@@ -2970,7 +2970,11 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
   m_rows_inserted= 0;
-  m_rows_to_insert= rows; 
+  if (rows == 0)
+    /* We don't know how many will be inserted, guess */
+    m_rows_to_insert= m_autoincrement_prefetch;
+  else
+    m_rows_to_insert= rows; 
 
   /* 
     Calculate how many rows that should be inserted
