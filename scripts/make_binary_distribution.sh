@@ -208,6 +208,7 @@ rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 
 for i in mysql-test/mysql-test-run mysql-test/install_test_db \
          mysql-test/mysql-test-run.pl mysql-test/README \
+	 mysql-test/valgrind.supp \
          netware/mysql_test_run.nlm netware/install_test_db.ncf
 do
   if [ -f $i ]

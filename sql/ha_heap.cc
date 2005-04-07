@@ -548,6 +548,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
   hp_create_info.max_table_size=current_thd->variables.max_heap_table_size;
+  hp_create_info.with_auto_increment= found_real_auto_increment;
   max_rows = (ha_rows) (hp_create_info.max_table_size / mem_per_row);
   error= heap_create(fn_format(buff,name,"","",4+2),
 		     keys, keydef, share->reclength,

@@ -1103,7 +1103,8 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();
-    while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
+    while (!net->error && net->vio != 0 &&
+           !(thd->killed == THD::KILL_CONNECTION))
     {
       net->no_send_error= 0;
       if (do_command(thd))

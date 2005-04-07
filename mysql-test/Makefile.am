@@ -32,21 +32,21 @@ endif
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
-EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh
+EXTRA_SCRIPTS = 	mysql-test-run.sh mysql-test-run.pl install_test_db.sh valgrind.supp
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
 test_SCRIPTS = 		mysql-test-run install_test_db 
 test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
 CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
-INCLUDES =			-I$(srcdir)/../include -I../include -I..
-EXTRA_PROGRAMS =		mysql_test_run_new
+INCLUDES =		-I$(srcdir)/../include -I../include -I..
+EXTRA_PROGRAMS =	mysql_test_run_new
 noinst_HEADERS =	my_manage.h
 mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c my_create_tables.c
 
 
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
-		$(distdir)/std_data
+		$(distdir)/std_data $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(srcdir)/t/*.slave-mi $(distdir)/t
@@ -57,13 +57,16 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/lib/init_db.sql $(distdir)/lib
+	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
 
 install-data-local:
 	$(mkinstalldirs) \
 		$(DESTDIR)$(testdir)/t \
 		$(DESTDIR)$(testdir)/r \
 		$(DESTDIR)$(testdir)/include \
-		$(DESTDIR)$(testdir)/std_data
+		$(DESTDIR)$(testdir)/std_data \
+		$(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t
@@ -79,6 +82,8 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/lib/init_db.sql $(DESTDIR)$(testdir)/lib
+	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 
 std_data/%.pem:
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data

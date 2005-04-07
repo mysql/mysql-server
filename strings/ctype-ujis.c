@@ -8253,11 +8253,12 @@ my_jisx0212_uni_onechar(int code){
 
 static
 uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *beg, const char *end, uint pos)
+                             const char *beg, const char *end,
+                             uint pos, int *error)
 {
   const uchar *b= (uchar *) beg;
   
-  for ( ; pos && b < (uchar*) end; pos--, b++)
+  for ( *error= 0 ; pos && b < (uchar*) end; pos--, b++)
   {
     char *chbeg;
     uint ch= *b;
@@ -8267,12 +8268,16 @@ uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
     
     chbeg= (char *) b++;
     if (b >= (uchar *) end)         /* need more bytes */
+    {
+      *error= 1;
       return chbeg - beg;           /* unexpected EOL  */ 
+    }
     
     if (ch == 0x8E)                 /* [x8E][xA0-xDF] */
     {
       if (*b >= 0xA0 && *b <= 0xDF)
         continue;
+      *error= 1;
       return chbeg - beg;           /* invalid sequence */
     }
     
@@ -8280,12 +8285,16 @@ uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
     {
       ch= *b++;
       if (b >= (uchar*) end)
+      {
+        *error= 1;
         return chbeg - beg;         /* unexpected EOL */
+      }
     }
     
     if (ch >= 0xA1 && ch <= 0xFE &&
         *b >= 0xA1 && *b <= 0xFE)   /* [xA1-xFE][xA1-xFE] */
       continue;
+    *error= 1;
     return chbeg - beg;             /* invalid sequence */
   }
   return b - (uchar *) beg;
