@@ -161,6 +161,7 @@ class ha_innobase: public handler
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
         char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
+	bool can_switch_engines();
   	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);	
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
