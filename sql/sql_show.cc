@@ -2312,7 +2312,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         }
       }
 #else
-      end=strmov(end,"");
+      *end= 0;
 #endif
       table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
 

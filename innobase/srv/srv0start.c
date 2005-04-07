@@ -789,6 +789,11 @@ open_or_create_data_files(
 				files[i] = os_file_create(
 					name, OS_FILE_OPEN_RAW, OS_FILE_NORMAL,
 							 OS_DATA_FILE, &ret);
+			} else if (i == 0) {
+				files[i] = os_file_create(
+					name, OS_FILE_OPEN_RETRY,
+							OS_FILE_NORMAL,
+							OS_DATA_FILE, &ret);
 			} else {
 				files[i] = os_file_create(
 					name, OS_FILE_OPEN, OS_FILE_NORMAL,
