@@ -743,6 +743,56 @@ drop procedure bug7299|
 
 
 #
+# BUG#9073: Able to declare two handlers for same condition in same scope
+#
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare continue handler for sqlexception select 1;
+  declare continue handler for sqlexception select 2;
+end|
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare condname1 condition for 1234;
+  declare continue handler for condname1 select 1;
+  declare exit handler for condname1 select 2;
+end|
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare condname1 condition for sqlstate '42000';
+  declare condname2 condition for sqlstate '42000';
+  declare exit handler for condname1 select 1;
+  declare continue handler for condname2 select 2;
+end|
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare condname1 condition for sqlstate '42000';
+  declare exit handler for condname1 select 1;
+  declare exit handler for sqlstate '42000' select 2;
+end|
+
+# This should still work.
+--disable_warnings
+drop procedure if exists bug9073|
+--enable_warnings
+create procedure bug9073()
+begin
+  declare condname1 condition for sqlstate '42000';
+  declare continue handler for condname1 select 1;
+  begin
+    declare exit handler for sqlstate '42000' select 2;
+    begin
+      declare continue handler for sqlstate '42000' select 3;
+    end;
+  end;
+end|
+drop procedure bug9073|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

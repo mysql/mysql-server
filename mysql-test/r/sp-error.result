@@ -526,4 +526,45 @@ delete from t1|
 call bug7299()|
 ERROR 02000: No data to FETCH
 drop procedure bug7299|
+create procedure bug9073()
+begin
+declare continue handler for sqlexception select 1;
+declare continue handler for sqlexception select 2;
+end|
+ERROR 42000: Duplicate handler declared in the same block
+create procedure bug9073()
+begin
+declare condname1 condition for 1234;
+declare continue handler for condname1 select 1;
+declare exit handler for condname1 select 2;
+end|
+ERROR 42000: Duplicate handler declared in the same block
+create procedure bug9073()
+begin
+declare condname1 condition for sqlstate '42000';
+declare condname2 condition for sqlstate '42000';
+declare exit handler for condname1 select 1;
+declare continue handler for condname2 select 2;
+end|
+ERROR 42000: Duplicate handler declared in the same block
+create procedure bug9073()
+begin
+declare condname1 condition for sqlstate '42000';
+declare exit handler for condname1 select 1;
+declare exit handler for sqlstate '42000' select 2;
+end|
+ERROR 42000: Duplicate handler declared in the same block
+drop procedure if exists bug9073|
+create procedure bug9073()
+begin
+declare condname1 condition for sqlstate '42000';
+declare continue handler for condname1 select 1;
+begin
+declare exit handler for sqlstate '42000' select 2;
+begin
+declare continue handler for sqlstate '42000' select 3;
+end;
+end;
+end|
+drop procedure bug9073|
 drop table t1|
