@@ -378,6 +378,7 @@ inline double ulonglong2double(ulonglong value)
 /* #undef HAVE_CHARSET_armscii8 */
 /* #undef HAVE_CHARSET_ascii */
 #define HAVE_CHARSET_big5 1
+#define HAVE_CHARSET_cp932
 #define HAVE_CHARSET_cp1250 1
 /* #undef HAVE_CHARSET_cp1251 */
 /* #undef HAVE_CHARSET_cp1256 */
@@ -386,6 +387,7 @@ inline double ulonglong2double(ulonglong value)
 /* #undef HAVE_CHARSET_cp852 */
 /* #undef HAVE_CHARSET_cp866 */
 /* #undef HAVE_CHARSET_dec8 */
+#define HAVE_CHARSET_eucjpms 1
 #define HAVE_CHARSET_euckr 1
 #define HAVE_CHARSET_gb2312 1
 #define HAVE_CHARSET_gbk 1
