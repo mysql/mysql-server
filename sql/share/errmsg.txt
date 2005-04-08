@@ -5338,4 +5338,5 @@ ER_WRONG_VALUE_FOR_TYPE
 	eng "Incorrect %-.32s value: '%-.128s' for function %-.32s"
 ER_TABLE_DEF_CHANGED
 	eng "Table definition has changed, please retry transaction"
-
+ER_SP_DUP_HANDLER 42000
+	eng "Duplicate handler declared in the same block"
