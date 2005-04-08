@@ -1774,19 +1774,43 @@ sp_hcond_list:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_instr_hpush_jump *i= (sp_instr_hpush_jump *)sp->last_instruction();
+	    sp_pcontext *ctx= lex->spcont;
 
-	    i->add_condition($1);
-	    $$= 1;
+	    if (ctx->find_handler($1))
+	    {
+	      my_message(ER_SP_DUP_HANDLER, ER(ER_SP_DUP_HANDLER), MYF(0));
+	      YYABORT;
+	    }
+	    else
+	    {
+	      sp_instr_hpush_jump *i=
+                (sp_instr_hpush_jump *)sp->last_instruction();
+
+	      i->add_condition($1);
+	      ctx->push_handler($1);
+	      $$= 1;
+	    }
 	  }
 	| sp_hcond_list ',' sp_hcond
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_instr_hpush_jump *i= (sp_instr_hpush_jump *)sp->last_instruction();
+	    sp_pcontext *ctx= lex->spcont;
 
-	    i->add_condition($3);
-	    $$= $1 + 1;
+	    if (ctx->find_handler($3))
+	    {
+	      my_message(ER_SP_DUP_HANDLER, ER(ER_SP_DUP_HANDLER), MYF(0));
+	      YYABORT;
+	    }
+	    else
+	    {
+	      sp_instr_hpush_jump *i=
+	        (sp_instr_hpush_jump *)sp->last_instruction();
+
+	      i->add_condition($3);
+	      ctx->push_handler($3);
+	      $$= $1 + 1;
+	    }
 	  }
 	;
 
