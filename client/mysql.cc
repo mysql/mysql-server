@@ -135,7 +135,8 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
-               default_pager_set= 0, opt_sigint_ignore= 0;
+               default_pager_set= 0, opt_sigint_ignore= 0,
+         show_warnings = 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
@@ -194,7 +195,8 @@ static int com_quit(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
            com_notee(String *str, char*),
-           com_prompt(String *str, char*), com_delimiter(String *str, char*);
+           com_prompt(String *str, char*), com_delimiter(String *str, char*),
+     com_warnings(String *str, char*), com_nowarnings(String *str, char*);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -266,6 +268,10 @@ static COMMANDS commands[] = {
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument." },
+  { "warnings", 'w', com_warnings,  0,
+    "Show warnings after every statement." },
+  { "nowarning", 'W', com_nowarnings, 0,
+    "Don't show warnings after every statement." },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
@@ -323,6 +329,7 @@ static void print_table_data_html(MYSQL_RES *result);
 static void print_table_data_xml(MYSQL_RES *result);
 static void print_tab_data(MYSQL_RES *result);
 static void print_table_data_vertically(MYSQL_RES *result);
+static void print_warnings(void);
 static ulong start_timer(void);
 static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
@@ -693,6 +700,9 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol", (gptr*) &opt_secure_auth,
     (gptr*) &opt_secure_auth, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
+    (gptr*) &show_warnings, (gptr*) &show_warnings, 0, GET_BOOL, NO_ARG, 
+    0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -790,6 +800,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   break;
+  case OPT_SHOW_WARNINGS:
+    show_warnings = 1;
+    break;
   case 'A':
     rehash= 0;
     break;
@@ -1938,6 +1951,13 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (err >= 1)
     error= put_error(&mysql);
 
+  if( show_warnings == 1 && warnings ) /* Show warnings if any */
+  {
+    init_pager();
+    print_warnings();
+    end_pager();
+  }
+
   if (!error && !status.batch && 
       (mysql.server_status & SERVER_STATUS_DB_DROPPED))
     get_current_db();
@@ -2195,6 +2215,49 @@ print_table_data_vertically(MYSQL_RES *result)
   }
 }
 
+/* print_warnings should be called right after executing a statement */
+static void
+print_warnings()
+{
+  MYSQL_RES    *result;
+  MYSQL_ROW    cur;
+  MYSQL_FIELD  *field;
+
+  char *query = 0;
+
+  /* Get the warnings */
+  query = my_strdup("show warnings",MYF(MY_WME));
+  mysql_real_query_for_lazy(query,strlen(query));
+  mysql_store_result_for_lazy(&result);
+  my_free(query,MYF(MY_WME));
+
+  /* Bail out when no warnings */
+  my_ulonglong num_rows = mysql_num_rows(result);
+  if( num_rows == 0 ) 
+  {
+    mysql_free_result(result);
+    return;
+  }
+
+  /* Print the warnings */
+  while ((cur= mysql_fetch_row(result)))
+  {
+    mysql_field_seek(result, 0);
+    /* Format as:  <level> <code>: <message> */
+    for (uint off= 0; off < mysql_num_fields(result); off++)
+    {
+      const char *str= cur[off] ? cur[off] : "NULL";
+      field = mysql_fetch_field(result);
+      tee_fputs(str, PAGER);
+      tee_fputs(" ", PAGER);
+      if( off == 1 )
+        (void) tee_fputs(": ", PAGER);
+    }
+    (void) tee_fputs("\n", PAGER);
+  }
+  tee_fputs("\n", PAGER);
+  mysql_free_result(result);
+}
 
 static const char
 *array_value(const char **array, char key)
@@ -2691,6 +2754,21 @@ com_use(String *buffer __attribute__((unused)), char *line)
   return 0;
 }
 
+static int
+com_warnings(String *buffer __attribute__((unused)),
+   char *line __attribute__((unused)))
+{
+  show_warnings = 1;
+  return 0;
+}
+
+static int
+com_nowarnings(String *buffer __attribute__((unused)),
+   char *line __attribute__((unused)))
+{
+  show_warnings = 0;
+  return 0;
+}
 
 /*
   Gets argument from a command on the command line. If get_next_arg is
