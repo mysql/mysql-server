@@ -95,8 +95,8 @@ sp_rcontext::find_handler(uint sql_errno,
 	found= i;
       break;
     case sp_cond_type_t::exception:
-      if ((sqlstate[0] != '0' || sqlstate[1] > '2' ||
-	   level == MYSQL_ERROR::WARN_LEVEL_ERROR) &&
+      if ((sqlstate[0] != '0' || sqlstate[1] > '2') &&
+	  level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
 	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
 	found= i;
       break;
