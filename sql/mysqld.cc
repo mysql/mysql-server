@@ -773,15 +773,6 @@ void kill_mysql(void)
       CloseHandle(hEvent);
     */
   }
-#ifdef HAVE_SMEM
-    /*
-     Send event to smem_event_connect_request for aborting
-    */
-    if (!SetEvent(smem_event_connect_request))
-    {
-      DBUG_PRINT("error",("Got error: %ld from SetEvent of smem_event_connect_request",GetLastError()));
-    }
-#endif  
 #endif
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
