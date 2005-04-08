@@ -721,6 +721,28 @@ drop procedure bug9566|
 
 
 #
+# BUG#7299: Stored procedures: exception handler catches not-found conditions
+#
+--disable_warnings
+drop procedure if exists bug7299|
+--enable_warnings
+create procedure bug7299()
+begin
+  declare v int;
+  declare c cursor for select val from t1;
+  declare exit handler for sqlexception select 'Error!'; 
+
+  open c;
+  fetch c into v;
+end|
+
+delete from t1|
+--error ER_SP_FETCH_NO_DATA
+call bug7299()|
+drop procedure bug7299|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
