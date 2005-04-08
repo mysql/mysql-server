@@ -596,8 +596,10 @@ insert into t1 (datavalue) values ('newval');
 insert into t1 (datavalue) values ('newval');
 select * from t1 order by counter;
 insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
 select * from t1 order by counter;
 connection con2;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
 insert into t1 (datavalue) select datavalue from t1 where counter < 100;
 select * from t1 order by counter;
 
