@@ -80,24 +80,24 @@ sp_rcontext::find_handler(uint sql_errno,
       break;
     case sp_cond_type_t::state:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::number))
+	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
 	found= i;
       break;
     case sp_cond_type_t::warning:
       if ((sqlstate[0] == '0' && sqlstate[1] == '1' ||
 	   level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	  found < 0)
 	found= i;
       break;
     case sp_cond_type_t::notfound:
       if (sqlstate[0] == '0' && sqlstate[1] == '2' &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	  found < 0)
 	found= i;
       break;
     case sp_cond_type_t::exception:
       if ((sqlstate[0] != '0' || sqlstate[1] > '2') &&
 	  level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	  found < 0)
 	found= i;
       break;
     }
