@@ -2243,19 +2243,8 @@ print_warnings()
   while ((cur= mysql_fetch_row(result)))
   {
     mysql_field_seek(result, 0);
-    /* Format as:  <level> <code>: <message> */
-    for (uint off= 0; off < mysql_num_fields(result); off++)
-    {
-      const char *str= cur[off] ? cur[off] : "NULL";
-      field = mysql_fetch_field(result);
-      tee_fputs(str, PAGER);
-      tee_fputs(" ", PAGER);
-      if( off == 1 )
-        (void) tee_fputs(": ", PAGER);
-    }
-    (void) tee_fputs("\n", PAGER);
+    tee_fprintf(PAGER, "%s (Code %s): %s\n", cur[0], cur[1], cur[2]);
   }
-  tee_fputs("\n", PAGER);
   mysql_free_result(result);
 }
 
