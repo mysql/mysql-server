@@ -94,7 +94,7 @@ select 10.0+cast('a' as decimal);
 10.0+cast('a' as decimal)
 10.00
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1292	Truncated incorrect DECIMAL value: 'a'
 select 10E+0+'a';
 10E+0+'a'
 10
