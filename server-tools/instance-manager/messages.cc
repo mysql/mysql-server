@@ -57,6 +57,15 @@ static const char *mysqld_error_message(unsigned sql_errno)
            " or resources shortage";
   case ER_STOP_INSTANCE:
     return "Cannot stop instance";
+  case ER_NO_SUCH_LOG:
+    return "The instance has no such log enabled";
+  case ER_OPEN_LOGFILE:
+    return "Cannot open log file";
+  case ER_GUESS_LOGFILE:
+    return "Cannot guess the log filename. Try specifying full log name"
+           "in the instance options";
+  case ER_ACCESS_OPTION_FILE:
+    return "Cannot open the option file to edit. Check permissions";
   default:
     DBUG_ASSERT(0);
     return 0;
