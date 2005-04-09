@@ -26,6 +26,8 @@
   Http_command_factory e.t.c. Also see comment in the instance_map.cc
 */
 
+class Show_instances;
+
 class Command_factory
 {
 public:
@@ -33,12 +35,26 @@ public:
   {}
 
   Show_instances        *new_Show_instances        ();
+  Flush_instances       *new_Flush_instances       ();
+  Syntax_error          *new_Syntax_error          ();
   Show_instance_status  *new_Show_instance_status  (const char *name, uint len);
   Show_instance_options *new_Show_instance_options (const char *name, uint len);
   Start_instance        *new_Start_instance        (const char *name, uint len);
   Stop_instance         *new_Stop_instance         (const char *name, uint len);
-  Flush_instances       *new_Flush_instances       ();
-  Syntax_error          *new_Syntax_error          ();
+  Show_instance_log *new_Show_instance_log (const char *name, uint len,
+                                            Log_type log_type_arg,
+                                            const char *size,
+                                            const char *offset);
+  Set_option *new_Set_option (const char *name, uint len,
+                              const char *option_arg, uint option_len,
+                              const char *option_value_arg,
+                              uint option_value_len);
+  Unset_option *new_Unset_option (const char *name, uint len,
+                                  const char *option_arg, uint option_len,
+                                  const char *option_value_arg,
+                                  uint option_value_len);
+  Show_instance_log_files *new_Show_instance_log_files (const char *name,
+                                                        uint len);
 
   Instance_map &instance_map;
 };
