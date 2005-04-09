@@ -3399,6 +3399,89 @@ delete from t1|
 
 
 #
+# BUG#6900: Stored procedure inner handler ignored
+# BUG#9074: STORED PROC: The scope of every handler declared is not
+#                        properly applied
+#
+--disable_warnings
+drop procedure if exists bug6900|
+drop procedure if exists bug9074|
+drop procedure if exists bug6900_9074|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (w char unique, x char)|
+insert into t3 values ('a', 'b')|
+
+create procedure bug6900()
+begin
+  declare exit handler for sqlexception select '1';
+
+  begin
+    declare exit handler for sqlexception select '2';
+
+    insert into t3 values ('x', 'y', 'z');
+  end;
+end|
+
+create procedure bug9074()
+begin
+  declare x1, x2, x3, x4, x5, x6 int default 0;
+
+  begin    
+    declare continue handler for sqlstate '23000' set x5 = 1;      
+
+    insert into t3 values ('a', 'b');      
+    set x6 = 1;      
+  end;
+
+ begin1_label:
+  begin
+    declare continue handler for sqlstate '23000' set x1 = 1;      
+
+    insert into t3 values ('a', 'b');      
+    set x2 = 1;      
+				
+   begin2_label:
+    begin  
+      declare exit handler for sqlstate '23000' set x3 = 1;         
+
+      set x4= 1;         
+      insert into t3 values ('a','b');
+      set x4= 0;
+    end begin2_label;
+  end begin1_label;
+
+  select x1, x2, x3, x4, x5, x6;
+end|
+
+create procedure bug6900_9074(z int)
+begin
+  declare exit handler for sqlstate '23000' select '23000';
+
+  begin
+    declare exit handler for sqlexception select 'sqlexception';
+
+    if z = 1 then
+      insert into t3 values ('a', 'b');
+    else
+      insert into t3 values ('x', 'y', 'z');
+    end if;
+  end;
+end|
+
+call bug6900()|
+call bug9074()|
+call bug6900_9074(0)|
+call bug6900_9074(1)|
+
+drop procedure bug6900|
+drop procedure bug9074|
+drop procedure bug6900_9074|
+drop table t3|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
