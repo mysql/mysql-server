@@ -299,6 +299,8 @@ select UNIX_TIMESTAMP() from t1;
 UNIX_TIMESTAMP()
 select USER() from t1;
 USER()
+select CURRENT_USER() from t1;
+CURRENT_USER()
 select benchmark(1,1) from t1;
 benchmark(1,1)
 show status like "Qcache_queries_in_cache";
