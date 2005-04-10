@@ -59,6 +59,9 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
 
 install-data-local:
+	true
+
+x-install-data-local:
 	$(mkinstalldirs) \
 		$(DESTDIR)$(testdir)/t \
 		$(DESTDIR)$(testdir)/r \
