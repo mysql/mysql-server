@@ -535,6 +535,19 @@ s2 CHAR(5) COLLATE latin1_swedish_ci);
 SELECT * FROM t1 WHERE s1 = s2;
 ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '='
 DROP TABLE t1;
+CREATE TABLE t1
+(s1 CHAR(5) COLLATE latin1_german1_ci,
+s2 CHAR(5) COLLATE latin1_swedish_ci,
+s3 CHAR(5) COLLATE latin1_bin);
+INSERT INTO t1 VALUES ('a','A','A');
+SELECT * FROM t1 WHERE s1 = s2;
+ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '='
+SELECT * FROM t1 WHERE s1 = s3;
+s1	s2	s3
+SELECT * FROM t1 WHERE s2 = s3;
+s1	s2	s3
+a	A	A
+DROP TABLE t1;
 SET NAMES latin1;
 CREATE TABLE t1 
 (s1 char(10) COLLATE latin1_german1_ci,

@@ -5380,6 +5380,32 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   DBUG_RETURN(0);
 }
 
+/*********************************************************************
+Checks if ALTER TABLE may change the storage engine of the table.
+Changing storage engines is not allowed for tables for which there
+are foreign key constraints (parent or child tables). */
+
+bool
+ha_innobase::can_switch_engines(void)
+/*=================================*/
+{
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	bool	can_switch;
+
+ 	DBUG_ENTER("ha_innobase::can_switch_engines");
+	prebuilt->trx->op_info =
+			"determining if there are foreign key constraints";
+	row_mysql_lock_data_dictionary(prebuilt->trx);
+
+	can_switch = !UT_LIST_GET_FIRST(prebuilt->table->referenced_list)
+			&& !UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+
+	row_mysql_unlock_data_dictionary(prebuilt->trx);
+	prebuilt->trx->op_info = "";
+
+	DBUG_RETURN(can_switch);
+}
+
 /***********************************************************************
 Checks if a table is referenced by a foreign key. The MySQL manual states that
 a REPLACE is either equivalent to an INSERT, or DELETE(s) + INSERT. Only a

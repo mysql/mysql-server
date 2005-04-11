@@ -3302,6 +3302,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* Safety fix for innodb */
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tmp_name);
+  if (new_db_type != old_db_type && !table->file->can_switch_engines()) {
+    my_error(ER_ROW_IS_REFERENCED, MYF(0));
+    goto err;
+  }
   create_info->db_type=new_db_type;
   if (!create_info->comment)
     create_info->comment= table->s->comment;
