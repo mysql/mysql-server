@@ -1490,6 +1490,7 @@ NdbTransaction::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
   if(checkState_TransId(&commitConf->transId1)){
     theCommitStatus = Committed;
     theCompletionStatus = CompletedSuccess;
+    theGlobalCheckpointId = commitConf->gci;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
