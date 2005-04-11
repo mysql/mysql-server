@@ -2225,7 +2225,9 @@ send_result_message:
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
+      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
       result_code= mysql_recreate_table(thd, table, 0);
+      reenable_binlog(thd);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
