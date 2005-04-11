@@ -1,0 +1,9 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium_cflags $fast_cflags -g"
+extra_configs="$pentium_configs --with-charset=utf8 --with-collation=utf8_general_cs"
+
+. "$path/FINISH.sh"
