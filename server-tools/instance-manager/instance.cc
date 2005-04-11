@@ -191,8 +191,8 @@ bool Instance::is_running()
   MYSQL mysql;
   uint port= 0;
   const char *socket= NULL;
-  const char *password= "321rarepassword213";
-  const char *username= "645rareusername945";
+  const char *password= "check_connection";
+  const char *username= "MySQL_Instance_Manager";
   const char *access_denied_message= "Access denied for user";
   bool return_val;
 
