@@ -577,3 +577,30 @@ create table t1
   engine=ndb
   max_rows=1;
 drop table t1;
+
+#
+# Test auto_increment
+#
+
+connect (con1,localhost,,,test);
+connect (con2,localhost,,,test);
+
+create table t1
+	(counter int(64) NOT NULL auto_increment,
+	 datavalue char(40) default 'XXXX',
+	 primary key (counter)
+	) ENGINE=ndbcluster;
+
+connection con1;
+insert into t1 (datavalue) values ('newval');
+insert into t1 (datavalue) values ('newval');
+select * from t1 order by counter;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+select * from t1 order by counter;
+connection con2;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+select * from t1 order by counter;
+
+drop table t1;

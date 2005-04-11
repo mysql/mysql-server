@@ -89,4 +89,5 @@ a	b
 2	row 2
 3	row 3
 0	
+drop database rewrite;
 drop table t1;

@@ -25,10 +25,6 @@
 #include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
-#ifdef HAVE_ISAM
-#include "ha_isam.h"
-#include "ha_isammrg.h"
-#endif
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -107,7 +103,8 @@ struct show_table_type_st sys_table_types[]=
   {"FEDERATED",&have_federated_db,
    "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB},
   {"BLACKHOLE",&have_blackhole_db,
-   "Storage engine designed to act as null storage", DB_TYPE_BLACKHOLE_DB},
+   "/dev/null storage engine (anything you write to it disappears)",
+   DB_TYPE_BLACKHOLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -307,6 +304,7 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_NO_SUCH_TABLE,          "No such table: '%.64s'");
   SETMSG(HA_ERR_TABLE_EXIST,            ER(ER_TABLE_EXISTS_ERROR));
   SETMSG(HA_ERR_NO_CONNECTION,          "Could not connect to storage engine");
+  SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -508,10 +506,16 @@ void ha_close_connection(THD* thd)
     "beginning of transaction" and "beginning of statement").
     Only storage engines registered for the transaction/statement
     will know when to commit/rollback it.
+
+  NOTE
+    trans_register_ha is idempotent - storage engine may register many
+    times per transaction.
+
 */
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 {
   THD_TRANS *trans;
+  handlerton **ht;
   DBUG_ENTER("trans_register_ha");
   DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
 
@@ -523,15 +527,12 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   else
     trans= &thd->transaction.stmt;
 
-#ifndef DBUG_OFF
-  handlerton **ht=trans->ht;
-  while (*ht)
-  {
-    DBUG_ASSERT(*ht != ht_arg);
-    ht++;
-  }
-#endif
+  for (ht=trans->ht; *ht; ht++)
+    if (*ht == ht_arg)
+      DBUG_VOID_RETURN;  /* already registered, return */
+
   trans->ht[trans->nht++]=ht_arg;
+  DBUG_ASSERT(*ht == ht_arg);
   trans->no_2pc|=(ht_arg->prepare==0);
   if (thd->transaction.xid.is_null())
     thd->transaction.xid.set(thd->query_id);
@@ -749,17 +750,15 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
-int ha_commit_or_rollback_by_xid(LEX_STRING *ident, bool commit)
+int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 {
-  XID xid;
   handlerton **ht= handlertons, **end_ht=ht+total_ha;
   int res= 1;
 
-  xid.set(ident);
   for ( ; ht < end_ht ; ht++)
     if ((*ht)->recover)
       res= res &&
-        (*(commit ? (*ht)->commit_by_xid : (*ht)->rollback_by_xid))(&xid);
+        (*(commit ? (*ht)->commit_by_xid : (*ht)->rollback_by_xid))(xid);
   return res;
 }
 
@@ -1651,6 +1650,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_NO_REFERENCED_ROW:
     textno=ER_NO_REFERENCED_ROW;
     break;
+  case HA_ERR_TABLE_DEF_CHANGED:
+    textno=ER_TABLE_DEF_CHANGED;
+    break;
   case HA_ERR_NO_SUCH_TABLE:
   {
     /*
@@ -2365,9 +2367,9 @@ TYPELIB *ha_known_exts(void)
     const char **ext, *old_ext;
 
     known_extensions_id= mysys_usage_id;
-    found_exts.push_back((char*) ".db");
+    found_exts.push_back((char*) triggers_file_ext);
     for (types= sys_table_types; types->type; types++)
-    {      
+    {
       if (*types->value == SHOW_OPTION_YES)
       {
 	handler *file= get_new_handler(0,(enum db_type) types->db_type);

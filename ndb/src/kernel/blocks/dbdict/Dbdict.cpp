@@ -2470,7 +2470,9 @@ Dbdict::restartCreateTab_writeTableConf(Signal* signal,
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_dihComplete);
   
-  SegmentedSectionPtr fragDataPtr; fragDataPtr.setNull();
+  SegmentedSectionPtr fragDataPtr; 
+  fragDataPtr.sz = 0;
+  fragDataPtr.setNull();
   createTab_dih(signal, createTabPtr, fragDataPtr, &callback);
 }
 

@@ -7,6 +7,9 @@ CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
 select CONVERT('-1',UNSIGNED);
 CONVERT('-1',UNSIGNED)
 18446744073709551615
+select CAST('10 ' as unsigned integer);
+CAST('10 ' as unsigned integer)
+10
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
 18446744073709551611	18446744073709551611
@@ -42,6 +45,15 @@ cast("1:2:3" as TIME)
 select CONVERT("2004-01-22 21:45:33",DATE);
 CONVERT("2004-01-22 21:45:33",DATE)
 2004-01-22
+select 10+'10';
+10+'10'
+20
+select 10.0+'10';
+10.0+'10'
+20
+select 10E+0+'10';
+10E+0+'10'
+20
 select CONVERT(DATE "2004-01-22 21:45:33" USING latin1);
 CONVERT(DATE "2004-01-22 21:45:33" USING latin1)
 2004-01-22 21:45:33
@@ -51,12 +63,43 @@ CONVERT(DATE "2004-01-22 21:45:33",CHAR)
 select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
 CONVERT(DATE "2004-01-22 21:45:33",CHAR(4))
 2004
+Warnings:
+Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
 select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
 CONVERT(DATE "2004-01-22 21:45:33",BINARY(4))
 2004
+Warnings:
+Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
 CAST(DATE "2004-01-22 21:45:33" AS BINARY(4))
 2004
+Warnings:
+Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
+select cast('-10a' as signed integer);
+cast('-10a' as signed integer)
+-10
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '-10a'
+select cast('a10' as unsigned integer);
+cast('a10' as unsigned integer)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'a10'
+select 10+'a';
+10+'a'
+10
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+select 10.0+cast('a' as decimal);
+10.0+cast('a' as decimal)
+10.00
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'a'
+select 10E+0+'a';
+10E+0+'a'
+10
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
 set names binary;
 select cast(_latin1'test' as char character set latin2);
 cast(_latin1'test' as char character set latin2)
@@ -79,12 +122,23 @@ cast(_latin1'a  ' AS char(2)) as c4,
 cast(_latin1'a'   AS char(2)) as c5;
 c1	c2	c3	c4	c5
 ab	a 	ab	a 	a
+Warnings:
+Warning	1292	Truncated incorrect CHAR(2) value: 'abc'
+Warning	1292	Truncated incorrect CHAR(2) value: 'a  '
+select cast(1000 as CHAR(3));
+cast(1000 as CHAR(3))
+100
+Warnings:
+Warning	1292	Truncated incorrect CHAR(3) value: '1000'
 create table t1 select
 cast(_latin1'ab'  AS char)    as c1,
 cast(_latin1'a '  AS char)    as c2,
 cast(_latin1'abc' AS char(2)) as c3,
 cast(_latin1'a  ' AS char(2)) as c4,
 cast(_latin1'a'   AS char(2)) as c5;
+Warnings:
+Warning	1292	Truncated incorrect CHAR(2) value: 'abc'
+Warning	1292	Truncated incorrect CHAR(2) value: 'a  '
 select * from t1;
 c1	c2	c3	c4	c5
 ab	a 	ab	a 	a
@@ -106,12 +160,18 @@ cast(_koi8r'�  ' AS nchar(2)) as c4,
 cast(_koi8r'�'   AS nchar(2)) as c5;
 c1	c2	c3	c4	c5
 фг	ф 	фг	ф 	ф
+Warnings:
+Warning	1292	Truncated incorrect CHAR(4) value: 'фгх'
+Warning	1292	Truncated incorrect CHAR(3) value: 'ф  '
 create table t1 select
 cast(_koi8r'��'  AS nchar)    as c1,
 cast(_koi8r'� '  AS nchar)    as c2,
 cast(_koi8r'���' AS nchar(2)) as c3,
 cast(_koi8r'�  ' AS nchar(2)) as c4,
 cast(_koi8r'�'   AS nchar(2)) as c5;
+Warnings:
+Warning	1292	Truncated incorrect CHAR(4) value: 'фгх'
+Warning	1292	Truncated incorrect CHAR(3) value: 'ф  '
 select * from t1;
 c1	c2	c3	c4	c5
 фг	ф 	фг	ф 	ф
@@ -167,6 +227,10 @@ a	CAST(a AS CHAR(3))
 aac	aac
 aab	aab
 aaa	aaa
+Warnings:
+Warning	1292	Truncated incorrect CHAR(2) value: 'aaa'
+Warning	1292	Truncated incorrect CHAR(2) value: 'aab'
+Warning	1292	Truncated incorrect CHAR(2) value: 'aac'
 SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR) ;
 a	CAST(a AS UNSIGNED)
 aaa	3
@@ -177,6 +241,10 @@ a	CAST(a AS CHAR(2))
 aaa	aa
 aab	aa
 aac	aa
+Warnings:
+Warning	1292	Truncated incorrect CHAR(2) value: 'aaa'
+Warning	1292	Truncated incorrect CHAR(2) value: 'aab'
+Warning	1292	Truncated incorrect CHAR(2) value: 'aac'
 DROP TABLE t1;
 select date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour);
 date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour)

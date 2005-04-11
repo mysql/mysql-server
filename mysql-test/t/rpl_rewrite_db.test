@@ -73,5 +73,8 @@ connection slave;
 # The empty line last comes from the end line field in the file
 select * from rewrite.t1;
 
+drop database rewrite;
+
 connection master;
 drop table t1;
+

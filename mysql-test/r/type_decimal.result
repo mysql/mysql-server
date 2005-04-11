@@ -693,3 +693,58 @@ SELECT EMPNUM FROM t1 WHERE HOURS IN (SELECT HOURS FROM t1);
 EMPNUM
 E1
 DROP TABLE t1,t2;
+create table t1 (d decimal(64,0));
+insert into t1 values (1);
+select * from t1;
+d
+1
+drop table t1;
+create table t1 (d decimal(64,99));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `d` decimal(64,30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (1);
+select * from t1;
+d
+1.000000000000000000000000000000
+drop table t1;
+create table t1 (d decimal(10,12));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `d` decimal(13,12) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (d decimal(5));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `d` decimal(5,0) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (d decimal);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `d` decimal(10,0) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (d decimal(65,0));
+ERROR 42000: Incorrect column specifier for column 'd'
+CREATE TABLE t1 (i INT, d1 DECIMAL(9,2), d2 DECIMAL(9,2));
+INSERT INTO t1 VALUES (1, 101.40, 21.40), (1, -80.00, 0.00),
+(2, 0.00, 0.00), (2, -13.20, 0.00), (2, 59.60, 46.40),
+(2, 30.40, 30.40), (3, 37.00, 7.40), (3, -29.60, 0.00),
+(4, 60.00, 15.40), (4, -10.60, 0.00), (4, -34.00, 0.00),
+(5, 33.00, 0.00), (5, -25.80, 0.00), (5, 0.00, 7.20),
+(6, 0.00, 0.00), (6, -51.40, 0.00);
+SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING a <> b;
+i	a	b
+6	-51.40	0.00
+SELECT i, ROUND(SUM(d1), 2) AS a, ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY i
+HAVING a <> b;
+i	a	b
+6	-51.40	0.00
+drop table t1;

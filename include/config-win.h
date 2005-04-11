@@ -351,7 +351,6 @@ inline double ulonglong2double(ulonglong value)
 #define DO_NOT_REMOVE_THREAD_WRAPPERS
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 #define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
-#define thread_safe_dec_and_test(V, L) thread_safe_decrement(V,L)
 /* The following is only used for statistics, so it should be good enough */
 #ifdef __NT__  /* This should also work on Win98 but .. */
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
@@ -379,6 +378,7 @@ inline double ulonglong2double(ulonglong value)
 /* #undef HAVE_CHARSET_armscii8 */
 /* #undef HAVE_CHARSET_ascii */
 #define HAVE_CHARSET_big5 1
+#define HAVE_CHARSET_cp932
 #define HAVE_CHARSET_cp1250 1
 /* #undef HAVE_CHARSET_cp1251 */
 /* #undef HAVE_CHARSET_cp1256 */
@@ -387,6 +387,7 @@ inline double ulonglong2double(ulonglong value)
 /* #undef HAVE_CHARSET_cp852 */
 /* #undef HAVE_CHARSET_cp866 */
 /* #undef HAVE_CHARSET_dec8 */
+#define HAVE_CHARSET_eucjpms 1
 #define HAVE_CHARSET_euckr 1
 #define HAVE_CHARSET_gb2312 1
 #define HAVE_CHARSET_gbk 1

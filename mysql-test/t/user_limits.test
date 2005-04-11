@@ -2,6 +2,9 @@
 # Test behavior of various per-account limits (aka quotas)
 #
 
+# Requires privileges to be enabled
+-- source include/not_embedded.inc
+
 # Prepare play-ground 
 --disable_warnings
 drop table if exists t1;

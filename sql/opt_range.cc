@@ -42,7 +42,6 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-#include <nisam.h>
 #include "sql_select.h"
 
 #ifndef EXTRA_DEBUG
@@ -51,7 +50,7 @@
 #endif
 
 /*
-  Convert double value to #rows. Currently this does floor(), and we 
+  Convert double value to #rows. Currently this does floor(), and we
   might consider using round() instead.
 */
 #define double2rows(x) ((ha_rows)(x))
@@ -3607,10 +3606,10 @@ static SEL_ARG *
 get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 	    Item_func::Functype type,Item *value)
 {
-  uint maybe_null=(uint) field->real_maybe_null(), copies;
+  uint maybe_null=(uint) field->real_maybe_null();
   bool optimize_range;
   SEL_ARG *tree;
-  char *str, *str2;
+  char *str;
   DBUG_ENTER("get_mm_leaf");
 
   if (!value)					// IS NULL or IS NOT NULL
@@ -3745,39 +3744,13 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     /* This happens when we try to insert a NULL field in a not null column */
     DBUG_RETURN(&null_element);			// cmp with NULL is never TRUE
   }
-  /* Get local copy of key */
-  copies= 1;
-  if (field->key_type() == HA_KEYTYPE_VARTEXT1 ||
-      field->key_type() == HA_KEYTYPE_VARTEXT2)
-    copies= 2;
-  str= str2= (char*) alloc_root(param->mem_root,
-				(key_part->store_length)*copies+1);
+  str= (char*) alloc_root(param->mem_root, key_part->store_length+1);
   if (!str)
     DBUG_RETURN(0);
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null, key_part->length, key_part->image_type);
-  if (copies == 2)
-  {
-    /*
-      The key is stored as 2 byte length + key
-      key doesn't match end space. In other words, a key 'X ' should match
-      all rows between 'X' and 'X           ...'
-    */
-    uint length= uint2korr(str+maybe_null);
-    str2= str+ key_part->store_length;
-    /* remove end space */
-    while (length > 0 && str[length+HA_KEY_BLOB_LENGTH+maybe_null-1] == ' ')
-      length--;
-    int2store(str+maybe_null, length);
-    /* Create key that is space filled */
-    memcpy(str2, str, length + HA_KEY_BLOB_LENGTH + maybe_null);
-    my_fill_8bit(field->charset(),
-		 str2+ length+ HA_KEY_BLOB_LENGTH +maybe_null,
-		 key_part->length-length, ' ');
-    int2store(str2+maybe_null, key_part->length);
-  }
-  if (!(tree=new SEL_ARG(field,str,str2)))
+  if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);		// out of memory
 
   switch (type) {

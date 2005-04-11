@@ -748,17 +748,37 @@ ha_innobase::update_thd(
 }
 
 /*************************************************************************
-Registers the InnoDB transaction in MySQL, to receive commit/rollback
-events. This function must be called every time InnoDB starts a
-transaction internally. */
-static
+Registers that InnoDB takes part in an SQL statement, so that MySQL knows to
+roll back the statement if the statement results in an error. This MUST be
+called for every SQL statement that may be rolled back by MySQL. Calling this
+several times to register the same statement is allowed, too. */
+inline
 void
-register_trans(
-/*===========*/
-	THD*	thd)	/* in: thd to use the handle */
+innobase_register_stmt(
+/*===================*/
+	THD*	thd)	/* in: MySQL thd (connection) object */
 {
-        /* Register the start of the statement */
+        /* Register the statement */
         trans_register_ha(thd, FALSE, &innobase_hton);
+}
+
+/*************************************************************************
+Registers an InnoDB transaction in MySQL, so that the MySQL XA code knows
+to call the InnoDB prepare and commit, or rollback for the transaction. This
+MUST be called for every transaction for which the user may call commit or
+rollback. Calling this several times to register the same transaction is
+allowed, too.
+This function also registers the current SQL statement. */
+inline
+void
+innobase_register_trx_and_stmt(
+/*===========================*/
+	THD*	thd)	/* in: MySQL thd (connection) object */
+{
+	/* NOTE that actually innobase_register_stmt() registers also
+	the transaction in the AUTOCOMMIT=1 mode. */
+
+	innobase_register_stmt(thd);
 
         if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
@@ -914,7 +934,7 @@ innobase_query_caching_of_table_permitted(
 
         if (trx->active_trans == 0) {
 
-                register_trans(thd);
+                innobase_register_trx_and_stmt(thd);
                 trx->active_trans = 1;
         }
 
@@ -1030,7 +1050,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         if (prebuilt->trx->active_trans == 0) {
 
-                register_trans(current_thd);
+                innobase_register_trx_and_stmt(current_thd);
 
                 prebuilt->trx->active_trans = 1;
         }
@@ -1421,7 +1441,7 @@ innobase_start_trx_and_assign_read_view(
 
         if (trx->active_trans == 0) {
 
-                register_trans(current_thd);
+                innobase_register_trx_and_stmt(current_thd);
 
                 trx->active_trans = 1;
         }
@@ -2271,12 +2291,42 @@ inline
 ulint
 get_innobase_type_from_mysql_type(
 /*==============================*/
-			/* out: DATA_BINARY, DATA_VARCHAR, ... */
-	Field*	field)	/* in: MySQL field */
+				/* out: DATA_BINARY, DATA_VARCHAR, ... */
+	ulint*	unsigned_flag,	/* out: DATA_UNSIGNED if an 'unsigned type';
+				at least ENUM and SET, and unsigned integer
+				types are 'unsigned types' */
+	Field*	field)		/* in: MySQL field */
 {
 	/* The following asserts try to check that the MySQL type code fits in
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
 	the type */
+
+	DBUG_ASSERT((ulint)FIELD_TYPE_STRING < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_VAR_STRING < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_DOUBLE < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_FLOAT < 256);
+	DBUG_ASSERT((ulint)FIELD_TYPE_DECIMAL < 256);
+
+	if (field->flags & UNSIGNED_FLAG) {
+
+		*unsigned_flag = DATA_UNSIGNED;
+	} else {
+		*unsigned_flag = 0;
+	}
+
+	if (field->real_type() == FIELD_TYPE_ENUM
+	    || field->real_type() == FIELD_TYPE_SET) {
+
+		/* MySQL has field->type() a string type for these, but the
+		data is actually internally stored as an unsigned integer
+		code! */
+
+		*unsigned_flag = DATA_UNSIGNED; /* MySQL has its own unsigned
+						flag set to zero, even though
+						internally this is an unsigned
+						integer type */
+		return(DATA_INT);
+	}
 
 	switch (field->type()) {
 	        /* NOTE that we only allow string types in DATA_MYSQL
@@ -2313,8 +2363,6 @@ get_innobase_type_from_mysql_type(
 		case FIELD_TYPE_DATETIME:
 		case FIELD_TYPE_YEAR:
 		case FIELD_TYPE_NEWDATE:
-		case FIELD_TYPE_ENUM:
-		case FIELD_TYPE_SET:
 		case FIELD_TYPE_TIME:
 		case FIELD_TYPE_TIMESTAMP:
 					return(DATA_INT);
@@ -2686,7 +2734,7 @@ build_template(
 					get_field_offset(table, field);
 
 		templ->mysql_col_len = (ulint) field->pack_length();
-		templ->type = get_innobase_type_from_mysql_type(field);
+		templ->type = index->table->cols[i].type.mtype;
 		templ->mysql_type = (ulint)field->type();
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -2698,8 +2746,8 @@ build_template(
 				index->table->cols[i].type.prtype);
 		templ->mbminlen = index->table->cols[i].type.mbminlen;
 		templ->mbmaxlen = index->table->cols[i].type.mbmaxlen;
-		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
-
+		templ->is_unsigned = index->table->cols[i].type.prtype
+							& DATA_UNSIGNED;
 		if (templ->type == DATA_BLOB) {
 			prebuilt->templ_contains_blob = TRUE;
 		}
@@ -2962,7 +3010,6 @@ calc_row_difference(
         byte*	        buf;
 	upd_field_t*	ufield;
 	ulint		col_type;
-	ulint		is_unsigned;
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	uint		i;
@@ -2998,8 +3045,7 @@ calc_row_difference(
 
 		field_mysql_type = field->type();
 	
-		col_type = get_innobase_type_from_mysql_type(field);
-		is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
+		col_type = prebuilt->table->cols[i].type.mtype;
 
 		switch (col_type) {
 
@@ -3072,8 +3118,7 @@ calc_row_difference(
 			}
 
 			ufield->exp = NULL;
-			ufield->field_no =
-					(prebuilt->table->cols + i)->clust_pos;
+			ufield->field_no = prebuilt->table->cols[i].clust_pos;
 			n_changed++;
 		}
 	}
@@ -3932,17 +3977,12 @@ create_table_def(
 	for (i = 0; i < n_cols; i++) {
 		field = form->field[i];
 
-		col_type = get_innobase_type_from_mysql_type(field);
+		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
+									field);
 		if (field->null_ptr) {
 			nulls_allowed = 0;
 		} else {
 			nulls_allowed = DATA_NOT_NULL;
-		}
-
-		if (field->flags & UNSIGNED_FLAG) {
-			unsigned_type = DATA_UNSIGNED;
-		} else {
-			unsigned_type = 0;
 		}
 
 		if (field->binary()) {
@@ -4021,6 +4061,7 @@ create_index(
 	ulint		ind_type;
 	ulint		col_type;
 	ulint		prefix_len;
+	ulint		is_unsigned;
   	ulint		i;
   	ulint		j;
 
@@ -4070,7 +4111,8 @@ create_index(
 
 		ut_a(j < form->s->fields);
 
-		col_type = get_innobase_type_from_mysql_type(key_part->field);
+		col_type = get_innobase_type_from_mysql_type(
+					&is_unsigned, key_part->field);
 
 		if (DATA_BLOB == col_type
 		    || (key_part->length < field->pack_length()
@@ -5522,9 +5564,11 @@ ha_innobase::start_stmt(
 	/* Set the MySQL flag to mark that there is an active transaction */
         if (trx->active_trans == 0) {
 
-                register_trans(thd);
+                innobase_register_trx_and_stmt(thd);
                 trx->active_trans = 1;
-        }
+        } else {
+		innobase_register_stmt(thd);
+	}
 
 	return(0);
 }
@@ -5594,9 +5638,11 @@ ha_innobase::external_lock(
 		transaction */
                 if (trx->active_trans == 0) {
 
-                        register_trans(thd);
+                        innobase_register_trx_and_stmt(thd);
                         trx->active_trans = 1;
-                }
+                } else if (trx->n_mysql_tables_in_use == 0) {
+			innobase_register_stmt(thd);
+		}
 
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
@@ -5758,7 +5804,7 @@ ha_innobase::transactional_table_lock(
 	/* Set the MySQL flag to mark that there is an active transaction */
         if (trx->active_trans == 0) {
 
-                register_trans(thd);
+                innobase_register_trx_and_stmt(thd);
                 trx->active_trans = 1;
         }
 

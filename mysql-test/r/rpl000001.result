@@ -61,6 +61,10 @@ create table t1 (n int);
 insert into t1 values(3456);
 insert into mysql.user (Host, User, Password)
 VALUES ("10.10.10.%", "blafasel2", password("blafasel2"));
+Warnings:
+Warning	1364	Field 'ssl_cipher' doesn't have a default value
+Warning	1364	Field 'x509_issuer' doesn't have a default value
+Warning	1364	Field 'x509_subject' doesn't have a default value
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 select_priv	user
 N	blafasel2

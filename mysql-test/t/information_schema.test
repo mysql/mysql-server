@@ -1,3 +1,5 @@
+# This test uses grants, which can't get tested for embedded server
+-- source include/not_embedded.inc
 
 # Test for information_schema.schemata &
 # show databases
@@ -15,11 +17,11 @@ show databases where `database` = 't%';
 # Test for information_schema.tables &
 # show tables
 
-create database testtets;
-create table testtets.t1(a int, b VARCHAR(30), KEY string_data (b));
+create database mysqltest;
+create table mysqltest.t1(a int, b VARCHAR(30), KEY string_data (b));
 create table test.t2(a int);
 create table t3(a int, KEY a_data (a));
-create table testtets.t4(a int);
+create table mysqltest.t4(a int);
 create view v1 (c) as select table_name from information_schema.TABLES;
 select * from v1;
 select c,table_name from v1 
@@ -31,9 +33,9 @@ right join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 
 select table_name from information_schema.TABLES
-where table_schema = "testtets" and table_name like "t%";
+where table_schema = "mysqltest" and table_name like "t%";
 
-select * from information_schema.STATISTICS where TABLE_SCHEMA = "testtets";
+select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest";
 show keys from t3 where Key_name = "a_data";
 
 show tables like 't%';
@@ -44,11 +46,19 @@ show full columns from mysql.db like "Insert%";
 show full columns from v1;
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-show columns from testtets.t1 where field like "%a%";
+show columns from mysqltest.t1 where field like "%a%";
+
+grant select (a) on mysqltest.t1 to mysqltest_2@localhost;
+connect (user3,localhost,mysqltest_2,,);
+connection user3;
+select table_name, column_name, privileges from information_schema.columns 
+where table_schema = 'mysqltest' and table_name = 't1';
+show columns from mysqltest.t1;
+connection default;
 
 drop view v1;
-drop tables testtets.t4, testtets.t1, t2, t3;
-drop database testtets;
+drop tables mysqltest.t4, mysqltest.t1, t2, t3;
+drop database mysqltest;
 
 # Test for information_schema.CHARACTER_SETS &
 # SHOW CHARACTER SET
@@ -105,7 +115,6 @@ mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8);
 select count(*) from information_schema.ROUTINES;
 
 connect (user1,localhost,mysqltest_1,,);
-connect (user3,localhost,mysqltest_2,,);
 connection user1;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 --error 1305
@@ -164,8 +173,8 @@ select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest
 select * from information_schema.COLUMN_PRIVILEGES where grantee like '%mysqltest_1%';
 delete from mysql.user where user='mysqltest_1' or user='mysqltest_2';
 delete from mysql.db where user='mysqltest_1' or user='mysqltest_2';
-delete from mysql.tables_priv where user='mysqltest_1';
-delete from mysql.columns_priv where user='mysqltest_1';
+delete from mysql.tables_priv where user='mysqltest_1' or user='mysqltest_2';
+delete from mysql.columns_priv where user='mysqltest_1' or user='mysqltest_2';
 flush privileges;
 drop table t1;
 
@@ -432,3 +441,21 @@ WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
   WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
   AND A.TABLE_NAME = B.TABLE_NAME);
+
+#
+# Bug #9344  INFORMATION_SCHEMA, wrong content, numeric columns
+#
+
+create table t1
+( x_bigint BIGINT,
+  x_integer INTEGER,
+  x_smallint SMALLINT,
+  x_decimal DECIMAL(5,3),
+  x_numeric NUMERIC(5,3),
+  x_real REAL,
+  x_float FLOAT,
+  x_double_precision DOUBLE PRECISION );
+SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME= 't1';
+drop table t1;
