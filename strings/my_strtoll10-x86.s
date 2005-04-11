@@ -394,7 +394,7 @@ my_strtoll10:
 	popl %ebp
 	ret
 
-my_strtoll10_end:
+.my_strtoll10_end:
 	.size	my_strtoll10,.my_strtoll10_end-my_strtoll10
         .comm   res,240,32
         .comm   end_ptr,120,32

@@ -3399,28 +3399,6 @@ delete from t1|
 
 
 #
-# BUG#6600: Stored procedure crash after repeated calls with check table
-#
---disable_warnings
-drop procedure if exists bug6600|
-drop table if exists t3|
-drop view if exists v1|
---enable_warnings
-create table t3 (s1 decimal(31,30))|
-create view v1 as select * from t3|
-
-create procedure bug6600()
-  check table v1|
-
-call bug6600()|
-call bug6600()|
-call bug6600()|
-drop procedure bug6600|
-drop view v1|
-drop table t3|
-
-
-#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

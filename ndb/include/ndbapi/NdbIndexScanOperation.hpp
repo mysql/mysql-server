@@ -37,6 +37,17 @@ public:
    * readTuples using ordered index
    * 
    * @param lock_mode Lock mode
+   * @param scan_flags see @ref ScanFlag
+   * @param parallel No of fragments to scan in parallel (0=max)
+   */ 
+  virtual int readTuples(LockMode lock_mode = LM_Read, 
+                         Uint32 scan_flags = 0, Uint32 parallel = 0);
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
+   * readTuples using ordered index
+   * 
+   * @param lock_mode Lock mode
    * @param batch     No of rows to fetch from each fragment at a time
    * @param parallel  No of fragments to scan in parallel
    * @param order_by  Order result set in index order
@@ -45,13 +56,20 @@ public:
    * @returns 0 for success and -1 for failure
    * @see NdbScanOperation::readTuples
    */ 
-  int readTuples(LockMode lock_mode = LM_Read,
-		 Uint32 batch = 0, 
-		 Uint32 parallel = 0,
-		 bool order_by = false,
-                 bool order_desc = false,
-		 bool read_range_no = false);
-  
+  inline int readTuples(LockMode lock_mode,
+                        Uint32 batch, 
+                        Uint32 parallel,
+                        bool order_by,
+                        bool order_desc = false,
+                        bool read_range_no = false) {
+    Uint32 scan_flags =
+      (SF_OrderBy & -(Int32)order_by) |
+      (SF_Descending & -(Int32)order_desc) |
+      (SF_ReadRangeNo & -(Int32)read_range_no);
+    return readTuples(lock_mode, scan_flags, parallel);
+  }
+#endif
+
   /**
    * Type of ordered index key bound.  The values (0-4) will not change
    * and can be used explicitly (e.g. they could be computed).

@@ -88,14 +88,14 @@ bool mysql_create_view(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Privilege check for view creation:
-    - user have CREATE VIEW privilege on view table
-    - user have DELETE privilege in case of ALTER VIEW or CREATE OR REPLACE
+    - user has CREATE VIEW privilege on view table
+    - user has DROP privilege in case of ALTER VIEW or CREATE OR REPLACE
     VIEW
-    - have some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
+    - user has some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
     underlying tables used on top of SELECT list (because it can be
     (theoretically) updated, so it is enough to have UPDATE privilege on
     them, for example)
-    - have SELECT privilege on columns used in expressions of VIEW select
+    - user has SELECT privilege on columns used in expressions of VIEW select
     - for columns of underly tables used on top of SELECT list also will be
     checked that we have not more privileges on correspondent column of view
     table (i.e. user will not get some privileges by view creation)
@@ -104,9 +104,9 @@ bool mysql_create_view(THD *thd,
                     0, 0) ||
        grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
       (mode != VIEW_CREATE_NEW &&
-       (check_access(thd, DELETE_ACL, view->db, &view->grant.privilege,
+       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
                      0, 0) ||
-        grant_option && check_grant(thd, DELETE_ACL, view, 0, 1, 0))))
+        grant_option && check_grant(thd, DROP_ACL, view, 0, 1, 0))))
     DBUG_RETURN(TRUE);
   for (sl= select_lex; sl; sl= sl->next_select())
   {
@@ -216,7 +216,7 @@ bool mysql_create_view(THD *thd,
 
   /* prepare select to resolve all fields */
   lex->view_prepare_mode= 1;
-  if (unit->prepare(thd, 0, 0))
+  if (unit->prepare(thd, 0, 0, view->view_name.str))
   {
     /*
       some errors from prepare are reported to user, if is not then
@@ -755,17 +755,17 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
       table->ancestor= view_tables;
 
-      /* next table should include SELECT_LEX under this table SELECT_LEX */
-      table->ancestor->select_lex= table->select_lex;
-
       /*
         Process upper level tables of view. As far as we do noy suport union
         here we can go through local tables of view most upper SELECT
       */
-      for(tbl= (TABLE_LIST*)view_select->table_list.first;
+      for(tbl= view_tables;
           tbl;
           tbl= tbl->next_local)
       {
+        /* next table should include SELECT_LEX under this table SELECT_LEX */
+        tbl->select_lex= table->select_lex;
+
         /*
           move lock type (TODO: should we issue error in case of TMPTABLE
           algorithm and non-read locking)?

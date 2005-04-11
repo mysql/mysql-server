@@ -59,6 +59,7 @@ current_user()
 mysqltest_1@localhost
 show databases;
 Database
+information_schema
 mysqltest_1
 test
 grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant option;

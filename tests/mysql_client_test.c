@@ -253,7 +253,12 @@ static void client_connect()
   mysql_autocommit(mysql, TRUE);
 
   if (!opt_silent)
+  {
+    fprintf(stdout, "\nConnected to MySQL server version: %s (%lu)\n",
+            mysql_get_server_info(mysql),
+            (ulong) mysql_get_server_version(mysql));
     fprintf(stdout, "\n Creating a test database '%s' ...", current_db);
+  }
   strxmov(query, "CREATE DATABASE IF NOT EXISTS ", current_db, NullS);
 
   rc= mysql_query(mysql, query);
@@ -12662,7 +12667,7 @@ static void test_view_sp_list_fields()
   int		rc;
   MYSQL_RES     *res;
 
-  myheader("test_view_insert_fields");
+  myheader("test_view_sp_list_fields");
 
   rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
   myquery(rc);
