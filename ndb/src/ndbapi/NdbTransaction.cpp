@@ -954,9 +954,9 @@ void releaseExecutedScanOperation();
 Remark:         Release scan op when hupp'ed trans closed (save memory)
 ******************************************************************************/
 void 
-NdbConnection::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
+NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
 {
-  DBUG_ENTER("NdbConnection::releaseExecutedScanOperation");
+  DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
   DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp))
 
   // here is one reason to make op lists doubly linked
@@ -977,7 +977,7 @@ NdbConnection::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
     }
   }
   DBUG_VOID_RETURN;
-}//NdbConnection::releaseExecutedScanOperation()
+}//NdbTransaction::releaseExecutedScanOperation()
 
 /*****************************************************************************
 NdbOperation* getNdbOperation(const char* aTableName);
