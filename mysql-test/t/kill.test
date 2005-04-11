@@ -27,7 +27,7 @@ connection con1;
 
 --disable_reconnect
 # this statement should fail
---error 2006
+--error 2006,2013
 select 1;
 --enable_reconnect
 # this should work, and we should have a new connection_id()
