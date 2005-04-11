@@ -531,6 +531,74 @@ runOperations(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runLockUpgrade1(NDBT_Context* ctx, NDBT_Step* step){
+  // Verify that data in index match 
+  // table data
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  if(hugoTrans.loadTable(pNdb, 1) != 0){
+    g_err << "Load table failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  int result= NDBT_OK;
+  do
+  {
+    CHECK(hugoOps.startTransaction(pNdb) == 0);  
+    CHECK(hugoOps.pkReadRecord(pNdb, 0, 1, NdbOperation::LM_Read) == 0);
+    CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+    
+    ctx->setProperty("READ_DONE", 1);
+    ctx->broadcast();
+    ndbout_c("wait 2");
+    ctx->getPropertyWait("READ_DONE", 2);
+    ndbout_c("wait 2 - done");
+    ctx->setProperty("READ_DONE", 3);
+    ctx->broadcast();
+    ndbout_c("before update");
+    CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, 2) == 0);
+    ndbout_c("wait update");
+    CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+    CHECK(hugoOps.closeTransaction(pNdb));
+  } while(0);
+  
+  return result;
+}
+
+int
+runLockUpgrade2(NDBT_Context* ctx, NDBT_Step* step){
+  // Verify that data in index match 
+  // table data
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  
+  int result= NDBT_OK;
+  do
+  {
+    CHECK(hugoOps.startTransaction(pNdb) == 0);  
+    ndbout_c("wait 1");
+    ctx->getPropertyWait("READ_DONE", 1);
+    ndbout_c("wait 1 - done");
+    CHECK(hugoOps.pkReadRecord(pNdb, 0, 1, NdbOperation::LM_Read) == 0);
+    CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+    ctx->setProperty("READ_DONE", 2);
+    ctx->broadcast();
+    ndbout_c("wait 3");
+    ctx->getPropertyWait("READ_DONE", 3);
+    ndbout_c("wait 3 - done");
+    
+    NdbSleep_MilliSleep(200);
+    CHECK(hugoOps.execute_Commit(pNdb) == 0);  
+  } while(0);
+
+  return NDBT_FAILED;
+}
+
+int
 main(int argc, const char** argv){
   ndb_init();
 
@@ -538,6 +606,31 @@ main(int argc, const char** argv){
   generate(tmp, 5);
 
   NDBT_TestSuite ts("testOperations");
+
+  {
+    BaseString name("bug_9749");
+    NDBT_TestCaseImpl1 *pt = new NDBT_TestCaseImpl1(&ts, 
+						    name.c_str(), "");    
+    
+    pt->addInitializer(new NDBT_Initializer(pt,
+					    "runClearTable", 
+					    runClearTable));
+    
+    pt->addStep(new NDBT_ParallelStep(pt, 
+				      "thread1",
+				      runLockUpgrade1));
+    
+
+    pt->addStep(new NDBT_ParallelStep(pt, 
+				      "thread2",
+				      runLockUpgrade2));
+    
+    pt->addFinalizer(new NDBT_Finalizer(pt, 
+					"runClearTable", 
+					runClearTable));
+    ts.addTest(pt);
+  }
+
   for(size_t i = 0; i<tmp.size(); i++)
   {
     BaseString name;
