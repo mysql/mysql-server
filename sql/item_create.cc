@@ -306,7 +306,7 @@ Item *create_func_current_user()
   char buff[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   uint length;
 
-  thd->safe_to_cache_query= 0;
+  thd->lex->safe_to_cache_query= 0;
   length= (uint) (strxmov(buff, thd->priv_user, "@", thd->priv_host, NullS) -
 		  buff);
   return new Item_string(NullS, thd->memdup(buff, length), length,
