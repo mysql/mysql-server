@@ -1716,7 +1716,7 @@ void st_table_list::restore_want_privilege()
     check_opt_type  - WHITH CHECK OPTION type (VIEW_CHECK_NONE,
                       VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
   NOTES
-    ancestor is list of tables and views used by view
+    ancestor is list of tables and views used by view (underlying tables/views)
 
   DESCRIPTION
     It is:
@@ -1749,6 +1749,9 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   bool save_allow_sum_func= thd->allow_sum_func;
   bool res= FALSE;
   DBUG_ENTER("st_table_list::setup_ancestor");
+
+  if (check_stack_overrun(thd, (char *)&res))
+    return TRUE;
 
   for (tbl= ancestor; tbl; tbl= tbl->next_local)
   {
@@ -1985,6 +1988,34 @@ ok:
   DBUG_RETURN(res);
 }
 
+
+/*
+  Find underlying base tables (TABLE_LIST) which represent given
+  table_to_find (TABLE)
+
+  SYNOPSIS
+    st_table_list::find_underlying_table()
+    table_to_find table to find
+
+  RETURN
+    0  table is not found
+    found table reference
+*/
+
+st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
+{
+  /* is this real table and table which we are looking for? */
+  if (table == table_to_find && ancestor == 0)
+    return this;
+
+  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    TABLE_LIST *result;
+    if ((result= tbl->find_underlying_table(table_to_find)))
+      return result;
+  }
+  return 0;
+}
 
 /*
   cleunup items belonged to view fields translation table

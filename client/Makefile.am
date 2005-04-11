@@ -23,7 +23,8 @@ LIBS =				@CLIENT_LIBS@
 LDADD=				@CLIENT_EXTRA_LDFLAGS@ \
                                 $(top_builddir)/libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
- mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen
+				mysqldump mysqlimport mysqltest mysqlbinlog \
+				mysqltestmanagerc mysqltestmanager-pwgen
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
@@ -33,7 +34,8 @@ mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysqltest_SOURCES=		mysqltest.c $(top_srcdir)/mysys/my_getsystime.c
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c
-mysqlmanagerc_SOURCES =   mysqlmanagerc.c 
+mysqltestmanagerc_SOURCES =   mysqlmanagerc.c 
+mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c 
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 

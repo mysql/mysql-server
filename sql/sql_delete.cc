@@ -356,12 +356,28 @@ bool mysql_multi_delete_prepare(THD *thd)
                    &lex->select_lex.leaf_tables, FALSE, FALSE))
     DBUG_RETURN(TRUE);
 
+
+  /*
+    Multi-delete can't be constructed over-union => we always have
+    single SELECT on top and have to check underlying SELECTs of it
+  */
+  lex->select_lex.exclude_from_table_unique_test= TRUE;
   /* Fix tables-to-be-deleted-from list to point at opened tables */
   for (target_tbl= (TABLE_LIST*) aux_tables;
        target_tbl;
        target_tbl= target_tbl->next_local)
   {
-    target_tbl->table= target_tbl->correspondent_table->table;
+    if (!(target_tbl->table= target_tbl->correspondent_table->table))
+    {
+      DBUG_ASSERT(target_tbl->correspondent_table->view &&
+                  target_tbl->correspondent_table->ancestor &&
+                  target_tbl->correspondent_table->ancestor->next_local);
+      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+               target_tbl->correspondent_table->view_db.str,
+               target_tbl->correspondent_table->view_name.str);
+      DBUG_RETURN(TRUE);
+    }
+
     if (!target_tbl->correspondent_table->updatable ||
         check_key_in_view(thd, target_tbl->correspondent_table))
     {
@@ -370,23 +386,14 @@ bool mysql_multi_delete_prepare(THD *thd)
       DBUG_RETURN(TRUE);
     }
     /*
-      Check are deleted table used somewhere inside subqueries.
-
-      Multi-delete can't be constructed over-union => we always have
-      single SELECT on top and have to check underlying SELECTs of it
+      Check that table from which we delete is not used somewhere
+      inside subqueries/view.
     */
-    for (SELECT_LEX_UNIT *un= lex->select_lex.first_inner_unit();
-         un;
-         un= un->next_unit())
+    if (unique_table(target_tbl->correspondent_table, lex->query_tables))
     {
-      if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
-          un->check_updateable(target_tbl->correspondent_table->db,
-                               target_tbl->correspondent_table->table_name))
-      {
-        my_error(ER_UPDATE_TABLE_USED, MYF(0),
-                 target_tbl->correspondent_table->table_name);
-        DBUG_RETURN(TRUE);
-      }
+      my_error(ER_UPDATE_TABLE_USED, MYF(0),
+               target_tbl->correspondent_table->table_name);
+      DBUG_RETURN(TRUE);
     }
   }
   DBUG_RETURN(FALSE);

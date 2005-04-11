@@ -35,7 +35,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 				  int records,
 				  int abortPercent,
 				  int parallelism, 
-				  NdbOperation::LockMode lm)
+				  NdbOperation::LockMode lm,
+                                  int scan_flags)
 {
   
   int                  retryAttempt = 0;
@@ -72,7 +73,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    if( pOp ->readTuples(lm, 0, parallelism) ) {
+    if( pOp ->readTuples(lm, scan_flags, parallelism) ) {
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
       return NDBT_FAILED;
@@ -187,7 +188,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 				  int abortPercent,
 				  int parallelism, 
 				  NdbOperation::LockMode lm,
-				  bool sorted)
+                                  int scan_flags)
 {
   
   int                  retryAttempt = 0;
@@ -224,7 +225,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    if( pOp ->readTuples(lm, 0, parallelism, sorted) ) {
+    if( pOp ->readTuples(lm, scan_flags, parallelism) ) {
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
       return NDBT_FAILED;

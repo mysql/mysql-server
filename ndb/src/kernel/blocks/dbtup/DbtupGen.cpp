@@ -143,6 +143,11 @@ Dbtup::Dbtup(const class Configuration & conf)
   // Ordered index related
   addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
 
+  // Tup scan
+  addRecSignal(GSN_ACC_SCANREQ, &Dbtup::execACC_SCANREQ);
+  addRecSignal(GSN_NEXT_SCANREQ, &Dbtup::execNEXT_SCANREQ);
+  addRecSignal(GSN_ACC_CHECK_SCAN, &Dbtup::execACC_CHECK_SCAN);
+
   initData();
 }//Dbtup::Dbtup()
 
@@ -652,6 +657,10 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
   c_triggerPool.setSize(noOfTriggers);
 
+  Uint32 nScanOp;       // use TUX config for now
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
+  c_scanOpPool.setSize(nScanOp);
+
   initRecords();
   czero = 0;
   cminusOne = czero - 1;
@@ -672,6 +681,8 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
 
 void Dbtup::initRecords() 
 {
+  unsigned i;
+
   // Records with dynamic sizes
   attrbufrec = (Attrbufrec*)allocRecord("Attrbufrec", 
 					sizeof(Attrbufrec), 
@@ -693,6 +704,11 @@ void Dbtup::initRecords()
   fragrecord = (Fragrecord*)allocRecord("Fragrecord",
 					sizeof(Fragrecord), 
 					cnoOfFragrec);
+  
+  for (i = 0; i<cnoOfFragrec; i++) {
+    void * p = &fragrecord[i];
+    new (p) Fragrecord(c_scanOpPool);
+  }
 
   hostBuffer = (HostBuffer*)allocRecord("HostBuffer",
 					sizeof(HostBuffer), 
@@ -730,7 +746,7 @@ void Dbtup::initRecords()
 				    sizeof(Tablerec), 
 				    cnoOfTablerec);
   
-  for(unsigned i = 0; i<cnoOfTablerec; i++) {
+  for (i = 0; i<cnoOfTablerec; i++) {
     void * p = &tablerec[i];
     new (p) Tablerec(c_triggerPool);
   }

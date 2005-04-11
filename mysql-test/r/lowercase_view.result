@@ -11,16 +11,109 @@ vie	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab
 drop database MySQLTest;
 use test;
 create table t1Aa (col1 int);
-create table t2Aa (col1 int);
-create view v1Aa as select * from t1Aa;
-create view v2Aa as select * from v1Aa;
-update v2aA set col1 = (select max(col1) from v1aA);
+create table t2aA (col1 int);
+create view v1Aa as select * from t1aA;
+create view v2aA as select * from v1aA;
+create view v3Aa as select v2Aa.col1 from v2aA,t2Aa where v2Aa.col1 = t2aA.col1;
+update v2aA set col1 = (select max(col1) from v1Aa);
 ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
-delete from v2aA where col1 = (select max(col1) from v1aA);
+update v2Aa set col1 = (select max(col1) from t1Aa);
 ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+update v2aA set col1 = (select max(col1) from v2Aa);
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from v1aA) where v2aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+update t1aA,t2Aa set t1Aa.col1 = (select max(col1) from v1Aa) where t1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from v1aA) where v1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+update t2Aa,v2Aa set v2aA.col1 = (select max(col1) from v1aA) where v2Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from v1Aa) where t1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update t2Aa,v1aA set v1Aa.col1 = (select max(col1) from v1aA) where v1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from t1aA) where v2aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+update t1Aa,t2Aa set t1aA.col1 = (select max(col1) from t1Aa) where t1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from t1Aa) where v1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+update t2Aa,v2Aa set v2aA.col1 = (select max(col1) from t1aA) where v2Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from t1Aa) where t1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update t2Aa,v1Aa set v1aA.col1 = (select max(col1) from t1Aa) where v1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from v2aA) where v2Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+update t1aA,t2Aa set t1Aa.col1 = (select max(col1) from v2aA) where t1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from v2Aa) where v1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+update t2Aa,v2aA set v2Aa.col1 = (select max(col1) from v2aA) where v2Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from v2aA) where t1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update t2Aa,v1Aa set v1aA.col1 = (select max(col1) from v2Aa) where v1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+update v3aA set v3Aa.col1 = (select max(col1) from v1aA);
+ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+update v3aA set v3Aa.col1 = (select max(col1) from t1aA);
+ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+update v3aA set v3Aa.col1 = (select max(col1) from v2aA);
+ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+update v3aA set v3Aa.col1 = (select max(col1) from v3aA);
+ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+delete from v2Aa where col1 = (select max(col1) from v1Aa);
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+delete from v2aA where col1 = (select max(col1) from t1Aa);
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+delete from v2Aa where col1 = (select max(col1) from v2aA);
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+delete v2Aa from v2aA,t2Aa where (select max(col1) from v1aA) > 0 and v2Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+delete t1aA from t1Aa,t2Aa where (select max(col1) from v1Aa) > 0 and t1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+delete v1aA from v1Aa,t2Aa where (select max(col1) from v1aA) > 0 and v1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+delete v2aA from v2Aa,t2Aa where (select max(col1) from t1Aa) > 0 and v2aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+delete t1aA from t1Aa,t2Aa where (select max(col1) from t1aA) > 0 and t1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+delete v1aA from v1Aa,t2Aa where (select max(col1) from t1aA) > 0 and v1aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+delete v2Aa from v2aA,t2Aa where (select max(col1) from v2Aa) > 0 and v2aA.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+delete t1Aa from t1aA,t2Aa where (select max(col1) from v2Aa) > 0 and t1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+delete v1Aa from v1aA,t2Aa where (select max(col1) from v2aA) > 0 and v1Aa.col1 = t2aA.col1;
+ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+insert into v2Aa values ((select max(col1) from v1aA));
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+insert into t1aA values ((select max(col1) from v1Aa));
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
 insert into v2aA values ((select max(col1) from v1aA));
 ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
-drop view v2Aa,v1Aa;
+insert into v2Aa values ((select max(col1) from t1Aa));
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+insert into t1aA values ((select max(col1) from t1Aa));
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+insert into v2aA values ((select max(col1) from t1aA));
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+insert into v2Aa values ((select max(col1) from v2aA));
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+insert into t1Aa values ((select max(col1) from v2Aa));
+ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+insert into v2aA values ((select max(col1) from v2Aa));
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+insert into v3Aa (col1) values ((select max(col1) from v1Aa));
+ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+insert into v3aA (col1) values ((select max(col1) from t1aA));
+ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+insert into v3Aa (col1) values ((select max(col1) from v2aA));
+ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+drop view v3aA,v2Aa,v1aA;
 drop table t1Aa,t2Aa;
 create table t1Aa (col1 int);
 create view v1Aa as select col1 from t1Aa as AaA;

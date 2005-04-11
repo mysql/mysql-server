@@ -99,25 +99,6 @@ select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
 select charset(@a),collation(@a),coercibility(@a);
 select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
 
-# Check that user variables are binlogged correctly (BUG#3875)
-create table t1 (a varchar(50));
-reset master;
-SET TIMESTAMP=10000;
-SET @`a b`='hello';
-INSERT INTO t1 VALUES(@`a b`);
-set @var1= "';aaa";
-SET @var2=char(ascii('a'));
-insert into t1 values (@var1),(@var2);
---replace_column 2 # 5 #
-show binlog events from 98;
-# more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
-# absolutely need variables names to be quoted and strings to be
-# escaped).
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
-drop table t1;
-
-
 #
 # Bug #6321 strange error:
 #   string function FIELD(<uservariable content NULL>, ...)

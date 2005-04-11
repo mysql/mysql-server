@@ -25,6 +25,8 @@ length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
 select length(format('nan', 2)) > 0;
 length(format('nan', 2)) > 0
 1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'nan'
 select concat("$",format(2500,2));
 concat("$",format(2500,2))
 $2,500.00
