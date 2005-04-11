@@ -2041,7 +2041,9 @@ send_result_message:
       close_thread_tables(thd);
       TABLE_LIST *save_next= table->next;
       table->next= 0;
+      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
       result_code= mysql_recreate_table(thd, table, 0);
+      reenable_binlog(thd);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
