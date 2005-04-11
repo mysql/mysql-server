@@ -130,7 +130,7 @@ static void version()
 }
 
 
-static const char *default_groups[]= { "mysql", "manager", 0 };
+static const char *default_groups[]= { "manager", 0 };
 
 
 static void usage()
