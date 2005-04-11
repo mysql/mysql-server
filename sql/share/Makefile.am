@@ -9,7 +9,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(distdir)/charsets
 	$(INSTALL_DATA) $(srcdir)/charsets/Index.xml $(distdir)/charsets
 
-all: @AVAILABLE_LANGUAGES_ERRORS@
+all-local: @AVAILABLE_LANGUAGES_ERRORS@
 
 # this is ugly, but portable
 @AVAILABLE_LANGUAGES_ERRORS_RULES@
