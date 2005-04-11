@@ -2670,7 +2670,7 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
 {
   TABLE *table= item->table;
   char *record= (char*) table->record[0] + table->s->null_bytes;
-  String tmp(table->record[1], table->s->reclength, default_charset_info), tmp2;
+  String tmp((char *)table->record[1], table->s->reclength, default_charset_info), tmp2;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
 

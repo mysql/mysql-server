@@ -294,13 +294,19 @@ int Show_instance_options::do_command(struct st_net *net,
       char *tmp_option, *option_value;
       get_dynamic(&(instance->options.options_array), (gptr) &tmp_option, i);
       option_value= strchr(tmp_option, '=');
-      /* split the option string into two parts */
-      *option_value= 0;
+      /* split the option string into two parts if it has a value */
+
       position= 0;
-      store_to_string(&send_buff, tmp_option + 2, &position);
-      store_to_string(&send_buff, option_value + 1, &position);
-      /* join name and the value into the same option again */
-      *option_value= '=';
+      if (option_value != NULL)
+      {
+        *option_value= 0;
+        store_to_string(&send_buff, tmp_option + 2, &position);
+        store_to_string(&send_buff, option_value + 1, &position);
+        /* join name and the value into the same option again */
+        *option_value= '=';
+      }
+      else store_to_string(&send_buff, tmp_option + 2, &position);
+
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
