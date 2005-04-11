@@ -184,6 +184,7 @@ select LAST_INSERT_ID() from t1;
 select RAND() from t1;
 select UNIX_TIMESTAMP() from t1;
 select USER() from t1;
+select CURRENT_USER() from t1;
 select benchmark(1,1) from t1;
 explain extended select benchmark(1,1) from t1;
 show status like "Qcache_queries_in_cache";
