@@ -5573,7 +5573,7 @@ int Field_datetime::store(longlong nr)
   {
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, 
-                         initial_nr, MYSQL_TIMESTAMP_DATE);
+                         initial_nr, MYSQL_TIMESTAMP_DATE, 1);
     error= 1;
   }
 
