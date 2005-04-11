@@ -4688,8 +4688,9 @@ void Dbtc::sendApiCommit(Signal* signal)
     }
     commitConf->transId1 = regApiPtr->transid[0];
     commitConf->transId2 = regApiPtr->transid[1];
-    
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TC_COMMITCONF, signal, 3, JBB);
+    commitConf->gci = regApiPtr->globalcheckpointid;
+    sendSignal(regApiPtr->ndbapiBlockref, GSN_TC_COMMITCONF, signal, 
+	       TcCommitConf::SignalLength, JBB);
   } else if (regApiPtr->returnsignal == RS_NO_RETURN) {
     jam();
   } else {
@@ -5382,8 +5383,9 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
         commitConf->apiConnectPtr = apiConnectPtr;
         commitConf->transId1 = transId1;
         commitConf->transId2 = transId2;
-        
-        sendSignal(apiBlockRef, GSN_TC_COMMITCONF, signal, 3, JBB);
+        commitConf->gci = 0;
+        sendSignal(apiBlockRef, GSN_TC_COMMITCONF, signal, 
+		   TcCommitConf::SignalLength, JBB);
         
         regApiPtr->returnsignal = RS_NO_RETURN;
         releaseAbortResources(signal);
