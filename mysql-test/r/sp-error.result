@@ -494,4 +494,13 @@ declare continue handler for sqlstate '42x00' begin end;
 begin end;
 end|
 ERROR 42000: Bad SQLSTATE: '42x00'
+create procedure bug6600()
+check table t1|
+ERROR 0A000: CHECK is not allowed in stored procedures
+create procedure bug6600()
+lock table t1 read|
+ERROR 0A000: LOCK is not allowed in stored procedures
+create procedure bug6600()
+unlock table t1|
+ERROR 0A000: UNLOCK is not allowed in stored procedures
 drop table t1|

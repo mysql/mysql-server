@@ -1,5 +1,6 @@
 drop table if exists t1, t2;
 drop view if exists v1;
+drop database if exists mysqltest;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:=1;
 set @a:=0;
@@ -190,3 +191,18 @@ select @del_before, @del_after;
 drop trigger t1.trg1;
 drop trigger t1.trg2;
 drop table t1;
+create table t1 (a int);
+create trigger trg1 before insert on t1 for each row set new.a= 10;
+drop table t1;
+create table t1 (a int);
+insert into t1 values ();
+select * from t1;
+a
+NULL
+drop table t1;
+create database mysqltest;
+use mysqltest;
+create table t1 (i int);
+create trigger trg1 before insert on t1 for each row set @a:= 1;
+drop database mysqltest;
+use test;

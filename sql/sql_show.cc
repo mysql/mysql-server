@@ -1615,10 +1615,11 @@ typedef struct st_index_field_values
   SYNOPSIS
     schema_table_store_record()
     thd                   thread handler
-    table                 I_S table
+    table                 Information schema table to be updated
+
   RETURN
-    1	                  error
     0	                  success
+    1	                  error
 */
 
 static bool schema_table_store_record(THD *thd, TABLE *table)
@@ -1959,7 +1960,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               }
             }
             if (schema_table_store_record(thd, table))
-              DBUG_RETURN(error);
+              goto err;
           }
           else
           {
@@ -2333,12 +2334,26 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                    "NO" : "YES");
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
-      if (field->has_charset())
-        table->field[8]->store((longlong) field->representation_length()/
-                               field->charset()->mbmaxlen);
-      else
-        table->field[8]->store((longlong) field->representation_length());
-      table->field[9]->store((longlong) field->representation_length());
+
+      switch (field->type()) {
+      case FIELD_TYPE_TINY_BLOB:
+      case FIELD_TYPE_MEDIUM_BLOB:
+      case FIELD_TYPE_LONG_BLOB:
+      case FIELD_TYPE_BLOB:
+      case FIELD_TYPE_VAR_STRING:
+      case FIELD_TYPE_STRING:
+        if (field->has_charset())
+          table->field[8]->store((longlong) field->representation_length()/
+                                 field->charset()->mbmaxlen);
+        else
+          table->field[8]->store((longlong) field->representation_length());
+        table->field[8]->set_notnull();
+        table->field[9]->store((longlong) field->representation_length());
+        table->field[9]->set_notnull();
+        break;
+      default:
+        break;
+      }
 
       {
         uint dec =field->decimals();
@@ -3514,8 +3529,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Default"},
   {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
   {"DATA_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
-  {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0},

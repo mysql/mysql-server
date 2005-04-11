@@ -482,27 +482,6 @@ public:
 };
 
 
-class MYSQL_ERROR: public Sql_alloc
-{
-public:
-  enum enum_warning_level
-  { WARN_LEVEL_NOTE, WARN_LEVEL_WARN, WARN_LEVEL_ERROR, WARN_LEVEL_END};
-
-  uint code;
-  enum_warning_level level;
-  char *msg;
-  
-  MYSQL_ERROR(THD *thd, uint code_arg, enum_warning_level level_arg,
-	      const char *msg_arg)
-    :code(code_arg), level(level_arg)
-  {
-    if (msg_arg)
-      set_msg(thd, msg_arg);
-  }
-  void set_msg(THD *thd, const char *msg_arg);
-};
-
-
 class delayed_insert;
 class select_result;
 
@@ -1207,6 +1186,8 @@ public:
   bool	     no_trans_update, abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
+  /* set during loop of derived table processing */
+  bool       derived_tables_processing;
   longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
@@ -1429,7 +1410,8 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    my_message(err, ER(err), MYF(0));
+    if (err)
+      my_message(err, ER(err), MYF(0));
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()

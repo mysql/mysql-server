@@ -1036,8 +1036,8 @@ void clean_up(bool print_message)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
   finish_client_errs();
-  const char **errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
-  x_free((gptr) errmsgs);	/* Free messages */
+  my_free((gptr) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST),
+          MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -4075,8 +4075,6 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    my_security_attr_free(sa_event);
-    my_security_attr_free(sa_mapping);
     if (handle_client_file_map) 
       CloseHandle(handle_client_file_map);
     if (handle_client_map)

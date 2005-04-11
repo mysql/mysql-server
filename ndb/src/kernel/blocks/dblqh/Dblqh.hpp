@@ -565,6 +565,9 @@ public:
     NodeId scanNodeId;
     Uint16 scanReleaseCounter;
     Uint16 scanNumber;
+
+    // scan source block ACC TUX TUP
+    BlockReference scanBlockref;
  
     Uint8 scanCompletedStatus;
     Uint8 scanFlag;
@@ -573,6 +576,7 @@ public:
     Uint8 readCommitted;
     Uint8 rangeScan;
     Uint8 descending;
+    Uint8 tupScan;
     Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;

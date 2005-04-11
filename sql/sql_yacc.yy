@@ -1398,7 +1398,7 @@ create_function_tail:
 	    uint unused1= 0;
 	    int unused2= 0;
 
-	    if (!(new_field= new_create_field(YYTHD, "",
+	    if (!(new_field= new_create_field(YYTHD, (char*) "",
 					      (enum enum_field_types)$8,
 			  		      lex->length, lex->dec, lex->type,
 			  		      (Item *)0, (Item *) 0, &cmt, 0,
@@ -3670,9 +3670,15 @@ analyze:
 check:
 	CHECK_SYM table_or_tables
 	{
-	   LEX *lex=Lex;
-	   lex->sql_command = SQLCOM_CHECK;
-	   lex->check_opt.init();
+	  LEX *lex=Lex;
+
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "CHECK");
+	    YYABORT;
+	  }
+	  lex->sql_command = SQLCOM_CHECK;
+	  lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
 	{}
@@ -7719,7 +7725,7 @@ lock:
 
 	  if (lex->sphead)
 	  {
-	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOCK");
 	    YYABORT;
 	  }
 	  lex->sql_command= SQLCOM_LOCK_TABLES;
@@ -7758,7 +7764,7 @@ unlock:
 
 	  if (lex->sphead)
 	  {
-	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "UNLOCK");
 	    YYABORT;
 	  }
 	  lex->sql_command= SQLCOM_UNLOCK_TABLES;

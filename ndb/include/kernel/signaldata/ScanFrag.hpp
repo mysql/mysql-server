@@ -57,6 +57,7 @@ public:
   static Uint32 getReadCommittedFlag(const Uint32 & requestInfo);
   static Uint32 getRangeScanFlag(const Uint32 & requestInfo);
   static Uint32 getDescendingFlag(const Uint32 & requestInfo);
+  static Uint32 getTupScanFlag(const Uint32 & requestInfo);
   static Uint32 getAttrLen(const Uint32 & requestInfo);
   static Uint32 getScanPrio(const Uint32 & requestInfo);
   
@@ -66,6 +67,7 @@ public:
   static void setReadCommittedFlag(Uint32 & requestInfo, Uint32 readCommitted);
   static void setRangeScanFlag(Uint32 & requestInfo, Uint32 rangeScan);
   static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
+  static void setTupScanFlag(Uint32 & requestInfo, Uint32 tupScan);
   static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
   static void setScanPrio(Uint32& requestInfo, Uint32 prio);
 };
@@ -200,11 +202,12 @@ public:
  * r = read committed        - 1  Bit 9
  * x = range scan            - 1  Bit 6
  * z = descending            - 1  Bit 10
+ * t = tup scan               -1  Bit 11 (implies x=z=0)
  * p = Scan prio             - 4  Bits (12-15) -> max 15
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *      lxhkrz ppppaaaaaaaaaaaaaaaa 
+ *      lxhkrztppppaaaaaaaaaaaaaaaa 
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -214,6 +217,7 @@ public:
 #define SF_READ_COMMITTED_SHIFT  (9)
 #define SF_RANGE_SCAN_SHIFT (6)
 #define SF_DESCENDING_SHIFT (10)
+#define SF_TUP_SCAN_SHIFT   (11)
 
 #define SF_ATTR_LEN_SHIFT    (16)
 #define SF_ATTR_LEN_MASK     (65535)
@@ -249,6 +253,12 @@ inline
 Uint32
 ScanFragReq::getDescendingFlag(const Uint32 & requestInfo){
   return (requestInfo >> SF_DESCENDING_SHIFT) & 1;
+}
+
+inline
+Uint32
+ScanFragReq::getTupScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_TUP_SCAN_SHIFT) & 1;
 }
 
 inline
@@ -316,6 +326,13 @@ void
 ScanFragReq::setDescendingFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setDescendingFlag");
   requestInfo |= (val << SF_DESCENDING_SHIFT);
+}
+
+inline
+void
+ScanFragReq::setTupScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setTupScanFlag");
+  requestInfo |= (val << SF_TUP_SCAN_SHIFT);
 }
 
 inline

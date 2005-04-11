@@ -216,7 +216,7 @@ run_scan(){
     }
     
     int par = g_paramters[P_PARRA].value;
-    int bat = g_paramters[P_BATCH].value;
+    int bat = 0; // g_paramters[P_BATCH].value;
     NdbScanOperation::LockMode lm;
     switch(g_paramters[P_LOCK].value){
     case 0:

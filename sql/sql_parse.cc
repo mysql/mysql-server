@@ -27,7 +27,6 @@
 
 #include "sp_head.h"
 #include "sp.h"
-#include "sp_cache.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -1689,6 +1688,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       else
 	thd->query_rest.copy(packet, length, thd->query_rest.charset());
+
+      thd->server_status&= ~ (SERVER_QUERY_NO_INDEX_USED |
+                              SERVER_QUERY_NO_GOOD_INDEX_USED);
       break;
 #endif /*EMBEDDED_LIBRARY*/
     }
@@ -1910,10 +1912,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
-	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
+	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %lu  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
 	    uptime,
-	    (int) thread_count,thd->query_id,thd->status_var.long_query_count,
-	    thd->status_var.opened_tables,refresh_version, cached_tables(),
+	    (int) thread_count, (ulong) thd->query_id,
+            (ulong) thd->status_var.long_query_count,
+	    thd->status_var.opened_tables, refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
@@ -3046,7 +3049,6 @@ unsent_create_error:
       goto error; /* purecov: inspected */
     thd->slow_command=TRUE;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
-    sp_cache_invalidate();
     break;
   }
   case SQLCOM_ANALYZE:
@@ -3233,16 +3235,6 @@ unsent_create_error:
     thd->proc_info="init";
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
-
-    if (!first_table->table)
-    {
-      DBUG_ASSERT(first_table->view &&
-                  first_table->ancestor && first_table->ancestor->next_local);
-      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-               first_table->view_db.str, first_table->view_name.str);
-      res= FALSE;
-      break;
-    }
 
     if ((res= mysql_multi_delete_prepare(thd)))
       goto error;
@@ -4579,6 +4571,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
+  bool  db_is_pattern= test(want_access & GRANT_ACL);
 #endif
   ulong dummy;
   DBUG_ENTER("check_access");
@@ -4610,9 +4603,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     */
     db_access= thd->db_access;
     if (!(thd->master_access & SELECT_ACL) &&
-	(db && (!thd->db || strcmp(db,thd->db))))
-      db_access=acl_get(thd->host, thd->ip,
-			thd->priv_user, db, test(want_access & GRANT_ACL));
+	(db && (!thd->db || db_is_pattern || strcmp(db,thd->db))))
+      db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
@@ -4633,9 +4625,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (db == any_db)
     DBUG_RETURN(FALSE);				// Allow select on anything
 
-  if (db && (!thd->db || strcmp(db,thd->db)))
-    db_access=acl_get(thd->host, thd->ip,
-		      thd->priv_user, db, test(want_access & GRANT_ACL));
+  if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
+    db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
   else
     db_access=thd->db_access;
   DBUG_PRINT("info",("db_access: %lu", db_access));
@@ -5530,9 +5521,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
 	my_error(ER_TOO_BIG_SET, MYF(0), field_name); /* purecov: inspected */
 	DBUG_RETURN(NULL);
       }
-      new_field->pack_length= (interval_list->elements + 7) / 8;
-      if (new_field->pack_length > 4)
-        new_field->pack_length=8;
+      new_field->pack_length= get_set_pack_length(interval_list->elements);
 
       List_iterator<String> it(*interval_list);
       String *tmp;
@@ -5549,7 +5538,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_ENUM:
     {
       // Should be safe
-      new_field->pack_length= interval_list->elements < 256 ? 1 : 2; 
+      new_field->pack_length= get_enum_pack_length(interval_list->elements);
 
       List_iterator<String> it(*interval_list);
       String *tmp;

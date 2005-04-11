@@ -42,7 +42,8 @@ public:
 		      int records,
 		      int abort = 0,
 		      int parallelism = 0,
-		      NdbOperation::LockMode = NdbOperation::LM_Read);
+		      NdbOperation::LockMode = NdbOperation::LM_Read,
+                      int scan_flags = 0);
 
   int scanReadRecords(Ndb*, 
 		      const NdbDictionary::Index*,
@@ -50,7 +51,7 @@ public:
 		      int abort = 0,
 		      int parallelism = 0,
 		      NdbOperation::LockMode = NdbOperation::LM_Read,
-		      bool sorted = false);
+                      int scan_flags = 0);
 
   int pkReadRecords(Ndb*, 
 		    int records,

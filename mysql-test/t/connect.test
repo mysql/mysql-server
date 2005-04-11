@@ -3,6 +3,9 @@
 # Unfortunately the check is incomplete as we can't handle errors on connect
 # Also we can't connect without database
 
+# This test makes no sense with the embedded server
+--source include/not_embedded.inc
+
 #connect (con1,localhost,root,,"");
 #show tables;
 connect (con1,localhost,root,,mysql);

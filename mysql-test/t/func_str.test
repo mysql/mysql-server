@@ -3,7 +3,7 @@
 # Testing string functions
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 set names latin1;
@@ -244,7 +244,7 @@ select FIELD('b','A' COLLATE latin1_bin,'B');
 select FIELD(_latin2'b','A','B');
 --error 1270
 select FIELD('b',_latin2'A','B');
-select FIELD('b',_latin2'A','B',1);
+select FIELD('1',_latin2'3','2',1);
 
 select POSITION(_latin1'B' IN _latin1'abcd');
 select POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin);
@@ -523,4 +523,3 @@ SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id
  ORDER BY t1.id;
 
 DROP TABLE t1, t2;
-
