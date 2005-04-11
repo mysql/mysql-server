@@ -40,7 +40,7 @@ static bool pack_header(uchar *forminfo,enum db_type table_type,
 static uint get_interval_id(uint *int_count,List<create_field> &create_fields,
 			    create_field *last_field);
 static bool pack_fields(File file, List<create_field> &create_fields);
-static bool make_empty_rec(int file, enum db_type table_type,
+static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
 			   uint reclength,uint null_fields);
@@ -134,7 +134,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   VOID(my_seek(file,
 	       (ulong) uint2korr(fileinfo+6)+ (ulong) key_buff_length,
 	       MY_SEEK_SET,MYF(0)));
-  if (make_empty_rec(file,create_info->db_type,create_info->table_options,
+  if (make_empty_rec(thd,file,create_info->db_type,create_info->table_options,
 		     create_fields,reclength,null_fields))
     goto err;
 
@@ -640,7 +640,7 @@ static bool pack_fields(File file,List<create_field> &create_fields)
 
 	/* save an empty record on start of formfile */
 
-static bool make_empty_rec(File file,enum db_type table_type,
+static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
 			   uint reclength, uint null_fields)
@@ -652,6 +652,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
   TABLE table;
   create_field *field;
   handler *handler;
+  enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
@@ -666,7 +667,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
     DBUG_RETURN(1);
   }
 
-  table.in_use= current_thd;
+  table.in_use= thd;
   table.s->db_low_byte_first= handler->low_byte_first();
   table.s->blob_ptr_size= portable_sizeof_char_ptr;
 
@@ -678,14 +679,14 @@ static bool make_empty_rec(File file,enum db_type table_type,
     null_count++;
   }
   bfill(buff,(null_length=(null_fields+7)/8),255);
-  null_pos=buff;
+  null_pos= buff + null_count / 8;
 
   List_iterator<create_field> it(create_fields);
+  thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong default values
   while ((field=it++))
   {
     Field *regfield=make_field((char*) buff+field->offset,field->length,
-			       field->flags & NOT_NULL_FLAG ? 0:
-			       null_pos+null_count/8,
+                               null_pos,
 			       null_count & 7,
 			       field->pack_flag,
 			       field->sql_type,
@@ -709,7 +710,14 @@ static bool make_empty_rec(File file,enum db_type table_type,
     if (field->def &&
 	(regfield->real_type() != FIELD_TYPE_YEAR ||
 	 field->def->val_int() != 0))
-      (void) field->def->save_in_field(regfield, 1);
+    {
+      if (field->def->save_in_field(regfield, 1))
+      {
+        my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
+        error= 1;
+        goto err;
+      }
+    }
     else if (regfield->real_type() == FIELD_TYPE_ENUM &&
 	     (field->flags & NOT_NULL_FLAG))
     {
@@ -728,7 +736,10 @@ static bool make_empty_rec(File file,enum db_type table_type,
   /* Fill not used startpos */
   bfill((byte*) buff+null_length,firstpos-null_length,255);
   error=(int) my_write(file,(byte*) buff,(uint) reclength,MYF_RW);
+
+err:
   my_free((gptr) buff,MYF(MY_FAE));
   delete handler;
+  thd->count_cuted_fields= old_count_cuted_fields;
   DBUG_RETURN(error);
 } /* make_empty_rec */

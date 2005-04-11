@@ -524,3 +524,21 @@ execute stmt using @a, @b, @c;
 a	b	c	a	b	c
 deallocate prepare stmt;
 drop table t1,t2;
+SET @aux= "SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
+prepare my_stmt from @aux;
+execute my_stmt;
+COUNT(*)
+37
+execute my_stmt;
+COUNT(*)
+37
+execute my_stmt;
+COUNT(*)
+37
+deallocate prepare my_stmt;

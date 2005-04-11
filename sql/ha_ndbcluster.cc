@@ -178,7 +178,6 @@ static const err_code_mapping err_map[]=
   { 4244, HA_ERR_TABLE_EXIST, 1 },
 
   { 709, HA_ERR_NO_SUCH_TABLE, 0 },
-  { 284, HA_ERR_NO_SUCH_TABLE, 1 },
 
   { 266, HA_ERR_LOCK_WAIT_TIMEOUT, 1 },
   { 274, HA_ERR_LOCK_WAIT_TIMEOUT, 1 },
@@ -192,6 +191,8 @@ static const err_code_mapping err_map[]=
   { 826, HA_ERR_RECORD_FILE_FULL, 1 },
   { 827, HA_ERR_RECORD_FILE_FULL, 1 },
   { 832, HA_ERR_RECORD_FILE_FULL, 1 },
+
+  { 284, HA_ERR_TABLE_DEF_CHANGED, 0 },
 
   { 0, 1, 0 },
 
@@ -448,13 +449,31 @@ void ha_ndbcluster::invalidateDictionaryCache()
 int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 {
   int res;
-  const NdbError err= trans->getNdbError();
+  NdbError err= trans->getNdbError();
   DBUG_ENTER("ndb_err");
   
   ERR_PRINT(err);
   switch (err.classification) {
   case NdbError::SchemaError:
     invalidateDictionaryCache();
+
+    if (err.code==284)
+    {
+      /*
+         Check if the table is _really_ gone or if the table has
+         been alterend and thus changed table id
+       */
+      NDBDICT *dict= get_ndb()->getDictionary();
+      DBUG_PRINT("info", ("Check if table %s is really gone", m_tabname));
+      if (!(dict->getTable(m_tabname)))
+      {
+        err= dict->getNdbError();
+        DBUG_PRINT("info", ("Table not found, error: %d", err.code));
+        if (err.code != 709)
+          DBUG_RETURN(1);
+      }
+      DBUG_PRINT("info", ("Table exists but must have changed"));
+    }
     break;
   default:
     break;
@@ -1919,8 +1938,12 @@ int ha_ndbcluster::write_row(byte *record)
 
     if (has_auto_increment) 
     {
+      THD *thd= table->in_use;
+
       m_skip_auto_increment= FALSE;
       update_auto_increment();
+      /* Ensure that handler is always called for auto_increment values */
+      thd->next_insert_id= 0;
       m_skip_auto_increment= !auto_increment_column_changed;
     }
 
@@ -2053,7 +2076,11 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   
   statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+  {
     table->timestamp_field->set_time();
+    // Set query_id so that field is really updated
+    table->timestamp_field->query_id= thd->query_id;
+  }
 
   /* Check for update of primary key for special handling */  
   if ((table->s->primary_key != MAX_KEY) &&
@@ -2171,6 +2198,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   DBUG_ENTER("delete_row");
 
   statistic_increment(thd->status_var.ha_delete_count,&LOCK_status);
+  m_rows_changed++;
 
   if (cursor)
   {
@@ -2220,8 +2248,6 @@ int ha_ndbcluster::delete_row(const byte *record)
           return res;  
     }
   }
-
-  m_rows_changed++;
 
   // Execute delete operation
   if (execute_no_commit(this,trans) != 0) {
@@ -2967,7 +2993,11 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
   m_rows_inserted= 0;
-  m_rows_to_insert= rows; 
+  if (rows == 0)
+    /* We don't know how many will be inserted, guess */
+    m_rows_to_insert= m_autoincrement_prefetch;
+  else
+    m_rows_to_insert= rows; 
 
   /* 
     Calculate how many rows that should be inserted
@@ -3023,12 +3053,8 @@ int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
 }
 
 
-static const char *ha_ndb_bas_ext[]= { ha_ndb_ext, NullS };
-const char**
-ha_ndbcluster::bas_ext() const
-{   
-  return ha_ndb_bas_ext; 
-}
+const char** ha_ndbcluster::bas_ext() const
+{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
 
 
 /*
@@ -4081,6 +4107,10 @@ ulonglong ha_ndbcluster::get_auto_increment()
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   Ndb *ndb= get_ndb();
+   
+  if (m_rows_inserted > m_rows_to_insert)
+    /* We guessed too low */
+    m_rows_to_insert+= m_autoincrement_prefetch;
   cache_size= 
     (m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
     m_rows_to_insert - m_rows_inserted 
@@ -5804,6 +5834,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
   {
     thd->cleanup();
     delete thd;
+    delete ndb;
     DBUG_RETURN(NULL);
   }
 
@@ -5922,6 +5953,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 
   thd->cleanup();
   delete thd;
+  delete ndb;
   DBUG_PRINT("exit", ("ndb_util_thread"));
   my_thread_end();
   pthread_exit(0);

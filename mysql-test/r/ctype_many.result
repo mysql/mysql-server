@@ -2,27 +2,27 @@ DROP TABLE IF EXISTS t1;
 SET CHARACTER SET latin1;
 CREATE TABLE t1 (
 comment CHAR(32) ASCII NOT NULL,
-koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL
+koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default ''
 ) CHARSET=latin5;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `comment` char(32) character set latin1 NOT NULL,
-  `koi8_ru_f` char(32) character set koi8r NOT NULL
+  `koi8_ru_f` char(32) character set koi8r NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin5
 ALTER TABLE t1 CHANGE comment comment CHAR(32) CHARACTER SET latin2 NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `comment` char(32) character set latin2 NOT NULL,
-  `koi8_ru_f` char(32) character set koi8r NOT NULL
+  `koi8_ru_f` char(32) character set koi8r NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin5
 ALTER TABLE t1 ADD latin5_f CHAR(32) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `comment` char(32) character set latin2 NOT NULL,
-  `koi8_ru_f` char(32) character set koi8r NOT NULL,
+  `koi8_ru_f` char(32) character set koi8r NOT NULL default '',
   `latin5_f` char(32) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin5
 ALTER TABLE t1 DEFAULT CHARSET=latin2;
@@ -31,7 +31,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `comment` char(32) NOT NULL,
-  `koi8_ru_f` char(32) character set koi8r NOT NULL,
+  `koi8_ru_f` char(32) character set koi8r NOT NULL default '',
   `latin5_f` char(32) character set latin5 NOT NULL,
   `latin2_f` char(32) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2
@@ -40,7 +40,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `comment` char(32) NOT NULL,
-  `koi8_ru_f` char(32) character set koi8r NOT NULL
+  `koi8_ru_f` char(32) character set koi8r NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('a','LAT SMALL A');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('b','LAT SMALL B');
@@ -219,7 +219,7 @@ z	LAT CAPIT Z	2
 —ç	CYR CAPIT E	2
 —é	CYR CAPIT YU	2
 —è	CYR CAPIT YA	2
-ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL;
+ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL default '';
 UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
 SET CHARACTER SET koi8r;
 SELECT * FROM t1;
@@ -340,7 +340,7 @@ CYR CAPIT SOFT SIGN	¯	¯
 CYR CAPIT E	¸	¸
 CYR CAPIT YU	‡	‡
 CYR CAPIT YA	Ò	Ò
-ALTER TABLE t1 ADD bin_f CHAR(32) BYTE NOT NULL;
+ALTER TABLE t1 ADD bin_f CHAR(32) BYTE NOT NULL default '';
 UPDATE t1 SET bin_f=koi8_ru_f;
 SELECT COUNT(DISTINCT bin_f),COUNT(DISTINCT koi8_ru_f),COUNT(DISTINCT utf8_f) FROM t1;
 COUNT(DISTINCT bin_f)	COUNT(DISTINCT koi8_ru_f)	COUNT(DISTINCT utf8_f)

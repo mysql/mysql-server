@@ -734,7 +734,7 @@ public:
       return 0;                                 /* Null value */
     cs= res->charset();
     end= (char*) res->ptr()+res->length();
-    return cs->cset->my_strtoll10(cs, res->ptr(), &end, &err_not_used);
+    return cs->cset->strtoll10(cs, res->ptr(), &end, &err_not_used);
   }
   my_decimal *val_decimal(my_decimal *dec);
   enum Item_result result_type () const { return STRING_RESULT; }

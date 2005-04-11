@@ -327,6 +327,7 @@ public:
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
+  bool flush_and_sync();
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
@@ -479,27 +480,6 @@ public:
   char* val;
   i_string_pair():key(0),val(0) { }
   i_string_pair(char* key_arg, char* val_arg) : key(key_arg),val(val_arg) {}
-};
-
-
-class MYSQL_ERROR: public Sql_alloc
-{
-public:
-  enum enum_warning_level
-  { WARN_LEVEL_NOTE, WARN_LEVEL_WARN, WARN_LEVEL_ERROR, WARN_LEVEL_END};
-
-  uint code;
-  enum_warning_level level;
-  char *msg;
-  
-  MYSQL_ERROR(THD *thd, uint code_arg, enum_warning_level level_arg,
-	      const char *msg_arg)
-    :code(code_arg), level(level_arg)
-  {
-    if (msg_arg)
-      set_msg(thd, msg_arg);
-  }
-  void set_msg(THD *thd, const char *msg_arg);
 };
 
 
@@ -1207,6 +1187,8 @@ public:
   bool	     no_trans_update, abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
+  /* set during loop of derived table processing */
+  bool       derived_tables_processing;
   longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
@@ -1283,18 +1265,18 @@ public:
     pthread_mutex_unlock(&LOCK_delete);
   }
   void close_active_vio();
-#endif  
+#endif
   void awake(THD::killed_state state_to_set);
   /*
     For enter_cond() / exit_cond() to work the mutex must be got before
-    enter_cond() (in 4.1 an assertion will soon ensure this); this mutex is
-    then released by exit_cond(). Use must be:
-    lock mutex; enter_cond(); your code; exit_cond().
+    enter_cond(); this mutex is then released by exit_cond().
+    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
   */
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
     const char* old_msg = proc_info;
+    safe_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
@@ -1429,7 +1411,8 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    my_message(err, ER(err), MYF(0));
+    if (err)
+      my_message(err, ER(err), MYF(0));
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()

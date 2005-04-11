@@ -49,14 +49,25 @@ create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
 
 #
-# Some wrong defaults, so these creates should fail too
+# Some wrong defaults, so these creates should fail too (Bug #5902)
 #
 --error 1067
-create table test (a datetime default now());
+create table t1 (a datetime default now());
 --error 1294
-create table test (a datetime on update now());
+create table t1 (a datetime on update now());
 --error 1067
-create table test (a int default 100 auto_increment);
+create table t1 (a int default 100 auto_increment);
+--error 1067
+create table t1 (a tinyint default 1000);
+--error 1067
+create table t1 (a varchar(5) default 'abcdef');
+
+create table t1 (a varchar(5) default 'abcde');
+insert into t1 values();
+select * from t1;
+--error 1067
+alter table t1 alter column a set default 'abcdef';
+drop table t1;
 
 #
 # test of dummy table names
