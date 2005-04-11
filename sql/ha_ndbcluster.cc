@@ -2685,7 +2685,7 @@ int ha_ndbcluster::close_scan()
     m_ops_pending= 0;
   }
   
-  cursor->close(m_force_send);
+  cursor->close(m_force_send, true);
   m_active_cursor= m_multi_cursor= NULL;
   DBUG_RETURN(0);
 }
@@ -5694,7 +5694,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 close_scan:
     if (res == 1)
     {
-      m_multi_cursor->close();
+      m_multi_cursor->close(false, true);
       m_active_cursor= m_multi_cursor= 0;
       DBUG_MULTI_RANGE(8);
       continue;

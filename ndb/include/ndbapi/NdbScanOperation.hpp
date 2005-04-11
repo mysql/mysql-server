@@ -115,7 +115,7 @@ public:
   /**
    * Close scan
    */
-  void close(bool forceSend = false);
+  void close(bool forceSend = false, bool releaseOp = false);
 
   /**
    * Update current tuple
