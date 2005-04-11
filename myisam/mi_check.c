@@ -971,7 +971,8 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  info->checksum=mi_checksum(info,record);
 	  if (param->testflag & (T_EXTEND | T_MEDIUM | T_VERBOSE))
 	  {
-	    if (_mi_rec_check(info,record, info->rec_buff,block_info.rec_len))
+	    if (_mi_rec_check(info,record, info->rec_buff,block_info.rec_len,
+                              test(info->s->calc_checksum)))
 	    {
 	      mi_check_print_error(param,"Found wrong packed record at %s",
 			  llstr(start_recpos,llbuff));
@@ -3024,7 +3025,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	if ((param->testflag & (T_EXTEND | T_REP)) || searching)
 	{
 	  if (_mi_rec_check(info, sort_param->record, sort_param->rec_buff,
-                            sort_param->find_length))
+                            sort_param->find_length,
+                            (param->testflag & T_QUICK) &&
+                            test(info->s->calc_checksum)))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
 				llstr(sort_param->start_recpos,llbuff));
