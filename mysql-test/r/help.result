@@ -1,32 +1,48 @@
 insert into mysql.help_category(help_category_id,name)values(1,'impossible_category_1');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @category1_id:= 1;
 @category1_id:= 1
 1
 insert into mysql.help_category(help_category_id,name)values(2,'impossible_category_2');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @category2_id:= 2;
 @category2_id:= 2
 2
 insert into mysql.help_category(help_category_id,name,parent_category_id)values(3,'impossible_category_3',@category2_id);
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @category3_id:= 3;
 @category3_id:= 3
 3
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(1,'impossible_function_1',@category1_id,'description of \n impossible_function1\n','example of \n impossible_function1');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @topic1_id:= 1;
 @topic1_id:= 1
 1
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(2,'impossible_function_2',@category1_id,'description of \n impossible_function2\n','example of \n impossible_function2');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @topic2_id:= 2;
 @topic2_id:= 2
 2
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(3,'impossible_function_3',@category2_id,'description of \n impossible_function3\n','example of \n impossible_function3');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @topic3_id:= 3;
 @topic3_id:= 3
 3
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(4,'impossible_function_4',@category2_id,'description of \n impossible_function4\n','example of \n impossible_function4');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @topic4_id:= 4;
 @topic4_id:= 4
 4
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(5,'impossible_function_7',@category3_id,'description of \n impossible_function5\n','example of \n impossible_function7');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
 select @topic5_id:= 5;
 @topic5_id:= 5
 5

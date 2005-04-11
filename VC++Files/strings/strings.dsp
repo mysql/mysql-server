@@ -113,7 +113,15 @@ SOURCE=".\ctype-bin.c"
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-cp932.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-czech.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-eucjpms.c"
 # End Source File
 # Begin Source File
 

@@ -691,16 +691,6 @@ bool mysql_multi_update_prepare(THD *thd)
         DBUG_RETURN(TRUE);
       }
 
-      /*
-        Multi-update can't be constructed over-union => we always have
-        single SELECT on top and have to check underlying SELECTs of it
-      */
-      if (lex->select_lex.check_updateable_in_subqueries(tl->db,
-                                                         tl->table_name))
-      {
-        my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->table_name);
-        DBUG_RETURN(TRUE);
-      }
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
       tl->lock_type= lex->multi_lock_option;
       tl->updating= 1;
@@ -781,6 +771,11 @@ bool mysql_multi_update_prepare(THD *thd)
       DBUG_RETURN(TRUE);
   }
 
+  /*
+    Check that we are not using table that we are updating, but we should
+    skip all tables of UPDATE SELECT itself
+  */
+  lex->select_lex.exclude_from_table_unique_test= TRUE;
   /* We only need SELECT privilege for columns in the values list */
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
@@ -794,11 +789,19 @@ bool mysql_multi_update_prepare(THD *thd)
     }
     DBUG_PRINT("info", ("table: %s  want_privilege: %u", tl->alias,
                         (uint) table->grant.want_privilege));
+    if (tl->lock_type != TL_READ &&
+        tl->lock_type != TL_READ_NO_INSERT &&
+        unique_table(tl, table_list))
+    {
+      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
+      DBUG_RETURN(TRUE);
+    }
   }
 
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
     DBUG_RETURN(TRUE);
+
   DBUG_RETURN (FALSE);
 }
 

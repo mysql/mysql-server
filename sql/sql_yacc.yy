@@ -47,13 +47,13 @@ const LEX_STRING null_lex_str={0,0};
 
 #define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
-#define WARN_DEPRECATED(A,B) \
+#define WARN_DEPRECATED(A,B)                                        \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
-		      ER_WARN_DEPRECATED_SYNTAX, \
+		      ER_WARN_DEPRECATED_SYNTAX,                    \
 		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B));
 
-#define TEST_ASSERT(A) \
-  if (!(A)) \
+#define TEST_ASSERT(A)                  \
+  if (!(A))                             \
   {					\
     yyerror(ER(ER_SYNTAX_ERROR));	\
     YYABORT;				\
@@ -243,7 +243,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  DUPLICATE_SYM
 %token  DYNAMIC_SYM
 %token  EACH_SYM
-%token  EALLOCATE_SYM
 %token  ELSEIF_SYM
 %token  ELT_FUNC
 %token  ENABLE_SYM
@@ -702,7 +701,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         union_opt select_derived_init
 
 %type <ulong_num>
-	ULONG_NUM raid_types merge_insert_types
+	ulong_num raid_types merge_insert_types
 
 %type <ulonglong_number>
 	ulonglong_num
@@ -1039,16 +1038,16 @@ master_def:
 	 Lex->mi.password = $3.str;
        }
        |
-       MASTER_PORT_SYM EQ ULONG_NUM
+       MASTER_PORT_SYM EQ ulong_num
        {
 	 Lex->mi.port = $3;
        }
        |
-       MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
+       MASTER_CONNECT_RETRY_SYM EQ ulong_num
        {
 	 Lex->mi.connect_retry = $3;
        }
-       | MASTER_SSL_SYM EQ ULONG_NUM
+       | MASTER_SSL_SYM EQ ulong_num
          {
            Lex->mi.ssl= $3 ? 
                LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
@@ -1102,7 +1101,7 @@ master_file_def:
          {
            Lex->mi.relay_log_name = $3.str;
          }
-       | RELAY_LOG_POS_SYM EQ ULONG_NUM
+       | RELAY_LOG_POS_SYM EQ ulong_num
          {
            Lex->mi.relay_log_pos = $3;
            /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
@@ -1398,7 +1397,7 @@ create_function_tail:
 	    uint unused1= 0;
 	    int unused2= 0;
 
-	    if (!(new_field= new_create_field(YYTHD, "",
+	    if (!(new_field= new_create_field(YYTHD, (char*) "",
 					      (enum enum_field_types)$8,
 			  		      lex->length, lex->dec, lex->type,
 			  		      (Item *)0, (Item *) 0, &cmt, 0,
@@ -1775,24 +1774,48 @@ sp_hcond_list:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_instr_hpush_jump *i= (sp_instr_hpush_jump *)sp->last_instruction();
+	    sp_pcontext *ctx= lex->spcont;
 
-	    i->add_condition($1);
-	    $$= 1;
+	    if (ctx->find_handler($1))
+	    {
+	      my_message(ER_SP_DUP_HANDLER, ER(ER_SP_DUP_HANDLER), MYF(0));
+	      YYABORT;
+	    }
+	    else
+	    {
+	      sp_instr_hpush_jump *i=
+                (sp_instr_hpush_jump *)sp->last_instruction();
+
+	      i->add_condition($1);
+	      ctx->push_handler($1);
+	      $$= 1;
+	    }
 	  }
 	| sp_hcond_list ',' sp_hcond
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_instr_hpush_jump *i= (sp_instr_hpush_jump *)sp->last_instruction();
+	    sp_pcontext *ctx= lex->spcont;
 
-	    i->add_condition($3);
-	    $$= $1 + 1;
+	    if (ctx->find_handler($3))
+	    {
+	      my_message(ER_SP_DUP_HANDLER, ER(ER_SP_DUP_HANDLER), MYF(0));
+	      YYABORT;
+	    }
+	    else
+	    {
+	      sp_instr_hpush_jump *i=
+	        (sp_instr_hpush_jump *)sp->last_instruction();
+
+	      i->add_condition($3);
+	      ctx->push_handler($3);
+	      $$= $1 + 1;
+	    }
 	  }
 	;
 
 sp_cond:
-	  ULONG_NUM
+	  ulong_num
 	  {			/* mysql errno */
 	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
 	    $$->type= sp_cond_type_t::number;
@@ -2578,18 +2601,18 @@ create_table_option:
 	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=storage_engine","ENGINE=storage_engine");   Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
-	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
+	| AVG_ROW_LENGTH opt_equal ulong_num	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
 	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_PASSWORD; }
 	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT; }
 	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
-	| PACK_KEYS_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| PACK_KEYS_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
 	| PACK_KEYS_SYM opt_equal DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| CHECKSUM_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
-	| DELAY_KEY_WRITE_SYM opt_equal ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
+	| CHECKSUM_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
+	| DELAY_KEY_WRITE_SYM opt_equal ulong_num { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
 	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
 	| RAID_TYPE opt_equal raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKS opt_equal ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKSIZE opt_equal ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKS opt_equal ulong_num	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKSIZE opt_equal ulong_num	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| UNION_SYM opt_equal '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
@@ -2666,7 +2689,7 @@ row_types:
 raid_types:
 	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
 	| RAID_0_SYM	 { $$= RAID_TYPE_0; }
-	| ULONG_NUM	 { $$=$1;};
+	| ulong_num	 { $$=$1;};
 
 merge_insert_types:
        NO_SYM            { $$= MERGE_INSERT_DISABLED; }
@@ -3670,9 +3693,15 @@ analyze:
 check:
 	CHECK_SYM table_or_tables
 	{
-	   LEX *lex=Lex;
-	   lex->sql_command = SQLCOM_CHECK;
-	   lex->check_opt.init();
+	  LEX *lex=Lex;
+
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "CHECK");
+	    YYABORT;
+	  }
+	  lex->sql_command = SQLCOM_CHECK;
+	  lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
 	{}
@@ -4698,7 +4727,7 @@ simple_expr:
 	  { $$= new Item_func_yearweek($3,new Item_int((char*) "0",0,1)); }
 	| YEARWEEK '(' expr ',' expr ')'
 	  { $$= new Item_func_yearweek($3, $5); }
-	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
+	| BENCHMARK_SYM '(' ulong_num ',' expr ')'
 	  {
 	    $$=new Item_func_benchmark($3,$5);
 	    Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -4983,7 +5012,7 @@ table_ref:
 join_table_list:
 	derived_table_list		{ TEST_ASSERT($$=$1); }
 	;
-        
+
 /* Warning - may return NULL in case of incomplete SELECT */
 derived_table_list:
         table_ref { $$=$1; }
@@ -5027,7 +5056,7 @@ join_table:
 	    $$=$6;
 	  }
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref ON expr
-          { 
+          {
 	    LEX *lex= Lex;
             TEST_ASSERT($1 && $5);
             if (!($$= lex->current_select->convert_right_join()))
@@ -5041,7 +5070,7 @@ join_table:
             sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
-          { 
+          {
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
@@ -5057,7 +5086,7 @@ join_table:
 	  }
 	| table_ref NATURAL JOIN_SYM table_factor
 	  { TEST_ASSERT($1 && ($$=$4)); add_join_natural($1,$4); };
-        
+
 
 normal_join:
 	JOIN_SYM		{}
@@ -5103,9 +5132,9 @@ table_factor:
                    sel->master_unit()->fake_select_lex;
             }
             if ($2->init_nested_join(lex->thd))
-              YYABORT;            
+              YYABORT;
             $$= 0;
-            /* incomplete derived tables return NULL, we must be 
+            /* incomplete derived tables return NULL, we must be
                nested in select_derived rule to be here. */
           }
 	| '(' get_select_lex select_derived union_opt ')' opt_table_alias
@@ -5113,7 +5142,7 @@ table_factor:
           /* Use $2 instead of Lex->current_select as derived table will
              alter value of Lex->current_select. */
 
-          if (!($3 || $6) && $2->embedding && 
+          if (!($3 || $6) && $2->embedding &&
               !$2->embedding->nested_join->join_list.elements)
           {
             /* we have a derived table ($3 == NULL) but no alias,
@@ -5138,7 +5167,7 @@ table_factor:
 	                            (List<String> *)0)))
 
 	      YYABORT;
-            sel->add_joined_table($$);           
+            sel->add_joined_table($$);
           }
 	  else
           if ($4 || $6)
@@ -5165,7 +5194,7 @@ select_derived:
             LEX *lex= Lex;
             /* for normal joins, $3 != NULL and end_nested_join() != NULL,
                for derived tables, both must equal NULL */
-            
+
             if (!($$= $1->end_nested_join(lex->thd)) && $3)
               YYABORT;
             if (!$3 && $$)
@@ -5209,7 +5238,7 @@ select_derived_init:
           SELECT_SYM
           {
             LEX *lex= Lex;
-            SELECT_LEX *sel= lex->current_select;        
+            SELECT_LEX *sel= lex->current_select;
             TABLE_LIST *embedding;
             if (!sel->embedding || sel->end_nested_join(lex->thd))
 	    {
@@ -5482,21 +5511,21 @@ limit_clause:
 	;
 
 limit_options:
-	ULONG_NUM
+	ulong_num
 	  {
             SELECT_LEX *sel= Select;
             sel->select_limit= $1;
             sel->offset_limit= 0L;
 	    sel->explicit_limit= 1;
 	  }
-	| ULONG_NUM ',' ULONG_NUM
+	| ulong_num ',' ulong_num
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $3;
 	    sel->offset_limit= $1;
 	    sel->explicit_limit= 1;
 	  }
-	| ULONG_NUM OFFSET_SYM ULONG_NUM
+	| ulong_num OFFSET_SYM ulong_num
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $1;
@@ -5519,11 +5548,12 @@ delete_limit_clause:
 	  sel->explicit_limit= 1;
 	};
 
-ULONG_NUM:
-	NUM	        { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+ulong_num:
+          NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| HEX_NUM       { int error; $$= (ulong) strtol($1.str, (char**) 0, 16); }
 	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | DECIMAL_NUM 	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+        | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| FLOAT_NUM	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	;
 
@@ -6133,7 +6163,7 @@ show_param:
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
 	  TEXT_STRING_sys AND_SYM MASTER_LOG_POS_SYM EQ ulonglong_num
 	  AND_SYM MASTER_SERVER_ID_SYM EQ
-	ULONG_NUM
+	ulong_num
           {
 	    Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
 	    Lex->mi.log_file_name = $8.str;
@@ -6682,7 +6712,7 @@ fields_or_vars:
         | field_or_var
           { Lex->field_list.push_back($1); }
         ;
-        
+
 field_or_var:
         simple_ident_nospvar {$$= $1;}
         | '@' ident_or_text
@@ -6830,9 +6860,9 @@ NUM_literal:
 	   }
 	}
 	;
-	
+
 /**********************************************************************
-** Createing different items.
+** Creating different items.
 **********************************************************************/
 
 insert_ident:
@@ -6848,8 +6878,8 @@ table_wild:
 	| ident '.' ident '.' '*'
 	{
 	  $$ = new Item_field((YYTHD->client_capabilities &
-   			     CLIENT_NO_SCHEMA ? NullS : $1.str),
-			     $3.str,"*");
+                             CLIENT_NO_SCHEMA ? NullS : $1.str),
+                             $3.str,"*");
 	  Lex->current_select->with_wild++;
 	}
 	;
@@ -6892,53 +6922,53 @@ simple_ident_nospvar:
 	      (Item*) new Item_ref(NullS,NullS,$1.str);
 	}
 	| simple_ident_q { $$= $1; }
-	;	
+	;
 
 simple_ident_q:
 	ident '.' ident
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-         
+
           /*
             FIXME This will work ok in simple_ident_nospvar case because
             we can't meet simple_ident_nospvar in trigger now. But it
             should be changed in future.
           */
           if (lex->sphead && lex->sphead->m_type == TYPE_ENUM_TRIGGER &&
-              (!my_strcasecmp(system_charset_info, $1.str, "NEW") || 
+              (!my_strcasecmp(system_charset_info, $1.str, "NEW") ||
                !my_strcasecmp(system_charset_info, $1.str, "OLD")))
           {
             Item_trigger_field *trg_fld;
             bool new_row= ($1.str[0]=='N' || $1.str[0]=='n');
-            
+
             if (lex->trg_chistics.event == TRG_EVENT_INSERT &&
                 !new_row)
             {
               my_error(ER_TRG_NO_SUCH_ROW_IN_TRG, MYF(0), "OLD", "on INSERT");
               YYABORT;
             }
-            
+
             if (lex->trg_chistics.event == TRG_EVENT_DELETE &&
                 new_row)
             {
               my_error(ER_TRG_NO_SUCH_ROW_IN_TRG, MYF(0), "NEW", "on DELETE");
               YYABORT;
             }
-            
+
             if (!(trg_fld= new Item_trigger_field(new_row ?
                                                   Item_trigger_field::NEW_ROW:
                                                   Item_trigger_field::OLD_ROW,
                                                   $3.str)))
               YYABORT;
-          
+
             /*
               Let us add this item to list of all Item_trigger_field objects
               in trigger.
             */
             lex->trg_table_fields.link_in_list((byte *)trg_fld,
               (byte**)&trg_fld->next_trg_field);
-            
+
             $$= (Item *)trg_fld;
           }
           else
@@ -7014,9 +7044,10 @@ IDENT_sys:
 	    if (thd->charset_is_system_charset)
             {
               CHARSET_INFO *cs= system_charset_info;
+              int dummy_error;
               uint wlen= cs->cset->well_formed_len(cs, $1.str,
                                                    $1.str+$1.length,
-                                                   $1.length);
+                                                   $1.length, &dummy_error);
               if (wlen < $1.length)
               {
                 my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
@@ -7067,7 +7098,7 @@ ident:
 	;
 
 ident_or_text:
-	ident 			{ $$=$1;}
+        ident                   { $$=$1;}
 	| TEXT_STRING_sys	{ $$=$1;}
 	| LEX_HOSTNAME		{ $$=$1;};
 
@@ -7719,7 +7750,7 @@ lock:
 
 	  if (lex->sphead)
 	  {
-	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOCK");
 	    YYABORT;
 	  }
 	  lex->sql_command= SQLCOM_LOCK_TABLES;
@@ -7758,7 +7789,7 @@ unlock:
 
 	  if (lex->sphead)
 	  {
-	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "UNLOCK");
 	    YYABORT;
 	  }
 	  lex->sql_command= SQLCOM_UNLOCK_TABLES;
@@ -8118,25 +8149,25 @@ grant_option_list:
 
 grant_option:
 	GRANT OPTION { Lex->grant |= GRANT_ACL;}
-        | MAX_QUERIES_PER_HOUR ULONG_NUM
+        | MAX_QUERIES_PER_HOUR ulong_num
         {
 	  LEX *lex=Lex;
 	  lex->mqh.questions=$2;
 	  lex->mqh.specified_limits|= USER_RESOURCES::QUERIES_PER_HOUR;
 	}
-        | MAX_UPDATES_PER_HOUR ULONG_NUM
+        | MAX_UPDATES_PER_HOUR ulong_num
         {
 	  LEX *lex=Lex;
 	  lex->mqh.updates=$2;
 	  lex->mqh.specified_limits|= USER_RESOURCES::UPDATES_PER_HOUR;
 	}
-        | MAX_CONNECTIONS_PER_HOUR ULONG_NUM
+        | MAX_CONNECTIONS_PER_HOUR ulong_num
         {
 	  LEX *lex=Lex;
 	  lex->mqh.conn_per_hour= $2;
 	  lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
 	}
-        | MAX_USER_CONNECTIONS_SYM ULONG_NUM
+        | MAX_USER_CONNECTIONS_SYM ulong_num
         {
 	  LEX *lex=Lex;
           lex->mqh.user_conn= $2;
@@ -8407,38 +8438,52 @@ check_option:
 
 xa: XA_SYM begin_or_start xid opt_join_or_resume
       {
-        LEX *lex= Lex;
-        lex->sql_command = SQLCOM_XA_START;
+        Lex->sql_command = SQLCOM_XA_START;
       }
     | XA_SYM END xid opt_suspend_or_migrate
       {
-        LEX *lex= Lex;
-        lex->sql_command = SQLCOM_XA_END;
+        Lex->sql_command = SQLCOM_XA_END;
       }
     | XA_SYM PREPARE_SYM xid
       {
-        LEX *lex= Lex;
-        lex->sql_command = SQLCOM_XA_PREPARE;
+        Lex->sql_command = SQLCOM_XA_PREPARE;
       }
     | XA_SYM COMMIT_SYM xid opt_one_phase
       {
-        LEX *lex= Lex;
-        lex->sql_command = SQLCOM_XA_COMMIT;
+        Lex->sql_command = SQLCOM_XA_COMMIT;
       }
     | XA_SYM ROLLBACK_SYM xid
       {
-        LEX *lex= Lex;
-        lex->sql_command = SQLCOM_XA_ROLLBACK;
+        Lex->sql_command = SQLCOM_XA_ROLLBACK;
       }
     | XA_SYM RECOVER_SYM
       {
-        LEX *lex= Lex;
-        lex->sql_command = SQLCOM_XA_RECOVER;
+        Lex->sql_command = SQLCOM_XA_RECOVER;
       }
     ;
 
-xid: ident_or_text              { Lex->ident=$1; }
-    ;
+xid: text_string
+     {
+       TEST_ASSERT($1->length() <= MAXGTRIDSIZE);
+       if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
+         YYABORT;
+       Lex->xid->set(1L, $1->ptr(), $1->length(), 0, 0);
+     }
+     | text_string ',' text_string
+     {
+       TEST_ASSERT($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
+         YYABORT;
+       Lex->xid->set(1L, $1->ptr(), $1->length(), $3->ptr(), $3->length());
+     }
+     | text_string ',' text_string ',' ulong_num
+     {
+       TEST_ASSERT($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
+         YYABORT;
+       Lex->xid->set($5, $1->ptr(), $1->length(), $3->ptr(), $3->length());
+     }
+     ;
 
 begin_or_start:   BEGIN_SYM {}
     |             START_SYM {}

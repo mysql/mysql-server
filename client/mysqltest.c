@@ -294,6 +294,7 @@ Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
 Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
 Q_EXIT,
+Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -382,6 +383,8 @@ const char *command_names[]=
   "disable_ps_protocol",
   "enable_ps_protocol",
   "exit",
+  "disable_reconnect",
+  "enable_reconnect",
   0
 };
 
@@ -642,6 +645,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
   {
     DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
 		       ds->length, stat_info.st_size));
+    DBUG_PRINT("info",("result: '%s'", ds->str));
     DBUG_RETURN(2);
   }
   if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
@@ -3620,8 +3624,8 @@ static void init_var_hash(MYSQL *mysql)
   if (hash_init(&var_hash, charset_info, 
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
-  if (opt_big_test)
-    my_hash_insert(&var_hash, (byte*) var_init(0,"BIG_TEST", 0, "1",0));
+  my_hash_insert(&var_hash, (byte*) var_init(0,"BIG_TEST", 0,
+                                             (opt_big_test) ? "1" : "0", 0));
   v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
   my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
@@ -3790,6 +3794,12 @@ int main(int argc, char **argv)
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
+	if (save_file[0])
+	{
+	  strmov(q->record_file,save_file);
+	  q->require_file=require_file;
+	  save_file[0]=0;
+	}
 	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
 	break;
@@ -3894,6 +3904,12 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_PS_PROTOCOL:
         ps_protocol_enabled= ps_protocol;
+        break;
+      case Q_DISABLE_RECONNECT:
+        cur_con->mysql.reconnect= 0;
+        break;
+      case Q_ENABLE_RECONNECT:
+        cur_con->mysql.reconnect= 1;
         break;
 
       case Q_EXIT:

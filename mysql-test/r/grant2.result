@@ -59,6 +59,7 @@ current_user()
 mysqltest_1@localhost
 show databases;
 Database
+information_schema
 mysqltest_1
 test
 grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant option;
@@ -260,6 +261,10 @@ GRANT INSERT, UPDATE, DELETE ON `mysql`.* TO 'mysqltest_3'@'localhost'
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 'user'
 insert into mysql.user set host='%', user='mysqltest_B';
+Warnings:
+Warning	1364	Field 'ssl_cipher' doesn't have a default value
+Warning	1364	Field 'x509_issuer' doesn't have a default value
+Warning	1364	Field 'x509_subject' doesn't have a default value
 create user mysqltest_A@'%';
 rename user mysqltest_B@'%' to mysqltest_C@'%';
 drop user mysqltest_C@'%';

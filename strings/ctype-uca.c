@@ -6651,8 +6651,7 @@ static const char slovak[]=
 static const char spanish2[]=	/* Also good for Asturian and Galician */
     "&C <  ch <<< Ch <<< CH"
     "&L <  ll <<< Ll <<< LL"
-    "&N < \\u00F1 <<< \\u00D1"
-    "&R << rr <<< Rr <<< RR";
+    "&N < \\u00F1 <<< \\u00D1";
 
 static const char roman[]= /* i.e. Classical Latin */
     "& I << j <<< J "

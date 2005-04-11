@@ -736,6 +736,13 @@ static void print_lock_error(int error, const char *table)
   protect_against_global_read_lock
     count of threads which have set protection against global read lock.
 
+  access to them is protected with a mutex LOCK_global_read_lock
+
+  (XXX: one should never take LOCK_open if LOCK_global_read_lock is taken,
+  otherwise a deadlock may occur - see mysql_rm_table. Other mutexes could
+  be a problem too - grep the code for global_read_lock if you want to use
+  any other mutex here)
+
   How blocking of threads by global read lock is achieved: that's
   advisory. Any piece of code which should be blocked by global read lock must
   be designed like this:
@@ -773,7 +780,7 @@ static void print_lock_error(int error, const char *table)
   table instance of thd2
   thd1: COMMIT; # blocked by thd3.
   thd1 blocks thd2 which blocks thd3 which blocks thd1: deadlock.
-  
+
   Note that we need to support that one thread does
   FLUSH TABLES WITH READ LOCK; and then COMMIT;
   (that's what innobackup does, for some good reason).
@@ -818,7 +825,7 @@ bool lock_global_read_lock(THD *thd)
     }
     thd->global_read_lock= GOT_GLOBAL_READ_LOCK;
     global_read_lock++;
-    thd->exit_cond(old_message);
+    thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   }
   /*
     We DON'T set global_read_lock_blocks_commit now, it will be set after
@@ -887,8 +894,8 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
     The following is only true in case of a global read locks (which is rare)
     and if old_message is set
   */
-  if (unlikely(need_exit_cond)) 
-    thd->exit_cond(old_message);
+  if (unlikely(need_exit_cond))
+    thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   else
     pthread_mutex_unlock(&LOCK_global_read_lock);
   DBUG_RETURN(result);
@@ -938,7 +945,7 @@ bool make_global_read_lock_block_commit(THD *thd)
     global_read_lock_blocks_commit--; // undo what we did
   else
     thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
-  thd->exit_cond(old_message);
+  thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   DBUG_RETURN(error);
 }
 

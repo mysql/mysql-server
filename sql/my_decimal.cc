@@ -175,7 +175,7 @@ int str2my_decimal(uint mask, const char *from, uint length,
   err= string2decimal((char *)from, (decimal_t*) decimal_value, &end);
   if (end != from_end && !err)
   {
-    /* Give warining if there is something other than end space */
+    /* Give warning if there is something other than end space */
     for ( ; end < from_end; end++)
     {
       if (!my_isspace(&my_charset_latin1, *end))

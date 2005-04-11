@@ -311,8 +311,8 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   {
     Field *field= ((Item_field*) args[0])->field;
     
-    if ((field= create_tmp_field_from_field(current_thd, field, this, table,
-					    0, convert_blob_length)))
+    if ((field= create_tmp_field_from_field(current_thd, field, name, table,
+					    NULL, convert_blob_length)))
       field->flags&= ~NOT_NULL_FLAG;
     return field;
   }
@@ -2802,8 +2802,19 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 
 void Item_func_group_concat::cleanup()
 {
+  THD *thd= current_thd;
+
   DBUG_ENTER("Item_func_group_concat::cleanup");
   Item_sum::cleanup();
+
+  /* Adjust warning message to include total number of cut values */
+  if (warning)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
+    warning->set_msg(thd, warn_buff);
+    warning= 0;
+  }
 
   /*
     Free table and tree if they belong to this item (if item have not pointer
@@ -2966,8 +2977,7 @@ bool Item_func_group_concat::setup(THD *thd)
       DBUG_RETURN(TRUE);
     if (item->const_item())
     {
-      (void) item->val_int();
-      if (item->null_value)
+      if (item->is_null())
       {
         always_null= 1;
         DBUG_RETURN(FALSE);
@@ -3060,6 +3070,10 @@ String* Item_func_group_concat::val_str(String* str)
     return 0;
   if (count_cut_values && !warning)
   {
+    /*
+      ER_CUT_VALUE_GROUP_CONCAT needs an argument, but this gets set in
+      Item_func_group_concat::cleanup().
+    */
     DBUG_ASSERT(table);
     warning= push_warning(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_CUT_VALUE_GROUP_CONCAT,

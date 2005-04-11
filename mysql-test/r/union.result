@@ -565,7 +565,7 @@ a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` decimal(20,1) NOT NULL default '0.0'
+  `a` decimal(19,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
@@ -732,7 +732,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` blob
+  `dt` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
@@ -755,7 +755,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` blob
+  `i` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select tx from t2;
@@ -766,7 +766,7 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `sv` text
+  `sv` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT b from t2 UNION select tx from t2;
@@ -1200,3 +1200,55 @@ select concat('value is: ', @val) union select 'some text';
 concat('value is: ', @val)
 value is: 6
 some text
+CREATE TABLE t1 (
+a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
+b ENUM("one", "two") character set utf8,
+c ENUM("one", "two")
+);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('ä','ö','ü') character set utf8 NOT NULL default 'ü',
+  `b` enum('one','two') character set utf8 default NULL,
+  `c` enum('one','two') default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
+create table t2 select NULL union select a from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+NULL	enum('ä','ö','ü')	YES		NULL	
+drop table t2;
+create table t2 select a from t1 union select NULL;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+a	enum('ä','ö','ü')	YES		NULL	
+drop table t2;
+create table t2 select a from t1 union select a from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+a	varchar(1)	NO			
+drop table t2;
+create table t2 select a from t1 union select c from t1;
+ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation 'UNION'
+create table t2 select a from t1 union select b from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+a	varchar(3)	YES		NULL	
+drop table t2, t1;
+create table t1 (a varchar(5));
+create table t2 select * from t1 union select 'abcdefghijkl';
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+row_format
+Dynamic
+alter table t2 ROW_FORMAT=fixed;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+drop table t1,t2;

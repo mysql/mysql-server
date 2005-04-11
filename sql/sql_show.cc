@@ -1615,10 +1615,11 @@ typedef struct st_index_field_values
   SYNOPSIS
     schema_table_store_record()
     thd                   thread handler
-    table                 I_S table
+    table                 Information schema table to be updated
+
   RETURN
-    1	                  error
     0	                  success
+    1	                  error
 */
 
 static bool schema_table_store_record(THD *thd, TABLE *table)
@@ -1959,7 +1960,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               }
             }
             if (schema_table_store_record(thd, table))
-              DBUG_RETURN(error);
+              goto err;
           }
           else
           {
@@ -2289,8 +2290,32 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       char tmp[MAX_FIELD_WIDTH];
       char tmp1[MAX_FIELD_WIDTH];
       String type(tmp,sizeof(tmp), system_charset_info);
+      char *end= tmp;
       count++;
       restore_record(table, s->default_values);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      uint col_access;
+      check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
+                   &tables->grant.privilege, 0, 0);
+      col_access= get_column_grant(thd, &tables->grant, tables->db,
+                                   tables->table_name,
+                                   field->field_name) & COL_ACLS;
+      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && !col_access)
+        continue;
+      for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+      {
+        if (col_access & 1)
+        {
+          *end++=',';
+          end=strmov(end,grant_types.type_names[bitnr]);
+        }
+      }
+#else
+      *end= 0;
+#endif
+      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+
       table->field[1]->store(base_name, strlen(base_name), cs);
       table->field[2]->store(file_name, strlen(file_name), cs);
       table->field[3]->store(field->field_name, strlen(field->field_name),
@@ -2334,11 +2359,13 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
       if (field->has_charset())
+      {
         table->field[8]->store((longlong) field->representation_length()/
                                field->charset()->mbmaxlen);
-      else
-        table->field[8]->store((longlong) field->representation_length());
-      table->field[9]->store((longlong) field->representation_length());
+        table->field[8]->set_notnull();
+        table->field[9]->store((longlong) field->representation_length());
+        table->field[9]->set_notnull();
+      }
 
       {
         uint dec =field->decimals();
@@ -2395,31 +2422,12 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                    (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
       table->field[15]->store((const char*) pos,
                               strlen((const char*) pos), cs);
-      char *end= tmp;
+      end= tmp;
       if (field->unireg_check == Field::NEXT_NUMBER)
         end=strmov(tmp,"auto_increment");
       table->field[16]->store(tmp, (uint) (end-tmp), cs);
 
       end=tmp;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-      uint col_access;
-      check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
-                   &tables->grant.privilege, 0, 0);
-      col_access= get_column_grant(thd, &tables->grant, tables->db,
-                                   tables->table_name,
-                                   field->field_name) & COL_ACLS;
-      for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
-      {
-        if (col_access & 1)
-        {
-          *end++=',';
-          end=strmov(end,grant_types.type_names[bitnr]);
-        }
-      }
-#else
-      end=strmov(end,"");
-#endif
-      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
       table->field[18]->store(field->comment.str, field->comment.length, cs);
       if (schema_table_store_record(thd, table))
         DBUG_RETURN(1);
@@ -3434,12 +3442,11 @@ bool get_schema_tables_result(JOIN *join)
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_derived_tables())
     {
-      TABLE_LIST *save_next_global= table_list->next_global;
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       TABLE *old_derived_tables= thd->derived_tables;
       MYSQL_LOCK *sql_lock= thd->lock;
       lex->sql_command= SQLCOM_SHOW_FIELDS;
-
+      DBUG_ASSERT(!*query_tables_last);
       if (&lex->unit != lex->current_select->master_unit()) // is subselect
       {
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
@@ -3458,8 +3465,8 @@ bool get_schema_tables_result(JOIN *join)
       thd->lock= sql_lock;
       lex->sql_command= SQLCOM_SELECT;
       thd->derived_tables= old_derived_tables;
-      table_list->next_global= save_next_global;
       lex->query_tables_last= query_tables_last;
+      *query_tables_last= 0;
     }
   }
   thd->no_warnings_for_error= 0;
@@ -3514,8 +3521,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Default"},
   {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
   {"DATA_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
-  {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0},
