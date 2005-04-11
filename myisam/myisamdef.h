@@ -582,7 +582,7 @@ extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**);
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
 extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos,
-                             ulong reclength);
+                             ulong packed_length, my_bool with_checkum);
 extern int _mi_write_part_record(MI_INFO *info,my_off_t filepos,ulong length,
 				 my_off_t next_filepos,byte **record,
 				 ulong *reclength,int *flag);
