@@ -50,4 +50,5 @@ enum options_client
   ,OPT_NDBCLUSTER,OPT_NDB_CONNECTSTRING
 #endif
   ,OPT_IGNORE_TABLE
+  ,OPT_SHOW_WARNINGS
 };
