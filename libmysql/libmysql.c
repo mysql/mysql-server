@@ -3656,8 +3656,6 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   }
 }
 
-#define MY_TRUNC(val) (val < 0 ? - floor(-val) : floor(val))
-
 /*
   Convert double/float column to supplied buffer of any type.
 
@@ -3674,6 +3672,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                         double value, int width)
 {
   char *buffer= (char *)param->buffer;
+  double val64 = (value < 0 ? -floor(-value) : floor(value));
 
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
@@ -3689,8 +3688,8 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       *buffer= (uint8) value;
     else
       *buffer= (int8) value;
-    *param->error= MY_TRUNC(value) != (param->is_unsigned ? (double) ((uint8) *buffer) :
-                                                  (double) ((int8) *buffer));
+    *param->error= val64 != (param->is_unsigned ? (double)((uint8) *buffer) :
+                                                  (double)((int8) *buffer));
     break;
   case MYSQL_TYPE_SHORT:
     if (param->is_unsigned)
@@ -3703,7 +3702,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       short data= (short) value;
       shortstore(buffer, data);
     }
-    *param->error= MY_TRUNC(value) != (param->is_unsigned ? (double) (*(ushort*) buffer):
+    *param->error= val64 != (param->is_unsigned ? (double) (*(ushort*) buffer):
                                                   (double) (*(short*) buffer));
     break;
   case MYSQL_TYPE_LONG:
@@ -3717,7 +3716,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       int32 data= (int32) value;
       longstore(buffer, data);
     }
-    *param->error= MY_TRUNC(value) != (param->is_unsigned ? (double) (*(uint32*) buffer):
+    *param->error= val64 != (param->is_unsigned ? (double) (*(uint32*) buffer):
                                                   (double) (*(int32*) buffer));
       break;
   case MYSQL_TYPE_LONGLONG:
@@ -3731,7 +3730,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       longlong data= (longlong) value;
       longlongstore(buffer, data);
     }
-    *param->error= MY_TRUNC(value) != (param->is_unsigned ?
+    *param->error= val64 != (param->is_unsigned ?
                              ulonglong2double(*(ulonglong*) buffer) :
                              (double) (*(longlong*) buffer));
     break;
