@@ -568,7 +568,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       goto err;			/* purecov: inspected */
     }
     reg_field->comment=comment;
-    if (field_type == FIELD_TYPE_BIT)
+    if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
       if ((null_bit_pos+= field_length & 7) > 7)
       {
