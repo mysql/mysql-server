@@ -7945,6 +7945,58 @@ const char *Field_bit::unpack(char *to, const char *from)
 }
 
 
+/*
+  Bit field support for non-MyISAM tables.
+*/
+
+Field_bit_as_char::Field_bit_as_char(char *ptr_arg, uint32 len_arg,
+                                     uchar *null_ptr_arg, uchar null_bit_arg, 
+                                     uchar *bit_ptr_arg, uchar bit_ofs_arg, 
+                                     enum utype unireg_check_arg, 
+                                     const char *field_name_arg,
+                                     struct st_table *table_arg)
+  : Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, bit_ptr_arg,
+              bit_ofs_arg, unireg_check_arg, field_name_arg, table_arg),
+    create_length(len_arg)
+{
+  bit_ptr= 0;
+  bit_ofs= 0;
+  bit_len= 0;
+  field_length= ((len_arg + 7) & ~7) / 8;
+}
+
+
+int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
+{
+  int delta;
+  uchar bits= create_length & 7;
+
+  for (; !*from && length; from++, length--);          // skip left 0's
+  delta= field_length - length;
+
+  if (delta < 0 ||
+      (delta == 0 && bits && (uint) (uchar) *from >= (uint) (1 << bits)))
+  {
+    memset(ptr, 0xff, field_length);
+    *ptr&= ((1 << bits) - 1); /* set first byte */
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return 1;
+  }
+  bzero(ptr, delta);
+  memcpy(ptr + delta, from, length);
+  return 0;
+}
+
+
+void Field_bit_as_char::sql_type(String &res) const
+{
+  CHARSET_INFO *cs= res.charset();
+  ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
+                                   "bit(%d)", (int) create_length);
+  res.length((uint) length);
+}
+
+
 /*****************************************************************************
   Handling of field and create_field
 *****************************************************************************/
@@ -7970,9 +8022,16 @@ void create_field::create_length_to_internal_length(void)
     key_length= pack_length;
     break;
   case MYSQL_TYPE_BIT:
-    pack_length= calc_pack_length(sql_type, length);
-    /* We need one extra byte to store the bits we save among the null bits */
-    key_length= pack_length+ test(length & 7);
+    if (f_bit_as_char(pack_flag))
+    {
+      key_length= pack_length= ((length + 7) & ~7) / 8;
+    }
+    else
+    {
+      pack_length= length / 8;
+      /* We need one extra byte to store the bits we save among the null bits */
+      key_length= pack_length + test(length & 7);
+    }
     break;
   case MYSQL_TYPE_NEWDECIMAL:
     key_length= pack_length= my_decimal_get_binary_size(length, decimals);
@@ -8086,7 +8145,7 @@ Field *make_field(char *ptr, uint32 field_length,
   uchar bit_offset;
   LINT_INIT(bit_ptr);
   LINT_INIT(bit_offset);
-  if (field_type == FIELD_TYPE_BIT)
+  if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
   {
     bit_ptr= null_pos;
     bit_offset= null_bit;
@@ -8236,7 +8295,10 @@ Field *make_field(char *ptr, uint32 field_length,
   case FIELD_TYPE_NULL:
     return new Field_null(ptr,field_length,unireg_check,field_name,table, field_charset);
   case FIELD_TYPE_BIT:
-    return new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
+    return f_bit_as_char(pack_flag) ?
+           new Field_bit_as_char(ptr, field_length, null_pos, null_bit, bit_ptr,
+                                 bit_offset, unireg_check, field_name, table) :
+           new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
                          bit_offset, unireg_check, field_name, table);
   default:					// Impossible (Wrong version)
     break;
