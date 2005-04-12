@@ -4414,10 +4414,19 @@ unsent_create_error:
     else
     if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
     {
-      if (ha_commit_one_phase(thd, 1))
+      if (wait_if_global_read_lock(thd, 0, 0))
+      {
+        ha_rollback(thd);
         my_error(ER_XAER_RMERR, MYF(0));
+      }
       else
-        send_ok(thd);
+      {
+        if (ha_commit_one_phase(thd, 1))
+          my_error(ER_XAER_RMERR, MYF(0));
+        else
+          send_ok(thd);
+        start_waiting_global_read_lock(thd);
+      }
     }
     else
     {
