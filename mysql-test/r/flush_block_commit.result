@@ -48,7 +48,7 @@ master-bin.000001	98
  commit;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	276		
+master-bin.000001	98		
 unlock tables;
 drop table t1;
 set autocommit=1;
