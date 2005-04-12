@@ -2073,9 +2073,8 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
     theData[0] = EventReport::Disconnected;
     if(nfComplete)
     {
-      theData[0] = EventReport::NodeFailCompleted;
       handleStopReply(nodeId, 0);
-      return;
+      DBUG_VOID_RETURN;
     }
   }
   
