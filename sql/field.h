@@ -1321,6 +1321,7 @@ public:
                     enum utype unireg_check_arg, const char *field_name_arg,
                     struct st_table *table_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
+  uint size_of() const { return sizeof(*this); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr) { return Field_bit::store(nr); }
   int store(longlong nr) { return Field_bit::store(nr); }
