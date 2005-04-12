@@ -563,9 +563,9 @@ int prepare_create_field(create_field *sql_field,
     sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
     break;
   case FIELD_TYPE_BIT:
-    sql_field->pack_flag= f_bit_as_char(sql_field->pack_flag) ? 
-                          FIELDFLAG_NUMBER | FIELDFLAG_TREAT_BIT_AS_CHAR :
-                          FIELDFLAG_NUMBER;
+    /* 
+      We have sql_field->pack_flag already set here, see mysql_prepare_table().
+    */
     break;
   case FIELD_TYPE_NEWDECIMAL:
     sql_field->pack_flag=(FIELDFLAG_NUMBER |
@@ -773,6 +773,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (sql_field->sql_type == FIELD_TYPE_BIT)
     { 
+      sql_field->pack_flag= FIELDFLAG_NUMBER;
       if (file->table_flags() & HA_CAN_BIT_FIELD)
         total_uneven_bit_length+= sql_field->length & 7;
       else
