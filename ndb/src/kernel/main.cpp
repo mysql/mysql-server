@@ -58,7 +58,9 @@ int main(int argc, char** argv)
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NDB");
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
 
   globalEmulatorData.create();
 
