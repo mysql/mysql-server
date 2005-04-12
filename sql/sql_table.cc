@@ -563,7 +563,9 @@ int prepare_create_field(create_field *sql_field,
     sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
     break;
   case FIELD_TYPE_BIT:
-    sql_field->pack_flag|= FIELDFLAG_NUMBER;
+    sql_field->pack_flag= f_bit_as_char(sql_field->pack_flag) ? 
+                          FIELDFLAG_NUMBER | FIELDFLAG_TREAT_BIT_AS_CHAR :
+                          FIELDFLAG_NUMBER;
     break;
   case FIELD_TYPE_NEWDECIMAL:
     sql_field->pack_flag=(FIELDFLAG_NUMBER |
