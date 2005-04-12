@@ -7879,7 +7879,7 @@ int Field_bit::key_cmp(const byte *str, uint length)
     str++;
     length--;
   }
-  return bcmp(ptr, str, length);
+  return memcmp(ptr, str, length);
 }
 
 
@@ -7893,7 +7893,7 @@ int Field_bit::cmp_offset(uint row_offset)
     if ((flag= (int) (bits_a - bits_b)))
       return flag;
   }
-  return bcmp(ptr, ptr + row_offset, field_length);
+  return memcmp(ptr, ptr + row_offset, field_length);
 }
 
 
