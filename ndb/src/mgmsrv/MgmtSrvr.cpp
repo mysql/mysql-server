@@ -2061,7 +2061,7 @@ MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
 }
 
 void
-MgmtSrvr::handleStatus(NodeId nodeId, bool alive)
+MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
 {
   DBUG_ENTER("MgmtSrvr::handleStatus");
   Uint32 theData[25];
@@ -2070,9 +2070,14 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive)
     m_started_nodes.push_back(nodeId);
     theData[0] = EventReport::Connected;
   } else {
-    handleStopReply(nodeId, 0);
     theData[0] = EventReport::Disconnected;
+    if(nfComplete)
+    {
+      handleStopReply(nodeId, 0);
+      DBUG_VOID_RETURN;
+    }
   }
+  
   eventReport(_ownNodeId, theData);
   DBUG_VOID_RETURN;
 }
@@ -2097,8 +2102,7 @@ MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId,
 {
   DBUG_ENTER("MgmtSrvr::nodeStatusNotification");
   DBUG_PRINT("enter",("nodeid= %d, alive= %d, nfComplete= %d", nodeId, alive, nfComplete));
-  if(!(!alive && nfComplete))
-    ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, alive);
+  ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, alive, nfComplete);
   DBUG_VOID_RETURN;
 }
 
