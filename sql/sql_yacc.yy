@@ -7368,6 +7368,7 @@ keyword:
 	| TIMESTAMP_DIFF	{}
 	| TIME_SYM		{}
 	| TYPES_SYM		{}
+        | TYPE_SYM              {}
         | UDF_RETURNS_SYM       {}
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
