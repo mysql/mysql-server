@@ -7275,7 +7275,7 @@ keyword:
 	| MULTILINESTRING	{}
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
-  | MUTEX_SYM   {}
+        | MUTEX_SYM             {}
 	| NAME_SYM              {}
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
@@ -7367,8 +7367,8 @@ keyword:
 	| TIMESTAMP_ADD		{}
 	| TIMESTAMP_DIFF	{}
 	| TIME_SYM		{}
-	| TYPE_SYM		{}
 	| TYPES_SYM		{}
+        | TYPE_SYM              {}
         | UDF_RETURNS_SYM       {}
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}

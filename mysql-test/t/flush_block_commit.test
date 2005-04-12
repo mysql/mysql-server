@@ -76,3 +76,24 @@ select * from t1;
 show create database test;
 
 drop table t1;
+
+# FLUSH TABLES WITH READ LOCK should block writes to binlog too
+connection con1;
+create table t1 (a int) engine=innodb;
+reset master;
+set autocommit=0;
+insert t1 values (1);
+connection con2;
+flush tables with read lock;
+show master status;
+connection con1;
+send commit;
+connection con2;
+sleep 1;
+show master status;
+unlock tables;
+connection con1;
+reap;
+drop table t1;
+set autocommit=1;
+
