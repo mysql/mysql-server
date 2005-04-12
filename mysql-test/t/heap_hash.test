@@ -34,7 +34,7 @@ select * from t1;
 drop table t1;
 
 create table t1 (a int not null) engine=heap;
-insert into t1 values (869751),(736494),(226312),(802616);
+insert into t1 values (869751),(736494),(226312),(802616),(728912);
 select * from t1 where a > 736494;
 alter table t1 add unique uniq_id using HASH (a);
 select * from t1 where a > 736494;
