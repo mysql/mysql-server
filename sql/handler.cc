@@ -587,6 +587,11 @@ int ha_commit_trans(THD *thd, bool all)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
+    if (is_real_trans && wait_if_global_read_lock(thd, 0, 0))
+    {
+      ha_rollback_trans(thd, all);
+      DBUG_RETURN(1);
+    }
     DBUG_EXECUTE_IF("crash_commit_before", abort(););
     if (!trans->no_2pc && trans->nht > 1)
     {
@@ -596,7 +601,7 @@ int ha_commit_trans(THD *thd, bool all)
         if ((err= (*(*ht)->prepare)(thd, all)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
-          error=1;
+          error= 1;
         }
         statistic_increment(thd->status_var.ha_prepare_count,&LOCK_status);
       }
@@ -605,20 +610,28 @@ int ha_commit_trans(THD *thd, bool all)
                     (error= !(cookie= tc_log->log(thd, xid)))))
       {
         ha_rollback_trans(thd, all);
-        return 1;
+        error= 1;
+        goto end;
       }
-    DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
     }
     error=ha_commit_one_phase(thd, all) ? cookie ? 2 : 1 : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
     if (cookie)
       tc_log->unlog(cookie, xid);
     DBUG_EXECUTE_IF("crash_commit_after", abort(););
+end:
+    if (is_real_trans)
+      start_waiting_global_read_lock(thd);
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
 
+/*
+  NOTE - this function does not care about global read lock.
+  A caller should.
+*/
 int ha_commit_one_phase(THD *thd, bool all)
 {
   int error=0;
@@ -629,18 +642,6 @@ int ha_commit_one_phase(THD *thd, bool all)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
-    bool need_start_waiters= 0;
-    if (is_real_trans)
-    {
-      if ((error= wait_if_global_read_lock(thd, 0, 0)))
-      {
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-        error= 1;
-      }
-      else
-        need_start_waiters= 1;
-    }
-
     for (ht=trans->ht; *ht; ht++)
     {
       int err;
@@ -665,8 +666,6 @@ int ha_commit_one_phase(THD *thd, bool all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
       thd->transaction.cleanup();
     }
-    if (need_start_waiters)
-      start_waiting_global_read_lock(thd);
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
