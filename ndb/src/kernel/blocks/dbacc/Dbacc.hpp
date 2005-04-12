@@ -1100,6 +1100,8 @@ private:
   Uint32 executeNextOperation(Signal* signal);
   void releaselock(Signal* signal);
   void takeOutFragWaitQue(Signal* signal);
+  void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
+			  OperationrecPtr release_op);
   void allocOverflowPage(Signal* signal);
   bool getrootfragmentrec(Signal* signal, RootfragmentrecPtr&, Uint32 fragId);
   void insertLockOwnersList(Signal* signal, const OperationrecPtr&);
