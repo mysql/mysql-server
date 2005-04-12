@@ -1328,12 +1328,12 @@ clear_privileges:
         ;
 
 sp_name:
-	  IDENT_sys '.' IDENT_sys
+	  ident '.' ident
 	  {
 	    $$= new sp_name($1, $3);
 	    $$->init_qname(YYTHD);
 	  }
-	| IDENT_sys
+	| ident
 	  {
 	    $$= sp_name_current_db_new(YYTHD, $1);
 	  }
