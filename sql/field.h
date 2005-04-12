@@ -1312,6 +1312,22 @@ public:
 };
 
   
+class Field_bit_as_char: public Field_bit {
+protected:
+  uchar create_length;
+public:
+  Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
+                    uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
+                    enum utype unireg_check_arg, const char *field_name_arg,
+                    struct st_table *table_arg);
+  enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
+  int store(const char *to, uint length, CHARSET_INFO *charset);
+  int store(double nr) { return Field_bit::store(nr); }
+  int store(longlong nr) { return Field_bit::store(nr); }
+  void sql_type(String &str) const;
+};
+
+
 /*
   Create field class for CREATE TABLE
 */
@@ -1415,6 +1431,8 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define FIELDFLAG_BLOB			1024	// mangled with decimals!
 #define FIELDFLAG_GEOM			2048    // mangled with decimals!
 
+#define FIELDFLAG_TREAT_BIT_AS_CHAR     4096    /* use Field_bit_as_char */
+
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
 #define FIELDFLAG_FORMAT_NUMBER		16384	// predit: ###,,## in output
@@ -1445,3 +1463,4 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
 #define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
+#define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)

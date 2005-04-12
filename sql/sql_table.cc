@@ -563,12 +563,7 @@ int prepare_create_field(create_field *sql_field,
     sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
     break;
   case FIELD_TYPE_BIT:
-    if (!(table_flags & HA_CAN_BIT_FIELD))
-    {
-      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "BIT FIELD");
-      DBUG_RETURN(1);
-    }
-    sql_field->pack_flag= FIELDFLAG_NUMBER;
+    sql_field->pack_flag|= FIELDFLAG_NUMBER;
     break;
   case FIELD_TYPE_NEWDECIMAL:
     sql_field->pack_flag=(FIELDFLAG_NUMBER |
@@ -774,6 +769,14 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
     }
 
+    if (sql_field->sql_type == FIELD_TYPE_BIT)
+    { 
+      if (file->table_flags() & HA_CAN_BIT_FIELD)
+        total_uneven_bit_length+= sql_field->length & 7;
+      else
+        sql_field->pack_flag|= FIELDFLAG_TREAT_BIT_AS_CHAR;
+    }
+
     sql_field->create_length_to_internal_length();
     if (sql_field->length > MAX_FIELD_VARCHARLENGTH &&
         !(sql_field->flags & BLOB_FLAG))
@@ -809,9 +812,6 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
-
-    if (sql_field->sql_type == FIELD_TYPE_BIT)
-      total_uneven_bit_length+= sql_field->length & 7;
 
     if (check_column_name(sql_field->field_name))
     {

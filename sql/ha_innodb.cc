@@ -2233,6 +2233,7 @@ innobase_mysql_cmp(
 
 	switch (mysql_tp) {
 
+        case MYSQL_TYPE_BIT:
 	case MYSQL_TYPE_STRING:
 	case MYSQL_TYPE_VAR_STRING:
 	case FIELD_TYPE_TINY_BLOB:
@@ -2342,6 +2343,7 @@ get_innobase_type_from_mysql_type(
 					} else {
 						return(DATA_VARMYSQL);
 					}
+                case MYSQL_TYPE_BIT:
 		case MYSQL_TYPE_STRING: if (field->binary()) {
 
 						return(DATA_FIXBINARY);
