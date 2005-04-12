@@ -4128,7 +4128,15 @@ unsent_create_error:
 	sp= sp_find_function(thd, lex->spname);
       mysql_reset_errors(thd, 0);
       if (! sp)
-	result= SP_KEY_NOT_FOUND;
+      {
+	if (lex->spname->m_db.str)
+	  result= SP_KEY_NOT_FOUND;
+	else
+	{
+	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+	  goto error;
+	}
+      }
       else
       {
         if (check_procedure_access(thd, ALTER_PROC_ACL, sp->m_db.str, 
@@ -4207,7 +4215,13 @@ unsent_create_error:
 	  }
 	}
 #endif
-	result= SP_KEY_NOT_FOUND;
+	if (lex->spname->m_db.str)
+	  result= SP_KEY_NOT_FOUND;
+	else
+	{
+	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+	  goto error;
+	}
       }
       res= result;
       switch (result)
