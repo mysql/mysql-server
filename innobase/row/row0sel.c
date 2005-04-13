@@ -3686,6 +3686,20 @@ rec_loop:
  			}
 		}
 
+		/* If a constant search tuple is found directly from 
+		the cluster index we lock only a record. 
+		For example: WHERE a >= 100, where a is primary key */
+
+		if(index == clust_index &&
+				match_mode == ROW_SEL_OPEN_CURSOR &&
+				mode == PAGE_CUR_GE &&
+				dtuple_get_n_fields_cmp(search_tuple)
+				== dict_index_get_n_unique(index) &&
+				!cmp_dtuple_rec(search_tuple, rec, offsets)) {
+
+			lock_type = LOCK_REC_NOT_GAP;
+		}
+
 		err = sel_set_rec_lock(rec, index, offsets,
 					prebuilt->select_lock_type,
 					lock_type, thr);
