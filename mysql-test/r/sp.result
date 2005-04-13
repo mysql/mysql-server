@@ -2880,4 +2880,32 @@ call bug9856()|
 16
 16
 drop procedure bug9856|
+drop procedure if exists bug9674_1|
+drop procedure if exists bug9674_2|
+create procedure bug9674_1(out arg int)
+begin
+declare temp_in1 int default 0;
+declare temp_fl1 int default 0;
+set temp_in1 = 100;
+set temp_fl1 = temp_in1/10;
+set arg = temp_fl1;
+end|
+create procedure bug9674_2()
+begin
+declare v int default 100;
+select v/10;
+end|
+call bug9674_1(@sptmp)|
+call bug9674_1(@sptmp)|
+select @sptmp|
+@sptmp
+10
+call bug9674_2()|
+v/10
+10.00000
+call bug9674_2()|
+v/10
+10.00000
+drop procedure bug9674_1|
+drop procedure bug9674_2|
 drop table t1,t2;
