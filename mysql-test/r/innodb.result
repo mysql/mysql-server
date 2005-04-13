@@ -2382,5 +2382,3 @@ drop table t1;
 set storage_engine=MyISAM;
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
-create table t1 (a bit, key(a)) engine=innodb;
-ERROR 42000: The storage engine for the table doesn't support BIT FIELD

@@ -40,7 +40,7 @@ a	b
 4	4
 drop table t1;
 create table t1 (a int not null) engine=heap;
-insert into t1 values (869751),(736494),(226312),(802616);
+insert into t1 values (869751),(736494),(226312),(802616),(728912);
 select * from t1 where a > 736494;
 a
 869751
@@ -66,7 +66,7 @@ a
 alter table t1 engine=myisam;
 explain select * from t1 where a in (869751,736494,226312,802616);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	uniq_id	uniq_id	4	NULL	4	Using where; Using index
+1	SIMPLE	t1	range	uniq_id	uniq_id	4	NULL	4	Using where; Using index
 drop table t1;
 create table t1 (x int not null, y int not null, key x (x), unique y (y))
 engine=heap;

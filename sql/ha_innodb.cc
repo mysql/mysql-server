@@ -2233,6 +2233,7 @@ innobase_mysql_cmp(
 
 	switch (mysql_tp) {
 
+        case MYSQL_TYPE_BIT:
 	case MYSQL_TYPE_STRING:
 	case MYSQL_TYPE_VAR_STRING:
 	case FIELD_TYPE_TINY_BLOB:
@@ -2342,6 +2343,7 @@ get_innobase_type_from_mysql_type(
 					} else {
 						return(DATA_VARMYSQL);
 					}
+                case MYSQL_TYPE_BIT:
 		case MYSQL_TYPE_STRING: if (field->binary()) {
 
 						return(DATA_FIXBINARY);
@@ -5378,6 +5380,32 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   mutex_exit_noninline(&(dict_sys->mutex));
   prebuilt->trx->op_info = (char*)"";
   DBUG_RETURN(0);
+}
+
+/*********************************************************************
+Checks if ALTER TABLE may change the storage engine of the table.
+Changing storage engines is not allowed for tables for which there
+are foreign key constraints (parent or child tables). */
+
+bool
+ha_innobase::can_switch_engines(void)
+/*=================================*/
+{
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	bool	can_switch;
+
+ 	DBUG_ENTER("ha_innobase::can_switch_engines");
+	prebuilt->trx->op_info =
+			"determining if there are foreign key constraints";
+	row_mysql_lock_data_dictionary(prebuilt->trx);
+
+	can_switch = !UT_LIST_GET_FIRST(prebuilt->table->referenced_list)
+			&& !UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+
+	row_mysql_unlock_data_dictionary(prebuilt->trx);
+	prebuilt->trx->op_info = "";
+
+	DBUG_RETURN(can_switch);
 }
 
 /***********************************************************************
