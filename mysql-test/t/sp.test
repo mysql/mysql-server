@@ -3496,6 +3496,82 @@ drop procedure avg|
 
 
 #
+# BUG#6129: Stored procedure won't display @@sql_mode value
+#
+--disable_warnings
+drop procedure if exists bug6129|
+--enable_warnings
+set @@sql_mode = 'traditional'|
+create procedure bug6129(mode text)
+  select @@sql_mode = mode|
+
+# 1
+call bug6129(@@sql_mode)|
+set @@sql_mode = ''|
+# 0
+call bug6129(@@sql_mode)|
+
+drop procedure bug6129|
+
+
+#
+# BUG#9856: Stored procedures: crash if handler for sqlexception, not found
+#
+--disable_warnings
+drop procedure if exists bug9856|
+--enable_warnings
+create procedure bug9856()
+begin
+  declare v int;
+  declare c cursor for select data from t1;
+  declare exit handler for sqlexception, not found select '16';
+
+  open c;
+  fetch c into v;
+  select v;
+end|
+
+delete from t1|
+call bug9856()|
+call bug9856()|
+drop procedure bug9856|
+
+
+#
+# BUG##9674: Stored Procs: Using declared vars in algebric operation causes
+#            system crash.
+#
+--disable_warnings
+drop procedure if exists bug9674_1|
+drop procedure if exists bug9674_2|
+--enable_warnings
+create procedure bug9674_1(out arg int)
+begin
+  declare temp_in1 int default 0;
+  declare temp_fl1 int default 0;
+
+  set temp_in1 = 100;
+  set temp_fl1 = temp_in1/10;
+  set arg = temp_fl1;
+end|
+
+create procedure bug9674_2()
+begin
+  declare v int default 100;
+
+  select v/10;
+end|
+
+call bug9674_1(@sptmp)|
+call bug9674_1(@sptmp)|
+select @sptmp|
+call bug9674_2()|
+call bug9674_2()|
+drop procedure bug9674_1|
+drop procedure bug9674_2|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
