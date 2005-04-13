@@ -4673,6 +4673,10 @@ ha_innobase::rename_table(
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
 
+	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
 	name_len1 = strlen(from);
 	name_len2 = strlen(to);
 

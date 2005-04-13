@@ -1976,7 +1976,7 @@ int ha_ndbcluster::write_row(byte *record)
   m_rows_inserted++;
   no_uncommitted_rows_update(1);
   m_bulk_insert_not_flushed= TRUE;
-  if ((m_rows_to_insert == 1) || 
+  if ((m_rows_to_insert == (ha_rows) 1) || 
       ((m_rows_inserted % m_bulk_insert_rows) == 0) ||
       set_blob_value)
   {
@@ -2992,8 +2992,8 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_ENTER("start_bulk_insert");
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
-  m_rows_inserted= 0;
-  if (rows == 0)
+  m_rows_inserted= (ha_rows) 0;
+  if (rows == (ha_rows) 0)
     /* We don't know how many will be inserted, guess */
     m_rows_to_insert= m_autoincrement_prefetch;
   else
@@ -3031,7 +3031,7 @@ int ha_ndbcluster::end_bulk_insert()
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
                         "rows_inserted:%d, bulk_insert_rows: %d", 
-                        m_rows_inserted, m_bulk_insert_rows)); 
+                        (int) m_rows_inserted, (int) m_bulk_insert_rows)); 
     m_bulk_insert_not_flushed= FALSE;
     if (execute_no_commit(this,trans) != 0) {
       no_uncommitted_rows_execute_failure();
@@ -3039,8 +3039,8 @@ int ha_ndbcluster::end_bulk_insert()
     }
   }
 
-  m_rows_inserted= 0;
-  m_rows_to_insert= 1;
+  m_rows_inserted= (ha_rows) 0;
+  m_rows_to_insert= (ha_rows) 1;
   DBUG_RETURN(error);
 }
 
@@ -3222,7 +3222,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     // store thread specific data first to set the right context
     m_force_send=          thd->variables.ndb_force_send;
     m_ha_not_exact_count= !thd->variables.ndb_use_exact_count;
-    m_autoincrement_prefetch= thd->variables.ndb_autoincrement_prefetch_sz;
+    m_autoincrement_prefetch= 
+      (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz;
     if (!thd->transaction.on)
       m_transaction_on= FALSE;
     else
@@ -3746,7 +3747,7 @@ static int create_ndb_column(NDBCOL &col,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  if (form->s->max_rows == 0) /* default setting, don't set fragmentation */
+  if (form->s->max_rows == (ha_rows) 0) /* default setting, don't set fragmentation */
     return;
   /**
    * get the number of fragments right
@@ -4112,6 +4113,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
     /* We guessed too low */
     m_rows_to_insert+= m_autoincrement_prefetch;
   cache_size= 
+    (int)
     (m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
     m_rows_to_insert - m_rows_inserted 
     : (m_rows_to_insert > m_autoincrement_prefetch) ? 
@@ -4148,10 +4150,10 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_primary_key_update(FALSE),
   m_retrieve_all_fields(FALSE),
   m_retrieve_primary_key(FALSE),
-  m_rows_to_insert(1),
-  m_rows_inserted(0),
-  m_bulk_insert_rows(1024),
-  m_rows_changed(0),
+  m_rows_to_insert((ha_rows) 1),
+  m_rows_inserted((ha_rows) 0),
+  m_bulk_insert_rows((ha_rows) 1024),
+  m_rows_changed((ha_rows) 0),
   m_bulk_insert_not_flushed(FALSE),
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
@@ -4161,7 +4163,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_dupkey((uint) -1),
   m_ha_not_exact_count(FALSE),
   m_force_send(TRUE),
-  m_autoincrement_prefetch(32),
+  m_autoincrement_prefetch((ha_rows) 32),
   m_transaction_on(TRUE),
   m_cond_stack(NULL),
   m_multi_cursor(NULL)
