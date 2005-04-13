@@ -1103,7 +1103,8 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();
-    while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
+    while (!net->error && net->vio != 0 &&
+           !(thd->killed == THD::KILL_CONNECTION))
     {
       net->no_send_error= 0;
       if (do_command(thd))
@@ -1912,12 +1913,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
-	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %lu  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
+	    "Uptime: %lu  Threads: %d  Questions: %lu  Slow queries: %lu  Opens: %lu  Flush tables: %lu  Open tables: %u  Queries per second avg: %.3f",
 	    uptime,
 	    (int) thread_count, (ulong) thd->query_id,
             (ulong) thd->status_var.long_query_count,
 	    thd->status_var.opened_tables, refresh_version, cached_tables(),
-	    uptime ? (float)thd->query_id/(float)uptime : 0);
+	    (uptime ? (ulonglong2double(thd->query_id) / (double) uptime) :
+	     (double) 0));
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
@@ -4317,7 +4319,7 @@ unsent_create_error:
   case SQLCOM_XA_START:
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
     {
-      if (! thd->transaction.xid.eq(&thd->lex->ident))
+      if (! thd->transaction.xid.eq(thd->lex->xid))
       {
         my_error(ER_XAER_NOTA, MYF(0));
         break;
@@ -4326,7 +4328,7 @@ unsent_create_error:
       send_ok(thd);
       break;
     }
-    if (thd->lex->ident.length > MAXGTRIDSIZE || thd->lex->xa_opt != XA_NONE)
+    if (thd->lex->xa_opt != XA_NONE)
     { // JOIN is not supported yet. TODO
       my_error(ER_XAER_INVAL, MYF(0));
       break;
@@ -4344,7 +4346,7 @@ unsent_create_error:
     }
     DBUG_ASSERT(thd->transaction.xid.is_null());
     thd->transaction.xa_state=XA_ACTIVE;
-    thd->transaction.xid.set(&thd->lex->ident);
+    thd->transaction.xid.set(thd->lex->xid);
     thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -4363,7 +4365,7 @@ unsent_create_error:
                xa_state_names[thd->transaction.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4378,7 +4380,7 @@ unsent_create_error:
                xa_state_names[thd->transaction.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4393,9 +4395,9 @@ unsent_create_error:
     send_ok(thd);
     break;
   case SQLCOM_XA_COMMIT:
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 1)))
+      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 1)))
         my_error(ER_XAER_NOTA, MYF(0));
       else
         send_ok(thd);
@@ -4428,9 +4430,9 @@ unsent_create_error:
     thd->transaction.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_ROLLBACK:
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 0)))
+      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 0)))
         my_error(ER_XAER_NOTA, MYF(0));
       else
         send_ok(thd);

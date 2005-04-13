@@ -3230,13 +3230,13 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   long store_tmp;
   int error;
   char *end;
-  
+
   tmp_scan= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
   len-= tmp_scan;
   from+= tmp_scan;
 
   end= (char*) from+len;
-  tmp= cs->cset->my_strtoll10(cs, from, &end, &error);
+  tmp= cs->cset->strtoll10(cs, from, &end, &error);
 
   if (error != MY_ERRNO_EDOM)
   {
@@ -5777,7 +5777,7 @@ void Field_datetime::sql_type(String &res) const
 
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
+  int error= 0, well_formed_error;
   uint32 not_used;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
@@ -5802,9 +5802,10 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     as well as don't copy a malformed data.
   */
   copy_length= field_charset->cset->well_formed_len(field_charset,
-						    from,from+length,
-						    field_length/
-						    field_charset->mbmaxlen);
+                                                    from,from+length,
+                                                    field_length/
+                                                    field_charset->mbmaxlen,
+                                                    &well_formed_error);
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
@@ -6152,7 +6153,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   uint32 not_used, copy_length;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
-  int error_code= 0;
+  int error_code= 0, well_formed_error;
   enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
 
   /* Convert character set if necessary */
@@ -6172,7 +6173,8 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   copy_length= field_charset->cset->well_formed_len(field_charset,
 						    from,from+length,
 						    field_length/
-						    field_charset->mbmaxlen);
+						    field_charset->mbmaxlen,
+                                                    &well_formed_error);
   memcpy(ptr + length_bytes, from, copy_length);
   if (length_bytes == 1)
     *ptr= (uchar) copy_length;
@@ -6746,7 +6748,7 @@ void Field_blob::put_length(char *pos, uint32 length)
 
 int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
+  int error= 0, well_formed_error;
   if (!length)
   {
     bzero(ptr,Field_blob::pack_length());
@@ -6778,9 +6780,10 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
       the 'min()' call below.
     */
     copy_length= field_charset->cset->well_formed_len(field_charset,
-						      from,from +
-						      min(length, copy_length),
-						      copy_length);
+                                                      from,from +
+                                                      min(length, copy_length),
+                                                      copy_length,
+                                                      &well_formed_error);
     if (copy_length < length)
       error= 1;
     Field_blob::store_length(copy_length);

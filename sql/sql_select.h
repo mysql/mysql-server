@@ -31,6 +31,11 @@ typedef struct keyuse_t {
   uint	key, keypart, optimize;
   key_part_map keypart_map;
   ha_rows      ref_table_rows;
+  /* 
+    If true, the comparison this value was created from will not be
+    satisfied if val has NULL 'value'.
+  */
+  bool null_rejecting;
 } KEYUSE;
 
 class store_key;
@@ -45,6 +50,11 @@ typedef struct st_table_ref
   byte          *key_buff2;               // key_buff+key_length
   store_key     **key_copy;               //
   Item          **items;                  // val()'s for each keypart
+  /*
+    (null_rejecting & (1<<i)) means the condition is '=' and no matching
+    rows will be produced if items[i] IS NULL (see add_not_null_conds())
+  */
+  key_part_map  null_rejecting;
   table_map	depend_map;		  // Table depends on these tables.
   byte          *null_ref_key;		  // null byte position in the key_buf.
   					  // used for REF_OR_NULL optimization.

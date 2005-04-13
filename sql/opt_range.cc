@@ -42,7 +42,6 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-#include <nisam.h>
 #include "sql_select.h"
 
 #ifndef EXTRA_DEBUG
@@ -51,7 +50,7 @@
 #endif
 
 /*
-  Convert double value to #rows. Currently this does floor(), and we 
+  Convert double value to #rows. Currently this does floor(), and we
   might consider using round() instead.
 */
 #define double2rows(x) ((ha_rows)(x))

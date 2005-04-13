@@ -1040,7 +1040,6 @@ delimiter |;
 create procedure t1 () begin declare exit handler for sqlexception
 select'a'; insert into t1 values (200); end;|
 delimiter ;|
---error 1264
 call t1();
 select * from t1;
 drop procedure t1;
@@ -1050,3 +1049,37 @@ drop table t1;
 # Restore mode
 #
 set sql_mode=@org_mode;
+
+# Test fields with no default value that are NOT NULL (Bug #5986)
+SET @@sql_mode = 'traditional';
+CREATE TABLE t1 (i int not null);
+--error 1364
+INSERT INTO t1 VALUES ();
+--error 1364
+INSERT INTO t1 VALUES (DEFAULT);
+--error 1364
+INSERT INTO t1 VALUES (DEFAULT(i));
+ALTER TABLE t1 ADD j int;
+--error 1364
+INSERT INTO t1 SET j = 1;
+--error 1364
+INSERT INTO t1 SET j = 1, i = DEFAULT;
+--error 1364
+INSERT INTO t1 SET j = 1, i = DEFAULT(i);
+--error 1364
+INSERT INTO t1 VALUES (DEFAULT,1);
+DROP TABLE t1;
+SET @@sql_mode = '';
+CREATE TABLE t1 (i int not null);
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES (DEFAULT);
+# DEFAULT(i) is an error even with the default sql_mode
+--error 1364
+INSERT INTO t1 VALUES (DEFAULT(i));
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1 SET j = 1;
+INSERT INTO t1 SET j = 1, i = DEFAULT;
+--error 1364
+INSERT INTO t1 SET j = 1, i = DEFAULT(i);
+INSERT INTO t1 VALUES (DEFAULT,1);
+DROP TABLE t1;

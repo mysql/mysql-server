@@ -260,8 +260,15 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
     return 0;                                   // NULL or EOM
 
   end_ptr= (char*) res->ptr()+ res->length();
-  str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
-                 decimal_value);
+  if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
+                     res->ptr(), res->length(), res->charset(),
+                     decimal_value) & E_DEC_BAD_NUM)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
+                        str_value.c_ptr());
+  }
   return decimal_value;
 }
 
@@ -1496,7 +1503,7 @@ longlong Item_string::val_int()
   char *org_end= end;
   CHARSET_INFO *cs= str_value.charset();
 
-  tmp= (*(cs->cset->my_strtoll10))(cs, str_value.ptr(), &end, &err);
+  tmp= (*(cs->cset->strtoll10))(cs, str_value.ptr(), &end, &err);
   /*
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
@@ -1515,10 +1522,7 @@ longlong Item_string::val_int()
 
 my_decimal *Item_string::val_decimal(my_decimal *decimal_value)
 {
-  /* following assert is redundant, because fixed=1 assigned in constructor */
-  DBUG_ASSERT(fixed == 1);
-  string2my_decimal(E_DEC_FATAL_ERROR, &str_value, decimal_value);
-  return (decimal_value);
+  return val_decimal_from_string(decimal_value);
 }
 
 
@@ -4220,6 +4224,7 @@ bool Item_default_value::fix_fields(THD *thd,
   return FALSE;
 }
 
+
 void Item_default_value::print(String *str)
 {
   if (!arg)
@@ -4231,6 +4236,27 @@ void Item_default_value::print(String *str)
   arg->print(str);
   str->append(')');
 }
+
+
+int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
+{
+  if (!arg)
+  {
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    {
+      push_warning_printf(field_arg->table->in_use,
+                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_NO_DEFAULT_FOR_FIELD,
+                          ER(ER_NO_DEFAULT_FOR_FIELD),
+                          field_arg->field_name);
+      return 1;
+    }
+    field_arg->set_default();
+    return 0;
+  }
+  return Item_field::save_in_field(field_arg, no_conversions);
+}
+
 
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {

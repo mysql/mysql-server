@@ -696,6 +696,101 @@ create procedure bug6600()
 create procedure bug6600()
   unlock table t1|
 
+#
+# BUG#9566: explicit LOCK TABLE and store procedures result in illegal state
+#
+# We should not think that mysql.proc table does not exist if we are unable
+# to open it under LOCK TABLE or in prelocked mode. Probably this test
+# should be removed when Monty will allow access to mysql.proc without
+# locking it.
+#
+--disable_warnings
+drop procedure if exists bug9566|
+--enable_warnings
+create procedure bug9566()
+begin
+  select * from t1;
+end|
+lock table t1 read|
+# This should fail because we forgot to lock mysql.proc table explicitly
+--error 1100
+call bug9566()|
+unlock tables|
+# This should succeed
+drop procedure bug9566|
+
+
+#
+# BUG#7299: Stored procedures: exception handler catches not-found conditions
+#
+--disable_warnings
+drop procedure if exists bug7299|
+--enable_warnings
+create procedure bug7299()
+begin
+  declare v int;
+  declare c cursor for select val from t1;
+  declare exit handler for sqlexception select 'Error!'; 
+
+  open c;
+  fetch c into v;
+end|
+
+delete from t1|
+--error ER_SP_FETCH_NO_DATA
+call bug7299()|
+drop procedure bug7299|
+
+
+#
+# BUG#9073: Able to declare two handlers for same condition in same scope
+#
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare continue handler for sqlexception select 1;
+  declare continue handler for sqlexception select 2;
+end|
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare condname1 condition for 1234;
+  declare continue handler for condname1 select 1;
+  declare exit handler for condname1 select 2;
+end|
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare condname1 condition for sqlstate '42000';
+  declare condname2 condition for sqlstate '42000';
+  declare exit handler for condname1 select 1;
+  declare continue handler for condname2 select 2;
+end|
+--error ER_SP_DUP_HANDLER
+create procedure bug9073()
+begin
+  declare condname1 condition for sqlstate '42000';
+  declare exit handler for condname1 select 1;
+  declare exit handler for sqlstate '42000' select 2;
+end|
+
+# This should still work.
+--disable_warnings
+drop procedure if exists bug9073|
+--enable_warnings
+create procedure bug9073()
+begin
+  declare condname1 condition for sqlstate '42000';
+  declare continue handler for condname1 select 1;
+  begin
+    declare exit handler for sqlstate '42000' select 2;
+    begin
+      declare continue handler for sqlstate '42000' select 3;
+    end;
+  end;
+end|
+drop procedure bug9073|
+
 
 #
 # BUG#NNNN: New bug synopsis
