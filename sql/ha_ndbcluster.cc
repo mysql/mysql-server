@@ -3728,7 +3728,7 @@ static int create_ndb_column(NDBCOL &col,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  if (form->max_rows == (ha_rows) 0) /* default setting, don't set fragmentation */
+  if (form->s->max_rows == (ha_rows) 0) /* default setting, don't set fragmentation */
     return;
   /**
    * get the number of fragments right
