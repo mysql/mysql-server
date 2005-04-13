@@ -758,7 +758,6 @@ SPATIAL KEY(g)
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('LineString(1 2, 2 4)'));
 drop table t1;
 CREATE TABLE t1 (
-geoobjid INT NOT NULL,
 line LINESTRING NOT NULL,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32),

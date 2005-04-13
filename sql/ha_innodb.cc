@@ -748,17 +748,37 @@ ha_innobase::update_thd(
 }
 
 /*************************************************************************
-Registers the InnoDB transaction in MySQL, to receive commit/rollback
-events. This function must be called every time InnoDB starts a
-transaction internally. */
-static
+Registers that InnoDB takes part in an SQL statement, so that MySQL knows to
+roll back the statement if the statement results in an error. This MUST be
+called for every SQL statement that may be rolled back by MySQL. Calling this
+several times to register the same statement is allowed, too. */
+inline
 void
-register_trans(
-/*===========*/
-	THD*	thd)	/* in: thd to use the handle */
+innobase_register_stmt(
+/*===================*/
+	THD*	thd)	/* in: MySQL thd (connection) object */
 {
-        /* Register the start of the statement */
+        /* Register the statement */
         trans_register_ha(thd, FALSE, &innobase_hton);
+}
+
+/*************************************************************************
+Registers an InnoDB transaction in MySQL, so that the MySQL XA code knows
+to call the InnoDB prepare and commit, or rollback for the transaction. This
+MUST be called for every transaction for which the user may call commit or
+rollback. Calling this several times to register the same transaction is
+allowed, too.
+This function also registers the current SQL statement. */
+inline
+void
+innobase_register_trx_and_stmt(
+/*===========================*/
+	THD*	thd)	/* in: MySQL thd (connection) object */
+{
+	/* NOTE that actually innobase_register_stmt() registers also
+	the transaction in the AUTOCOMMIT=1 mode. */
+
+	innobase_register_stmt(thd);
 
         if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
@@ -914,7 +934,7 @@ innobase_query_caching_of_table_permitted(
 
         if (trx->active_trans == 0) {
 
-                register_trans(thd);
+                innobase_register_trx_and_stmt(thd);
                 trx->active_trans = 1;
         }
 
@@ -1030,7 +1050,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         if (prebuilt->trx->active_trans == 0) {
 
-                register_trans(current_thd);
+                innobase_register_trx_and_stmt(current_thd);
 
                 prebuilt->trx->active_trans = 1;
         }
@@ -1421,7 +1441,7 @@ innobase_start_trx_and_assign_read_view(
 
         if (trx->active_trans == 0) {
 
-                register_trans(current_thd);
+                innobase_register_trx_and_stmt(current_thd);
 
                 trx->active_trans = 1;
         }
@@ -5544,9 +5564,11 @@ ha_innobase::start_stmt(
 	/* Set the MySQL flag to mark that there is an active transaction */
         if (trx->active_trans == 0) {
 
-                register_trans(thd);
+                innobase_register_trx_and_stmt(thd);
                 trx->active_trans = 1;
-        }
+        } else {
+		innobase_register_stmt(thd);
+	}
 
 	return(0);
 }
@@ -5616,9 +5638,11 @@ ha_innobase::external_lock(
 		transaction */
                 if (trx->active_trans == 0) {
 
-                        register_trans(thd);
+                        innobase_register_trx_and_stmt(thd);
                         trx->active_trans = 1;
-                }
+                } else if (trx->n_mysql_tables_in_use == 0) {
+			innobase_register_stmt(thd);
+		}
 
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
@@ -5780,7 +5804,7 @@ ha_innobase::transactional_table_lock(
 	/* Set the MySQL flag to mark that there is an active transaction */
         if (trx->active_trans == 0) {
 
-                register_trans(thd);
+                innobase_register_trx_and_stmt(thd);
                 trx->active_trans = 1;
         }
 

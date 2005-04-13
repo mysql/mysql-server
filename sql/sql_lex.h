@@ -695,14 +695,16 @@ typedef struct st_lex
   Item *default_value, *on_update_value;
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
+  XID *xid;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset;
   TABLE_LIST *query_tables;	/* global list of all tables in this query */
   /*
     last element next_global of previous list (used only for list building
-    during parsing and VIEW processing. This pointer is not valid in
-    mysql_execute_command
+    during parsing and VIEW processing. This pointer could be invalid during
+    processing of information schema tables(see get_schema_tables_result
+    function)
   */
   TABLE_LIST **query_tables_last;
   TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
@@ -737,7 +739,7 @@ typedef struct st_lex
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
   union {
-  enum ha_rkey_function ha_rkey_mode;
+    enum ha_rkey_function ha_rkey_mode;
     enum xa_option_words xa_opt;
   };
   enum enum_var_type option_type;
@@ -763,15 +765,15 @@ typedef struct st_lex
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
-  /* 
+  /*
     Prepared statement query text or name of variable that holds the
     prepared statement (in PREPARE ... queries)
   */
-  LEX_STRING prepared_stmt_code; 
+  LEX_STRING prepared_stmt_code;
   /* If true, prepared_stmt_code is a name of variable that holds the query */
   bool prepared_stmt_code_is_varref;
   /* Names of user variables holding parameters (in EXECUTE) */
-  List<LEX_STRING> prepared_stmt_params; 
+  List<LEX_STRING> prepared_stmt_params;
   /*
     Points to part of global table list which contains time zone tables
     implicitly used by the statement.

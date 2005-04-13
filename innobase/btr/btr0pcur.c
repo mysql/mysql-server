@@ -14,6 +14,7 @@ Created 2/23/1996 Heikki Tuuri
 
 #include "ut0byte.h"
 #include "rem0cmp.h"
+#include "trx0trx.h"
 
 /******************************************************************
 Allocates memory for a persistent cursor object and initializes the cursor. */
@@ -206,7 +207,14 @@ btr_pcur_restore_position(
 
 	ut_a(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
 			|| cursor->pos_state == BTR_PCUR_IS_POSITIONED);
-	ut_a(cursor->old_stored == BTR_PCUR_OLD_STORED);
+	if (cursor->old_stored != BTR_PCUR_OLD_STORED) {
+		ut_print_buf(stderr, (const byte*)cursor, sizeof(btr_pcur_t));
+		if (cursor->trx_if_known) {
+			trx_print(stderr, cursor->trx_if_known);
+		}
+		
+		ut_a(0);
+	}
 
 	if (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
 	    || cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE) {

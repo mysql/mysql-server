@@ -548,12 +548,12 @@ error:
 static int parse_url(FEDERATED_SHARE *share, TABLE *table,
                      uint table_create_flag)
 {
+  uint error_num= (table_create_flag ? ER_CANT_CREATE_TABLE :
+                   ER_CONNECT_TO_MASTER);
   DBUG_ENTER("ha_federated::parse_url");
 
   share->port= 0;
-  uint error_num= (table_create_flag ? ER_CANT_CREATE_TABLE :
-                   ER_CONNECT_TO_MASTER);
-
+  share->socket= 0;
   share->scheme= my_strdup(table->s->comment, MYF(0));
 
   if ((share->username= strstr(share->scheme, "://")))

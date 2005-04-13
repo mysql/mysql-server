@@ -241,6 +241,15 @@ class sp_pcontext : public Sql_alloc
     m_handlers+= 1;
   }
 
+  inline void
+  push_handler(sp_cond_type_t *cond)
+  {
+    insert_dynamic(&m_handler, (gptr)&cond);
+  }
+
+  bool
+  find_handler(sp_cond_type *cond);
+
   inline uint
   max_handlers()
   {
@@ -293,6 +302,7 @@ private:
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions
   DYNAMIC_ARRAY m_cursor;	// Cursors
+  DYNAMIC_ARRAY m_handler;	// Handlers, for checking of duplicates
 
   List<sp_label_t> m_label;	// The label list
 

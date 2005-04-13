@@ -1029,7 +1029,11 @@ Warnings:
 Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col1' at row 1
 Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
 INSERT IGNORE INTO t1 (col1) values (3);
+Warnings:
+Warning	1364	Field 'col2' doesn't have a default value
 INSERT IGNORE INTO t1 () values ();
+Warnings:
+Warning	1364	Field 'col2' doesn't have a default value
 SELECT * FROM t1;
 col1	col2
 1	hello
@@ -1180,9 +1184,51 @@ Note	1305	PROCEDURE t1 does not exist
 create procedure t1 () begin declare exit handler for sqlexception
 select'a'; insert into t1 values (200); end;|
 call t1();
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+a
+a
 select * from t1;
 col1
 drop procedure t1;
 drop table t1;
 set sql_mode=@org_mode;
+SET @@sql_mode = 'traditional';
+CREATE TABLE t1 (i int not null);
+INSERT INTO t1 VALUES ();
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT);
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT(i));
+ERROR HY000: Field 'i' doesn't have a default value
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1 SET j = 1;
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 SET j = 1, i = DEFAULT;
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 SET j = 1, i = DEFAULT(i);
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT,1);
+ERROR HY000: Field 'i' doesn't have a default value
+DROP TABLE t1;
+SET @@sql_mode = '';
+CREATE TABLE t1 (i int not null);
+INSERT INTO t1 VALUES ();
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT);
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT(i));
+ERROR HY000: Field 'i' doesn't have a default value
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1 SET j = 1;
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+INSERT INTO t1 SET j = 1, i = DEFAULT;
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+INSERT INTO t1 SET j = 1, i = DEFAULT(i);
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT,1);
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+DROP TABLE t1;

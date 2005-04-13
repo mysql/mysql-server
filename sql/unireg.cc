@@ -679,15 +679,14 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
     null_count++;
   }
   bfill(buff,(null_length=(null_fields+7)/8),255);
-  null_pos=buff;
+  null_pos= buff + null_count / 8;
 
   List_iterator<create_field> it(create_fields);
   thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong default values
   while ((field=it++))
   {
     Field *regfield=make_field((char*) buff+field->offset,field->length,
-			       field->flags & NOT_NULL_FLAG ? 0:
-			       null_pos+null_count/8,
+                               null_pos,
 			       null_count & 7,
 			       field->pack_flag,
 			       field->sql_type,

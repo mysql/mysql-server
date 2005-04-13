@@ -2405,7 +2405,7 @@ CHARSET_INFO my_charset_utf8_bin=
     &my_collation_mb_bin_handler
 };
 
-#ifdef HAVE_CYBOZU_COLLATION
+#ifdef HAVE_UTF8_GENERAL_CS
 
 /*
  * These functions bacically do the same as their original, except
