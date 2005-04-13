@@ -695,7 +695,7 @@ fi
 
 * Mon Feb 14 2005 Lenz Grimmer <lenz@mysql.com>
 
-* Fixed the compilation comments and moved them into the separate build sections
+- Fixed the compilation comments and moved them into the separate build sections
   for Max and Standard
 
 * Mon Feb 7 2005 Tomas Ulin <tomas@mysql.com>
