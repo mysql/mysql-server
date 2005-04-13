@@ -3686,16 +3686,23 @@ rec_loop:
  			}
 		}
 
-		/* If a constant search tuple is found directly from 
-		the cluster index we lock only a record. 
-		For example: WHERE a >= 100, where a is primary key */
+		/* If we are doing a 'greater or equal than a primary key
+		value' search from a clustered index, and we find a record
+		that has that exact primary key value, then there is no need
+		to lock the gap before the record, because no insert in the
+		gap can be in our search range. That is, no phantom row can
+		appear that way.
 
-		if(index == clust_index &&
-				match_mode == ROW_SEL_OPEN_CURSOR &&
-				mode == PAGE_CUR_GE &&
-				dtuple_get_n_fields_cmp(search_tuple)
-				== dict_index_get_n_unique(index) &&
-				!cmp_dtuple_rec(search_tuple, rec, offsets)) {
+		An example: if col1 is the primary key, the search is WHERE
+		col1 >= 100, and we find a record where col1 = 100, then no
+		need to lock the gap before that record. */
+
+		if (index == clust_index
+		    && mode == PAGE_CUR_GE
+		    && direction == 0
+		    && dtuple_get_n_fields_cmp(search_tuple)
+		       == dict_index_get_n_unique(index)
+		    && 0 == cmp_dtuple_rec(search_tuple, rec, offsets)) {
 
 			lock_type = LOCK_REC_NOT_GAP;
 		}
