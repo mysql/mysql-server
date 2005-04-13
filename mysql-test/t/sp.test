@@ -3538,6 +3538,40 @@ drop procedure bug9856|
 
 
 #
+# BUG##9674: Stored Procs: Using declared vars in algebric operation causes
+#            system crash.
+#
+--disable_warnings
+drop procedure if exists bug9674_1|
+drop procedure if exists bug9674_2|
+--enable_warnings
+create procedure bug9674_1(out arg int)
+begin
+  declare temp_in1 int default 0;
+  declare temp_fl1 int default 0;
+
+  set temp_in1 = 100;
+  set temp_fl1 = temp_in1/10;
+  set arg = temp_fl1;
+end|
+
+create procedure bug9674_2()
+begin
+  declare v int default 100;
+
+  select v/10;
+end|
+
+call bug9674_1(@sptmp)|
+call bug9674_1(@sptmp)|
+select @sptmp|
+call bug9674_2()|
+call bug9674_2()|
+drop procedure bug9674_1|
+drop procedure bug9674_2|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
