@@ -189,7 +189,8 @@ ulint
 dict_foreign_add_to_cache(
 /*======================*/
 					/* out: DB_SUCCESS or error code */
-	dict_foreign_t*	foreign);	/* in, own: foreign key constraint */
+	dict_foreign_t*	foreign,	/* in, own: foreign key constraint */
+	ibool		check_types);	/* in: TRUE=check type compatibility */
 /*************************************************************************
 Checks if a table is referenced by foreign keys. */
 
