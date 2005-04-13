@@ -1300,8 +1300,3 @@ eval set storage_engine=$default;
 # InnoDB specific varchar tests
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
-
-# The following should be moved to type_bit.test when innodb will support it
---error 1178
-create table t1 (a bit, key(a)) engine=innodb;
-

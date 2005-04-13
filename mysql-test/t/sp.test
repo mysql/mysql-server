@@ -3482,6 +3482,20 @@ drop table t3|
 
 
 #
+# BUG#7185: Stored procedure crash if identifier is AVG
+#
+--disable_warnings
+drop procedure if exists avg|
+--enable_warnings
+create procedure avg ()
+begin
+end|
+
+call avg ()|
+drop procedure avg|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
