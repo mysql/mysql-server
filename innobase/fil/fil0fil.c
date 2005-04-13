@@ -1447,7 +1447,8 @@ fil_write_flushed_lsn_to_data_files(
 		cache. Note that all data files in the system tablespace 0 are
 		always open. */
 
-		if (space->purpose == FIL_TABLESPACE) {
+		if (space->purpose == FIL_TABLESPACE
+		    && space->id == 0) {
 			sum_of_sizes = 0;
 
 			node = UT_LIST_GET_FIRST(space->chain);
