@@ -584,7 +584,7 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
-* Wed Mar 13 2005 Lenz Grimmer <lenz@mysql.com>
+* Wed Apr 13 2005 Lenz Grimmer <lenz@mysql.com>
 
 - removed the MySQL manual files (html/ps/texi) - they have been removed
   from the MySQL sources and are now available seperately.
