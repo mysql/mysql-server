@@ -275,9 +275,7 @@ cd $SOURCE
 for i in COPYING ChangeLog README EXCEPTIONS-CLIENT\
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
-         Docs/manual_toc.html  Docs/manual.html \
-         Docs/manual.txt Docs/mysqld_error.txt \
-         Docs/INSTALL-BINARY Docs/internals.texi
+         Docs/INSTALL-BINARY
 
 do
   print_debug "Copying file '$i'"
@@ -297,8 +295,7 @@ cp support-files/*.cnf $BASE/support-files
 # Raw dirs from source tree
 #
 
-for i in Docs/Flags scripts sql-bench SSL \
-         tests
+for i in scripts sql-bench SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]
