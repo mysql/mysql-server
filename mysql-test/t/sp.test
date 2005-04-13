@@ -3515,6 +3515,29 @@ drop procedure bug6129|
 
 
 #
+# BUG#9856: Stored procedures: crash if handler for sqlexception, not found
+#
+--disable_warnings
+drop procedure if exists bug9856|
+--enable_warnings
+create procedure bug9856()
+begin
+  declare v int;
+  declare c cursor for select data from t1;
+  declare exit handler for sqlexception, not found select '16';
+
+  open c;
+  fetch c into v;
+  select v;
+end|
+
+delete from t1|
+call bug9856()|
+call bug9856()|
+drop procedure bug9856|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

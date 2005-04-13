@@ -2862,4 +2862,22 @@ call bug6129(@@sql_mode)|
 @@sql_mode = mode
 0
 drop procedure bug6129|
+drop procedure if exists bug9856|
+create procedure bug9856()
+begin
+declare v int;
+declare c cursor for select data from t1;
+declare exit handler for sqlexception, not found select '16';
+open c;
+fetch c into v;
+select v;
+end|
+delete from t1|
+call bug9856()|
+16
+16
+call bug9856()|
+16
+16
+drop procedure bug9856|
 drop table t1,t2;
