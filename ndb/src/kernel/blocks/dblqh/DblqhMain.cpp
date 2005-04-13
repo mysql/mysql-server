@@ -7554,13 +7554,13 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
 
   ndbrequire(max_rows > 0 && max_rows <= MAX_PARALLEL_OP_PER_SCAN);
   if (!getFragmentrec(signal, fragId)) {
-    errorCode = __LINE__;
+    errorCode = 1231;
     goto error_handler;
   }//if
 
   // Verify scan type vs table type (both sides are boolean)
   if (rangeScan != DictTabInfo::isOrderedIndex(fragptr.p->tableType)) {
-    errorCode = __LINE__;       // XXX fix
+    errorCode = 1232;
     goto error_handler;
   }//if
   
