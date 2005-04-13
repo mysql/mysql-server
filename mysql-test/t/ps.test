@@ -561,3 +561,29 @@ while ($exec_loop_count)
   dec $exec_loop_count;
 }
 deallocate prepare my_stmt;
+
+# Test CALL in prepared mode
+delimiter |;
+--disable_warnings
+drop procedure if exists p1|
+drop table if exists t1|
+--enable_warnings
+create table t1 (id int)|
+insert into t1 values(1)|
+create procedure p1(a int, b int)
+begin
+  declare c int;
+  select max(id)+1 into c from t1;
+  insert into t1 select a+b;
+  insert into t1 select a-b;
+  insert into t1 select a-c;
+end|
+set @a= 3, @b= 4|
+prepare stmt from "call p1(?, ?)"|
+execute stmt using @a, @b|
+execute stmt using @a, @b|
+select * from t1|
+deallocate prepare stmt|
+drop procedure p1|
+drop table t1|
+delimiter ;|
