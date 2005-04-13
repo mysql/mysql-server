@@ -936,8 +936,17 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
 	set(0, DERIVATION_NONE);
 	return 1;
       }
+      if (collation->state & MY_CS_BINSORT)
+      {
+        return 0;
+      }
+      else if (dt.collation->state & MY_CS_BINSORT)
+      {
+        set(dt);
+        return 0;
+      }
       CHARSET_INFO *bin= get_charset_by_csname(collation->csname, 
-					       MY_CS_BINSORT,MYF(0));
+                                               MY_CS_BINSORT,MYF(0));
       set(bin, DERIVATION_NONE);
     }
   }

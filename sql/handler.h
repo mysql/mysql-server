@@ -671,6 +671,8 @@ public:
   virtual void append_create_info(String *packet) {}
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
+  /* used in ALTER TABLE; 1 if changing storage engine is allowed */
+  virtual bool can_switch_engines() { return 1; }
   /* used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
   virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   { return 0; }

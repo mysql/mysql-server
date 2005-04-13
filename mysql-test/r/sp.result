@@ -2844,4 +2844,10 @@ drop procedure bug6900|
 drop procedure bug9074|
 drop procedure bug6900_9074|
 drop table t3|
+drop procedure if exists avg|
+create procedure avg ()
+begin
+end|
+call avg ()|
+drop procedure avg|
 drop table t1,t2;

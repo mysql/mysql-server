@@ -35,16 +35,16 @@ select 0 + b'1000000000000001';
 0 + b'1000000000000001'
 32769
 drop table if exists t1;
-create table t1 (a bit(65));
+create table t1 (a bit(65)) engine=innodb;
 ERROR 42000: Column length too big for column 'a' (max = 64); use BLOB or TEXT instead
-create table t1 (a bit(0));
+create table t1 (a bit(0)) engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(1) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (a bit(64));
+create table t1 (a bit(64)) engine=innodb;
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),
 (b'1000000000000000000000000000000000000000000000000000000000000000'),
@@ -59,7 +59,7 @@ FFFFFFFFFFFFFFFF
 AAAAAAAAAAAAAAAA
 5555555555555555
 drop table t1;
-create table t1 (a bit);
+create table t1 (a bit) engine=innodb;
 insert into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'a' at row 4
@@ -73,7 +73,7 @@ hex(a)
 alter table t1 add unique (a);
 ERROR 23000: Duplicate entry '' for key 1
 drop table t1;
-create table t1 (a bit(2));
+create table t1 (a bit(2)) engine=innodb;
 insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'a' at row 4
@@ -94,7 +94,7 @@ a+0
 2
 3
 drop table t1;
-create table t1 (a bit(7), b bit(9), key(a, b));
+create table t1 (a bit(7), b bit(9), key(a, b)) engine=innodb;
 insert into t1 values 
 (94, 46), (31, 438), (61, 152), (78, 123), (88, 411), (122, 118), (0, 177),    
 (75, 42), (108, 67), (79, 349), (59, 188), (68, 206), (49, 345), (118, 380),   
@@ -233,7 +233,7 @@ a+0	b+0
 127	403
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	2	NULL	27	Using where; Using index; Using filesort
+1	SIMPLE	t1	range	a	a	2	NULL	19	Using where; Using index; Using filesort
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 a+0	b+0
 44	307
@@ -290,7 +290,7 @@ select hex(min(a)), hex(max(a)), hex(min(b)), hex(max(b)) from t1;
 hex(min(a))	hex(max(a))	hex(min(b))	hex(max(b))
 0	7F	24	1F3
 drop table t1;
-create table t1 (a int not null, b bit, c bit(9), key(a, b, c));
+create table t1 (a int not null, b bit, c bit(9), key(a, b, c)) engine=innodb;
 insert into t1 values
 (4, NULL, 1), (4, 0, 3), (2, 1, 4), (1, 1, 100), (4, 0, 23), (4, 0, 54),
 (56, 0, 22), (4, 1, 100), (23, 0, 1), (4, 0, 34);
@@ -350,7 +350,7 @@ a+0	b+0	c+0
 1	1	100
 4	1	100
 drop table t1;
-create table t1(a bit(2), b bit(2));
+create table t1(a bit(2), b bit(2)) engine=innodb;
 insert into t1 (a) values (0x01), (0x03), (0x02);
 update t1 set b= concat(a);
 select a+0, b+0 from t1;
@@ -359,14 +359,14 @@ a+0	b+0
 3	3
 2	2
 drop table t1;
-create table t1 (a bit(7), key(a));
+create table t1 (a bit(7), key(a)) engine=innodb;
 insert into t1 values (44), (57);
 select a+0 from t1;
 a+0
 44
 57
 drop table t1;
-create table t1 (a bit(3), b bit(12));
+create table t1 (a bit(3), b bit(12)) engine=innodb;
 insert into t1 values (7,(1<<12)-2), (0x01,0x01ff);
 select hex(a),hex(b) from t1;
 hex(a)	hex(b)
@@ -377,63 +377,6 @@ hex(concat(a))	hex(concat(b))
 07	0FFE
 01	01FF
 drop table t1;
-create table t1(a int, b bit not null);
+create table t1(a int, b bit not null) engine=innodb;
 alter table t1 add primary key (a);
 drop table t1;
-create table t1 (a bit(19), b bit(5));
-insert into t1 values (1000, 10), (3, 8), (200, 6), (2303, 2), (12345, 4), (1, 0);
-select a+0, b+0 from t1;
-a+0	b+0
-1000	10
-3	8
-200	6
-2303	2
-12345	4
-1	0
-alter table t1 engine=heap;
-select a+0, b+0 from t1;
-a+0	b+0
-1000	10
-3	8
-200	6
-2303	2
-12345	4
-1	0
-alter table t1 add key(a, b);
-select a+0, b+0 from t1;
-a+0	b+0
-1000	10
-3	8
-200	6
-2303	2
-12345	4
-1	0
-alter table t1 engine=myisam;
-select a+0, b+0 from t1;
-a+0	b+0
-1	0
-3	8
-200	6
-1000	10
-2303	2
-12345	4
-create table t2 engine=heap select * from t1;
-select a+0, b+0 from t2;
-a+0	b+0
-1	0
-3	8
-200	6
-1000	10
-2303	2
-12345	4
-drop table t1;
-create table t1 select * from t2;
-select a+0, b+0 from t1;
-a+0	b+0
-1	0
-3	8
-200	6
-1000	10
-2303	2
-12345	4
-drop table t1, t2;

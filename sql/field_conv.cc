@@ -511,7 +511,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
       /*
         If we are copying date or datetime's we have to check the dates
         if we don't allow 'all' dates.
-p      */
+      */
       if (to->real_type() != from->real_type() ||
           !compatible_db_low_byte_first ||
           ((to->table->in_use->variables.sql_mode &
@@ -594,6 +594,7 @@ void field_conv(Field *to,Field *from)
         !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
 	to->real_type() != FIELD_TYPE_ENUM &&
 	to->real_type() != FIELD_TYPE_SET &&
+        to->real_type() != FIELD_TYPE_BIT &&
         (to->real_type() != FIELD_TYPE_NEWDECIMAL ||
          (to->field_length == from->field_length &&
           (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
