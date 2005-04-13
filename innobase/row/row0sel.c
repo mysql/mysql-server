@@ -3493,12 +3493,12 @@ rec_loop:
 				err = sel_set_rec_lock(rec, index, offsets,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
+				if (err != DB_SUCCESS) {
+
+					goto lock_wait_or_error;
+				}
 			}
 
-			if (err != DB_SUCCESS) {
-
-				goto lock_wait_or_error;
-			}
 		}
 		/* A page supremum record cannot be in the result set: skip
 		it now that we have placed a possible lock on it */
@@ -3606,12 +3606,12 @@ rec_loop:
 						offsets,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+					if (err != DB_SUCCESS) {
+
+						goto lock_wait_or_error;
+					}
 				}
 
-				if (err != DB_SUCCESS) {
-
-					goto lock_wait_or_error;
-				}
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
@@ -3640,12 +3640,12 @@ rec_loop:
 						offsets,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+					if (err != DB_SUCCESS) {
+
+						goto lock_wait_or_error;
+					}
 				}
 
-				if (err != DB_SUCCESS) {
-
-					goto lock_wait_or_error;
-				}
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
