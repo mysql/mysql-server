@@ -69,6 +69,9 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <DebuggerNames.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 #define SYSFILE ((Sysfile *)&sysfileData[0])
 
 #define RETURN_IF_NODE_NOT_ALIVE(node) \
@@ -13130,6 +13133,48 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	}
       }
     }
+  }
+
+  if(dumpState->args[0] == 7019 && signal->getLength() == 2)
+  {
+    char buf2[8+1];
+    NodeRecordPtr nodePtr;
+    nodePtr.i = signal->theData[1];
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    infoEvent("NF Node %d tc: %d lqh: %d dih: %d dict: %d recNODE_FAILREP: %d",
+	      nodePtr.i,
+	      nodePtr.p->dbtcFailCompleted,
+	      nodePtr.p->dblqhFailCompleted,
+	      nodePtr.p->dbdihFailCompleted,
+	      nodePtr.p->dbdictFailCompleted,
+	      nodePtr.p->recNODE_FAILREP);
+    infoEvent(" m_NF_COMPLETE_REP: %s m_nodefailSteps: %s",
+	      nodePtr.p->m_NF_COMPLETE_REP.getText(),
+	      nodePtr.p->m_nodefailSteps.getText(buf2));
+  }
+  
+  if(dumpState->args[0] == 7020 && signal->getLength() > 3)
+  {
+    Uint32 gsn= signal->theData[1];
+    Uint32 block= signal->theData[2];
+    Uint32 length= signal->length() - 3;
+    memmove(signal->theData, signal->theData+3, 4*length);
+    sendSignal(numberToRef(block, getOwnNodeId()), gsn, signal, length, JBB);
+    
+    warningEvent("-- SENDING CUSTOM SIGNAL --");
+    char buf[100], buf2[100];
+    buf2[0]= 0;
+    for(Uint32 i = 0; i<length; i++)
+    {
+      snprintf(buf, 100, "%s %.8x", buf2, signal->theData[i]);
+      snprintf(buf2, 100, "%s", buf);
+    }
+    warningEvent("gsn: %d block: %s, length: %d theData: %s", 
+		 gsn, getBlockName(block, "UNKNOWN"), length, buf);
+
+    g_eventLogger.warning("-- SENDING CUSTOM SIGNAL --");
+    g_eventLogger.warning("gsn: %d block: %s, length: %d theData: %s", 
+			  gsn, getBlockName(block, "UNKNOWN"), length, buf);
   }
   
   if(dumpState->args[0] == DumpStateOrd::DihDumpLCPState){
