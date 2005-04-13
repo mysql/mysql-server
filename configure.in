@@ -6,7 +6,7 @@ AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.0.4-beta)
+AM_INIT_AUTOMAKE(mysql, 5.0.5-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -41,7 +41,6 @@ sinclude(config/ac-macros/ha_blackhole.m4)
 sinclude(config/ac-macros/ha_example.m4)
 sinclude(config/ac-macros/ha_federated.m4)
 sinclude(config/ac-macros/ha_innodb.m4)
-sinclude(config/ac-macros/ha_isam.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/ha_tina.m4)
 sinclude(config/ac-macros/large_file.m4)
@@ -352,6 +351,15 @@ then
   if echo $CXX | grep gcc > /dev/null 2>&1
   then
     GCC_VERSION=`gcc -v 2>&1 | grep version | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
+    case $SYSTEM_TYPE in
+      *freebsd*)
+        # The libsupc++ library on freebsd with gcc 3.4.2 is dependent on 
+        # libstdc++, disable it  since other solution works fine
+        GCC_VERSION="NOSUPCPP_$GCC_VERSION"
+      ;;
+      *) 
+      ;;
+    esac
     echo "Using gcc version '$GCC_VERSION'"
     case "$GCC_VERSION" in
       3.4.*|3.5.*)

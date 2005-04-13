@@ -638,8 +638,14 @@ NdbScanOperation::doSend(int ProcessorId)
   return 0;
 }
 
-void NdbScanOperation::close(bool forceSend)
+void NdbScanOperation::close(bool forceSend, bool releaseOp)
 {
+  DBUG_ENTER("NdbScanOperation::close");
+  DBUG_PRINT("enter", ("this=%x tcon=%x con=%x force=%d release=%d",
+                       (UintPtr)this,
+                       (UintPtr)m_transConnection, (UintPtr)theNdbCon,
+                       forceSend, releaseOp));
+
   if(m_transConnection){
     if(DEBUG_NEXT_RESULT)
       ndbout_c("close() theError.code = %d "
@@ -655,13 +661,21 @@ void NdbScanOperation::close(bool forceSend)
     Guard guard(tp->theMutexPtr);
     close_impl(tp, forceSend);
     
-  } while(0);
-  
-  theNdbCon->theScanningOp = 0;
-  theNdb->closeTransaction(theNdbCon);
-  
-  theNdbCon = 0;
+  }
+
+  NdbConnection* tCon = theNdbCon;
+  NdbConnection* tTransCon = m_transConnection;
+  theNdbCon = NULL;
   m_transConnection = NULL;
+
+  if (releaseOp && tTransCon) {
+    NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
+    tTransCon->releaseExecutedScanOperation(tOp);
+  }
+  
+  tCon->theScanningOp = 0;
+  theNdb->closeTransaction(tCon);
+  DBUG_VOID_RETURN;
 }
 
 void

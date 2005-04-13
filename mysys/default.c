@@ -477,13 +477,13 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     if ((stat_info.st_mode & S_IWOTH) &&
 	(stat_info.st_mode & S_IFMT) == S_IFREG)
     {
-      fprintf(stderr, "warning: World-writable config file %s is ignored\n",
+      fprintf(stderr, "Warning: World-writable config file '%s' is ignored\n",
               name);
       return 0;
     }
   }
 #endif
-  if (!(fp= my_fopen(fn_format(name, name, "", "", 4), O_RDONLY, MYF(0))))
+  if (!(fp= my_fopen(name, O_RDONLY, MYF(0))))
     return 0;					/* Ignore wrong files */
 
   while (fgets(buff, sizeof(buff) - 1, fp))

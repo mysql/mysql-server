@@ -116,7 +116,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
   The following parameters is to decide when to use an extra cache to
   optimise seeks when reading a big table in sorted order
 */
-#define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
+#define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (10L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
 #define MIN_ROWS_TO_USE_BULK_INSERT	 100
 
@@ -1114,10 +1114,6 @@ extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
-extern SHOW_COMP_OPTION have_isam;
-extern SHOW_COMP_OPTION have_innodb;
-extern SHOW_COMP_OPTION have_berkeley_db;
-extern SHOW_COMP_OPTION have_ndbcluster;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
@@ -1138,12 +1134,13 @@ extern struct my_option my_long_options[];
 extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
 extern SHOW_COMP_OPTION have_example_db, have_archive_db, have_csv_db;
 extern SHOW_COMP_OPTION have_federated_db;
+extern SHOW_COMP_OPTION have_blackhole_db;
+extern SHOW_COMP_OPTION have_ndbcluster;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
-extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
+extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
-extern SHOW_COMP_OPTION have_blackhole_db;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
