@@ -6128,9 +6128,14 @@ ha_innobase::store_lock(
 						of current handle is stored
 						next to this array */
 	enum thr_lock_type 	lock_type)	/* in: lock type to store in
-						'lock' */
+						'lock'; this may also be
+						TL_IGNORE */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+
+	/* NOTE: MySQL  can call this function with lock 'type' TL_IGNORE!
+	Be careful to ignore TL_IGNORE if we are going to do something with
+	only 'real' locks! */
 
 	if ((lock_type == TL_READ && thd->in_lock_tables) ||           
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
@@ -6180,10 +6185,6 @@ ha_innobase::store_lock(
 
 	} else if (lock_type != TL_IGNORE) {
 
-	        /* In ha_berkeley.cc there is a comment that MySQL
-	        may in exceptional cases call this with TL_IGNORE also
-	        when it is NOT going to release the lock. */
-
 	        /* We set possible LOCK_X value in external_lock, not yet
 		here even if this would be SELECT ... FOR UPDATE */
 
@@ -6214,7 +6215,7 @@ ha_innobase::store_lock(
 			lock_type = TL_READ;
 		}
 		
- 		lock.type=lock_type;
+ 		lock.type = lock_type;
   	}
 
   	*to++= &lock;
