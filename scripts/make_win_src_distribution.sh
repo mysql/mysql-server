@@ -289,9 +289,7 @@ cd $SOURCE
 for i in COPYING ChangeLog README EXCEPTIONS-CLIENT\
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
-         Docs/manual_toc.html  Docs/manual.html \
-         Docs/manual.txt Docs/mysqld_error.txt \
-         Docs/INSTALL-BINARY Docs/internals.texi
+         Docs/INSTALL-BINARY
 do
   print_debug "Copying file '$i'"
   if [ -f $i ]
