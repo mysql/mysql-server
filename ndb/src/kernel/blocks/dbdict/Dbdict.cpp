@@ -634,7 +634,7 @@ void Dbdict::writeTableFile(Signal* signal, Uint32 filePtr, Uint32 fsConPtr)
   FsReadWriteReq::setSyncFlag(fsRWReq->operationFlag, 1);
   FsReadWriteReq::setFormatFlag(fsRWReq->operationFlag, 
                                 FsReadWriteReq::fsFormatArrayOfPages);
-  fsRWReq->varIndex = ZALLOCATE;
+  fsRWReq->varIndex = ZBAT_TABLE_FILE;
   fsRWReq->numberOfPages = c_writeTableRecord.noOfPages;
   fsRWReq->data.arrayOfPages.varIndex = c_writeTableRecord.pageId;
   fsRWReq->data.arrayOfPages.fileOffset = 0; // Write to file page 0
@@ -711,7 +711,7 @@ void Dbdict::readTableFile(Signal* signal, Uint32 filePtr, Uint32 fsConPtr)
   FsReadWriteReq::setSyncFlag(fsRWReq->operationFlag, 0);
   FsReadWriteReq::setFormatFlag(fsRWReq->operationFlag, 
                                 FsReadWriteReq::fsFormatArrayOfPages);
-  fsRWReq->varIndex = ZALLOCATE;
+  fsRWReq->varIndex = ZBAT_TABLE_FILE;
   fsRWReq->numberOfPages = c_readTableRecord.noOfPages;
   fsRWReq->data.arrayOfPages.varIndex = c_readTableRecord.pageId;
   fsRWReq->data.arrayOfPages.fileOffset = 0; // Write to file page 0
@@ -777,11 +777,9 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
 			  SchemaFile::TableEntry* te, Callback* callback){
 
   jam();
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-
   ndbrequire(tableId < c_tableRecordPool.getSize());
-  SchemaFile::TableEntry * tableEntry = getTableEntry(pagePtr.p, tableId);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
   
   SchemaFile::TableState newState = 
     (SchemaFile::TableState)te->m_tableState;
@@ -828,12 +826,15 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   ndbrequire(ok);
   
   * tableEntry = * te;
-  computeChecksum((SchemaFile*)pagePtr.p);
+  computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
 
   ndbrequire(c_writeSchemaRecord.inUse == false);
   c_writeSchemaRecord.inUse = true;
   
   c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+  c_writeSchemaRecord.newFile = false;
+  c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
+  c_writeSchemaRecord.noOfPages = 1;
   c_writeSchemaRecord.m_callback = * callback;
 
   startWriteSchemaFile(signal);
@@ -844,14 +845,15 @@ void Dbdict::startWriteSchemaFile(Signal* signal)
   FsConnectRecordPtr fsPtr;
   c_fsConnectRecordPool.getPtr(fsPtr, getFsConnRecord());
   fsPtr.p->fsState = FsConnectRecord::OPEN_WRITE_SCHEMA;
-  openSchemaFile(signal, 0, fsPtr.i, true);
+  openSchemaFile(signal, 0, fsPtr.i, true, c_writeSchemaRecord.newFile);
   c_writeSchemaRecord.noOfSchemaFilesHandled = 0;
 }//Dbdict::startWriteSchemaFile()
 
 void Dbdict::openSchemaFile(Signal* signal,
                             Uint32 fileNo,
                             Uint32 fsConPtr,
-                            bool writeFlag) 
+                            bool writeFlag,
+                            bool newFile)
 {
   FsOpenReq * const fsOpenReq = (FsOpenReq *)&signal->theData[0];
   fsOpenReq->userReference = reference();
@@ -860,9 +862,11 @@ void Dbdict::openSchemaFile(Signal* signal,
     jam();
     fsOpenReq->fileFlags = 
       FsOpenReq::OM_WRITEONLY | 
-      FsOpenReq::OM_TRUNCATE | 
-      FsOpenReq::OM_CREATE | 
       FsOpenReq::OM_SYNC;
+    if (newFile)
+      fsOpenReq->fileFlags |=
+        FsOpenReq::OM_TRUNCATE | 
+        FsOpenReq::OM_CREATE;
   } else {
     jam();
     fsOpenReq->fileFlags = FsOpenReq::OM_READONLY;
@@ -887,6 +891,12 @@ void Dbdict::writeSchemaFile(Signal* signal, Uint32 filePtr, Uint32 fsConPtr)
 {
   FsReadWriteReq * const fsRWReq = (FsReadWriteReq *)&signal->theData[0];
 
+  // check write record
+  WriteSchemaRecord & wr = c_writeSchemaRecord;
+  ndbrequire(wr.pageId == (wr.pageId != 0) * NDB_SF_MAX_PAGES);
+  ndbrequire(wr.noOfPages != 0);
+  ndbrequire(wr.firstPage + wr.noOfPages <= NDB_SF_MAX_PAGES);
+
   fsRWReq->filePointer = filePtr;
   fsRWReq->userReference = reference();
   fsRWReq->userPointer = fsConPtr;
@@ -894,11 +904,11 @@ void Dbdict::writeSchemaFile(Signal* signal, Uint32 filePtr, Uint32 fsConPtr)
   FsReadWriteReq::setSyncFlag(fsRWReq->operationFlag, 1);
   FsReadWriteReq::setFormatFlag(fsRWReq->operationFlag, 
                                 FsReadWriteReq::fsFormatArrayOfPages);
-  fsRWReq->varIndex = ZALLOCATE;
-  fsRWReq->numberOfPages = 1;
-// Write from memory page
-  fsRWReq->data.arrayOfPages.varIndex = c_writeSchemaRecord.pageId; 
-  fsRWReq->data.arrayOfPages.fileOffset = 0; // Write to file page 0
+  fsRWReq->varIndex = ZBAT_SCHEMA_FILE;
+  fsRWReq->numberOfPages = wr.noOfPages;
+  // Write from memory page
+  fsRWReq->data.arrayOfPages.varIndex = wr.pageId + wr.firstPage;
+  fsRWReq->data.arrayOfPages.fileOffset = wr.firstPage;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 }//writeSchemaFile()
 
@@ -928,7 +938,7 @@ void Dbdict::closeWriteSchemaConf(Signal* signal,
   if (c_writeSchemaRecord.noOfSchemaFilesHandled < 2) {
     jam();
     fsPtr.p->fsState = FsConnectRecord::OPEN_WRITE_SCHEMA;
-    openSchemaFile(signal, 1, fsPtr.i, true);
+    openSchemaFile(signal, 1, fsPtr.i, true, c_writeSchemaRecord.newFile);
     return;
   } 
   ndbrequire(c_writeSchemaRecord.noOfSchemaFilesHandled == 2);
@@ -946,19 +956,25 @@ void Dbdict::startReadSchemaFile(Signal* signal)
   FsConnectRecordPtr fsPtr;
   c_fsConnectRecordPool.getPtr(fsPtr, getFsConnRecord());
   fsPtr.p->fsState = FsConnectRecord::OPEN_READ_SCHEMA1;
-  openSchemaFile(signal, 0, fsPtr.i, false);
+  openSchemaFile(signal, 0, fsPtr.i, false, false);
 }//Dbdict::startReadSchemaFile()
 
 void Dbdict::openReadSchemaRef(Signal* signal,
                                FsConnectRecordPtr fsPtr) 
 {
   fsPtr.p->fsState = FsConnectRecord::OPEN_READ_SCHEMA2;
-  openSchemaFile(signal, 1, fsPtr.i, false);
+  openSchemaFile(signal, 1, fsPtr.i, false, false);
 }//Dbdict::openReadSchemaRef()
 
 void Dbdict::readSchemaFile(Signal* signal, Uint32 filePtr, Uint32 fsConPtr) 
 {
   FsReadWriteReq * const fsRWReq = (FsReadWriteReq *)&signal->theData[0];
+
+  // check read record
+  ReadSchemaRecord & rr = c_readSchemaRecord;
+  ndbrequire(rr.pageId == (rr.pageId != 0) * NDB_SF_MAX_PAGES);
+  ndbrequire(rr.noOfPages != 0);
+  ndbrequire(rr.firstPage + rr.noOfPages <= NDB_SF_MAX_PAGES);
 
   fsRWReq->filePointer = filePtr;
   fsRWReq->userReference = reference();
@@ -967,10 +983,10 @@ void Dbdict::readSchemaFile(Signal* signal, Uint32 filePtr, Uint32 fsConPtr)
   FsReadWriteReq::setSyncFlag(fsRWReq->operationFlag, 0);
   FsReadWriteReq::setFormatFlag(fsRWReq->operationFlag, 
                                 FsReadWriteReq::fsFormatArrayOfPages);
-  fsRWReq->varIndex = ZALLOCATE;
-  fsRWReq->numberOfPages = 1;
-  fsRWReq->data.arrayOfPages.varIndex = c_readSchemaRecord.pageId; 
-  fsRWReq->data.arrayOfPages.fileOffset = 0; 
+  fsRWReq->varIndex = ZBAT_SCHEMA_FILE;
+  fsRWReq->numberOfPages = rr.noOfPages;
+  fsRWReq->data.arrayOfPages.varIndex = rr.pageId + rr.firstPage;
+  fsRWReq->data.arrayOfPages.fileOffset = rr.firstPage;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 }//readSchemaFile()
 
@@ -988,20 +1004,61 @@ void Dbdict::readSchemaConf(Signal* signal,
     jam();
     crashInd = true;
   }//if
-  PageRecordPtr tmpPagePtr;
-  c_pageRecordArray.getPtr(tmpPagePtr, c_readSchemaRecord.pageId);
 
-  Uint32 sz = ZSIZE_OF_PAGES_IN_WORDS;
-  Uint32 chk = computeChecksum((const Uint32*)tmpPagePtr.p, sz);
+  ReadSchemaRecord & rr = c_readSchemaRecord;
+  XSchemaFile * xsf = &c_schemaFile[rr.pageId != 0];
 
-  ndbrequire((chk == 0) || !crashInd);
-
-  if (chk != 0){
+  if (rr.schemaReadState == ReadSchemaRecord::INITIAL_READ_HEAD) {
     jam();
+    ndbrequire(rr.firstPage == 0);
+    SchemaFile * sf = &xsf->schemaPage[0];
+    Uint32 noOfPages;
+    if (sf->NdbVersion < NDB_SF_VERSION_5_0_5) {
+      jam();
+      const Uint32 pageSize_old = 32 * 1024;
+      noOfPages = pageSize_old / NDB_SF_PAGE_SIZE - 1;
+    } else {
+      noOfPages = sf->FileSize / NDB_SF_PAGE_SIZE - 1;
+    }
+    rr.schemaReadState = ReadSchemaRecord::INITIAL_READ;
+    if (noOfPages != 0) {
+      rr.firstPage = 1;
+      rr.noOfPages = noOfPages;
+      readSchemaFile(signal, fsPtr.p->filePtr, fsPtr.i);
+      return;
+    }
+  }
+
+  SchemaFile * sf0 = &xsf->schemaPage[0];
+  xsf->noOfPages = sf0->FileSize / NDB_SF_PAGE_SIZE;
+
+  if (sf0->NdbVersion < NDB_SF_VERSION_5_0_5 &&
+      ! convertSchemaFileTo_5_0_5(xsf)) {
+    jam();
+    ndbrequire(! crashInd);
     ndbrequire(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1);
     readSchemaRef(signal, fsPtr);
     return;
-  }//if
+  }
+
+  for (Uint32 n = 0; n < xsf->noOfPages; n++) {
+    SchemaFile * sf = &xsf->schemaPage[n];
+    bool ok =
+      memcmp(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic)) == 0 &&
+      sf->FileSize != 0 &&
+      sf->FileSize % NDB_SF_PAGE_SIZE == 0 &&
+      sf->FileSize == sf0->FileSize &&
+      sf->PageNumber == n &&
+      computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS) == 0;
+    ndbrequire(ok || !crashInd);
+    if (! ok) {
+      jam();
+      ndbrequire(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1);
+      readSchemaRef(signal, fsPtr);
+      return;
+    }
+  }
+
   fsPtr.p->fsState = FsConnectRecord::CLOSE_READ_SCHEMA;
   closeFile(signal, fsPtr.p->filePtr, fsPtr.i);
   return;
@@ -1011,7 +1068,7 @@ void Dbdict::readSchemaRef(Signal* signal,
                            FsConnectRecordPtr fsPtr)
 {
   fsPtr.p->fsState = FsConnectRecord::OPEN_READ_SCHEMA2;
-  openSchemaFile(signal, 1, fsPtr.i, false);
+  openSchemaFile(signal, 1, fsPtr.i, false, false);
   return;
 }//Dbdict::readSchemaRef()
 
@@ -1025,7 +1082,27 @@ void Dbdict::closeReadSchemaConf(Signal* signal,
   switch(state) {
   case ReadSchemaRecord::INITIAL_READ :
     jam();
-    sendNDB_STTORRY(signal);
+    {
+      // write back both copies
+      
+      ndbrequire(c_writeSchemaRecord.inUse == false);
+      XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.oldSchemaPage != 0 ];
+      Uint32 noOfPages =
+        (c_tableRecordPool.getSize() + NDB_SF_PAGE_ENTRIES - 1) /
+        NDB_SF_PAGE_ENTRIES;
+      resizeSchemaFile(xsf, noOfPages);
+
+      c_writeSchemaRecord.inUse = true;
+      c_writeSchemaRecord.pageId = c_schemaRecord.oldSchemaPage;
+      c_writeSchemaRecord.newFile = true;
+      c_writeSchemaRecord.firstPage = 0;
+      c_writeSchemaRecord.noOfPages = xsf->noOfPages;
+
+      c_writeSchemaRecord.m_callback.m_callbackFunction = 
+        safe_cast(&Dbdict::initSchemaFile_conf);
+
+      startWriteSchemaFile(signal);
+    }
     break;
 
   default :
@@ -1034,6 +1111,51 @@ void Dbdict::closeReadSchemaConf(Signal* signal,
 
   }//switch
 }//Dbdict::closeReadSchemaConf()
+
+bool
+Dbdict::convertSchemaFileTo_5_0_5(XSchemaFile * xsf)
+{
+  const Uint32 pageSize_old = 32 * 1024;
+  Uint32 page_old[pageSize_old >> 2];
+  SchemaFile * sf_old = (SchemaFile *)page_old;
+
+  if (xsf->noOfPages * NDB_SF_PAGE_SIZE != pageSize_old)
+    return false;
+  SchemaFile * sf0 = &xsf->schemaPage[0];
+  memcpy(sf_old, sf0, pageSize_old);
+
+  // init max number new pages needed
+  xsf->noOfPages = (sf_old->NoOfTableEntries + NDB_SF_PAGE_ENTRIES - 1) /
+                   NDB_SF_PAGE_ENTRIES;
+  initSchemaFile(xsf, 0, xsf->noOfPages, true);
+
+  Uint32 noOfPages = 1;
+  Uint32 n, i, j;
+  for (n = 0; n < xsf->noOfPages; n++) {
+    for (i = 0; i < NDB_SF_PAGE_ENTRIES; i++) {
+      j = n * NDB_SF_PAGE_ENTRIES + i;
+      if (j >= sf_old->NoOfTableEntries)
+        continue;
+      const SchemaFile::TableEntry_old & te_old = sf_old->TableEntries_old[j];
+      if (te_old.m_tableState == SchemaFile::INIT ||
+          te_old.m_tableState == SchemaFile::DROP_TABLE_COMMITTED)
+        continue;
+      SchemaFile * sf = &xsf->schemaPage[n];
+      SchemaFile::TableEntry & te = sf->TableEntries[i];
+      te.m_tableState = te_old.m_tableState;
+      te.m_tableVersion = te_old.m_tableVersion;
+      te.m_tableType = te_old.m_tableType;
+      te.m_noOfPages = te_old.m_noOfPages;
+      te.m_gcp = te_old.m_gcp;
+      if (noOfPages < n)
+        noOfPages = n;
+    }
+  }
+  xsf->noOfPages = noOfPages;
+  initSchemaFile(xsf, 0, xsf->noOfPages, false);
+
+  return true;
+}
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -1306,6 +1428,7 @@ void Dbdict::initRetrieveRecord(Signal* signal, Uint32 i, Uint32 returnCode)
 void Dbdict::initSchemaRecord() 
 {
   c_schemaRecord.schemaPage = RNIL;
+  c_schemaRecord.oldSchemaPage = RNIL;
 }//Dbdict::initSchemaRecord()
 
 void Dbdict::initRestartRecord() 
@@ -1327,10 +1450,10 @@ void Dbdict::initNodeRecords()
 
 void Dbdict::initPageRecords() 
 {
-  c_schemaRecord.schemaPage = ZMAX_PAGES_OF_TABLE_DEFINITION;
-  c_schemaRecord.oldSchemaPage = ZMAX_PAGES_OF_TABLE_DEFINITION + 1;
-  c_retrieveRecord.retrievePage =  ZMAX_PAGES_OF_TABLE_DEFINITION + 2;
-  ndbrequire(ZNUMBER_OF_PAGES >= (2 * ZMAX_PAGES_OF_TABLE_DEFINITION + 2));
+  c_retrieveRecord.retrievePage =  ZMAX_PAGES_OF_TABLE_DEFINITION;
+  ndbrequire(ZNUMBER_OF_PAGES >= (ZMAX_PAGES_OF_TABLE_DEFINITION + 1));
+  c_schemaRecord.schemaPage = 0;
+  c_schemaRecord.oldSchemaPage = NDB_SF_MAX_PAGES;
 }//Dbdict::initPageRecords()
 
 void Dbdict::initTableRecords() 
@@ -1598,6 +1721,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_fsConnectRecordPool.setSize(ZFS_CONNECT_SIZE);
   c_nodes.setSize(MAX_NODES);
   c_pageRecordArray.setSize(ZNUMBER_OF_PAGES);
+  c_schemaPageRecordArray.setSize(2 * NDB_SF_MAX_PAGES);
   c_tableRecordPool.setSize(tablerecSize);
   c_tableRecordHash.setSize(tablerecSize);
   c_triggerRecordPool.setSize(c_maxNoOfTriggers);
@@ -1616,12 +1740,23 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_opCreateTrigger.setSize(8);
   c_opDropTrigger.setSize(8);
   c_opAlterTrigger.setSize(8);
+  
+  // Initialize schema file copies
+  c_schemaFile[0].schemaPage =
+    (SchemaFile*)c_schemaPageRecordArray.getPtr(0 * NDB_SF_MAX_PAGES);
+  c_schemaFile[0].noOfPages = 0;
+  c_schemaFile[1].schemaPage =
+    (SchemaFile*)c_schemaPageRecordArray.getPtr(1 * NDB_SF_MAX_PAGES);
+  c_schemaFile[1].noOfPages = 0;
 
   // Initialize BAT for interface to file system
-  PageRecordPtr pageRecPtr;
-  c_pageRecordArray.getPtr(pageRecPtr, 0);
   NewVARIABLE* bat = allocateBat(2);
-  bat[1].WA = &pageRecPtr.p->word[0];
+  bat[0].WA = &c_schemaPageRecordArray.getPtr(0)->word[0];
+  bat[0].nrr = 2 * NDB_SF_MAX_PAGES;
+  bat[0].ClusterSize = NDB_SF_PAGE_SIZE;
+  bat[0].bits.q = NDB_SF_PAGE_SIZE_IN_WORDS_LOG2;
+  bat[0].bits.v = 5;  // 32 bits per element
+  bat[1].WA = &c_pageRecordArray.getPtr(0)->word[0];
   bat[1].nrr = ZNUMBER_OF_PAGES;
   bat[1].ClusterSize = ZSIZE_OF_PAGES_IN_WORDS * 4;
   bat[1].bits.q = ZLOG_SIZE_OF_PAGES_IN_WORDS; // 2**13 = 8192 elements
@@ -1766,16 +1901,23 @@ void Dbdict::execHOT_SPAREREP(Signal* signal)
 
 void Dbdict::initSchemaFile(Signal* signal) 
 {
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  SchemaFile * schemaFile = (SchemaFile *)pagePtr.p;
-  initSchemaFile(schemaFile, 4 * ZSIZE_OF_PAGES_IN_WORDS);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  xsf->noOfPages = (c_tableRecordPool.getSize() + NDB_SF_PAGE_ENTRIES - 1)
+                   / NDB_SF_PAGE_ENTRIES;
+  initSchemaFile(xsf, 0, xsf->noOfPages, true);
+  // init alt copy too for INR
+  XSchemaFile * oldxsf = &c_schemaFile[c_schemaRecord.oldSchemaPage != 0];
+  oldxsf->noOfPages = xsf->noOfPages;
+  memcpy(&oldxsf->schemaPage[0], &xsf->schemaPage[0], xsf->schemaPage[0].FileSize);
   
   if (c_initialStart || c_initialNodeRestart) {    
     jam();
     ndbrequire(c_writeSchemaRecord.inUse == false);
     c_writeSchemaRecord.inUse = true;
     c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+    c_writeSchemaRecord.newFile = true;
+    c_writeSchemaRecord.firstPage = 0;
+    c_writeSchemaRecord.noOfPages = xsf->noOfPages;
 
     c_writeSchemaRecord.m_callback.m_callbackFunction = 
       safe_cast(&Dbdict::initSchemaFile_conf);
@@ -1785,7 +1927,9 @@ void Dbdict::initSchemaFile(Signal* signal)
     jam();
     ndbrequire(c_readSchemaRecord.schemaReadState == ReadSchemaRecord::IDLE);
     c_readSchemaRecord.pageId = c_schemaRecord.oldSchemaPage;
-    c_readSchemaRecord.schemaReadState = ReadSchemaRecord::INITIAL_READ;
+    c_readSchemaRecord.firstPage = 0;
+    c_readSchemaRecord.noOfPages = 1;
+    c_readSchemaRecord.schemaReadState = ReadSchemaRecord::INITIAL_READ_HEAD;
     startReadSchemaFile(signal);
   } else {
     ndbrequire(false);
@@ -1924,7 +2068,7 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
     safe_cast(&Dbdict::masterRestart_checkSchemaStatusComplete);
 
   c_restartRecord.activeTable = 0;
-  c_schemaRecord.schemaPage = c_schemaRecord.oldSchemaPage;
+  c_schemaRecord.schemaPage = c_schemaRecord.oldSchemaPage; // ugly
   checkSchemaStatus(signal);
 }//execDICTSTARTREQ()
 
@@ -1933,15 +2077,13 @@ Dbdict::masterRestart_checkSchemaStatusComplete(Signal* signal,
 						Uint32 callbackData,
 						Uint32 returnCode){
 
-  c_schemaRecord.schemaPage = ZMAX_PAGES_OF_TABLE_DEFINITION;
+  c_schemaRecord.schemaPage = 0; // ugly
+  XSchemaFile * oldxsf = &c_schemaFile[c_schemaRecord.oldSchemaPage != 0];
+  ndbrequire(oldxsf->noOfPages != 0);
 
   LinearSectionPtr ptr[3];
-
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.oldSchemaPage);
-
-  ptr[0].p = &pagePtr.p->word[0];
-  ptr[0].sz = ZSIZE_OF_PAGES_IN_WORDS;
+  ptr[0].p = (Uint32*)&oldxsf->schemaPage[0];
+  ptr[0].sz = oldxsf->noOfPages * NDB_SF_PAGE_SIZE_IN_WORDS;
 
   c_sendSchemaRecord.m_SCHEMAINFO_Counter = c_aliveNodes;
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
@@ -1957,10 +2099,10 @@ Dbdict::masterRestart_checkSchemaStatusComplete(Signal* signal,
 		       1,
 		       c);
 
-  PageRecordPtr newPagePtr;
-  c_pageRecordArray.getPtr(newPagePtr, c_schemaRecord.schemaPage);
-  memcpy(&newPagePtr.p->word[0], &pagePtr.p->word[0], 
-	 4 *  ZSIZE_OF_PAGES_IN_WORDS);
+  XSchemaFile * newxsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  newxsf->noOfPages = oldxsf->noOfPages;
+  memcpy(&newxsf->schemaPage[0], &oldxsf->schemaPage[0],
+         oldxsf->noOfPages * NDB_SF_PAGE_SIZE);
 
   signal->theData[0] = getOwnNodeId();
   sendSignal(reference(), GSN_SCHEMA_INFOCONF, signal, 1, JBB);
@@ -1977,11 +2119,11 @@ Dbdict::execGET_SCHEMA_INFOREQ(Signal* signal){
 
   LinearSectionPtr ptr[3];
   
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  ndbrequire(xsf->noOfPages != 0);
   
-  ptr[0].p = &pagePtr.p->word[0];
-  ptr[0].sz = ZSIZE_OF_PAGES_IN_WORDS;
+  ptr[0].p = (Uint32*)&xsf->schemaPage[0];
+  ptr[0].sz = xsf->noOfPages * NDB_SF_PAGE_SIZE_IN_WORDS;
 
   Callback c = { safe_cast(&Dbdict::sendSchemaComplete), 0 };
   sendFragmentedSignal(ref,
@@ -2023,12 +2165,22 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
   SegmentedSectionPtr schemaDataPtr;
   signal->getSection(schemaDataPtr, 0);
 
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  copy(&pagePtr.p->word[0], schemaDataPtr);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  ndbrequire(schemaDataPtr.sz % NDB_SF_PAGE_SIZE_IN_WORDS == 0);
+  xsf->noOfPages = schemaDataPtr.sz / NDB_SF_PAGE_SIZE_IN_WORDS;
+  copy((Uint32*)&xsf->schemaPage[0], schemaDataPtr);
   releaseSections(signal);
+  
+  SchemaFile * sf0 = &xsf->schemaPage[0];
+  if (sf0->NdbVersion < NDB_SF_VERSION_5_0_5) {
+    bool ok = convertSchemaFileTo_5_0_5(xsf);
+    ndbrequire(ok);
+  }
     
-  validateChecksum((SchemaFile*)pagePtr.p);
+  validateChecksum(xsf);
+
+  XSchemaFile * oldxsf = &c_schemaFile[c_schemaRecord.oldSchemaPage != 0];
+  resizeSchemaFile(xsf, oldxsf->noOfPages);
 
   ndbrequire(signal->getSendersBlockRef() != reference());
     
@@ -2053,7 +2205,11 @@ Dbdict::restart_checkSchemaStatusComplete(Signal * signal,
 
   ndbrequire(c_writeSchemaRecord.inUse == false);
   c_writeSchemaRecord.inUse = true;
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
   c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+  c_writeSchemaRecord.newFile = true;
+  c_writeSchemaRecord.firstPage = 0;
+  c_writeSchemaRecord.noOfPages = xsf->noOfPages;
   c_writeSchemaRecord.m_callback.m_callbackData = 0;
   c_writeSchemaRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::restart_writeSchemaConf);
@@ -2102,20 +2258,18 @@ void Dbdict::execSCHEMA_INFOCONF(Signal* signal)
 
 void Dbdict::checkSchemaStatus(Signal* signal) 
 {
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
+  XSchemaFile * newxsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  XSchemaFile * oldxsf = &c_schemaFile[c_schemaRecord.oldSchemaPage != 0];
+  ndbrequire(newxsf->noOfPages == oldxsf->noOfPages);
+  const Uint32 noOfEntries = newxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
 
-  PageRecordPtr oldPagePtr;
-  c_pageRecordArray.getPtr(oldPagePtr, c_schemaRecord.oldSchemaPage);
-
-  for (; c_restartRecord.activeTable < MAX_TABLES; 
+  for (; c_restartRecord.activeTable < noOfEntries;
        c_restartRecord.activeTable++) {
     jam();
 
     Uint32 tableId = c_restartRecord.activeTable;
-    SchemaFile::TableEntry *newEntry = getTableEntry(pagePtr.p, tableId);
-    SchemaFile::TableEntry *oldEntry = getTableEntry(oldPagePtr.p, tableId, 
-						     true);
+    SchemaFile::TableEntry *newEntry = getTableEntry(newxsf, tableId);
+    SchemaFile::TableEntry *oldEntry = getTableEntry(oldxsf, tableId);
     SchemaFile::TableState schemaState = 
       (SchemaFile::TableState)newEntry->m_tableState;
     SchemaFile::TableState oldSchemaState = 
@@ -3139,6 +3293,7 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
     tabEntry.m_gcp          = gci;
     tabEntry.m_noOfPages    = 
       DIV(tabInfoPtr.sz + ZPAGE_HEADER_SIZE, ZSIZE_OF_PAGES_IN_WORDS);
+    memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
     
     Callback callback;
     callback.m_callbackData = senderData;
@@ -3652,9 +3807,8 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
   /**
    * Update table version
    */
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  SchemaFile::TableEntry * tabEntry = getTableEntry(pagePtr.p, tabPtr.i);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  SchemaFile::TableEntry * tabEntry = getTableEntry(xsf, tabPtr.i);
 
   tabPtr.p->tableVersion = tabEntry->m_tableVersion + 1;
 
@@ -3962,6 +4116,7 @@ Dbdict::createTab_prepare(Signal* signal, CreateTabReq * req){
   tabEntry.m_gcp          = gci;
   tabEntry.m_noOfPages    = 
     DIV(tabInfoPtr.sz + ZPAGE_HEADER_SIZE, ZSIZE_OF_PAGES_IN_WORDS);
+  memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
   
   Callback callback;
   callback.m_callbackData = createTabPtr.p->key;
@@ -4418,6 +4573,7 @@ Dbdict::createTab_commit(Signal * signal, CreateTabReq * req){
   tabEntry.m_gcp          = tabPtr.p->gciTableCreated;
   tabEntry.m_noOfPages    = 
     DIV(tabPtr.p->packedSize + ZPAGE_HEADER_SIZE, ZSIZE_OF_PAGES_IN_WORDS);
+  memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
   
   Callback callback;
   callback.m_callbackData = createTabPtr.p->key;
@@ -4518,10 +4674,9 @@ Dbdict::createTab_dropComplete(Signal* signal,
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
   
   releaseTableObject(tabPtr.i);
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
 
-  SchemaFile::TableEntry * tableEntry = getTableEntry(pagePtr.p, tabPtr.i);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tabPtr.i);
   tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
   
   //@todo check error
@@ -5353,21 +5508,22 @@ Dbdict::execPREP_DROP_TAB_REQ(Signal* signal){
   /**
    * Modify schema
    */
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  
-  SchemaFile::TableEntry * tableEntry = getTableEntry(pagePtr.p, tablePtr.i);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tablePtr.i);
   SchemaFile::TableState tabState = 
     (SchemaFile::TableState)tableEntry->m_tableState;
   ndbrequire(tabState == SchemaFile::TABLE_ADD_COMMITTED ||
 	     tabState == SchemaFile::ALTER_TABLE_COMMITTED);
   tableEntry->m_tableState   = SchemaFile::DROP_TABLE_STARTED;
-  computeChecksum((SchemaFile*)pagePtr.p);
+  computeChecksum(xsf, tablePtr.i / NDB_SF_PAGE_ENTRIES);
   
   ndbrequire(c_writeSchemaRecord.inUse == false);
   c_writeSchemaRecord.inUse = true;
   
   c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+  c_writeSchemaRecord.newFile = false;
+  c_writeSchemaRecord.firstPage = tablePtr.i / NDB_SF_PAGE_ENTRIES;
+  c_writeSchemaRecord.noOfPages = 1;
   c_writeSchemaRecord.m_callback.m_callbackData = dropTabPtr.p->key;
   c_writeSchemaRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::prepDropTab_writeSchemaConf);
@@ -5528,20 +5684,20 @@ Dbdict::dropTab_complete(Signal* signal,
   /**
    * Write to schema file
    */
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  
-  SchemaFile::TableEntry * tableEntry = getTableEntry(pagePtr.p, tableId);
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
   SchemaFile::TableState tabState = 
     (SchemaFile::TableState)tableEntry->m_tableState;
   ndbrequire(tabState == SchemaFile::DROP_TABLE_STARTED);
   tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
-  computeChecksum((SchemaFile*)pagePtr.p);
+  computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
   
   ndbrequire(c_writeSchemaRecord.inUse == false);
   c_writeSchemaRecord.inUse = true;
 
   c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+  c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
+  c_writeSchemaRecord.noOfPages = 1;
   c_writeSchemaRecord.m_callback.m_callbackData = dropTabPtr.p->key;
   c_writeSchemaRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::dropTab_writeSchemaConf);
@@ -11734,36 +11890,75 @@ Dbdict::getIndexAttrMask(TableRecordPtr indexPtr, AttributeMask& mask)
 /* **************************************************************** */
 
 void
-Dbdict::initSchemaFile(SchemaFile * sf, Uint32 fileSz){
-  memcpy(sf->Magic, "NDBSCHMA", sizeof(sf->Magic));
-  sf->ByteOrder = 0x12345678;
-  sf->NdbVersion =  NDB_VERSION;
-  sf->FileSize = fileSz;
-  sf->CheckSum = 0;
-  
-  Uint32 headSz = (sizeof(SchemaFile)-sizeof(SchemaFile::TableEntry));
-  Uint32 noEntries = (fileSz - headSz) / sizeof(SchemaFile::TableEntry);
-  Uint32 slack = (fileSz - headSz) - noEntries * sizeof(SchemaFile::TableEntry);
-  
-  ndbrequire(noEntries > MAX_TABLES);
+Dbdict::initSchemaFile(XSchemaFile * xsf, Uint32 firstPage, Uint32 lastPage,
+                       bool initEntries)
+{
+  ndbrequire(lastPage <= xsf->noOfPages);
+  for (Uint32 n = firstPage; n < lastPage; n++) {
+    SchemaFile * sf = &xsf->schemaPage[n];
+    if (initEntries)
+      memset(sf, 0, NDB_SF_PAGE_SIZE);
 
-  sf->NoOfTableEntries = noEntries;
-  memset(sf->TableEntries, 0, noEntries*sizeof(SchemaFile::TableEntry));
-  memset(&(sf->TableEntries[noEntries]), 0, slack);
-  computeChecksum(sf);
+    Uint32 ndb_version = NDB_VERSION;
+    if (ndb_version < NDB_SF_VERSION_5_0_5)
+      ndb_version = NDB_SF_VERSION_5_0_5;
+
+    memcpy(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic));
+    sf->ByteOrder = 0x12345678;
+    sf->NdbVersion =  ndb_version;
+    sf->FileSize = xsf->noOfPages * NDB_SF_PAGE_SIZE;
+    sf->PageNumber = n;
+    sf->CheckSum = 0;
+    sf->NoOfTableEntries = NDB_SF_PAGE_ENTRIES;
+
+    computeChecksum(xsf, n);
+  }
 }
 
 void
-Dbdict::computeChecksum(SchemaFile * sf){ 
+Dbdict::resizeSchemaFile(XSchemaFile * xsf, Uint32 noOfPages)
+{
+  ndbrequire(noOfPages <= NDB_SF_MAX_PAGES);
+  if (xsf->noOfPages < noOfPages) {
+    jam();
+    Uint32 firstPage = xsf->noOfPages;
+    xsf->noOfPages = noOfPages;
+    initSchemaFile(xsf, 0, firstPage, false);
+    initSchemaFile(xsf, firstPage, xsf->noOfPages, true);
+  }
+  if (xsf->noOfPages > noOfPages) {
+    jam();
+    Uint32 tableId = noOfPages * NDB_SF_PAGE_ENTRIES;
+    while (tableId < xsf->noOfPages * NDB_SF_PAGE_ENTRIES) {
+      SchemaFile::TableEntry * te = getTableEntry(xsf, tableId);
+      if (te->m_tableState != SchemaFile::INIT &&
+          te->m_tableState != SchemaFile::DROP_TABLE_COMMITTED) {
+        ndbrequire(false);
+      }
+      tableId++;
+    }
+    xsf->noOfPages = noOfPages;
+    initSchemaFile(xsf, 0, xsf->noOfPages, false);
+  }
+}
+
+void
+Dbdict::computeChecksum(XSchemaFile * xsf, Uint32 pageNo){ 
+  SchemaFile * sf = &xsf->schemaPage[pageNo];
   sf->CheckSum = 0;
-  sf->CheckSum = computeChecksum((const Uint32*)sf, sf->FileSize/4);
+  sf->CheckSum = computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS);
 }
 
 bool 
-Dbdict::validateChecksum(const SchemaFile * sf){
+Dbdict::validateChecksum(const XSchemaFile * xsf){
   
-  Uint32 c = computeChecksum((const Uint32*)sf, sf->FileSize/4);
-  return c == 0;
+  for (Uint32 n = 0; n < xsf->noOfPages; n++) {
+    SchemaFile * sf = &xsf->schemaPage[n];
+    Uint32 c = computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS);
+    if ( c != 0)
+      return false;
+  }
+  return true;
 }
 
 Uint32
@@ -11775,11 +11970,14 @@ Dbdict::computeChecksum(const Uint32 * src, Uint32 len){
 }
 
 SchemaFile::TableEntry * 
-Dbdict::getTableEntry(void * p, Uint32 tableId, bool allowTooBig){
-  SchemaFile * sf = (SchemaFile*)p;
-  
-  ndbrequire(allowTooBig || tableId < sf->NoOfTableEntries);
-  return &sf->TableEntries[tableId];
+Dbdict::getTableEntry(XSchemaFile * xsf, Uint32 tableId)
+{
+  Uint32 n = tableId / NDB_SF_PAGE_ENTRIES;
+  Uint32 i = tableId % NDB_SF_PAGE_ENTRIES;
+  ndbrequire(n < xsf->noOfPages);
+
+  SchemaFile * sf = &xsf->schemaPage[n];
+  return &sf->TableEntries[i];
 }
 
 // global metadata support
