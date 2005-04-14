@@ -545,6 +545,8 @@ public:
     cleanup();
     delete this;
   }
+
+  virtual bool is_splocal() { return 0; } /* Needed for error checking */
 };
 
 
@@ -563,6 +565,8 @@ public:
   {
     Item::maybe_null= TRUE;
   }
+
+  bool is_splocal() { return 1; } /* Needed for error checking */
 
   Item *this_item();
   Item *this_const_item() const;

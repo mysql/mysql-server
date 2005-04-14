@@ -34,7 +34,6 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
 {
   in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
-  m_outs= (int *)sql_alloc(fsize * sizeof(int));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
   m_hstack= (uint *)sql_alloc(hmax * sizeof(uint));
   m_cstack= (sp_cursor **)sql_alloc(cmax * sizeof(sp_cursor *));
