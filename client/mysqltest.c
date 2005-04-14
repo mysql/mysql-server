@@ -3916,8 +3916,8 @@ static REP_SET *make_new_set(REP_SETS *sets);
 static void make_sets_invisible(REP_SETS *sets);
 static void free_last_set(REP_SETS *sets);
 static void free_sets(REP_SETS *sets);
-static void set_bit(REP_SET *set, uint bit);
-static void clear_bit(REP_SET *set, uint bit);
+static void internal_set_bit(REP_SET *set, uint bit);
+static void internal_clear_bit(REP_SET *set, uint bit);
 static void or_bits(REP_SET *to,REP_SET *from);
 static void copy_bits(REP_SET *to,REP_SET *from);
 static int cmp_bits(REP_SET *set1,REP_SET *set2);
@@ -3994,7 +3994,7 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
   {
     if (from[i][0] == '\\' && from[i][1] == '^')
     {
-      set_bit(start_states,states+1);
+      internal_set_bit(start_states,states+1);
       if (!from[i][2])
       {
 	start_states->table_offset=i;
@@ -4003,8 +4003,8 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
     }
     else if (from[i][0] == '\\' && from[i][1] == '$')
     {
-      set_bit(start_states,states);
-      set_bit(word_states,states);
+      internal_set_bit(start_states,states);
+      internal_set_bit(word_states,states);
       if (!from[i][2] && start_states->table_offset == (uint) ~0)
       {
 	start_states->table_offset=i;
@@ -4013,11 +4013,11 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
     }
     else
     {
-      set_bit(word_states,states);
+      internal_set_bit(word_states,states);
       if (from[i][0] == '\\' && (from[i][1] == 'b' && from[i][2]))
-	set_bit(start_states,states+1);
+	internal_set_bit(start_states,states+1);
       else
-	set_bit(start_states,states);
+	internal_set_bit(start_states,states);
     }
     for (pos=from[i], len=0; *pos ; pos++)
     {
@@ -4123,9 +4123,9 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
 		follow[i].len > found_end)
 	      found_end=follow[i].len;
 	    if (chr && follow[i].chr)
-	      set_bit(new_set,i+1);		/* To next set */
+	      internal_set_bit(new_set,i+1);		/* To next set */
 	    else
-	      set_bit(new_set,i);
+	      internal_set_bit(new_set,i);
 	  }
 	}
 	if (found_end)
@@ -4142,7 +4142,7 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
 	    if (follow[bit_nr-1].len < found_end ||
 		(new_set->found_len &&
 		 (chr == 0 || !follow[bit_nr].chr)))
-	      clear_bit(new_set,i);
+	      internal_clear_bit(new_set,i);
 	    else
 	    {
 	      if (chr == 0 || !follow[bit_nr].chr)
@@ -4291,13 +4291,13 @@ static void free_sets(REP_SETS *sets)
   return;
 }
 
-static void set_bit(REP_SET *set, uint bit)
+static void internal_set_bit(REP_SET *set, uint bit)
 {
   set->bits[bit / WORD_BIT] |= 1 << (bit % WORD_BIT);
   return;
 }
 
-static void clear_bit(REP_SET *set, uint bit)
+static void internal_clear_bit(REP_SET *set, uint bit)
 {
   set->bits[bit / WORD_BIT] &= ~ (1 << (bit % WORD_BIT));
   return;
