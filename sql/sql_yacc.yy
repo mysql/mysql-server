@@ -1681,7 +1681,6 @@ sp_decl:
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	    ctx->add_handler();
 	    sp->m_in_handler= TRUE;
 	  }
 	  sp_hcond_list sp_proc_stmt
@@ -1709,6 +1708,7 @@ sp_decl:
 	    sp->m_in_handler= FALSE;
 	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
+	    ctx->add_handlers($6);
 	  }
 	| DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
 	  {

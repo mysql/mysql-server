@@ -1612,3 +1612,85 @@ insert into t3 select x from v1;
 insert into t2 select x from v1;
 drop view v1;
 drop table t1,t2,t3;
+CREATE TABLE t1 (col1 int PRIMARY KEY, col2 varchar(10));
+INSERT INTO t1 VALUES(1,'trudy');
+INSERT INTO t1 VALUES(2,'peter');
+INSERT INTO t1 VALUES(3,'sanja');
+INSERT INTO t1 VALUES(4,'monty');
+INSERT INTO t1 VALUES(5,'david');
+INSERT INTO t1 VALUES(6,'kent');
+INSERT INTO t1 VALUES(7,'carsten');
+INSERT INTO t1 VALUES(8,'ranger');
+INSERT INTO t1 VALUES(10,'matt');
+CREATE TABLE t2 (col1 int, col2 int, col3 char(1));
+INSERT INTO t2 VALUES (1,1,'y');
+INSERT INTO t2 VALUES (1,2,'y');
+INSERT INTO t2 VALUES (2,1,'n');
+INSERT INTO t2 VALUES (3,1,'n');
+INSERT INTO t2 VALUES (4,1,'y');
+INSERT INTO t2 VALUES (4,2,'n');
+INSERT INTO t2 VALUES (4,3,'n');
+INSERT INTO t2 VALUES (6,1,'n');
+INSERT INTO t2 VALUES (8,1,'y');
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT a.col1,a.col2,b.col2,b.col3 
+FROM t1 a LEFT JOIN t2 b ON a.col1=b.col1
+WHERE b.col2 IS NULL OR 
+b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
+col1	col2	col2	col3
+1	trudy	2	y
+2	peter	1	n
+3	sanja	1	n
+4	monty	3	n
+5	david	NULL	NULL
+6	kent	1	n
+7	carsten	NULL	NULL
+8	ranger	1	y
+10	matt	NULL	NULL
+SELECT a.col1,a.col2,b.col2,b.col3 
+FROM v1 a LEFT JOIN t2 b ON a.col1=b.col1
+WHERE b.col2 IS NULL OR 
+b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
+col1	col2	col2	col3
+1	trudy	2	y
+2	peter	1	n
+3	sanja	1	n
+4	monty	3	n
+5	david	NULL	NULL
+6	kent	1	n
+7	carsten	NULL	NULL
+8	ranger	1	y
+10	matt	NULL	NULL
+CREATE VIEW v2 AS SELECT * FROM t2;
+SELECT a.col1,a.col2,b.col2,b.col3
+FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
+WHERE b.col2 IS NULL OR
+b.col2=(SELECT MAX(col2) FROM v2 b WHERE b.col1=a.col1);
+col1	col2	col2	col3
+1	trudy	2	y
+2	peter	1	n
+3	sanja	1	n
+4	monty	3	n
+5	david	NULL	NULL
+6	kent	1	n
+7	carsten	NULL	NULL
+8	ranger	1	y
+10	matt	NULL	NULL
+SELECT a.col1,a.col2,b.col2,b.col3
+FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
+WHERE a.col1 IN (1,5,9) AND
+(b.col2 IS NULL OR
+b.col2=(SELECT MAX(col2) FROM v2 b WHERE b.col1=a.col1));
+col1	col2	col2	col3
+1	trudy	2	y
+5	david	NULL	NULL
+CREATE VIEW v3 AS SELECT * FROM t1 WHERE col1 IN (1,5,9);
+SELECT a.col1,a.col2,b.col2,b.col3
+FROM v2 b RIGHT JOIN v3 a ON a.col1=b.col1
+WHERE b.col2 IS NULL OR
+b.col2=(SELECT MAX(col2) FROM v2 b WHERE b.col1=a.col1);
+col1	col2	col2	col3
+1	trudy	2	y
+5	david	NULL	NULL
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2;
