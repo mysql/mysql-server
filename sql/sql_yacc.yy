@@ -1328,12 +1328,12 @@ clear_privileges:
         ;
 
 sp_name:
-	  IDENT_sys '.' IDENT_sys
+	  ident '.' ident
 	  {
 	    $$= new sp_name($1, $3);
 	    $$->init_qname(YYTHD);
 	  }
-	| IDENT_sys
+	| ident
 	  {
 	    $$= sp_name_current_db_new(YYTHD, $1);
 	  }
@@ -1681,7 +1681,6 @@ sp_decl:
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	    ctx->add_handler();
 	    sp->m_in_handler= TRUE;
 	  }
 	  sp_hcond_list sp_proc_stmt
@@ -1709,6 +1708,7 @@ sp_decl:
 	    sp->m_in_handler= FALSE;
 	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
+	    ctx->add_handlers($6);
 	  }
 	| DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
 	  {
@@ -7275,7 +7275,7 @@ keyword:
 	| MULTILINESTRING	{}
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
-  | MUTEX_SYM   {}
+        | MUTEX_SYM             {}
 	| NAME_SYM              {}
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
@@ -7367,8 +7367,8 @@ keyword:
 	| TIMESTAMP_ADD		{}
 	| TIMESTAMP_DIFF	{}
 	| TIME_SYM		{}
-	| TYPE_SYM		{}
 	| TYPES_SYM		{}
+        | TYPE_SYM              {}
         | UDF_RETURNS_SYM       {}
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}

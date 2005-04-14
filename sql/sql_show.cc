@@ -1704,6 +1704,8 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
                                strlen(item_field->field_name), 0)))
       return 0;
   }
+  else if (item->type() == Item::REF_ITEM)
+    return uses_only_table_name_fields(item->real_item(), table);
   if (item->type() == Item::SUBSELECT_ITEM &&
       !item->const_item())
     return 0;

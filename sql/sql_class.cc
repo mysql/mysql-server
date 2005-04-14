@@ -202,10 +202,11 @@ THD::THD()
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
-#ifndef EMBEDDED_LIBRARY  
+#ifndef EMBEDDED_LIBRARY
   net.vio=0;
 #endif
-  net.last_error[0]=0;				// If error on boot
+  net.last_error[0]=0;                          // If error on boot
+  net.query_cache_query=0;                      // If error on boot
   ull=0;
   system_thread= cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
@@ -214,7 +215,7 @@ THD::THD()
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
-#endif  
+#endif
   pthread_mutex_init(&LOCK_delete, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */

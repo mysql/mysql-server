@@ -4128,7 +4128,15 @@ unsent_create_error:
 	sp= sp_find_function(thd, lex->spname);
       mysql_reset_errors(thd, 0);
       if (! sp)
-	result= SP_KEY_NOT_FOUND;
+      {
+	if (lex->spname->m_db.str)
+	  result= SP_KEY_NOT_FOUND;
+	else
+	{
+	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+	  goto error;
+	}
+      }
       else
       {
         if (check_procedure_access(thd, ALTER_PROC_ACL, sp->m_db.str, 
@@ -4207,7 +4215,13 @@ unsent_create_error:
 	  }
 	}
 #endif
-	result= SP_KEY_NOT_FOUND;
+	if (lex->spname->m_db.str)
+	  result= SP_KEY_NOT_FOUND;
+	else
+	{
+	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+	  goto error;
+	}
       }
       res= result;
       switch (result)
@@ -4414,10 +4428,19 @@ unsent_create_error:
     else
     if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
     {
-      if (ha_commit_one_phase(thd, 1))
+      if (wait_if_global_read_lock(thd, 0, 0))
+      {
+        ha_rollback(thd);
         my_error(ER_XAER_RMERR, MYF(0));
+      }
       else
-        send_ok(thd);
+      {
+        if (ha_commit_one_phase(thd, 1))
+          my_error(ER_XAER_RMERR, MYF(0));
+        else
+          send_ok(thd);
+        start_waiting_global_read_lock(thd);
+      }
     }
     else
     {
