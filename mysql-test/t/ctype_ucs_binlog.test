@@ -1,4 +1,5 @@
 --source include/not_embedded.inc
+--source include/have_ucs2.inc
 
 #
 # Check correct binlogging of UCS2 user variables (BUG#3875)
