@@ -3588,7 +3588,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
 
   thd->set_query_id=1;
 
-  thd->lex->current_select->no_wrap_view_item= 1;
+  thd->lex->current_select->no_wrap_view_item= 0;
   select_lex->cond_count= 0;
   if (*conds)
   {

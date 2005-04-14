@@ -4707,7 +4707,7 @@ Disable with --skip-ndbcluster (will save memory).",
    "Specify number of autoincrement values that are prefetched.",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
-   0, GET_INT, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
+   0, GET_ULONG, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
   {"ndb-force-send", OPT_NDB_FORCE_SEND,
    "Force send of buffers to ndb immediately without waiting for "
    "other threads.",

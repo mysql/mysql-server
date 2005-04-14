@@ -236,12 +236,6 @@ class sp_pcontext : public Sql_alloc
   //
 
   inline void
-  add_handler()
-  {
-    m_handlers+= 1;
-  }
-
-  inline void
   push_handler(sp_cond_type_t *cond)
   {
     insert_dynamic(&m_handler, (gptr)&cond);
@@ -257,7 +251,7 @@ class sp_pcontext : public Sql_alloc
   }
 
   inline void
-  push_handlers(uint n)
+  add_handlers(uint n)
   {
     m_handlers+= n;
   }
