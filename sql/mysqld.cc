@@ -788,15 +788,6 @@ void kill_mysql(void)
       CloseHandle(hEvent);
     */
   }
-#ifdef HAVE_SMEM
-    /*
-     Send event to smem_event_connect_request for aborting
-    */
-    if (!SetEvent(smem_event_connect_request))
-    {
-      DBUG_PRINT("error",("Got error: %ld from SetEvent of smem_event_connect_request",GetLastError()));
-    }
-#endif  
 #endif
 #elif defined(OS2)
   pthread_cond_signal(&eventShutdown);		// post semaphore
@@ -850,6 +841,18 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
+#if defined(HAVE_SMEM) && defined(__WIN__)    
+  /*    
+   Send event to smem_event_connect_request for aborting    
+   */    
+  if (!SetEvent(smem_event_connect_request))    
+  {      
+	  DBUG_PRINT("error",
+		("Got error: %ld from SetEvent of smem_event_connect_request",
+		 GetLastError()));    
+  }
+#endif  
+  
 #if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
   my_thread_init();				// If this is a new thread
 #endif
@@ -4704,7 +4707,7 @@ Disable with --skip-ndbcluster (will save memory).",
    "Specify number of autoincrement values that are prefetched.",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
-   0, GET_INT, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
+   0, GET_ULONG, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
   {"ndb-force-send", OPT_NDB_FORCE_SEND,
    "Force send of buffers to ndb immediately without waiting for "
    "other threads.",

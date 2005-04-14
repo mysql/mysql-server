@@ -700,7 +700,7 @@ my_decimal *Item_splocal::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
   Item *it= this_item();
-  my_decimal value, *val= it->val_decimal(&value);
+  my_decimal *val= it->val_decimal(decimal_value);
   Item::null_value= it->null_value;
   return val;
 }
@@ -936,8 +936,17 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
 	set(0, DERIVATION_NONE);
 	return 1;
       }
+      if (collation->state & MY_CS_BINSORT)
+      {
+        return 0;
+      }
+      else if (dt.collation->state & MY_CS_BINSORT)
+      {
+        set(dt);
+        return 0;
+      }
       CHARSET_INFO *bin= get_charset_by_csname(collation->csname, 
-					       MY_CS_BINSORT,MYF(0));
+                                               MY_CS_BINSORT,MYF(0));
       set(bin, DERIVATION_NONE);
     }
   }

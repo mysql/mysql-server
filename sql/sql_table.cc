@@ -563,12 +563,9 @@ int prepare_create_field(create_field *sql_field,
     sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
     break;
   case FIELD_TYPE_BIT:
-    if (!(table_flags & HA_CAN_BIT_FIELD))
-    {
-      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "BIT FIELD");
-      DBUG_RETURN(1);
-    }
-    sql_field->pack_flag= FIELDFLAG_NUMBER;
+    /* 
+      We have sql_field->pack_flag already set here, see mysql_prepare_table().
+    */
     break;
   case FIELD_TYPE_NEWDECIMAL:
     sql_field->pack_flag=(FIELDFLAG_NUMBER |
@@ -774,6 +771,15 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
     }
 
+    if (sql_field->sql_type == FIELD_TYPE_BIT)
+    { 
+      sql_field->pack_flag= FIELDFLAG_NUMBER;
+      if (file->table_flags() & HA_CAN_BIT_FIELD)
+        total_uneven_bit_length+= sql_field->length & 7;
+      else
+        sql_field->pack_flag|= FIELDFLAG_TREAT_BIT_AS_CHAR;
+    }
+
     sql_field->create_length_to_internal_length();
     if (sql_field->length > MAX_FIELD_VARCHARLENGTH &&
         !(sql_field->flags & BLOB_FLAG))
@@ -809,9 +815,6 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
-
-    if (sql_field->sql_type == FIELD_TYPE_BIT)
-      total_uneven_bit_length+= sql_field->length & 7;
 
     if (check_column_name(sql_field->field_name))
     {
@@ -2225,7 +2228,9 @@ send_result_message:
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
+      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
       result_code= mysql_recreate_table(thd, table, 0);
+      reenable_binlog(thd);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
@@ -3302,6 +3307,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* Safety fix for innodb */
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tmp_name);
+  if (new_db_type != old_db_type && !table->file->can_switch_engines()) {
+    my_error(ER_ROW_IS_REFERENCED, MYF(0));
+    goto err;
+  }
   create_info->db_type=new_db_type;
   if (!create_info->comment)
     create_info->comment= table->s->comment;
