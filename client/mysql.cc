@@ -268,9 +268,9 @@ static COMMANDS commands[] = {
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument." },
-  { "warnings", 'w', com_warnings,  0,
+  { "warnings", 'W', com_warnings,  0,
     "Show warnings after every statement." },
-  { "nowarning", 'W', com_nowarnings, 0,
+  { "nowarning", 'w', com_nowarnings, 0,
     "Don't show warnings after every statement." },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
@@ -800,9 +800,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   break;
-  case OPT_SHOW_WARNINGS:
-    show_warnings = 1;
-    break;
   case 'A':
     rehash= 0;
     break;
@@ -1951,7 +1948,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (err >= 1)
     error= put_error(&mysql);
 
-  if( show_warnings == 1 && warnings ) /* Show warnings if any */
+  if (show_warnings == 1 && warnings >= 1) /* Show warnings if any */
   {
     init_pager();
     print_warnings();
@@ -2219,17 +2216,15 @@ print_table_data_vertically(MYSQL_RES *result)
 static void
 print_warnings()
 {
+  char query[30];
   MYSQL_RES    *result;
   MYSQL_ROW    cur;
   MYSQL_FIELD  *field;
 
-  char *query = 0;
-
   /* Get the warnings */
-  query = my_strdup("show warnings",MYF(MY_WME));
+  strmov(query,"show warnings");
   mysql_real_query_for_lazy(query,strlen(query));
   mysql_store_result_for_lazy(&result);
-  my_free(query,MYF(MY_WME));
 
   /* Bail out when no warnings */
   my_ulonglong num_rows = mysql_num_rows(result);
@@ -2748,6 +2743,7 @@ com_warnings(String *buffer __attribute__((unused)),
    char *line __attribute__((unused)))
 {
   show_warnings = 1;
+  put_info("Show warnings enabled.",INFO_INFO);
   return 0;
 }
 
@@ -2756,6 +2752,7 @@ com_nowarnings(String *buffer __attribute__((unused)),
    char *line __attribute__((unused)))
 {
   show_warnings = 0;
+  put_info("Show warnings disabled.",INFO_INFO);
   return 0;
 }
 
