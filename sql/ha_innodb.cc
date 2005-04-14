@@ -2233,6 +2233,7 @@ innobase_mysql_cmp(
 
 	switch (mysql_tp) {
 
+        case MYSQL_TYPE_BIT:
 	case MYSQL_TYPE_STRING:
 	case MYSQL_TYPE_VAR_STRING:
 	case FIELD_TYPE_TINY_BLOB:
@@ -2342,6 +2343,7 @@ get_innobase_type_from_mysql_type(
 					} else {
 						return(DATA_VARMYSQL);
 					}
+                case MYSQL_TYPE_BIT:
 		case MYSQL_TYPE_STRING: if (field->binary()) {
 
 						return(DATA_FIXBINARY);
@@ -4671,6 +4673,10 @@ ha_innobase::rename_table(
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
 
+	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
 	name_len1 = strlen(from);
 	name_len2 = strlen(to);
 
@@ -5378,6 +5384,32 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   mutex_exit_noninline(&(dict_sys->mutex));
   prebuilt->trx->op_info = (char*)"";
   DBUG_RETURN(0);
+}
+
+/*********************************************************************
+Checks if ALTER TABLE may change the storage engine of the table.
+Changing storage engines is not allowed for tables for which there
+are foreign key constraints (parent or child tables). */
+
+bool
+ha_innobase::can_switch_engines(void)
+/*=================================*/
+{
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	bool	can_switch;
+
+ 	DBUG_ENTER("ha_innobase::can_switch_engines");
+	prebuilt->trx->op_info =
+			"determining if there are foreign key constraints";
+	row_mysql_lock_data_dictionary(prebuilt->trx);
+
+	can_switch = !UT_LIST_GET_FIRST(prebuilt->table->referenced_list)
+			&& !UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+
+	row_mysql_unlock_data_dictionary(prebuilt->trx);
+	prebuilt->trx->op_info = "";
+
+	DBUG_RETURN(can_switch);
 }
 
 /***********************************************************************
@@ -6104,7 +6136,8 @@ ha_innobase::store_lock(
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
 	    lock_type == TL_READ_NO_INSERT ||
-	    thd->lex->sql_command != SQLCOM_SELECT) {
+	    (thd->lex->sql_command != SQLCOM_SELECT
+	     && lock_type != TL_IGNORE)) {
 
 		/* The OR cases above are in this order:
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or

@@ -584,7 +584,7 @@ private:
   // Returns: -
   //**************************************************************************
 
-  void handleStatus(NodeId nodeId, bool alive);
+  void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
   //**************************************************************************
   // Description: Handle the death of a process
   // Parameters:
