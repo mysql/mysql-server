@@ -2908,4 +2908,32 @@ v/10
 10.00000
 drop procedure bug9674_1|
 drop procedure bug9674_2|
+drop procedure if exists bug9598_1|
+drop procedure if exists bug9598_2|
+create procedure bug9598_1(in var_1 char(16),
+out var_2 integer, out var_3 integer)
+begin
+set var_2 = 50;
+set var_3 = 60;
+end|
+create procedure bug9598_2(in v1 char(16),
+in v2 integer,
+in v3 integer,
+in v4 integer,
+in v5 integer)
+begin
+select v1,v2,v3,v4,v5;
+call bug9598_1(v1,@tmp1,@tmp2);
+select v1,v2,v3,v4,v5;
+end|
+call bug9598_2('Test',2,3,4,5)|
+v1	v2	v3	v4	v5
+Test	2	3	4	5
+v1	v2	v3	v4	v5
+Test	2	3	4	5
+select @tmp1, @tmp2|
+@tmp1	@tmp2
+50	60
+drop procedure bug9598_1|
+drop procedure bug9598_2|
 drop table t1,t2;
