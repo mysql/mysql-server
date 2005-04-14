@@ -24,6 +24,11 @@ create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
 create view v1 (c) as select table_name from information_schema.TABLES;
 select * from v1;
+
+select c,table_name from v1 
+inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
+where v1.c like "t%";
+
 select c,table_name from v1 
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
