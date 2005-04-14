@@ -2075,7 +2075,7 @@ row_table_add_foreign_constraints(
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name);
+		err = dict_load_foreigns(name, trx->check_foreigns);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -3784,6 +3784,8 @@ row_rename_table_for_mysql(
 			goto funct_exit;
 		}
 
+		err = dict_load_foreigns(new_name, trx->check_foreigns);
+
 		if (row_is_mysql_tmp_table_name(old_name)) {
 
 			/* MySQL is doing an ALTER TABLE command and it
@@ -3792,8 +3794,6 @@ row_rename_table_for_mysql(
 			created some FOREIGN KEY constraints for the temporary
 			table. But we want to load also the foreign key
 			constraint definitions for the original table name. */
-
-			err = dict_load_foreigns(new_name);
 
 			if (err != DB_SUCCESS) {
 	    			ut_print_timestamp(stderr);
@@ -3813,8 +3813,6 @@ row_rename_table_for_mysql(
 				trx->error_state = DB_SUCCESS;
 			}
 		} else {
-			err = dict_load_foreigns(new_name);
-
 			if (err != DB_SUCCESS) {
 
 	    			ut_print_timestamp(stderr);

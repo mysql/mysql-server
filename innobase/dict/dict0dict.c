@@ -2201,7 +2201,8 @@ ulint
 dict_foreign_add_to_cache(
 /*======================*/
 					/* out: DB_SUCCESS or error code */
-	dict_foreign_t*	foreign)	/* in, own: foreign key constraint */
+	dict_foreign_t*	foreign,	/* in, own: foreign key constraint */
+	ibool		check_types)	/* in: TRUE=check type compatibility */
 {
 	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
@@ -2237,10 +2238,16 @@ dict_foreign_add_to_cache(
 	}
 
 	if (for_in_cache->referenced_table == NULL && ref_table) {
+		dict_index_t*	types_idx;
+		if (check_types) {
+			types_idx = for_in_cache->foreign_index;
+		} else {
+			types_idx = NULL;
+		}
 		index = dict_foreign_find_index(ref_table,
 			(const char**) for_in_cache->referenced_col_names,
 			for_in_cache->n_fields,
-			for_in_cache->foreign_index);
+			types_idx);
 
 		if (index == NULL) {
 			dict_foreign_error_report(ef, for_in_cache,
@@ -2264,10 +2271,16 @@ dict_foreign_add_to_cache(
 	}
 
 	if (for_in_cache->foreign_table == NULL && for_table) {
+		dict_index_t*	types_idx;
+		if (check_types) {
+			types_idx = for_in_cache->referenced_index;
+		} else {
+			types_idx = NULL;
+		}
 		index = dict_foreign_find_index(for_table,
 			(const char**) for_in_cache->foreign_col_names,
 			for_in_cache->n_fields,
-			for_in_cache->referenced_index);
+			types_idx);
 
 		if (index == NULL) {
 			dict_foreign_error_report(ef, for_in_cache,
