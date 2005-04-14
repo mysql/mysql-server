@@ -59,7 +59,6 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysqld_multi.sh \
 			mysql_tableinfo.sh \
 			mysqld_safe.sh \
-			fill_help_tables.sh \
 			mysql_create_system_tables.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
@@ -87,7 +86,6 @@ CLEANFILES =		@server_scripts@ \
 			mysqldumpslow \
 			mysqld_multi \
 			make_win_src_distribution \
-			fill_help_tables \
 			mysql_create_system_tables
 
 DISTCLEANFILES =        mysqlbug
@@ -151,7 +149,4 @@ SUFFIXES = .sh
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-all: fill_help_tables.sql make_win_src_distribution make_binary_distribution make_sharedlib_distribution
-
-fill_help_tables.sql: fill_help_tables ../Docs/manual.texi
-		./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql
+all: make_win_src_distribution make_binary_distribution make_sharedlib_distribution
