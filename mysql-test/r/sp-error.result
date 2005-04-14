@@ -125,13 +125,13 @@ set @x = x|
 create function f(x int) returns int
 return x+42|
 call p()|
-ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 0
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.p; expected 1, got 0
 call p(1, 2)|
-ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 2
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.p; expected 1, got 2
 select f()|
-ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 0
+ERROR 42000: Incorrect number of arguments for FUNCTION test.f; expected 1, got 0
 select f(1, 2)|
-ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 2
+ERROR 42000: Incorrect number of arguments for FUNCTION test.f; expected 1, got 2
 drop procedure p|
 drop function f|
 create procedure p(val int, out res int)
@@ -318,6 +318,24 @@ select field from t1;
 label L1;
 end|
 ERROR HY000: GOTO is not allowed in a stored procedure handler
+drop procedure if exists p|
+create procedure p(in x int, inout y int, out z int)
+begin
+set y = x+y;
+set z = x+y;
+end|
+set @tmp_x = 42|
+set @tmp_y = 3|
+set @tmp_z = 0|
+call p(@tmp_x, @tmp_y, @tmp_z)|
+select @tmp_x, @tmp_y, @tmp_z|
+@tmp_x	@tmp_y	@tmp_z
+42	45	87
+call p(42, 43, @tmp_z)|
+ERROR 42000: OUT or INOUT argument 2 for routine test.p is not a variable
+call p(42, @tmp_y, 43)|
+ERROR 42000: OUT or INOUT argument 3 for routine test.p is not a variable
+drop procedure p|
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;

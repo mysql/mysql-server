@@ -5340,3 +5340,5 @@ ER_TABLE_DEF_CHANGED
 	eng "Table definition has changed, please retry transaction"
 ER_SP_DUP_HANDLER 42000
 	eng "Duplicate handler declared in the same block"
+ER_SP_NOT_VAR_ARG 42000
+	eng "OUT or INOUT argument %d for routine %s is not a variable"

@@ -83,18 +83,6 @@ class sp_rcontext : public Sql_alloc
   }
 
   inline void
-  set_oindex(uint idx, int oidx)
-  {
-    m_outs[idx] = oidx;
-  }
-
-  inline int
-  get_oindex(uint idx)
-  {
-    return m_outs[idx];
-  }
-
-  inline void
   set_result(Item *it)
   {
     m_result= it;
@@ -187,7 +175,6 @@ private:
   uint m_count;
   uint m_fsize;
   Item **m_frame;
-  int  *m_outs;
 
   Item *m_result;		// For FUNCTIONs
 
