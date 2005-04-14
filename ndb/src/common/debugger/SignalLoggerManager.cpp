@@ -383,7 +383,7 @@ SignalLoggerManager::sendSignalWithDelay(Uint32 delayInMilliSeconds,
  * Generic messages in the signal log
  */
 void
-SignalLoggerManager::log(BlockNumber bno, const char * msg)
+SignalLoggerManager::log(BlockNumber bno, const char * msg, ...)
 {
   // Normalise blocknumber for use in logModes array
   const BlockNumber bno2 = bno - MIN_BLOCK_NO;
@@ -391,7 +391,12 @@ SignalLoggerManager::log(BlockNumber bno, const char * msg)
 
   if(outputStream != 0 &&
      logModes[bno2] != LogOff){
-    fprintf(outputStream, "%s: %s\n", getBlockName(bno, "API"), msg);
+    va_list ap;
+    va_start(ap, msg);
+    fprintf(outputStream, "%s: ", getBlockName(bno, "API"));
+    vfprintf(outputStream, msg, ap);
+    fprintf(outputStream, "\n", msg);
+    va_end(ap);
   }
 }
 

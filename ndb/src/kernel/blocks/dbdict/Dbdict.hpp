@@ -78,7 +78,8 @@
 /*--------------------------------------------------------------*/
 // Page constants
 /*--------------------------------------------------------------*/
-#define ZALLOCATE 1 //Variable number of page for NDBFS
+#define ZBAT_SCHEMA_FILE 0 //Variable number of page for NDBFS
+#define ZBAT_TABLE_FILE 1 //Variable number of page for NDBFS
 #define ZPAGE_HEADER_SIZE 32
 #define ZPOS_PAGE_SIZE 16
 #define ZPOS_CHECKSUM 17
@@ -92,7 +93,7 @@
 #define ZSIZE_OF_PAGES_IN_WORDS 8192
 #define ZLOG_SIZE_OF_PAGES_IN_WORDS 13
 #define ZMAX_PAGES_OF_TABLE_DEFINITION 8
-#define ZNUMBER_OF_PAGES (2 * ZMAX_PAGES_OF_TABLE_DEFINITION + 2)
+#define ZNUMBER_OF_PAGES (ZMAX_PAGES_OF_TABLE_DEFINITION + 1)
 #define ZNO_OF_FRAGRECORD 5
 
 /*--------------------------------------------------------------*/
@@ -429,6 +430,12 @@ public:
   typedef Ptr<PageRecord> PageRecordPtr;
   CArray<PageRecord> c_pageRecordArray;
 
+  struct SchemaPageRecord {
+    Uint32 word[NDB_SF_PAGE_SIZE_IN_WORDS];
+  };
+
+  CArray<SchemaPageRecord> c_schemaPageRecordArray;
+
   /**
    * A page for create index table signal.
    */
@@ -655,16 +662,20 @@ private:
   struct ReadSchemaRecord {
     /** Page Id of schema page */
     Uint32 pageId;
+    /** First page to read */
+    Uint32 firstPage;
+    /** Number of pages to read */
+    Uint32 noOfPages;
     /** State, indicates from where it was called */
     enum SchemaReadState {
       IDLE = 0,
-      INITIAL_READ = 1
+      INITIAL_READ_HEAD = 1,
+      INITIAL_READ = 2
     };
     SchemaReadState schemaReadState;
   };
   ReadSchemaRecord c_readSchemaRecord;
 
-private:
   /**
    * This record stores all the state needed 
    * when a schema file is being written to disk
@@ -672,6 +683,12 @@ private:
   struct WriteSchemaRecord {
     /** Page Id of schema page */
     Uint32 pageId;
+    /** Rewrite entire file */
+    Uint32 newFile;
+    /** First page to write */
+    Uint32 firstPage;
+    /** Number of pages to write */
+    Uint32 noOfPages;
     /** Schema Files Handled, local state variable */
     Uint32 noOfSchemaFilesHandled;
 
@@ -752,21 +769,33 @@ private:
    * Word 4: Currently zero
    ****************************************************************************/
   struct SchemaRecord {
-    /**    Schema page       */
+    /**    Schema file first page (0)   */
     Uint32 schemaPage;
 
-    /**    Old Schema page (used at node restart)   */
+    /**    Old Schema file first page (used at node restart)    */
     Uint32 oldSchemaPage;
     
     Callback m_callback;
   };
   SchemaRecord c_schemaRecord;
 
-  void initSchemaFile(SchemaFile *, Uint32 sz);
-  void computeChecksum(SchemaFile *);
-  bool validateChecksum(const SchemaFile *);
-  SchemaFile::TableEntry * getTableEntry(void * buf, Uint32 tableId, 
-					 bool allowTooBig = false);
+  /*
+   * Schema file, list of schema pages.  Use an array until a pool
+   * exists and NDBFS interface can use it.
+   */
+  struct XSchemaFile {
+    SchemaFile* schemaPage;
+    Uint32 noOfPages;
+  };
+  // 0-normal 1-old
+  XSchemaFile c_schemaFile[2];
+
+  void initSchemaFile(XSchemaFile *, Uint32 firstPage, Uint32 lastPage,
+                      bool initEntries);
+  void resizeSchemaFile(XSchemaFile * xsf, Uint32 noOfPages);
+  void computeChecksum(XSchemaFile *, Uint32 pageNo);
+  bool validateChecksum(const XSchemaFile *);
+  SchemaFile::TableEntry * getTableEntry(XSchemaFile *, Uint32 tableId);
 
   Uint32 computeChecksum(const Uint32 * src, Uint32 len);
 
@@ -1631,7 +1660,8 @@ private:
   void openSchemaFile(Signal* signal,
                       Uint32 fileNo,
                       Uint32 fsPtr,
-                      bool writeFlag);
+                      bool writeFlag,
+                      bool newFile);
   void writeSchemaFile(Signal* signal, Uint32 filePtr, Uint32 fsPtr);
   void writeSchemaConf(Signal* signal,
                                FsConnectRecordPtr fsPtr);
@@ -1673,6 +1703,7 @@ private:
   void readSchemaRef(Signal* signal, FsConnectRecordPtr fsPtr);
   void closeReadSchemaConf(Signal* signal,
                            FsConnectRecordPtr fsPtr);
+  bool convertSchemaFileTo_5_0_5(XSchemaFile*);
 
   /* ------------------------------------------------------------ */
   // Get table definitions
