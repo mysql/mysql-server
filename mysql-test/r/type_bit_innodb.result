@@ -380,3 +380,25 @@ drop table t1;
 create table t1(a int, b bit not null) engine=innodb;
 alter table t1 add primary key (a);
 drop table t1;
+create table t1 (a bit, b bit(10)) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(1) default NULL,
+  `b` bit(10) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 engine=heap;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(1) default NULL,
+  `b` bit(10) default NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+alter table t1 engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(1) default NULL,
+  `b` bit(10) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;

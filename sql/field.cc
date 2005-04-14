@@ -8358,7 +8358,9 @@ create_field::create_field(Field *old_field,Field *orig_field)
     break;
 #endif
   case FIELD_TYPE_BIT:
-    length= ((Field_bit *) old_field)->bit_len + length * 8;
+    length= (old_field->key_type() == HA_KEYTYPE_BIT) ?
+            ((Field_bit *) old_field)->bit_len + length * 8 :
+            ((Field_bit_as_char *) old_field)->create_length;
     break;
   default:
     break;
