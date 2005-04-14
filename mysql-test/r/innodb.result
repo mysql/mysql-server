@@ -821,6 +821,7 @@ truncate table t1;
 Can't execute the given command because you have active locked tables or an active transaction
 commit;
 truncate table t1;
+truncate table t1;
 select * from t1;
 a
 insert into t1 values(1),(2);

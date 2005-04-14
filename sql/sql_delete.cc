@@ -590,8 +590,12 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     {
       /* Probably InnoDB table */
       table_list->lock_type= TL_WRITE;
-      DBUG_RETURN(mysql_delete(thd, table_list, (COND*) 0, (ORDER*) 0,
-			       HA_POS_ERROR, 0));
+      ulong save_options= thd->options;
+      thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
+      int res= mysql_delete(thd, table_list, (COND*) 0, (ORDER*) 0,
+			       HA_POS_ERROR, 0);
+      thd->options= save_options;
+      DBUG_RETURN(res);
     }
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(-1);
