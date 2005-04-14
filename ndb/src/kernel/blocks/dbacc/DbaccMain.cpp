@@ -8486,7 +8486,7 @@ void Dbacc::checkSendLcpConfLab(Signal* signal)
     break;
   }//switch
   lcpConnectptr.p->noOfLcpConf++;
-  ndbrequire(lcpConnectptr.p->noOfLcpConf <= 2);
+  ndbrequire(lcpConnectptr.p->noOfLcpConf <= 4);
   fragrecptr.p->fragState = ACTIVEFRAG;
   rlpPageptr.i = fragrecptr.p->zeroPagePtr;
   ptrCheckGuard(rlpPageptr, cpagesize, page8);
@@ -8504,7 +8504,7 @@ void Dbacc::checkSendLcpConfLab(Signal* signal)
   }//for
   signal->theData[0] = fragrecptr.p->lcpLqhPtr;
   sendSignal(lcpConnectptr.p->lcpUserblockref, GSN_ACC_LCPCONF, signal, 1, JBB);
-  if (lcpConnectptr.p->noOfLcpConf == 2) {
+  if (lcpConnectptr.p->noOfLcpConf == 4) {
     jam();
     releaseLcpConnectRec(signal);
     rootfragrecptr.i = fragrecptr.p->myroot;
@@ -8535,6 +8535,13 @@ void Dbacc::execACC_CONTOPREQ(Signal* signal)
   /* LOCAL FRAG ID                   */
   tresult = 0;
   ptrCheckGuard(lcpConnectptr, clcpConnectsize, lcpConnectrec);
+  if(ERROR_INSERTED(3002) && lcpConnectptr.p->noOfLcpConf < 2)
+  {
+    sendSignalWithDelay(cownBlockref, GSN_ACC_CONTOPREQ, signal, 300, 
+			signal->getLength());
+    return;
+  }
+  
   ndbrequire(lcpConnectptr.p->lcpstate == LCP_ACTIVE);
   rootfragrecptr.i = lcpConnectptr.p->rootrecptr;
   ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
@@ -8568,6 +8575,15 @@ void Dbacc::execACC_CONTOPREQ(Signal* signal)
   }//while
   signal->theData[0] = fragrecptr.p->lcpLqhPtr;
   sendSignal(lcpConnectptr.p->lcpUserblockref, GSN_ACC_CONTOPCONF, signal, 1, JBA);
+
+  lcpConnectptr.p->noOfLcpConf++;
+  if (lcpConnectptr.p->noOfLcpConf == 4) {
+    jam();
+    releaseLcpConnectRec(signal);
+    rootfragrecptr.i = fragrecptr.p->myroot;
+    ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
+    rootfragrecptr.p->rootState = ACTIVEROOT;
+  }//if
   return;	/* ALL QUEUED OPERATION ARE RESTARTED IF NEEDED. */
 }//Dbacc::execACC_CONTOPREQ()
 
