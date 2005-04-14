@@ -87,7 +87,7 @@ public:
   /**
    * Generic messages in the signal log
    */
-  void log(BlockNumber bno, const char * msg);
+  void log(BlockNumber bno, const char * msg, ...);
   
   /**
    * LogModes

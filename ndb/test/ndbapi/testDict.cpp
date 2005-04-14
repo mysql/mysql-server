@@ -428,103 +428,99 @@ int runUseTableUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
-int runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step){
-  int failures = 0;
+int
+runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
+{
   char tabName[256];
   int numTables = ctx->getProperty("tables", 1000);
   Ndb* pNdb = GETNDB(step);
-
-  for (int i = 0; i < numTables && failures < 5; i++){
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int i = 0;
+  for (i = 0; i < numTables; i++) {
     BaseString::snprintf(tabName, 256, "MAXTAB%d", i);
-
-    if (pNdb->waitUntilReady(30) != 0){
+    if (pNdb->waitUntilReady(30) != 0) {
       // Db is not ready, return with failure
       return NDBT_FAILED;
     }
-  
     const NdbDictionary::Table* pTab = ctx->getTab();
-    ndbout << "|- " << tabName << endl;
-
+    //ndbout << "|- " << tabName << endl;
     // Set new name for T1
     NdbDictionary::Table newTab(* pTab);
     newTab.setName(tabName);
-
+    // Drop any old (or try to)
+    (void)pDic->dropTable(newTab.getName());
     // Try to create table in db
-    if (newTab.createTableInDb(pNdb) != 0){
-      ndbout << tabName << " coult not be created"<< endl;
-      failures++;
-      continue;
+    if (newTab.createTableInDb(pNdb) != 0) {
+      ndbout << tabName << " could not be created: "
+             << pDic->getNdbError() << endl;
+      if (pDic->getNdbError().code == 707 ||
+          pDic->getNdbError().code == 708 ||
+          pDic->getNdbError().code == 826 ||
+          pDic->getNdbError().code == 827)
+        break;
+      return NDBT_FAILED;
     }
-    
     // Verify that table exists in db    
     const NdbDictionary::Table* pTab3 = 
       NDBT_Table::discoverTableFromDb(pNdb, tabName) ;
     if (pTab3 == NULL){
-      ndbout << tabName << " was not found in DB"<< endl;
-      failures++;
-      continue;
+      ndbout << tabName << " was not found in DB: "
+             << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
     }
-    
-    if (pTab->equal(*pTab3) == false){
-      ndbout << "It was not equal" << endl;
-      failures++;
+    if (! newTab.equal(*pTab3)) {
+      ndbout << "It was not equal" << endl; abort();
+      return NDBT_FAILED;
     }
-
-    int records = 1000;
+    int records = ctx->getNumRecords();
     HugoTransactions hugoTrans(*pTab3);
-    if (hugoTrans.loadTable(pNdb, records) != 0){
+    if (hugoTrans.loadTable(pNdb, records) != 0) {
       ndbout << "It can NOT be loaded" << endl;
-    } else{
-      ndbout << "It can be loaded" << endl;
-      
-      UtilTransactions utilTrans(*pTab3);
-      if (utilTrans.clearTable(pNdb, records, 64) != 0){
-	ndbout << "It can NOT be cleared" << endl;
-      } else{
-	ndbout << "It can be cleared" << endl;
-      }	  
+      return NDBT_FAILED;
     }
-    
+    UtilTransactions utilTrans(*pTab3);
+    if (utilTrans.clearTable(pNdb, records, 64) != 0) {
+      ndbout << "It can NOT be cleared" << endl;
+      return NDBT_FAILED;
+    }
   }
-  if (pNdb->waitUntilReady(30) != 0){
+  if (pNdb->waitUntilReady(30) != 0) {
     // Db is not ready, return with failure
     return NDBT_FAILED;
   }
+  ctx->setProperty("maxtables", i);
   // HURRAAA!
   return NDBT_OK;
 }
 
-int runDropMaxTables(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
+int runDropMaxTables(NDBT_Context* ctx, NDBT_Step* step)
+{
   char tabName[256];
-  int numTables = ctx->getProperty("tables", 1000);
+  int numTables = ctx->getProperty("maxtables", (Uint32)0);
   Ndb* pNdb = GETNDB(step);
-
-  for (int i = 0; i < numTables; i++){
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  for (int i = 0; i < numTables; i++) {
     BaseString::snprintf(tabName, 256, "MAXTAB%d", i);
-
-    if (pNdb->waitUntilReady(30) != 0){
+    if (pNdb->waitUntilReady(30) != 0) {
       // Db is not ready, return with failure
       return NDBT_FAILED;
     }
-  
     // Verify that table exists in db    
     const NdbDictionary::Table* pTab3 = 
       NDBT_Table::discoverTableFromDb(pNdb, tabName) ;
-    if (pTab3 == NULL){
-      ndbout << tabName << " was not found in DB"<< endl;
-      continue;
+    if (pTab3 == NULL) {
+      ndbout << tabName << " was not found in DB: "
+             << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
     }
-
-
     // Try to drop table in db
-    if (pNdb->getDictionary()->dropTable(pTab3->getName()) != 0){
-      ndbout << tabName << " coult not be dropped"<< endl;
-      result = NDBT_FAILED;
+    if (pDic->dropTable(pTab3->getName()) != 0) {
+      ndbout << tabName << " could not be dropped: "
+             << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
     }
-    
   }
-  return result;
+  return NDBT_OK;
 }
 
 int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
@@ -1622,7 +1618,7 @@ TESTCASE("CreateMaxTables",
 	 "Create tables until db says that it can't create any more\n"){
   TC_PROPERTY("tables", 1000);
   INITIALIZER(runCreateMaxTables);
-  FINALIZER(runDropMaxTables);
+  INITIALIZER(runDropMaxTables);
 }
 TESTCASE("PkSizes", 
 	 "Create tables with all different primary key sizes.\n"\
