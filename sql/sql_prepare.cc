@@ -1654,6 +1654,7 @@ static int check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_DROP_INDEX:
   case SQLCOM_ROLLBACK:
   case SQLCOM_TRUNCATE:
+  case SQLCOM_CALL:
     break;
 
   default:

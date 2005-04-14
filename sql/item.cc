@@ -700,7 +700,7 @@ my_decimal *Item_splocal::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
   Item *it= this_item();
-  my_decimal value, *val= it->val_decimal(&value);
+  my_decimal *val= it->val_decimal(decimal_value);
   Item::null_value= it->null_value;
   return val;
 }

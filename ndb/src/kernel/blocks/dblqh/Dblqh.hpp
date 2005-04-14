@@ -970,7 +970,6 @@ public:
     
     enum LcpState {
       LCP_IDLE = 0,
-      LCP_STARTED = 1,
       LCP_COMPLETED = 2,
       LCP_WAIT_FRAGID = 3,
       LCP_WAIT_TUP_PREPLCP = 4,
@@ -2269,7 +2268,7 @@ private:
   void sendCopyActiveConf(Signal* signal,Uint32 tableId);
   void checkLcpCompleted(Signal* signal);
   void checkLcpHoldop(Signal* signal);
-  void checkLcpStarted(Signal* signal);
+  bool checkLcpStarted(Signal* signal);
   void checkLcpTupprep(Signal* signal);
   void getNextFragForLcp(Signal* signal);
   void initLcpLocAcc(Signal* signal, Uint32 fragId);

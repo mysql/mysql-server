@@ -4673,6 +4673,10 @@ ha_innobase::rename_table(
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
 
+	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
 	name_len1 = strlen(from);
 	name_len2 = strlen(to);
 
@@ -6132,7 +6136,8 @@ ha_innobase::store_lock(
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
 	    lock_type == TL_READ_NO_INSERT ||
-	    thd->lex->sql_command != SQLCOM_SELECT) {
+	    (thd->lex->sql_command != SQLCOM_SELECT
+	     && lock_type != TL_IGNORE)) {
 
 		/* The OR cases above are in this order:
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
