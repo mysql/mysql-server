@@ -50,7 +50,7 @@
  **/
 #define MAX_TUPLES_PER_PAGE 8191
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
-#define MAX_TABLES 1600
+#define MAX_TABLES 20320                /* SchemaFile.hpp */
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE 32
 #define MAX_ATTR_DEFAULT_VALUE_SIZE 128

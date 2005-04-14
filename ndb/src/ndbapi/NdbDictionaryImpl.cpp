@@ -208,11 +208,13 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   if(m_nullable != col.m_nullable){
     DBUG_RETURN(false);
   }
+#ifdef ndb_dictionary_dkey_fixed
   if(m_pk){
     if(m_distributionKey != col.m_distributionKey){
       DBUG_RETURN(false);
     }
   }
+#endif
   if (m_precision != col.m_precision ||
       m_scale != col.m_scale ||
       m_length != col.m_length ||
