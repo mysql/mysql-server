@@ -1165,6 +1165,7 @@ static struct passwd *check_user(const char *user)
 
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
+  unireg_abort(1);
 #endif
   return NULL;
 }
