@@ -1165,6 +1165,7 @@ static struct passwd *check_user(const char *user)
 
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
+  unireg_abort(1);
 #endif
   return NULL;
 }
@@ -6434,6 +6435,18 @@ static void get_options(int argc,char **argv)
   if (opt_bdb)
     sql_print_warning("this binary does not contain BDB storage engine");
 #endif
+
+  /*
+    Check that the default storage engine is actually available.
+  */
+  if (!ha_storage_engine_is_enabled((enum db_type)
+                                    global_system_variables.table_type))
+  {
+    sql_print_error("Default storage engine (%s) is not available",
+                    ha_get_storage_engine((enum db_type)
+                                          global_system_variables.table_type));
+    exit(1);
+  }
 
   if (argc > 0)
   {
