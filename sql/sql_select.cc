@@ -3161,10 +3161,14 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   }
 
   /*
-    Special treatment for ft-keys.
-    Remove the following things from KEYUSE:
+    Sort the array of possible keys and remove the following key parts:
     - ref if there is a keypart which is a ref and a const.
-    - keyparts without previous keyparts.
+      (e.g. if there is a key(a,b) and the clause is a=3 and b=7 and b=t2.d,
+      then we skip the key part corresponding to b=t2.d)
+    - keyparts without previous keyparts
+      (e.g. if there is a key(a,b,c) but only b < 5 (or a=2 and c < 3) is
+      used in the query, we drop the partial key parts from consideration).
+    Special treatment for ft-keys.
   */
   if (keyuse->elements)
   {
