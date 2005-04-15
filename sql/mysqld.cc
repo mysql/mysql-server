@@ -6435,6 +6435,18 @@ static void get_options(int argc,char **argv)
     sql_print_warning("this binary does not contain BDB storage engine");
 #endif
 
+  /*
+    Check that the default storage engine is actually available.
+  */
+  if (!ha_storage_engine_is_enabled((enum db_type)
+                                    global_system_variables.table_type))
+  {
+    sql_print_error("Default storage engine (%s) is not available",
+                    ha_get_storage_engine((enum db_type)
+                                          global_system_variables.table_type));
+    exit(1);
+  }
+
   if (argc > 0)
   {
     fprintf(stderr, "%s: Too many arguments (first extra is '%s').\nUse --help to get a list of available options\n", my_progname, *argv);
