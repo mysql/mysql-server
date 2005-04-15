@@ -2026,6 +2026,12 @@ typedef struct st_sp_table
   LEX_STRING qname;
   bool temp;
   TABLE_LIST *table;
+  /*
+    We can't use table->lock_type as lock type for table
+    in multi-set since it can be changed by statement during
+    its execution (e.g. as this happens for multi-update).
+  */
+  thr_lock_type lock_type;
   uint lock_count;
   uint query_lock_count;
 } SP_TABLE;
@@ -2097,8 +2103,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
       */
       if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)))
       {
-	if (tab->table->lock_type < table->lock_type)
-	  tab->table= table;	// Use the table with the highest lock type
+        if (tab->lock_type < table->lock_type)
+          tab->lock_type= table->lock_type; // Use the table with the highest lock type
         tab->query_lock_count++;
         if (tab->query_lock_count > tab->lock_count)
           tab->lock_count++;
@@ -2116,6 +2122,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
 	  tab->temp= TRUE;
 	tab->table= table;
+        tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
 	my_hash_insert(&m_sptabs, (byte *)tab);
       }
@@ -2188,7 +2195,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->alias= otable->alias;
       table->table_name= otable->table_name;
       table->table_name_length= otable->table_name_length;
-      table->lock_type= otable->lock_type;
+      table->lock_type= stab->lock_type;
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
 
