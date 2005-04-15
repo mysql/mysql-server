@@ -542,6 +542,7 @@ int ha_init(void);
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 enum db_type ha_checktype(enum db_type database_type);
+my_bool ha_storage_engine_is_enabled(enum db_type database_type);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name,
