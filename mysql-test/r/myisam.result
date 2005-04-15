@@ -573,3 +573,11 @@ truncate table t1;
 ERROR HY000: MyISAM table 't1' is in use (most likely by a MERGE table). Try FLUSH TABLES.
 insert into t1 values (1);
 drop table t1,t2;
+create table t1 (c1 int, c2 varchar(4) not null default '',
+key(c2(3))) default charset=utf8;
+insert into t1 values (1,'A'), (2, 'B'), (3, 'A');
+update t1 set c2='A  B' where c1=2;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
