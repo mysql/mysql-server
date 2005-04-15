@@ -47,6 +47,7 @@ static const char *ha_ndb_ext=".ndb";
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
+#define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
@@ -1839,6 +1840,8 @@ int ha_ndbcluster::write_row(byte *record)
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
     Uint64 auto_value= ndb->getAutoIncrementValue((const NDBTAB *) m_table);
+    if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+      ERR_RETURN(ndb->getNdbError());
     if (set_hidden_key(op, table->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
@@ -3975,6 +3978,8 @@ longlong ha_ndbcluster::get_auto_increment()
     (m_skip_auto_increment) ? 
     ndb->readAutoIncrementValue((const NDBTAB *) m_table)
     : ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
+  if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+    ERR_RETURN(ndb->getNdbError());
   DBUG_RETURN((longlong)auto_value);
 }
 
