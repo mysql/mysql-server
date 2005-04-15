@@ -645,16 +645,6 @@ err:
 }
 
 
-bool Protocol::send_records_num(List<Item> *list, ulonglong records)
-{
-  char *pos;
-  char buff[20];
-  pos=net_store_length(buff, (uint) list->elements);
-  pos=net_store_length(pos, records);
-  return my_net_write(&thd->net, buff,(uint) (pos-buff));
-}
-
-
 bool Protocol::write()
 {
   DBUG_ENTER("Protocol::write");
