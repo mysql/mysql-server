@@ -2936,4 +2936,26 @@ select @tmp1, @tmp2|
 50	60
 drop procedure bug9598_1|
 drop procedure bug9598_2|
+drop procedure if exists bug9902|
+create function bug9902() returns int(11)
+begin
+set @x = @x + 1;
+return @x;
+end|
+set @qcs1 = @@query_cache_size|
+set global query_cache_size = 100000|
+set @x = 1|
+insert into t1 values ("qc", 42)|
+select bug9902() from t1|
+bug9902()
+2
+select bug9902() from t1|
+bug9902()
+3
+select @x|
+@x
+3
+set global query_cache_size = @qcs1|
+delete from t1|
+drop function bug9902|
 drop table t1,t2;
