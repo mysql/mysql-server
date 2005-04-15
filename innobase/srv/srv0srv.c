@@ -300,15 +300,12 @@ SQL query after it has once got the ticket at srv_conc_enter_innodb */
 #define SRV_FREE_TICKETS_TO_ENTER srv_n_free_tickets_to_enter
 #define SRV_THREAD_SLEEP_DELAY srv_thread_sleep_delay
 /*-----------------------*/
-/* If the following is set TRUE then we do not run purge and insert buffer
-merge to completion before shutdown */
+/* If the following is set to 1 then we do not run purge and insert buffer
+merge to completion before shutdown. If it is set to 2, do not even flush the
+buffer pool to data files at the shutdown: we effectively 'crash'
+InnoDB (but lose no committed transactions). */
+ulint	srv_fast_shutdown	= 0;
 
-ibool	srv_fast_shutdown	= FALSE;
-
-ibool	srv_very_fast_shutdown	= FALSE; /* if this TRUE, do not flush the
-					 buffer pool to data files at the
-					 shutdown; we effectively 'crash'
-					 InnoDB */
 /* Generate a innodb_status.<pid> file */
 ibool	srv_innodb_status	= FALSE;
 
@@ -2471,11 +2468,11 @@ background_loop:
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
-	if (!srv_very_fast_shutdown) {
+	if (srv_fast_shutdown < 2) {
 		n_pages_flushed =
 			buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 	} else {
-		/* In a 'very fast' shutdown we do not flush the buffer pool
+		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
 
 		n_pages_flushed = 0;
