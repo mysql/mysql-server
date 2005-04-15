@@ -210,7 +210,7 @@ class ha_innobase: public handler
 extern struct show_var_st innodb_status_variables[];
 extern uint innobase_init_flags, innobase_lock_type;
 extern uint innobase_flush_log_at_trx_commit;
-extern ulong innobase_cache_size;
+extern ulong innobase_cache_size, innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
@@ -229,7 +229,7 @@ extern my_bool innobase_log_archive,
                innobase_use_doublewrite,
                innobase_use_checksums,
                innobase_use_large_pages,
-               innobase_use_native_aio, innobase_fast_shutdown,
+               innobase_use_native_aio,
 	       innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_create_status_file;
 extern my_bool innobase_very_fast_shutdown; /* set this to 1 just before

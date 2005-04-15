@@ -4494,8 +4494,24 @@ Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
 Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_use_doublewrite, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
-   "Speeds up server shutdown process.", (gptr*) &innobase_fast_shutdown,
-   (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
+   "values are 0, 1 (faster)"
+   /*
+     NetWare can't close unclosed files, can't automatically kill remaining
+     threads, etc, so on this OS we disable the crash-like InnoDB shutdown.
+   */
+#ifndef __NETWARE__
+   " or 2 (fastest - crash-like)"
+#endif
+   ".",
+   (gptr*) &innobase_fast_shutdown,
+   (gptr*) &innobase_fast_shutdown, 0, GET_ULONG, OPT_ARG, 1, 0,
+#ifndef __NETWARE__
+   2,
+#else
+   1,
+#endif
+   0, 0, 0},
   {"innodb_file_per_table", OPT_INNODB_FILE_PER_TABLE,
    "Stores each InnoDB table to an .ibd file in the database dir.",
    (gptr*) &innobase_file_per_table,
@@ -6509,9 +6525,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef HAVE_INNOBASE_DB
   case OPT_INNODB_LOG_ARCHIVE:
     innobase_log_archive= argument ? test(atoi(argument)) : 1;
-    break;
-  case OPT_INNODB_FAST_SHUTDOWN:
-    innobase_fast_shutdown= argument ? test(atoi(argument)) : 1;
     break;
 #endif /* HAVE_INNOBASE_DB */
   case OPT_MYISAM_RECOVER:
