@@ -163,13 +163,8 @@ my_bool ha_storage_engine_is_enabled(enum db_type database_type)
 
 enum db_type ha_checktype(enum db_type database_type)
 {
-  show_table_type_st *types;
-  for (types= sys_table_types; types->type; types++)
-  {
-    if ((database_type == types->db_type) && 
-	(*types->value == SHOW_OPTION_YES))
-      return database_type;
-  }
+  if (ha_storage_engine_is_enabled(database_type))
+    return database_type;
 
   switch (database_type) {
 #ifndef NO_HASH

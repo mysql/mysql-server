@@ -2426,8 +2426,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
   {
     struct tm tm_tmp;
     localtime_r(&start_time,&tm_tmp);
-    strmov(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
-  }
+    strmake(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0],
+            sizeof(system_time_zone)-1);
+
+ }
 #endif
   /*
     We set SYSTEM time zone as reasonable default and 
@@ -3081,7 +3083,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (opt_bootstrap)
   {
-    int error=bootstrap(stdin);
+    select_thread_in_use= 0;                    // Allow 'kill' to work
+    int error= bootstrap(stdin);
     end_thr_alarm(1);				// Don't allow alarms
     unireg_abort(error ? 1 : 0);
   }
@@ -6184,9 +6187,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_STORAGE_ENGINE:
   {
     if ((enum db_type)((global_system_variables.table_type=
-	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
+                        ha_resolve_by_name(argument, strlen(argument)))) ==
+        DB_TYPE_UNKNOWN)
     {
-      fprintf(stderr,"Unknown table type: %s\n",argument);
+      fprintf(stderr,"Unknown/unsupported table type: %s\n",argument);
       exit(1);
     }
     break;
@@ -6442,10 +6446,14 @@ static void get_options(int argc,char **argv)
   if (!ha_storage_engine_is_enabled((enum db_type)
                                     global_system_variables.table_type))
   {
-    sql_print_error("Default storage engine (%s) is not available",
-                    ha_get_storage_engine((enum db_type)
-                                          global_system_variables.table_type));
-    exit(1);
+    if (!opt_bootstrap)
+    {
+      sql_print_error("Default storage engine (%s) is not available",
+                      ha_get_storage_engine((enum db_type)
+                                            global_system_variables.table_type));
+      exit(1);
+    }
+    global_system_variables.table_type= DB_TYPE_MYISAM;
   }
 
   if (argc > 0)
