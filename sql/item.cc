@@ -2978,41 +2978,38 @@ Item *Item_field::set_no_const_sub(byte *arg)
 
 
 /*
-  Set a pointer to the multiple equality the field reference belongs to
+  Replace an Item_field for an equal Item_field that evaluated earlier
   (if any)
    
   SYNOPSIS
-    replace_equal_field_processor()
+    replace_equal_field_()
     arg - a dummy parameter, is not used here
   
   DESCRIPTION
-    The function replaces a pointer to a field in the Item_field object
-    by a pointer to another field.
-    The replacement field is taken from the very beginning of
-    the item_equal list which the Item_field object refers to (belongs to)  
-    If the Item_field object does not refer any Item_equal object,
-    nothing is done.
+    The function returns a pointer to an item that is taken from
+    the very beginning of the item_equal list which the Item_field
+    object refers to (belongs to).  
+    If the Item_field object does not refer any Item_equal object
+    'this' is returned 
 
   NOTES
     This function is supposed to be called as a callback parameter in calls
-    of the walk method.  
+    of the thransformer method.  
 
   RETURN VALUES
-    0 
+    pointer to a replacement Item_field if there is a better equal item;
+    this - otherwise.
 */
 
-bool Item_field::replace_equal_field_processor(byte *arg)
+Item *Item_field::replace_equal_field(byte *arg)
 {
   if (item_equal)
   {
     Item_field *subst= item_equal->get_first();
     if (!field->eq(subst->field))
-    {
-      field= subst->field;
-      return 0;
-    }
+      return subst;
   }
-  return 0;
+  return this;
 }
 
 
