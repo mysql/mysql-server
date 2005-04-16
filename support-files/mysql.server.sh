@@ -66,8 +66,14 @@ lsb_functions="/lib/lsb/init-functions"
 if test -f $lsb_functions ; then
   source $lsb_functions
 else
-  alias log_success_msg="echo \ SUCCESS! "
-  alias log_failure_msg="echo \ ERROR! "
+  log_success_msg()
+  {
+    echo " SUCCESS! $@"
+  }
+  log_failure_msg()
+  {
+    echo " ERROR! $@"
+  }
 fi
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
