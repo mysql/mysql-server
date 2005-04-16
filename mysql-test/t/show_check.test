@@ -357,3 +357,14 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+# Test for BUG#9439 "Reporting wrong datatype for sub_part on show index"
+CREATE TABLE t1(
+  field1 text NOT NULL,
+  PRIMARY KEY(field1(1000))
+);
+--enable_metadata
+show index from t1;
+--disable_metadata
+drop table t1;
+
