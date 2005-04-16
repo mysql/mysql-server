@@ -198,7 +198,7 @@ drop table t1;
 # bug #1172: "Force index" option caused server crash
 #
 CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
-INSERT INTO t1 VALUES (0),(1),(1);
+INSERT INTO t1 VALUES (0),(0),(0),(0),(0),(1),(1);
 CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
