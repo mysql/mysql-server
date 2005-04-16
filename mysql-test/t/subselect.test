@@ -1752,3 +1752,24 @@ insert into t1 values (1, 1), (2, 2), (2, 3), (3, 4), (3, 5), (3, 6), (NULL, NUL
 select * from t1;
 select min(a) from t1 group by grp;
 drop table t1;
+
+#
+# Test for bug #9338: lame substitution of c1 instead of c2 
+#
+
+CREATE table t1 ( c1 integer );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+
+CREATE TABLE t2 ( c2 integer );
+INSERT INTO t2 VALUES ( 1 );
+INSERT INTO t2 VALUES ( 4 );
+INSERT INTO t2 VALUES ( 5 );
+
+SELECT * FROM t1 LEFT JOIN t2 ON c1 = c2 WHERE c2 IN (1);
+
+SELECT * FROM t1 LEFT JOIN t2 ON c1 = c2
+  WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) );
+
+DROP TABLE t1,t2;
