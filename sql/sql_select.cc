@@ -7050,7 +7050,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
     return eliminate_item_equal(0, cond_equal, item_equal);
   }
   else
-    cond->walk(&Item::replace_equal_field_processor, 0);
+    cond->transform(&Item::replace_equal_field, 0);
   return cond;
 }
 
