@@ -980,7 +980,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   field_list.push_back(item=new Item_int("Cardinality",0,21));
   item->maybe_null=1;
   field_list.push_back(item=new Item_return_int("Sub_part",3,
-						MYSQL_TYPE_TINY));
+						MYSQL_TYPE_SHORT));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Packed",10));
   item->maybe_null=1;
@@ -1025,7 +1025,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       /* Check if we have a key part that only uses part of the field */
       if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
           key_part->length != table->field[key_part->fieldnr-1]->key_length()))
-        protocol->store_tiny((longlong) key_part->length / 
+        protocol->store_short((longlong) key_part->length / 
                              key_part->field->charset()->mbmaxlen);
       else
         protocol->store_null();
