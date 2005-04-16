@@ -49,6 +49,7 @@ datadir=
 # Set some defaults
 pid_file=
 server_pid_file=
+use_mysqld_safe=1
 user=@MYSQLD_USER@
 if test -z "$basedir"
 then
@@ -59,6 +60,7 @@ then
   libexecdir=@libexecdir@
 else
   bindir="$basedir/bin"
+  datadir="$basedir/data"
   sbindir="$basedir/bin"
   libexecdir="$basedir/bin"
 fi
@@ -94,10 +96,17 @@ esac
 parse_server_arguments() {
   for arg do
     case "$arg" in
-      --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'`
+                    bindir="$basedir/bin"
+		    datadir="$basedir/data"
+		    sbindir="$basedir/bin"
+		    libexecdir="$basedir/bin"
+        ;;
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --pid-file=*) server_pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --use-mysqld_safe) use_mysqld_safe=1;;
+      --use-manager)     use_mysqld_safe=0;;
     esac
   done
 }
@@ -178,14 +187,19 @@ else
 fi
 
 #
-# Test if someone changed datadir;  In this case we should also read the
-# default arguments from this directory
+# Read defaults file from 'basedir'.   If there is no defaults file there
+# check if it's in the old (depricated) place (datadir) and read it from there
 #
 
 extra_args=""
-if test "$datadir" != "@localstatedir@"
+if test -r "$basedir/my.cnf"
 then
-  extra_args="-e $datadir/my.cnf"
+  extra_args="-e $basedir/my.cnf"
+else
+  if test -r "$datadir/my.cnf"
+  then
+    extra_args="-e $datadir/my.cnf"
+  fi
 fi
 
 parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
@@ -231,11 +245,11 @@ case "$mode" in
       manager=$sbindir/mysqlmanager
     fi
 
-    if test -x $manager
+    echo $echo_n "Starting MySQL"
+    if test -x $manager -a "$use_mysqld_safe" = "0"
     then
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      echo $echo_n "Starting MySQL"
       $manager --user=$user --pid-file=$pid_file >/dev/null 2>&1 &
       wait_for_pid created
 
@@ -246,8 +260,8 @@ case "$mode" in
       fi
     elif test -x $bindir/mysqld_safe
     then
-      # Give extra arguments to mysqld with the my.cnf file. This script may  be overwritten at next upgrade.
-      echo $echo_n "Starting MySQL"
+      # Give extra arguments to mysqld with the my.cnf file. This script
+      # may be overwritten at next upgrade.
       pid_file=$server_pid_file
       $bindir/mysqld_safe --datadir=$datadir --pid-file=$server_pid_file >/dev/null 2>&1 &
       wait_for_pid created
