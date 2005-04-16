@@ -3932,7 +3932,6 @@ select_part2:
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX *sel= lex->current_select;
-	  lex->lock_option= TL_READ;
 	  if (sel->linkage != UNION_TYPE)
 	    mysql_init_select(lex);
 	  lex->current_select->parsing_place= SELECT_LIST;
