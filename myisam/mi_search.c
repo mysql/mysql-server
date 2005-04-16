@@ -210,9 +210,31 @@ int _mi_bin_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 } /* _mi_bin_search */
 
 
-        /* Used instead of _mi_bin_search() when key is packed */
-        /* Puts smaller or identical key in buff */
-        /* Key is searched sequentially */
+/*
+  Locate a packed key in a key page.
+
+  SYNOPSIS
+    _mi_seq_search()
+    info                        Open table information.
+    keyinfo                     Key definition information.
+    page                        Key page (beginning).
+    key                         Search key.
+    key_len                     Length to use from search key or USE_WHOLE_KEY
+    comp_flag                   Search flags like SEARCH_SAME etc.
+    ret_pos             RETURN  Position in key page behind this key.
+    buff                RETURN  Copy of previous or identical unpacked key.
+    last_key            RETURN  If key is last in page.
+
+  DESCRIPTION
+    Used instead of _mi_bin_search() when key is packed.
+    Puts smaller or identical key in buff.
+    Key is searched sequentially.
+
+  RETURN
+    > 0         Key in 'buff' is smaller than search key.
+    0           Key in 'buff' is identical to search key.
+    < 0         Not found.
+*/
 
 int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                    uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
@@ -718,7 +740,19 @@ uint _mi_get_static_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 } /* _mi_get_static_key */
 
 
-/* Key with is packed against previous key or key with a NULL column */
+/*
+  get key witch is packed against previous key or key with a NULL column.
+
+  SYNOPSIS
+    _mi_get_pack_key()
+    keyinfo                     key definition information.
+    nod_flag                    If nod: Length of node pointer, else zero.
+    page_pos            RETURN  position in key page behind this key.
+    key                 IN/OUT  in: prev key, out: unpacked key.
+
+  RETURN
+    key_length + length of data pointer
+*/
 
 uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
                       register uchar **page_pos, register uchar *key)
@@ -1339,12 +1373,12 @@ _mi_calc_var_key_length(MI_KEYDEF *keyinfo,uint nod_flag,
 
   Keys are compressed the following way:
 
-  If the max length of first key segment <= 127 characters the prefix is
+  If the max length of first key segment <= 127 bytes the prefix is
   1 byte else it's 2 byte
 
-  prefix byte    The high bit is set if this is a prefix for the prev key
+  prefix byte(s) The high bit is set if this is a prefix for the prev key
   length         Packed length if the previous was a prefix byte
-  [length]       Length character of data
+  [length]       data bytes ('length' bytes)
   next-key-seg   Next key segments
 
   If the first segment can have NULL:
@@ -1537,7 +1571,8 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
             s_temp->part_of_prev_key= new_ref_length;
             s_temp->prev_length=          org_key_length -
               (new_ref_length-pack_marker);
-            s_temp->n_ref_length= s_temp->n_length= s_temp->prev_length;
+            s_temp->n_ref_length= s_temp->part_of_prev_key;
+            s_temp->n_length= s_temp->prev_length;
             n_length=             get_pack_length(s_temp->prev_length);
             s_temp->prev_key+=    (new_ref_length - pack_marker);
             length+=              s_temp->prev_length + n_length;
