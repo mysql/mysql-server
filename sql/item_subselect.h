@@ -96,6 +96,7 @@ public:
   virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
+  table_map not_null_tables() const { return 0; }
   bool const_item() const;
   inline table_map get_used_tables_cache() { return used_tables_cache; }
   inline bool get_const_item_cache() { return const_item_cache; }
