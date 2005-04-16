@@ -1683,6 +1683,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	  last=last->next;
 	  key1=key1->tree_delete(save);
 	}
+        last->copy_min(tmp);
 	if (last->copy_min(key2) || last->copy_max(key2))
 	{					// Full range
 	  key1->free_tree();
