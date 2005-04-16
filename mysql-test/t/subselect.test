@@ -1773,3 +1773,29 @@ SELECT * FROM t1 LEFT JOIN t2 ON c1 = c2
   WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) );
 
 DROP TABLE t1,t2;
+
+#
+# Test for bug #9516: wrong evaluation of not_null_tables attribute in SQ 
+#
+
+CREATE TABLE t1 ( c1 integer );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+INSERT INTO t1 VALUES ( 6 ); 
+ 
+CREATE TABLE t2 ( c2 integer );
+INSERT INTO t2 VALUES ( 1 );
+INSERT INTO t2 VALUES ( 4 );
+INSERT INTO t2 VALUES ( 5 );
+INSERT INTO t2 VALUES ( 6 );
+
+CREATE TABLE t3 ( c3 integer );
+INSERT INTO t3 VALUES ( 7 );
+INSERT INTO t3 VALUES ( 8 );
+
+SELECT c1,c2 FROM t1 LEFT JOIN t2 ON c1 = c2 
+  WHERE EXISTS (SELECT c3 FROM t3 WHERE c2 IS NULL );
+
+DROP TABLE t1,t2,t3;
+
