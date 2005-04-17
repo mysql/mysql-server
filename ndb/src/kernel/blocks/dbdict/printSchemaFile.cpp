@@ -2,6 +2,9 @@
 make -f Makefile -f - printSchemaFile <<'_eof_'
 printSchemaFile: printSchemaFile.cpp SchemaFile.hpp
 	$(CXXCOMPILE) -o $@ $@.cpp -L../../../common/util/.libs -lgeneral
+ifneq ($(MYSQL_HOME),)
+	ln -sf `pwd`/$@ $(MYSQL_HOME)/bin/$@
+endif
 _eof_
 exit $?
 #endif
@@ -134,7 +137,7 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
                  << " State = " << te.m_tableState 
                  << " version = " << te.m_tableVersion
                  << " type = " << te.m_tableType
-                 << " noOfPages = " << te.m_noOfPages
+                 << " noOfWords = " << te.m_info_words
                  << " gcp: " << te.m_gcp << endl;
       }
       if (te.m_unused[0] != 0 || te.m_unused[1] != 0 || te.m_unused[2] != 0) {
