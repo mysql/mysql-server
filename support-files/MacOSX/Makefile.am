@@ -38,8 +38,7 @@ CLEANFILES =	Info.plist \
 		Description.plist \
 		StartupParameters.plist \
 		postinstall \
-		preinstall \
-		ReadMe.txt
+		preinstall
 
 SUFFIXES = .sh
 
