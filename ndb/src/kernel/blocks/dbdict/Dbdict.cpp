@@ -1132,20 +1132,23 @@ Dbdict::convertSchemaFileTo_5_0_5(XSchemaFile * xsf)
   Uint32 noOfPages = 1;
   Uint32 n, i, j;
   for (n = 0; n < xsf->noOfPages; n++) {
+    jam();
     for (i = 0; i < NDB_SF_PAGE_ENTRIES; i++) {
       j = n * NDB_SF_PAGE_ENTRIES + i;
       if (j >= sf_old->NoOfTableEntries)
         continue;
       const SchemaFile::TableEntry_old & te_old = sf_old->TableEntries_old[j];
       if (te_old.m_tableState == SchemaFile::INIT ||
-          te_old.m_tableState == SchemaFile::DROP_TABLE_COMMITTED)
+          te_old.m_tableState == SchemaFile::DROP_TABLE_COMMITTED ||
+          te_old.m_noOfPages == 0)
         continue;
       SchemaFile * sf = &xsf->schemaPage[n];
       SchemaFile::TableEntry & te = sf->TableEntries[i];
       te.m_tableState = te_old.m_tableState;
       te.m_tableVersion = te_old.m_tableVersion;
       te.m_tableType = te_old.m_tableType;
-      te.m_noOfPages = te_old.m_noOfPages;
+      te.m_info_words = te_old.m_noOfPages * ZSIZE_OF_PAGES_IN_WORDS -
+                        ZPAGE_HEADER_SIZE;
       te.m_gcp = te_old.m_gcp;
       if (noOfPages < n)
         noOfPages = n;
@@ -2503,7 +2506,8 @@ Dbdict::restartCreateTab(Signal* signal, Uint32 tableId,
   if(file && !ERROR_INSERTED(6002)){
     jam();
     
-    c_readTableRecord.noOfPages = te->m_noOfPages;
+    c_readTableRecord.noOfPages =
+      DIV(te->m_info_words + ZPAGE_HEADER_SIZE, ZSIZE_OF_PAGES_IN_WORDS);
     c_readTableRecord.pageId = 0;
     c_readTableRecord.m_callback.m_callbackData = createTabPtr.p->key;
     c_readTableRecord.m_callback.m_callbackFunction = 
@@ -3291,8 +3295,7 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
     tabEntry.m_tableType    = tablePtr.p->tableType;
     tabEntry.m_tableState   = SchemaFile::ALTER_TABLE_COMMITTED;
     tabEntry.m_gcp          = gci;
-    tabEntry.m_noOfPages    = 
-      DIV(tabInfoPtr.sz + ZPAGE_HEADER_SIZE, ZSIZE_OF_PAGES_IN_WORDS);
+    tabEntry.m_info_words   = tabInfoPtr.sz;
     memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
     
     Callback callback;
@@ -4114,8 +4117,7 @@ Dbdict::createTab_prepare(Signal* signal, CreateTabReq * req){
   tabEntry.m_tableType    = tabPtr.p->tableType;
   tabEntry.m_tableState   = SchemaFile::ADD_STARTED;
   tabEntry.m_gcp          = gci;
-  tabEntry.m_noOfPages    = 
-    DIV(tabInfoPtr.sz + ZPAGE_HEADER_SIZE, ZSIZE_OF_PAGES_IN_WORDS);
+  tabEntry.m_info_words   = tabInfoPtr.sz;
   memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
   
   Callback callback;
@@ -4571,8 +4573,7 @@ Dbdict::createTab_commit(Signal * signal, CreateTabReq * req){
   tabEntry.m_tableType    = tabPtr.p->tableType;
   tabEntry.m_tableState   = SchemaFile::TABLE_ADD_COMMITTED;
   tabEntry.m_gcp          = tabPtr.p->gciTableCreated;
-  tabEntry.m_noOfPages    = 
-    DIV(tabPtr.p->packedSize + ZPAGE_HEADER_SIZE, ZSIZE_OF_PAGES_IN_WORDS);
+  tabEntry.m_info_words   = tabPtr.p->packedSize;
   memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
   
   Callback callback;

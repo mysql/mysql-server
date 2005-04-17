@@ -62,7 +62,7 @@ struct SchemaFile {
     Uint32 m_tableState;
     Uint32 m_tableVersion;
     Uint32 m_tableType;
-    Uint32 m_noOfPages;
+    Uint32 m_info_words;
     Uint32 m_gcp;
     Uint32 m_unused[3];
     
