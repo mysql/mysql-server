@@ -227,7 +227,6 @@ Dbacc::Dbacc(const class Configuration & conf):
                     &mlpqOperPtr,
                     &queOperPtr,
                     &readWriteOpPtr,
-                    &tgnptMainOpPtr,
                     &iopOverflowRecPtr,
                     &tfoOverflowRecPtr,
                     &porOverflowRecPtr,
