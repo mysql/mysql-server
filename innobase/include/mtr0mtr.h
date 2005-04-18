@@ -112,7 +112,11 @@ flag value must give the length also! */
 						/* mark compact clustered index
 						record deleted */
 #define MLOG_COMP_REC_SEC_DELETE_MARK ((byte)40)/* mark compact secondary index
-						record deleted */
+						record deleted; this log
+						record type is redundant, as
+						MLOG_REC_SEC_DELETE_MARK is
+						independent of the record
+						format. */
 #define MLOG_COMP_REC_UPDATE_IN_PLACE ((byte)41)/* update of a compact record,
 						preserves record field sizes */
 #define MLOG_COMP_REC_DELETE	((byte)42)	/* delete a compact record
