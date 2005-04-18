@@ -51,14 +51,19 @@ innobase_invalidate_query_cache(
 				chars count */
 
 /**********************************************************************
-This function returns true if SQL-query in the current thread
+This function returns true if 
+
+1) SQL-query in the current thread
 is either REPLACE or LOAD DATA INFILE REPLACE. 
+
+2) SQL-query in the current thread
+is INSERT ON DUPLICATE KEY UPDATE.
+
 NOTE that /mysql/innobase/row/row0ins.c must contain the 
 prototype for this function ! */
 
 ibool
-innobase_query_is_replace(void);
-/*===========================*/
+innobase_query_is_update(void);
 
 /*************************************************************************
 Creates an insert node struct. */
@@ -1562,12 +1567,12 @@ row_ins_scan_sec_index_for_duplicate(
 		trx = thr_get_trx(thr);      
 		ut_ad(trx);
 
-		if (innobase_query_is_replace()) {
+		if (innobase_query_is_update()) {
 
-			/* The manual defines the REPLACE semantics that it 
-			is either an INSERT or DELETE(s) for duplicate key
-			+ INSERT. Therefore, we should take X-lock for 
-			duplicates */
+			/* If the SQL-query will update or replace
+			duplicate key we will take X-lock for 
+			duplicates ( REPLACE, LOAD DATAFILE REPLACE, 
+			INSERT ON DUPLICATE KEY UPDATE). */
 			
 			err = row_ins_set_exclusive_rec_lock(
 						LOCK_ORDINARY,rec,index,thr);
@@ -1675,12 +1680,12 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (innobase_query_is_replace()) {
+			if (innobase_query_is_update()) {
 
-				/* The manual defines the REPLACE semantics 
-				that it is either an INSERT or DELETE(s) 
-				for duplicate key + INSERT. Therefore, we 
-				should take X-lock for duplicates */
+				/* If the SQL-query will update or replace
+				duplicate key we will take X-lock for 
+				duplicates ( REPLACE, LOAD DATAFILE REPLACE, 
+				INSERT ON DUPLICATE KEY UPDATE). */
 				
 				err = row_ins_set_exclusive_rec_lock(
 					LOCK_REC_NOT_GAP,rec,cursor->index,
@@ -1713,12 +1718,12 @@ row_ins_duplicate_error_in_clust(
 		if (rec != page_get_supremum_rec(page)) {
 
 
-			/* The manual defines the REPLACE semantics that it 
-			is either an INSERT or DELETE(s) for duplicate key
-			+ INSERT. Therefore, we should take X-lock for
-			duplicates. */
+			if (innobase_query_is_update()) {
 
-			if (innobase_query_is_replace()) {
+				/* If the SQL-query will update or replace
+				duplicate key we will take X-lock for 
+				duplicates ( REPLACE, LOAD DATAFILE REPLACE, 
+				INSERT ON DUPLICATE KEY UPDATE). */
 
 				err = row_ins_set_exclusive_rec_lock(
 						LOCK_REC_NOT_GAP,
