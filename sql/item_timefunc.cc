@@ -761,6 +761,81 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
 }
 
 
+/*
+  Calculate difference between two datetime values as seconds + microseconds.
+
+  SYNOPSIS
+    calc_time_diff()
+      l_time1         - TIME/DATE/DATETIME value
+      l_time2         - TIME/DATE/DATETIME value
+      l_sign          - 1 absolute values are substracted,
+                        -1 absolute values are added.
+      seconds_out     - Out parameter where difference between
+                        l_time1 and l_time2 in seconds is stored.
+      microseconds_out- Out parameter where microsecond part of difference
+                        between l_time1 and l_time2 is stored.
+
+  NOTE
+    This function calculates difference between l_time1 and l_time2 absolute
+    values. So one should set l_sign and correct result if he want to take
+    signs into account (i.e. for TIME values).
+
+  RETURN VALUES
+    Returns sign of difference.
+    1 means negative result
+    0 means positive result
+
+*/
+
+static bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
+                           longlong *seconds_out, long *microseconds_out)
+{
+  long days;
+  bool neg;
+  longlong microseconds;
+
+  /*
+    We suppose that if first argument is MYSQL_TIMESTAMP_TIME
+    the second argument should be TIMESTAMP_TIME also.
+    We should check it before calc_time_diff call.
+  */
+  if (l_time1->time_type == MYSQL_TIMESTAMP_TIME)  // Time value
+    days= l_time1->day - l_sign*l_time2->day;
+  else
+  {
+    days= calc_daynr((uint) l_time1->year,
+		     (uint) l_time1->month,
+		     (uint) l_time1->day);
+    if (l_time2->time_type == MYSQL_TIMESTAMP_TIME)
+      days-= l_sign*l_time2->day;
+    else
+      days-= l_sign*calc_daynr((uint) l_time2->year,
+			       (uint) l_time2->month,
+			       (uint) l_time2->day);
+  }
+
+  microseconds= ((longlong)days*LL(86400) +
+                 (longlong)(l_time1->hour*3600L +
+                            l_time1->minute*60L +
+                            l_time1->second) -
+                 l_sign*(longlong)(l_time2->hour*3600L +
+                                   l_time2->minute*60L +
+                                   l_time2->second)) * LL(1000000) +
+                (longlong)l_time1->second_part -
+                l_sign*(longlong)l_time2->second_part;
+
+  neg= 0;
+  if (microseconds < 0)
+  {
+    microseconds= -microseconds;
+    neg= 1;
+  }
+  *seconds_out= microseconds/1000000L;
+  *microseconds_out= (long) (microseconds%1000000L);
+  return neg;
+}
+
+
 longlong Item_func_period_add::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -2332,11 +2407,11 @@ String *Item_func_add_time::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   TIME l_time1, l_time2, l_time3;
   bool is_time= 0;
-  long microseconds, seconds, days= 0;
+  long days, microseconds;
+  longlong seconds;
   int l_sign= sign;
 
   null_value=0;
-  l_time3.neg= 0;
   if (is_date)                        // TIMESTAMP function
   {
     if (get_arg0_date(&l_time1,1) || 
@@ -2352,51 +2427,26 @@ String *Item_func_add_time::val_str(String *str)
         l_time2.time_type == MYSQL_TIMESTAMP_DATETIME)
       goto null_date;
     is_time= (l_time1.time_type == MYSQL_TIMESTAMP_TIME);
-    if (is_time && (l_time2.neg == l_time1.neg && l_time1.neg))
-      l_time3.neg= 1;
   }
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  microseconds= l_time1.second_part + l_sign*l_time2.second_part;
-  seconds= (l_time1.hour*3600L + l_time1.minute*60L + l_time1.second +
-	    (l_time2.day*86400L + l_time2.hour*3600L +
-	     l_time2.minute*60L + l_time2.second)*l_sign);
-  if (is_time)
-    seconds+= l_time1.day*86400L;
-  else
-    days+= calc_daynr((uint) l_time1.year,(uint) l_time1.month,
-		      (uint) l_time1.day);
-  seconds= seconds + microseconds/1000000L;
-  microseconds= microseconds%1000000L;
-  days+= seconds/86400L;
-  seconds= seconds%86400L;
+  l_time3.neg= calc_time_diff(&l_time1, &l_time2, -l_sign,
+			      &seconds, &microseconds);
 
-  if (microseconds < 0)
-  {
-    microseconds+= 1000000L;
-    seconds--;
-  }
-  if (seconds < 0)
-  {
-    days+= seconds/86400L - 1;
-    seconds+= 86400L;
-  }
-  if (days < 0)
-  {
-    if (!is_time)
-      goto null_date;
-    if (microseconds)
-    {
-      microseconds= 1000000L - microseconds;
-      seconds++; 
-    }
-    seconds= 86400L - seconds;
-    days= -(++days);
-    l_time3.neg= 1;
-  }
+  /*
+    If first argument was negative and diff between arguments
+    is non-zero we need to swap sign to get proper result.
+  */
+  if (l_time1.neg && (seconds || microseconds))
+    l_time3.neg= 1-l_time3.neg;         // Swap sign of result
 
-  calc_time_from_sec(&l_time3, seconds, microseconds);
+  if (!is_time && l_time3.neg)
+    goto null_date;
+
+  days= (long)(seconds/86400L);
+
+  calc_time_from_sec(&l_time3, (long)(seconds%86400L), microseconds);
   if (!is_time)
   {
     get_date_from_daynr(days,&l_time3.year,&l_time3.month,&l_time3.day);
@@ -2452,8 +2502,8 @@ void Item_func_add_time::print(String *str)
 String *Item_func_timediff::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  longlong microseconds;
-  long days;
+  longlong seconds;
+  long microseconds;
   int l_sign= 1;
   TIME l_time1 ,l_time2, l_time3;
 
@@ -2466,33 +2516,18 @@ String *Item_func_timediff::val_str(String *str)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  if (l_time1.time_type == MYSQL_TIMESTAMP_TIME) // Time value
-    days= l_time1.day - l_sign*l_time2.day;
-  else                                      // DateTime value
-    days= (calc_daynr((uint) l_time1.year,
-		      (uint) l_time1.month,
-		      (uint) l_time1.day) - 
-	   l_sign*calc_daynr((uint) l_time2.year,
-			     (uint) l_time2.month,
-			     (uint) l_time2.day));
+  l_time3.neg= calc_time_diff(&l_time1, &l_time2, l_sign,
+			      &seconds, &microseconds);
 
-  microseconds= ((longlong)days*86400L +
-                 l_time1.hour*3600L + l_time1.minute*60L + l_time1.second -
-                 (longlong)l_sign*(l_time2.hour*3600L + l_time2.minute*60L +
-                                   l_time2.second))*1000000 +
-                 l_time1.second_part - l_sign*l_time2.second_part;
+  /*
+    For MYSQL_TIMESTAMP_TIME only:
+      If first argument was negative and diff between arguments
+      is non-zero we need to swap sign to get proper result.
+  */
+  if (l_time1.neg && (seconds || microseconds))
+    l_time3.neg= 1-l_time3.neg;         // Swap sign of result
 
-  l_time3.neg= 0;
-  if (microseconds < 0)
-  {
-    microseconds= -microseconds;
-    l_time3.neg= 1;
-  }
-  if ((l_time2.neg == l_time1.neg) && l_time1.neg && microseconds)
-    l_time3.neg= l_time3.neg ? 0 : 1;
-
-  calc_time_from_sec(&l_time3, (long)(microseconds/1000000),
-                               (long)(microseconds%1000000));
+  calc_time_from_sec(&l_time3, (long) seconds, microseconds);
 
   if (!make_datetime(l_time1.second_part || l_time2.second_part ?
 		     TIME_MICROSECOND : TIME_ONLY,
