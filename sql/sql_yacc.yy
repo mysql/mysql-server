@@ -4597,14 +4597,16 @@ simple_expr:
 	  { $$= new Item_int((char*) "TRUE",1,1); }
 	| ident '.' ident '(' udf_expr_list ')'
 	  {
+	    LEX *lex= Lex;
 	    sp_name *name= new sp_name($1, $3);
 
 	    name->init_qname(YYTHD);
-	    sp_add_to_hash(&Lex->spfuns, name);
+	    sp_add_to_hash(&lex->spfuns, name);
 	    if ($5)
 	      $$= new Item_func_sp(name, *$5);
 	    else
 	      $$= new Item_func_sp(name);
+	    lex->safe_to_cache_query=0;
 	  }
 	| IDENT_sys '(' udf_expr_list ')'
           {
@@ -4685,13 +4687,15 @@ simple_expr:
             else
 #endif /* HAVE_DLOPEN */
             {
+	      LEX *lex= Lex;
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
-              sp_add_to_hash(&Lex->spfuns, name);
+              sp_add_to_hash(&lex->spfuns, name);
               if ($3)
                 $$= new Item_func_sp(name, *$3);
               else
                 $$= new Item_func_sp(name);
+	      lex->safe_to_cache_query=0;
 	    }
           }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
