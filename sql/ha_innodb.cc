@@ -6518,7 +6518,7 @@ prototype for this function ! */
 
 ibool
 innobase_query_is_update(void)
-/*===========================*/
+/*==========================*/
 {
 	THD*	thd;
 	
