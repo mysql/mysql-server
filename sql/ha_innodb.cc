@@ -5653,13 +5653,19 @@ innobase_get_at_most_n_mbchars(
 
 extern "C" {
 /**********************************************************************
-This function returns true if SQL-query in the current thread
+This function returns true if 
+
+1) SQL-query in the current thread
 is either REPLACE or LOAD DATA INFILE REPLACE. 
+
+2) SQL-query in the current thread
+is INSERT ON DUPLICATE KEY UPDATE.
+
 NOTE that /mysql/innobase/row/row0ins.c must contain the 
 prototype for this function ! */
 
 ibool
-innobase_query_is_replace(void)
+innobase_query_is_update(void)
 /*===========================*/
 {
 	THD*	thd;
@@ -5671,9 +5677,14 @@ innobase_query_is_replace(void)
 	     ( thd->lex->sql_command == SQLCOM_LOAD &&
 	       thd->lex->duplicates == DUP_REPLACE )) {
 		return true;
-	} else {
-		return false;
 	}
+
+	if ( thd->lex->sql_command == SQLCOM_INSERT &&
+	     thd->lex->duplicates  == DUP_UPDATE ) {
+		return true;
+	}
+
+	return false;
 }
 }
 
