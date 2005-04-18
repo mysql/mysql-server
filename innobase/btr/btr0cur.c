@@ -2189,17 +2189,13 @@ void
 btr_cur_del_mark_set_sec_rec_log(
 /*=============================*/
 	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: record descriptor */
 	ibool		val,	/* in: value to set */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	byte*	log_ptr;
 	ut_ad(val <= 1);
 
-	log_ptr = mlog_open_and_write_index(mtr, rec, index, index->table->comp
-			? MLOG_COMP_REC_SEC_DELETE_MARK
-			: MLOG_REC_SEC_DELETE_MARK,
-			1 + 2);
+	log_ptr = mlog_open(mtr, 11 + 1 + 2);
 
 	if (!log_ptr) {
 		/* Logging in mtr is switched off during crash recovery:
@@ -2207,10 +2203,12 @@ btr_cur_del_mark_set_sec_rec_log(
 		return;
 	}
 
+	log_ptr = mlog_write_initial_log_record_fast(
+			rec, MLOG_REC_SEC_DELETE_MARK, log_ptr, mtr);
 	mach_write_to_1(log_ptr, val);
 	log_ptr++;
 
-	mach_write_to_2(log_ptr, rec - buf_frame_align(rec));
+	mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
 	log_ptr += 2;
 
 	mlog_close(mtr, log_ptr);
@@ -2226,7 +2224,6 @@ btr_cur_parse_del_mark_set_sec_rec(
 				/* out: end of log record or NULL */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
-	dict_index_t*	index,	/* in: record descriptor */
 	page_t*		page)	/* in: page or NULL */
 {
 	ibool	val;
@@ -2253,7 +2250,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 		is only being recovered, and there cannot be a hash index to
 		it. */
 
-		rec_set_deleted_flag(rec, index->table->comp, val);
+		rec_set_deleted_flag(rec, page_is_comp(page), val);
 	}
 	
 	return(ptr);
@@ -2293,18 +2290,21 @@ btr_cur_del_mark_set_sec_rec(
 	}
 
 	block = buf_block_align(rec);
+	ut_ad(!!page_is_comp(buf_block_get_frame(block))
+			== cursor->index->table->comp);
 	
 	if (block->is_hashed) {
 		rw_lock_x_lock(&btr_search_latch);
 	}
 
-	rec_set_deleted_flag(rec, cursor->index->table->comp, val);
+	rec_set_deleted_flag(rec, page_is_comp(buf_block_get_frame(block)),
+									val);
 
 	if (block->is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
 
-	btr_cur_del_mark_set_sec_rec_log(rec, cursor->index, val, mtr);
+	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 
 	return(DB_SUCCESS);
 }
@@ -2317,15 +2317,14 @@ void
 btr_cur_del_unmark_for_ibuf(
 /*========================*/
 	rec_t*		rec,	/* in: record to delete unmark */
-	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	/* We do not need to reserve btr_search_latch, as the page has just
 	been read to the buffer pool and there cannot be a hash index to it. */
 
-	rec_set_deleted_flag(rec, index->table->comp, FALSE);
+	rec_set_deleted_flag(rec, page_is_comp(buf_frame_align(rec)), FALSE);
 
-	btr_cur_del_mark_set_sec_rec_log(rec, index, FALSE, mtr);
+	btr_cur_del_mark_set_sec_rec_log(rec, FALSE, mtr);
 }
 
 /*==================== B-TREE RECORD REMOVE =========================*/

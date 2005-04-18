@@ -2848,7 +2848,7 @@ ibuf_insert_to_index_page(
 	if (low_match == dtuple_get_n_fields(entry)) {
 		rec = page_cur_get_rec(&page_cur);
 		
-		btr_cur_del_unmark_for_ibuf(rec, index, mtr);
+		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
 		rec = page_cur_tuple_insert(&page_cur, entry, index, mtr);
 		
