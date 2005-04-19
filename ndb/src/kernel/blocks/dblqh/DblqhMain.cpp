@@ -9117,6 +9117,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   scanptr.p->scanKeyinfoFlag = 0; // Don't put into hash
   scanptr.p->fragPtrI = fragptr.i;
   fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
+  scanptr.p->scanBlockref = DBACC_REF;
 
   initScanTc(signal,
              0,
