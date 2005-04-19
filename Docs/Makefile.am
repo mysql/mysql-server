@@ -15,7 +15,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) mysql.info INSTALL-BINARY
 
 all:			txt_files
 
-txt_files:		../INSTALL-SOURCE ../COPYING ../EXCEPTIONS-CLIENT \
+txt_files:		../INSTALL-SOURCE ../EXCEPTIONS-CLIENT \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 CLEAN_FILES:		$(txt_files)
