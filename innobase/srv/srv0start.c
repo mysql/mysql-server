@@ -789,6 +789,11 @@ open_or_create_data_files(
 				files[i] = os_file_create(
 					name, OS_FILE_OPEN_RAW, OS_FILE_NORMAL,
 							 OS_DATA_FILE, &ret);
+			} else if (i == 0) {
+				files[i] = os_file_create(
+					name, OS_FILE_OPEN_RETRY,
+							OS_FILE_NORMAL,
+							OS_DATA_FILE, &ret);
 			} else {
 				files[i] = os_file_create(
 					name, OS_FILE_OPEN, OS_FILE_NORMAL,
@@ -1723,6 +1728,15 @@ innobase_shutdown_for_mysql(void)
 	the tablespace header(s), and copy all log data to archive.
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
 	just free data structures after the shutdown. */
+
+
+	if (srv_fast_shutdown == 2) {
+	        ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: MySQL has requested a very fast shutdown without flushing "
+"the InnoDB buffer pool to data files. At the next mysqld startup "
+"InnoDB will do a crash recovery!\n");
+	  	}
 
 #ifdef __NETWARE__
 	if(!panic_shutdown)

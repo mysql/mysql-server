@@ -57,6 +57,7 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev)
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cursor, sizeof(LEX_STRING), 16, 8));
+  VOID(my_init_dynamic_array(&m_handler, sizeof(sp_cond_type_t *), 16, 8));
   m_label.empty();
   m_children.empty();
   if (!prev)
@@ -82,6 +83,7 @@ sp_pcontext::destroy()
   delete_dynamic(&m_pvar);
   delete_dynamic(&m_cond);
   delete_dynamic(&m_cursor);
+  delete_dynamic(&m_handler);
 }
 
 sp_pcontext *
@@ -256,6 +258,41 @@ sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
   if (!scoped && m_parent)
     return m_parent->find_cond(name, scoped);
   return NULL;
+}
+
+/*
+ * This only searches the current context, for error checking of
+ * duplicates.
+ * Returns TRUE if found.
+ */
+bool
+sp_pcontext::find_handler(sp_cond_type_t *cond)
+{
+  uint i= m_handler.elements;
+
+  while (i--)
+  {
+    sp_cond_type_t *p;
+
+    get_dynamic(&m_handler, (gptr)&p, i);
+    if (cond->type == p->type)
+    {
+      switch (p->type)
+      {
+      case sp_cond_type_t::number:
+	if (cond->mysqlerr == p->mysqlerr)
+	  return TRUE;
+	break;
+      case sp_cond_type_t::state:
+	if (strcmp(cond->sqlstate, p->sqlstate) == 0)
+	  return TRUE;
+	break;
+      default:
+	return TRUE;
+      }
+    }
+  }
+  return FALSE;
 }
 
 void

@@ -363,11 +363,6 @@ fi
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
-# Save manual to avoid rebuilding
-mv Docs/manual.ps Docs/manual.ps.save
-make clean
-mv Docs/manual.ps.save Docs/manual.ps
-
 #
 # Only link statically on our i386 build host (which has a specially
 # patched static glibc installed) - ia64 and x86_64 run glibc-2.3 (unpatched)
@@ -535,8 +530,6 @@ fi
 %defattr(-,root,root,0755)
 
 %doc COPYING README 
-%doc Docs/manual.{html,ps,texi,txt}
-%doc Docs/manual_toc.html
 %doc support-files/my-*.cnf
 %doc support-files/ndb-*.ini
 
@@ -675,9 +668,9 @@ fi
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/sql-bench
 %attr(-, root, root) %{_datadir}/mysql-test
-%attr(755, root, root) %{_bindir}/mysqlmanager
-%attr(755, root, root) %{_bindir}/mysqlmanager-pwgen
-%attr(755, root, root) %{_bindir}/mysqlmanagerc
+%attr(755, root, root) %{_bindir}/mysqltestmanager
+%attr(755, root, root) %{_bindir}/mysqltestmanager-pwgen
+%attr(755, root, root) %{_bindir}/mysqltestmanagerc
 
 %files Max
 %defattr(-, root, root, 0755)
@@ -692,6 +685,16 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Apr 13 2005 Lenz Grimmer <lenz@mysql.com>
+
+- removed the MySQL manual files (html/ps/texi) - they have been removed
+  from the MySQL sources and are now available seperately.
+
+* Mon Apr 4 2005 Petr Chardin <petr@mysql.com>
+
+- old mysqlmanager, mysqlmanagerc and mysqlmanager-pwger renamed into
+  mysqltestmanager, mysqltestmanager and mysqltestmanager-pwgen respectively
+
 * Fri Mar 18 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Disabled RAID in the Max binaries once and for all (it has finally been

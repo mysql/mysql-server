@@ -1532,17 +1532,19 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
   return 0;
 }
 
-
-inline bool sync_binlog(IO_CACHE *cache)
+bool MYSQL_LOG::flush_and_sync()
 {
-  if (sync_binlog_period == ++sync_binlog_counter && sync_binlog_period)
+  int err=0, fd=log_file.file;
+  safe_mutex_assert_owner(&LOCK_log);
+  if (flush_io_cache(&log_file))
+    return 1;
+  if (++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
   {
     sync_binlog_counter= 0;
-    return my_sync(cache->file, MYF(MY_WME));
+    err=my_sync(fd, MYF(MY_WME));
   }
-  return 0;
+  return err;
 }
-
 
 /*
   Write an event to the binary log
@@ -1677,8 +1679,8 @@ bool MYSQL_LOG::write(Log_event *event_info)
       }
     }
 
-    /* 
-       Write the SQL command 
+    /*
+       Write the SQL command
      */
 
     if (event_info->write(file))
@@ -1686,8 +1688,10 @@ bool MYSQL_LOG::write(Log_event *event_info)
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
-      if (flush_io_cache(file) || sync_binlog(file))
+      if (flush_and_sync())
 	goto err;
+      signal_update();
+      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
     }
     error=0;
 
@@ -1700,15 +1704,9 @@ err:
 	my_error(ER_ERROR_ON_WRITE, MYF(0), name, errno);
       write_error=1;
     }
-    if (file == &log_file)
-    {
-      signal_update();
-      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
-    }
   }
 
   pthread_mutex_unlock(&LOCK_log);
-
   DBUG_RETURN(error);
 }
 
@@ -1815,7 +1813,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
     if (commit_event->write(&log_file))
       goto err;
 DBUG_skip_commit:
-    if (flush_io_cache(&log_file) || sync_binlog(&log_file))
+    if (flush_and_sync())
       goto err;
     DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
     if (cache->error)				// Error on read
@@ -1985,26 +1983,26 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   SYNOPSIS
     wait_for_update()
     thd			Thread variable
-    master_or_slave     If 0, the caller is the Binlog_dump thread from master;
+    is_slave            If 0, the caller is the Binlog_dump thread from master;
                         if 1, the caller is the SQL thread from the slave. This
                         influences only thd->proc_info.
 
   NOTES
     One must have a lock on LOCK_log before calling this function.
-    This lock will be freed before return! That's required by
+    This lock will be released before return! That's required by
     THD::enter_cond() (see NOTES in sql_class.h).
 */
 
-void MYSQL_LOG::wait_for_update(THD* thd, bool master_or_slave)
+void MYSQL_LOG::wait_for_update(THD* thd, bool is_slave)
 {
   const char *old_msg;
   DBUG_ENTER("wait_for_update");
   old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           master_or_slave ?
+                           is_slave ?
                            "Has read all relay log; waiting for the slave I/O "
-                           "thread to update it" : 
+                           "thread to update it" :
                            "Has sent all binlog to slave; waiting for binlog "
-                           "to be updated"); 
+                           "to be updated");
   pthread_cond_wait(&update_cond, &LOCK_log);
   thd->exit_cond(old_msg);
   DBUG_VOID_RETURN;
@@ -2053,7 +2051,12 @@ void MYSQL_LOG::close(uint exiting)
       my_pwrite(log_file.file, &flags, 1, offset, MYF(0));
     }
 
-    if (my_close(log_file.file,MYF(0)) < 0 && ! write_error)
+    if (my_sync(log_file.file,MYF(MY_WME)) && ! write_error)
+    {
+      write_error=1;
+      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+    }
+    if (my_close(log_file.file,MYF(MY_WME)) && ! write_error)
     {
       write_error=1;
       sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
@@ -2947,8 +2950,10 @@ int TC_LOG_BINLOG::log(THD *thd, my_xid xid)
 
 void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
-  if (thread_safe_dec_and_test(prepared_xids, &LOCK_prep_xids))
+  pthread_mutex_lock(&LOCK_prep_xids);
+  if (--prepared_xids == 0)
     pthread_cond_signal(&COND_prep_xids);
+  pthread_mutex_unlock(&LOCK_prep_xids);
   rotate_and_purge(0);     // as ::write() did not rotate
 }
 

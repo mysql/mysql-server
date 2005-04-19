@@ -868,7 +868,7 @@ dict_load_table(
 	
 	dict_load_indexes(table, heap);
 	
-	err = dict_load_foreigns(table->name);
+	err = dict_load_foreigns(table->name, TRUE);
 /*
 	if (err != DB_SUCCESS) {
 	
@@ -1089,8 +1089,9 @@ ulint
 dict_load_foreign(
 /*==============*/
 				/* out: DB_SUCCESS or error code */
-	const char*	id)	/* in: foreign constraint id as a
+	const char*	id,	/* in: foreign constraint id as a
 				null-terminated string */
+	ibool		check_types)/* in: TRUE=check type compatibility */
 {	
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1102,7 +1103,6 @@ dict_load_foreign(
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
-	ulint		err;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -1204,9 +1204,7 @@ dict_load_foreign(
 	a new foreign key constraint but loading one from the data
 	dictionary. */
 
-	err = dict_foreign_add_to_cache(foreign);
-
-	return(err); 
+	return(dict_foreign_add_to_cache(foreign, check_types));
 }
 
 /***************************************************************************
@@ -1220,7 +1218,8 @@ ulint
 dict_load_foreigns(
 /*===============*/
 					/* out: DB_SUCCESS or error code */
-	const char*	table_name)	/* in: table name */
+	const char*	table_name,	/* in: table name */
+	ibool		check_types)	/* in: TRUE=check type compatibility */
 {
 	btr_pcur_t	pcur;
 	mem_heap_t* 	heap;
@@ -1320,7 +1319,7 @@ loop:
 
 	/* Load the foreign constraint definition to the dictionary cache */
 	
-	err = dict_load_foreign(id);
+	err = dict_load_foreign(id, check_types);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);

@@ -813,6 +813,7 @@ Dbtup::updateFixedSizeTHManyWordNotNULL(Uint32* inBuffer,
         ndbrequire(i < regTabPtr->noOfCharsets);
         // not const in MySQL
         CHARSET_INFO* cs = regTabPtr->charsetArray[i];
+        int not_used;
         const char* ssrc = (const char*)&inBuffer[tInBufIndex + 1];
         Uint32 lb, len;
         if (! NdbSqlUtil::get_var_length(typeId, ssrc, bytes, lb, len)) {
@@ -822,7 +823,7 @@ Dbtup::updateFixedSizeTHManyWordNotNULL(Uint32* inBuffer,
         }
 	// fast fix bug#7340
         if (typeId != NDB_TYPE_TEXT &&
-	    (*cs->cset->well_formed_len)(cs, ssrc + lb, ssrc + lb + len, ZNIL) != len) {
+	    (*cs->cset->well_formed_len)(cs, ssrc + lb, ssrc + lb + len, ZNIL, &not_used) != len) {
           ljam();
           terrorCode = ZINVALID_CHAR_FORMAT;
           return false;

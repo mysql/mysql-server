@@ -2211,6 +2211,29 @@ my_bool mysql_reconnect(MYSQL *mysql)
   }
   tmp_mysql.reconnect= 1;
   tmp_mysql.free_me= mysql->free_me;
+
+  /*
+    For each stmt in mysql->stmts, move it to tmp_mysql if it is
+    in state MYSQL_STMT_INIT_DONE, otherwise close it.
+  */
+  {
+    LIST *element= mysql->stmts;
+    for (; element; element= element->next)
+    {
+      MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+      if (stmt->state != MYSQL_STMT_INIT_DONE)
+      {
+        stmt->mysql= 0;
+      }
+      else
+      {
+        tmp_mysql.stmts= list_add(tmp_mysql.stmts, &stmt->list);
+      }
+      /* No need to call list_delete for statement here */
+    }
+    mysql->stmts= NULL;
+  }
+
   /* Don't free options as these are now used in tmp_mysql */
   bzero((char*) &mysql->options,sizeof(mysql->options));
   mysql->free_me=0;
@@ -2299,6 +2322,10 @@ static void mysql_close_free(MYSQL *mysql)
   SYNOPSYS
     mysql_detach_stmt_list()
       stmt_list  pointer to mysql->stmts
+
+  NOTE
+    There is similar code in mysql_reconnect(), so changes here
+    should also be reflected there.
 */
 
 void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)))
@@ -2418,8 +2445,6 @@ get_info:
 #endif
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
     mysql->server_status|= SERVER_STATUS_IN_TRANS;
-
-  mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
 
   if (!(fields=(*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,
 					    protocol_41(mysql) ? 7 : 5)))

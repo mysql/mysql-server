@@ -34,7 +34,6 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
 {
   in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
-  m_outs= (int *)sql_alloc(fsize * sizeof(int));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
   m_hstack= (uint *)sql_alloc(hmax * sizeof(uint));
   m_cstack= (sp_cursor **)sql_alloc(cmax * sizeof(sp_cursor *));
@@ -80,24 +79,24 @@ sp_rcontext::find_handler(uint sql_errno,
       break;
     case sp_cond_type_t::state:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::number))
+	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
 	found= i;
       break;
     case sp_cond_type_t::warning:
       if ((sqlstate[0] == '0' && sqlstate[1] == '1' ||
 	   level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	  found < 0)
 	found= i;
       break;
     case sp_cond_type_t::notfound:
       if (sqlstate[0] == '0' && sqlstate[1] == '2' &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	  found < 0)
 	found= i;
       break;
     case sp_cond_type_t::exception:
-      if ((sqlstate[0] != '0' || sqlstate[1] > '2' ||
-	   level == MYSQL_ERROR::WARN_LEVEL_ERROR) &&
-	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+      if ((sqlstate[0] != '0' || sqlstate[1] > '2') &&
+	  level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
+	  found < 0)
 	found= i;
       break;
     }

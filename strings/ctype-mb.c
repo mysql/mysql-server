@@ -264,18 +264,21 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-uint my_well_formed_len_mb(CHARSET_INFO *cs,
-			   const char *b, const char *e, uint pos)
+uint my_well_formed_len_mb(CHARSET_INFO *cs, const char *b, const char *e,
+                           uint pos, int *error)
 {
   const char *b_start= b;
-  
+  *error= 0;
   while (pos)
   {
     my_wc_t wc;
     int mblen;
 
     if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
+    {
+      *error= b < e ? 1 : 0;
       break;
+    }
     b+= mblen;
     pos--;
   }

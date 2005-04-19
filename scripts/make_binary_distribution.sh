@@ -103,6 +103,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
   myisam/myisam_ftdump$BS \
   sql/mysqld$BS sql/mysql_tzinfo_to_sql$BS \
+  server-tools/instance-manager/mysqlmanager$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
@@ -122,13 +123,13 @@ if [ $BASE_SYSTEM = "netware" ] ; then
 # For all other platforms:
 else
   BIN_FILES="$BIN_FILES \
-    client/mysqlmanagerc \
-    client/mysqlmanager-pwgen tools/mysqlmanager \
+    client/mysqltestmanagerc \
+    client/mysqltestmanager-pwgen tools/mysqltestmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
     client/.libs/mysqldump client/.libs/mysqlimport \
     client/.libs/mysqltest client/.libs/mysqlcheck \
-    client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
-    client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
+    client/.libs/mysqlbinlog client/.libs/mysqltestmanagerc \
+    client/.libs/mysqltestmanager-pwgen tools/.libs/mysqltestmanager \
     tests/.libs/mysql_client_test \
     libmysqld/examples/.libs/mysql_client_test_embedded \
     libmysqld/examples/.libs/mysqltest_embedded \
@@ -207,6 +208,7 @@ rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 
 for i in mysql-test/mysql-test-run mysql-test/install_test_db \
          mysql-test/mysql-test-run.pl mysql-test/README \
+	 mysql-test/valgrind.supp \
          netware/mysql_test_run.nlm netware/install_test_db.ncf
 do
   if [ -f $i ]
@@ -224,14 +226,14 @@ $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     $BASE/mysql-test/std_data
 $CP mysql-test/t/*.test mysql-test/t/*.disabled mysql-test/t/*.opt \
     mysql-test/t/*.slave-mi mysql-test/t/*.sh $BASE/mysql-test/t
-$CP mysql-test/r/*.result mysql-test/r/*.result.es mysql-test/r/*.require \
+$CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*
   $CP scripts/* $BASE/bin
   $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ \@pkgdatadir\@ ./support-files < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
-  $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@MYSQLD_USER\@ root \@localstatedir\@ /usr/local/mysql/data \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
+  $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@sbindir\@ ./bin \@libexecdir\@ ./bin \@MYSQLD_USER\@ @MYSQLD_USER@ \@localstatedir\@ /usr/local/mysql/data \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
   $BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/mysqld_safe
   mv $BASE/support-files/binary-configure $BASE/configure
   chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/support-files/mysql.server $BASE/configure

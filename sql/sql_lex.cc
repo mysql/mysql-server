@@ -1112,7 +1112,7 @@ void st_select_lex::init_query()
   first_execution= 1;
   first_cond_optimization= 1;
   parsing_place= NO_MATTER;
-  no_wrap_view_item= 0;
+  exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   link_next= 0;
 }
 
@@ -1490,77 +1490,6 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
                                 (item_list.elements +
                                  select_n_having_items +
                                  order_group_num)* 5)) == 0;
-}
-
-
-/*
-  Find db.table which will be updated in this unit
-
-  SYNOPSIS
-    st_select_lex_unit::check_updateable()
-    db		- data base name
-    table	- real table name
-
-  RETURN
-    1 - found
-    0 - OK (table did not found)
-*/
-
-bool st_select_lex_unit::check_updateable(char *db, char *table)
-{
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
-    if (sl->check_updateable(db, table))
-      return 1;
-  return 0;
-}
-
-
-/*
-  Find db.table which will be updated in this select and
-  underlying ones (except derived tables)
-
-  SYNOPSIS
-    st_select_lex::check_updateable()
-    db		- data base name
-    table	- real table name
-
-  RETURN
-    1 - found
-    0 - OK (table did not found)
-*/
-
-bool st_select_lex::check_updateable(char *db, char *table)
-{
-  if (find_table_in_local_list(get_table_list(), db, table))
-    return 1;
-
-  return check_updateable_in_subqueries(db, table);
-}
-
-/*
-   Find db.table which will be updated in underlying subqueries
-
-   SYNOPSIS
-    st_select_lex::check_updateable_in_subqueries()
-    db		- data base name
-    table	- real table name
-
-  RETURN
-    1 - found
-    0 - OK (table did not found)
-*/
-
-bool st_select_lex::check_updateable_in_subqueries(char *db, char *table)
-{
-  for (SELECT_LEX_UNIT *un= first_inner_unit();
-       un;
-       un= un->next_unit())
-  {
-    if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
-	un->check_updateable(db, table))
-      return 1;
-  }
-  return 0;
 }
 
 

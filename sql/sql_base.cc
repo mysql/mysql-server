@@ -25,7 +25,6 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include <nisam.h>
 #ifdef	__WIN__
 #include <io.h>
 #endif
@@ -680,45 +679,41 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                const char *db_name,
                                const char *table_name)
 {
-  if (lower_case_table_names)
+  for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
   {
-    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
-    {
-      if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
-          ((!strcmp(table->db, db_name) &&
-            !strcmp(table->table_name, table_name)) ||
-           (table->view &&
-            !my_strcasecmp(table_alias_charset,
-                           table->db, db_name) &&
-            !my_strcasecmp(table_alias_charset,
-                           table->table->alias, table_name))))
-        break;
-    }
-  }
-  else
-  {
-    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
-    {
-      if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
-          ((!strcmp(table->db, db_name) &&
-            !strcmp(table->table_name, table_name)) ||
-           (table->view &&
-            !strcmp(table->table->s->db, db_name) &&
-            !strcmp(table->table->alias, table_name))))
-        break;
-    }
+    if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
+        strcmp(table->db, db_name) == 0 &&
+        strcmp(table->table_name, table_name) == 0)
+      break;
   }
   return table;
 }
 
 
 /*
-  Test that table is unique
+  Test that table is unique (It's only exists once in the table list)
 
   SYNOPSIS
     unique_table()
-    table       table which should be chaked
-    table_list  list of tables
+    table                 table which should be checked
+    table_list            list of tables
+
+  NOTE: to exclude derived tables from check we use following mechanism:
+    a) during derived table processing set THD::derived_tables_processing
+    b) JOIN::prepare set SELECT::exclude_from_table_unique_test if
+       THD::derived_tables_processing set. (we can't use JOIN::execute
+       because for PS we perform only JOIN::prepare, but we can't set this
+       flag in JOIN::prepare if we are not sure that we are in derived table
+       processing loop, because multi-update call fix_fields() for some its
+       items (which mean JOIN::prepare for subqueries) before unique_table
+       call to detect which tables should be locked for write).
+    c) unique_table skip all tables which belong to SELECT with
+       SELECT::exclude_from_table_unique_test set.
+    Also SELECT::exclude_from_table_unique_test used to exclude from check
+    tables of main SELECT of multi-delete and multi-update
+
+    TODO: when we will have table/view change detection we can do this check
+          only once for PS/SP
 
   RETURN
     found duplicate
@@ -728,41 +723,50 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 {
   TABLE_LIST *res;
-  const char *d_name= table->db, *t_name= table->table_name;
-  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  const char *d_name, *t_name;
   DBUG_ENTER("unique_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
-  /* temporary table is always unique */
-  if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
-    DBUG_RETURN(0);
-  if (table->view)
+
+  /*
+    If this function called for query which update table (INSERT/UPDATE/...)
+    then we have in table->table pointer to TABLE object which we are
+    updating even if it is VIEW so we need TABLE_LIST of this TABLE object
+    to get right names (even if lower_case_table_names used).
+
+    If this function called for CREATE command that we have not opened table
+    (table->table equal to 0) and right names is in current TABLE_LIST
+    object.
+  */
+  if (table->table)
   {
-    /* it is view and table opened */
-    if (lower_case_table_names)
-    {
-      strmov(t_name_buff, table->table->alias);
-      my_casedn_str(files_charset_info, t_name_buff);
-      t_name= t_name_buff;
-      strmov(d_name_buff, table->table->s->db);
-      my_casedn_str(files_charset_info, d_name_buff);
-      d_name= d_name_buff;
-    }
-    else
-    {
-      d_name= table->table->s->db;
-      t_name= table->table->alias;
-    }
+    /* temporary table is always unique */
+    if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
+      DBUG_RETURN(0);
+    table= table->find_underlying_table(table->table);
+    /*
+      as far as we have table->table we have to find real TABLE_LIST of
+      it in underlying tables
+    */
+    DBUG_ASSERT(table);
   }
+  d_name= table->db;
+  t_name= table->table_name;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for(;;)
   {
     if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
-        !res->table || res->table != table->table)
+        (!res->table || res->table != table->table) &&
+        (res->select_lex && !res->select_lex->exclude_from_table_unique_test))
       break;
-    /* if we found entry of this table try again. */
+    /*
+      If we found entry of this table or or table of SELECT which already
+      processed in derived table or top select of multi-update/multi-delete
+      (exclude_from_table_unique_test).
+    */
     table_list= res->next_global;
-    DBUG_PRINT("info", ("found same copy of table"));
+    DBUG_PRINT("info",
+               ("found same copy of table or table which we should skip"));
   }
   DBUG_RETURN(res);
 }
@@ -3584,7 +3588,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
 
   thd->set_query_id=1;
 
-  thd->lex->current_select->no_wrap_view_item= 1;
+  thd->lex->current_select->no_wrap_view_item= 0;
   select_lex->cond_count= 0;
   if (*conds)
   {

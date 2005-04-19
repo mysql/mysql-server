@@ -280,17 +280,17 @@ public:
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
-  bool set_warning(unsigned int level, unsigned int code,
+  bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
   bool check_int(const char *str, int length, const char *int_end,
                  CHARSET_INFO *cs);
-  void set_datetime_warning(const uint level, const uint code, 
+  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
                             const char *str, uint str_len,
                             timestamp_type ts_type, int cuted_increment);
-  void set_datetime_warning(const uint level, const uint code, 
+  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
                             longlong nr, timestamp_type ts_type,
                             int cuted_increment);
-  void set_datetime_warning(const uint level, const uint code, 
+  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, const uint code, 
                             double nr, timestamp_type ts_type);
   inline bool check_overflow(int op_result)
   {
@@ -1312,6 +1312,22 @@ public:
 };
 
   
+class Field_bit_as_char: public Field_bit {
+public:
+  uchar create_length;
+  Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
+                    uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
+                    enum utype unireg_check_arg, const char *field_name_arg,
+                    struct st_table *table_arg);
+  enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
+  uint size_of() const { return sizeof(*this); }
+  int store(const char *to, uint length, CHARSET_INFO *charset);
+  int store(double nr) { return Field_bit::store(nr); }
+  int store(longlong nr) { return Field_bit::store(nr); }
+  void sql_type(String &str) const;
+};
+
+
 /*
   Create field class for CREATE TABLE
 */
@@ -1415,6 +1431,8 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define FIELDFLAG_BLOB			1024	// mangled with decimals!
 #define FIELDFLAG_GEOM			2048    // mangled with decimals!
 
+#define FIELDFLAG_TREAT_BIT_AS_CHAR     4096    /* use Field_bit_as_char */
+
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
 #define FIELDFLAG_FORMAT_NUMBER		16384	// predit: ###,,## in output
@@ -1445,3 +1463,4 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
 #define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
+#define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)

@@ -520,7 +520,7 @@ public:
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
-  virtual bool replace_equal_field_processor(byte * arg) { return 0; }
+  virtual Item *replace_equal_field(byte * arg) { return this; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
@@ -545,6 +545,8 @@ public:
     cleanup();
     delete this;
   }
+
+  virtual bool is_splocal() { return 0; } /* Needed for error checking */
 };
 
 
@@ -563,6 +565,8 @@ public:
   {
     Item::maybe_null= TRUE;
   }
+
+  bool is_splocal() { return 1; } /* Needed for error checking */
 
   Item *this_item();
   Item *this_const_item() const;
@@ -750,7 +754,7 @@ public:
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
   Item *set_no_const_sub(byte *arg);
-  bool replace_equal_field_processor(byte *arg);
+  Item *replace_equal_field(byte *arg);
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
@@ -1098,21 +1102,8 @@ public:
     fixed= 1;
   }
   enum Type type() const { return STRING_ITEM; }
-  double val_real()
-  {
-    DBUG_ASSERT(fixed == 1);
-    int err_not_used;
-    char *end_not_used;
-    return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		      str_value.length(), &end_not_used, &err_not_used);
-  }
-  longlong val_int()
-  {
-    DBUG_ASSERT(fixed == 1);
-    int err;
-    return my_strntoll(str_value.charset(), str_value.ptr(),
-		       str_value.length(), 10, (char**) 0, &err);
-  }
+  double val_real();
+  longlong val_int();
   String *val_str(String*)
   {
     DBUG_ASSERT(fixed == 1);
@@ -1515,15 +1506,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
-  int save_in_field(Field *field_arg, bool no_conversions)
-  {
-    if (!arg)
-    {
-      field_arg->set_default();
-      return 0;
-    }
-    return Item_field::save_in_field(field_arg, no_conversions);
-  }
+  int save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
   
   bool walk(Item_processor processor, byte *args)

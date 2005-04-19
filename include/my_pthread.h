@@ -678,7 +678,6 @@ extern pthread_t shutdown_th, main_th, signal_th;
 #ifdef HAVE_ATOMIC_ADD
 #define thread_safe_increment(V,L) atomic_inc((atomic_t*) &V)
 #define thread_safe_decrement(V,L) atomic_dec((atomic_t*) &V)
-#define thread_safe_dec_and_test(V, L) atomic_dec_and_test((atomic_t*) &V)
 #define thread_safe_add(V,C,L)     atomic_add((C),(atomic_t*) &V)
 #define thread_safe_sub(V,C,L)     atomic_sub((C),(atomic_t*) &V)
 #else
@@ -689,22 +688,6 @@ extern pthread_t shutdown_th, main_th, signal_th;
 #define thread_safe_add(V,C,L) (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
-#ifdef __cplusplus
-static inline bool thread_safe_dec_and_test(ulong &V, pthread_mutex_t *L)
-{
-  ulong res;
-  pthread_mutex_lock(L);
-  res=--V;
-  pthread_mutex_unlock(L);
-  return res==0;
-}
-#else
-/*
-  what should we do ? define it as static ?
-  a regular function somewhere in mysys/  ?
-  for now it's only used in c++ code, so there's no need to bother
-*/
-#endif
 #endif /* HAVE_ATOMIC_ADD */
 #ifdef SAFE_STATISTICS
 #define statistic_increment(V,L)   thread_safe_increment((V),(L))

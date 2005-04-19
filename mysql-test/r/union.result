@@ -1103,7 +1103,7 @@ count(*)
 drop table t1;
 create table t2 (
 a char character set latin1 collate latin1_swedish_ci,
-b char character set latin1 collate latin1_bin);
+b char character set latin1 collate latin1_german1_ci);
 create table t1 as
 (select a from t2) union
 (select b from t2);
@@ -1235,3 +1235,20 @@ show columns from t2;
 Field	Type	Null	Key	Default	Extra
 a	varchar(3)	YES		NULL	
 drop table t2, t1;
+create table t1 (a varchar(5));
+create table t2 select * from t1 union select 'abcdefghijkl';
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+row_format
+Dynamic
+alter table t2 ROW_FORMAT=fixed;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+drop table t1,t2;

@@ -24,7 +24,7 @@ use test;
 drop table if exists t1;
 --enable_warnings
 create table t1 (
-	id   char(16) not null,
+	id   char(16) not null default '',
         data int not null
 );
 --disable_warnings
@@ -3396,6 +3396,236 @@ call bug8937()|
 
 drop procedure bug8937|
 delete from t1|
+
+
+#
+# BUG#6900: Stored procedure inner handler ignored
+# BUG#9074: STORED PROC: The scope of every handler declared is not
+#                        properly applied
+#
+--disable_warnings
+drop procedure if exists bug6900|
+drop procedure if exists bug9074|
+drop procedure if exists bug6900_9074|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (w char unique, x char)|
+insert into t3 values ('a', 'b')|
+
+create procedure bug6900()
+begin
+  declare exit handler for sqlexception select '1';
+
+  begin
+    declare exit handler for sqlexception select '2';
+
+    insert into t3 values ('x', 'y', 'z');
+  end;
+end|
+
+create procedure bug9074()
+begin
+  declare x1, x2, x3, x4, x5, x6 int default 0;
+
+  begin    
+    declare continue handler for sqlstate '23000' set x5 = 1;      
+
+    insert into t3 values ('a', 'b');      
+    set x6 = 1;      
+  end;
+
+ begin1_label:
+  begin
+    declare continue handler for sqlstate '23000' set x1 = 1;      
+
+    insert into t3 values ('a', 'b');      
+    set x2 = 1;      
+				
+   begin2_label:
+    begin  
+      declare exit handler for sqlstate '23000' set x3 = 1;         
+
+      set x4= 1;         
+      insert into t3 values ('a','b');
+      set x4= 0;
+    end begin2_label;
+  end begin1_label;
+
+  select x1, x2, x3, x4, x5, x6;
+end|
+
+create procedure bug6900_9074(z int)
+begin
+  declare exit handler for sqlstate '23000' select '23000';
+
+  begin
+    declare exit handler for sqlexception select 'sqlexception';
+
+    if z = 1 then
+      insert into t3 values ('a', 'b');
+    else
+      insert into t3 values ('x', 'y', 'z');
+    end if;
+  end;
+end|
+
+call bug6900()|
+call bug9074()|
+call bug6900_9074(0)|
+call bug6900_9074(1)|
+
+drop procedure bug6900|
+drop procedure bug9074|
+drop procedure bug6900_9074|
+drop table t3|
+
+
+#
+# BUG#7185: Stored procedure crash if identifier is AVG
+#
+--disable_warnings
+drop procedure if exists avg|
+--enable_warnings
+create procedure avg ()
+begin
+end|
+
+call avg ()|
+drop procedure avg|
+
+
+#
+# BUG#6129: Stored procedure won't display @@sql_mode value
+#
+--disable_warnings
+drop procedure if exists bug6129|
+--enable_warnings
+set @@sql_mode = 'traditional'|
+create procedure bug6129(mode text)
+  select @@sql_mode = mode|
+
+# 1
+call bug6129(@@sql_mode)|
+set @@sql_mode = ''|
+# 0
+call bug6129(@@sql_mode)|
+
+drop procedure bug6129|
+
+
+#
+# BUG#9856: Stored procedures: crash if handler for sqlexception, not found
+#
+--disable_warnings
+drop procedure if exists bug9856|
+--enable_warnings
+create procedure bug9856()
+begin
+  declare v int;
+  declare c cursor for select data from t1;
+  declare exit handler for sqlexception, not found select '16';
+
+  open c;
+  fetch c into v;
+  select v;
+end|
+
+delete from t1|
+call bug9856()|
+call bug9856()|
+drop procedure bug9856|
+
+
+#
+# BUG##9674: Stored Procs: Using declared vars in algebric operation causes
+#            system crash.
+#
+--disable_warnings
+drop procedure if exists bug9674_1|
+drop procedure if exists bug9674_2|
+--enable_warnings
+create procedure bug9674_1(out arg int)
+begin
+  declare temp_in1 int default 0;
+  declare temp_fl1 int default 0;
+
+  set temp_in1 = 100;
+  set temp_fl1 = temp_in1/10;
+  set arg = temp_fl1;
+end|
+
+create procedure bug9674_2()
+begin
+  declare v int default 100;
+
+  select v/10;
+end|
+
+call bug9674_1(@sptmp)|
+call bug9674_1(@sptmp)|
+select @sptmp|
+call bug9674_2()|
+call bug9674_2()|
+drop procedure bug9674_1|
+drop procedure bug9674_2|
+
+
+#
+# BUG#9598: stored procedure call within stored procedure overwrites IN variable
+#
+--disable_warnings
+drop procedure if exists bug9598_1|
+drop procedure if exists bug9598_2|
+--enable_warnings
+create procedure bug9598_1(in var_1 char(16),
+                           out var_2 integer, out var_3 integer)
+begin
+  set var_2 = 50;
+  set var_3 = 60;
+end|
+
+create procedure bug9598_2(in v1 char(16),
+                           in v2 integer,
+                           in v3 integer,
+                           in v4 integer,
+                           in v5 integer)
+begin
+  select v1,v2,v3,v4,v5;
+  call bug9598_1(v1,@tmp1,@tmp2);
+  select v1,v2,v3,v4,v5;
+end|
+
+call bug9598_2('Test',2,3,4,5)|
+select @tmp1, @tmp2|
+
+drop procedure bug9598_1|
+drop procedure bug9598_2|
+
+
+#
+# BUG#9902: Crash with simple stored function using user defined variables
+#
+--disable_warnings
+drop procedure if exists bug9902|
+--enable_warnings
+create function bug9902() returns int(11)
+begin
+  set @x = @x + 1;
+  return @x;
+end|
+
+set @qcs1 = @@query_cache_size|
+set global query_cache_size = 100000|
+set @x = 1|
+insert into t1 values ("qc", 42)|
+select bug9902() from t1|
+select bug9902() from t1|
+select @x|
+
+set global query_cache_size = @qcs1|
+delete from t1|
+drop function bug9902|
 
 
 #

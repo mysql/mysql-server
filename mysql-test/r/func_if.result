@@ -44,21 +44,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where; Using filesort
 Warnings:
 Note	1003	select if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,cast(`test`.`t1`.`st` as char charset binary)) AS `s` from `test`.`t1` where (`test`.`t1`.`st` like _latin1'%a%') order by if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,cast(`test`.`t1`.`st` as char charset binary))
-select nullif(u=0, 'test') from t1;
-nullif(u=0, 'test')
+select nullif(u, 1) from t1;
+nullif(u, 1)
 NULL
 NULL
 NULL
 NULL
 NULL
-1
-1
-explain extended select nullif(u=0, 'test') from t1;
+0
+0
+explain extended select nullif(u, 1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
 Warnings:
-Note	1003	select nullif((`test`.`t1`.`u` = 0),_latin1'test') AS `nullif(u=0, 'test')` from `test`.`t1`
+Note	1003	select nullif(`test`.`t1`.`u`,1) AS `nullif(u, 1)` from `test`.`t1`
 drop table t1;
+select nullif(1,'test');
+nullif(1,'test')
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'test'
 select NULLIF(NULL,NULL), NULLIF(NULL,1), NULLIF(NULL,1.0), NULLIF(NULL,"test");
 NULLIF(NULL,NULL)	NULLIF(NULL,1)	NULLIF(NULL,1.0)	NULLIF(NULL,"test")
 NULL	NULL	NULL	NULL

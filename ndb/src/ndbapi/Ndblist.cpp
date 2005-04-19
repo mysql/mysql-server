@@ -550,10 +550,21 @@ Remark:         Add a NdbScanOperation object into the signal idlelist.
 void
 Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
 {
+  DBUG_ENTER("Ndb::releaseScanOperation");
+  DBUG_PRINT("enter", ("op=%x", (UintPtr)aScanOperation));
+#ifdef ndb_release_check_dup
+  { NdbIndexScanOperation* tOp = theScanOpIdleList;
+    while (tOp != NULL) {
+      assert(tOp != aScanOperation);
+    tOp = (NdbIndexScanOperation*)tOp->theNext;
+    }
+  }
+#endif
   aScanOperation->next(theScanOpIdleList);
   aScanOperation->theNdbCon = NULL;
   aScanOperation->theMagicNumber = 0xFE11D2;
   theScanOpIdleList = aScanOperation;
+  DBUG_VOID_RETURN;
 }
 
 /***************************************************************************

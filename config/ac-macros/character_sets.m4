@@ -359,16 +359,23 @@ case $default_charset in
       ;;
     utf8)
       default_charset_default_collation="utf8_general_ci"
-      define(UTFC1, utf8_general_ci utf8_bin)
-      define(UTFC2, utf8_czech_ci utf8_danish_ci)
-      define(UTFC3, utf8_estonian_ci utf8_icelandic_ci)
-      define(UTFC4, utf8_latvian_ci utf8_lithuanian_ci)
-      define(UTFC5, utf8_persian_ci utf8_polish_ci utf8_romanian_ci)
-      define(UTFC6, utf8_slovak_ci utf8_slovenian_ci)
-      define(UTFC7, utf8_spanish2_ci utf8_spanish_ci)
-      define(UTFC8, utf8_swedish_ci utf8_turkish_ci)
-      define(UTFC9, utf8_unicode_ci)
-      UTFC="UTFC1 UTFC2 UTFC3 UTFC4 UTFC5 UTFC6 UTFC7 UTFC8 UTFC9"
+      if test "$default_collation" = "utf8_general_cs"; then
+        # For those who explicitly desire "utf8_general_cs", support it,
+        # and then also set the CPP switch enabling that code.
+        UTFC="utf8_general_cs"
+        AC_DEFINE([HAVE_UTF8_GENERAL_CS], [1], [certain Japanese customer])
+      else
+        define(UTFC1, utf8_general_ci utf8_bin)
+        define(UTFC2, utf8_czech_ci utf8_danish_ci)
+        define(UTFC3, utf8_estonian_ci utf8_icelandic_ci)
+        define(UTFC4, utf8_latvian_ci utf8_lithuanian_ci)
+        define(UTFC5, utf8_persian_ci utf8_polish_ci utf8_romanian_ci)
+        define(UTFC6, utf8_slovak_ci utf8_slovenian_ci)
+        define(UTFC7, utf8_spanish2_ci utf8_spanish_ci)
+        define(UTFC8, utf8_swedish_ci utf8_turkish_ci)
+        define(UTFC9, utf8_unicode_ci)
+        UTFC="UTFC1 UTFC2 UTFC3 UTFC4 UTFC5 UTFC6 UTFC7 UTFC8 UTFC9"
+      fi
       default_charset_collations="$UTFC"
       ;;
     *)

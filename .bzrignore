@@ -1107,3 +1107,6 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 VC++Files/client/mysql_amd64.dsp
+client/mysqltestmanager-pwgen
+client/mysqltestmanagerc
+tools/mysqltestmanager
