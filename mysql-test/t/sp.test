@@ -3627,15 +3627,28 @@ set global query_cache_size = @qcs1|
 delete from t1|
 drop function bug9902|
 
+
 #
-# BUG#9102: New bug synopsis
+# BUG#9102: Stored proccedures: function which returns blob causes crash
 #
 --disable_warnings
 drop function if exists bug9102|
 --enable_warnings
 create function bug9102() returns blob return 'a'|
-select bug9102();
+select bug9102()|
 drop function bug9102|
+
+
+#
+# BUG#7648: Stored procedure crash when invoking a function that returns a bit
+#
+--disable_warnings
+drop procedure if exists bug7648|
+--enable_warnings
+create function bug7648() returns bit(8) return 'a'|
+select bug7648()|
+drop function bug7648|
+
 
 #
 # BUG#NNNN: New bug synopsis
