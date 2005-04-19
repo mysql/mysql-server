@@ -60,6 +60,10 @@ typedef struct st_filesort_info
 /*
   Values in this enum are used to indicate during which operations value
   of TIMESTAMP field should be set to current timestamp.
+  WARNING: The values are used for bit operations. If you change the enum,
+  you must keep the bitwise relation of the values. For example:
+  (int) TIMESTAMP_AUTO_SET_ON_BOTH ==
+    (int) TIMESTAMP_AUTO_SET_ON_INSERT | (int) TIMESTAMP_AUTO_SET_ON_UPDATE.
 */
 enum timestamp_auto_set_type
 {
