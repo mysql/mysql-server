@@ -2964,4 +2964,10 @@ select bug9102();
 drop function bug9102|
 bug9102()
 a
+drop procedure if exists bug7648|
+create function bug7648() returns bit(8) return 'a'|
+select bug7648()|
+bug7648()
+a
+drop function bug7648|
 drop table t1,t2;
