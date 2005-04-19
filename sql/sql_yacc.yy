@@ -1407,6 +1407,16 @@ create_function_tail:
 					      lex->uint_geom_type)))
 	      YYABORT;
 
+	    sp->m_returns_cs= new_field->charset;
+
+            if (new_field->sql_type == FIELD_TYPE_SET ||
+                new_field->sql_type == FIELD_TYPE_ENUM)
+            {
+	      new_field->interval= 
+                sp->create_typelib(&new_field->interval_list);
+            }
+            sp_prepare_create_field(YYTHD, new_field);
+
 	    if (prepare_create_field(new_field, &unused1, &unused2, &unused2,
 				     0))
 	      YYABORT;
@@ -1415,8 +1425,8 @@ create_function_tail:
 	    sp->m_returns_cs= new_field->charset;
 	    sp->m_returns_len= new_field->length;
 	    sp->m_returns_pack= new_field->pack_flag;
-	    sp->m_returns_typelib= 
-              sp->create_typelib(&new_field->interval_list);
+            sp->m_returns_typelib= new_field->interval;
+            new_field->interval= NULL;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }

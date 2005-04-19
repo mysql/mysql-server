@@ -2958,4 +2958,10 @@ select @x|
 set global query_cache_size = @qcs1|
 delete from t1|
 drop function bug9902|
+drop function if exists bug9102|
+create function bug9102() returns blob return 'a'|
+select bug9102();
+drop function bug9102|
+bug9102()
+a
 drop table t1,t2;

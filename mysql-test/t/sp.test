@@ -3627,6 +3627,15 @@ set global query_cache_size = @qcs1|
 delete from t1|
 drop function bug9902|
 
+#
+# BUG#9102: New bug synopsis
+#
+--disable_warnings
+drop function if exists bug9102|
+--enable_warnings
+create function bug9102() returns blob return 'a'|
+select bug9102();
+drop function bug9102|
 
 #
 # BUG#NNNN: New bug synopsis
