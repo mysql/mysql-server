@@ -1072,6 +1072,8 @@ void Item_func_round::fix_length_and_dec()
       decimals=0;
     else
       decimals=min(tmp,NOT_FIXED_DEC);
+    if ((tmp= decimals - args[0]->decimals) > 0)
+      max_length+= tmp;
   }
 }
 
