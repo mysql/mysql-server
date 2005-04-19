@@ -54,7 +54,6 @@ public:
   enum { SEND_NUM_ROWS= 1, SEND_DEFAULTS= 2, SEND_EOF= 4 };
   virtual bool send_fields(List<Item> *list, uint flags);
 
-  bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
   bool store(const char *from, CHARSET_INFO *cs);
   String *storage_packet() { return packet; }

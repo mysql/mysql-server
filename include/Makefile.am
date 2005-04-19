@@ -24,7 +24,7 @@ pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			mysql_time.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
-			nisam.h heap.h merge.h my_bitmap.h\
+			heap.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \

@@ -482,16 +482,17 @@ Chs::Chs(CHARSET_INFO* cs) :
     for (unsigned j = 0; j < size; j++) {
       bytes[j] = urandom(256);
     }
+    int not_used;
     // check wellformed
     const char* sbytes = (const char*)bytes;
-    if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + size, 1) != size) {
+    if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + size, 1, &not_used) != size) {
       miss1++;
       continue;
     }
     // check no proper prefix wellformed
     ok = true;
     for (unsigned j = 1; j < size; j++) {
-      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + j, 1) == j) {
+      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + j, 1, &not_used) == j) {
         ok = false;
         break;
       }
@@ -676,7 +677,8 @@ Col::wellformed(const void* addr) const
       CHARSET_INFO* cs = m_chs->m_cs;
       const char* src = (const char*)addr;
       unsigned len = m_bytelength;
-      assert((*cs->cset->well_formed_len)(cs, src, src + len, 0xffff) == len);
+      int not_used;
+      assert((*cs->cset->well_formed_len)(cs, src, src + len, 0xffff, &not_used) == len);
     }
     break;
   case Col::Varchar:
@@ -685,8 +687,9 @@ Col::wellformed(const void* addr) const
       const unsigned char* src = (const unsigned char*)addr;
       const char* ssrc = (const char*)src;
       unsigned len = src[0];
+      int not_used;
       assert(len <= m_bytelength);
-      assert((*cs->cset->well_formed_len)(cs, ssrc + 1, ssrc + 1 + len, 0xffff) == len);
+      assert((*cs->cset->well_formed_len)(cs, ssrc + 1, ssrc + 1 + len, 0xffff, &not_used) == len);
     }
     break;
   case Col::Longvarchar:
@@ -695,8 +698,9 @@ Col::wellformed(const void* addr) const
       const unsigned char* src = (const unsigned char*)addr;
       const char* ssrc = (const char*)src;
       unsigned len = src[0] + (src[1] << 8);
+      int not_used;
       assert(len <= m_bytelength);
-      assert((*cs->cset->well_formed_len)(cs, ssrc + 2, ssrc + 2 + len, 0xffff) == len);
+      assert((*cs->cset->well_formed_len)(cs, ssrc + 2, ssrc + 2 + len, 0xffff, &not_used) == len);
     }
     break;
   default:

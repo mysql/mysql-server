@@ -80,17 +80,17 @@ update t1 set c="",b=null where c="1";
 lock tables t1 READ;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-c	char(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-b	blob	NULL	YES		NULL		select,insert,update,references	
-d	binary(10)	NULL	YES		NULL		select,insert,update,references	
+t	text	latin1_swedish_ci	YES		NULL		#	
+c	char(10)	latin1_swedish_ci	YES		NULL		#	
+b	blob	NULL	YES		NULL		#	
+d	binary(10)	NULL	YES		NULL		#	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-c	char(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-b	blob	NULL	YES		NULL		select,insert,update,references	
-d	binary(10)	NULL	YES		NULL		select,insert,update,references	
+t	text	latin1_swedish_ci	YES		NULL		#	
+c	char(10)	latin1_swedish_ci	YES		NULL		#	
+b	blob	NULL	YES		NULL		#	
+d	binary(10)	NULL	YES		NULL		#	
 unlock tables;
 select t from t1 where t like "hello";
 t
@@ -502,7 +502,7 @@ select foobar, boggle from t1 where foobar = 'fish' and boggle = 10;
 foobar	boggle
 fish	10
 drop table t1;
-create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
+create table t1 (id integer auto_increment unique,imagem LONGBLOB not null default '');
 insert into t1 (id) values (1);
 select 
 charset(load_file('../../std_data/words.dat')),
@@ -523,10 +523,10 @@ select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)
 OK	581
 drop table t1;
-create table t1 select load_file('../../std_data/words.dat');
+create table t1 select load_file('../../std_data/words.dat') l;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-load_file('../../std_data/words.dat')	longblob	NULL	YES		NULL		select,insert,update,references	
+l	longblob	NULL	YES		NULL		#	
 drop table t1;
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy ');

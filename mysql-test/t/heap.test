@@ -34,7 +34,7 @@ select * from t1;
 drop table t1;
 
 create table t1 (a int not null) engine=heap;
-insert into t1 values (869751),(736494),(226312),(802616);
+insert into t1 values (869751),(736494),(226312),(802616),(728912);
 select * from t1 where a > 736494;
 alter table t1 add unique uniq_id(a);
 select * from t1 where a > 736494;
@@ -280,14 +280,14 @@ explain select * from t1 where v='a';
 select v,count(*) from t1 group by v limit 10;
 select v,count(t) from t1 group by v limit 10;
 select v,count(c) from t1 group by v limit 10;
-select sql_big_result v,count(t) from t1 group by v limit 10;
-select sql_big_result v,count(c) from t1 group by v limit 10;
+select sql_big_result trim(v),count(t) from t1 group by v limit 10;
+select sql_big_result trim(v),count(c) from t1 group by v limit 10;
 select c,count(*) from t1 group by c limit 10;
 select c,count(t) from t1 group by c limit 10;
 select sql_big_result c,count(t) from t1 group by c limit 10;
 select t,count(*) from t1 group by t limit 10;
 select t,count(t) from t1 group by t limit 10;
-select sql_big_result t,count(t) from t1 group by t limit 10;
+select sql_big_result trim(t),count(t) from t1 group by t limit 10;
 drop table t1;
 
 #
@@ -413,25 +413,16 @@ eval set storage_engine=$default;
 
 create table t1 (a bigint unsigned auto_increment primary key, b int,
   key (b, a)) engine=heap;
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-select * from t1;                                                               
+insert t1 (b) values (1),(1),(1),(1),(1),(1),(1),(1);
+select * from t1;
 drop table t1;
+
 create table t1 (a int not null, b int not null auto_increment,
   primary key(a, b), key(b)) engine=heap;
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-select * from t1;                                                               
+insert t1 (a) values (1),(1),(1),(1),(1),(1),(1),(1);
+select * from t1;
 drop table t1;
+
+--error 1075
+create table t1 (a int not null, b int not null auto_increment,
+  primary key(a, b)) engine=heap;

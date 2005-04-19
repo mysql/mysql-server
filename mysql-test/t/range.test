@@ -198,7 +198,7 @@ drop table t1;
 # bug #1172: "Force index" option caused server crash
 #
 CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
-INSERT INTO t1 VALUES (0),(0),(1),(1);
+INSERT INTO t1 VALUES (0),(0),(0),(0),(0),(1),(1);
 CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
@@ -433,3 +433,23 @@ explain select * from t1 where a='aaa' collate latin1_bin;
 # this one cannot:
 explain select * from t1 where a='aaa' collate latin1_german1_ci;
 drop table t1;
+
+# Test for BUG#9348 "result for WHERE A AND (B OR C) differs from WHERE a AND (C OR B)"
+CREATE TABLE t1 (
+  `CLIENT` char(3) character set latin1 collate latin1_bin NOT NULL default '000',
+  `ARG1` char(3) character set latin1 collate latin1_bin NOT NULL default '',
+  `ARG2` char(3) character set latin1 collate latin1_bin NOT NULL default '',
+  `FUNCTION` varchar(10) character set latin1 collate latin1_bin NOT NULL default '',
+  `FUNCTINT` int(11) NOT NULL default '0',
+  KEY `VERI_CLNT~2` (`ARG1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES ('000',' 0',' 0','Text 001',0), ('000',' 0',' 1','Text 002',0),
+  ('000',' 1',' 2','Text 003',0), ('000',' 2',' 3','Text 004',0),
+  ('001',' 3',' 0','Text 017',0);
+
+SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 1' OR ARG1 != ' 2');
+
+SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 2' OR ARG1 != ' 1');
+drop table t1;
+

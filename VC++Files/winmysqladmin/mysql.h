@@ -145,7 +145,7 @@ typedef struct st_mysql {
   unsigned long thread_id;		/* Id for connection in server */
   my_ulonglong affected_rows;
   my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
-  my_ulonglong extra_info;		/* Used by mysqlshow */
+  my_ulonglong extra_info;		/* Not used */
   unsigned long packet_length;
   enum mysql_status status;
   MYSQL_FIELD	*fields;

@@ -1049,19 +1049,6 @@ SELECT t2.id, t1.`label` FROM t2 INNER JOIN
 ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
 drop table t1,t2;
 
-#
-# Bug #1078
-#
-create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) engine=innodb;
-select * from t1;
---error 1031
-replace delayed into t1 (c1, c2)  values ( "text1","11"),( "text2","12");
-select * from t1;
---error 1031
-replace delayed into t1 (c1, c2)  values ( "text1","12"),( "text2","13"),( "text3","14", "a" ),( "text4","15", "b" );
-select * from t1;
-drop table t1;
-
 create table t1 (a int, b varchar(200), c text not null) checksum=1 engine=myisam;
 create table t2 (a int, b varchar(200), c text not null) checksum=0 engine=innodb;
 create table t3 (a int, b varchar(200), c text not null) checksum=1 engine=innodb;
@@ -1138,7 +1125,10 @@ show create table t2;
 drop table t2;
 
 # Test error handling
---replace_result \\ /
+
+# Clean up filename -- embedded server reports whole path without .frm,
+# regular server reports relative path with .frm (argh!)
+--replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t2.frm t2
 --error 1005
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 
@@ -1293,6 +1283,9 @@ source include/varchar.inc;
 # Some errors/warnings on create
 #
 
+# Clean up filename -- embedded server reports whole path without .frm,
+# regular server reports relative path with .frm (argh!)
+--replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
 --error 1005
 create table t1 (v varchar(65530), key(v));
 create table t1 (v varchar(65536));
@@ -1307,8 +1300,3 @@ eval set storage_engine=$default;
 # InnoDB specific varchar tests
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
-
-# The following should be moved to type_bit.test when innodb will support it
---error 1178
-create table t1 (a bit, key(a)) engine=innodb;
-

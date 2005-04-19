@@ -9,6 +9,8 @@
 -- this sql script.
 -- On windows you should do 'mysql --force mysql < mysql_fix_privilege_tables.sql'
 
+set table_type=MyISAM;
+
 CREATE TABLE IF NOT EXISTS func (
   name char(64) binary DEFAULT '' NOT NULL,
   ret tinyint(1) DEFAULT '0' NOT NULL,

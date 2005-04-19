@@ -709,11 +709,6 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
-bool Protocol::send_records_num(List<Item> *list, ulonglong records)
-{
-  return false;
-}
-
 bool Protocol::write()
 {
   if (!thd->mysql)            // bootstrap file handling

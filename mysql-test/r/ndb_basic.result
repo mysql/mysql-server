@@ -607,3 +607,63 @@ primary key (a))
 engine=ndb
 max_rows=1;
 drop table t1;
+create table t1
+(counter int(64) NOT NULL auto_increment,
+datavalue char(40) default 'XXXX',
+primary key (counter)
+) ENGINE=ndbcluster;
+insert into t1 (datavalue) values ('newval');
+insert into t1 (datavalue) values ('newval');
+select * from t1 order by counter;
+counter	datavalue
+1	newval
+2	newval
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+select * from t1 order by counter;
+counter	datavalue
+1	newval
+2	newval
+3	newval
+4	newval
+5	newval
+6	newval
+7	newval
+8	newval
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+select * from t1 order by counter;
+counter	datavalue
+1	newval
+2	newval
+3	newval
+4	newval
+5	newval
+6	newval
+7	newval
+8	newval
+35	newval
+36	newval
+37	newval
+38	newval
+39	newval
+40	newval
+41	newval
+42	newval
+43	newval
+44	newval
+45	newval
+46	newval
+47	newval
+48	newval
+49	newval
+50	newval
+51	newval
+52	newval
+53	newval
+54	newval
+55	newval
+56	newval
+57	newval
+58	newval
+drop table t1;

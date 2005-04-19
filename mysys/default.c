@@ -477,13 +477,13 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     if ((stat_info.st_mode & S_IWOTH) &&
 	(stat_info.st_mode & S_IFMT) == S_IFREG)
     {
-      fprintf(stderr, "warning: World-writable config file %s is ignored\n",
+      fprintf(stderr, "Warning: World-writable config file '%s' is ignored\n",
               name);
       return 0;
     }
   }
 #endif
-  if (!(fp= my_fopen(fn_format(name, name, "", "", 4), O_RDONLY, MYF(0))))
+  if (!(fp= my_fopen(name, O_RDONLY, MYF(0))))
     return 0;					/* Ignore wrong files */
 
   while (fgets(buff, sizeof(buff) - 1, fp))
@@ -513,15 +513,16 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
         /* trim trailing whitespace from directory name */
         end= ptr + strlen(ptr) - 1;
-        /*
-          This would work fine even if no whitespaces are met
-          since fgets() stores the newline character in the buffer
-        */
-        for (; my_isspace(&my_charset_latin1, *(end - 1)); end--)
-        {}
-        end[0]= 0;
+        /* fgets() stores the newline character in the buffer */
+        if ((end[0] == '\n') || (end[0] == '\r') ||
+            my_isspace(&my_charset_latin1, end[0]))
+        {
+          for (; my_isspace(&my_charset_latin1, *(end - 1)); end--)
+          {}
+          end[0]= 0;
+        }
 
-        /* print error msg if there is nothing after !inludedir directive */
+        /* print error msg if there is nothing after !includedir directive */
         if (end == ptr)
         {
           fprintf(stderr,
@@ -539,7 +540,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
           search_file= search_dir->dir_entry + i;
           ext= fn_ext(search_file->name);
 
-          /* check extenstion */
+          /* check extension */
           for (tmp_ext= (char**) f_extensions; *tmp_ext; *tmp_ext++)
           {
             if (!strcmp(ext, *tmp_ext))
@@ -587,6 +588,14 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
       continue;
     }
+    else
+      if (recursion_level >= max_recursion_level)
+      {
+        fprintf(stderr,
+                "warning: skipping !include directive as maximum include"
+                "recursion level was reached in file %s at line %d\n",
+                name, line);
+      }
 
     if (*ptr == '[')				/* Group name */
     {
