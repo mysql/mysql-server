@@ -370,6 +370,7 @@ TYPELIB *
 sp_head::create_typelib(List<String> *src)
 {
   TYPELIB *result= NULL;
+  CHARSET_INFO *cs= m_returns_cs;
   DBUG_ENTER("sp_head::clone_typelib");
   if (src->elements)
   {
@@ -380,8 +381,31 @@ sp_head::create_typelib(List<String> *src)
           alloc_root(mem_root,sizeof(char *)*(result->count+1))))
       return 0;
     List_iterator<String> it(*src);
+    String conv, *tmp;
+    uint32 dummy;
     for (uint i=0; i<result->count; i++)
-      result->type_names[i]= strdup_root(mem_root, (it++)->c_ptr());
+    {
+      tmp = it++;
+      if (String::needs_conversion(tmp->length(), tmp->charset(),
+      				   cs, &dummy))
+      {
+        uint cnv_errs;
+        conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
+        char *buf= (char*) alloc_root(mem_root,conv.length()+1);
+        memcpy(buf, conv.ptr(), conv.length());
+        buf[conv.length()]= '\0';
+        result->type_names[i]= buf;
+        result->type_lengths[i]= conv.length();
+      }
+      else
+        result->type_names[i]= strdup_root(mem_root, tmp->c_ptr());
+
+      // Strip trailing spaces.
+      uint lengthsp= cs->cset->lengthsp(cs, result->type_names[i],
+                                        result->type_lengths[i]);
+      result->type_lengths[i]= lengthsp;
+      ((uchar *)result->type_names[i])[lengthsp]= '\0';
+    }
     result->type_names[result->count]= 0;
   }
   return result;
