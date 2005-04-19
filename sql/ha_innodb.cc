@@ -5666,7 +5666,7 @@ prototype for this function ! */
 
 ibool
 innobase_query_is_update(void)
-/*===========================*/
+/*==========================*/
 {
 	THD*	thd;
 	
@@ -5676,15 +5676,15 @@ innobase_query_is_update(void)
 	     thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
 	     ( thd->lex->sql_command == SQLCOM_LOAD &&
 	       thd->lex->duplicates == DUP_REPLACE )) {
-		return true;
+		return(1);
 	}
 
 	if ( thd->lex->sql_command == SQLCOM_INSERT &&
 	     thd->lex->duplicates  == DUP_UPDATE ) {
-		return true;
+		return(1);
 	}
 
-	return false;
+	return(0);
 }
 }
 
