@@ -1308,7 +1308,17 @@ public:
 
   longlong val_int()
   {
-    return (longlong)Item_func_sp::val_real();
+    Item *it;
+    longlong l;
+
+    if (execute(&it))
+    {
+      null_value= 1;
+      return 0LL;
+    }
+    l= it->val_int();
+    null_value= it->null_value;
+    return l;
   }
 
   double val_real()
