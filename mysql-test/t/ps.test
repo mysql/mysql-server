@@ -540,3 +540,50 @@ deallocate prepare stmt;
 
 drop table t1,t2;
 
+
+#
+# Bug#9383: INFORMATION_SCHEMA.COLUMNS, JOIN, Crash, prepared statement
+#
+
+eval SET @aux= "SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
+
+let $exec_loop_count= 3;
+eval prepare my_stmt from @aux;
+while ($exec_loop_count)
+{
+  eval execute my_stmt;
+  dec $exec_loop_count;
+}
+deallocate prepare my_stmt;
+
+# Test CALL in prepared mode
+delimiter |;
+--disable_warnings
+drop procedure if exists p1|
+drop table if exists t1|
+--enable_warnings
+create table t1 (id int)|
+insert into t1 values(1)|
+create procedure p1(a int, b int)
+begin
+  declare c int;
+  select max(id)+1 into c from t1;
+  insert into t1 select a+b;
+  insert into t1 select a-b;
+  insert into t1 select a-c;
+end|
+set @a= 3, @b= 4|
+prepare stmt from "call p1(?, ?)"|
+execute stmt using @a, @b|
+execute stmt using @a, @b|
+select * from t1|
+deallocate prepare stmt|
+drop procedure p1|
+drop table t1|
+delimiter ;|

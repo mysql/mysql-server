@@ -377,3 +377,63 @@ hex(concat(a))	hex(concat(b))
 07	0FFE
 01	01FF
 drop table t1;
+create table t1(a int, b bit not null);
+alter table t1 add primary key (a);
+drop table t1;
+create table t1 (a bit(19), b bit(5));
+insert into t1 values (1000, 10), (3, 8), (200, 6), (2303, 2), (12345, 4), (1, 0);
+select a+0, b+0 from t1;
+a+0	b+0
+1000	10
+3	8
+200	6
+2303	2
+12345	4
+1	0
+alter table t1 engine=heap;
+select a+0, b+0 from t1;
+a+0	b+0
+1000	10
+3	8
+200	6
+2303	2
+12345	4
+1	0
+alter table t1 add key(a, b);
+select a+0, b+0 from t1;
+a+0	b+0
+1000	10
+3	8
+200	6
+2303	2
+12345	4
+1	0
+alter table t1 engine=myisam;
+select a+0, b+0 from t1;
+a+0	b+0
+1	0
+3	8
+200	6
+1000	10
+2303	2
+12345	4
+create table t2 engine=heap select * from t1;
+select a+0, b+0 from t2;
+a+0	b+0
+1	0
+3	8
+200	6
+1000	10
+2303	2
+12345	4
+drop table t1;
+create table t1 select * from t2;
+select a+0, b+0 from t1;
+a+0	b+0
+1	0
+3	8
+200	6
+1000	10
+2303	2
+12345	4
+drop table t1, t2;

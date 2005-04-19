@@ -67,6 +67,8 @@ static handlerton ndbcluster_hton = {
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
+#define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
+#define NDB_AUTO_INCREMENT_RETRIES 10
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
@@ -178,7 +180,6 @@ static const err_code_mapping err_map[]=
   { 4244, HA_ERR_TABLE_EXIST, 1 },
 
   { 709, HA_ERR_NO_SUCH_TABLE, 0 },
-  { 284, HA_ERR_NO_SUCH_TABLE, 1 },
 
   { 266, HA_ERR_LOCK_WAIT_TIMEOUT, 1 },
   { 274, HA_ERR_LOCK_WAIT_TIMEOUT, 1 },
@@ -192,6 +193,8 @@ static const err_code_mapping err_map[]=
   { 826, HA_ERR_RECORD_FILE_FULL, 1 },
   { 827, HA_ERR_RECORD_FILE_FULL, 1 },
   { 832, HA_ERR_RECORD_FILE_FULL, 1 },
+
+  { 284, HA_ERR_TABLE_DEF_CHANGED, 0 },
 
   { 0, 1, 0 },
 
@@ -448,13 +451,31 @@ void ha_ndbcluster::invalidateDictionaryCache()
 int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 {
   int res;
-  const NdbError err= trans->getNdbError();
+  NdbError err= trans->getNdbError();
   DBUG_ENTER("ndb_err");
   
   ERR_PRINT(err);
   switch (err.classification) {
   case NdbError::SchemaError:
     invalidateDictionaryCache();
+
+    if (err.code==284)
+    {
+      /*
+         Check if the table is _really_ gone or if the table has
+         been alterend and thus changed table id
+       */
+      NDBDICT *dict= get_ndb()->getDictionary();
+      DBUG_PRINT("info", ("Check if table %s is really gone", m_tabname));
+      if (!(dict->getTable(m_tabname)))
+      {
+        err= dict->getNdbError();
+        DBUG_PRINT("info", ("Table not found, error: %d", err.code));
+        if (err.code != 709)
+          DBUG_RETURN(1);
+      }
+      DBUG_PRINT("info", ("Table exists but must have changed"));
+    }
     break;
   default:
     break;
@@ -1909,7 +1930,15 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    Uint64 auto_value= ndb->getAutoIncrementValue((const NDBTAB *) m_table);
+    Uint64 auto_value= NDB_FAILED_AUTO_INCREMENT;
+    uint retries= NDB_AUTO_INCREMENT_RETRIES;
+    do {
+      auto_value= ndb->getAutoIncrementValue((const NDBTAB *) m_table);
+    } while (auto_value == NDB_FAILED_AUTO_INCREMENT && 
+             --retries &&
+             ndb->getNdbError().status == NdbError::TemporaryError);
+    if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+      ERR_RETURN(ndb->getNdbError());
     if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
@@ -1919,8 +1948,12 @@ int ha_ndbcluster::write_row(byte *record)
 
     if (has_auto_increment) 
     {
+      THD *thd= table->in_use;
+
       m_skip_auto_increment= FALSE;
       update_auto_increment();
+      /* Ensure that handler is always called for auto_increment values */
+      thd->next_insert_id= 0;
       m_skip_auto_increment= !auto_increment_column_changed;
     }
 
@@ -1953,7 +1986,7 @@ int ha_ndbcluster::write_row(byte *record)
   m_rows_inserted++;
   no_uncommitted_rows_update(1);
   m_bulk_insert_not_flushed= TRUE;
-  if ((m_rows_to_insert == 1) || 
+  if ((m_rows_to_insert == (ha_rows) 1) || 
       ((m_rows_inserted % m_bulk_insert_rows) == 0) ||
       set_blob_value)
   {
@@ -2053,7 +2086,11 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   
   statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+  {
     table->timestamp_field->set_time();
+    // Set query_id so that field is really updated
+    table->timestamp_field->query_id= thd->query_id;
+  }
 
   /* Check for update of primary key for special handling */  
   if ((table->s->primary_key != MAX_KEY) &&
@@ -2658,7 +2695,7 @@ int ha_ndbcluster::close_scan()
     m_ops_pending= 0;
   }
   
-  cursor->close(m_force_send);
+  cursor->close(m_force_send, true);
   m_active_cursor= m_multi_cursor= NULL;
   DBUG_RETURN(0);
 }
@@ -2965,8 +3002,12 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_ENTER("start_bulk_insert");
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
-  m_rows_inserted= 0;
-  m_rows_to_insert= rows; 
+  m_rows_inserted= (ha_rows) 0;
+  if (rows == (ha_rows) 0)
+    /* We don't know how many will be inserted, guess */
+    m_rows_to_insert= m_autoincrement_prefetch;
+  else
+    m_rows_to_insert= rows; 
 
   /* 
     Calculate how many rows that should be inserted
@@ -3000,7 +3041,7 @@ int ha_ndbcluster::end_bulk_insert()
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
                         "rows_inserted:%d, bulk_insert_rows: %d", 
-                        m_rows_inserted, m_bulk_insert_rows)); 
+                        (int) m_rows_inserted, (int) m_bulk_insert_rows)); 
     m_bulk_insert_not_flushed= FALSE;
     if (execute_no_commit(this,trans) != 0) {
       no_uncommitted_rows_execute_failure();
@@ -3008,8 +3049,8 @@ int ha_ndbcluster::end_bulk_insert()
     }
   }
 
-  m_rows_inserted= 0;
-  m_rows_to_insert= 1;
+  m_rows_inserted= (ha_rows) 0;
+  m_rows_to_insert= (ha_rows) 1;
   DBUG_RETURN(error);
 }
 
@@ -3191,7 +3232,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     // store thread specific data first to set the right context
     m_force_send=          thd->variables.ndb_force_send;
     m_ha_not_exact_count= !thd->variables.ndb_use_exact_count;
-    m_autoincrement_prefetch= thd->variables.ndb_autoincrement_prefetch_sz;
+    m_autoincrement_prefetch= 
+      (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz;
     if (!thd->transaction.on)
       m_transaction_on= FALSE;
     else
@@ -3715,7 +3757,7 @@ static int create_ndb_column(NDBCOL &col,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  if (form->s->max_rows == 0) /* default setting, don't set fragmentation */
+  if (form->s->max_rows == (ha_rows) 0) /* default setting, don't set fragmentation */
     return;
   /**
    * get the number of fragments right
@@ -4076,16 +4118,29 @@ ulonglong ha_ndbcluster::get_auto_increment()
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   Ndb *ndb= get_ndb();
+   
+  if (m_rows_inserted > m_rows_to_insert)
+    /* We guessed too low */
+    m_rows_to_insert+= m_autoincrement_prefetch;
   cache_size= 
+    (int)
     (m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
     m_rows_to_insert - m_rows_inserted 
     : (m_rows_to_insert > m_autoincrement_prefetch) ? 
     m_rows_to_insert 
     : m_autoincrement_prefetch;
-  auto_value= 
-    (m_skip_auto_increment) ? 
-    ndb->readAutoIncrementValue((const NDBTAB *) m_table)
-    : ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
+  auto_value= NDB_FAILED_AUTO_INCREMENT;
+  uint retries= NDB_AUTO_INCREMENT_RETRIES;
+  do {
+    auto_value=
+      (m_skip_auto_increment) ? 
+      ndb->readAutoIncrementValue((const NDBTAB *) m_table)
+      : ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
+  } while (auto_value == NDB_FAILED_AUTO_INCREMENT && 
+           --retries &&
+           ndb->getNdbError().status == NdbError::TemporaryError);
+  if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+    ERR_RETURN(ndb->getNdbError());
   DBUG_RETURN((longlong)auto_value);
 }
 
@@ -4113,10 +4168,10 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_primary_key_update(FALSE),
   m_retrieve_all_fields(FALSE),
   m_retrieve_primary_key(FALSE),
-  m_rows_to_insert(1),
-  m_rows_inserted(0),
-  m_bulk_insert_rows(1024),
-  m_rows_changed(0),
+  m_rows_to_insert((ha_rows) 1),
+  m_rows_inserted((ha_rows) 0),
+  m_bulk_insert_rows((ha_rows) 1024),
+  m_rows_changed((ha_rows) 0),
   m_bulk_insert_not_flushed(FALSE),
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
@@ -4126,7 +4181,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_dupkey((uint) -1),
   m_ha_not_exact_count(FALSE),
   m_force_send(TRUE),
-  m_autoincrement_prefetch(32),
+  m_autoincrement_prefetch((ha_rows) 32),
   m_transaction_on(TRUE),
   m_cond_stack(NULL),
   m_multi_cursor(NULL)
@@ -5659,7 +5714,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 close_scan:
     if (res == 1)
     {
-      m_multi_cursor->close();
+      m_multi_cursor->close(false, true);
       m_active_cursor= m_multi_cursor= 0;
       DBUG_MULTI_RANGE(8);
       continue;
@@ -5799,6 +5854,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
   {
     thd->cleanup();
     delete thd;
+    delete ndb;
     DBUG_RETURN(NULL);
   }
 
@@ -5917,6 +5973,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 
   thd->cleanup();
   delete thd;
+  delete ndb;
   DBUG_PRINT("exit", ("ndb_util_thread"));
   my_thread_end();
   pthread_exit(0);

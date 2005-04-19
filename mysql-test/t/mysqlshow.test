@@ -1,3 +1,6 @@
+# Can't run test of external client with embedded server
+-- source include/not_embedded.inc
+
 #
 ## Bug #5036 mysqlshow is missing a column
 #

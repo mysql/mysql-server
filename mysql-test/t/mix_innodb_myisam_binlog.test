@@ -5,6 +5,9 @@
 # did some tests manually on a slave; tables are replicated fine and
 # Exec_Master_Log_Pos advances as expected.
 
+# Embedded server doesn't support binlogging
+-- source include/not_embedded.inc
+
 -- source include/have_innodb.inc
 
 --disable_warnings
@@ -26,7 +29,7 @@ insert into t2 select * from t1;
 commit;
 
 --replace_column 5 #
---replace_result "xid=12" "xid=7"
+--replace_result "xid=15" "xid=8"
 show binlog events from 98;
 
 delete from t1;
@@ -55,7 +58,7 @@ rollback to savepoint my_savepoint;
 commit;
 
 --replace_column 5 #
---replace_result "xid=45" "xid=24"
+--replace_result "xid=48" "xid=25"
 show binlog events from 98;
 
 delete from t1;
@@ -73,7 +76,7 @@ commit;
 select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
---replace_result "xid=67" "xid=36"
+--replace_result "xid=70" "xid=37"
 show binlog events from 98;
 
 # and when ROLLBACK is not explicit?
@@ -106,7 +109,7 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 
 --replace_column 5 #
---replace_result "xid=116" "xid=59"
+--replace_result "xid=119" "xid=60"
 show binlog events from 98;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
@@ -119,13 +122,13 @@ insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
 --replace_column 5 #
---replace_result "xid=130" "xid=65"
+--replace_result "xid=133" "xid=66"
 show binlog events from 98;
 insert into t1 values(11);
 commit;
 
 --replace_column 5 #
---replace_result "xid=130" "xid=65" "xid=133" "xid=67"
+--replace_result "xid=133" "xid=66" "xid=136" "xid=68"
 show binlog events from 98;
 
 
@@ -144,7 +147,7 @@ insert into t2 select * from t1;
 commit;
 
 --replace_column 5 #
---replace_result "xid=152" "xid=77"
+--replace_result "xid=155" "xid=78"
 show binlog events from 98;
 
 delete from t1;
@@ -172,7 +175,7 @@ rollback to savepoint my_savepoint;
 commit;
 
 --replace_column 5 #
---replace_result "xid=184" "xid=93"
+--replace_result "xid=187" "xid=94"
 show binlog events from 98;
 
 delete from t1;
@@ -190,7 +193,7 @@ commit;
 select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
---replace_result "xid=205" "xid=104"
+--replace_result "xid=208" "xid=105"
 show binlog events from 98;
 
 # Test for BUG#5714, where a MyISAM update in the transaction used to

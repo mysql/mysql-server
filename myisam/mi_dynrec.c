@@ -816,7 +816,7 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
 */
 
 my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
-                      ulong packed_length)
+                      ulong packed_length, my_bool with_checksum)
 {
   uint		length,new_length,flag,bit,i;
   char		*pos,*end,*packpos,*to;
@@ -920,13 +920,10 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
   if (packed_length != (uint) (to - rec_buff) + test(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
-  if (info->s->calc_checksum)
+  if (with_checksum && ((uchar) info->checksum != (uchar) *to))
   {
-    if ((uchar) info->checksum != (uchar) *to)
-    {
-      DBUG_PRINT("error",("wrong checksum for row"));
-      goto err;
-    }
+    DBUG_PRINT("error",("wrong checksum for row"));
+    goto err;
   }
   DBUG_RETURN(0);
 

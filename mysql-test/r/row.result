@@ -15,12 +15,15 @@ select row('a',1.5,3) IN (row(1,2,3), row('a',1.5,3), row('a','a','a'));
 row('a',1.5,3) IN (row(1,2,3), row('a',1.5,3), row('a','a','a'))
 1
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-select row('a',0,3) IN (row(3,2,3), row('a','0','3'), row(1,3,3));
-row('a',0,3) IN (row(3,2,3), row('a','0','3'), row(1,3,3))
-1
+Warning	1292	Truncated incorrect DECIMAL value: 'a'
+Warning	1292	Truncated incorrect INTEGER value: 'a'
 select row('a',0,3) IN (row(3,2,3), row('a','a','3'), row(1,3,3));
 row('a',0,3) IN (row(3,2,3), row('a','a','3'), row(1,3,3))
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'a'
+select row('a',0,3) IN (row(3,2,3), row('a','0','3'), row(1,3,3));
+row('a',0,3) IN (row(3,2,3), row('a','0','3'), row(1,3,3))
 1
 select row('a',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3));
 row('a',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3))

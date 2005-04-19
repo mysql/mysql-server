@@ -561,7 +561,10 @@ sp_head::execute(THD *thd)
     // Check if an exception has occurred and a handler has been found
     // Note: We havo to check even if ret==0, since warnings (and some
     //       errors don't return a non-zero value.
-    if (!thd->killed && ctx)
+    //       We also have to check even if thd->killed != 0, since some
+    //       errors return with this even when a handler has been found
+    //       (e.g. "bad data").
+    if (ctx)
     {
       uint hf;
 
@@ -579,6 +582,7 @@ sp_head::execute(THD *thd)
 	ctx->clear_handler();
 	ctx->in_handler= TRUE;
         thd->clear_error();
+	thd->killed= THD::NOT_KILLED;
 	continue;
       }
     }
@@ -634,7 +638,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     // Need to use my_printf_error here, or it will not terminate the
     // invoking query properly.
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
-             "FUNCTION", m_name.str, params, argcount);
+             "FUNCTION", m_qname.str, params, argcount);
     DBUG_RETURN(-1);
   }
 
@@ -687,6 +691,19 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   DBUG_RETURN(ret);
 }
 
+static Item_func_get_user_var *
+item_is_user_var(Item *it)
+{
+  if (it->type() == Item::FUNC_ITEM)
+  {
+    Item_func *fi= static_cast<Item_func*>(it);
+
+    if (fi->functype() == Item_func::GUSERVAR_FUNC)
+      return static_cast<Item_func_get_user_var*>(fi);
+  }
+  return NULL;
+}
+
 int
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
@@ -704,7 +721,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (args->elements != params)
   {
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
-             m_name.str, params, args->elements);
+             m_qname.str, params, args->elements);
     DBUG_RETURN(-1);
   }
 
@@ -724,12 +741,19 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     // QQ: Should do type checking?
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
-      sp_pvar_t *pvar = m_pcont->find_pvar(i);
+      sp_pvar_t *pvar= m_pcont->find_pvar(i);
 
-      if (! pvar)
-	nctx->set_oindex(i, -1); // Shouldn't happen
-      else
+      if (pvar)
       {
+	if (pvar->mode != sp_param_in)
+	{
+	  if (!it->is_splocal() && !item_is_user_var(it))
+	  {
+	    my_error(ER_SP_NOT_VAR_ARG, MYF(0), i+1, m_qname.str);
+	    ret= -1;
+	    break;
+	  }
+	}
 	if (pvar->mode == sp_param_out)
 	{
 	  if (! nit)
@@ -738,7 +762,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	}
 	else
 	{
-	  Item *it2= sp_eval_func_item(thd, it,pvar->type);
+	  Item *it2= sp_eval_func_item(thd, it, pvar->type);
 
 	  if (it2)
 	    nctx->push_item(it2); // IN or INOUT
@@ -748,13 +772,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	    break;
 	  }
 	}
-	// Note: If it's OUT or INOUT, it must be a variable.
-	// QQ: We can check for global variables here, or should we do it
-	//     while parsing?
-	if (pvar->mode == sp_param_in)
-	  nctx->set_oindex(i, -1); // IN
-	else			// OUT or INOUT
-	  nctx->set_oindex(i, static_cast<Item_splocal *>(it)->get_offset());
       }
     }
 
@@ -782,38 +799,31 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     // set global user variables
     for (uint i = 0 ; (it= li++) && i < params ; i++)
     {
-      int oi = nctx->get_oindex(i);
+      sp_pvar_t *pvar= m_pcont->find_pvar(i);
 
-      if (oi >= 0)
+      if (pvar->mode != sp_param_in)
       {
-	if (! tmp_octx)
-	  octx->set_item(nctx->get_oindex(i), nctx->get_item(i));
+	if (it->is_splocal())
+	  octx->set_item(static_cast<Item_splocal *>(it)->get_offset(),
+			 nctx->get_item(i));
 	else
 	{
-	  // QQ Currently we just silently ignore non-user-variable arguments.
-	  //    We should check this during parsing, when setting up the call
-	  //    above
-	  if (it->type() == Item::FUNC_ITEM)
+	  Item_func_get_user_var *guv= item_is_user_var(it);
+
+	  if (guv)
 	  {
-	    Item_func *fi= static_cast<Item_func*>(it);
+	    Item *item= nctx->get_item(i);
+	    Item_func_set_user_var *suv;
 
-	    if (fi->functype() == Item_func::GUSERVAR_FUNC)
-	    {			// A global user variable
-	      Item *item= nctx->get_item(i);
-	      Item_func_set_user_var *suv;
-	      Item_func_get_user_var *guv=
-		static_cast<Item_func_get_user_var*>(fi);
-
-	      suv= new Item_func_set_user_var(guv->get_name(), item);
-              /*
-                we do not check suv->fixed, because it can't be fixed after
-                creation
-              */
-	      suv->fix_fields(thd, NULL, &item);
-	      suv->fix_length_and_dec();
-	      suv->check();
-	      suv->update();
-	    }
+	    suv= new Item_func_set_user_var(guv->get_name(), item);
+	    /*
+	      we do not check suv->fixed, because it can't be fixed after
+	      creation
+	    */
+	    suv->fix_fields(thd, NULL, &item);
+	    suv->fix_length_and_dec();
+	    suv->check();
+	    suv->update();
 	  }
 	}
       }

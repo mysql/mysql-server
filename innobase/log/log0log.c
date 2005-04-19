@@ -3059,15 +3059,13 @@ loop:
 		goto loop;
 	}
 
-        if (srv_very_fast_shutdown) {
-               /* In a 'very fast' shutdown we do not flush the buffer pool:
+        if (srv_fast_shutdown == 2) {
+               /* In this fastest shutdown we do not flush the buffer pool:
                it is essentially a 'crash' of the InnoDB server.
-                Make sure that the log is all flushed to disk, so that
+               Make sure that the log is all flushed to disk, so that
                we can recover all committed transactions in a crash
                recovery.
-               In a 'very fast' shutdown we do not flush the buffer pool:
-               it is essentially a 'crash' of the InnoDB server. Then we must
-               not write the lsn stamps to the data files, since at a
+               We must not write the lsn stamps to the data files, since at a
                startup InnoDB deduces from the stamps if the previous
                shutdown was clean. */
 

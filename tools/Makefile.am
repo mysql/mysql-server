@@ -19,9 +19,9 @@ INCLUDES=-I$(top_srcdir)/include $(openssl_includes) \
 	-I$(top_builddir)/include
 LDADD=  @CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ \
 	$(top_builddir)/libmysql_r/libmysqlclient_r.la @ZLIB_LIBS@ 
-bin_PROGRAMS=		mysqlmanager
-mysqlmanager_SOURCES=	mysqlmanager.c
-mysqlmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
+bin_PROGRAMS=		mysqltestmanager
+mysqltestmanager_SOURCES=	mysqlmanager.c
+mysqltestmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 DEF=			-DUNDEF_THREADS_HACK
 
 # Don't update the files from bitkeeper

@@ -2145,12 +2145,16 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
  		if (dtype_get_mysql_type(dfield_get_type(dfield))
-					== DATA_MYSQL_TRUE_VARCHAR) {
+					== DATA_MYSQL_TRUE_VARCHAR
+		    && dfield_get_type(dfield)->mtype != DATA_INT) {
 			/* In a MySQL key value format, a true VARCHAR is
 			always preceded by 2 bytes of a length field.
 			dfield_get_type(dfield)->len returns the maximum
 			'payload' len in bytes. That does not include the
-			2 bytes that tell the actual data length. */
+			2 bytes that tell the actual data length.
+
+			We added the check != DATA_INT to make sure we do
+			not treat MySQL ENUM or SET as a true VARCHAR! */
 
 			data_len += 2;
 			data_field_len += 2;
@@ -2360,7 +2364,9 @@ row_sel_field_store_in_mysql_format(
 
 		ut_a(templ->mbmaxlen > templ->mbminlen
 			|| templ->mysql_col_len == len);
-		ut_a(!templ->mbmaxlen
+		/* The following assertion would fail for old tables
+		containing UTF-8 ENUM columns due to Bug #9526. */
+		ut_ad(!templ->mbmaxlen
 			|| !(templ->mysql_col_len % templ->mbmaxlen));
 		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
 
@@ -2637,6 +2643,8 @@ row_sel_get_clust_rec_for_mysql(
 			prebuilt->clust_pcur, 0, mtr);
 
 	clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
+
+	prebuilt->clust_pcur->trx_if_known = trx;
 
 	/* Note: only if the search ends up on a non-infimum record is the
 	low_match value the real match to the search tuple */
@@ -3400,6 +3408,8 @@ shortcut_fails_too_big_rec:
 		btr_pcur_open_with_no_init(index, search_tuple, mode,
 					BTR_SEARCH_LEAF,
 					pcur, 0, &mtr);
+
+		pcur->trx_if_known = trx;
 	} else {
 		if (mode == PAGE_CUR_G) {
 			btr_pcur_open_at_index_side(TRUE, index,
@@ -3483,12 +3493,12 @@ rec_loop:
 				err = sel_set_rec_lock(rec, index, offsets,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
+				if (err != DB_SUCCESS) {
+
+					goto lock_wait_or_error;
+				}
 			}
 
-			if (err != DB_SUCCESS) {
-
-				goto lock_wait_or_error;
-			}
 		}
 		/* A page supremum record cannot be in the result set: skip
 		it now that we have placed a possible lock on it */
@@ -3596,12 +3606,12 @@ rec_loop:
 						offsets,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+					if (err != DB_SUCCESS) {
+
+						goto lock_wait_or_error;
+					}
 				}
 
-				if (err != DB_SUCCESS) {
-
-					goto lock_wait_or_error;
-				}
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
@@ -3630,12 +3640,12 @@ rec_loop:
 						offsets,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+					if (err != DB_SUCCESS) {
+
+						goto lock_wait_or_error;
+					}
 				}
 
-				if (err != DB_SUCCESS) {
-
-					goto lock_wait_or_error;
-				}
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
@@ -3674,6 +3684,27 @@ rec_loop:
 			} else {
 				lock_type = LOCK_ORDINARY;
  			}
+		}
+
+		/* If we are doing a 'greater or equal than a primary key
+		value' search from a clustered index, and we find a record
+		that has that exact primary key value, then there is no need
+		to lock the gap before the record, because no insert in the
+		gap can be in our search range. That is, no phantom row can
+		appear that way.
+
+		An example: if col1 is the primary key, the search is WHERE
+		col1 >= 100, and we find a record where col1 = 100, then no
+		need to lock the gap before that record. */
+
+		if (index == clust_index
+		    && mode == PAGE_CUR_GE
+		    && direction == 0
+		    && dtuple_get_n_fields_cmp(search_tuple)
+		       == dict_index_get_n_unique(index)
+		    && 0 == cmp_dtuple_rec(search_tuple, rec, offsets)) {
+
+			lock_type = LOCK_REC_NOT_GAP;
 		}
 
 		err = sel_set_rec_lock(rec, index, offsets,

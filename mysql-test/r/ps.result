@@ -524,3 +524,49 @@ execute stmt using @a, @b, @c;
 a	b	c	a	b	c
 deallocate prepare stmt;
 drop table t1,t2;
+SET @aux= "SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
+prepare my_stmt from @aux;
+execute my_stmt;
+COUNT(*)
+37
+execute my_stmt;
+COUNT(*)
+37
+execute my_stmt;
+COUNT(*)
+37
+deallocate prepare my_stmt;
+drop procedure if exists p1|
+drop table if exists t1|
+create table t1 (id int)|
+insert into t1 values(1)|
+create procedure p1(a int, b int)
+begin
+declare c int;
+select max(id)+1 into c from t1;
+insert into t1 select a+b;
+insert into t1 select a-b;
+insert into t1 select a-c;
+end|
+set @a= 3, @b= 4|
+prepare stmt from "call p1(?, ?)"|
+execute stmt using @a, @b|
+execute stmt using @a, @b|
+select * from t1|
+id
+1
+7
+-1
+1
+7
+-1
+-5
+deallocate prepare stmt|
+drop procedure p1|
+drop table t1|

@@ -7,6 +7,9 @@
 # -master.opt. But this test is designed to still pass then (though it
 # won't test anything interesting).
 
+# This also won't work with the embedded server test
+-- source include/not_embedded.inc
+
 -- source include/have_debug.inc
 
 connect (con1,localhost,root,,);

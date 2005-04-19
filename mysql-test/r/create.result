@@ -44,12 +44,24 @@ create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
 ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
-create table test (a datetime default now());
+create table t1 (a datetime default now());
 ERROR 42000: Invalid default value for 'a'
-create table test (a datetime on update now());
+create table t1 (a datetime on update now());
 ERROR HY000: Invalid ON UPDATE clause for 'a' column
-create table test (a int default 100 auto_increment);
+create table t1 (a int default 100 auto_increment);
 ERROR 42000: Invalid default value for 'a'
+create table t1 (a tinyint default 1000);
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a varchar(5) default 'abcdef');
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a varchar(5) default 'abcde');
+insert into t1 values();
+select * from t1;
+a
+abcde
+alter table t1 alter column a set default 'abcdef';
+ERROR 42000: Invalid default value for 'a'
+drop table t1;
 create table 1ea10 (1a20 int,1e int);
 insert into 1ea10 values(1,1);
 select 1ea10.1a20,1e+ 1e+10 from 1ea10;
@@ -255,11 +267,15 @@ drop table t1;
 create table t1 (a int not null, b int, primary key (a));
 insert into t1 values (1,1);
 create table if not exists t1 select 2;
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
 select * from t1;
 a	b
 1	1
 0	2
 create table if not exists t1 select 3 as 'a',4 as 'b';
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
 create table if not exists t1 select 3 as 'a',3 as 'b';
 ERROR 23000: Duplicate entry '3' for key 1
 select * from t1;

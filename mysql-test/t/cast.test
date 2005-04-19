@@ -5,6 +5,7 @@
 select CAST(1-2 AS UNSIGNED);
 select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
 select CONVERT('-1',UNSIGNED);
+select CAST('10 ' as unsigned integer);
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
@@ -16,11 +17,22 @@ select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
 select cast("1:2:3" as TIME);
 select CONVERT("2004-01-22 21:45:33",DATE);
+select 10+'10';
+select 10.0+'10';
+select 10E+0+'10';
+
+# The following cast creates warnings
+
 select CONVERT(DATE "2004-01-22 21:45:33" USING latin1);
 select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
 select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
 select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
+select cast('-10a' as signed integer);
+select cast('a10' as unsigned integer);
+select 10+'a';
+select 10.0+cast('a' as decimal);
+select 10E+0+'a';
 
 #
 # Character set convertion
@@ -41,6 +53,7 @@ select
   cast(_latin1'abc' AS char(2)) as c3,
   cast(_latin1'a  ' AS char(2)) as c4,
   cast(_latin1'a'   AS char(2)) as c5;
+select cast(1000 as CHAR(3));
 
 create table t1 select
   cast(_latin1'ab'  AS char)    as c1,

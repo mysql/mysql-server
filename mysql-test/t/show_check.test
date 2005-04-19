@@ -1,3 +1,7 @@
+# Requires use of multiple simultaneous connections, not supported with
+# embedded server testing
+-- source include/not_embedded.inc
+
 #
 # Test of some show commands
 #
@@ -102,7 +106,7 @@ drop table t1;
 # Do a create table that tries to cover all types and options
 #
 create table t1 (
-type_bool bool not null,
+type_bool bool not null default 0,
 type_tiny tinyint not null auto_increment primary key,
 type_short smallint(3),
 type_mediumint mediumint,
@@ -113,9 +117,9 @@ empty_char char(0),
 type_char char(2),
 type_varchar varchar(10),
 type_timestamp timestamp not null,
-type_date date not null,
-type_time time not null,
-type_datetime datetime not null,
+type_date date not null default '0000-00-00',
+type_time time not null default '00:00:00',
+type_datetime datetime not null default '0000-00-00 00:00:00',
 type_year year,
 type_enum enum ('red', 'green', 'blue'),
 type_set enum ('red', 'green', 'blue'),
@@ -361,3 +365,14 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+# Test for BUG#9439 "Reporting wrong datatype for sub_part on show index"
+CREATE TABLE t1(
+  field1 text NOT NULL,
+  PRIMARY KEY(field1(1000))
+);
+--enable_metadata
+show index from t1;
+--disable_metadata
+drop table t1;
+

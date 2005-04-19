@@ -17,7 +17,7 @@ use DBI;
 use Getopt::Long;
 
 $| = 1;
-$VER = "2.6";
+$VER = "3.0";
 
 $opt_help          = 0;
 $opt_version       = 0;
@@ -26,7 +26,6 @@ $opt_host          = undef();
 $opt_port          = undef();
 $opt_socket        = undef();
 $opt_db            = "mail";
-$opt_table         = "mails";
 $opt_user          = undef();
 $opt_password      = undef();
 $opt_max_mail_size = 65536;
@@ -97,7 +96,7 @@ sub main
     print "the my.cnf file. This command is available from the latest MySQL\n";
     print "distribution.\n";
   }
-  GetOptions("help","version","host=s","port=i","socket=s","db=s","table=s",
+  GetOptions("help","version","host=s","port=i","socket=s","db=s",
 	     "user=s","password=s","max_mail_size=i","create","test",
 	     "no_path","debug","stop_on_error","stdin")
   || die "Wrong option! See $progname --help\n";
@@ -123,7 +122,6 @@ sub main
   || die "Couldn't connect: $DBI::errstr\n";
 
   die "You must specify the database; use --db=" if (!defined($opt_db));
-  die "You must specify the table; use --table=" if (!defined($opt_table));
 
   create_table($dbh) if ($opt_create);
 
@@ -218,9 +216,9 @@ sub main
   print "Total number of mails:\t\t\t\t"; 
   print $mail_inserted + $ignored;
   print " (OK: ";
-  print sprintf("%.1f", (($mail_inserted / ($mail_inserted+$ignored)) * 100));
+  print sprintf("%.1f", ($mail_inserted + $ignored) ? (($mail_inserted / ($mail_inserted+$ignored)) * 100) : 0.0);
   print "% Ignored: ";
-  print sprintf("%.1f", (($ignored / ($mail_inserted + $ignored)) * 100));
+  print sprintf("%.1f", ($mail_inserted + $ignored) ? (($ignored / ($mail_inserted + $ignored)) * 100) : 0);
   print "%)\n";
   print "################################ End Report ##################################\n";
   exit(0);
@@ -232,13 +230,15 @@ sub main
 
 sub create_table
 {
-  my ($dbh) = @_;
+  my ($dbh)= @_;
   my ($sth, $query);
 
-  $query = <<EOF;
-CREATE TABLE $opt_table
+  $query= <<EOF;
+CREATE TABLE my_mail
 (
  mail_id MEDIUMINT UNSIGNED NOT NULL auto_increment,
+ message_id VARCHAR(255),
+ in_reply_to VARCHAR(255),
  date DATETIME NOT NULL,
  time_zone VARCHAR(20),
  mail_from VARCHAR(120) NOT NULL,
@@ -250,6 +250,8 @@ CREATE TABLE $opt_table
  file VARCHAR(64) NOT NULL,
  hash INTEGER NOT NULL,
  KEY (mail_id),
+ KEY (message_id),
+ KEY (in_reply_to),
  PRIMARY KEY (mail_from, date, hash))
  TYPE=MyISAM COMMENT=''
 EOF
@@ -277,7 +279,7 @@ sub process_mail_file
     chop if (substr($_, -1, 1) eq "\r");
     if ($type ne "message")
     { 
-      if (/^Reply-To: (.*)/i)
+      if (/^Reply-To:\s*(.*)/i)
       {
 	$type = "reply";
 	$values{$type} = $1;
@@ -302,14 +304,27 @@ sub process_mail_file
 	$type = "subject";
 	$values{$type} = $1;
       }
+      elsif (/^Message-Id:\s*(.*)/i)
+      {
+	$type = "message_id";
+	s/^\s*(<.*>)\s*/$1/;
+	$values{$type} = $1;
+      }
+      elsif (/^In-Reply-To:\s*(.*)/i)
+      {
+	$type = "in_reply_to";
+	s/^\s*(<.*>)\s*/$1/;
+	$values{$type} = $1;
+      }
       elsif (/^Date: (.*)/i)
       {
 	date_parser($1, \%values, $file_name);
 	$type = "rubbish";
       }
-      elsif (/^[\w\W-]+:\s/)
+      # Catch those fields that we don't or can't handle (yet)
+      elsif (/^[\w\W-]+:/)
       {
-	$type = "rubbish";  
+	$type = "rubbish";
       }
       elsif ($_ eq "")
       { 
@@ -319,6 +334,10 @@ sub process_mail_file
       else
       {
 	s/^\s*/ /;
+	if ($type eq 'message_id' || $type eq 'in_reply_to')
+	{
+	  s/^\s*(<.*>)\s*/$1/;
+	}
 	$values{$type} .= $_;
       }
     }
@@ -421,8 +440,10 @@ sub update_table
     goto restart;	  # Some mails may have duplicated messages
   }
 
-  $q = "INSERT INTO $opt_table (";
+  $q = "INSERT INTO my_mail (";
   $q.= "mail_id,";
+  $q.= "message_id,";
+  $q.= "in_reply_to,";
   $q.= "date,";
   $q.= "time_zone,";
   $q.= "mail_from,";
@@ -435,6 +456,12 @@ sub update_table
   $q.= "hash";
   $q.= ") VALUES (";
   $q.= "NULL,";
+  $q.= (defined($values->{'message_id'}) ?
+	$dbh->quote($values->{'message_id'}) : "NULL");
+  $q.= ",";
+  $q.= (defined($values->{'in_reply_to'}) ?
+	$dbh->quote($values->{'in_reply_to'}) : "NULL");
+  $q.= ",";
   $q.= "'" . $values->{'date'} . "',";
   $q.= (defined($values->{'time_zone'}) ?
 	$dbh->quote($values->{'time_zone'}) : "NULL");
@@ -575,7 +602,6 @@ Options:
 --port=#           TCP/IP port to be used with connection.
 --socket=...       MySQL UNIX socket to be used with connection.
 --db=...           Database to be used.
---table=...        Table name for mails.
 --user=...         Username for connecting.
 --password=...     Password for the user.
 --stdin            Read mails from stdin.

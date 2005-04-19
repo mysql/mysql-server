@@ -263,13 +263,15 @@ int check_user(THD *thd, enum enum_server_command command,
   
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   thd->master_access= GLOBAL_ACLS;			// Full rights
-  /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
+  /* Change database if necessary */
   if (db && db[0])
   {
     thd->db= 0;
     thd->db_length= 0;
     if (mysql_change_db(thd, db))
     {
+      /* Send the error to the client */
+      net_send_error(thd);
       if (thd->user_connect)
 	decrease_user_connections(thd->user_connect);
       DBUG_RETURN(-1);
@@ -398,11 +400,13 @@ int check_user(THD *thd, enum enum_server_command command,
 	  check_for_max_user_connections(thd, thd->user_connect))
 	DBUG_RETURN(-1);
 
-      /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
+      /* Change database if necessary */
       if (db && db[0])
       {
         if (mysql_change_db(thd, db))
         {
+          /* Send error to the client */
+          net_send_error(thd);
           if (thd->user_connect)
             decrease_user_connections(thd->user_connect);
           DBUG_RETURN(-1);
@@ -1106,7 +1110,8 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();
-    while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
+    while (!net->error && net->vio != 0 &&
+           !(thd->killed == THD::KILL_CONNECTION))
     {
       net->no_send_error= 0;
       if (do_command(thd))
@@ -1691,6 +1696,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       else
 	thd->query_rest.copy(packet, length, thd->query_rest.charset());
+
+      thd->server_status&= ~ (SERVER_QUERY_NO_INDEX_USED |
+                              SERVER_QUERY_NO_GOOD_INDEX_USED);
       break;
 #endif /*EMBEDDED_LIBRARY*/
     }
@@ -1912,11 +1920,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
-	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
+	    "Uptime: %lu  Threads: %d  Questions: %lu  Slow queries: %lu  Opens: %lu  Flush tables: %lu  Open tables: %u  Queries per second avg: %.3f",
 	    uptime,
-	    (int) thread_count,thd->query_id,thd->status_var.long_query_count,
-	    thd->status_var.opened_tables,refresh_version, cached_tables(),
-	    uptime ? (float)thd->query_id/(float)uptime : 0);
+	    (int) thread_count, (ulong) thd->query_id,
+            (ulong) thd->status_var.long_query_count,
+	    thd->status_var.opened_tables, refresh_version, cached_tables(),
+	    (uptime ? (ulonglong2double(thd->query_id) / (double) uptime) :
+	     (double) 0));
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
@@ -3235,16 +3245,6 @@ unsent_create_error:
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
 
-    if (!first_table->table)
-    {
-      DBUG_ASSERT(first_table->view &&
-                  first_table->ancestor && first_table->ancestor->next_local);
-      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-               first_table->view_db.str, first_table->view_name.str);
-      res= FALSE;
-      break;
-    }
-
     if ((res= mysql_multi_delete_prepare(thd)))
       goto error;
 
@@ -4135,7 +4135,15 @@ unsent_create_error:
 	sp= sp_find_function(thd, lex->spname);
       mysql_reset_errors(thd, 0);
       if (! sp)
-	result= SP_KEY_NOT_FOUND;
+      {
+	if (lex->spname->m_db.str)
+	  result= SP_KEY_NOT_FOUND;
+	else
+	{
+	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+	  goto error;
+	}
+      }
       else
       {
         if (check_procedure_access(thd, ALTER_PROC_ACL, sp->m_db.str, 
@@ -4214,7 +4222,13 @@ unsent_create_error:
 	  }
 	}
 #endif
-	result= SP_KEY_NOT_FOUND;
+	if (lex->spname->m_db.str)
+	  result= SP_KEY_NOT_FOUND;
+	else
+	{
+	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+	  goto error;
+	}
       }
       res= result;
       switch (result)
@@ -4326,7 +4340,7 @@ unsent_create_error:
   case SQLCOM_XA_START:
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
     {
-      if (! thd->transaction.xid.eq(&thd->lex->ident))
+      if (! thd->transaction.xid.eq(thd->lex->xid))
       {
         my_error(ER_XAER_NOTA, MYF(0));
         break;
@@ -4335,7 +4349,7 @@ unsent_create_error:
       send_ok(thd);
       break;
     }
-    if (thd->lex->ident.length > MAXGTRIDSIZE || thd->lex->xa_opt != XA_NONE)
+    if (thd->lex->xa_opt != XA_NONE)
     { // JOIN is not supported yet. TODO
       my_error(ER_XAER_INVAL, MYF(0));
       break;
@@ -4353,7 +4367,7 @@ unsent_create_error:
     }
     DBUG_ASSERT(thd->transaction.xid.is_null());
     thd->transaction.xa_state=XA_ACTIVE;
-    thd->transaction.xid.set(&thd->lex->ident);
+    thd->transaction.xid.set(thd->lex->xid);
     thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -4372,7 +4386,7 @@ unsent_create_error:
                xa_state_names[thd->transaction.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4387,7 +4401,7 @@ unsent_create_error:
                xa_state_names[thd->transaction.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4402,9 +4416,9 @@ unsent_create_error:
     send_ok(thd);
     break;
   case SQLCOM_XA_COMMIT:
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 1)))
+      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 1)))
         my_error(ER_XAER_NOTA, MYF(0));
       else
         send_ok(thd);
@@ -4421,10 +4435,19 @@ unsent_create_error:
     else
     if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
     {
-      if (ha_commit_one_phase(thd, 1))
+      if (wait_if_global_read_lock(thd, 0, 0))
+      {
+        ha_rollback(thd);
         my_error(ER_XAER_RMERR, MYF(0));
+      }
       else
-        send_ok(thd);
+      {
+        if (ha_commit_one_phase(thd, 1))
+          my_error(ER_XAER_RMERR, MYF(0));
+        else
+          send_ok(thd);
+        start_waiting_global_read_lock(thd);
+      }
     }
     else
     {
@@ -4437,9 +4460,9 @@ unsent_create_error:
     thd->transaction.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_ROLLBACK:
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 0)))
+      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 0)))
         my_error(ER_XAER_NOTA, MYF(0));
       else
         send_ok(thd);

@@ -1437,18 +1437,6 @@ id	label
 3524	Societe Test
 3525	Fournisseur Test
 drop table t1,t2;
-create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) engine=innodb;
-select * from t1;
-c1	c2	stamp
-replace delayed into t1 (c1, c2)  values ( "text1","11"),( "text2","12");
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-select * from t1;
-c1	c2	stamp
-replace delayed into t1 (c1, c2)  values ( "text1","12"),( "text2","13"),( "text3","14", "a" ),( "text4","15", "b" );
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-select * from t1;
-c1	c2	stamp
-drop table t1;
 create table t1 (a int, b varchar(200), c text not null) checksum=1 engine=myisam;
 create table t2 (a int, b varchar(200), c text not null) checksum=0 engine=innodb;
 create table t3 (a int, b varchar(200), c text not null) checksum=1 engine=innodb;
@@ -1618,7 +1606,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
-ERROR HY000: Can't create table './test/t2.frm' (errno: 150)
+ERROR HY000: Can't create table './test/t2' (errno: 150)
 create table t2 (a int auto_increment primary key, b int, index(b), foreign key (b) references t1(id), unique(b)) engine=innodb;
 show create table t2;
 Table	Create Table
@@ -2372,7 +2360,7 @@ length(v)
 65530
 drop table t1;
 create table t1 (v varchar(65530), key(v));
-ERROR HY000: Can't create table './test/t1.frm' (errno: 139)
+ERROR HY000: Can't create table './test/t1' (errno: 139)
 create table t1 (v varchar(65536));
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT
@@ -2394,5 +2382,3 @@ drop table t1;
 set storage_engine=MyISAM;
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
-create table t1 (a bit, key(a)) engine=innodb;
-ERROR 42000: The storage engine for the table doesn't support BIT FIELD

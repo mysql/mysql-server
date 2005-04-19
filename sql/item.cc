@@ -46,7 +46,7 @@ void Hybrid_type_traits::fix_length_and_dec(Item *item, Item *arg) const
 
 const Hybrid_type_traits *Hybrid_type_traits::instance()
 {
-  const static Hybrid_type_traits real_traits;
+  static const Hybrid_type_traits real_traits;
   return &real_traits;
 }
 
@@ -70,7 +70,7 @@ Hybrid_type_traits::val_str(Hybrid_type *val, String *to, uint8 decimals) const
 
 const Hybrid_type_traits_decimal *Hybrid_type_traits_decimal::instance()
 {
-  const static Hybrid_type_traits_decimal decimal_traits;
+  static const Hybrid_type_traits_decimal decimal_traits;
   return &decimal_traits;
 }
 
@@ -146,7 +146,7 @@ Hybrid_type_traits_decimal::val_str(Hybrid_type *val, String *to,
 
 const Hybrid_type_traits_integer *Hybrid_type_traits_integer::instance()
 {
-  const static Hybrid_type_traits_integer integer_traits;
+  static const Hybrid_type_traits_integer integer_traits;
   return &integer_traits;
 }
 
@@ -260,8 +260,15 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
     return 0;                                   // NULL or EOM
 
   end_ptr= (char*) res->ptr()+ res->length();
-  str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
-                 decimal_value);
+  if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
+                     res->ptr(), res->length(), res->charset(),
+                     decimal_value) & E_DEC_BAD_NUM)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
+                        str_value.c_ptr());
+  }
   return decimal_value;
 }
 
@@ -693,7 +700,7 @@ my_decimal *Item_splocal::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
   Item *it= this_item();
-  my_decimal value, *val= it->val_decimal(&value);
+  my_decimal *val= it->val_decimal(decimal_value);
   Item::null_value= it->null_value;
   return val;
 }
@@ -929,8 +936,17 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
 	set(0, DERIVATION_NONE);
 	return 1;
       }
+      if (collation->state & MY_CS_BINSORT)
+      {
+        return 0;
+      }
+      else if (dt.collation->state & MY_CS_BINSORT)
+      {
+        set(dt);
+        return 0;
+      }
       CHARSET_INFO *bin= get_charset_by_csname(collation->csname, 
-					       MY_CS_BINSORT,MYF(0));
+                                               MY_CS_BINSORT,MYF(0));
       set(bin, DERIVATION_NONE);
     }
   }
@@ -1455,12 +1471,67 @@ void Item_string::print(String *str)
 }
 
 
+inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str, char *end)
+{
+  return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
+}
+
+
+double Item_string::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  int error;
+  char *end, *org_end;
+  double tmp;
+  CHARSET_INFO *cs= str_value.charset();
+
+  org_end= (char*) str_value.ptr() + str_value.length();
+  tmp= my_strntod(cs, (char*) str_value.ptr(), str_value.length(), &end,
+                  &error);
+  if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  {
+    /*
+      We can use str_value.ptr() here as Item_string is gurantee to put an
+      end \0 here.
+    */
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        str_value.ptr());
+  }
+  return tmp;
+}
+
+
+longlong Item_string::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  int err;
+  longlong tmp;
+  char *end= (char*) str_value.ptr()+ str_value.length();
+  char *org_end= end;
+  CHARSET_INFO *cs= str_value.charset();
+
+  tmp= (*(cs->cset->strtoll10))(cs, str_value.ptr(), &end, &err);
+  /*
+    TODO: Give error if we wanted a signed integer and we got an unsigned
+    one
+  */
+  if (err > 0 ||
+      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        str_value.ptr());
+  }
+  return tmp;
+}
+
+
 my_decimal *Item_string::val_decimal(my_decimal *decimal_value)
 {
-  /* following assert is redundant, because fixed=1 assigned in constructor */
-  DBUG_ASSERT(fixed == 1);
-  string2my_decimal(E_DEC_FATAL_ERROR, &str_value, decimal_value);
-  return (decimal_value);
+  return val_decimal_from_string(decimal_value);
 }
 
 
@@ -2907,41 +2978,38 @@ Item *Item_field::set_no_const_sub(byte *arg)
 
 
 /*
-  Set a pointer to the multiple equality the field reference belongs to
+  Replace an Item_field for an equal Item_field that evaluated earlier
   (if any)
    
   SYNOPSIS
-    replace_equal_field_processor()
+    replace_equal_field_()
     arg - a dummy parameter, is not used here
   
   DESCRIPTION
-    The function replaces a pointer to a field in the Item_field object
-    by a pointer to another field.
-    The replacement field is taken from the very beginning of
-    the item_equal list which the Item_field object refers to (belongs to)  
-    If the Item_field object does not refer any Item_equal object,
-    nothing is done.
+    The function returns a pointer to an item that is taken from
+    the very beginning of the item_equal list which the Item_field
+    object refers to (belongs to).  
+    If the Item_field object does not refer any Item_equal object
+    'this' is returned 
 
   NOTES
     This function is supposed to be called as a callback parameter in calls
-    of the walk method.  
+    of the thransformer method.  
 
   RETURN VALUES
-    0 
+    pointer to a replacement Item_field if there is a better equal item;
+    this - otherwise.
 */
 
-bool Item_field::replace_equal_field_processor(byte *arg)
+Item *Item_field::replace_equal_field(byte *arg)
 {
   if (item_equal)
   {
     Item_field *subst= item_equal->get_first();
     if (!field->eq(subst->field))
-    {
-      field= subst->field;
-      return 0;
-    }
+      return subst;
   }
-  return 0;
+  return this;
 }
 
 
@@ -4162,6 +4230,7 @@ bool Item_default_value::fix_fields(THD *thd,
   return FALSE;
 }
 
+
 void Item_default_value::print(String *str)
 {
   if (!arg)
@@ -4173,6 +4242,27 @@ void Item_default_value::print(String *str)
   arg->print(str);
   str->append(')');
 }
+
+
+int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
+{
+  if (!arg)
+  {
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    {
+      push_warning_printf(field_arg->table->in_use,
+                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_NO_DEFAULT_FOR_FIELD,
+                          ER(ER_NO_DEFAULT_FOR_FIELD),
+                          field_arg->field_name);
+      return 1;
+    }
+    field_arg->set_default();
+    return 0;
+  }
+  return Item_field::save_in_field(field_arg, no_conversions);
+}
+
 
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {
@@ -4848,7 +4938,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     int intp2= max_length - min(decimals, NOT_FIXED_DEC - 1);
     /* can't be overflow because it work only for decimals (no strings) */
     int dec_length= max(intp1, intp2) + decimals;
-    max_length= max(max_length, max(item_length, dec_length));
+    max_length= max(max_length, (uint) max(item_length, dec_length));
     /*
       we can't allow decimals to be NOT_FIXED_DEC, to prevent creation
       decimal with max precision (see Field_new_decimal constcuctor)
@@ -4875,8 +4965,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   maybe_null|= item->maybe_null;
   get_full_info(item);
-  DBUG_PRINT("info:", ("become type %d len %d, dec %d",
-                       fld_type, max_length, decimals));
+  DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u",
+                      (int) fld_type, max_length, (uint) decimals));
   DBUG_RETURN(FALSE);
 }
 

@@ -161,7 +161,8 @@ THD::THD()
   :user_time(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
-   in_lock_tables(0), bootstrap(0), spcont(NULL)
+   in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
+   spcont(NULL)
 {
   current_arena= this;
 #ifndef DBUG_OFF
@@ -201,10 +202,11 @@ THD::THD()
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
-#ifndef EMBEDDED_LIBRARY  
+#ifndef EMBEDDED_LIBRARY
   net.vio=0;
 #endif
-  net.last_error[0]=0;				// If error on boot
+  net.last_error[0]=0;                          // If error on boot
+  net.query_cache_query=0;                      // If error on boot
   ull=0;
   system_thread= cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
@@ -213,7 +215,7 @@ THD::THD()
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
-#endif  
+#endif
   pthread_mutex_init(&LOCK_delete, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -342,7 +344,10 @@ void THD::change_user(void)
 void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
-  ha_rollback(this);
+#ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
+  if (transaction.xa_state != XA_PREPARED)
+#endif
+    ha_rollback(this);
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
@@ -384,17 +389,17 @@ THD::~THD()
   add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
-#ifndef EMBEDDED_LIBRARY  
+#ifndef EMBEDDED_LIBRARY
   if (net.vio)
   {
     vio_delete(net.vio);
-    net_end(&net); 
+    net_end(&net);
   }
 #endif
   if (!cleanup_done)
     cleanup();
 
-    ha_close_connection(this);
+  ha_close_connection(this);
 
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);

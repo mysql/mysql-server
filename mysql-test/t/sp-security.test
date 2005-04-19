@@ -2,6 +2,9 @@
 # Testing SQL SECURITY of stored procedures
 #
 
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
 connect (con1root,localhost,root,,);
 
 connection con1root;

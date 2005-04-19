@@ -386,6 +386,8 @@ sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
 #ifdef HAVE_INNOBASE_DB
+sys_var_long_ptr	sys_innodb_fast_shutdown("innodb_fast_shutdown",
+						 &innobase_fast_shutdown);
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
                                                         &srv_max_buf_pool_modified_pct);
 sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
@@ -689,6 +691,7 @@ sys_var *sys_variables[]=
   &sys_tx_isolation,
   &sys_os,
 #ifdef HAVE_INNOBASE_DB
+  &sys_innodb_fast_shutdown,
   &sys_innodb_max_dirty_pages_pct,
   &sys_innodb_max_purge_lag,
   &sys_innodb_table_locks,
@@ -795,7 +798,7 @@ struct show_var_st init_vars[]= {
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
   {"innodb_doublewrite", (char*) &innobase_use_doublewrite, SHOW_MY_BOOL},
-  {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
+  {sys_innodb_fast_shutdown.name,(char*) &sys_innodb_fast_shutdown, SHOW_SYS},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
@@ -954,9 +957,11 @@ struct show_var_st init_vars[]= {
   {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+#ifdef DOES_NOTHING_YET
   {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
   {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
   {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
+#endif
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
@@ -2495,14 +2500,6 @@ bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
 {
   pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
   sync_binlog_period= (ulong) var->save_result.ulonglong_value;
-  /*
-    Must reset the counter otherwise it may already be beyond the new period
-    and so the new period will not be taken into account. Need mutex otherwise
-    might be cancelled by a simultanate ++ in MYSQL_LOG::write().
-  */
-  pthread_mutex_lock(lock_log);
-  sync_binlog_counter= 0;
-  pthread_mutex_unlock(lock_log);
   return 0;
 }
 #endif /* HAVE_REPLICATION */
@@ -2522,7 +2519,7 @@ bool sys_var_rand_seed2::update(THD *thd, set_var *var)
 
 bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 {
-  char buff[MAX_TIME_ZONE_NAME_LENGTH]; 
+  char buff[MAX_TIME_ZONE_NAME_LENGTH];
   String str(buff, sizeof(buff), &my_charset_latin1);
   String *res= var->value->val_str(&str);
 
@@ -3128,8 +3125,8 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
     enum db_type db_type;
     if (!(res=var->value->val_str(&str)) ||
 	!(var->save_result.ulong_value=
-	 (ulong) (db_type= ha_resolve_by_name(res->ptr(), res->length()))) ||
-	ha_checktype(db_type) != db_type) 
+          (ulong) (db_type= ha_resolve_by_name(res->ptr(), res->length()))) ||
+        ha_checktype(db_type) != db_type)
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;
