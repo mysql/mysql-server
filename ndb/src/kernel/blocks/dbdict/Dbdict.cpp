@@ -10041,11 +10041,20 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
       requestType == BuildIndxReq::RT_ALTER_INDEX ||
       requestType == BuildIndxReq::RT_SYSTEMRESTART) {
     jam();
+
+    const bool isLocal = req->getRequestFlag() & RequestFlag::RF_LOCAL;
+    NdbNodeBitmask receiverNodes = c_aliveNodes;
+    if (isLocal) {
+      receiverNodes.clear();
+      receiverNodes.set(getOwnNodeId());
+    }
+    
     if (signal->getLength() == BuildIndxReq::SignalLength) {
       jam();
-      if (getOwnNodeId() != c_masterNodeId) {
+      
+      if (!isLocal && getOwnNodeId() != c_masterNodeId) {
         jam();
-
+	
 	releaseSections(signal);
 	OpBuildIndex opBad;
 	opPtr.p = &opBad;
@@ -10058,9 +10067,9 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
       }
       // forward initial request plus operation key to all
       req->setOpKey(++c_opRecordSequence);
-      NodeReceiverGroup rg(DBDICT, c_aliveNodes);
+      NodeReceiverGroup rg(DBDICT, receiverNodes);
       sendSignal(rg, GSN_BUILDINDXREQ,
-          signal, BuildIndxReq::SignalLength + 1, JBB);
+		 signal, BuildIndxReq::SignalLength + 1, JBB);
       return;
     }
     // seize operation record
@@ -10083,7 +10092,7 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
     }
     c_opBuildIndex.add(opPtr);
     // master expects to hear from all
-    opPtr.p->m_signalCounter = c_aliveNodes;
+    opPtr.p->m_signalCounter = receiverNodes;
     buildIndex_sendReply(signal, opPtr, false);
     return;
   }
@@ -10438,10 +10447,20 @@ Dbdict::buildIndex_sendSlaveReq(Signal* signal, OpBuildIndexPtr opPtr)
   req->setConnectionPtr(opPtr.p->key);
   req->setRequestType(opPtr.p->m_requestType);
   req->addRequestFlag(opPtr.p->m_requestFlag);
-  opPtr.p->m_signalCounter = c_aliveNodes;
-  NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-  sendSignal(rg, GSN_BUILDINDXREQ,
-      signal, BuildIndxReq::SignalLength, JBB);
+  if(opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL)
+  {
+    opPtr.p->m_signalCounter.clearWaitingFor();
+    opPtr.p->m_signalCounter.setWaitingFor(getOwnNodeId());
+    sendSignal(reference(), GSN_BUILDINDXREQ,
+	       signal, BuildIndxReq::SignalLength, JBB);
+  }
+  else
+  {
+    opPtr.p->m_signalCounter = c_aliveNodes;
+    NodeReceiverGroup rg(DBDICT, c_aliveNodes);
+    sendSignal(rg, GSN_BUILDINDXREQ,
+	       signal, BuildIndxReq::SignalLength, JBB);
+  }
 }
 
 void
