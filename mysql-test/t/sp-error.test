@@ -818,6 +818,20 @@ drop procedure bug9073|
 
 
 #
+# BUG#7047: Stored procedure crash if alter procedure
+#
+--error ER_SP_NO_DROP_SP
+create procedure bug7047()
+  alter procedure bug7047|
+--error ER_SP_NO_DROP_SP
+create function bug7047() returns int
+begin
+  alter function bug7047;
+  return 0;
+end|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
