@@ -1499,7 +1499,7 @@ sp_instr_jump::opt_shortcut_jump(sp_head *sp, sp_instr *start)
   {
     uint ndest;
 
-    if (start == i)
+    if (start == i || this == i)
       break;
     ndest= i->opt_shortcut_jump(sp, start);
     if (ndest == dest)

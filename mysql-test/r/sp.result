@@ -2958,4 +2958,13 @@ select @x|
 set global query_cache_size = @qcs1|
 delete from t1|
 drop function bug9902|
+drop procedure if exists bug6898|
+create procedure bug6898()
+begin
+goto label1;
+label label1;
+begin end;
+goto label1;
+end|
+drop procedure bug6898|
 drop table t1,t2;
