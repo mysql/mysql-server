@@ -2960,14 +2960,35 @@ delete from t1|
 drop function bug9902|
 drop function if exists bug9102|
 create function bug9102() returns blob return 'a'|
-select bug9102();
-drop function bug9102|
+select bug9102()|
 bug9102()
 a
-drop procedure if exists bug7648|
+drop function bug9102|
+drop function if exists bug7648|
 create function bug7648() returns bit(8) return 'a'|
 select bug7648()|
 bug7648()
 a
 drop function bug7648|
+drop function if exists bug9775|
+create function bug9775(v1 char(1)) returns enum('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('c')|
+bug9775('a')	bug9775('b')	bug9775('c')
+a	b	
+drop function bug9775|
+create function bug9775(v1 int) returns enum('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3)|
+bug9775(1)	bug9775(2)	bug9775(3)
+a	b	
+drop function bug9775|
+create function bug9775(v1 char(1)) returns set('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('a,b'),bug9775('c')|
+bug9775('a')	bug9775('b')	bug9775('a,b')	bug9775('c')
+a	b	a,b	
+drop function bug9775|
+create function bug9775(v1 int) returns set('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3),bug9775(4)|
+bug9775(1)	bug9775(2)	bug9775(3)	bug9775(4)
+a	b	a,b	
+drop function bug9775|
 drop table t1,t2;
