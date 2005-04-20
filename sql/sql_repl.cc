@@ -385,6 +385,11 @@ impossible position";
     goto err;
   }
 
+  printf("Binlog file name %s\n", log_file_name);
+
+  if (thd->variables.sync_replication)
+    ha_repl_report_sent_binlog(thd, log_file_name, pos);
+
   /*
     We need to start a packet with something other than 255
     to distinguish it from error
@@ -470,6 +475,10 @@ impossible position";
            my_errno= ER_UNKNOWN_ERROR;
            goto err;
          }
+
+         if (thd->variables.sync_replication)
+           ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
+
          /*
            No need to save this event. We are only doing simple reads
            (no real parsing of the events) so we don't need it. And so
@@ -527,6 +536,13 @@ impossible position";
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
+
+      printf("Dump loop: %s: Current log position %lu\n", log_file_name,
+                  (ulong)my_b_tell(&log));
+
+      if (thd->variables.sync_replication)
+        ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
+
       DBUG_PRINT("info", ("log event code %d",
 			  (*packet)[LOG_EVENT_OFFSET+1] ));
       if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
@@ -640,6 +656,12 @@ impossible position";
 	    goto err;
 	  }
 
+          printf("Second loop: %s: Current log position %lu\n", log_file_name,
+                  (ulong)my_b_tell(&log));
+
+          if (thd->variables.sync_replication)
+            ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
+
 	  if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
 	  {
 	    if (send_file(thd))
@@ -704,12 +726,22 @@ impossible position";
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
       }
+
+      if (thd->variables.sync_replication)
+        ha_repl_report_sent_binlog(thd, log_file_name, 0);
+
+      printf("Binlog file name of a new binlog %s\n", log_file_name);
+
       packet->length(0);
       packet->append('\0');
     }
   }
 
 end:
+  printf("Ending replication\n");
+  if (thd->variables.sync_replication)
+    ha_repl_report_replication_stop(thd);
+
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
@@ -721,6 +753,11 @@ end:
   DBUG_VOID_RETURN;
 
 err:
+  if (thd->variables.sync_replication)
+    ha_repl_report_replication_stop(thd);
+
+  printf("Ending replication in error %s\n", errmsg);
+
   thd->proc_info = "Waiting to finalize termination";
   end_io_cache(&log);
   /*
