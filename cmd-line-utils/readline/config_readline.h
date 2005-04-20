@@ -1,12 +1,16 @@
-/* config-readline.h  Maintained by hand. Contains the readline specific
-   parts from config.h.in in readline 4.3 */
+/*
+   config-readline.h  Maintained by hand. Contains the readline specific
+   parts from config.h.in in readline 4.3
+*/
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
 #endif
 
-/* Ultrix botches type-ahead when switching from canonical to
-   non-canonical mode, at least through version 4.3 */
+/*
+ Ultrix botches type-ahead when switching from canonical to
+   non-canonical mode, at least through version 4.3
+*/
 #if !defined (HAVE_TERMIOS_H) || !defined (HAVE_TCGETATTR) || defined (ultrix)
 #  define TERMIOS_MISSING
 #endif
