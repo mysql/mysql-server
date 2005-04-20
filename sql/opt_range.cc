@@ -2257,7 +2257,8 @@ inline double get_index_only_read_time(const PARAM* param, ha_rows records,
 			 param->table->file->ref_length) + 1);
   read_time=((double) (records+keys_per_block-1)/
              (double) keys_per_block);
-  return read_time;
+  /* Add 0.01 to avoid cost races between 'range' and 'index' */
+  return read_time + 0.01;
 }
 
 
@@ -7912,6 +7913,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
   result= file->ha_index_init(index);
   result= file->index_last(record);
+  if (result == HA_ERR_END_OF_FILE)
+    DBUG_RETURN(0);
   if (result)
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
