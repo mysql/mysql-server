@@ -410,15 +410,15 @@ AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
 if expr "$target_os" : "[[Ll]]inux.*" > /dev/null
 then
   MYSQLD_DEFAULT_SWITCHES="--skip-locking"
-  IS_LINUX="true"
+  TARGET_LINUX="true"
   AC_MSG_RESULT("yes");
 else
   MYSQLD_DEFAULT_SWITCHES=""
-  IS_LINUX="false"
+  TARGET_LINUX="false"
   AC_MSG_RESULT("no");
 fi
 AC_SUBST(MYSQLD_DEFAULT_SWITCHES)
-AC_SUBST(IS_LINUX)
+AC_SUBST(TARGET_LINUX)
 
 dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
@@ -607,7 +607,7 @@ AC_SUBST(NOINST_LDFLAGS)
 # (this is true on the MySQL build machines to avoid NSS problems)
 #
 
-if test "$IS_LINUX" = "true" -a "$static_nss" = ""
+if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
   tmp=`nm /usr/lib/libc.a  | grep _nss_files_getaliasent_r`
   if test -n "$tmp"
@@ -841,7 +841,7 @@ struct request_info *req;
 ])
 AC_SUBST(WRAPLIBS)
 
-if test "$IS_LINUX" = "true"; then
+if test "$TARGET_LINUX" = "true"; then
   AC_MSG_CHECKING([for atomic operations])
 
   atom_ops=
@@ -885,7 +885,7 @@ int main()
     [ USE_PSTACK=no ])
   pstack_libs=
   pstack_dirs=
-  if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386" -a "$with_mit_threads" = "no"
+  if test "$USE_PSTACK" = yes -a "$TARGET_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386" -a "$with_mit_threads" = "no"
   then
     have_libiberty= have_libbfd=
     my_save_LIBS="$LIBS"
@@ -1286,7 +1286,7 @@ then
     else
       AC_MSG_RESULT("Not found")
       # If this is a linux machine we should barf
-      if test "$IS_LINUX" = "true"
+      if test "$TARGET_LINUX" = "true"
       then
 	AC_MSG_ERROR([This is a linux system and Linuxthreads was not
 found. On linux Linuxthreads should be used.  Please install Linuxthreads
@@ -1738,7 +1738,7 @@ fi
 AC_SUBST(COMPILATION_COMMENT)
 
 AC_MSG_CHECKING("need of special linking flags")
-if test "$IS_LINUX" = "true" -a "$ac_cv_prog_gcc" = "yes" -a "$all_is_static" != "yes"
+if test "$TARGET_LINUX" = "true" -a "$ac_cv_prog_gcc" = "yes" -a "$all_is_static" != "yes"
 then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")
@@ -1955,7 +1955,7 @@ CFLAGS="$ORG_CFLAGS"
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
 AC_CHECK_FUNC(fseeko,
-[if test "$large_file_support" = no -a "$IS_LINUX" = "true";
+[if test "$large_file_support" = no -a "$TARGET_LINUX" = "true";
 then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
 fi]
