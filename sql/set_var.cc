@@ -957,11 +957,9 @@ struct show_var_st init_vars[]= {
   {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
-#ifdef DOES_NOTHING_YET
   {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
   {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
   {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
-#endif
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
