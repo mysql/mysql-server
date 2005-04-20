@@ -412,6 +412,7 @@ then
   MYSQLD_DEFAULT_SWITCHES="--skip-locking"
   TARGET_LINUX="true"
   AC_MSG_RESULT("yes");
+  AC_DEFINE([TARGET_OS_LINUX], [1], [Whether we build for Linux])
 else
   MYSQLD_DEFAULT_SWITCHES=""
   TARGET_LINUX="false"

@@ -17,7 +17,7 @@
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 
 #include <my_global.h>
-#if defined(HAVE_LINUXTHREADS) && !defined (__USE_UNIX98)
+#if defined(TARGET_OS_LINUX) && !defined (__USE_UNIX98)
 #define __USE_UNIX98			/* To get rw locks under Linux */
 #endif
 #if defined(THREAD) && defined(SAFE_MUTEX)
