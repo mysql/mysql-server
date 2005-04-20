@@ -3643,11 +3643,32 @@ drop function bug9102|
 # BUG#7648: Stored procedure crash when invoking a function that returns a bit
 #
 --disable_warnings
-drop procedure if exists bug7648|
+drop function if exists bug7648|
 --enable_warnings
 create function bug7648() returns bit(8) return 'a'|
 select bug7648()|
 drop function bug7648|
+
+
+#
+# BUG#9775: crash if create function that returns enum or set
+#
+--disable_warnings
+drop function if exists bug9775|
+--enable_warnings
+create function bug9775(v1 char(1)) returns enum('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('c')|
+drop function bug9775|
+create function bug9775(v1 int) returns enum('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3)|
+drop function bug9775|
+
+create function bug9775(v1 char(1)) returns set('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('a,b'),bug9775('c')|
+drop function bug9775|
+create function bug9775(v1 int) returns set('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3),bug9775(4)|
+drop function bug9775|
 
 
 #

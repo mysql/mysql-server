@@ -378,8 +378,9 @@ sp_head::create_typelib(List<String> *src)
     result->count= src->elements;
     result->name= "";
     if (!(result->type_names=(const char **)
-          alloc_root(mem_root,sizeof(char *)*(result->count+1))))
+          alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
       return 0;
+    result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
     String conv, *tmp;
     uint32 dummy;
@@ -397,8 +398,10 @@ sp_head::create_typelib(List<String> *src)
         result->type_names[i]= buf;
         result->type_lengths[i]= conv.length();
       }
-      else
+      else {
         result->type_names[i]= strdup_root(mem_root, tmp->c_ptr());
+        result->type_lengths[i]= tmp->length();
+      }
 
       // Strip trailing spaces.
       uint lengthsp= cs->cset->lengthsp(cs, result->type_names[i],
@@ -407,6 +410,7 @@ sp_head::create_typelib(List<String> *src)
       ((uchar *)result->type_names[i])[lengthsp]= '\0';
     }
     result->type_names[result->count]= 0;
+    result->type_lengths[result->count]= 0;
   }
   return result;
 }
