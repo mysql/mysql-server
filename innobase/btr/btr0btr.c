@@ -20,6 +20,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "rem0cmp.h"
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
+#include "trx0trx.h"
 
 /*
 Latching strategy of the InnoDB B-tree
@@ -2274,6 +2275,7 @@ btr_discard_page(
 	ut_ad(btr_check_node_ptr(tree, merge_page, mtr));
 }	
 
+#ifdef UNIV_BTR_PRINT
 /*****************************************************************
 Prints size info of a B-tree. */
 
@@ -2407,8 +2409,9 @@ btr_print_tree(
 
 	mtr_commit(&mtr);
 
-	btr_validate_tree(tree);
+	btr_validate_tree(tree, NULL);
 }
+#endif /* UNIV_BTR_PRINT */
 
 /****************************************************************
 Checks that the node pointer to a page is appropriate. */
@@ -2649,6 +2652,7 @@ btr_validate_level(
 /*===============*/
 				/* out: TRUE if ok */
 	dict_tree_t*	tree,	/* in: index tree */
+	trx_t*		trx,	/* in: transaction or NULL */
 	ulint		level)	/* in: level number */
 {
 	ulint		space;
@@ -2696,6 +2700,11 @@ btr_validate_level(
 	/* Now we are on the desired level. Loop through the pages on that
 	level. */
 loop:
+	if (trx_is_interrupted(trx)) {
+		mtr_commit(&mtr);
+		mem_heap_free(heap);
+		return(ret);
+	}
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
 	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
@@ -2941,7 +2950,8 @@ ibool
 btr_validate_tree(
 /*==============*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree)	/* in: tree */
+	dict_tree_t*	tree,	/* in: tree */
+	trx_t*		trx)	/* in: transaction or NULL */
 {
 	mtr_t	mtr;
 	page_t*	root;
@@ -2954,9 +2964,8 @@ btr_validate_tree(
 	root = btr_root_get(tree, &mtr);
 	n = btr_page_get_level(root, &mtr);
 
-	for (i = 0; i <= n; i++) {
-		
-		if (!btr_validate_level(tree, n - i)) {
+	for (i = 0; i <= n && !trx_is_interrupted(trx); i++) {
+		if (!btr_validate_level(tree, trx, n - i)) {
 
 			mtr_commit(&mtr);
 

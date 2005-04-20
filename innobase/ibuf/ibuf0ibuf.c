@@ -2969,7 +2969,9 @@ ibuf_delete_rec(
 		btr_pcur_commit_specify_mtr(pcur, mtr);
 
 		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		ut_a(btr_validate_tree(ibuf_data->index->tree));
+		if (!btr_validate_tree(ibuf_data->index->tree, NULL)) {
+			ut_error;
+		}
 
 		fprintf(stderr, "InnoDB: ibuf tree ok\n");
 		fflush(stderr);
