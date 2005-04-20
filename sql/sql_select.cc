@@ -9583,7 +9583,7 @@ join_read_const(JOIN_TAB *tab)
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     table->status= 0;
-    if (cp_buffer_from_ref(&tab->ref))
+    if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
       error=HA_ERR_KEY_NOT_FOUND;
     else
     {
@@ -9647,7 +9647,7 @@ join_read_always_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
-  if (cp_buffer_from_ref(&tab->ref))
+  if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
     return -1;
   if ((error=table->file->index_read(table->record[0],
 				     tab->ref.key_buff,
@@ -9674,7 +9674,7 @@ join_read_last_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
-  if (cp_buffer_from_ref(&tab->ref))
+  if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last(table->record[0],
 					  tab->ref.key_buff,
@@ -9848,7 +9848,7 @@ join_ft_read_first(JOIN_TAB *tab)
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
 #if NOT_USED_YET
-  if (cp_buffer_from_ref(&tab->ref))       // as ft-key doesn't use store_key's
+  if (cp_buffer_from_ref(tab->join->thd, &tab->ref)) // as ft-key doesn't use store_key's
     return -1;                             // see also FT_SELECT::init()
 #endif
   table->file->ft_init();
@@ -11609,7 +11609,8 @@ cmp_buffer_with_ref(JOIN_TAB *tab)
   {
     memcpy(tab->ref.key_buff2, tab->ref.key_buff, tab->ref.key_length);
   }
-  if ((tab->ref.key_err=cp_buffer_from_ref(&tab->ref)) || diff)
+  if ((tab->ref.key_err= cp_buffer_from_ref(tab->join->thd, &tab->ref)) || 
+      diff)
     return 1;
   return memcmp(tab->ref.key_buff2, tab->ref.key_buff, tab->ref.key_length)
     != 0;
@@ -11617,11 +11618,17 @@ cmp_buffer_with_ref(JOIN_TAB *tab)
 
 
 bool
-cp_buffer_from_ref(TABLE_REF *ref)
+cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
 {
+  enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   for (store_key **copy=ref->key_copy ; *copy ; copy++)
     if ((*copy)->copy())
+    {
+      thd->count_cuted_fields= save_count_cuted_fields;
       return 1;					// Something went wrong
+    }
+  thd->count_cuted_fields= save_count_cuted_fields;
   return 0;
 }
 

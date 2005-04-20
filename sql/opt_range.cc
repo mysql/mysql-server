@@ -5532,7 +5532,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     goto err;
   }
 
-  if (cp_buffer_from_ref(ref) && thd->is_fatal_error ||
+  if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
       !(range= new QUICK_RANGE()))
     goto err;                                   // out of memory
 
