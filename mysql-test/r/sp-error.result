@@ -457,9 +457,9 @@ ERROR 42S22: Unknown column 'aa' in 'order clause'
 drop procedure bug2653_1|
 drop procedure bug2653_2|
 create procedure bug4344() drop procedure bug4344|
-ERROR HY000: Can't drop a PROCEDURE from within another stored routine
+ERROR HY000: Can't drop or alter a PROCEDURE from within another stored routine
 create procedure bug4344() drop function bug4344|
-ERROR HY000: Can't drop a FUNCTION from within another stored routine
+ERROR HY000: Can't drop or alter a FUNCTION from within another stored routine
 drop procedure if exists bug3294|
 create procedure bug3294()
 begin
@@ -585,4 +585,13 @@ end;
 end;
 end|
 drop procedure bug9073|
+create procedure bug7047()
+alter procedure bug7047|
+ERROR HY000: Can't drop or alter a PROCEDURE from within another stored routine
+create function bug7047() returns int
+begin
+alter function bug7047;
+return 0;
+end|
+ERROR HY000: Can't drop or alter a FUNCTION from within another stored routine
 drop table t1|
