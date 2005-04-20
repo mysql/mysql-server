@@ -3305,6 +3305,11 @@ alter:
 	  {
 	    LEX *lex= Lex;
 
+	    if (lex->sphead)
+	    {
+	      my_error(ER_SP_NO_DROP_SP, MYF(0), "PROCEDURE");
+	      YYABORT;
+	    }
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
           }
 	  sp_a_chistics
@@ -3318,6 +3323,11 @@ alter:
 	  {
 	    LEX *lex= Lex;
 
+	    if (lex->sphead)
+	    {
+	      my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
+	      YYABORT;
+	    }
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
           }
 	  sp_a_chistics
