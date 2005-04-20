@@ -3629,6 +3629,22 @@ drop function bug9902|
 
 
 #
+# BUG#6898: Stored procedure crash if GOTO statements exist
+#
+--disable_warnings
+drop procedure if exists bug6898|
+--enable_warnings
+create procedure bug6898()
+begin
+  goto label1;
+  label label1;
+  begin end;
+  goto label1;
+end|
+drop procedure bug6898|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
