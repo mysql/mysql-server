@@ -1,3 +1,5 @@
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_OUTPUT_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_OUTPUT_H
 /* Copyright (C) 2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -17,3 +19,4 @@
 int parse_output_and_get_value(const char *command, const char *word,
                                char *result, size_t result_len);
 
+#endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_OUTPUT_H */

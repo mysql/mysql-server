@@ -21,10 +21,10 @@
 #include "instance_options.h"
 
 #include "parse_output.h"
+#include "parse.h"
 #include "buffer.h"
 
 #include <my_sys.h>
-#include <mysql.h>
 #include <signal.h>
 #include <m_string.h>
 
@@ -54,7 +54,7 @@ int Instance_options::get_default_option(char *result, size_t result_len,
   int rc= 1;
   char verbose_option[]= " --no-defaults --verbose --help";
 
-  Buffer cmd(strlen(mysqld_path)+sizeof(verbose_option)+1);
+  Buffer cmd(strlen(mysqld_path) + sizeof(verbose_option) + 1);
   if (cmd.get_size()) /* malloc succeeded */
   {
     cmd.append(position, mysqld_path, strlen(mysqld_path));
@@ -73,6 +73,135 @@ int Instance_options::get_default_option(char *result, size_t result_len,
   return rc;
 err:
   return 1;
+}
+
+
+int Instance_options::fill_log_options()
+{
+  /* array for the log option for mysqld */
+  enum { MAX_LOG_OPTIONS= 8 };
+  enum { MAX_LOG_OPTION_LENGTH= 256 };
+  /* the last option must be '\0', so we reserve space for it */
+  char log_options[MAX_LOG_OPTIONS + 1][MAX_LOG_OPTION_LENGTH];
+  Buffer buff;
+  uint position= 0;
+  char **tmp_argv= argv;
+  char datadir[MAX_LOG_OPTION_LENGTH];
+  char hostname[MAX_LOG_OPTION_LENGTH];
+  uint hostname_length;
+  struct log_files_st
+  {
+    const char *name;
+    uint length;
+    const char **value;
+    const char *default_suffix;
+  } logs[]=
+  {
+    {"--log-error", 11, &error_log, ".err"},
+    {"--log", 5, &query_log, ".log"},
+    {"--log-slow-queries", 18, &slow_log, "-slow.log"},
+    {NULL, 0, NULL, NULL}
+  };
+  struct log_files_st *log_files;
+
+  /* clean the buffer before usage */
+  bzero(log_options, sizeof(log_options));
+
+  /* create a "mysqld <argv_options>" command in the buffer */
+  buff.append(position, mysqld_path, strlen(mysqld_path));
+  position=  strlen(mysqld_path);
+
+  /* skip the first option */
+  tmp_argv++;
+
+  while (*tmp_argv != 0)
+  {
+    buff.append(position, " ", 1);
+    position++;
+    buff.append(position, *tmp_argv, strlen(*tmp_argv));
+    position+= strlen(*tmp_argv);
+    tmp_argv++;
+  }
+
+  buff.append(position, "\0", 1);
+  position++;
+
+  /* get options and parse them */
+  if (parse_arguments(buff.buffer, "--log", (char *) log_options,
+                      MAX_LOG_OPTIONS + 1, MAX_LOG_OPTION_LENGTH))
+    goto err;
+  /* compute hostname and datadir for the instance */
+  if (mysqld_datadir == NULL)
+  {
+    if (get_default_option(datadir,
+                           MAX_LOG_OPTION_LENGTH, "--datadir"))
+      goto err;
+  }
+  else           /* below is safe, as --datadir always has a value */
+    strncpy(datadir, strchr(mysqld_datadir, '=') + 1,
+            MAX_LOG_OPTION_LENGTH);
+
+  if (gethostname(hostname,sizeof(hostname)-1) < 0)
+    strmov(hostname, "mysql");
+
+  hostname[MAX_LOG_OPTION_LENGTH - 1]= 0; /* Safety */
+  hostname_length= strlen(hostname);
+
+
+  for (log_files= logs; log_files->name; log_files++)
+  {
+    for (int i=0; (i < MAX_LOG_OPTIONS) && (log_options[i][0] != '\0'); i++)
+    {
+      if (!strncmp(log_options[i], log_files->name, log_files->length))
+      {
+        /*
+          This is really log_files->name option if and only if it is followed
+          by '=', '\0' or space character. This way we can distinguish such
+          options as '--log' and '--log-bin'. This is checked in the following
+          two statements.
+        */
+        if (log_options[i][log_files->length] == '\0' ||
+            my_isspace(default_charset_info, log_options[i][log_files->length]))
+        {
+          char full_name[MAX_LOG_OPTION_LENGTH];
+
+          fn_format(full_name, hostname, datadir, "",
+                    MY_UNPACK_FILENAME | MY_SAFE_PATH);
+
+
+          if ((MAX_LOG_OPTION_LENGTH - strlen(full_name)) >
+              strlen(log_files->default_suffix))
+          {
+            strcpy(full_name + strlen(full_name),
+                   log_files->default_suffix);
+          }
+          else
+            goto err;
+
+          *(log_files->value)= strdup_root(&alloc, datadir);
+        }
+
+        if (log_options[i][log_files->length] == '=')
+        {
+          char full_name[MAX_LOG_OPTION_LENGTH];
+
+          fn_format(full_name, log_options[i] +log_files->length + 1,
+                    datadir, "", MY_UNPACK_FILENAME | MY_SAFE_PATH);
+
+          if (!(*(log_files->value)=
+                strdup_root(&alloc, full_name)))
+            goto err;
+        }
+
+      }
+    }
+  }
+
+  return 0;
+
+err:
+  return 1;
+
 }
 
 
@@ -189,6 +318,8 @@ int Instance_options::complete_initialization(const char *default_path,
   memcpy((gptr) (argv + filled_default_options), options_array.buffer,
          options_array.elements*sizeof(char*));
   argv[filled_default_options + options_array.elements]= 0;
+
+  fill_log_options();
 
   return 0;
 
