@@ -18,6 +18,7 @@
 
 #include "command.h"
 #include "instance.h"
+#include "parse.h"
 
 /*
   Print all instances of this instance manager.
@@ -116,6 +117,45 @@ public:
 
 
 /*
+  Print requested part of the log
+  Grammar:
+    SHOW <instance_name> log {ERROR | SLOW | GENERAL} size[, offset_from_end]
+*/
+
+class Show_instance_log : public Command
+{
+public:
+
+  Show_instance_log(Instance_map *instance_map_arg, const char *name,
+                    uint len, Log_type log_type_arg, const char *size_arg,
+                    const char *offset_arg);
+  int do_command(struct st_net *net, const char *instance_name);
+  int execute(struct st_net *net, ulong connection_id);
+  Log_type log_type;
+  const char *instance_name;
+  uint size;
+  uint offset;
+};
+
+
+/*
+  Shows the list of the log files, used by an instance.
+  Grammar: SHOW <instance_name> LOG FILES
+*/
+
+class Show_instance_log_files : public Command
+{
+public:
+
+  Show_instance_log_files(Instance_map *instance_map_arg, const char *name, uint len);
+  int do_command(struct st_net *net, const char *instance_name);
+  int execute(struct st_net *net, ulong connection_id);
+  const char *instance_name;
+  const char *option;
+};
+
+
+/*
   Syntax error command. This command is issued if parser reported a syntax error.
   We need it to distinguish the parse error and the situation when parser internal
   error occured. E.g. parsing failed because we hadn't had enought memory. In the
@@ -127,5 +167,51 @@ class Syntax_error : public Command
 public:
   int execute(struct st_net *net, ulong connection_id);
 };
+
+/*
+  Set an option for the instance.
+  Grammar: SET instance_name.option=option_value
+*/
+
+class Set_option : public Command
+{
+public:
+  Set_option(Instance_map *instance_map_arg, const char *name, uint len,
+             const char *option_arg, uint option_len,
+             const char *option_value_arg, uint option_value_len);
+  /*
+    the following function is virtual to let Unset_option to use
+  */
+  virtual int do_command(struct st_net *net);
+  int execute(struct st_net *net, ulong connection_id);
+protected:
+  int correct_file(bool skip);
+public:
+  const char *instance_name;
+  uint instance_name_len;
+  /* buffer for the option */
+  enum { MAX_OPTION_LEN= 1024 };
+  char option[MAX_OPTION_LEN];
+  char option_value[MAX_OPTION_LEN];
+};
+
+
+/*
+  Remove option of the instance from config file
+  Grammar: UNSET instance_name.option
+*/
+
+class Unset_option: public Set_option
+{
+public:
+  Unset_option(Instance_map *instance_map_arg, const char *name, uint len,
+               const char *option_arg, uint option_len,
+               const char *option_value_arg, uint option_value_len):
+    Set_option(instance_map_arg, name, len, option_arg, option_len,
+               option_value_arg, option_value_len)
+    {}
+  int do_command(struct st_net *net);
+};
+
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_COMMANDS_H */

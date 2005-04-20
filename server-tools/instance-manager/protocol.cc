@@ -24,15 +24,25 @@
 
 static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
 
-int net_send_ok(struct st_net *net, unsigned long connection_id)
-{
-  char buff[1 +                                 // packet type code
-            9 +                                 // affected rows count
-            9 +                                 // connection id
-            2 +                                 // thread return status
-            2];                                 // warning count
 
-  char *pos= buff;
+int net_send_ok(struct st_net *net, unsigned long connection_id,
+                const char *message)
+{
+  /*
+            The format of a packet
+    1                             packet type code
+    1-9                           affected rows count
+    1-9                           connection id
+    2                             thread return status
+    2                             warning count
+    1-9 + message length          message to send (isn't stored if no message)
+  */
+  Buffer buff;
+  char *pos= buff.buffer;
+
+  /* check that we have space to hold mandatory fields */
+  buff.reserve(0, 23);
+
   enum { OK_PACKET_CODE= 0 };
   *pos++= OK_PACKET_CODE;
   pos= net_store_length(pos, (ulonglong) 0);
@@ -43,7 +53,15 @@ int net_send_ok(struct st_net *net, unsigned long connection_id)
   int2store(pos, 0);
   pos+= 2;
 
-  return my_net_write(net, buff, pos - buff) || net_flush(net);
+  uint position= pos - buff.buffer; /* we might need it for message */
+
+  if (message != NULL)
+  {
+    buff.reserve(position, 9 + strlen(message));
+    store_to_string(&buff, message, &position);
+  }
+
+  return my_net_write(net, buff.buffer, position) || net_flush(net);
 }
 
 
@@ -99,15 +117,15 @@ char *net_store_length(char *pkg, uint length)
 }
 
 
-int store_to_string(Buffer *buf, const char *string, uint *position)
+int store_to_string(Buffer *buf, const char *string, uint *position,
+                    uint string_len)
 {
   uint currpos;
-  uint string_len;
 
-  string_len= strlen(string);
-  if (buf->reserve(*position, 2))
+  if (buf->reserve(*position, 9))
     goto err;
-  currpos= (net_store_length(buf->buffer + *position, string_len) - buf->buffer);
+  currpos= (net_store_length(buf->buffer + *position,
+                             (ulonglong) string_len) - buf->buffer);
   if (buf->append(currpos, string, string_len))
     goto err;
   *position= *position + string_len + (currpos - *position);
@@ -115,6 +133,15 @@ int store_to_string(Buffer *buf, const char *string, uint *position)
   return 0;
 err:
   return 1;
+}
+
+
+int store_to_string(Buffer *buf, const char *string, uint *position)
+{
+  uint string_len;
+
+  string_len= strlen(string);
+  return store_to_string(buf, string, position, string_len);
 }
 
 

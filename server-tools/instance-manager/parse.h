@@ -16,9 +16,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "factory.h"
+#include <my_global.h>
+#include <my_sys.h>
+
+class Command;
+class Command_factory;
+
+enum Log_type
+{
+  LOG_ERROR= 0,
+  LOG_GENERAL,
+  LOG_SLOW
+};
 
 Command *parse_command(Command_factory *factory, const char  *text);
+
+int parse_arguments(const char *command, const char *word, char *result,
+                    int max_result_cardinality, size_t option_len);
 
 /* define kinds of the word seek method */
 enum { ALPHANUM= 1, NONSPACE };
@@ -44,10 +58,12 @@ inline void get_word(const char **text, uint *word_len,
     while (my_isalnum(default_charset_info, *word_end))
       ++word_end;
   else
-    while (!my_isspace(default_charset_info, *word_end))
+    while (!my_isspace(default_charset_info, *word_end) &&
+           (*word_end != '\0'))
       ++word_end;
 
   *word_len= word_end - *text;
 }
+
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H */
