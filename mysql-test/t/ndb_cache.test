@@ -1,5 +1,6 @@
 -- source include/have_query_cache.inc
 -- source include/have_ndb.inc
+-- source include/not_embedded.inc
 
 set GLOBAL query_cache_size=1355776;
 reset query cache;
