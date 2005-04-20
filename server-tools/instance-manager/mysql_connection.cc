@@ -284,7 +284,7 @@ int Mysql_connection_thread::check_connection()
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;
   }
-  net_send_ok(&net, connection_id);
+  net_send_ok(&net, connection_id, NULL);
   return 0;
 }
 
@@ -332,7 +332,7 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
     return 1;
   case COM_PING:
     log_info("query for connection %d received ping command", connection_id);
-    net_send_ok(&net, connection_id);
+    net_send_ok(&net, connection_id, NULL);
     break;
   case COM_QUERY:
   {

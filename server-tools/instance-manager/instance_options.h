@@ -40,7 +40,8 @@ public:
     mysqld_socket(0), mysqld_datadir(0),
     mysqld_bind_address(0), mysqld_pid_file(0), mysqld_port(0),
     mysqld_port_val(0), mysqld_path(0), nonguarded(0), shutdown_delay(0),
-    shutdown_delay_val(0), filled_default_options(0)
+    shutdown_delay_val(0), error_log(0), query_log(0), slow_log(0),
+    filled_default_options(0)
   {}
   ~Instance_options();
   /* fills in argv */
@@ -76,9 +77,14 @@ public:
   const char *nonguarded;
   const char *shutdown_delay;
   uint shutdown_delay_val;
+  const char *error_log;
+  const char *query_log;
+  const char *slow_log;
+
   /* this value is computed and cashed here */
   DYNAMIC_ARRAY options_array;
 private:
+  int fill_log_options();
   int add_to_argv(const char *option);
   int get_default_option(char *result, size_t result_len,
                          const char *option_name);
