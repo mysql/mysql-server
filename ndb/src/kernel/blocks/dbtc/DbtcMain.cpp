@@ -1838,7 +1838,6 @@ void Dbtc::execKEYINFO(Signal* signal)
   do {
     if (cfirstfreeDatabuf == RNIL) {
       jam();
-      abort();
       seizeDatabuferrorLab(signal);
       return;
     }//if
