@@ -997,6 +997,23 @@ mysql_get_identifier_quote_char(
 }
 
 /**************************************************************************
+Determines if the currently running transaction has been interrupted. */
+extern "C"
+ibool
+trx_is_interrupted(
+/*===============*/
+			/* out: TRUE if interrupted */
+	trx_t*	trx)	/* in: transaction */
+{
+	fprintf(stderr,
+		"trx_is_interrupted: %p %p %d\n",
+		trx, trx ? trx->mysql_thd : 0,
+		trx && trx->mysql_thd ? ((THD*) trx->mysql_thd)->killed : -1);
+
+	return(trx && trx->mysql_thd && ((THD*) trx->mysql_thd)->killed);
+}
+
+/**************************************************************************
 Obtain a pointer to the MySQL THD object, as in current_thd().  This
 definition must match the one in sql/ha_innodb.cc! */
 extern "C"
