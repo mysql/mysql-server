@@ -312,6 +312,19 @@ trx_print(
 	FILE*	f,	/* in: output stream */
 	trx_t*	trx);	/* in: transaction */
 
+#ifndef UNIV_HOTBACKUP
+/**************************************************************************
+Determines if the currently running transaction has been interrupted. */
+
+ibool
+trx_is_interrupted(
+/*===============*/
+			/* out: TRUE if interrupted */
+	trx_t*	trx);	/* in: transaction */
+#else /* !UNIV_HOTBACKUP */
+#define trx_is_interrupted(trx) FALSE
+#endif /* !UNIV_HOTBACKUP */
+
 
 /* Signal to a transaction */
 struct trx_sig_struct{

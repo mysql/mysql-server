@@ -3880,6 +3880,7 @@ row_scan_and_check_index(
 	int		cmp;
 	ibool		contains_null;
 	ulint		i;
+	ulint		cnt;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -3902,11 +3903,19 @@ row_scan_and_check_index(
  	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	prebuilt->select_lock_type = LOCK_NONE;
+	cnt = 1000;
 
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
 loop:
+	/* Check thd->killed every 1,000 scanned rows */
+	if (--cnt == 0) {
+		if (trx_is_interrupted(prebuilt->trx)) {
+			goto func_exit;
+		}
+		cnt = 1000;
+	}
 	if (ret != DB_SUCCESS) {
-
+	func_exit:
 		mem_free(buf);
 		mem_heap_free(heap);
 
@@ -4033,12 +4042,16 @@ row_check_table_for_mysql(
 		ut_print_name(stderr, index->name);
 		putc('\n', stderr); */
 	
-		if (!btr_validate_tree(index->tree)) {
+		if (!btr_validate_tree(index->tree, prebuilt->trx)) {
 			ret = DB_ERROR;
 		} else {
 			if (!row_scan_and_check_index(prebuilt,
 							index, &n_rows)) {
 				ret = DB_ERROR;
+			}
+
+			if (trx_is_interrupted(prebuilt->trx)) {
+				break;
 			}
 
 			/* fprintf(stderr, "%lu entries in index %s\n", n_rows,
