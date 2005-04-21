@@ -331,6 +331,7 @@ BuildMySQL "--enable-shared \
 		--with-archive \
 		--with-csv-storage-engine \
 		--with-example-storage-engine \
+		--with-blackhole-storage-engine \
 		--with-embedded-server \
 		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
 		--with-server-suffix='-Max'"
@@ -688,6 +689,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Apr 20 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Enabled the "blackhole" storage engine for the Max RPM
+
 * Wed Apr 13 2005 Lenz Grimmer <lenz@mysql.com>
 
 - removed the MySQL manual files (html/ps/texi) - they have been removed
