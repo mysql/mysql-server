@@ -243,6 +243,20 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
+#if defined(__GNUC__) && (__GNUC__ > 2)
+# define UNIV_EXPECT(expr,value) __builtin_expect(expr, value)
+# define UNIV_LIKELY_NULL(expr) __builtin_expect((ulint) expr, 0)
+# define UNIV_PREFETCH_R(addr) __builtin_prefetch(addr, 0, 3)
+# define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
+#else
+# define UNIV_EXPECT(expr,value) (expr)
+# define UNIV_LIKELY_NULL(expr) (expr)
+# define UNIV_PREFETCH_R(addr) ((void) 0)
+# define UNIV_PREFETCH_RW(addr) ((void) 0)
+#endif
+#define UNIV_LIKELY(expr) UNIV_EXPECT(expr, TRUE)
+#define UNIV_UNLIKELY(expr) UNIV_EXPECT(expr, FALSE)
+
 #include <stdio.h>
 #include "ut0dbg.h"
 #include "ut0ut.h"

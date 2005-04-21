@@ -3845,7 +3845,7 @@ funct_exit:
 		que_graph_free(graph);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	

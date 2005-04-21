@@ -965,7 +965,7 @@ rec_convert_dtuple_to_rec(
 		offsets = rec_get_offsets(rec, index,
 					offsets_, ULINT_UNDEFINED, &heap);
 		ut_ad(rec_validate(rec, offsets));
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}
@@ -1412,7 +1412,7 @@ rec_print(
 
 		rec_print_new(file, rec, rec_get_offsets(rec, index, offsets_,
 						ULINT_UNDEFINED, &heap));
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}
