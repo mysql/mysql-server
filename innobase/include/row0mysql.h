@@ -599,6 +599,8 @@ struct row_prebuilt_struct {
 					that was decided in ha_innodb.cc,
 					::store_lock(), ::external_lock(),
 					etc. */
+	ulint		mysql_prefix_len;/* byte offset of the end of
+					the last requested column */
 	ulint		mysql_row_len;	/* length in bytes of a row in the
 					MySQL format */
 	ulint		n_rows_fetched;	/* number of rows fetched after
