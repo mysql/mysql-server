@@ -2849,8 +2849,9 @@ row_sel_pop_cached_row_for_mysql(
 	mysql_row_templ_t*	templ;
 	byte*			cached_rec;
         ut_ad(prebuilt->n_fetch_cached > 0);
+	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
 	
-	if (prebuilt->keep_other_fields_on_keyread)
+	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread))
 	{
 		/* Copy cache record field by field, don't touch fields that 
 		are not covered by current key */
@@ -2877,7 +2878,7 @@ row_sel_pop_cached_row_for_mysql(
 	else
 	{
 		ut_memcpy(buf, prebuilt->fetch_cache[prebuilt->fetch_cache_first],
-				prebuilt->mysql_row_len);
+				prebuilt->mysql_prefix_len);
 	}
 	prebuilt->n_fetch_cached--;
 	prebuilt->fetch_cache_first++;

@@ -2618,6 +2618,8 @@ build_template(
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i;
+	/* byte offset of the end of last requested column */
+	ulint		mysql_prefix_len	= 0;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
 		/* We always retrieve the whole clustered index record if we
@@ -2738,6 +2740,11 @@ build_template(
 					get_field_offset(table, field);
 
 		templ->mysql_col_len = (ulint) field->pack_length();
+		if (mysql_prefix_len < templ->mysql_col_offset
+				+ templ->mysql_col_len) {
+			mysql_prefix_len = templ->mysql_col_offset
+				+ templ->mysql_col_len;
+		}
 		templ->type = index->table->cols[i].type.mtype;
 		templ->mysql_type = (ulint)field->type();
 
@@ -2760,6 +2767,7 @@ skip_field:
 	}
 
 	prebuilt->n_template = n_requested_fields;
+	prebuilt->mysql_prefix_len = mysql_prefix_len;
 
 	if (index != clust_index && prebuilt->need_to_access_clustered) {
 		/* Change rec_field_no's to correspond to the clustered index
