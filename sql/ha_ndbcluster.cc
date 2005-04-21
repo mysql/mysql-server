@@ -1990,6 +1990,7 @@ int ha_ndbcluster::write_row(byte *record)
   m_bulk_insert_not_flushed= TRUE;
   if ((m_rows_to_insert == (ha_rows) 1) || 
       ((m_rows_inserted % m_bulk_insert_rows) == 0) ||
+      m_primary_key_update ||
       set_blob_value)
   {
     // Send rows to NDB
@@ -2115,17 +2116,19 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     if (delete_res)
     {
       DBUG_PRINT("info", ("delete failed"));
-      // Undo write_row(new_data)
       DBUG_RETURN(delete_res);
     }     
     // Insert new row
     DBUG_PRINT("info", ("delete succeded"));
+    m_primary_key_update= TRUE;
     insert_res= write_row(new_data);
+    m_primary_key_update= FALSE;
     if (insert_res)
     {
       DBUG_PRINT("info", ("insert failed"));
       if (trans->commitStatus() == NdbConnection::Started)
       {
+      // Undo write_row(new_data)
         m_primary_key_update= TRUE;
         insert_res= write_row((byte *)old_data);
         m_primary_key_update= FALSE;
