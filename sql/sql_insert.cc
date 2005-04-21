@@ -53,6 +53,7 @@ static bool check_view_insertability(TABLE_LIST *view, query_id_t query_id);
     table                       The table for insert.
     fields                      The insert fields.
     values                      The insert values.
+    check_unique                If duplicate values should be rejected.
 
   NOTE
     Clears TIMESTAMP_AUTO_SET_ON_INSERT from table->timestamp_field_type
@@ -64,8 +65,9 @@ static bool check_view_insertability(TABLE_LIST *view, query_id_t query_id);
     -1          Error
 */
 
-static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
-                               List<Item> &values)
+static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
+                               List<Item> &fields, List<Item> &values,
+                               bool check_unique)
 {
   TABLE *table= table_list->table;
 
@@ -87,7 +89,7 @@ static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
     }
     if (values.elements != table->s->fields)
     {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -109,7 +111,7 @@ static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
     int res;
     if (fields.elements != values.elements)
     {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
       return -1;
     }
 
@@ -186,11 +188,11 @@ static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
     -1          Error
 */
 
-static int check_update_fields(THD *thd, TABLE *table,
-                               TABLE_LIST *insert_table_list,
+static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_fields)
 {
-  ulong		timestamp_query_id;
+  TABLE *table= insert_table_list->table;
+  ulong	timestamp_query_id;
   LINT_INIT(timestamp_query_id);
 
   /*
@@ -200,7 +202,7 @@ static int check_update_fields(THD *thd, TABLE *table,
   if (table->timestamp_field)
   {
     timestamp_query_id= table->timestamp_field->query_id;
-    table->timestamp_field->query_id= thd->query_id-1;
+    table->timestamp_field->query_id= thd->query_id - 1;
   }
 
   /*
@@ -762,13 +764,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 
   next_local= table_list->next_local;
   table_list->next_local= 0;
-  if ((values && check_insert_fields(thd, table_list, fields, *values, 1,
+  if ((values && check_insert_fields(thd, table_list, fields, *values,
                                      !insert_into_view)) ||
       (values && setup_fields(thd, 0, table_list, *values, 0, 0, 0)) ||
       (duplic == DUP_UPDATE &&
-       (check_update_fields(thd, table, insert_table_list, update_fields) ||
        ((thd->lex->select_lex.no_wrap_view_item= 1,
-         (res= setup_fields(thd, 0, table_list, update_fields, 1, 0, 0)),
+         (res= check_update_fields(thd, table_list, update_fields)),
          thd->lex->select_lex.no_wrap_view_item= 0,
          res) ||
         setup_fields(thd, 0, table_list, update_values, 1, 0, 0))))
@@ -1860,8 +1861,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("select_insert::prepare");
 
   unit= u;
-  if (check_insert_fields(thd, table_list, *fields, values, 1,
-                          !insert_into_view))
+  if (check_insert_fields(thd, table_list, *fields, values, !insert_into_view))
     DBUG_RETURN(1);
   /*
     if it is INSERT into join view then check_insert_fields already found
