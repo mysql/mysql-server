@@ -1,4 +1,4 @@
-/*	$NetBSD: tokenizer.c,v 1.11 2002/10/27 20:24:29 christos Exp $	*/
+/*	$NetBSD: tokenizer.c,v 1.14 2003/12/05 13:37:48 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,21 +32,14 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: tokenizer.c,v 1.11 2002/10/27 20:24:29 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * tokenize.c: Bourne shell like tokenizer
  */
 #include <string.h>
 #include <stdlib.h>
-#include "tokenizer.h"
+#include "histedit.h"
 
 typedef enum {
 	Q_none, Q_single, Q_double, Q_one, Q_doubleone
@@ -64,6 +53,7 @@ typedef enum {
 #define	WINCR		20
 #define	AINCR		10
 
+#define	tok_strdup(a)		strdup(a)
 #define	tok_malloc(a)		malloc(a)
 #define	tok_free(a)		free(a)
 #define	tok_realloc(a, b)	realloc(a, b)
@@ -111,7 +101,7 @@ tok_init(const char *ifs)
 
 	if (tok == NULL)
 		return NULL;
-	tok->ifs = strdup(ifs ? ifs : IFS);
+	tok->ifs = tok_strdup(ifs ? ifs : IFS);
 	if (tok->ifs == NULL) {
 		tok_free((ptr_t)tok);
 		return NULL;
@@ -173,21 +163,39 @@ tok_end(Tokenizer *tok)
 
 
 /* tok_line():
- *	Bourne shell like tokenizing
- *	Return:
- *		-1: Internal error
- *		 3: Quoted return
- *		 2: Unmatched double quote
- *		 1: Unmatched single quote
- *		 0: Ok
+ *	Bourne shell (sh(1)) like tokenizing
+ *	Arguments:
+ *		tok	current tokenizer state (setup with tok_init())
+ *		line	line to parse
+ *	Returns:
+ *		-1	Internal error
+ *		 3	Quoted return
+ *		 2	Unmatched double quote
+ *		 1	Unmatched single quote
+ *		 0	Ok
+ *	Modifies (if return value is 0):
+ *		argc	number of arguments
+ *		argv	argument array
+ *		cursorc	if !NULL, argv element containing cursor
+ *		cursorv	if !NULL, offset in argv[cursorc] of cursor
  */
 public int
-tok_line(Tokenizer *tok, const char *line, int *argc, const char ***argv)
+tok_line(Tokenizer *tok, const LineInfo *line,
+    int *argc, const char ***argv, int *cursorc, int *cursoro)
 {
 	const char *ptr;
+	int cc, co;
 
-	for (;;) {
-		switch (*(ptr = line++)) {
+	cc = co = -1;
+	ptr = line->buffer;
+	for (ptr = line->buffer; ;ptr++) {
+		if (ptr >= line->lastchar)
+			ptr = "";
+		if (ptr == line->cursor) {
+			cc = tok->argc;
+			co = tok->wptr - tok->wstart;
+		}
+		switch (*ptr) {
 		case '\'':
 			tok->flags |= TOK_KEEP;
 			tok->flags &= ~TOK_EAT;
@@ -286,10 +294,7 @@ tok_line(Tokenizer *tok, const char *line, int *argc, const char ***argv)
 			tok->flags &= ~TOK_EAT;
 			switch (tok->quote) {
 			case Q_none:
-				tok_finish(tok);
-				*argv = (const char **)tok->argv;
-				*argc = tok->argc;
-				return (0);
+				goto tok_line_outok;
 
 			case Q_single:
 			case Q_double:
@@ -319,10 +324,7 @@ tok_line(Tokenizer *tok, const char *line, int *argc, const char ***argv)
 					tok->flags &= ~TOK_EAT;
 					return (3);
 				}
-				tok_finish(tok);
-				*argv = (const char **)tok->argv;
-				*argc = tok->argc;
-				return (0);
+				goto tok_line_outok;
 
 			case Q_single:
 				return (1);
@@ -407,4 +409,32 @@ tok_line(Tokenizer *tok, const char *line, int *argc, const char ***argv)
 			tok->argv = p;
 		}
 	}
+ tok_line_outok:
+	if (cc == -1 && co == -1) {
+		cc = tok->argc;
+		co = tok->wptr - tok->wstart;
+	}
+	if (cursorc != NULL)
+		*cursorc = cc;
+	if (cursoro != NULL)
+		*cursoro = co;
+	tok_finish(tok);
+	*argv = (const char **)tok->argv;
+	*argc = tok->argc;
+	return (0);
+}
+
+/* tok_str():
+ *	Simpler version of tok_line, taking a NUL terminated line
+ *	and splitting into words, ignoring cursor state.
+ */
+public int
+tok_str(Tokenizer *tok, const char *line, int *argc, const char ***argv)
+{
+	LineInfo li;
+
+	memset(&li, 0, sizeof(li));
+	li.buffer = line;
+	li.cursor = li.lastchar = strchr(line, '\0');
+	return (tok_line(tok, &li, argc, argv, NULL, NULL));
 }

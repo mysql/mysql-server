@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.16 2002/03/18 16:01:01 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.21 2004/08/13 12:10:39 mycroft Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,18 +32,12 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: tty.c,v 1.16 2002/03/18 16:01:01 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * tty.c: tty interface stuff
  */
+#include <assert.h>
 #include "tty.h"
 #include "el.h"
 
@@ -124,11 +114,11 @@ private const ttychar_t ttychar = {
 private const ttymap_t tty_map[] = {
 #ifdef VERASE
 	{C_ERASE, VERASE,
-	{ED_DELETE_PREV_CHAR, VI_DELETE_PREV_CHAR, ED_PREV_CHAR}},
+	{EM_DELETE_PREV_CHAR, VI_DELETE_PREV_CHAR, ED_PREV_CHAR}},
 #endif /* VERASE */
 #ifdef VERASE2
 	{C_ERASE2, VERASE2,
-	{ED_DELETE_PREV_CHAR, VI_DELETE_PREV_CHAR, ED_PREV_CHAR}},
+	{EM_DELETE_PREV_CHAR, VI_DELETE_PREV_CHAR, ED_PREV_CHAR}},
 #endif /* VERASE2 */
 #ifdef VKILL
 	{C_KILL, VKILL,
@@ -455,6 +445,7 @@ private const ttymodes_t ttymodes[] = {
 #define	tty__geteightbit(td)	(((td)->c_cflag & CSIZE) == CS8)
 #define	tty__cooked_mode(td)	((td)->c_lflag & ICANON)
 
+private int	tty__getcharindex(int);
 private void	tty__getchar(struct termios *, unsigned char *);
 private void	tty__setchar(struct termios *, unsigned char *);
 private speed_t	tty__getspeed(struct termios *);
@@ -568,7 +559,7 @@ tty_init(EditLine *el)
  */
 protected void
 /*ARGSUSED*/
-tty_end(EditLine *el __attribute__((unused)))
+tty_end(EditLine *el __attribute__((__unused__)))
 {
 
 	/* XXX: Maybe reset to an initial state? */
@@ -588,6 +579,113 @@ tty__getspeed(struct termios *td)
 	return (spd);
 }
 
+/* tty__getspeed():
+ *	Return the index of the asked char in the c_cc array
+ */
+private int
+tty__getcharindex(int i)
+{
+	switch (i) {
+#ifdef VINTR
+	case C_INTR:
+		return VINTR;
+#endif /* VINTR */
+#ifdef VQUIT
+	case C_QUIT:
+		return VQUIT;
+#endif /* VQUIT */
+#ifdef VERASE
+	case C_ERASE:
+		return VERASE;
+#endif /* VERASE */
+#ifdef VKILL
+	case C_KILL:
+		return VKILL;
+#endif /* VKILL */
+#ifdef VEOF
+	case C_EOF:
+		return VEOF;
+#endif /* VEOF */
+#ifdef VEOL
+	case C_EOL:
+		return VEOL;
+#endif /* VEOL */
+#ifdef VEOL2
+	case C_EOL2:
+		return VEOL2;
+#endif /* VEOL2 */
+#ifdef VSWTCH
+	case C_SWTCH:
+		return VSWTCH;
+#endif /* VSWTCH */
+#ifdef VDSWTCH
+	case C_DSWTCH:
+		return VDSWTCH;
+#endif /* VDSWTCH */
+#ifdef VERASE2
+	case C_ERASE2:
+		return VERASE2;
+#endif /* VERASE2 */
+#ifdef VSTART
+	case C_START:
+		return VSTART;
+#endif /* VSTART */
+#ifdef VSTOP
+	case C_STOP:
+		return VSTOP;
+#endif /* VSTOP */
+#ifdef VWERASE
+	case C_WERASE:
+		return VWERASE;
+#endif /* VWERASE */
+#ifdef VSUSP
+	case C_SUSP:
+		return VSUSP;
+#endif /* VSUSP */
+#ifdef VDSUSP
+	case C_DSUSP:
+		return VDSUSP;
+#endif /* VDSUSP */
+#ifdef VREPRINT
+	case C_REPRINT:
+		return VREPRINT;
+#endif /* VREPRINT */
+#ifdef VDISCARD
+	case C_DISCARD:
+		return VDISCARD;
+#endif /* VDISCARD */
+#ifdef VLNEXT
+	case C_LNEXT:
+		return VLNEXT;
+#endif /* VLNEXT */
+#ifdef VSTATUS
+	case C_STATUS:
+		return VSTATUS;
+#endif /* VSTATUS */
+#ifdef VPAGE
+	case C_PAGE:
+		return VPAGE;
+#endif /* VPAGE */
+#ifdef VPGOFF
+	case C_PGOFF:
+		return VPGOFF;
+#endif /* VPGOFF */
+#ifdef VKILL2
+	case C_KILL2:
+		return VKILL2;
+#endif /* KILL2 */
+#ifdef VMIN
+	case C_MIN:
+		return VMIN;
+#endif /* VMIN */
+#ifdef VTIME
+	case C_TIME:
+		return VTIME;
+#endif /* VTIME */
+	default:
+		return -1;
+	}
+}
 
 /* tty__getchar():
  *	Get the tty characters
@@ -784,15 +882,15 @@ tty_bind_char(EditLine *el, int force)
 		if (new[0] == old[0] && !force)
 			continue;
 		/* Put the old default binding back, and set the new binding */
-		el_key_clear(el, map, (char *)old);
+		key_clear(el, map, (char *)old);
 		map[old[0]] = dmap[old[0]];
-		el_key_clear(el, map, (char *)new);
+		key_clear(el, map, (char *)new);
 		/* MAP_VI == 1, MAP_EMACS == 0... */
 		map[new[0]] = tp->bind[el->el_map.type];
 		if (dalt) {
-			el_key_clear(el, alt, (char *)old);
+			key_clear(el, alt, (char *)old);
 			alt[old[0]] = dalt[old[0]];
-			el_key_clear(el, alt, (char *)new);
+			key_clear(el, alt, (char *)new);
 			alt[new[0]] = tp->bind[el->el_map.type + 1];
 		}
 	}
@@ -1041,13 +1139,14 @@ tty_noquotemode(EditLine *el)
  */
 protected int
 /*ARGSUSED*/
-tty_stty(EditLine *el, int argc __attribute__((unused)), const char **argv)
+tty_stty(EditLine *el, int argc __attribute__((__unused__)), const char **argv)
 {
 	const ttymodes_t *m;
 	char x;
 	int aflag = 0;
 	const char *s, *d;
 	const char *name;
+	struct termios *tios = &el->el_tty.t_ex;
 	int z = EX_IO;
 
 	if (argv == NULL)
@@ -1062,14 +1161,17 @@ tty_stty(EditLine *el, int argc __attribute__((unused)), const char **argv)
 			break;
 		case 'd':
 			argv++;
+			tios = &el->el_tty.t_ed;
 			z = ED_IO;
 			break;
 		case 'x':
 			argv++;
+			tios = &el->el_tty.t_ex;
 			z = EX_IO;
 			break;
 		case 'q':
 			argv++;
+			tios = &el->el_tty.t_ts;
 			z = QU_IO;
 			break;
 		default:
@@ -1119,6 +1221,7 @@ tty_stty(EditLine *el, int argc __attribute__((unused)), const char **argv)
 		return (0);
 	}
 	while (argv && (s = *argv++)) {
+		char *p;
 		switch (*s) {
 		case '+':
 		case '-':
@@ -1129,14 +1232,27 @@ tty_stty(EditLine *el, int argc __attribute__((unused)), const char **argv)
 			break;
 		}
 		d = s;
+		if ((p = strchr(s, '=')) != NULL)
+			*p++ = '\0';
 		for (m = ttymodes; m->m_name; m++)
-			if (strcmp(m->m_name, d) == 0)
+			if (strcmp(m->m_name, d) == 0 &&
+			    (p == NULL || m->m_type == MD_CHAR))
 				break;
 
 		if (!m->m_name) {
 			(void) fprintf(el->el_errfile,
 			    "%s: Invalid argument `%s'.\n", name, d);
 			return (-1);
+		}
+		if (p) {
+			int c = ffs((int)m->m_value);
+			int v = *p ? parse__escape((const char **const) &p) :
+			    el->el_tty.t_vdisable;
+			assert(c-- != 0);
+			c = tty__getcharindex(c);
+			assert(c != -1);
+			tios->c_cc[c] = v;
+			continue;
 		}
 		switch (x) {
 		case '+':
