@@ -1283,8 +1283,11 @@ private:
   sp_name *m_name;
   mutable sp_head *m_sp;
   TABLE *dummy_table;
+  Field *result_field;
+  char result_buf[64];
 
   int execute(Item **itp);
+  int execute(Field **flp);
   Field *sp_result_field(void) const;
 
 public:
@@ -1295,6 +1298,12 @@ public:
 
   virtual ~Item_func_sp()
   {}
+
+  void cleanup()
+  {
+    Item_func::cleanup();
+    result_field= NULL;
+  }
 
   const char *func_name() const;
 
@@ -1308,53 +1317,30 @@ public:
 
   longlong val_int()
   {
-    return (longlong)Item_func_sp::val_real();
+    if (execute(&result_field))
+      return 0LL;
+    return result_field->val_int();   
   }
 
   double val_real()
   {
-    Item *it;
-    double d;
-
-    if (execute(&it))
-    {
-      null_value= 1;
+    if (execute(&result_field))
       return 0.0;
-    }
-    d= it->val_real();
-    null_value= it->null_value;
-    return d;
+    return result_field->val_real();
   }
 
   my_decimal *val_decimal(my_decimal *dec_buf)
   {
-    Item *it;
-    my_decimal *result;
-
-    if (execute(&it))
-    {
-      null_value= 1;
+    if (execute(&result_field))
       return NULL;
-    }
-    result= it->val_decimal(dec_buf);
-    null_value= it->null_value;
-    return result;
+    return result_field->val_decimal(dec_buf);
   }
-
 
   String *val_str(String *str)
   {
-    Item *it;
-    String *s;
-
-    if (execute(&it))
-    {
-      null_value= 1;
+    if (execute(&result_field))
       return NULL;
-    }
-    s= it->val_str(str);
-    null_value= it->null_value;
-    return s;
+    return result_field->val_str(str);
   }
 
   void fix_length_and_dec();
