@@ -774,7 +774,6 @@ bool Protocol_simple::store(const char *from, uint length,
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_YEAR ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
 	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
@@ -801,6 +800,7 @@ bool Protocol_simple::store_short(longlong from)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
+	      field_types[field_pos] == MYSQL_TYPE_YEAR ||
 	      field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
 #endif
