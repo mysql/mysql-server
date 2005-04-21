@@ -1,4 +1,4 @@
-/*	$NetBSD: search.h,v 1.6 2002/11/15 14:32:34 christos Exp $	*/
+/*	$NetBSD: search.h,v 1.8 2003/10/18 23:27:36 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -63,7 +59,7 @@ protected int		c_hmatch(EditLine *, const char *);
 protected void		c_setpat(EditLine *);
 protected el_action_t	ce_inc_search(EditLine *, int);
 protected el_action_t	cv_search(EditLine *, int);
-protected el_action_t	ce_search_line(EditLine *, char *, int);
+protected el_action_t	ce_search_line(EditLine *, int);
 protected el_action_t	cv_repeat_srch(EditLine *, int);
 protected el_action_t	cv_csearch(EditLine *, int, int, int, int);
 

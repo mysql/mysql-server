@@ -20,7 +20,7 @@ EXTRA_libedit_a_SOURCES =	np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c \
 libedit_a_LIBADD = 		@LIBEDIT_LOBJECTS@
 libedit_a_DEPENDENCIES 	= 	@LIBEDIT_LOBJECTS@
 
-pkginclude_HEADERS =	readline/readline.h
+pkginclude_HEADERS =	editline/readline.h
 
 noinst_HEADERS =	chared.h el.h histedit.h key.h parse.h refresh.h sig.h \
 			sys.h tokenizer.h config.h hist.h map.h prompt.h read.h \
