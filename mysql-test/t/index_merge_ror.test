@@ -240,6 +240,7 @@ select count(a) from t2 where a='BBBBBBBB';
 select count(a) from t2 where b='BBBBBBBB';
 
 # BUG#1: 
+--replace_result a a_or_b b a_or_b
 explain select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';
