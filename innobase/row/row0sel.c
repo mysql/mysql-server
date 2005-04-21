@@ -125,7 +125,7 @@ row_sel_sec_rec_is_for_clust_rec(
         }
 
 func_exit:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(is_equal);
@@ -746,7 +746,7 @@ func_exit:
 	*out_rec = clust_rec;
 	err = DB_SUCCESS;
 err_exit:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(err);
@@ -1066,7 +1066,7 @@ row_sel_try_search_shortcut(
 
 	plan->n_rows_fetched++;
 func_exit:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(SEL_FOUND);
@@ -1780,7 +1780,7 @@ lock_wait_or_error:
 	ut_ad(sync_thread_levels_empty_gen(TRUE));
 
 func_exit:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(err);
@@ -4004,7 +4004,7 @@ normal_return:
 
 func_exit:
 	trx->op_info = "";
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(err);

@@ -1224,7 +1224,7 @@ row_upd_store_row(
 	
 	node->n_ext_vec = btr_push_update_extern_fields(node->ext_vec,
 						offsets, update);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -1423,7 +1423,7 @@ row_upd_clust_rec_by_insert(
 							index, thr, mtr);
 			if (err != DB_SUCCESS) {
 				mtr_commit(mtr);
-				if (heap) {
+				if (UNIV_LIKELY_NULL(heap)) {
 					mem_heap_free(heap);
 				}
 				return(err);
@@ -1549,7 +1549,7 @@ row_upd_clust_rec(
 			rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap),
 			big_rec, mtr);
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		mtr_commit(mtr);
@@ -1719,7 +1719,7 @@ row_upd_clust_step(
 			node->index = dict_table_get_next_index(index);
 		}
 	exit_func:
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		return(err);
@@ -1736,7 +1736,7 @@ row_upd_clust_step(
 		row_upd_eval_new_vals(node->update);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 		
@@ -2016,7 +2016,7 @@ row_upd_in_place_in_select(
 			btr_pcur_get_rec(pcur), btr_cur->index, offsets_,
 			ULINT_UNDEFINED, &heap),
 		UT_LIST_GET_FIRST(node->columns));
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	row_upd_eval_new_vals(node->update);

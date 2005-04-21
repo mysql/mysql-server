@@ -129,7 +129,7 @@ page_cur_try_search_shortcut(
 #endif
 	success = TRUE;
 exit_func:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(success);
@@ -451,7 +451,7 @@ page_cur_search_with_match(
 	*iup_matched_bytes   = up_matched_bytes;
 	*ilow_matched_fields = low_matched_fields;
 	*ilow_matched_bytes  = low_matched_bytes;
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -539,7 +539,7 @@ page_cur_insert_rec_write_log(
 		ut_ad(rec_size == rec_offs_size(ins_offs));
 		cur_rec_size = rec_offs_size(cur_offs);
 
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}
@@ -821,7 +821,7 @@ page_cur_parse_insert_rec(
 		mem_free(buf);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
@@ -890,7 +890,7 @@ page_cur_insert_rec_low(
 	insert_buf = page_mem_alloc(page, rec_size, index, &heap_no);
 
 	if (insert_buf == NULL) {
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		return(NULL);
@@ -980,7 +980,7 @@ page_cur_insert_rec_low(
 	page_cur_insert_rec_write_log(insert_rec, rec_size, current_rec,
 				index, mtr);
 	
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(insert_rec);
@@ -1186,7 +1186,7 @@ page_copy_rec_list_end_to_created_page(
 		slot_index--;
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
@@ -1285,7 +1285,7 @@ page_cur_parse_delete_rec(
 		page_cur_delete_rec(&cursor, index,
 				rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap), mtr);
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}

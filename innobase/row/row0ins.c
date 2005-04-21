@@ -1392,7 +1392,7 @@ do_possible_lock_wait:
 	}
 
 exit_func:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(err);
@@ -1660,7 +1660,7 @@ next_rec:
 		}
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	mtr_commit(&mtr);
@@ -2048,7 +2048,7 @@ function_exit:
 		mtr_commit(&mtr);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(err);

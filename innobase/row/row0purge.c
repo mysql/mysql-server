@@ -126,7 +126,7 @@ row_purge_remove_clust_if_poss_low(
 	if (0 != ut_dulint_cmp(node->roll_ptr,
 		row_get_rec_roll_ptr(rec, index, rec_get_offsets(
 			rec, index, offsets_, ULINT_UNDEFINED, &heap)))) {
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		/* Someone else has modified the record later: do not remove */
@@ -135,7 +135,7 @@ row_purge_remove_clust_if_poss_low(
 		return(TRUE);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
