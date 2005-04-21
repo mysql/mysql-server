@@ -1,4 +1,4 @@
-/*	$NetBSD: histedit.h,v 1.21 2003/01/21 18:40:24 christos Exp $	*/
+/*	$NetBSD: histedit.h,v 1.25 2003/12/05 13:37:48 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -45,7 +41,7 @@
 #define	_HISTEDIT_H_
 
 #define	LIBEDIT_MAJOR 2
-#define	LIBEDIT_MINOR 6
+#define	LIBEDIT_MINOR 9
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -53,6 +49,7 @@
 /*
  * ==== Editing ====
  */
+
 typedef struct editline EditLine;
 
 /*
@@ -63,7 +60,6 @@ typedef struct lineinfo {
 	const char	*cursor;
 	const char	*lastchar;
 } LineInfo;
-
 
 /*
  * EditLine editor function return codes.
@@ -84,9 +80,8 @@ typedef struct lineinfo {
  * Initialization, cleanup, and resetting
  */
 EditLine	*el_init(const char *, FILE *, FILE *, FILE *);
-void		 el_reset(EditLine *);
 void		 el_end(EditLine *);
-
+void		 el_reset(EditLine *);
 
 /*
  * Get a line, a character or push a string back in the input queue
@@ -131,6 +126,8 @@ int		 el_get(EditLine *, int, void *);
 #define	EL_RPROMPT	12	/* , el_pfunc_t);		*/
 #define	EL_GETCFN	13	/* , el_rfunc_t);		*/
 #define	EL_CLIENTDATA	14	/* , void *);			*/
+#define	EL_UNBUFFERED	15	/* , int);			*/
+#define	EL_PREP_TERM    16      /* , int);                      */
 
 #define EL_BUILTIN_GETCFN	(NULL)
 
@@ -146,13 +143,13 @@ int		el_source(EditLine *, const char *);
  */
 void		 el_resize(EditLine *);
 
-
 /*
  * User-defined function interface.
  */
 const LineInfo	*el_line(EditLine *);
 int		 el_insertstr(EditLine *, const char *);
 void		 el_deletestr(EditLine *, int);
+
 
 /*
  * ==== History ====
@@ -195,5 +192,23 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_CLEAR		19	/* , void);		*/
 #define	H_SETUNIQUE	20	/* , int);		*/
 #define	H_GETUNIQUE	21	/* , void);		*/
+
+
+/*
+ * ==== Tokenization ====
+ */
+
+typedef struct tokenizer Tokenizer;
+
+/*
+ * String tokenization functions, using simplified sh(1) quoting rules
+ */
+Tokenizer	*tok_init(const char *);
+void		 tok_end(Tokenizer *);
+void		 tok_reset(Tokenizer *);
+int		 tok_line(Tokenizer *, const LineInfo *,
+		    int *, const char ***, int *, int *);
+int		 tok_str(Tokenizer *, const char *,
+		    int *, const char ***);
 
 #endif /* _HISTEDIT_H_ */
