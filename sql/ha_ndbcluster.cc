@@ -1187,7 +1187,7 @@ static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
 {
   if (field->type() == MYSQL_TYPE_VARCHAR) {
     Field_varstring* f= (Field_varstring*)field;
-    if (f->length_bytes < 256) {
+    if (f->length_bytes == 1) {
       uint pack_len= field->pack_length();
       DBUG_ASSERT(1 <= pack_len && pack_len <= 256);
       if (ptr[1] == 0) {
