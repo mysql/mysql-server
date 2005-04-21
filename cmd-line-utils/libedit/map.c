@@ -1,4 +1,4 @@
-/*	$NetBSD: map.c,v 1.18 2002/11/15 14:32:33 christos Exp $	*/
+/*	$NetBSD: map.c,v 1.20 2004/08/13 12:10:39 mycroft Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,14 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: map.c,v 1.18 2002/11/15 14:32:33 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * map.c: Editor function definitions
@@ -71,7 +60,7 @@ private const el_action_t  el_map_emacs[] = {
 	/*   5 */	ED_MOVE_TO_END,		/* ^E */
 	/*   6 */	ED_NEXT_CHAR,		/* ^F */
 	/*   7 */	ED_UNASSIGNED,		/* ^G */
-	/*   8 */	ED_DELETE_PREV_CHAR,	/* ^H */
+	/*   8 */	EM_DELETE_PREV_CHAR,	/* ^H */
 	/*   9 */	ED_UNASSIGNED,		/* ^I */
 	/*  10 */	ED_NEWLINE,		/* ^J */
 	/*  11 */	ED_KILL_LINE,		/* ^K */
@@ -190,7 +179,7 @@ private const el_action_t  el_map_emacs[] = {
 	/* 124 */	ED_INSERT,		/* | */
 	/* 125 */	ED_INSERT,		/* } */
 	/* 126 */	ED_INSERT,		/* ~ */
-	/* 127 */	ED_DELETE_PREV_CHAR,	/* ^? */
+	/* 127 */	EM_DELETE_PREV_CHAR,	/* ^? */
 	/* 128 */	ED_UNASSIGNED,		/* M-^@ */
 	/* 129 */	ED_UNASSIGNED,		/* M-^A */
 	/* 130 */	ED_UNASSIGNED,		/* M-^B */
@@ -1011,8 +1000,7 @@ map_init_meta(EditLine *el)
 			break;
 		default:
 			buf[1] = i & 0177;
-			el_key_add(el, buf, 
-				   el_key_map_cmd(el, (int) map[i]), XK_CMD);
+			key_add(el, buf, key_map_cmd(el, (int) map[i]), XK_CMD);
 			break;
 		}
 	map[(int) buf[0]] = ED_SEQUENCE_LEAD_IN;
@@ -1034,7 +1022,7 @@ map_init_vi(EditLine *el)
 	el->el_map.type = MAP_VI;
 	el->el_map.current = el->el_map.key;
 
-	el_key_reset(el);
+	key_reset(el);
 
 	for (i = 0; i < N_KEYS; i++) {
 		key[i] = vii[i];
@@ -1063,7 +1051,7 @@ map_init_emacs(EditLine *el)
 
 	el->el_map.type = MAP_EMACS;
 	el->el_map.current = el->el_map.key;
-	el_key_reset(el);
+	key_reset(el);
 
 	for (i = 0; i < N_KEYS; i++) {
 		key[i] = emacs[i];
@@ -1076,7 +1064,7 @@ map_init_emacs(EditLine *el)
 	buf[0] = CONTROL('X');
 	buf[1] = CONTROL('X');
 	buf[2] = 0;
-	el_key_add(el, buf, el_key_map_cmd(el, EM_EXCHANGE_MARK), XK_CMD);
+	key_add(el, buf, key_map_cmd(el, EM_EXCHANGE_MARK), XK_CMD);
 
 	tty_bind_char(el, 1);
 	term_bind_arrow(el);
@@ -1133,7 +1121,7 @@ map_print_key(EditLine *el, el_action_t *map, const char *in)
 	el_bindings_t *bp;
 
 	if (in[0] == '\0' || in[1] == '\0') {
-		(void) el_key__decode_str(in, outbuf, "");
+		(void) key__decode_str(in, outbuf, "");
 		for (bp = el->el_map.help; bp->name != NULL; bp++)
 			if (bp->func == map[(unsigned char) *in]) {
 				(void) fprintf(el->el_outfile,
@@ -1141,7 +1129,7 @@ map_print_key(EditLine *el, el_action_t *map, const char *in)
 				return;
 			}
 	} else
-		el_key_print(el, in);
+		key_print(el, in);
 }
 
 
@@ -1163,20 +1151,20 @@ map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 		if (first == last)
 			(void) fprintf(el->el_outfile,
 			    "%-15s->  is undefined\n",
-			    el_key__decode_str(firstbuf, unparsbuf, STRQQ));
+			    key__decode_str(firstbuf, unparsbuf, STRQQ));
 		return;
 	}
 	for (bp = el->el_map.help; bp->name != NULL; bp++) {
 		if (bp->func == map[first]) {
 			if (first == last) {
 				(void) fprintf(el->el_outfile, "%-15s->  %s\n",
-				    el_key__decode_str(firstbuf, unparsbuf, STRQQ),
+				    key__decode_str(firstbuf, unparsbuf, STRQQ),
 				    bp->name);
 			} else {
 				(void) fprintf(el->el_outfile,
 				    "%-4s to %-7s->  %s\n",
-				    el_key__decode_str(firstbuf, unparsbuf, STRQQ),
-				    el_key__decode_str(lastbuf, extrabuf, STRQQ),
+				    key__decode_str(firstbuf, unparsbuf, STRQQ),
+				    key__decode_str(lastbuf, extrabuf, STRQQ),
 				    bp->name);
 			}
 			return;
@@ -1230,7 +1218,7 @@ map_print_all_keys(EditLine *el)
 	map_print_some_keys(el, el->el_map.alt, prev, i - 1);
 
 	(void) fprintf(el->el_outfile, "Multi-character bindings\n");
-	el_key_print(el, "");
+	key_print(el, "");
 	(void) fprintf(el->el_outfile, "Arrow key bindings\n");
 	term_print_arrow(el, "");
 }
@@ -1323,9 +1311,9 @@ map_bind(EditLine *el, int argc, const char **argv)
 			return (-1);
 		}
 		if (in[1])
-			(void) el_key_delete(el, in);
+			(void) key_delete(el, in);
 		else if (map[(unsigned char) *in] == ED_SEQUENCE_LEAD_IN)
-			(void) el_key_delete(el, in);
+			(void) key_delete(el, in);
 		else
 			map[(unsigned char) *in] = ED_UNASSIGNED;
 		return (0);
@@ -1353,9 +1341,9 @@ map_bind(EditLine *el, int argc, const char **argv)
 			return (-1);
 		}
 		if (key)
-			term_set_arrow(el, in, el_key_map_str(el, out), ntype);
+			term_set_arrow(el, in, key_map_str(el, out), ntype);
 		else
-			el_key_add(el, in, el_key_map_str(el, out), ntype);
+			key_add(el, in, key_map_str(el, out), ntype);
 		map[(unsigned char) *in] = ED_SEQUENCE_LEAD_IN;
 		break;
 
@@ -1366,13 +1354,13 @@ map_bind(EditLine *el, int argc, const char **argv)
 			return (-1);
 		}
 		if (key)
-			term_set_arrow(el, in, el_key_map_str(el, out), ntype);
+			term_set_arrow(el, in, key_map_str(el, out), ntype);
 		else {
 			if (in[1]) {
-				el_key_add(el, in, el_key_map_cmd(el, cmd), ntype);
+				key_add(el, in, key_map_cmd(el, cmd), ntype);
 				map[(unsigned char) *in] = ED_SEQUENCE_LEAD_IN;
 			} else {
-				el_key_clear(el, map, in);
+				key_clear(el, map, in);
 				map[(unsigned char) *in] = cmd;
 			}
 		}

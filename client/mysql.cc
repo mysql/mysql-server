@@ -1306,7 +1306,7 @@ static void initialize_readline (char *name)
   setlocale(LC_ALL,""); /* so as libedit use isprint */
 #endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
-  rl_completion_entry_function= (CPFunction*)&no_completion;
+  rl_completion_entry_function= (Function*)&no_completion;
 #else
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= (Function*)&no_completion;
