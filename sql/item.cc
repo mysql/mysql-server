@@ -3591,6 +3591,7 @@ bool Item::send(Protocol *protocol, String *buffer)
     break;
   }
   case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_YEAR:
   {
     longlong nr;
     nr= val_int();
