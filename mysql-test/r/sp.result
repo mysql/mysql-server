@@ -2967,4 +2967,47 @@ begin end;
 goto label1;
 end|
 drop procedure bug6898|
+drop function if exists bug9102|
+create function bug9102() returns blob return 'a'|
+select bug9102()|
+bug9102()
+a
+drop function bug9102|
+drop function if exists bug7648|
+create function bug7648() returns bit(8) return 'a'|
+select bug7648()|
+bug7648()
+a
+drop function bug7648|
+drop function if exists bug9775|
+create function bug9775(v1 char(1)) returns enum('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('c')|
+bug9775('a')	bug9775('b')	bug9775('c')
+a	b	
+drop function bug9775|
+create function bug9775(v1 int) returns enum('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3)|
+bug9775(1)	bug9775(2)	bug9775(3)
+a	b	
+drop function bug9775|
+create function bug9775(v1 char(1)) returns set('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('a,b'),bug9775('c')|
+bug9775('a')	bug9775('b')	bug9775('a,b')	bug9775('c')
+a	b	a,b	
+drop function bug9775|
+create function bug9775(v1 int) returns set('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3),bug9775(4)|
+bug9775(1)	bug9775(2)	bug9775(3)	bug9775(4)
+a	b	a,b	
+drop function bug9775|
+drop function if exists bug8861|
+create function bug8861(v1 int) returns year return v1|
+select bug8861(05)|
+bug8861(05)
+2005
+set @x = bug8861(05)|
+select @x|
+@x
+2005
+drop function bug8861|
 drop table t1,t2;

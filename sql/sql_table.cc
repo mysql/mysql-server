@@ -1352,6 +1352,77 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
 
 /*
+  Preparation of create_field for SP function return values.
+  Based on code used in the inner loop of mysql_prepare_table() above
+
+  SYNOPSIS
+    sp_prepare_create_field()
+    thd			Thread object
+    sql_field		Field to prepare
+
+  DESCRIPTION
+    Prepares the field structures for field creation.
+
+*/
+
+void sp_prepare_create_field(THD *thd, create_field *sql_field)
+{
+  if (sql_field->sql_type == FIELD_TYPE_SET ||
+      sql_field->sql_type == FIELD_TYPE_ENUM)
+  {
+    uint32 field_length, dummy;
+    if (sql_field->sql_type == FIELD_TYPE_SET)
+    {
+      calculate_interval_lengths(sql_field->charset,
+                                 sql_field->interval, &dummy, 
+                                 &field_length);
+      sql_field->length= field_length + 
+                         (sql_field->interval->count - 1);
+    }
+    else /* FIELD_TYPE_ENUM */
+    {
+      calculate_interval_lengths(sql_field->charset,
+                                 sql_field->interval,
+                                 &field_length, &dummy);
+      sql_field->length= field_length;
+    }
+    set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
+  }
+
+  if (sql_field->sql_type == FIELD_TYPE_BIT)
+  {
+    sql_field->pack_flag= FIELDFLAG_NUMBER |
+                          FIELDFLAG_TREAT_BIT_AS_CHAR;
+  }
+  sql_field->create_length_to_internal_length();
+
+  if (sql_field->length > MAX_FIELD_VARCHARLENGTH &&
+      !(sql_field->flags & BLOB_FLAG))
+  {
+    /* Convert long VARCHAR columns to TEXT or BLOB */
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+
+    sql_field->sql_type= FIELD_TYPE_BLOB;
+    sql_field->flags|= BLOB_FLAG;
+    sprintf(warn_buff, ER(ER_AUTO_CONVERT), sql_field->field_name,
+            "VARCHAR",
+            (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
+                 warn_buff);
+  }
+
+  if ((sql_field->flags & BLOB_FLAG) && sql_field->length)
+  {
+    if (sql_field->sql_type == FIELD_TYPE_BLOB)
+    {
+      /* The user has given a length to the blob column */
+      sql_field->sql_type= get_blob_type_from_length(sql_field->length);
+      sql_field->pack_length= calc_pack_length(sql_field->sql_type, 0);
+    }
+    sql_field->length= 0;                     // Probably from an item
+  }
+}
+/*
   Create a table
 
   SYNOPSIS
