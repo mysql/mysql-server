@@ -1957,8 +1957,10 @@ int ha_ndbcluster::write_row(byte *record)
       m_skip_auto_increment= !auto_increment_column_changed;
     }
 
-    if ((res= set_primary_key(op)))
-      return res;
+    if ((res= (m_primary_key_update ?
+               set_primary_key_from_old_data(op, record)
+               : set_primary_key(op))))
+      return res;  
   }
 
   // Set non-key attribute(s)
@@ -2098,7 +2100,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   {
     int read_res, insert_res, delete_res;
 
-    DBUG_PRINT("info", ("primary key update, doing pk read+insert+delete"));
+    DBUG_PRINT("info", ("primary key update, doing pk read+delete+insert"));
     // Get all old fields, since we optimize away fields not in query
     read_res= complemented_pk_read(old_data, new_data);
     if (read_res)
@@ -2106,15 +2108,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_PRINT("info", ("pk read failed"));
       DBUG_RETURN(read_res);
     }
-    // Insert new row
-    insert_res= write_row(new_data);
-    if (insert_res)
-    {
-      DBUG_PRINT("info", ("insert failed"));
-      DBUG_RETURN(insert_res);
-    }
     // Delete old row
-    DBUG_PRINT("info", ("insert succeded"));
     m_primary_key_update= TRUE;
     delete_res= delete_row(old_data);
     m_primary_key_update= FALSE;
@@ -2122,9 +2116,23 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     {
       DBUG_PRINT("info", ("delete failed"));
       // Undo write_row(new_data)
-      DBUG_RETURN(delete_row(new_data));
+      DBUG_RETURN(delete_res);
     }     
-    DBUG_PRINT("info", ("insert+delete succeeded"));
+    // Insert new row
+    DBUG_PRINT("info", ("delete succeded"));
+    insert_res= write_row(new_data);
+    if (insert_res)
+    {
+      DBUG_PRINT("info", ("insert failed"));
+      if (trans->commitStatus() == NdbConnection::Started)
+      {
+        m_primary_key_update= TRUE;
+        insert_res= write_row((byte *)old_data);
+        m_primary_key_update= FALSE;
+      }
+      DBUG_RETURN(insert_res);
+    }
+    DBUG_PRINT("info", ("delete+insert succeeded"));
     DBUG_RETURN(0);
   }
 
@@ -2226,8 +2234,9 @@ int ha_ndbcluster::delete_row(const byte *record)
 
     no_uncommitted_rows_update(-1);
 
-    // If deleting from cursor, NoCommit will be handled in next_result
-    DBUG_RETURN(0);
+    if (!m_primary_key_update)
+      // If deleting from cursor, NoCommit will be handled in next_result
+      DBUG_RETURN(0);
   }
   else
   {
