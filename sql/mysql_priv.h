@@ -668,8 +668,6 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
-int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
-			List<Item> &values, ulong counter);
 
 /* sql_error.cc */
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
