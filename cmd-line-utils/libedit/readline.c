@@ -73,7 +73,7 @@ extern char *alloca ();
 #include "el.h"
 #include "fcns.h"		/* for EL_NUM_FCNS */
 #include "histedit.h"
-#include "editline/readline.h"
+#include "readline/readline.h"
 
 /* for rl_complete() */
 #define TAB		'\r'
