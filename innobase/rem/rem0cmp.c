@@ -320,7 +320,7 @@ cmp_data_data_slow(
 	    || (cur_type->mtype == DATA_BLOB
 	        && 0 == (cur_type->prtype & DATA_BINARY_TYPE)
 		&& dtype_get_charset_coll(cur_type->prtype) !=
-				data_mysql_latin1_swedish_charset_coll)) {
+				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 		return(cmp_whole_field(cur_type,
 					data1, (unsigned) len1,
@@ -530,7 +530,7 @@ cmp_dtuple_rec_with_match(
 	    	    || (cur_type->mtype == DATA_BLOB
 	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
 			&& dtype_get_charset_coll(cur_type->prtype) !=
-				data_mysql_latin1_swedish_charset_coll)) {
+				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 			ret = cmp_whole_field(
 				cur_type,
@@ -832,7 +832,7 @@ cmp_rec_rec_with_match(
 	    	    || (cur_type->mtype == DATA_BLOB
 	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
 			&& dtype_get_charset_coll(cur_type->prtype) !=
-				data_mysql_latin1_swedish_charset_coll)) {
+				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 			ret = cmp_whole_field(cur_type,
 					rec1_b_ptr, (unsigned) rec1_f_len,

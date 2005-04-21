@@ -39,7 +39,6 @@ column definitions, or records in the insert buffer, we use this
 charset-collation code for them. */
 
 ulint	data_mysql_default_charset_coll		= 99999999;
-ulint	data_mysql_latin1_swedish_charset_coll	= 99999999;
 
 dtype_t		dtype_binary_val = {DATA_BINARY, 0, 0, 0, 0, 0};
 dtype_t* 	dtype_binary 	= &dtype_binary_val;
