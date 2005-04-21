@@ -435,7 +435,7 @@ btr_search_update_hash_ref(
 				offsets_, ULINT_UNDEFINED, &heap),
 				block->curr_n_fields,
 				block->curr_n_bytes, tree_id);
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 #ifdef UNIV_SYNC_DEBUG
@@ -659,7 +659,7 @@ btr_search_check_guess(
 		success = cmp != 1;
 	}
 exit_func:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(success);
@@ -1010,7 +1010,7 @@ next_rec:
 		prev_fold = fold;
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
@@ -1252,7 +1252,7 @@ exit_func:
 
 	mem_free(folds);
 	mem_free(recs);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -1370,7 +1370,7 @@ btr_search_update_hash_on_delete(
 	fold = rec_fold(rec, rec_get_offsets(rec, cursor->index, offsets_,
 				ULINT_UNDEFINED, &heap), block->curr_n_fields,
 				block->curr_n_bytes, tree_id);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	rw_lock_x_lock(&btr_search_latch);
@@ -1573,7 +1573,7 @@ check_next_rec:
 	}	
 		
 function_exit:
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	if (locked) {
@@ -1662,7 +1662,7 @@ btr_search_validate(void)
 	}
 
 	rw_lock_x_unlock(&btr_search_latch);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 

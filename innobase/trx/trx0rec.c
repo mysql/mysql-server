@@ -1134,7 +1134,7 @@ trx_undo_report_row_operation(
 
 			mutex_exit(&(trx->undo_mutex));
 			mtr_commit(&mtr);
-			if (heap) {
+			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
 			return(DB_OUT_OF_FILE_SPACE);
@@ -1153,7 +1153,7 @@ trx_undo_report_row_operation(
 
 	*roll_ptr = trx_undo_build_roll_ptr(is_insert, rseg->id, page_no,
 								offset);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(DB_SUCCESS);

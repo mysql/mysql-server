@@ -1284,14 +1284,14 @@ btr_page_get_sure_split_rec(
 					next_rec = page_rec_get_next(rec);
 				}
 				if (next_rec != page_get_supremum_rec(page)) {
-					if (heap) {
+					if (UNIV_LIKELY_NULL(heap)) {
 						mem_heap_free(heap);
 					}
 					return(next_rec);
 				}
                     	}
 
-			if (heap) {
+			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
 			return(rec);
@@ -2109,7 +2109,7 @@ btr_compress(
 				rec_get_offsets(node_ptr, cursor->index,
 				offsets_, ULINT_UNDEFINED, &heap),
 				right_page_no, mtr);
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		btr_node_ptr_delete(tree, merge_page, mtr);
@@ -2403,7 +2403,7 @@ btr_print_tree(
 	root = btr_root_get(tree, &mtr);
 
 	btr_print_recursive(tree, root, width, &heap, &offsets, &mtr);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
@@ -2557,14 +2557,14 @@ btr_index_rec_validate(
 				rec_print_new(stderr, rec, offsets);
 				putc('\n', stderr);
 			}
-			if (heap) {
+			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
 			return(FALSE);
 		}
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(TRUE);			

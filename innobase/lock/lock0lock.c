@@ -4187,7 +4187,7 @@ lock_rec_print(
 	}
 
 	mtr_commit(&mtr);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -4664,7 +4664,7 @@ function_exit:
 
 	mtr_commit(&mtr);
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(TRUE);
@@ -4850,7 +4850,7 @@ lock_rec_insert_check_and_lock(
 		offsets = rec_get_offsets(next_rec, index, offsets_,
 						ULINT_UNDEFINED, &heap);
 		ut_ad(lock_rec_queue_validate(next_rec, index, offsets));
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}
@@ -4999,7 +4999,7 @@ lock_sec_rec_modify_check_and_lock(
 		offsets = rec_get_offsets(rec, index, offsets_,
 						ULINT_UNDEFINED, &heap);
 		ut_ad(lock_rec_queue_validate(rec, index, offsets));
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}

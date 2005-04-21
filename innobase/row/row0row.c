@@ -535,7 +535,7 @@ row_build_row_ref_in_tuple(
 	}
 
 	ut_ad(dtuple_check_typed(ref));
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }

@@ -252,13 +252,13 @@ page_mem_alloc(
 			*heap_no = rec_get_heap_no(rec, page_is_comp(page));
 
 			block = rec_get_start(rec, offsets);
-			if (heap) {
+			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
 			return(block);
 		}
 
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}
@@ -514,7 +514,7 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur2);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -608,7 +608,7 @@ page_copy_rec_list_start(
 
 	btr_search_move_or_delete_hash_entries(new_page, page, index);
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -772,7 +772,7 @@ page_delete_rec_list_end(
 			rec2 = page_rec_get_next(rec2);
 		}
 
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}
@@ -868,7 +868,7 @@ page_delete_rec_list_start(
 		page_cur_delete_rec(&cur1, index, offsets, mtr);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
@@ -1381,7 +1381,7 @@ page_print_list(
 		"--------------------------------\n",
 		(ulong) (count + 1));
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }	

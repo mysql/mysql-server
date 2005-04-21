@@ -431,7 +431,7 @@ retry_page_get:
 							cursor->thr)) {
 				/* Insertion to the insert buffer succeeded */
 				cursor->flag = BTR_CUR_INSERT_TO_IBUF;
-				if (heap) {
+				if (UNIV_LIKELY_NULL(heap)) {
 					mem_heap_free(heap);
 				}
 				return;
@@ -525,7 +525,7 @@ retry_page_get:
 		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
@@ -681,7 +681,7 @@ btr_cur_open_at_index_side(
 		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -762,7 +762,7 @@ btr_cur_open_at_rnd_pos(
 		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }	
@@ -1261,7 +1261,7 @@ btr_cur_upd_lock_and_undo(
 		err = lock_clust_rec_modify_check_and_lock(flags, rec, index,
 			rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap), thr);
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		if (err != DB_SUCCESS) {
@@ -1451,7 +1451,7 @@ btr_cur_update_in_place(
 							thr, &roll_ptr);
 	if (err != DB_SUCCESS) {
 
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		return(err);
@@ -1498,7 +1498,7 @@ btr_cur_update_in_place(
 		btr_cur_unmark_extern_fields(rec, mtr, offsets);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(DB_SUCCESS);
@@ -2078,7 +2078,7 @@ btr_cur_parse_del_mark_set_clust_rec(
 					rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
 					pos, trx_id, roll_ptr);
-			if (heap) {
+			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
 		}
@@ -2138,7 +2138,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	if (err != DB_SUCCESS) {
 
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		return(err);
@@ -2149,7 +2149,7 @@ btr_cur_del_mark_set_clust_rec(
 						&roll_ptr);
 	if (err != DB_SUCCESS) {
 
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		return(err);
@@ -2175,7 +2175,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
 							roll_ptr, mtr);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(DB_SUCCESS);
@@ -2443,7 +2443,7 @@ btr_cur_optimistic_delete(
 									mtr);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
@@ -2943,7 +2943,7 @@ btr_estimate_number_of_different_key_vals(
 	}
 		
 	mem_free(n_diff);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
