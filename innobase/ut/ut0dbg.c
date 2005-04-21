@@ -8,9 +8,6 @@ Created 1/30/1994 Heikki Tuuri
 
 #include "univ.i"
 
-/* This is used to eliminate compiler warnings */
-ulint	ut_dbg_zero	= 0;
-
 /* If this is set to TRUE all threads will stop into the next assertion
 and assert */
 ibool	ut_dbg_stop_threads	= FALSE;

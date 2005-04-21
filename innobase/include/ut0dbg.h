@@ -13,8 +13,6 @@ Created 1/30/1994 Heikki Tuuri
 #include <stdlib.h>
 #include "os0thread.h"
 
-extern ulint	ut_dbg_zero; /* This is used to eliminate
-				compiler warnings */
 extern ibool	ut_dbg_stop_threads;
 
 extern ulint*	ut_dbg_null_ptr;
@@ -26,7 +24,7 @@ extern const char*	ut_dbg_msg_stop;
 #ifdef __NETWARE__
 extern ibool 	panic_shutdown;
 #define ut_a(EXPR) do {\
-	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
+	if (UNIV_UNLIKELY(!((ulint)(EXPR)))) {\
                 ut_print_timestamp(stderr);\
 	   	fprintf(stderr, ut_dbg_msg_assert_fail,\
 		os_thread_pf(os_thread_get_curr_id()), __FILE__,\
@@ -55,7 +53,7 @@ extern ibool 	panic_shutdown;
 } while (0)
 #else
 #define ut_a(EXPR) do {\
-	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
+	if (UNIV_UNLIKELY(!((ulint)(EXPR)))) {\
                 ut_print_timestamp(stderr);\
 	   	fprintf(stderr, ut_dbg_msg_assert_fail,\
 		os_thread_pf(os_thread_get_curr_id()), __FILE__,\
