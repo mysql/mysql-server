@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.6 2003/03/10 00:57:38 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.9 2004/01/17 17:57:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -48,6 +44,28 @@
 #include <sys/cdefs.h>
 #endif
 
+#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+# define __attribute__(A)
+#endif
+
+#ifndef __P
+# define __P(x) x
+#endif
+
+#ifndef _DIAGASSERT
+# define _DIAGASSERT(x)
+#endif
+
+#ifndef __BEGIN_DECLS
+# ifdef  __cplusplus
+#  define __BEGIN_DECLS  extern "C" {
+#  define __END_DECLS    }
+# else
+#  define __BEGIN_DECLS
+#  define __END_DECLS
+# endif
+#endif
+ 
 #ifndef public
 # define public		/* Externally visible functions/variables */
 #endif
@@ -59,6 +77,10 @@
 #ifndef protected
 # define protected	/* Redefined from elsewhere to "static" */
 			/* When we want to hide everything	*/
+#endif
+
+#ifndef HAVE_U_INT32_T
+typedef unsigned int  u_int32_t;
 #endif
 
 #ifndef _PTR_T

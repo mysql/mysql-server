@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.1 2001/01/05 21:15:50 jdolecek Exp $	*/
+/*	$NetBSD: readline.h,v 1.12 2004/09/08 18:15:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #ifndef _READLINE_H_
-#define	_READLINE_H_
+#define _READLINE_H_
 
 #include <sys/types.h>
 
@@ -48,10 +48,44 @@ typedef void	  VFunction(void);
 typedef char	 *CPFunction(const char *, int);
 typedef char	**CPPFunction(const char *, int, int);
 
+typedef void *histdata_t;
+
 typedef struct _hist_entry {
 	const char	*line;
-	const char	*data;
+	histdata_t	*data;
 } HIST_ENTRY;
+
+typedef struct _keymap_entry {
+	char type;
+#define ISFUNC	0
+#define ISKMAP	1
+#define ISMACR	2
+	Function *function;
+} KEYMAP_ENTRY;
+
+#define KEYMAP_SIZE	256
+
+typedef KEYMAP_ENTRY KEYMAP_ENTRY_ARRAY[KEYMAP_SIZE];
+typedef KEYMAP_ENTRY *Keymap;
+
+#define control_character_threshold	0x20
+#define control_character_bit		0x40
+
+#ifndef CTRL
+#include <sys/ioctl.h>
+#ifdef __GLIBC__
+#include <sys/ttydefaults.h>
+#endif
+#ifndef CTRL
+#define CTRL(c)		((c) & 037)
+#endif
+#endif
+#ifndef UNCTRL
+#define UNCTRL(c)	(((c) - 'a' + 'A')|control_character_bit)
+#endif
+
+#define RUBOUT		0x7f
+#define ABORT_CHAR	CTRL('G')
 
 /* global variables used by readline enabled applications */
 #ifdef __cplusplus
@@ -68,12 +102,31 @@ extern int		 max_input_history;
 extern char		*rl_basic_word_break_characters;
 extern char		*rl_completer_word_break_characters;
 extern char		*rl_completer_quote_characters;
-extern CPFunction	*rl_completion_entry_function;
+extern Function		*rl_completion_entry_function;
 extern CPPFunction	*rl_attempted_completion_function;
 extern int		rl_completion_type;
 extern int		rl_completion_query_items;
 extern char		*rl_special_prefixes;
 extern int		rl_completion_append_character;
+extern int		rl_inhibit_completion;
+extern Function		*rl_pre_input_hook;
+extern Function		*rl_startup_hook;
+extern char		*rl_terminal_name;
+extern int		rl_already_prompted;
+extern char		*rl_prompt;
+/*
+ * The following is not implemented
+ */
+extern KEYMAP_ENTRY_ARRAY emacs_standard_keymap,
+			emacs_meta_keymap,
+			emacs_ctlx_keymap;
+extern int		rl_filename_completion_desired;
+extern int		rl_ignore_completion_duplicates;
+extern Function		*rl_getc_function;
+extern VFunction	*rl_redisplay_function;
+extern VFunction	*rl_completion_display_matches_hook;
+extern VFunction	*rl_prep_term_function;
+extern VFunction	*rl_deprep_term_function;
 
 /* supported functions */
 char		*readline(const char *);
@@ -99,6 +152,8 @@ int		 read_history(const char *);
 int		 write_history(const char *);
 int		 history_expand(char *, char **);
 char	       **history_tokenize(const char *);
+const char	*get_history_event(const char *, int *, int);
+char		*history_arg_extract(int, int, const char *);
 
 char		*tilde_expand(char *);
 char		*filename_completion_function(const char *, int);
@@ -111,6 +166,26 @@ void		 rl_display_match_list(char **, int, int);
 int		 rl_insert(int, int);
 void		 rl_reset_terminal(const char *);
 int		 rl_bind_key(int, int (*)(int, int));
+int		 rl_newline(int, int);
+void		 rl_callback_read_char(void);
+void		 rl_callback_handler_install(const char *, VFunction *);
+void		 rl_callback_handler_remove(void);
+void		 rl_redisplay(void);
+int		 rl_get_previous_history(int, int);
+void		 rl_prep_terminal(int);
+void		 rl_deprep_terminal(void);
+int		 rl_read_init_file(const char *);
+int		 rl_parse_and_bind(const char *);
+void		 rl_stuff_char(int);
+int		 rl_add_defun(const char *, Function *, int);
+
+/*
+ * The following are not implemented
+ */
+Keymap		 rl_get_keymap(void);
+Keymap		 rl_make_bare_keymap(void);
+int		 rl_generic_bind(int, const char *, const char *, Keymap);
+int		 rl_bind_key_in_map(int, Function *, Keymap);
 #ifdef __cplusplus
 }
 #endif

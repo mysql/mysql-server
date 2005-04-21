@@ -1,4 +1,4 @@
-/*	$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $	*/
+/*	$NetBSD: key.c,v 1.15 2003/10/18 23:48:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,14 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * key.c: This module contains the procedures for maintaining
@@ -103,14 +92,14 @@ private int		 key__decode_char(char *, int, int);
  *	Initialize the key maps
  */
 protected int
-el_key_init(EditLine *el)
+key_init(EditLine *el)
 {
 
 	el->el_key.buf = (char *) el_malloc(KEY_BUFSIZ);
 	if (el->el_key.buf == NULL)
 		return (-1);
 	el->el_key.map = NULL;
-	el_key_reset(el);
+	key_reset(el);
 	return (0);
 }
 
@@ -119,7 +108,7 @@ el_key_init(EditLine *el)
  *	Free the key maps
  */
 protected void
-el_key_end(EditLine *el)
+key_end(EditLine *el)
 {
 
 	el_free((ptr_t) el->el_key.buf);
@@ -133,7 +122,7 @@ el_key_end(EditLine *el)
  *	Associate cmd with a key value
  */
 protected key_value_t *
-el_key_map_cmd(EditLine *el, int cmd)
+key_map_cmd(EditLine *el, int cmd)
 {
 
 	el->el_key.val.cmd = (el_action_t) cmd;
@@ -145,7 +134,7 @@ el_key_map_cmd(EditLine *el, int cmd)
  *	Associate str with a key value
  */
 protected key_value_t *
-el_key_map_str(EditLine *el, char *str)
+key_map_str(EditLine *el, char *str)
 {
 
 	el->el_key.val.str = str;
@@ -159,7 +148,7 @@ el_key_map_str(EditLine *el, char *str)
  *	[Always bind the ansi arrow keys?]
  */
 protected void
-el_key_reset(EditLine *el)
+key_reset(EditLine *el)
 {
 
 	node__put(el, el->el_key.map);
@@ -177,7 +166,7 @@ el_key_reset(EditLine *el)
  *      The last character read is returned in *ch.
  */
 protected int
-el_key_get(EditLine *el, char *ch, key_value_t *val)
+key_get(EditLine *el, char *ch, key_value_t *val)
 {
 
 	return (node_trav(el, el->el_key.map, ch, val));
@@ -191,7 +180,7 @@ el_key_get(EditLine *el, char *ch, key_value_t *val)
  *      out str or a unix command.
  */
 protected void
-el_key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
+key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
 {
 
 	if (key[0] == '\0') {
@@ -219,7 +208,7 @@ el_key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
  *
  */
 protected void
-el_key_clear(EditLine *el, el_action_t *map, const char *in)
+key_clear(EditLine *el, el_action_t *map, const char *in)
 {
 
 	if ((map[(unsigned char)*in] == ED_SEQUENCE_LEAD_IN) &&
@@ -227,7 +216,7 @@ el_key_clear(EditLine *el, el_action_t *map, const char *in)
 	    el->el_map.alt[(unsigned char)*in] != ED_SEQUENCE_LEAD_IN) ||
 	    (map == el->el_map.alt &&
 	    el->el_map.key[(unsigned char)*in] != ED_SEQUENCE_LEAD_IN)))
-		(void) el_key_delete(el, in);
+		(void) key_delete(el, in);
 }
 
 
@@ -236,7 +225,7 @@ el_key_clear(EditLine *el, el_action_t *map, const char *in)
  *      they exists.
  */
 protected int
-el_key_delete(EditLine *el, const char *key)
+key_delete(EditLine *el, const char *key)
 {
 
 	if (key[0] == '\0') {
@@ -257,7 +246,7 @@ el_key_delete(EditLine *el, const char *key)
  *	Print entire el->el_key.map if null
  */
 protected void
-el_key_print(EditLine *el, const char *key)
+key_print(EditLine *el, const char *key)
 {
 
 	/* do nothing if el->el_key.map is empty and null key specified */
@@ -356,7 +345,8 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
 			break;
 		case XK_STR:
 		case XK_EXE:
-			ptr->val.str = strdup(val->str);
+			if ((ptr->val.str = el_strdup(val->str)) == NULL)
+				return -1;
 			break;
 		default:
 			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
@@ -504,7 +494,7 @@ node_lookup(EditLine *el, const char *str, key_node_t *ptr, int cnt)
 				if (str[1] == 0) {
 					el->el_key.buf[ncnt + 1] = '"';
 					el->el_key.buf[ncnt + 2] = '\0';
-					el_key_kprint(el, el->el_key.buf,
+					key_kprint(el, el->el_key.buf,
 					    &ptr->val, ptr->type);
 					return (0);
 				} else
@@ -552,7 +542,7 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
 		/* print this key and function */
 		el->el_key.buf[ncnt + 1] = '"';
 		el->el_key.buf[ncnt + 2] = '\0';
-		el_key_kprint(el, el->el_key.buf, &ptr->val, ptr->type);
+		key_kprint(el, el->el_key.buf, &ptr->val, ptr->type);
 	} else
 		(void) node_enum(el, ptr->next, ncnt + 1);
 
@@ -568,7 +558,7 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
  *	function specified by val
  */
 protected void
-el_key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
+key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 {
 	el_bindings_t *fp;
 	char unparsbuf[EL_BUFSIZ];
@@ -579,7 +569,7 @@ el_key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 		case XK_STR:
 		case XK_EXE:
 			(void) fprintf(el->el_outfile, fmt, key,
-			    el_key__decode_str(val->str, unparsbuf,
+			    key__decode_str(val->str, unparsbuf,
 				ntype == XK_STR ? "\"\"" : "[]"));
 			break;
 		case XK_CMD:
@@ -644,7 +634,7 @@ key__decode_char(char *buf, int cnt, int ch)
  *	Make a printable version of the ey
  */
 protected char *
-el_key__decode_str(const char *str, char *buf, const char *sep)
+key__decode_str(const char *str, char *buf, const char *sep)
 {
 	char *b;
 	const char *p;
