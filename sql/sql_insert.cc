@@ -43,15 +43,29 @@ static bool check_view_insertability(TABLE_LIST *view, query_id_t query_id);
 #define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr,MYF(0))
 #endif
 
+
 /*
   Check if insert fields are correct.
-  Sets table->timestamp_field_type to TIMESTAMP_NO_AUTO_SET or leaves it
-  as is, depending on if timestamp should be updated or not.
+
+  SYNOPSIS
+    check_insert_fields()
+    thd                         The current thread.
+    table                       The table for insert.
+    fields                      The insert fields.
+    values                      The insert values.
+
+  NOTE
+    Clears TIMESTAMP_AUTO_SET_ON_INSERT from table->timestamp_field_type
+    or leaves it as is, depending on if timestamp should be updated or
+    not.
+
+  RETURN
+    0           OK
+    -1          Error
 */
 
-static int
-check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
-		    List<Item> &values, ulong counter, bool check_unique)
+static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
+                               List<Item> &values)
 {
   TABLE *table= table_list->table;
 
@@ -87,7 +101,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
         return -1;
     }
 #endif
-    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+    (int) table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_INSERT;
   }
   else
   {						// Part field list
@@ -134,7 +148,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
     }
     if (table->timestamp_field &&	// Don't set timestamp if used
 	table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+      (int) table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_INSERT;
   }
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -147,6 +161,62 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     return -1;
+  }
+
+  return 0;
+}
+
+
+/*
+  Check update fields for the timestamp field.
+
+  SYNOPSIS
+    check_update_fields()
+    thd                         The current thread.
+    insert_table_list           The insert table list.
+    table                       The table for update.
+    update_fields               The update fields.
+
+  NOTE
+    If the update fields include the timestamp field,
+    remove TIMESTAMP_AUTO_SET_ON_UPDATE from table->timestamp_field_type.
+
+  RETURN
+    0           OK
+    -1          Error
+*/
+
+static int check_update_fields(THD *thd, TABLE *table,
+                               TABLE_LIST *insert_table_list,
+                               List<Item> &update_fields)
+{
+  ulong		timestamp_query_id;
+  LINT_INIT(timestamp_query_id);
+
+  /*
+    Change the query_id for the timestamp column so that we can
+    check if this is modified directly.
+  */
+  if (table->timestamp_field)
+  {
+    timestamp_query_id= table->timestamp_field->query_id;
+    table->timestamp_field->query_id= thd->query_id-1;
+  }
+
+  /*
+    Check the fields we are going to modify. This will set the query_id
+    of all used fields to the threads query_id.
+  */
+  if (setup_fields(thd, 0, insert_table_list, update_fields, 1, 0, 0))
+    return -1;
+
+  if (table->timestamp_field)
+  {
+    /* Don't set timestamp column if this is modified. */
+    if (table->timestamp_field->query_id == thd->query_id)
+      (int) table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_UPDATE;
+    else
+      table->timestamp_field->query_id= timestamp_query_id;
   }
 
   return 0;
@@ -696,6 +766,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                                      !insert_into_view)) ||
       (values && setup_fields(thd, 0, table_list, *values, 0, 0, 0)) ||
       (duplic == DUP_UPDATE &&
+       (check_update_fields(thd, table, insert_table_list, update_fields) ||
        ((thd->lex->select_lex.no_wrap_view_item= 1,
          (res= setup_fields(thd, 0, table_list, update_fields, 1, 0, 0)),
          thd->lex->select_lex.no_wrap_view_item= 0,
