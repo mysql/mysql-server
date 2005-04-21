@@ -180,9 +180,9 @@ count(a)
 select count(a) from t2 where b='BBBBBBBB';
 count(a)
 4
-explain select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a,b	a	6	const	4	Using where
+expla_or_bin select count(a_or_b) from t2 where a_or_b='AAAAAAAA' a_or_bnd a_or_b='AAAAAAAA';
+id	select_type	ta_or_ba_or_ble	type	possia_or_ble_keys	key	key_len	ref	rows	Extra_or_b
+1	SIMPLE	t2	ref	a_or_b,a_or_b	a_or_b	6	const	4	Using where
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 count(a)
 4
