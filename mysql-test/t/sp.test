@@ -3672,6 +3672,19 @@ drop function bug9775|
 
 
 #
+# BUG#8861: If Return is a YEAR data type, value is not shown in year format
+#
+--disable_warnings
+drop function if exists bug8861|
+--enable_warnings
+create function bug8861(v1 int) returns year return v1|
+select bug8861(05)|
+set @x = bug8861(05)|
+select @x|
+drop function bug8861|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
