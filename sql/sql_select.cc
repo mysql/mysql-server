@@ -4779,7 +4779,7 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
       item->result_field= new_field;
     else
       new_field->field_name= name;
-    if (org_field->maybe_null())
+    if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_VAR_STRING)
       table->db_create_options|= HA_OPTION_PACK_RECORD;
@@ -9199,7 +9199,19 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
+  List_iterator_fast<Item> it(fields_list);
+  Item *item;
+  while ((item= it++))
+  {
+    ORDER *group_tmp;
+    for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+    {
+      if (*group_tmp->item == item)
+        item->maybe_null= 1;
+    }
+  }
   return 0;
+
 }
   
 

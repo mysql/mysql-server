@@ -42,15 +42,29 @@ static void unlink_blobs(register TABLE *table);
 #define DELAYED_LOG_UPDATE 1
 #define DELAYED_LOG_BIN    2
 
+
 /*
   Check if insert fields are correct.
-  Sets table->timestamp_field_type to TIMESTAMP_NO_AUTO_SET or leaves it
-  as is, depending on if timestamp should be updated or not.
+
+  SYNOPSIS
+    check_insert_fields()
+    thd                         The current thread.
+    table                       The table for insert.
+    fields                      The insert fields.
+    values                      The insert values.
+
+  NOTE
+    Clears TIMESTAMP_AUTO_SET_ON_INSERT from table->timestamp_field_type
+    or leaves it as is, depending on if timestamp should be updated or
+    not.
+
+  RETURN
+    0           OK
+    -1          Error
 */
 
-int
-check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
-		    List<Item> &values, ulong counter)
+static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
+                               List<Item> &values)
 {
   if (fields.elements == 0 && values.elements != 0)
   {
@@ -58,7 +72,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     {
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0),counter);
+		      MYF(0), 1);
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -66,7 +80,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 	check_grant_all_columns(thd,INSERT_ACL,table))
       return -1;
 #endif
-    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+    (int) table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_INSERT;
   }
   else
   {						// Part field list
@@ -74,7 +88,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     {
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0),counter);
+		      MYF(0), 1);
       return -1;
     }
     TABLE_LIST table_list;
@@ -96,12 +110,68 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     }
     if (table->timestamp_field &&	// Don't set timestamp if used
 	table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+      (int) table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_INSERT;
   }
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
 #endif
+  return 0;
+}
+
+
+/*
+  Check update fields for the timestamp field.
+
+  SYNOPSIS
+    check_update_fields()
+    thd                         The current thread.
+    insert_table_list           The insert table list.
+    table                       The table for update.
+    update_fields               The update fields.
+
+  NOTE
+    If the update fields include the timestamp field,
+    remove TIMESTAMP_AUTO_SET_ON_UPDATE from table->timestamp_field_type.
+
+  RETURN
+    0           OK
+    -1          Error
+*/
+
+static int check_update_fields(THD *thd, TABLE *table,
+                               TABLE_LIST *insert_table_list,
+                               List<Item> &update_fields)
+{
+  ulong		timestamp_query_id;
+  LINT_INIT(timestamp_query_id);
+
+  /*
+    Change the query_id for the timestamp column so that we can
+    check if this is modified directly.
+  */
+  if (table->timestamp_field)
+  {
+    timestamp_query_id= table->timestamp_field->query_id;
+    table->timestamp_field->query_id= thd->query_id-1;
+  }
+
+  /*
+    Check the fields we are going to modify. This will set the query_id
+    of all used fields to the threads query_id.
+  */
+  if (setup_fields(thd, 0, insert_table_list, update_fields, 1, 0, 0))
+    return -1;
+
+  if (table->timestamp_field)
+  {
+    /* Don't set timestamp column if this is modified. */
+    if (table->timestamp_field->query_id == thd->query_id)
+      (int) table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_UPDATE;
+    else
+      table->timestamp_field->query_id= timestamp_query_id;
+  }
+
   return 0;
 }
 
@@ -450,11 +520,11 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!table->insert_values)
       DBUG_RETURN(-1);
   }
-  if ((values && check_insert_fields(thd, table, fields, *values, 1)) ||
+  if ((values && check_insert_fields(thd, table, fields, *values)) ||
       setup_tables(insert_table_list) ||
       (values && setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0)) ||
       (duplic == DUP_UPDATE &&
-       (setup_fields(thd, 0, insert_table_list, update_fields, 1, 0, 0) ||
+       (check_update_fields(thd, table, insert_table_list, update_fields) ||
         setup_fields(thd, 0, insert_table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(-1);
   if (values && find_real_table_in_list(table_list->next, table_list->db,
@@ -1457,7 +1527,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("select_insert::prepare");
 
   unit= u;
-  if (check_insert_fields(thd,table,*fields,values,1))
+  if (check_insert_fields(thd, table, *fields, values))
     DBUG_RETURN(1);
 
   restore_record(table,default_values);			// Get empty record
