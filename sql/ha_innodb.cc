@@ -1271,8 +1271,8 @@ innobase_init(void)
 
 	data_mysql_default_charset_coll = (ulint)default_charset_info->number;
 
-	data_mysql_latin1_swedish_charset_coll =
-					(ulint)my_charset_latin1.number;
+	ut_a(DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL ==
+					my_charset_latin1.number);
 
 	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
 	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
