@@ -26,12 +26,8 @@ buf_block_peek_if_too_old(
 				/* out: TRUE if should be made younger */
 	buf_block_t*	block)	/* in: block to make younger */
 {
-	if (buf_pool->freed_page_clock >= block->freed_page_clock 
-				+ 1 + (buf_pool->curr_size / 1024)) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(buf_pool->freed_page_clock >= block->freed_page_clock
+				+ 1 + (buf_pool->curr_size / 1024));
 }
 
 /*************************************************************************
@@ -210,8 +206,8 @@ buf_block_align(
 
 	frame_zero = buf_pool->frame_zero;
 
-	if ((ulint)ptr < (ulint)frame_zero
-	    || (ulint)ptr > (ulint)(buf_pool->high_end)) {
+	if (UNIV_UNLIKELY((ulint)ptr < (ulint)frame_zero)
+	    || UNIV_UNLIKELY((ulint)ptr > (ulint)(buf_pool->high_end))) {
 
 		ut_print_timestamp(stderr);	
 		fprintf(stderr,
@@ -246,8 +242,8 @@ buf_frame_align(
 
 	frame = ut_align_down(ptr, UNIV_PAGE_SIZE);
 
-	if (((ulint)frame < (ulint)(buf_pool->frame_zero))
-	    || (ulint)frame >= (ulint)(buf_pool->high_end)) {
+	if (UNIV_UNLIKELY((ulint)frame < (ulint)(buf_pool->frame_zero))
+	    || UNIV_UNLIKELY((ulint)frame >= (ulint)(buf_pool->high_end))) {
 
 		ut_print_timestamp(stderr);	
 		fprintf(stderr,
