@@ -348,17 +348,26 @@ static
 ibool
 lock_deadlock_occurs(
 /*=================*/
-			/* out: TRUE if a deadlock was detected */
+			/* out: TRUE if a deadlock was detected and we
+			chose trx as a victim; FALSE if no deadlock, or
+			there was a deadlock, but we chose other
+			transaction(s) as victim(s) */
 	lock_t*	lock,	/* in: lock the transaction is requesting */
 	trx_t*	trx);	/* in: transaction */
 /************************************************************************
 Looks recursively for a deadlock. */
 static
-ibool
+ulint
 lock_deadlock_recursive(
 /*====================*/
-				/* out: TRUE if a deadlock was detected
-				or the calculation took too long */
+				/* out: 0 if no deadlock found,
+				LOCK_VICTIM_IS_START if there was a deadlock
+				and we chose 'start' as the victim,
+				LOCK_VICTIM_IS_OTHER if a deadlock
+				was found and we chose some other trx as a
+				victim: we must do the search again in this
+				last case because there may be another
+				deadlock! */
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
 	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
