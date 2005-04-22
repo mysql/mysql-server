@@ -82,8 +82,14 @@ inline bool OpenFiles::insert(AsyncFile* file, Uint16 id){
       continue;
 
     if(strcmp(m_files[i].m_file->theFileName.c_str(), 
-	      file->theFileName.c_str()) == 0){
-      ERROR_SET(fatal, AFS_ERROR_ALLREADY_OPEN,"","OpenFiles::insert()");    
+	      file->theFileName.c_str()) == 0)
+    {
+      BaseString names;
+      names.assfmt("open: >%s< existing: >%s<",
+		   file->theFileName.c_str(),
+		   m_files[i].m_file->theFileName.c_str());
+      ERROR_SET(fatal, AFS_ERROR_ALLREADY_OPEN, names.c_str(),
+		"OpenFiles::insert()");    
     }
   }
   
