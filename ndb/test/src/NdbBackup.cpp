@@ -244,8 +244,8 @@ NdbBackup::NFSlave(NdbRestarter& _restarter){
 
 int 
 NdbBackup::NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz, bool onMaster){
+  int nNodes = _restarter.getNumDbNodes();
   {
-    int nNodes = _restarter.getNumDbNodes();
     if(nNodes == 1)
       return NDBT_OK;
     
