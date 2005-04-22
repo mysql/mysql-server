@@ -70,10 +70,10 @@ struct show_table_type_st sys_table_types[]=
 {
   {"MyISAM",	&have_yes,
    "Default engine as of MySQL 3.23 with great performance", DB_TYPE_MYISAM},
-  {"HEAP",	&have_yes,
-   "Alias for MEMORY", DB_TYPE_HEAP},
   {"MEMORY",	&have_yes,
    "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP},
+  {"HEAP",	&have_yes,
+   "Alias for MEMORY", DB_TYPE_HEAP},
   {"MERGE",	&have_yes,
    "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM},
   {"MRG_MYISAM",&have_yes,
