@@ -2834,7 +2834,7 @@ ha_innobase::write_row(
 		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
 
 		dict_table_t*	src_table;
-		ibool		mode;
+		ulint		mode;
 
 		num_write_row = 0;
 
