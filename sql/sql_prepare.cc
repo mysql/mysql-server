@@ -1012,11 +1012,6 @@ static int mysql_test_update(Prepared_statement *stmt,
       DBUG_PRINT("info", ("Switch to multi-update"));
       /* pass counter value */
       thd->lex->table_count= table_count;
-      /*
-	give correct value to multi_lock_option, because it will be used
-	in multiupdate
-      */
-      thd->lex->multi_lock_option= table_list->lock_type;
       /* convert to multiupdate */
       return 2;
     }

@@ -5992,10 +5992,7 @@ update:
 	{
 	  LEX *lex= Lex;
           if (lex->select_lex.table_list.elements > 1)
-	  {
             lex->sql_command= SQLCOM_UPDATE_MULTI;
-	    lex->multi_lock_option= $3;
-	  }
 	  else if (lex->select_lex.get_table_list()->derived)
 	  {
 	    /* it is single table update and it is update of derived table */
@@ -6003,8 +6000,12 @@ update:
                      lex->select_lex.get_table_list()->alias, "UPDATE");
 	    YYABORT;
 	  }
-	  else
-	    Select->set_lock_for_tables($3);
+          /*
+            In case of multi-update setting write lock for all tables may
+            be too pessimistic. We will decrease lock level if possible in
+            mysql_multi_update().
+          */
+          Select->set_lock_for_tables($3);
 	}
 	where_clause opt_order_clause delete_limit_clause {}
 	;
