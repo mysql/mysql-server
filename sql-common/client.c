@@ -2446,8 +2446,6 @@ get_info:
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
     mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
-  mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
-
   if (!(fields=(*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,
 					    protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(1);

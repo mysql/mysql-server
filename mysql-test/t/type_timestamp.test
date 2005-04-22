@@ -300,3 +300,24 @@ show create table t1;
 # restore default mode
 set sql_mode='';
 drop table t1;
+
+#
+# Bug#7806 - insert on duplicate key and auto-update of timestamp
+#
+create table t1 (a int auto_increment primary key, b int, c timestamp);
+insert into t1 (a, b, c) values (1, 0, '2001-01-01 01:01:01'),
+  (2, 0, '2002-02-02 02:02:02'), (3, 0, '2003-03-03 03:03:03');
+select * from t1;
+update t1 set b = 2, c = c where a = 2;
+select * from t1;
+insert into t1 (a) values (4);
+select * from t1;
+update t1 set c = '2004-04-04 04:04:04' where a = 4;
+select * from t1;
+insert into t1 (a) values (3), (5) on duplicate key update b = 3, c = c;
+select * from t1;
+insert into t1 (a, c) values (4, '2004-04-04 00:00:00'),
+  (6, '2006-06-06 06:06:06') on duplicate key update b = 4;
+select * from t1;
+drop table t1;
+

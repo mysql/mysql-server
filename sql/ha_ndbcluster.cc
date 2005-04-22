@@ -67,6 +67,8 @@ static handlerton ndbcluster_hton = {
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
+#define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
+#define NDB_AUTO_INCREMENT_RETRIES 10
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
@@ -1185,7 +1187,7 @@ static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
 {
   if (field->type() == MYSQL_TYPE_VARCHAR) {
     Field_varstring* f= (Field_varstring*)field;
-    if (f->length_bytes < 256) {
+    if (f->length_bytes == 1) {
       uint pack_len= field->pack_length();
       DBUG_ASSERT(1 <= pack_len && pack_len <= 256);
       if (ptr[1] == 0) {
@@ -1928,7 +1930,15 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    Uint64 auto_value= ndb->getAutoIncrementValue((const NDBTAB *) m_table);
+    Uint64 auto_value= NDB_FAILED_AUTO_INCREMENT;
+    uint retries= NDB_AUTO_INCREMENT_RETRIES;
+    do {
+      auto_value= ndb->getAutoIncrementValue((const NDBTAB *) m_table);
+    } while (auto_value == NDB_FAILED_AUTO_INCREMENT && 
+             --retries &&
+             ndb->getNdbError().status == NdbError::TemporaryError);
+    if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+      ERR_RETURN(ndb->getNdbError());
     if (set_hidden_key(op, table->s->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
@@ -1947,8 +1957,10 @@ int ha_ndbcluster::write_row(byte *record)
       m_skip_auto_increment= !auto_increment_column_changed;
     }
 
-    if ((res= set_primary_key(op)))
-      return res;
+    if ((res= (m_primary_key_update ?
+               set_primary_key_from_old_data(op, record)
+               : set_primary_key(op))))
+      return res;  
   }
 
   // Set non-key attribute(s)
@@ -1978,6 +1990,7 @@ int ha_ndbcluster::write_row(byte *record)
   m_bulk_insert_not_flushed= TRUE;
   if ((m_rows_to_insert == (ha_rows) 1) || 
       ((m_rows_inserted % m_bulk_insert_rows) == 0) ||
+      m_primary_key_update ||
       set_blob_value)
   {
     // Send rows to NDB
@@ -2088,7 +2101,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   {
     int read_res, insert_res, delete_res;
 
-    DBUG_PRINT("info", ("primary key update, doing pk read+insert+delete"));
+    DBUG_PRINT("info", ("primary key update, doing pk read+delete+insert"));
     // Get all old fields, since we optimize away fields not in query
     read_res= complemented_pk_read(old_data, new_data);
     if (read_res)
@@ -2096,25 +2109,33 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_PRINT("info", ("pk read failed"));
       DBUG_RETURN(read_res);
     }
-    // Insert new row
-    insert_res= write_row(new_data);
-    if (insert_res)
-    {
-      DBUG_PRINT("info", ("insert failed"));
-      DBUG_RETURN(insert_res);
-    }
     // Delete old row
-    DBUG_PRINT("info", ("insert succeded"));
     m_primary_key_update= TRUE;
     delete_res= delete_row(old_data);
     m_primary_key_update= FALSE;
     if (delete_res)
     {
       DBUG_PRINT("info", ("delete failed"));
-      // Undo write_row(new_data)
-      DBUG_RETURN(delete_row(new_data));
+      DBUG_RETURN(delete_res);
     }     
-    DBUG_PRINT("info", ("insert+delete succeeded"));
+    // Insert new row
+    DBUG_PRINT("info", ("delete succeded"));
+    m_primary_key_update= TRUE;
+    insert_res= write_row(new_data);
+    m_primary_key_update= FALSE;
+    if (insert_res)
+    {
+      DBUG_PRINT("info", ("insert failed"));
+      if (trans->commitStatus() == NdbConnection::Started)
+      {
+      // Undo write_row(new_data)
+        m_primary_key_update= TRUE;
+        insert_res= write_row((byte *)old_data);
+        m_primary_key_update= FALSE;
+      }
+      DBUG_RETURN(insert_res);
+    }
+    DBUG_PRINT("info", ("delete+insert succeeded"));
     DBUG_RETURN(0);
   }
 
@@ -2216,8 +2237,9 @@ int ha_ndbcluster::delete_row(const byte *record)
 
     no_uncommitted_rows_update(-1);
 
-    // If deleting from cursor, NoCommit will be handled in next_result
-    DBUG_RETURN(0);
+    if (!m_primary_key_update)
+      // If deleting from cursor, NoCommit will be handled in next_result
+      DBUG_RETURN(0);
   }
   else
   {
@@ -4119,10 +4141,18 @@ ulonglong ha_ndbcluster::get_auto_increment()
     : (m_rows_to_insert > m_autoincrement_prefetch) ? 
     m_rows_to_insert 
     : m_autoincrement_prefetch;
-  auto_value= 
-    (m_skip_auto_increment) ? 
-    ndb->readAutoIncrementValue((const NDBTAB *) m_table)
-    : ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
+  auto_value= NDB_FAILED_AUTO_INCREMENT;
+  uint retries= NDB_AUTO_INCREMENT_RETRIES;
+  do {
+    auto_value=
+      (m_skip_auto_increment) ? 
+      ndb->readAutoIncrementValue((const NDBTAB *) m_table)
+      : ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
+  } while (auto_value == NDB_FAILED_AUTO_INCREMENT && 
+           --retries &&
+           ndb->getNdbError().status == NdbError::TemporaryError);
+  if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+    ERR_RETURN(ndb->getNdbError());
   DBUG_RETURN((longlong)auto_value);
 }
 

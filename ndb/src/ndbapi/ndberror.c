@@ -356,6 +356,8 @@ ErrorBundle ErrorCodes[] = {
   { 1226, SE, "Table is being dropped" },
   { 1228, SE, "Cannot use drop table for drop index" },
   { 1229, SE, "Too long frm data supplied" },
+  { 1231, SE, "Invalid table or index to scan" },
+  { 1232, SE, "Invalid table or index to scan" },
 
   /**
    * FunctionNotImplemented

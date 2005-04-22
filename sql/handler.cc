@@ -149,18 +149,27 @@ const char *ha_get_storage_engine(enum db_type db_type)
   return "none";
 }
 
+
+my_bool ha_storage_engine_is_enabled(enum db_type database_type)
+{
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if ((database_type == types->db_type) &&
+	(*types->value == SHOW_OPTION_YES))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
 	/* Use other database handler if databasehandler is not incompiled */
 
 enum db_type ha_checktype(enum db_type database_type)
 {
-  show_table_type_st *types;
-  THD *thd= current_thd;
-  for (types= sys_table_types; types->type; types++)
-  {
-    if ((database_type == types->db_type) && 
-	(*types->value == SHOW_OPTION_YES))
-      return database_type;
-  }
+  THD *thd;
+  if (ha_storage_engine_is_enabled(database_type))
+    return database_type;
 
   switch (database_type) {
 #ifndef NO_HASH
@@ -173,6 +182,7 @@ enum db_type ha_checktype(enum db_type database_type)
     break;
   }
   
+  thd= current_thd;
   return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
           (enum db_type) thd->variables.table_type :
           (enum db_type) global_system_variables.table_type !=

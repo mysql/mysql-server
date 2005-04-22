@@ -55,6 +55,37 @@ drop procedure bug4934;
 
 
 #
+# BUG #9486 "Can't perform multi-update in stored procedure"
+#
+--disable_warnings
+drop procedure if exists bug9486;
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (id1 int, val int);
+create table t2 (id2 int);
+
+create procedure bug9486()
+  update t1, t2 set val= 1 where id1=id2;
+call bug9486();
+# Let us check that SP invocation requires write lock for t2.
+connection con2root;
+lock tables t2 write;
+connection con1root;
+send call bug9486();
+connection con2root;
+--sleep 2
+# There should be call statement in locked state.
+--replace_column 1 # 6 #
+show processlist;
+unlock tables;
+connection con1root;
+reap;
+
+drop procedure bug9486;
+drop table t1, t2;
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

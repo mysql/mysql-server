@@ -476,3 +476,24 @@ t1	CREATE TABLE `t1` (
   KEY `i` USING BTREE (`i`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 DROP TABLE t1;
+CREATE TABLE t1(
+field1 text NOT NULL,
+PRIMARY KEY(field1(1000))
+);
+show index from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			STATISTICS	TABLE_NAME	Table	253	64	2	N	1	0	63
+def			STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
+def			STATISTICS	INDEX_NAME	Key_name	253	64	7	N	1	0	63
+def			STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
+def			STATISTICS	COLUMN_NAME	Column_name	253	64	6	N	1	0	63
+def			STATISTICS	COLLATION	Collation	253	1	1	Y	0	0	63
+def			STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
+def			STATISTICS	SUB_PART	Sub_part	8	3	4	Y	32768	0	63
+def			STATISTICS	PACKED	Packed	253	10	0	Y	0	0	63
+def			STATISTICS	NULLABLE	Null	253	3	0	N	1	0	63
+def			STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	63
+def			STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	63
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	field1	A	0	1000	NULL		BTREE	
+drop table t1;
