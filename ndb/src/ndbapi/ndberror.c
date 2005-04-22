@@ -144,10 +144,10 @@ ErrorBundle ErrorCodes[] = {
   { 4008, UR, "Receive from NDB failed" },
   { 4009, UR, "Cluster Failure" },
   { 4012, UR, 
-   "Time-out, most likely caused by simple read or cluster failure" }, 
+    "Request ndbd time-out, maybe due to high load or communication problems"}, 
   { 4024, UR, 
-   "Time-out, most likely caused by simple read or cluster failure" }, 
-
+    "Time-out, most likely caused by simple read or cluster failure" }, 
+  
   /**
    * TemporaryResourceError
    */
