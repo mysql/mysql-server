@@ -8670,8 +8670,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
    */
-  Uint32 start = (rangeScan ? MAX_PARALLEL_SCANS_PER_FRAG : 1 );
-  Uint32 stop = (rangeScan ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : MAX_PARALLEL_SCANS_PER_FRAG - 1);
+  Uint32 start = (rangeScan || tupScan ? MAX_PARALLEL_SCANS_PER_FRAG : 1 );
+  Uint32 stop = (rangeScan || tupScan ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : MAX_PARALLEL_SCANS_PER_FRAG - 1);
   stop += start;
   Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
     
