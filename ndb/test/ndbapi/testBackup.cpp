@@ -74,20 +74,20 @@ int runAbort(NDBT_Context* ctx, NDBT_Step* step){
 
   if (testMaster) {
     if (testSlave) {
-      if (backup.NFMasterAsSlave(restarter) == -1){
+      if (backup.NFMasterAsSlave(restarter) != NDBT_OK){
 	return NDBT_FAILED;
       }
     } else {
-      if (backup.NFMaster(restarter) == -1){
+      if (backup.NFMaster(restarter) != NDBT_OK){
 	return NDBT_FAILED;
       }
     }
   } else {
-    if (backup.NFSlave(restarter) == -1){
+    if (backup.NFSlave(restarter) != NDBT_OK){
       return NDBT_FAILED;
     }
   }
-
+  
   return NDBT_OK;
 }
 
@@ -108,16 +108,16 @@ int runFail(NDBT_Context* ctx, NDBT_Step* step){
 
   if (testMaster) {
     if (testSlave) {
-      if (backup.FailMasterAsSlave(restarter) == -1){
+      if (backup.FailMasterAsSlave(restarter) != NDBT_OK){
 	return NDBT_FAILED;
       }
     } else {
-      if (backup.FailMaster(restarter) == -1){
+      if (backup.FailMaster(restarter) != NDBT_OK){
 	return NDBT_FAILED;
       }
     }
   } else {
-    if (backup.FailSlave(restarter) == -1){
+    if (backup.FailSlave(restarter) != NDBT_OK){
       return NDBT_FAILED;
     }
   }
