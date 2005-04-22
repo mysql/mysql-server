@@ -161,6 +161,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     jam();
     const PagePos& pos = scan.m_scanPos;
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = (Uint32)-1; // no lock returned
     conf->fragId = frag.fragmentId | pos.m_fragBit;
     conf->localKey[0] = (pos.m_pageId << MAX_TUPLES_BITS) |

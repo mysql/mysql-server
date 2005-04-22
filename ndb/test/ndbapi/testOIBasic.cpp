@@ -257,7 +257,8 @@ struct Par : public Opt {
   // deadlock possible
   bool m_deadlock;
   NdbOperation::LockMode m_lockmode;
-  // ordered range scan
+  // scan options
+  bool m_tupscan;
   bool m_ordered;
   bool m_descending;
   // timer location
@@ -279,6 +280,7 @@ struct Par : public Opt {
     m_verify(false),
     m_deadlock(false),
     m_lockmode(NdbOperation::LM_Read),
+    m_tupscan(false),
     m_ordered(false),
     m_descending(false) {
   }
@@ -1370,7 +1372,10 @@ int
 Con::readTuples(Par par)
 {
   assert(m_tx != 0 && m_scanop != 0);
-  CHKCON(m_scanop->readTuples(par.m_lockmode, 0, par.m_scanpar) == 0, *this);
+  int scan_flags = 0;
+  if (par.m_tupscan)
+    scan_flags |= NdbScanOperation::SF_TupScan;
+  CHKCON(m_scanop->readTuples(par.m_lockmode, scan_flags, par.m_scanpar) == 0, *this);
   return 0;
 }
 
@@ -3554,7 +3559,7 @@ scanreadtable(Par par)
   const Set& set = par.set();
   // expected
   const Set& set1 = set;
-  LL3("scanread " << tab.m_name << " lockmode=" << par.m_lockmode << " expect=" << set1.count() << " verify=" << par.m_verify);
+  LL3("scanread " << tab.m_name << " lockmode=" << par.m_lockmode << " tupscan=" << par.m_tupscan << " expect=" << set1.count() << " verify=" << par.m_verify);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
@@ -4107,6 +4112,9 @@ readverifyfull(Par par)
   const Tab& tab = par.tab();
   if (par.m_no == 0) {
     // thread 0 scans table
+    CHK(scanreadtable(par) == 0);
+    // once more via tup scan
+    par.m_tupscan = true;
     CHK(scanreadtable(par) == 0);
   }
   // each thread scans different indexes
