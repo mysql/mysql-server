@@ -1270,7 +1270,7 @@ row_upd_sec_index_entry(
 
 	rec = btr_cur_get_rec(btr_cur);
 
-	if (!found) {
+	if (UNIV_UNLIKELY(!found)) {
 		fputs("InnoDB: error in sec index entry update in\n"
 			"InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);

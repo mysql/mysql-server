@@ -502,7 +502,7 @@ dtuple_convert_big_rec(
 
 	size = rec_get_converted_size(index, entry);
 
-	if (size > 1000000000) {
+	if (UNIV_UNLIKELY(size > 1000000000)) {
 		fprintf(stderr,
 "InnoDB: Warning: tuple size very big: %lu\n", (ulong) size);
 		fputs("InnoDB: Tuple contents: ", stderr);
