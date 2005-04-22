@@ -623,7 +623,7 @@ mem_strdupq(
 	}
 	*d++ = q;
 	*d++ = '\0';
-	ut_ad(len == d - dst);
+	ut_ad((ssize_t) len == d - dst);
 	return(dst);
 }
 
