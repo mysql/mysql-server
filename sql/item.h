@@ -520,7 +520,7 @@ public:
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
-  virtual bool replace_equal_field_processor(byte * arg) { return 0; }
+  virtual Item *replace_equal_field(byte * arg) { return this; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
@@ -545,6 +545,8 @@ public:
     cleanup();
     delete this;
   }
+
+  virtual bool is_splocal() { return 0; } /* Needed for error checking */
 };
 
 
@@ -563,6 +565,8 @@ public:
   {
     Item::maybe_null= TRUE;
   }
+
+  bool is_splocal() { return 1; } /* Needed for error checking */
 
   Item *this_item();
   Item *this_const_item() const;
@@ -750,7 +754,7 @@ public:
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
   Item *set_no_const_sub(byte *arg);
-  bool replace_equal_field_processor(byte *arg);
+  Item *replace_equal_field(byte *arg);
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);

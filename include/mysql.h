@@ -231,7 +231,7 @@ typedef struct st_mysql
   MEM_ROOT	field_alloc;
   my_ulonglong affected_rows;
   my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
-  my_ulonglong extra_info;		/* Used by mysqlshow */
+  my_ulonglong extra_info;		/* Not used */
   unsigned long thread_id;		/* Id for connection in server */
   unsigned long packet_length;
   unsigned int	port;
