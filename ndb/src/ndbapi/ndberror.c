@@ -381,7 +381,7 @@ ErrorBundle ErrorCodes[] = {
   { 1325, IE, "File or scan error" },
   { 1326, IE, "Backup abortet due to node failure" },
   { 1327, IE, "1327" },
-
+  
   { 1340, IE, "Backup undefined error" },
   { 1342, AE, "Backup failed to allocate buffers (check configuration)" },
   { 1343, AE, "Backup failed to setup fs buffers (check configuration)" },
@@ -391,7 +391,8 @@ ErrorBundle ErrorCodes[] = {
   { 1347, AE, "Backup failed to allocate table memory (check configuration)" },
   { 1348, AE, "Backup failed to allocate file record (check configuration)" },
   { 1349, AE, "Backup failed to allocate attribute record (check configuration)" },
-
+  { 1329, AE, "Backup during software upgrade not supported" },
+  
   /**
    * Still uncategorized
    */

@@ -126,6 +126,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   }
 
   setNodeInfo(getOwnNodeId()).m_connected = true;
+  setNodeInfo(getOwnNodeId()).m_version = ndbGetOwnVersion();
 }
 
 Cmvmi::~Cmvmi()
