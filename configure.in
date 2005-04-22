@@ -451,33 +451,33 @@ PS=$ac_cv_path_PS
 # Linux style
 if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
+  FIND_PROC="$PS p \$\$PID | grep \$\$MYSQLD > /dev/null"
 # Solaris
 elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep mysqld > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep \$\$MYSQLD > /dev/null"
 # BSD style
 elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
 # SysV style
 elif $PS -ef 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep mysqld | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
 elif $PS $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep mysqld > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep \$\$MYSQLD > /dev/null"
 else
   case $SYSTEM_TYPE in
     *freebsd*)
-      FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
+      FIND_PROC="$PS p \$\$PID | grep \$\$MYSQLD > /dev/null"
       ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware*)
       FIND_PROC=
@@ -2753,7 +2753,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
- tests/Makefile Docs/Makefile Docs/Images/Makefile support-files/Makefile dnl
+ tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl

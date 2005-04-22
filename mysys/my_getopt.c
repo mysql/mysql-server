@@ -205,7 +205,8 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      if (!getopt_compare_strings(special_opt_prefix[i], opt_str,
 					  special_opt_prefix_lengths[i]) &&
-		  opt_str[special_opt_prefix_lengths[i]] == '-')
+		  (opt_str[special_opt_prefix_lengths[i]] == '-' ||
+		   opt_str[special_opt_prefix_lengths[i]] == '_'))
 	      {
 		/*
 		  We were called with a special prefix, we can reuse opt_found

@@ -4461,7 +4461,7 @@ longlong Item_func_row_count::val_int()
 
 
 Item_func_sp::Item_func_sp(sp_name *name)
-  :Item_func(), m_name(name), m_sp(NULL)
+  :Item_func(), m_name(name), m_sp(NULL), result_field(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
@@ -4470,7 +4470,7 @@ Item_func_sp::Item_func_sp(sp_name *name)
 
 
 Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
-  :Item_func(list), m_name(name), m_sp(NULL)
+  :Item_func(list), m_name(name), m_sp(NULL), result_field(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
@@ -4523,6 +4523,29 @@ Item_func_sp::sp_result_field(void) const
     field= m_sp->make_field(max_length, name, dummy_table);
   }
   DBUG_RETURN(field);
+}
+
+
+int
+Item_func_sp::execute(Field **flp)
+{
+  Item *it;
+  Field *f;
+  if (execute(&it))
+  {
+    null_value= 1;
+    return 1;
+  }
+  if (!(f= *flp))
+  {
+    *flp= f= sp_result_field();
+    f->move_field((f->pack_length() > sizeof(result_buf)) ? 
+                  sql_alloc(f->pack_length()) : result_buf);
+    f->null_ptr= (uchar *)&null_value;
+    f->null_bit= 1;
+  }
+  it->save_in_field(f, 1);
+  return f->is_null();
 }
 
 
@@ -4601,6 +4624,8 @@ Item_func_sp::field_type() const
   Field *field= 0;
   DBUG_ENTER("Item_func_sp::field_type");
 
+  if (result_field)
+    DBUG_RETURN(result_field->type());
   if (! m_sp)
     m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if ((field= sp_result_field()))
@@ -4621,6 +4646,8 @@ Item_func_sp::result_type() const
   DBUG_ENTER("Item_func_sp::result_type");
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
 
+  if (result_field)
+    DBUG_RETURN(result_field->result_type());
   if (! m_sp)
     m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if ((field= sp_result_field()))
@@ -4636,7 +4663,15 @@ Item_func_sp::result_type() const
 void
 Item_func_sp::fix_length_and_dec()
 {
+  Field *field= result_field;
   DBUG_ENTER("Item_func_sp::fix_length_and_dec");
+
+  if (result_field)
+  {
+    decimals= result_field->decimals();
+    max_length= result_field->representation_length();
+    DBUG_VOID_RETURN;
+  }
 
   if (! m_sp)
     m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
@@ -4646,29 +4681,28 @@ Item_func_sp::fix_length_and_dec()
   }
   else
   {
-    switch (result_type()) {
+    if (!field)
+      field= sp_result_field();
+      
+    decimals= field->decimals();
+    max_length= field->representation_length();
+    
+    switch (field->result_type()) {
     case STRING_RESULT:
       maybe_null= 1;
-      max_length= MAX_BLOB_WIDTH;
-      break;
     case REAL_RESULT:
-      decimals= NOT_FIXED_DEC;
-      max_length= float_length(decimals);
-      break;
     case INT_RESULT:
-      decimals= 0;
-      max_length= 21;
-      break;
     case DECIMAL_RESULT:
-      // TODO: where to find real precision and scale?
-      decimals= min(DECIMAL_MAX_LENGTH / 2, NOT_FIXED_DEC - 1);
-      max_length= DECIMAL_MAX_LENGTH;
+      break;
     case ROW_RESULT:
     default:
       // This case should never be chosen
       DBUG_ASSERT(0);
       break;
     }
+    
+    if (field != result_field)
+      delete field;    
   }
   DBUG_VOID_RETURN;
 }

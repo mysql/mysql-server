@@ -748,3 +748,19 @@ HAVING a <> b;
 i	a	b
 6	-51.40	0.00
 drop table t1;
+create table t1 (c1 varchar(100), c2 longtext);
+insert into t1 set c1= 'non PS, 1.0 as constant', c2=1.0;
+prepare stmt from "insert into t1 set c1='PS, 1.0 as constant    ', c2=1.0";
+execute stmt;
+set @a=1.0;
+insert into t1 set c1='non PS, 1.0 in parameter', c2=@a;
+prepare stmt from "insert into t1 set c1='PS, 1.0 in parameter    ', c2=?";
+execute stmt using @a;
+select * from t1;
+c1	c2
+non PS, 1.0 as constant	1.0
+PS, 1.0 as constant    	1.0
+non PS, 1.0 in parameter	1.0
+PS, 1.0 in parameter    	1.0
+deallocate prepare stmt;
+drop table t1;
