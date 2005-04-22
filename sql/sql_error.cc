@@ -113,7 +113,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
       !(thd->options & OPTION_SQL_NOTES))
     DBUG_RETURN(0);
 
-  if (thd->query_id != thd->warn_id)
+  if (thd->query_id != thd->warn_id && !thd->spcont)
     mysql_reset_errors(thd, 0);
   thd->got_warning= 1;
 
