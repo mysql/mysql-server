@@ -421,8 +421,30 @@ err:
 } /* w_search */
 
 
-	/* Insert new key at right of key_pos */
-	/* Returns 2 if key contains key to upper level */
+/*
+  Insert new key.
+
+  SYNOPSIS
+    _mi_insert()
+    info                        Open table information.
+    keyinfo                     Key definition information.
+    key                         New key.
+    anc_buff                    Key page (beginning).
+    key_pos                     Position in key page where to insert.
+    key_buff                    Copy of previous key.
+    father_buff                 parent key page for balancing.
+    father_key_pos              position in parent key page for balancing.
+    father_page                 position of parent key page in file.
+    insert_last                 If to append at end of page.
+
+  DESCRIPTION
+    Insert new key at right of key_pos.
+
+  RETURN
+    2           if key contains key to upper level.
+    0           OK.
+    < 0         Error.
+*/
 
 int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 	       uchar *key, uchar *anc_buff, uchar *key_pos, uchar *key_buff,

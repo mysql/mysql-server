@@ -386,6 +386,8 @@ sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
 #ifdef HAVE_INNOBASE_DB
+sys_var_long_ptr	sys_innodb_fast_shutdown("innodb_fast_shutdown",
+						 &innobase_fast_shutdown);
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
                                                         &srv_max_buf_pool_modified_pct);
 sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
@@ -689,6 +691,7 @@ sys_var *sys_variables[]=
   &sys_tx_isolation,
   &sys_os,
 #ifdef HAVE_INNOBASE_DB
+  &sys_innodb_fast_shutdown,
   &sys_innodb_max_dirty_pages_pct,
   &sys_innodb_max_purge_lag,
   &sys_innodb_table_locks,
@@ -795,7 +798,7 @@ struct show_var_st init_vars[]= {
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
   {"innodb_doublewrite", (char*) &innobase_use_doublewrite, SHOW_MY_BOOL},
-  {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
+  {sys_innodb_fast_shutdown.name,(char*) &sys_innodb_fast_shutdown, SHOW_SYS},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
@@ -3122,8 +3125,8 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
     enum db_type db_type;
     if (!(res=var->value->val_str(&str)) ||
 	!(var->save_result.ulong_value=
-	 (ulong) (db_type= ha_resolve_by_name(res->ptr(), res->length()))) ||
-	ha_checktype(db_type) != db_type) 
+          (ulong) (db_type= ha_resolve_by_name(res->ptr(), res->length()))) ||
+        ha_checktype(db_type) != db_type)
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;
