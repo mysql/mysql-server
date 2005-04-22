@@ -819,6 +819,7 @@ TYPELIB *ha_known_exts(void);
 int ha_panic(enum ha_panic_function flag);
 int ha_update_statistics();
 void ha_close_connection(THD* thd);
+my_bool ha_storage_engine_is_enabled(enum db_type database_type);
 bool ha_flush_logs(void);
 void ha_drop_database(char* path);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,

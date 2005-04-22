@@ -233,7 +233,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*
   $CP scripts/* $BASE/bin
   $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ \@pkgdatadir\@ ./support-files < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
-  $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@sbindir\@ ./bin \@MYSQLD_USER\@ mysql \@localstatedir\@ /usr/local/mysql/data \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
+  $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@sbindir\@ ./bin \@libexecdir\@ ./bin \@MYSQLD_USER\@ @MYSQLD_USER@ \@localstatedir\@ /usr/local/mysql/data \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
   $BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/mysqld_safe
   mv $BASE/support-files/binary-configure $BASE/configure
   chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/support-files/mysql.server $BASE/configure

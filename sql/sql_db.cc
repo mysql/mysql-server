@@ -1009,6 +1009,9 @@ err:
     replication slave SQL thread (for that thread, setting of thd->db is done
     in ::exec_event() methods of log_event.cc).
 
+    This function does not send the error message to the client, if that
+    should be sent to the client, call net_send_error after this function 
+
   RETURN VALUES
     0	ok
     1	error

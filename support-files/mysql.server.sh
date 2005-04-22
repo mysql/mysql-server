@@ -48,15 +48,21 @@ datadir=
 
 # Set some defaults
 pid_file=
+server_pid_file=
+use_mysqld_safe=1
+user=@MYSQLD_USER@
 if test -z "$basedir"
 then
   basedir=@prefix@
   bindir=@bindir@
   datadir=@localstatedir@
   sbindir=@sbindir@
+  libexecdir=@libexecdir@
 else
   bindir="$basedir/bin"
-  sbindir="$basedir/sbin"
+  datadir="$basedir/data"
+  sbindir="$basedir/bin"
+  libexecdir="$basedir/bin"
 fi
 
 #
@@ -66,8 +72,14 @@ lsb_functions="/lib/lsb/init-functions"
 if test -f $lsb_functions ; then
   source $lsb_functions
 else
-  alias log_success_msg="echo \ SUCCESS! "
-  alias log_failure_msg="echo \ ERROR! "
+  log_success_msg()
+  {
+    echo " SUCCESS! $@"
+  }
+  log_failure_msg()
+  {
+    echo " ERROR! $@"
+  }
 fi
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
@@ -84,8 +96,17 @@ esac
 parse_server_arguments() {
   for arg do
     case "$arg" in
-      --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'`
+                    bindir="$basedir/bin"
+		    datadir="$basedir/data"
+		    sbindir="$basedir/bin"
+		    libexecdir="$basedir/bin"
+        ;;
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --pid-file=*) server_pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --use-mysqld_safe) use_mysqld_safe=1;;
+      --use-manager)     use_mysqld_safe=0;;
     esac
   done
 }
@@ -94,6 +115,7 @@ parse_manager_arguments() {
   for arg do
     case "$arg" in
       --pid-file=*) pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
 }
@@ -165,17 +187,22 @@ else
 fi
 
 #
-# Test if someone changed datadir;  In this case we should also read the
-# default arguments from this directory
+# Read defaults file from 'basedir'.   If there is no defaults file there
+# check if it's in the old (depricated) place (datadir) and read it from there
 #
 
 extra_args=""
-if test "$datadir" != "@localstatedir@"
+if test -r "$basedir/my.cnf"
 then
-  extra_args="-e $datadir/my.cnf"
+  extra_args="-e $basedir/my.cnf"
+else
+  if test -r "$datadir/my.cnf"
+  then
+    extra_args="-e $datadir/my.cnf"
+  fi
 fi
 
-parse_server_arguments `$print_defaults $extra_args mysqld`
+parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
 
 # Look for the pidfile 
 parse_manager_arguments `$print_defaults $extra_args manager`
@@ -192,9 +219,15 @@ else
     * )  pid_file="$datadir/$pid_file" ;;
   esac
 fi
-
-user=@MYSQLD_USER@
-USER_OPTION="--user=$user"
+if test -z "$server_pid_file"
+then
+  server_pid_file=$datadir/`@HOSTNAME@`.pid
+else
+  case "$server_pid_file" in
+    /* ) ;;
+    * )  server_pid_file="$datadir/$server_pid_file" ;;
+  esac
+fi
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
@@ -203,12 +236,21 @@ case "$mode" in
   'start')
     # Start daemon
 
-    if test -x $sbindir/mysqlmanager
+    manager=$bindir/mysqlmanager
+    if test -x $libexecdir/mysqlmanager
+    then
+      manager=$libexecdir/mysqlmanager
+    elif test -x $bindir/mysqlmanager
+    then
+      manager=$sbindir/mysqlmanager
+    fi
+
+    echo $echo_n "Starting MySQL"
+    if test -x $manager -a "$use_mysqld_safe" = "0"
     then
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      echo $echo_n "Starting MySQL"
-      $sbindir/mysqlmanager $USER_OPTION --pid-file=$pid_file >/dev/null 2>&1 &
+      $manager --user=$user --pid-file=$pid_file >/dev/null 2>&1 &
       wait_for_pid created
 
       # Make lock for RedHat / SuSE
@@ -216,14 +258,38 @@ case "$mode" in
       then
         touch /var/lock/subsys/mysqlmanager
       fi
+    elif test -x $bindir/mysqld_safe
+    then
+      # Give extra arguments to mysqld with the my.cnf file. This script
+      # may be overwritten at next upgrade.
+      pid_file=$server_pid_file
+      $bindir/mysqld_safe --datadir=$datadir --pid-file=$server_pid_file >/dev/null 2>&1 &
+      wait_for_pid created
+
+      # Make lock for RedHat / SuSE
+      if test -w /var/lock/subsys
+      then
+        touch /var/lock/subsys/mysql
+      fi
     else
-      log_failure_msg "Can't execute $sbindir/mysqlmanager"
+      log_failure_msg "Couldn't find MySQL manager or server"
     fi
     ;;
 
   'stop')
     # Stop daemon. We use a signal here to avoid having to know the
     # root password.
+
+    # The RedHat / SuSE lock directory to remove
+    lock_dir=/var/lock/subsys/mysqlmanager
+
+    # If the manager pid_file doesn't exist, try the server's
+    if test ! -s "$pid_file"
+    then
+      pid_file=$server_pid_file
+      lock_dir=/var/lock/subsys/mysql
+    fi
+
     if test -s "$pid_file"
     then
       mysqlmanager_pid=`cat $pid_file`
@@ -233,12 +299,12 @@ case "$mode" in
       wait_for_pid removed
 
       # delete lock for RedHat / SuSE
-      if test -f /var/lock/subsys/mysqlmanager
+      if test -f $lock_dir
       then
-        rm -f /var/lock/subsys/mysqlmanager
+        rm -f $lock_dir
       fi
     else
-      log_failure_msg "mysqlmanager PID file could not be found!"
+      log_failure_msg "MySQL manager or server PID file could not be found!"
     fi
     ;;
 
@@ -249,9 +315,19 @@ case "$mode" in
     $0 start
     ;;
 
+  'reload')
+    if test -s "$server_pid_file" ; then
+      mysqld_pid=`cat $server_pid_file`
+      kill -HUP $mysqld_pid && log_success_msg "Reloading service MySQL"
+      touch $server_pid_file
+    else
+      log_failure_msg "MySQL PID file could not be found!"
+    fi
+    ;;
+
   *)
     # usage
-    echo "Usage: $0 start|stop|restart"
+    echo "Usage: $0 start|stop|restart|reload"
     exit 1
     ;;
 esac

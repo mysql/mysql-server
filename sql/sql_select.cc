@@ -3161,10 +3161,14 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   }
 
   /*
-    Special treatment for ft-keys.
-    Remove the following things from KEYUSE:
+    Sort the array of possible keys and remove the following key parts:
     - ref if there is a keypart which is a ref and a const.
-    - keyparts without previous keyparts.
+      (e.g. if there is a key(a,b) and the clause is a=3 and b=7 and b=t2.d,
+      then we skip the key part corresponding to b=t2.d)
+    - keyparts without previous keyparts
+      (e.g. if there is a key(a,b,c) but only b < 5 (or a=2 and c < 3) is
+      used in the query, we drop the partial key parts from consideration).
+    Special treatment for ft-keys.
   */
   if (keyuse->elements)
   {
@@ -7050,7 +7054,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
     return eliminate_item_equal(0, cond_equal, item_equal);
   }
   else
-    cond->walk(&Item::replace_equal_field_processor, 0);
+    cond->transform(&Item::replace_equal_field, 0);
   return cond;
 }
 
@@ -7768,7 +7772,7 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
       item->result_field= new_field;
     else
       new_field->field_name= name;
-    if (org_field->maybe_null())
+    if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
         org_field->type() == MYSQL_TYPE_VARCHAR)
@@ -9579,7 +9583,7 @@ join_read_const(JOIN_TAB *tab)
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     table->status= 0;
-    if (cp_buffer_from_ref(&tab->ref))
+    if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
       error=HA_ERR_KEY_NOT_FOUND;
     else
     {
@@ -9643,7 +9647,7 @@ join_read_always_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
-  if (cp_buffer_from_ref(&tab->ref))
+  if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
     return -1;
   if ((error=table->file->index_read(table->record[0],
 				     tab->ref.key_buff,
@@ -9670,7 +9674,7 @@ join_read_last_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
-  if (cp_buffer_from_ref(&tab->ref))
+  if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last(table->record[0],
 					  tab->ref.key_buff,
@@ -9844,7 +9848,7 @@ join_ft_read_first(JOIN_TAB *tab)
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
 #if NOT_USED_YET
-  if (cp_buffer_from_ref(&tab->ref))       // as ft-key doesn't use store_key's
+  if (cp_buffer_from_ref(tab->join->thd, &tab->ref)) // as ft-key doesn't use store_key's
     return -1;                             // see also FT_SELECT::init()
 #endif
   table->file->ft_init();
@@ -11605,7 +11609,8 @@ cmp_buffer_with_ref(JOIN_TAB *tab)
   {
     memcpy(tab->ref.key_buff2, tab->ref.key_buff, tab->ref.key_length);
   }
-  if ((tab->ref.key_err=cp_buffer_from_ref(&tab->ref)) || diff)
+  if ((tab->ref.key_err= cp_buffer_from_ref(tab->join->thd, &tab->ref)) || 
+      diff)
     return 1;
   return memcmp(tab->ref.key_buff2, tab->ref.key_buff, tab->ref.key_length)
     != 0;
@@ -11613,11 +11618,17 @@ cmp_buffer_with_ref(JOIN_TAB *tab)
 
 
 bool
-cp_buffer_from_ref(TABLE_REF *ref)
+cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
 {
+  enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   for (store_key **copy=ref->key_copy ; *copy ; copy++)
     if ((*copy)->copy())
+    {
+      thd->count_cuted_fields= save_count_cuted_fields;
       return 1;					// Something went wrong
+    }
+  thd->count_cuted_fields= save_count_cuted_fields;
   return 0;
 }
 
@@ -12749,7 +12760,19 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
+  List_iterator_fast<Item> it(fields_list);
+  Item *item;
+  while ((item= it++))
+  {
+    ORDER *group_tmp;
+    for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+    {
+      if (*group_tmp->item == item)
+        item->maybe_null= 1;
+    }
+  }
   return 0;
+
 }
   
 

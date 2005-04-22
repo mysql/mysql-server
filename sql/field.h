@@ -1313,9 +1313,8 @@ public:
 
   
 class Field_bit_as_char: public Field_bit {
-protected:
-  uchar create_length;
 public:
+  uchar create_length;
   Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                     uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
                     enum utype unireg_check_arg, const char *field_name_arg,
