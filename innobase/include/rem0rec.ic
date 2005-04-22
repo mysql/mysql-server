@@ -265,7 +265,7 @@ rec_get_next_offs(
 			/* out: the page offset of the next chained record, or
 			0 if none */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp)	/* in: TRUE=compact page format */
+	ulint	comp)	/* in: nonzero=compact page format */
 {	
 	ulint	field_value;
 		
@@ -312,7 +312,7 @@ void
 rec_set_next_offs(
 /*==============*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	next)	/* in: offset of the next record, or 0 if none */
 {
 	ut_ad(rec);
@@ -414,7 +414,7 @@ rec_get_n_fields(
 {
 	ut_ad(rec);
 	ut_ad(index);
-	if (!index->table->comp) {
+	if (UNIV_UNLIKELY(!index->table->comp)) {
 		return(rec_get_n_fields_old(rec));
 	}
 	switch (rec_get_status(rec)) {
@@ -440,7 +440,7 @@ rec_get_n_owned(
 /*============*/
 			/* out: number of owned records */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp)	/* in: TRUE=compact page format */
+	ulint	comp)	/* in: nonzero=compact page format */
 {
 	ulint	ret;
 
@@ -461,7 +461,7 @@ void
 rec_set_n_owned(
 /*============*/
 	rec_t*	rec,		/* in: physical record */
-	ibool	comp,		/* in: TRUE=compact page format */
+	ulint	comp,		/* in: nonzero=compact page format */
 	ulint	n_owned)	/* in: the number of owned */
 {
 	ut_ad(rec);
@@ -480,7 +480,7 @@ rec_get_info_bits(
 /*==============*/
 			/* out: info bits */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp)	/* in: TRUE=compact page format */
+	ulint	comp)	/* in: nonzero=compact page format */
 {
 	ulint	ret;
 
@@ -501,7 +501,7 @@ void
 rec_set_info_bits(
 /*==============*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	bits)	/* in: info bits */
 {
 	ut_ad(rec);
@@ -537,14 +537,14 @@ rec_get_info_and_status_bits(
 /*=========================*/
 			/* out: info bits */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp)	/* in: TRUE=compact page format */
+	ulint	comp)	/* in: nonzero=compact page format */
 {
 	ulint	bits;
 #if (REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) \
 & (REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)
 # error "REC_NEW_STATUS_MASK and REC_INFO_BITS_MASK overlap"
 #endif
-	if (comp) {
+	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
 		bits = rec_get_info_bits(rec, TRUE) | rec_get_status(rec);
 	} else {
 		bits = rec_get_info_bits(rec, FALSE);
@@ -560,7 +560,7 @@ void
 rec_set_info_and_status_bits(
 /*=========================*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	bits)	/* in: info bits */
 {
 #if (REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) \
@@ -583,14 +583,15 @@ rec_get_deleted_flag(
 /*=================*/
 			/* out: TRUE if delete marked */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp)	/* in: TRUE=compact page format */
+	ulint	comp)	/* in: nonzero=compact page format */
 {
-	if (REC_INFO_DELETED_FLAG & rec_get_info_bits(rec, comp)) {
-
-		return(TRUE);
+	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
+		return(0 != rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
+				REC_INFO_DELETED_FLAG, REC_INFO_BITS_SHIFT));
+	} else {
+		return(0 != rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
+				REC_INFO_DELETED_FLAG, REC_INFO_BITS_SHIFT));
 	}
-
-	return(FALSE);
 }
 
 /**********************************************************
@@ -600,24 +601,23 @@ void
 rec_set_deleted_flag(
 /*=================*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ibool	flag)	/* in: TRUE if delete marked */
 {
-	ulint	old_val;
-	ulint	new_val;
+	ulint	val;
 
 	ut_ad(TRUE == 1);
 	ut_ad(flag <= TRUE);
 
-	old_val = rec_get_info_bits(rec, comp);
+	val = rec_get_info_bits(rec, comp);
 	
 	if (flag) {
-		new_val = REC_INFO_DELETED_FLAG | old_val;
+		val |= REC_INFO_DELETED_FLAG;
 	} else {
-		new_val = ~REC_INFO_DELETED_FLAG & old_val;
+		val &= ~REC_INFO_DELETED_FLAG;
 	}
 
-	rec_set_info_bits(rec, comp, new_val);
+	rec_set_info_bits(rec, comp, val);
 }
 
 /**********************************************************
@@ -633,26 +633,6 @@ rec_get_node_ptr_flag(
 }
 
 /**********************************************************
-The following function is used to flag a record as a node pointer. */
-UNIV_INLINE
-void
-rec_set_node_ptr_flag(
-/*=================*/
-	rec_t*	rec,	/* in: physical record */
-	ibool	flag)	/* in: TRUE if the record is a node pointer */
-{
-	ulint	status;
-	ut_ad(flag <= TRUE);
-	ut_ad(REC_STATUS_NODE_PTR >= rec_get_status(rec));
-	if (flag) {
-		status = REC_STATUS_NODE_PTR;
-	} else {
-		status = REC_STATUS_ORDINARY;
-	}
-	rec_set_status(rec, status);
-}
-
-/**********************************************************
 The following function is used to get the order number of the record in the
 heap of the index page. */
 UNIV_INLINE
@@ -661,7 +641,7 @@ rec_get_heap_no(
 /*=============*/
 			/* out: heap order number */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp)	/* in: TRUE=compact page format */
+	ulint	comp)	/* in: nonzero=compact page format */
 {
 	ulint	ret;
 
@@ -682,7 +662,7 @@ void
 rec_set_heap_no(
 /*=============*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	heap_no)/* in: the heap number */
 {
 	ut_ad(heap_no <= REC_MAX_HEAP_NO);
@@ -843,7 +823,7 @@ rec_offs_validate(
 {
 	ulint	i	= rec_offs_n_fields(offsets);
 	ulint	last	= ULINT_MAX;
-	ibool	comp	= (*rec_offs_base(offsets) & REC_OFFS_COMPACT) != 0;
+	ulint	comp	= *rec_offs_base(offsets) & REC_OFFS_COMPACT;
 
 	if (rec) {
 		ut_ad((ulint) rec == offsets[2]);
@@ -926,7 +906,7 @@ rec_get_nth_field(
 	ut_ad(n < rec_offs_n_fields(offsets));
 	ut_ad(len);
 
-	if (n == 0) {
+	if (UNIV_UNLIKELY(n == 0)) {
 		field = rec;
 	} else {
 		field = rec + (rec_offs_base(offsets)[n] & REC_OFFS_MASK);
@@ -1037,7 +1017,7 @@ rec_set_nth_field_extern_bit(
 				where rec is, or NULL; in the NULL case
 				we do not write to log about the change */
 {
-	if (index->table->comp) {
+	if (UNIV_LIKELY(index->table->comp)) {
 		rec_set_nth_field_extern_bit_new(rec, index, i, val, mtr);
 	} else {
 		rec_set_nth_field_extern_bit_old(rec, i, val, mtr);
@@ -1048,7 +1028,7 @@ rec_set_nth_field_extern_bit(
 Returns the offset of n - 1th field end if the record is stored in the 1-byte
 offsets form. If the field is SQL null, the flag is ORed in the returned
 value. This function and the 2-byte counterpart are defined here because the
-C-compilerwas not able to sum negative and positive constant offsets, and
+C-compiler was not able to sum negative and positive constant offsets, and
 warned of constant arithmetic overflow within the compiler. */
 UNIV_INLINE
 ulint
@@ -1452,7 +1432,7 @@ rec_get_converted_size(
 				? dict_index_get_n_unique_in_tree(index) + 1
 				: dict_index_get_n_fields(index)));
 
-	if (index->table->comp) {
+	if (UNIV_LIKELY(index->table->comp)) {
 		return(rec_get_converted_size_new(index, dtuple));
 	}
 
