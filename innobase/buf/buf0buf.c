@@ -1286,8 +1286,9 @@ buf_page_optimistic_get_func(
 
 	/* If AWE is used, block may have a different frame now, e.g., NULL */
 	
-	if (block->state != BUF_BLOCK_FILE_PAGE || block->frame != guess) {
-
+	if (UNIV_UNLIKELY(block->state != BUF_BLOCK_FILE_PAGE)
+			|| UNIV_UNLIKELY(block->frame != guess)) {
+	exit_func:
 		mutex_exit(&(buf_pool->mutex));
 
 		return(FALSE);
@@ -1320,19 +1321,17 @@ buf_page_optimistic_get_func(
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
-	if (!success) {
+	if (UNIV_UNLIKELY(!success)) {
 		mutex_enter(&(buf_pool->mutex));
 		
 		block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&(block->debug_latch));
-#endif			
-		mutex_exit(&(buf_pool->mutex));
-
-		return(FALSE);
+#endif
+		goto exit_func;
 	}
 
-	if (!UT_DULINT_EQ(modify_clock, block->modify_clock)) {
+	if (UNIV_UNLIKELY(!UT_DULINT_EQ(modify_clock, block->modify_clock))) {
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(block->frame, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -1347,10 +1346,8 @@ buf_page_optimistic_get_func(
 		block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&(block->debug_latch));
-#endif			
-		mutex_exit(&(buf_pool->mutex));
-		
-		return(FALSE);
+#endif
+		goto exit_func;
 	}
 
 	mtr_memo_push(mtr, block, fix_type);
@@ -1368,7 +1365,7 @@ buf_page_optimistic_get_func(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->file_page_was_freed == FALSE);
 #endif
-	if (!accessed) {
+	if (UNIV_UNLIKELY(!accessed)) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
