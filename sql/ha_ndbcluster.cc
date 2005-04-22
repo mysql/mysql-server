@@ -4111,18 +4111,6 @@ int ha_ndbcluster::drop_table()
 }
 
 
-/*
-  Drop a database in NDB Cluster
- */
-
-int ndbcluster_drop_database(const char *path)
-{
-  DBUG_ENTER("ndbcluster_drop_database");
-  // TODO drop all tables for this database
-  DBUG_RETURN(1);
-}
-
-
 ulonglong ha_ndbcluster::get_auto_increment()
 {  
   int cache_size;
@@ -4477,6 +4465,53 @@ extern "C" byte* tables_get_key(const char *entry, uint *length,
 }
 
 
+/*
+  Drop a database in NDB Cluster
+ */
+
+int ndbcluster_drop_database(const char *path)
+{
+  DBUG_ENTER("ndbcluster_drop_database");
+  THD *thd= current_thd;
+  char dbname[FN_HEADLEN];
+  Ndb* ndb;
+  NdbDictionary::Dictionary::List list;
+  uint i;
+  char *tabname;
+  List<char> drop_list;
+  ha_ndbcluster::set_dbname(path, (char *)&dbname);
+  DBUG_PRINT("enter", ("db: %s", dbname));
+  
+  if (!(ndb= check_ndb_in_thd(thd)))
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  
+  // List tables in NDB
+  NDBDICT *dict= ndb->getDictionary();
+  if (dict->listObjects(list, 
+                        NdbDictionary::Object::UserTable) != 0)
+    ERR_RETURN(dict->getNdbError());
+  for (i= 0 ; i < list.count ; i++)
+  {
+    NdbDictionary::Dictionary::List::Element& t= list.elements[i];
+    DBUG_PRINT("info", ("Found %s/%s in NDB", t.database, t.name));     
+    
+    // Add only tables that belongs to db
+    if (my_strcasecmp(system_charset_info, t.database, dbname))
+      continue;
+    DBUG_PRINT("info", ("%s must be dropped", t.name));     
+    drop_list.push_back(thd->strdup(t.name));
+  }
+  // Drop any tables belonging to database
+  ndb->setDatabaseName(dbname);
+  List_iterator_fast<char> it(drop_list);
+  while ((tabname=it++))
+    if (dict->dropTable(tabname))
+      ERR_RETURN(dict->getNdbError());      
+
+  DBUG_RETURN(0);
+}
+
+
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
                           const char *wild, bool dir, List<char> *files)
 {
@@ -4797,32 +4832,46 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Set m_tabname from full pathname to table file 
+/**
+ * Set a given location from full pathname to database name
+ *
  */
-
-void ha_ndbcluster::set_tabname(const char *path_name)
+void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
 {
   char *end, *ptr;
   
   /* Scan name from the end */
-  end= strend(path_name)-1;
-  ptr= end;
+  ptr= strend(path_name)-1;
+  while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
+    ptr--;
+  }
+  ptr--;
+  end= ptr;
   while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
     ptr--;
   }
   uint name_len= end - ptr;
-  memcpy(m_tabname, ptr + 1, end - ptr);
-  m_tabname[name_len]= '\0';
+  memcpy(dbname, ptr + 1, name_len);
+  dbname[name_len]= '\0';
 #ifdef __WIN__
   /* Put to lower case */
-  ptr= m_tabname;
+  
+  ptr= dbname;
   
   while (*ptr != '\0') {
     *ptr= tolower(*ptr);
     ptr++;
   }
 #endif
+}
+
+/*
+  Set m_dbname from full pathname to table file
+ */
+
+void ha_ndbcluster::set_dbname(const char *path_name)
+{
+  set_dbname(path_name, m_dbname);
 }
 
 /**
@@ -4854,39 +4903,13 @@ ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
 #endif
 }
 
-
 /*
-  Set m_dbname from full pathname to table file
- 
+  Set m_tabname from full pathname to table file 
  */
 
-void ha_ndbcluster::set_dbname(const char *path_name)
+void ha_ndbcluster::set_tabname(const char *path_name)
 {
-  char *end, *ptr;
-  
-  /* Scan name from the end */
-  ptr= strend(path_name)-1;
-  while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
-    ptr--;
-  }
-  ptr--;
-  end= ptr;
-  while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
-    ptr--;
-  }
-  uint name_len= end - ptr;
-  memcpy(m_dbname, ptr + 1, name_len);
-  m_dbname[name_len]= '\0';
-#ifdef __WIN__
-  /* Put to lower case */
-  
-  ptr= m_dbname;
-  
-  while (*ptr != '\0') {
-    *ptr= tolower(*ptr);
-    ptr++;
-  }
-#endif
+  set_tabname(path_name, m_tabname);
 }
 
 
