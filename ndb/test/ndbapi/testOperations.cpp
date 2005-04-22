@@ -547,21 +547,64 @@ runLockUpgrade1(NDBT_Context* ctx, NDBT_Step* step){
   do
   {
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 0, 1, NdbOperation::LM_Read) == 0);
-    CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+    if(ctx->getProperty("LOCK_UPGRADE", 1) == 1)
+    {
+      CHECK(hugoOps.pkReadRecord(pNdb, 0, 1, NdbOperation::LM_Read) == 0);
+      CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
     
-    ctx->setProperty("READ_DONE", 1);
-    ctx->broadcast();
-    ndbout_c("wait 2");
-    ctx->getPropertyWait("READ_DONE", 2);
-    ndbout_c("wait 2 - done");
+      ctx->setProperty("READ_DONE", 1);
+      ctx->broadcast();
+      ndbout_c("wait 2");
+      ctx->getPropertyWait("READ_DONE", 2);
+      ndbout_c("wait 2 - done");
+    }
+    else
+    {
+      ctx->setProperty("READ_DONE", 1);
+      ctx->broadcast();
+      ctx->getPropertyWait("READ_DONE", 2);
+      ndbout_c("wait 2 - done");
+      CHECK(hugoOps.pkReadRecord(pNdb, 0, 1, NdbOperation::LM_Read) == 0);
+      CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+    }
+    if(ctx->getProperty("LU_OP", o_INS) == o_INS)
+    {
+      CHECK(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+      CHECK(hugoOps.pkInsertRecord(pNdb, 0, 1, 2) == 0);
+    }
+    else if(ctx->getProperty("LU_OP", o_UPD) == o_UPD)
+    {
+      CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, 2) == 0);
+    } 
+    else
+    {
+      CHECK(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+    }
     ctx->setProperty("READ_DONE", 3);
     ctx->broadcast();
     ndbout_c("before update");
-    CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, 2) == 0);
     ndbout_c("wait update");
-    CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
-    CHECK(hugoOps.closeTransaction(pNdb));
+    CHECK(hugoOps.execute_Commit(pNdb) == 0);
+    CHECK(hugoOps.closeTransaction(pNdb) == 0);
+
+    CHECK(hugoOps.startTransaction(pNdb) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 0, 1) == 0);
+    int res= hugoOps.execute_Commit(pNdb);
+    if(ctx->getProperty("LU_OP", o_INS) == o_INS)
+    {
+      CHECK(res == 0);
+      CHECK(hugoOps.verifyUpdatesValue(2) == 0);
+    }
+    else if(ctx->getProperty("LU_OP", o_UPD) == o_UPD)
+    {
+      CHECK(res == 0);
+      CHECK(hugoOps.verifyUpdatesValue(2) == 0);
+    } 
+    else
+    {
+      CHECK(res == 626);
+    }
+    
   } while(0);
   
   return result;
@@ -592,10 +635,10 @@ runLockUpgrade2(NDBT_Context* ctx, NDBT_Step* step){
     ndbout_c("wait 3 - done");
     
     NdbSleep_MilliSleep(200);
-    CHECK(hugoOps.execute_Commit(pNdb) == 0);  
+    CHECK(hugoOps.execute_Commit(pNdb) == 0);      
   } while(0);
 
-  return NDBT_FAILED;
+  return result;
 }
 
 int
@@ -607,10 +650,15 @@ main(int argc, const char** argv){
 
   NDBT_TestSuite ts("testOperations");
 
+  for(Uint32 i = 0; i <6; i++)
   {
     BaseString name("bug_9749");
+    name.appfmt("_%d", i);
     NDBT_TestCaseImpl1 *pt = new NDBT_TestCaseImpl1(&ts, 
 						    name.c_str(), "");    
+    
+    pt->setProperty("LOCK_UPGRADE", 1 + (i & 1));
+    pt->setProperty("LU_OP", 1 + (i >> 1));
     
     pt->addInitializer(new NDBT_Initializer(pt,
 					    "runClearTable", 

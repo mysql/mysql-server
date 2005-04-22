@@ -1565,9 +1565,9 @@ ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
   { // start backup can take some time, set timeout high
     Uint64 old_timeout= handle->read_timeout;
     if (wait_completed == 2)
-      handle->read_timeout= 30*60*1000; // 30 minutes
+      handle->read_timeout= 48*60*60*1000; // 48 hours
     else if (wait_completed == 1)
-      handle->read_timeout= 5*60*1000; // 5 minutes
+      handle->read_timeout= 10*60*1000; // 10 minutes
     reply = ndb_mgm_call(handle, start_backup_reply, "start backup", &args);
     handle->read_timeout= old_timeout;
   }
