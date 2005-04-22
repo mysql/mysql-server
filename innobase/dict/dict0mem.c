@@ -42,6 +42,7 @@ dict_mem_table_create(
 	mem_heap_t*	heap;
 	
 	ut_ad(name);
+	ut_ad(comp == FALSE || comp == TRUE);
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 

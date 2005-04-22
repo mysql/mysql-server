@@ -388,8 +388,8 @@ dtype_get_fixed_size(
 					dtype_get_charset_coll(type->prtype),
 					&mbminlen, &mbmaxlen);
 
-				if (type->mbminlen != mbminlen
-					|| type->mbmaxlen != mbmaxlen) {
+				if (UNIV_UNLIKELY(type->mbminlen != mbminlen)
+				|| UNIV_UNLIKELY(type->mbmaxlen != mbmaxlen)) {
 
 					ut_print_timestamp(stderr);
 					fprintf(stderr, "  InnoDB: "
