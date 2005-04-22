@@ -1729,6 +1729,15 @@ innobase_shutdown_for_mysql(void)
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
 	just free data structures after the shutdown. */
 
+
+	if (srv_fast_shutdown == 2) {
+	        ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: MySQL has requested a very fast shutdown without flushing "
+"the InnoDB buffer pool to data files. At the next mysqld startup "
+"InnoDB will do a crash recovery!\n");
+	  	}
+
 #ifdef __NETWARE__
 	if(!panic_shutdown)
 #endif 

@@ -611,6 +611,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   char query[1024],*end;
   MYSQL_RES *result;
   MYSQL_ROW row;
+  ulong rows;
 
   if (mysql_select_db(mysql,db))
   {
@@ -618,6 +619,17 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    mysql_error(mysql));
     return 1;
   }
+  sprintf(query,"select count(*) from `%s`", table);
+  if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
+  {
+    fprintf(stderr,"%s: Cannot get record count for db: %s, table: %s: %s\n",
+	    my_progname,db,table,mysql_error(mysql));
+    return 1;
+  }
+  row = mysql_fetch_row(result);
+  rows = (ulong) strtoull(row[0], (char**) 0, 10);
+  mysql_free_result(result);
+
   end=strmov(strmov(strmov(query,"show /*!32332 FULL */ columns from `"),table),"`");
   if (wild && wild[0])
     strxmov(end," like '",wild,"'",NullS);
@@ -628,8 +640,8 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
     return 1;
   }
 
-  printf("Database: %s  Table: %s  Rows: %lu", db,table,
-	 (ulong) mysql->extra_info);
+  printf("Database: %s  Table: %s Rows: %lu", db, table, rows);
+
   if (wild && wild[0])
     printf("  Wildcard: %s",wild);
   putchar('\n');

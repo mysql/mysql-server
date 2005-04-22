@@ -370,6 +370,7 @@ TYPELIB *
 sp_head::create_typelib(List<String> *src)
 {
   TYPELIB *result= NULL;
+  CHARSET_INFO *cs= m_returns_cs;
   DBUG_ENTER("sp_head::clone_typelib");
   if (src->elements)
   {
@@ -377,12 +378,39 @@ sp_head::create_typelib(List<String> *src)
     result->count= src->elements;
     result->name= "";
     if (!(result->type_names=(const char **)
-          alloc_root(mem_root,sizeof(char *)*(result->count+1))))
+          alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
       return 0;
+    result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
+    String conv, *tmp;
+    uint32 dummy;
     for (uint i=0; i<result->count; i++)
-      result->type_names[i]= strdup_root(mem_root, (it++)->c_ptr());
+    {
+      tmp = it++;
+      if (String::needs_conversion(tmp->length(), tmp->charset(),
+      				   cs, &dummy))
+      {
+        uint cnv_errs;
+        conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
+        char *buf= (char*) alloc_root(mem_root,conv.length()+1);
+        memcpy(buf, conv.ptr(), conv.length());
+        buf[conv.length()]= '\0';
+        result->type_names[i]= buf;
+        result->type_lengths[i]= conv.length();
+      }
+      else {
+        result->type_names[i]= strdup_root(mem_root, tmp->c_ptr());
+        result->type_lengths[i]= tmp->length();
+      }
+
+      // Strip trailing spaces.
+      uint lengthsp= cs->cset->lengthsp(cs, result->type_names[i],
+                                        result->type_lengths[i]);
+      result->type_lengths[i]= lengthsp;
+      ((uchar *)result->type_names[i])[lengthsp]= '\0';
+    }
     result->type_names[result->count]= 0;
+    result->type_lengths[result->count]= 0;
   }
   return result;
 }
@@ -638,7 +666,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     // Need to use my_printf_error here, or it will not terminate the
     // invoking query properly.
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
-             "FUNCTION", m_name.str, params, argcount);
+             "FUNCTION", m_qname.str, params, argcount);
     DBUG_RETURN(-1);
   }
 
@@ -691,6 +719,19 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   DBUG_RETURN(ret);
 }
 
+static Item_func_get_user_var *
+item_is_user_var(Item *it)
+{
+  if (it->type() == Item::FUNC_ITEM)
+  {
+    Item_func *fi= static_cast<Item_func*>(it);
+
+    if (fi->functype() == Item_func::GUSERVAR_FUNC)
+      return static_cast<Item_func_get_user_var*>(fi);
+  }
+  return NULL;
+}
+
 int
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
@@ -708,7 +749,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (args->elements != params)
   {
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
-             m_name.str, params, args->elements);
+             m_qname.str, params, args->elements);
     DBUG_RETURN(-1);
   }
 
@@ -728,12 +769,19 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     // QQ: Should do type checking?
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
-      sp_pvar_t *pvar = m_pcont->find_pvar(i);
+      sp_pvar_t *pvar= m_pcont->find_pvar(i);
 
-      if (! pvar)
-	nctx->set_oindex(i, -1); // Shouldn't happen
-      else
+      if (pvar)
       {
+	if (pvar->mode != sp_param_in)
+	{
+	  if (!it->is_splocal() && !item_is_user_var(it))
+	  {
+	    my_error(ER_SP_NOT_VAR_ARG, MYF(0), i+1, m_qname.str);
+	    ret= -1;
+	    break;
+	  }
+	}
 	if (pvar->mode == sp_param_out)
 	{
 	  if (! nit)
@@ -742,7 +790,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	}
 	else
 	{
-	  Item *it2= sp_eval_func_item(thd, it,pvar->type);
+	  Item *it2= sp_eval_func_item(thd, it, pvar->type);
 
 	  if (it2)
 	    nctx->push_item(it2); // IN or INOUT
@@ -752,13 +800,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	    break;
 	  }
 	}
-	// Note: If it's OUT or INOUT, it must be a variable.
-	// QQ: We can check for global variables here, or should we do it
-	//     while parsing?
-	if (pvar->mode == sp_param_in)
-	  nctx->set_oindex(i, -1); // IN
-	else			// OUT or INOUT
-	  nctx->set_oindex(i, static_cast<Item_splocal *>(it)->get_offset());
       }
     }
 
@@ -786,38 +827,31 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     // set global user variables
     for (uint i = 0 ; (it= li++) && i < params ; i++)
     {
-      int oi = nctx->get_oindex(i);
+      sp_pvar_t *pvar= m_pcont->find_pvar(i);
 
-      if (oi >= 0)
+      if (pvar->mode != sp_param_in)
       {
-	if (! tmp_octx)
-	  octx->set_item(nctx->get_oindex(i), nctx->get_item(i));
+	if (it->is_splocal())
+	  octx->set_item(static_cast<Item_splocal *>(it)->get_offset(),
+			 nctx->get_item(i));
 	else
 	{
-	  // QQ Currently we just silently ignore non-user-variable arguments.
-	  //    We should check this during parsing, when setting up the call
-	  //    above
-	  if (it->type() == Item::FUNC_ITEM)
+	  Item_func_get_user_var *guv= item_is_user_var(it);
+
+	  if (guv)
 	  {
-	    Item_func *fi= static_cast<Item_func*>(it);
+	    Item *item= nctx->get_item(i);
+	    Item_func_set_user_var *suv;
 
-	    if (fi->functype() == Item_func::GUSERVAR_FUNC)
-	    {			// A global user variable
-	      Item *item= nctx->get_item(i);
-	      Item_func_set_user_var *suv;
-	      Item_func_get_user_var *guv=
-		static_cast<Item_func_get_user_var*>(fi);
-
-	      suv= new Item_func_set_user_var(guv->get_name(), item);
-              /*
-                we do not check suv->fixed, because it can't be fixed after
-                creation
-              */
-	      suv->fix_fields(thd, NULL, &item);
-	      suv->fix_length_and_dec();
-	      suv->check();
-	      suv->update();
-	    }
+	    suv= new Item_func_set_user_var(guv->get_name(), item);
+	    /*
+	      we do not check suv->fixed, because it can't be fixed after
+	      creation
+	    */
+	    suv->fix_fields(thd, NULL, &item);
+	    suv->fix_length_and_dec();
+	    suv->check();
+	    suv->update();
 	  }
 	}
       }
@@ -1493,7 +1527,7 @@ sp_instr_jump::opt_shortcut_jump(sp_head *sp, sp_instr *start)
   {
     uint ndest;
 
-    if (start == i)
+    if (start == i || this == i)
       break;
     ndest= i->opt_shortcut_jump(sp, start);
     if (ndest == dest)
@@ -2026,6 +2060,12 @@ typedef struct st_sp_table
   LEX_STRING qname;
   bool temp;
   TABLE_LIST *table;
+  /*
+    We can't use table->lock_type as lock type for table
+    in multi-set since it can be changed by statement during
+    its execution (e.g. as this happens for multi-update).
+  */
+  thr_lock_type lock_type;
   uint lock_count;
   uint query_lock_count;
 } SP_TABLE;
@@ -2097,8 +2137,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
       */
       if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)))
       {
-	if (tab->table->lock_type < table->lock_type)
-	  tab->table= table;	// Use the table with the highest lock type
+        if (tab->lock_type < table->lock_type)
+          tab->lock_type= table->lock_type; // Use the table with the highest lock type
         tab->query_lock_count++;
         if (tab->query_lock_count > tab->lock_count)
           tab->lock_count++;
@@ -2116,6 +2156,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
 	  tab->temp= TRUE;
 	tab->table= table;
+        tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
 	my_hash_insert(&m_sptabs, (byte *)tab);
       }
@@ -2188,7 +2229,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->alias= otable->alias;
       table->table_name= otable->table_name;
       table->table_name_length= otable->table_name_length;
-      table->lock_type= otable->lock_type;
+      table->lock_type= stab->lock_type;
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
 

@@ -99,11 +99,13 @@ extern ulint	srv_max_n_threads;
 
 extern lint	srv_conc_n_threads;
 
-extern ibool	srv_fast_shutdown;
-extern ibool	srv_very_fast_shutdown;  /* if this TRUE, do not flush the
+extern ulint	srv_fast_shutdown;       /* If this is 1, do not do a
+					 purge and index buffer merge.
+					 If this 2, do not even flush the
 					 buffer pool to data files at the
-					 shutdown; we effectively 'crash'
-					 InnoDB */
+					 shutdown: we effectively 'crash'
+					 InnoDB (but lose no committed
+					 transactions). */
 extern ibool	srv_innodb_status;
 
 extern ibool	srv_use_doublewrite_buf;
