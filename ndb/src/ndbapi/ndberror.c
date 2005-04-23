@@ -175,10 +175,11 @@ ErrorBundle ErrorCodes[] = {
    */
   { 623,  IS, "623" },
   { 624,  IS, "624" },
-  { 625,  IS, "Out of memory in Ndb Kernel, index part (increase IndexMemory)" },
+  { 625,  IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
   { 800,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
-  { 827,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
+  { 827,  IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
+  { 902,  IS, "Out of memory in Ndb Kernel, ordered index data (increase DataMemory)" },
   { 832,  IS, "832" },
 
   /**
@@ -205,7 +206,7 @@ ErrorBundle ErrorCodes[] = {
    * Internal errors
    */
   { 892,  IE, "Inconsistent hash index. The index needs to be dropped and recreated" },
-  { 895,  IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
+  { 901,  IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
   { 202,  IE, "202" },
   { 203,  IE, "203" },
   { 207,  IE, "207" },
