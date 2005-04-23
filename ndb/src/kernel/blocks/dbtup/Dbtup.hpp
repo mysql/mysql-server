@@ -1779,6 +1779,10 @@ private:
                                 Operationrec* const regOperPtr,
                                 Tablerec* const regTabPtr);
 
+  int addTuxEntries(Signal* signal,
+                    Operationrec* regOperPtr,
+                    Tablerec* regTabPtr);
+
   // these crash the node on error
 
   void executeTuxCommitTriggers(Signal* signal, 
@@ -1788,6 +1792,10 @@ private:
   void executeTuxAbortTriggers(Signal* signal, 
                                Operationrec* regOperPtr,
                                Tablerec* const regTabPtr);
+
+  void removeTuxEntries(Signal* signal,
+                        Operationrec* regOperPtr,
+                        Tablerec* regTabPtr);
 
 // *****************************************************************
 // Error Handling routines.
