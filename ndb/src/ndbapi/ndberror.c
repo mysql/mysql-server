@@ -184,7 +184,6 @@ ErrorBundle ErrorCodes[] = {
   { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
   { 827,  IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
   { 902,  IS, "Out of memory in Ndb Kernel, ordered index data (increase DataMemory)" },
-  { 902,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
   { 903,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  IS, "Out of attribute records (increase MaxNoOfAttributes)" },
