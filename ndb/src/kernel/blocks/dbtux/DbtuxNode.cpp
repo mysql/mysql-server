@@ -23,6 +23,11 @@
 int
 Dbtux::allocNode(Signal* signal, NodeHandle& node)
 {
+  if (ERROR_INSERTED(12007)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    return TuxMaintReq::NoMemError;
+  }
   Frag& frag = node.m_frag;
   Uint32 pageId = NullTupLoc.getPageId();
   Uint32 pageOffset = NullTupLoc.getPageOffset();
@@ -34,6 +39,12 @@ Dbtux::allocNode(Signal* signal, NodeHandle& node)
     node.m_loc = TupLoc(pageId, pageOffset);
     node.m_node = reinterpret_cast<TreeNode*>(node32);
     ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
+  } else {
+    switch (errorCode) {
+    case 827:
+      errorCode = TuxMaintReq::NoMemError;
+      break;
+    }
   }
   return errorCode;
 }
