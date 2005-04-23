@@ -164,6 +164,16 @@ irandom(unsigned n)
   return i;
 }
 
+static bool
+randompct(unsigned pct)
+{
+  if (pct == 0)
+    return false;
+  if (pct >= 100)
+    return true;
+  return urandom(100) < pct;
+}
+
 // log and error macros
 
 static NdbMutex *ndbout_mutex = NULL;
@@ -1653,36 +1663,6 @@ createindex(Par par)
 
 // data sets
 
-static unsigned
-urandom(unsigned n)
-{
-  if (n == 0)
-    return 0;
-  unsigned i = random() % n;
-  return i;
-}
-
-static int
-irandom(unsigned n)
-{
-  if (n == 0)
-    return 0;
-  int i = random() % n;
-  if (random() & 0x1)
-    i = -i;
-  return i;
-}
-
-static bool
-randompct(unsigned pct)
-{
-  if (pct == 0)
-    return false;
-  if (pct >= 100)
-    return true;
-  return urandom(100) < pct;
-}
-
 // Val - typed column value
 
 struct Val {
@@ -2659,26 +2639,30 @@ Set::pending(unsigned i, unsigned mask) const
 }
 
 void
-Set::notpending(unsigned i)
+Set::notpending(unsigned i, ExecType et)
 {
   assert(m_row[i] != 0);
   Row& row = *m_row[i];
-  if (row.m_pending == Row::InsOp) {
-    row.m_exist = true;
-  } else if (row.m_pending == Row::UpdOp) {
-    ;
-  } else if (row.m_pending == Row::DelOp) {
-    row.m_exist = false;
+  if (et == Commit) {
+    if (row.m_pending == Row::InsOp)
+      row.m_exist = true;
+    if (row.m_pending == Row::DelOp)
+      row.m_exist = false;
+  } else {
+    if (row.m_pending == Row::InsOp)
+      row.m_exist = false;
+    if (row.m_pending == Row::DelOp)
+      row.m_exist = true;
   }
   row.m_pending = Row::NoOp;
 }
 
 void
-Set::notpending(const Lst& lst)
+Set::notpending(const Lst& lst, ExecType et)
 {
   for (unsigned j = 0; j < lst.m_cnt; j++) {
     unsigned i = lst.m_arr[j];
-    notpending(i);
+    notpending(i, et);
   }
 }
 
@@ -2868,34 +2852,6 @@ Set::putval(unsigned i, bool force, unsigned n)
   if (n != ~0)
     m_rowkey[n] = i;
   return 0;
-}
-
-void
-Set::notpending(unsigned i, ExecType et)
-{
-  assert(m_row[i] != 0);
-  Row& row = *m_row[i];
-  if (et == Commit) {
-    if (row.m_pending == Row::InsOp)
-      row.m_exist = true;
-    if (row.m_pending == Row::DelOp)
-      row.m_exist = false;
-  } else {
-    if (row.m_pending == Row::InsOp)
-      row.m_exist = false;
-    if (row.m_pending == Row::DelOp)
-      row.m_exist = true;
-  }
-  row.m_pending = Row::NoOp;
-}
-
-void
-Set::notpending(const Lst& lst, ExecType et)
-{
-  for (unsigned j = 0; j < lst.m_cnt; j++) {
-    unsigned i = lst.m_arr[j];
-    notpending(i, et);
-  }
 }
 
 int
@@ -3511,6 +3467,7 @@ hashindexupdate(Par par, const ITab& itab)
   CHK(con.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
     unsigned i = thrrow(par, j2);
@@ -3528,7 +3485,7 @@ hashindexupdate(Par par, const ITab& itab)
     lst.push(i);
     if (lst.cnt() == par.m_batch) {
       deadlock = par.m_deadlock;
-      CHK(con.execute(Commit, deadlock) == 0);
+      CHK(con.execute(Commit, deadlock, nospace) == 0);
       if (deadlock) {
         LL1("hashindexupdate: stop on deadlock [at 1]");
         break;
@@ -3544,9 +3501,9 @@ hashindexupdate(Par par, const ITab& itab)
   }
   if (! deadlock && lst.cnt() != 0) {
     deadlock = par.m_deadlock;
-    CHK(con.execute(Commit, deadlock) == 0);
+    CHK(con.execute(Commit, deadlock, nospace) == 0);
     if (deadlock) {
-      LL1("hashindexupdate: stop on deadlock [at 1]");
+      LL1("hashindexupdate: stop on deadlock [at 2]");
     } else {
       set.lock();
       set.notpending(lst);
@@ -3567,6 +3524,7 @@ hashindexdelete(Par par, const ITab& itab)
   CHK(con.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
     unsigned i = thrrow(par, j2);
@@ -3581,7 +3539,7 @@ hashindexdelete(Par par, const ITab& itab)
     lst.push(i);
     if (lst.cnt() == par.m_batch) {
       deadlock = par.m_deadlock;
-      CHK(con.execute(Commit, deadlock) == 0);
+      CHK(con.execute(Commit, deadlock, nospace) == 0);
       if (deadlock) {
         LL1("hashindexdelete: stop on deadlock [at 1]");
         break;
@@ -3596,7 +3554,7 @@ hashindexdelete(Par par, const ITab& itab)
   }
   if (! deadlock && lst.cnt() != 0) {
     deadlock = par.m_deadlock;
-    CHK(con.execute(Commit, deadlock) == 0);
+    CHK(con.execute(Commit, deadlock, nospace) == 0);
     if (deadlock) {
       LL1("hashindexdelete: stop on deadlock [at 2]");
     } else {
@@ -3968,6 +3926,7 @@ scanupdatetable(Par par)
   CHK(con2.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   while (1) {
     int ret;
     deadlock = par.m_deadlock;
@@ -4003,7 +3962,7 @@ scanupdatetable(Par par)
       set.unlock();
       if (lst.cnt() == par.m_batch) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdatetable: stop on deadlock [at 2]");
           goto out;
@@ -4020,7 +3979,7 @@ scanupdatetable(Par par)
       CHK((ret = con.nextScanResult(false)) == 0 || ret == 1 || ret == 2);
       if (ret == 2 && lst.cnt() != 0) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdatetable: stop on deadlock [at 3]");
           goto out;
@@ -4067,6 +4026,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   CHK(con2.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   while (1) {
     int ret;
     deadlock = par.m_deadlock;
@@ -4102,7 +4062,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
       set.unlock();
       if (lst.cnt() == par.m_batch) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdateindex: stop on deadlock [at 2]");
           goto out;
@@ -4119,7 +4079,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
       CHK((ret = con.nextScanResult(false)) == 0 || ret == 1 || ret == 2);
       if (ret == 2 && lst.cnt() != 0) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdateindex: stop on deadlock [at 3]");
           goto out;
