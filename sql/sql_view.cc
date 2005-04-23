@@ -808,13 +808,15 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         NOTE: we do not support UNION here, so we take only one select
       */
       SELECT_LEX_NODE *end_unit= table->select_lex->slave;
+      SELECT_LEX_UNIT *next_unit;
       for (SELECT_LEX_UNIT *unit= lex->select_lex.first_inner_unit();
            unit;
-           unit= unit->next_unit())
+           unit= next_unit)
       {
-        SELECT_LEX_NODE *save_slave= unit->slave;
         if (unit == end_unit)
           break;
+        SELECT_LEX_NODE *save_slave= unit->slave;
+        next_unit= unit->next_unit();
         unit->include_down(table->select_lex);
         unit->slave= save_slave; // fix include_down initialisation
       }
