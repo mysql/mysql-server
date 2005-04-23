@@ -10,7 +10,7 @@ Next DBTC 8035
 Next CMVMI 9000
 Next BACKUP 10022
 Next DBUTIL 11002
-Next DBTUX 12007
+Next DBTUX 12008
 Next SUMA 13001
 
 TESTING NODE FAILURE, ARBITRATION
@@ -443,6 +443,7 @@ Test routing of signals:
 
 Ordered index:
 --------------
+12007: Make next alloc node fail with no memory error
 
 Dbdict:
 -------
