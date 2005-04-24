@@ -2263,6 +2263,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->backupDataLen = req->backupDataLen;
   ptr.p->masterData.dropTrig.tableId = RNIL;
   ptr.p->masterData.alterTrig.tableId = RNIL;
+  ptr.p->masterData.errorCode = 0;
   ptr.p->noOfBytes = 0;
   ptr.p->noOfRecords = 0;
   ptr.p->noOfLogBytes = 0;
