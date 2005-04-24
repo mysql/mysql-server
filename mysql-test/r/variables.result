@@ -148,7 +148,7 @@ timed_mutexes	OFF
 set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
 show local variables like 'storage_engine';
 Variable_name	Value
-storage_engine	HEAP
+storage_engine	MEMORY
 show global variables like 'storage_engine';
 Variable_name	Value
 storage_engine	MERGE
@@ -254,7 +254,7 @@ set storage_engine=MERGE, big_tables=2;
 ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'storage_engine';
 Variable_name	Value
-storage_engine	HEAP
+storage_engine	MEMORY
 set SESSION query_cache_size=10000;
 ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set GLOBAL storage_engine=DEFAULT;
