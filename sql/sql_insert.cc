@@ -103,7 +103,8 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
         return -1;
     }
 #endif
-    *(int*)&table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_INSERT;
+    clear_timestamp_auto_bits(table->timestamp_field_type,
+                              TIMESTAMP_AUTO_SET_ON_INSERT);
   }
   else
   {						// Part field list
@@ -150,7 +151,8 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     }
     if (table->timestamp_field &&	// Don't set timestamp if used
 	table->timestamp_field->query_id == thd->query_id)
-      *(int*)&table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_INSERT;
+      clear_timestamp_auto_bits(table->timestamp_field_type,
+                                TIMESTAMP_AUTO_SET_ON_INSERT);
   }
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -216,7 +218,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   {
     /* Don't set timestamp column if this is modified. */
     if (table->timestamp_field->query_id == thd->query_id)
-      *(int*)&table->timestamp_field_type&= ~ (int) TIMESTAMP_AUTO_SET_ON_UPDATE;
+      clear_timestamp_auto_bits(table->timestamp_field_type,
+                                TIMESTAMP_AUTO_SET_ON_UPDATE);
     else
       table->timestamp_field->query_id= timestamp_query_id;
   }
