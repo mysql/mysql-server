@@ -6,6 +6,14 @@ use DBI;
 
 =head1 NAME
 
+WARNING: MySQL versions 5.0 and above feature the INFORMATION_SCHEMA
+pseudo-database which contains always up-to-date metadata information
+about all tables. So instead of using this script one can now
+simply query the INFORMATION_SCHEMA.SCHEMATA, INFORMATION_SCHEMA.TABLES,
+INFORMATION_SCHEMA.COLUMNS, INFORMATION_SCHEMA.STATISTICS pseudo-tables.
+Please see the MySQL manual for more information about INFORMATION_SCHEMA.
+This script will be removed from the MySQL distribution in version 5.1.
+
 mysql_tableinfo - creates and populates information tables with 
 the output of SHOW DATABASES, SHOW TABLES (or SHOW TABLE STATUS), 
 SHOW COLUMNS and SHOW INDEX.
@@ -62,6 +70,19 @@ GetOptions( \%opt,
     "quiet|q",
 ) or usage("Invalid option");
 
+if (!$opt{'quiet'})
+    {
+    print <<EOF
+WARNING: MySQL versions 5.0 and above feature the INFORMATION_SCHEMA
+pseudo-database which contains always up-to-date metadata information
+about all tables. So instead of using this script one can now
+simply query the INFORMATION_SCHEMA.SCHEMATA, INFORMATION_SCHEMA.TABLES,
+INFORMATION_SCHEMA.COLUMNS, INFORMATION_SCHEMA.STATISTICS pseudo-tables.
+Please see the MySQL manual for more information about INFORMATION_SCHEMA.
+This script will be removed from the MySQL distribution in version 5.1.
+EOF
+    }
+
 if ($opt{'help'}) {usage();}
 
 my ($db_to_write,$db_like_wild,$tbl_like_wild);
@@ -104,7 +125,7 @@ $tbl_like_wild=$dbh->quote($tbl_like_wild);
 
 if (!$opt{'quiet'})
 {
-    print "\n!! This program is doing to do:\n\n";
+    print "\n!! This program is going to do:\n\n";
     print "**DROP** TABLE ...\n" if ($opt{'clear'} or $opt{'clear-only'});
     print "**DELETE** FROM ... WHERE `Database` LIKE $db_like_wild AND `Table` LIKE $tbl_like_wild
 **INSERT** INTO ...
@@ -456,17 +477,14 @@ UNIX domain socket to use when connecting to server
 
 =head1 WARRANTY
 
-This software is free and comes without warranty of any kind. You
-should never trust backup software without studying the code yourself.
-Study the code inside this script and only rely on it if I<you> believe
-that it does the right thing for you.
+This software is free and comes without warranty of any kind.
 
 Patches adding bug fixes, documentation and new features are welcome.
 
 =head1 TO DO
 
-Use extended inserts to be faster (for servers with many databases
-or tables). But to do that, must care about net-buffer-length.
+Nothing: starting from MySQL 5.0, this program is replaced by the
+INFORMATION_SCHEMA pseudo-database.
 
 =head1 AUTHOR
 
