@@ -3701,6 +3701,30 @@ drop function bug8861|
 
 
 #
+# BUG#9004: Inconsistent behaviour of SP re. warnings
+#
+--disable_warnings
+drop procedure if exists bug9004_1|
+drop procedure if exists bug9004_2|
+--enable_warnings
+create procedure bug9004_1(x char(16))
+begin
+  insert into t1 values (x, 42);
+  insert into t1 values (x, 17);
+end|
+create procedure bug9004_2(x char(16))
+  call bug9004_1(x)|
+
+# Truncation warnings expected...
+call bug9004_1('12345678901234567')|
+call bug9004_2('12345678901234567890')|
+
+delete from t1|
+drop procedure bug9004_1|
+drop procedure bug9004_2|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
