@@ -1,0 +1,50 @@
+-- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+connection server1;
+drop table if exists t1;
+drop database if exists mysqltest;
+connection server2;
+drop table if exists t1;
+drop database if exists mysqltest;
+--enable_warnings
+
+#
+# Check that all tables in a database are dropped when database is dropped
+#
+
+connection server1;
+create database mysqltest;
+
+connection server2;
+create database mysqltest;
+create table mysqltest.t1 (a int primary key, b int) engine=ndb;
+use mysqltest;
+show tables;
+
+connection server1;
+drop database mysqltest;
+
+connection server2;
+use mysqltest;
+show tables;
+
+connection server1;
+create database mysqltest;
+create table mysqltest.t1 (c int, d int primary key) engine=ndb;
+use mysqltest;
+show tables;
+
+connection server2;
+drop database mysqltest;
+
+connection server1;
+use mysqltest;
+show tables;
+
+--disable_warnings
+drop table if exists t1;
+drop database if exists mysqltest;
+--enable_warnings
