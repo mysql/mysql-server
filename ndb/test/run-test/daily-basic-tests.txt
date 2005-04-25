@@ -7,24 +7,48 @@ cmd: atrt-testBackup
 args: -n NFMaster T1
 
 max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+
+max-time: 600
 cmd: atrt-testBackup
 args: -n NFMasterAsSlave T1
+
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
 
 max-time: 600
 cmd: atrt-testBackup
 args: -n NFSlave T1 
 
 max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+
+max-time: 600
 cmd: atrt-testBackup
 args: -n FailMaster T1
+
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
 
 max-time: 600
 cmd: atrt-testBackup
 args: -n FailMasterAsSlave T1
 
 max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+
+max-time: 600
 cmd: atrt-testBackup
 args: -n FailSlave T1
+
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
 
 max-time: 600
 cmd: atrt-testBackup
