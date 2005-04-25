@@ -616,7 +616,6 @@ row_search_on_row_ref(
 	ulint		low_match;	
 	rec_t*		rec;
 	dict_index_t*	index;
-	page_t*		page;	
 
 	ut_ad(dtuple_check_typed(ref));
 
@@ -629,9 +628,8 @@ row_search_on_row_ref(
 	low_match = btr_pcur_get_low_match(pcur);
 
 	rec = btr_pcur_get_rec(pcur);
-	page = buf_frame_align(rec);
 
-	if (rec == page_get_infimum_rec(page)) {
+	if (page_rec_is_infimum(rec)) {
 
 		return(FALSE);
 	}
@@ -702,7 +700,6 @@ row_search_index_entry(
 {
 	ulint	n_fields;
 	ulint	low_match;
-	page_t*	page;
 	rec_t*	rec;
 
 	ut_ad(dtuple_check_typed(entry));
@@ -711,11 +708,10 @@ row_search_index_entry(
 	low_match = btr_pcur_get_low_match(pcur);
 
 	rec = btr_pcur_get_rec(pcur);
-	page = buf_frame_align(rec);
 
 	n_fields = dtuple_get_n_fields(entry);
 
-	if (rec == page_get_infimum_rec(page)) {
+	if (page_rec_is_infimum(rec)) {
 
 		return(FALSE);
 	}

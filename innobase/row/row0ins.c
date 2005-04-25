@@ -1255,9 +1255,11 @@ run_again:
 	/* Scan index records and check if there is a matching record */
 
 	for (;;) {
+		page_t*	page;
 		rec = btr_pcur_get_rec(&pcur);
+		page = buf_frame_align(rec);
 
-		if (rec == page_get_infimum_rec(buf_frame_align(rec))) {
+		if (rec == page_get_infimum_rec(page)) {
 
 			goto next_rec;
 		}
@@ -1265,7 +1267,7 @@ run_again:
 		offsets = rec_get_offsets(rec, check_index,
 					offsets, ULINT_UNDEFINED, &heap);
 
-		if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
+		if (rec == page_get_supremum_rec(page)) {
 
 			err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, rec,
 						check_index, offsets, thr);
@@ -1529,12 +1531,7 @@ row_ins_dupl_error_with_rec(
 	        }
 	}
 
-	if (!rec_get_deleted_flag(rec, index->table->comp)) {
-
-	        return(TRUE);
-	}
-
-	return(FALSE);
+	return(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 }	
 
 /*******************************************************************
@@ -1629,7 +1626,7 @@ row_ins_scan_sec_index_for_duplicate(
 			break;
 		}
 
-		if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
+		if (page_rec_is_supremum(rec)) {
 		
 			goto next_rec;
 		}
@@ -1697,7 +1694,6 @@ row_ins_duplicate_error_in_clust(
 #ifndef UNIV_HOTBACKUP
 	ulint	err;
 	rec_t*	rec;
-	page_t*	page;
 	ulint	n_unique;
 	trx_t*	trx		= thr_get_trx(thr);
 	mem_heap_t*heap		= NULL;
@@ -1728,9 +1724,8 @@ row_ins_duplicate_error_in_clust(
 	if (cursor->low_match >= n_unique) {
 		
 		rec = btr_cur_get_rec(cursor);
-		page = buf_frame_align(rec);
 
-		if (rec != page_get_infimum_rec(page)) {
+		if (!page_rec_is_infimum(rec)) {
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						ULINT_UNDEFINED, &heap);
 
@@ -1772,9 +1767,8 @@ row_ins_duplicate_error_in_clust(
 	if (cursor->up_match >= n_unique) {
 
 		rec = page_rec_get_next(btr_cur_get_rec(cursor));
-		page = buf_frame_align(rec);
 
-		if (rec != page_get_supremum_rec(page)) {
+		if (!page_rec_is_supremum(rec)) {
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						ULINT_UNDEFINED, &heap);
 
@@ -1842,7 +1836,6 @@ row_ins_must_modify(
 {
 	ulint	enough_match;
 	rec_t*	rec;
-	page_t*	page;
 	
 	/* NOTE: (compare to the note in row_ins_duplicate_error) Because node
 	pointers on upper levels of the B-tree may match more to entry than
@@ -1856,9 +1849,8 @@ row_ins_must_modify(
 	if (cursor->low_match >= enough_match) {
 
 		rec = btr_cur_get_rec(cursor);
-		page = buf_frame_align(rec);
 
-		if (rec != page_get_infimum_rec(page)) {
+		if (!page_rec_is_infimum(rec)) {
 
 			return(ROW_INS_PREV);
 		}
@@ -1897,7 +1889,6 @@ row_ins_index_entry_low(
 	ulint		modify = 0; /* remove warning */
 	rec_t*		insert_rec;
 	rec_t*		rec;
-	rec_t*		first_rec;
 	ulint		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
@@ -1932,15 +1923,20 @@ row_ins_index_entry_low(
 		err = DB_SUCCESS;
 
 		goto function_exit;
-	}	
-					
-	first_rec = page_rec_get_next(page_get_infimum_rec(
-			buf_frame_align(btr_cur_get_rec(&cursor))));
-
-	if (!page_rec_is_supremum(first_rec)) {
-		ut_a(rec_get_n_fields(first_rec, index)
-			== dtuple_get_n_fields(entry));
 	}
+
+#ifdef UNIV_DEBUG
+	{
+		page_t*	page = btr_cur_get_page(&cursor);
+		rec_t*	first_rec = page_rec_get_next(
+				page_get_infimum_rec(page));
+
+		if (UNIV_LIKELY(first_rec != page_get_supremum_rec(page))) {
+			ut_a(rec_get_n_fields(first_rec, index)
+			== dtuple_get_n_fields(entry));
+		}
+	}
+#endif
 
 	n_unique = dict_index_get_n_unique(index);
 

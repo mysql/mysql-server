@@ -929,14 +929,14 @@ rec_get_nth_field(
 Determine if the offsets are for a record in the new
 compact format. */
 UNIV_INLINE
-ibool
+ulint
 rec_offs_comp(
 /*==========*/
-				/* out: TRUE if compact format */
+				/* out: nonzero if compact format */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
-	return((*rec_offs_base(offsets) & REC_OFFS_COMPACT) != 0);
+	return(*rec_offs_base(offsets) & REC_OFFS_COMPACT);
 }
 
 /**********************************************************

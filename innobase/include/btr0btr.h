@@ -168,7 +168,7 @@ btr_create(
 	ulint	type,	/* in: type of the index */
 	ulint	space,	/* in: space where created */
 	dulint	index_id,/* in: index id */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /****************************************************************
 Frees a B-tree except the root page, which MUST be freed after this
@@ -276,7 +276,7 @@ void
 btr_set_min_rec_mark(
 /*=================*/
 	rec_t*	rec,	/* in: record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	mtr_t*	mtr);	/* in: mtr */
 /*****************************************************************
 Deletes on the upper level the node pointer to a page. */
@@ -336,7 +336,7 @@ btr_parse_set_min_rec_mark(
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr);	/* in: mtr or NULL */
 /***************************************************************

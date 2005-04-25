@@ -78,16 +78,16 @@ UNIV_INLINE
 ibool
 page_cur_is_before_first(
 /*=====================*/
-				/* out: TRUE if at start */
-	page_cur_t*	cur);	/* in: cursor */
+					/* out: TRUE if at start */
+	const page_cur_t*	cur);	/* in: cursor */
 /*************************************************************
 Returns TRUE if the cursor is after last user record. */
 UNIV_INLINE
 ibool
 page_cur_is_after_last(
 /*===================*/
-				/* out: TRUE if at end */
-	page_cur_t*	cur);	/* in: cursor */
+					/* out: TRUE if at end */
+	const page_cur_t*	cur);	/* in: cursor */
 /**************************************************************
 Positions the cursor on the given record. */
 UNIV_INLINE
