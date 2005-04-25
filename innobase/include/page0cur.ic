@@ -69,15 +69,10 @@ UNIV_INLINE
 ibool
 page_cur_is_before_first(
 /*=====================*/
-				/* out: TRUE if at start */
-	page_cur_t*	cur)	/* in: cursor */
+					/* out: TRUE if at start */
+	const page_cur_t*	cur)	/* in: cursor */
 {
-	if (page_get_infimum_rec(page_cur_get_page(cur)) == cur->rec) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(page_rec_is_infimum(cur->rec));
 }
 
 /*************************************************************
@@ -86,15 +81,10 @@ UNIV_INLINE
 ibool
 page_cur_is_after_last(
 /*===================*/
-				/* out: TRUE if at end */
-	page_cur_t*	cur)	/* in: cursor */
+					/* out: TRUE if at end */
+	const page_cur_t*	cur)	/* in: cursor */
 {
-	if (page_get_supremum_rec(page_cur_get_page(cur)) == cur->rec) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(page_rec_is_supremum(cur->rec));
 }
 
 /**************************************************************

@@ -727,7 +727,7 @@ cmp_rec_rec_with_match(
 	ulint	cur_bytes; 	/* number of already matched bytes in current
 				field */
 	int	ret = 3333;	/* return value */
-	ibool	comp;
+	ulint	comp;
 
 	ut_ad(rec1 && rec2 && index);
 	ut_ad(rec_offs_validate(rec1, index, offsets1));

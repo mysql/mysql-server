@@ -265,7 +265,7 @@ row_mysql_store_col_in_innobase_format(
 					necessarily the length of the actual
 					payload data; if the column is a true
 					VARCHAR then this is irrelevant */
-	ibool		comp)		/* in: TRUE = compact format */
+	ulint		comp)		/* in: nonzero=compact format */
 {
 	byte*		ptr 	= mysql_data;
 	dtype_t*	dtype;
