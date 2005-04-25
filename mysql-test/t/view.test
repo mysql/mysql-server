@@ -1519,3 +1519,17 @@ SELECT a.col1,a.col2,b.col2,b.col3
  
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
+
+# BUG#8490 Select from views containing subqueries causes server to hang 
+# forever.
+create table t1 as select 1 A union select 2 union select 3;
+create table t2 as select * from t1;
+create view v1 as select * from t1 where a in (select * from t2);
+select * from v1 A, v1 B where A.a = B.a;
+create table t3 as select a a,a b from t2;
+create view v2 as select * from t3 where 
+  a in (select * from t1) or b in (select * from t2);
+select * from v2 A, v2 B where A.a = B.b;
+drop view v1, v2;
+drop table t1, t2, t3;
+
