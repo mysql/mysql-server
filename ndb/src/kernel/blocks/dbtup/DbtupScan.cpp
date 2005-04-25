@@ -38,7 +38,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     tablePtr.i = req->tableId;
     ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
     FragrecordPtr fragPtr[2];
-    Uint32 fragId = req->fragmentNo;
+    Uint32 fragId = req->fragmentNo << 1;
     fragPtr[0].i = fragPtr[1].i = RNIL;
     getFragmentrec(fragPtr[0], fragId | 0, tablePtr.p);
     getFragmentrec(fragPtr[1], fragId | 1, tablePtr.p);
