@@ -70,10 +70,10 @@ struct show_table_type_st sys_table_types[]=
 {
   {"MyISAM",	&have_yes,
    "Default engine as of MySQL 3.23 with great performance", DB_TYPE_MYISAM},
-  {"HEAP",	&have_yes,
-   "Alias for MEMORY", DB_TYPE_HEAP},
   {"MEMORY",	&have_yes,
    "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP},
+  {"HEAP",	&have_yes,
+   "Alias for MEMORY", DB_TYPE_HEAP},
   {"MERGE",	&have_yes,
    "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM},
   {"MRG_MYISAM",&have_yes,
@@ -149,18 +149,27 @@ const char *ha_get_storage_engine(enum db_type db_type)
   return "none";
 }
 
+
+my_bool ha_storage_engine_is_enabled(enum db_type database_type)
+{
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if ((database_type == types->db_type) &&
+	(*types->value == SHOW_OPTION_YES))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
 	/* Use other database handler if databasehandler is not incompiled */
 
 enum db_type ha_checktype(enum db_type database_type)
 {
-  show_table_type_st *types;
-  THD *thd= current_thd;
-  for (types= sys_table_types; types->type; types++)
-  {
-    if ((database_type == types->db_type) && 
-	(*types->value == SHOW_OPTION_YES))
-      return database_type;
-  }
+  THD *thd;
+  if (ha_storage_engine_is_enabled(database_type))
+    return database_type;
 
   switch (database_type) {
 #ifndef NO_HASH
@@ -173,6 +182,7 @@ enum db_type ha_checktype(enum db_type database_type)
     break;
   }
   
+  thd= current_thd;
   return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
           (enum db_type) thd->variables.table_type :
           (enum db_type) global_system_variables.table_type !=

@@ -667,6 +667,8 @@ delete from t1|
 drop table if exists t3|
 create table t3 ( s char(16), d int)|
 call into_test4()|
+Warnings:
+Warning	1329	No data to FETCH
 select * from t3|
 s	d
 into4	NULL
@@ -1792,7 +1794,12 @@ end if;
 insert into t4 values (2, rc, t3);
 end|
 call bug1863(10)|
+Warnings:
+Note	1051	Unknown table 'temp_t1'
+Warning	1329	No data to FETCH
 call bug1863(10)|
+Warnings:
+Warning	1329	No data to FETCH
 select * from t4|
 f1	rc	t3
 2	0	NULL
@@ -2090,7 +2097,11 @@ begin
 end|
 call bug4579_1()|
 call bug4579_1()|
+Warnings:
+Warning	1329	No data to FETCH
 call bug4579_1()|
+Warnings:
+Warning	1329	No data to FETCH
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
@@ -2908,4 +2919,126 @@ v/10
 10.00000
 drop procedure bug9674_1|
 drop procedure bug9674_2|
+drop procedure if exists bug9598_1|
+drop procedure if exists bug9598_2|
+create procedure bug9598_1(in var_1 char(16),
+out var_2 integer, out var_3 integer)
+begin
+set var_2 = 50;
+set var_3 = 60;
+end|
+create procedure bug9598_2(in v1 char(16),
+in v2 integer,
+in v3 integer,
+in v4 integer,
+in v5 integer)
+begin
+select v1,v2,v3,v4,v5;
+call bug9598_1(v1,@tmp1,@tmp2);
+select v1,v2,v3,v4,v5;
+end|
+call bug9598_2('Test',2,3,4,5)|
+v1	v2	v3	v4	v5
+Test	2	3	4	5
+v1	v2	v3	v4	v5
+Test	2	3	4	5
+select @tmp1, @tmp2|
+@tmp1	@tmp2
+50	60
+drop procedure bug9598_1|
+drop procedure bug9598_2|
+drop procedure if exists bug9902|
+create function bug9902() returns int(11)
+begin
+set @x = @x + 1;
+return @x;
+end|
+set @qcs1 = @@query_cache_size|
+set global query_cache_size = 100000|
+set @x = 1|
+insert into t1 values ("qc", 42)|
+select bug9902() from t1|
+bug9902()
+2
+select bug9902() from t1|
+bug9902()
+3
+select @x|
+@x
+3
+set global query_cache_size = @qcs1|
+delete from t1|
+drop function bug9902|
+drop procedure if exists bug6898|
+create procedure bug6898()
+begin
+goto label1;
+label label1;
+begin end;
+goto label1;
+end|
+drop procedure bug6898|
+drop function if exists bug9102|
+create function bug9102() returns blob return 'a'|
+select bug9102()|
+bug9102()
+a
+drop function bug9102|
+drop function if exists bug7648|
+create function bug7648() returns bit(8) return 'a'|
+select bug7648()|
+bug7648()
+a
+drop function bug7648|
+drop function if exists bug9775|
+create function bug9775(v1 char(1)) returns enum('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('c')|
+bug9775('a')	bug9775('b')	bug9775('c')
+a	b	
+drop function bug9775|
+create function bug9775(v1 int) returns enum('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3)|
+bug9775(1)	bug9775(2)	bug9775(3)
+a	b	
+drop function bug9775|
+create function bug9775(v1 char(1)) returns set('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('a,b'),bug9775('c')|
+bug9775('a')	bug9775('b')	bug9775('a,b')	bug9775('c')
+a	b	a,b	
+drop function bug9775|
+create function bug9775(v1 int) returns set('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3),bug9775(4)|
+bug9775(1)	bug9775(2)	bug9775(3)	bug9775(4)
+a	b	a,b	
+drop function bug9775|
+drop function if exists bug8861|
+create function bug8861(v1 int) returns year return v1|
+select bug8861(05)|
+bug8861(05)
+2005
+set @x = bug8861(05)|
+select @x|
+@x
+2005
+drop function bug8861|
+drop procedure if exists bug9004_1|
+drop procedure if exists bug9004_2|
+create procedure bug9004_1(x char(16))
+begin
+insert into t1 values (x, 42);
+insert into t1 values (x, 17);
+end|
+create procedure bug9004_2(x char(16))
+call bug9004_1(x)|
+call bug9004_1('12345678901234567')|
+Warnings:
+Warning	1265	Data truncated for column 'id' at row 1
+Warning	1265	Data truncated for column 'id' at row 2
+call bug9004_2('12345678901234567890')|
+Warnings:
+Warning	1265	Data truncated for column 'id' at row 1
+Warning	1265	Data truncated for column 'id' at row 2
+delete from t1|
+drop procedure bug9004_1|
+drop procedure bug9004_2|
 drop table t1,t2;

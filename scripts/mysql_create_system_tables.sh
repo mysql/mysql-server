@@ -722,6 +722,7 @@ fi
 
 cat << END_OF_DATA
 use mysql;
+set table_type=myisam;
 $c_d
 $i_d
 

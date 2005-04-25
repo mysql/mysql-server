@@ -330,6 +330,7 @@ BuildMySQL "--enable-shared \
 		--with-archive \
 		--with-csv-storage-engine \
 		--with-example-storage-engine \
+		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 		--with-embedded-server \
 		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
@@ -362,11 +363,6 @@ fi
 # Save libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
-
-# Save manual to avoid rebuilding
-mv Docs/manual.ps Docs/manual.ps.save
-make clean
-mv Docs/manual.ps.save Docs/manual.ps
 
 #
 # Only link statically on our i386 build host (which has a specially
@@ -535,8 +531,6 @@ fi
 %defattr(-,root,root,0755)
 
 %doc COPYING README 
-%doc Docs/manual.{html,ps,texi,txt}
-%doc Docs/manual_toc.html
 %doc support-files/my-*.cnf
 %doc support-files/ndb-*.ini
 
@@ -691,7 +685,16 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
-%changelog
+%changelog 
+* Wed Apr 20 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Enabled the "blackhole" storage engine for the Max RPM
+
+* Wed Apr 13 2005 Lenz Grimmer <lenz@mysql.com>
+
+- removed the MySQL manual files (html/ps/texi) - they have been removed
+  from the MySQL sources and are now available seperately.
+
 * Mon Apr 4 2005 Petr Chardin <petr@mysql.com>
 
 - old mysqlmanager, mysqlmanagerc and mysqlmanager-pwger renamed into

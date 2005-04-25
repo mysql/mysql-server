@@ -145,11 +145,6 @@ int mysql_update(THD *thd,
     DBUG_PRINT("info", ("Switch to multi-update"));
     /* pass counter value */
     thd->lex->table_count= table_count;
-    /*
-      give correct value to multi_lock_option, because it will be used
-      in multiupdate
-    */
-    thd->lex->multi_lock_option= table_list->lock_type;
     /* convert to multiupdate */
     return 2;
   }
@@ -692,8 +687,10 @@ bool mysql_multi_update_prepare(THD *thd)
       }
 
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
-      tl->lock_type= lex->multi_lock_option;
-      tl->updating= 1;
+      /*
+        If table will be updated we should not downgrade lock for it and
+        leave it as is.
+      */
     }
     else
     {
@@ -705,15 +702,15 @@ bool mysql_multi_update_prepare(THD *thd)
       */
       tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
       tl->updating= 0;
+      /* Update TABLE::lock_type accordingly. */
+      if (!tl->placeholder() && !tl->schema_table && !using_lock_tables)
+        tl->table->reginfo.lock_type= tl->lock_type;
     }
 
     /* Check access privileges for table */
     if (!tl->derived && !tl->belong_to_view)
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
-      if (!using_lock_tables)
-        tl->table->reginfo.lock_type= tl->lock_type;
-
       if (check_access(thd, want_privilege,
                         tl->db, &tl->grant.privilege, 0, 0) ||
           (grant_option && check_grant(thd, want_privilege, tl, 0, 1, 0)))
@@ -847,7 +844,7 @@ bool mysql_multi_update(THD *thd,
                       result, unit, select_lex);
   delete result;
   thd->abort_on_warning= 0;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
 }
 
 

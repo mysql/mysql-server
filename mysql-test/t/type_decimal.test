@@ -326,3 +326,20 @@ SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING a <> b;
 SELECT i, ROUND(SUM(d1), 2) AS a, ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY i
 HAVING a <> b;
 drop table t1;
+
+#
+# A test case for Bug#4956 "strange result, insert into longtext, parameter
+# with numeric value": ensure that conversion is done identically no matter
+# where the input data comes from.
+#
+create table t1 (c1 varchar(100), c2 longtext);
+insert into t1 set c1= 'non PS, 1.0 as constant', c2=1.0;
+prepare stmt from "insert into t1 set c1='PS, 1.0 as constant    ', c2=1.0";
+execute stmt;
+set @a=1.0;
+insert into t1 set c1='non PS, 1.0 in parameter', c2=@a;
+prepare stmt from "insert into t1 set c1='PS, 1.0 in parameter    ', c2=?";
+execute stmt using @a;
+select * from t1;
+deallocate prepare stmt;
+drop table t1;

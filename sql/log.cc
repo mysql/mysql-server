@@ -2857,6 +2857,13 @@ int TC_LOG_BINLOG::open(const char *opt_name)
   pthread_mutex_init(&LOCK_prep_xids, MY_MUTEX_INIT_FAST);
   pthread_cond_init (&COND_prep_xids, 0);
 
+  if (!my_b_inited(&index_file))
+  {
+    /* There was a failure to open the index file, can't open the binlog */
+    cleanup();
+    return 1;
+  }
+
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
