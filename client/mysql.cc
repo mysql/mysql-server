@@ -691,8 +691,16 @@ static void usage(int version)
 #ifdef __NETWARE__
 #define printf	consoleprintf
 #endif
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",
-	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+
+#if defined(USE_LIBEDIT_INTERFACE)
+  const char* readline= "";
+#else
+  const char* readline= "readline";
+#endif
+
+  printf("%s  Ver %s Distrib %s, for %s (%s) using %s %s\n",
+	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
+         readline, rl_library_version);
   if (version)
     return;
   printf("\
