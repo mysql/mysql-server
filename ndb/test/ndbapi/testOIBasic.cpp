@@ -164,6 +164,16 @@ irandom(unsigned n)
   return i;
 }
 
+static bool
+randompct(unsigned pct)
+{
+  if (pct == 0)
+    return false;
+  if (pct >= 100)
+    return true;
+  return urandom(100) < pct;
+}
+
 // log and error macros
 
 static NdbMutex *ndbout_mutex = NULL;
@@ -259,6 +269,8 @@ struct Par : public Opt {
   bool m_verify;
   // deadlock possible
   bool m_deadlock;
+  // abort percentabge
+  unsigned m_abortpct;
   NdbOperation::LockMode m_lockmode;
   // ordered range scan
   bool m_ordered;
@@ -281,6 +293,7 @@ struct Par : public Opt {
     m_randomkey(false),
     m_verify(false),
     m_deadlock(false),
+    m_abortpct(0),
     m_lockmode(NdbOperation::LM_Read),
     m_ordered(false),
     m_descending(false) {
@@ -1143,7 +1156,7 @@ struct Con {
   NdbScanFilter* m_scanfilter;
   enum ScanMode { ScanNo = 0, Committed, Latest, Exclusive };
   ScanMode m_scanmode;
-  enum ErrType { ErrNone = 0, ErrDeadlock, ErrOther };
+  enum ErrType { ErrNone = 0, ErrDeadlock, ErrNospace, ErrOther };
   ErrType m_errtype;
   Con() :
     m_ndb(0), m_dic(0), m_tx(0), m_op(0), m_indexop(0),
@@ -1172,7 +1185,7 @@ struct Con {
   int endFilter();
   int setFilter(int num, int cond, const void* value, unsigned len);
   int execute(ExecType t);
-  int execute(ExecType t, bool& deadlock);
+  int execute(ExecType t, bool& deadlock, bool& nospace);
   int readTuples(Par par);
   int readIndexTuples(Par par);
   int executeScan();
@@ -1354,16 +1367,20 @@ Con::execute(ExecType t)
 }
 
 int
-Con::execute(ExecType t, bool& deadlock)
+Con::execute(ExecType t, bool& deadlock, bool& nospace)
 {
   int ret = execute(t);
-  if (ret != 0) {
-    if (deadlock && m_errtype == ErrDeadlock) {
-      LL3("caught deadlock");
-      ret = 0;
-    }
+  if (ret != 0 && deadlock && m_errtype == ErrDeadlock) {
+    LL3("caught deadlock");
+    ret = 0;
   } else {
     deadlock = false;
+  }
+  if (ret != 0 && nospace && m_errtype == ErrNospace) {
+    LL3("caught nospace");
+    ret = 0;
+  } else {
+    nospace = false;
   }
   CHK(ret == 0);
   return 0;
@@ -1475,6 +1492,8 @@ Con::printerror(NdbOut& out)
         // 631 is new, occurs only on 4 db nodes, needs to be checked out
         if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499 || code == 631)
           m_errtype = ErrDeadlock;
+        if (code == 826 || code == 827 || code == 902)
+          m_errtype = ErrNospace;
       }
       if (m_op && m_op->getNdbError().code != 0) {
         LL0(++any << " op : error " << m_op->getNdbError());
@@ -2480,8 +2499,8 @@ struct Set {
   void dbsave(unsigned i);
   void calc(Par par, unsigned i, unsigned mask = 0);
   bool pending(unsigned i, unsigned mask) const;
-  void notpending(unsigned i);
-  void notpending(const Lst& lst);
+  void notpending(unsigned i, ExecType et = Commit);
+  void notpending(const Lst& lst, ExecType et = Commit);
   void dbdiscard(unsigned i);
   void dbdiscard(const Lst& lst);
   const Row& dbrow(unsigned i) const;
@@ -2620,26 +2639,30 @@ Set::pending(unsigned i, unsigned mask) const
 }
 
 void
-Set::notpending(unsigned i)
+Set::notpending(unsigned i, ExecType et)
 {
   assert(m_row[i] != 0);
   Row& row = *m_row[i];
-  if (row.m_pending == Row::InsOp) {
-    row.m_exist = true;
-  } else if (row.m_pending == Row::UpdOp) {
-    ;
-  } else if (row.m_pending == Row::DelOp) {
-    row.m_exist = false;
+  if (et == Commit) {
+    if (row.m_pending == Row::InsOp)
+      row.m_exist = true;
+    if (row.m_pending == Row::DelOp)
+      row.m_exist = false;
+  } else {
+    if (row.m_pending == Row::InsOp)
+      row.m_exist = false;
+    if (row.m_pending == Row::DelOp)
+      row.m_exist = true;
   }
   row.m_pending = Row::NoOp;
 }
 
 void
-Set::notpending(const Lst& lst)
+Set::notpending(const Lst& lst, ExecType et)
 {
   for (unsigned j = 0; j < lst.m_cnt; j++) {
     unsigned i = lst.m_arr[j];
-    notpending(i);
+    notpending(i, et);
   }
 }
 
@@ -2830,8 +2853,6 @@ Set::putval(unsigned i, bool force, unsigned n)
     m_rowkey[n] = i;
   return 0;
 }
-
-// verify
 
 int
 Set::verify(Par par, const Set& set2) const
@@ -3213,14 +3234,20 @@ pkinsert(Par par)
     lst.push(i);
     if (lst.cnt() == par.m_batch) {
       bool deadlock = par.m_deadlock;
-      CHK(con.execute(Commit, deadlock) == 0);
+      bool nospace = true;
+      ExecType et = randompct(par.m_abortpct) ? Rollback : Commit;
+      CHK(con.execute(et, deadlock, nospace) == 0);
       con.closeTransaction();
       if (deadlock) {
         LL1("pkinsert: stop on deadlock [at 1]");
         return 0;
       }
+      if (nospace) {
+        LL1("pkinsert: cnt=" << j << " stop on nospace");
+        return 0;
+      }
       set.lock();
-      set.notpending(lst);
+      set.notpending(lst, et);
       set.unlock();
       lst.reset();
       CHK(con.startTransaction() == 0);
@@ -3228,14 +3255,20 @@ pkinsert(Par par)
   }
   if (lst.cnt() != 0) {
     bool deadlock = par.m_deadlock;
-    CHK(con.execute(Commit, deadlock) == 0);
+    bool nospace = true;
+    ExecType et = randompct(par.m_abortpct) ? Rollback : Commit;
+    CHK(con.execute(et, deadlock, nospace) == 0);
     con.closeTransaction();
     if (deadlock) {
       LL1("pkinsert: stop on deadlock [at 2]");
       return 0;
     }
+    if (nospace) {
+      LL1("pkinsert: end: stop on nospace");
+      return 0;
+    }
     set.lock();
-    set.notpending(lst);
+    set.notpending(lst, et);
     set.unlock();
     return 0;
   }
@@ -3253,6 +3286,7 @@ pkupdate(Par par)
   CHK(con.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
     unsigned i = thrrow(par, j2);
@@ -3269,28 +3303,38 @@ pkupdate(Par par)
     lst.push(i);
     if (lst.cnt() == par.m_batch) {
       deadlock = par.m_deadlock;
-      CHK(con.execute(Commit, deadlock) == 0);
+      nospace = true;
+      ExecType et = randompct(par.m_abortpct) ? Rollback : Commit;
+      CHK(con.execute(et, deadlock, nospace) == 0);
       if (deadlock) {
         LL1("pkupdate: stop on deadlock [at 1]");
         break;
       }
+      if (nospace) {
+        LL1("pkupdate: cnt=" << j << " stop on nospace [at 1]");
+        break;
+      }
       con.closeTransaction();
       set.lock();
-      set.notpending(lst);
+      set.notpending(lst, et);
       set.dbdiscard(lst);
       set.unlock();
       lst.reset();
       CHK(con.startTransaction() == 0);
     }
   }
-  if (! deadlock && lst.cnt() != 0) {
+  if (! deadlock && ! nospace && lst.cnt() != 0) {
     deadlock = par.m_deadlock;
-    CHK(con.execute(Commit, deadlock) == 0);
+    nospace = true;
+    ExecType et = randompct(par.m_abortpct) ? Rollback : Commit;
+    CHK(con.execute(et, deadlock, nospace) == 0);
     if (deadlock) {
-      LL1("pkupdate: stop on deadlock [at 1]");
+      LL1("pkupdate: stop on deadlock [at 2]");
+    } else if (nospace) {
+      LL1("pkupdate: end: stop on nospace [at 2]");
     } else {
       set.lock();
-      set.notpending(lst);
+      set.notpending(lst, et);
       set.dbdiscard(lst);
       set.unlock();
     }
@@ -3309,6 +3353,7 @@ pkdelete(Par par)
   CHK(con.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
     unsigned i = thrrow(par, j2);
@@ -3323,27 +3368,31 @@ pkdelete(Par par)
     lst.push(i);
     if (lst.cnt() == par.m_batch) {
       deadlock = par.m_deadlock;
-      CHK(con.execute(Commit, deadlock) == 0);
+      nospace = true;
+      ExecType et = randompct(par.m_abortpct) ? Rollback : Commit;
+      CHK(con.execute(et, deadlock, nospace) == 0);
       if (deadlock) {
         LL1("pkdelete: stop on deadlock [at 1]");
         break;
       }
       con.closeTransaction();
       set.lock();
-      set.notpending(lst);
+      set.notpending(lst, et);
       set.unlock();
       lst.reset();
       CHK(con.startTransaction() == 0);
     }
   }
-  if (! deadlock && lst.cnt() != 0) {
+  if (! deadlock && ! nospace && lst.cnt() != 0) {
     deadlock = par.m_deadlock;
-    CHK(con.execute(Commit, deadlock) == 0);
+    nospace = true;
+    ExecType et = randompct(par.m_abortpct) ? Rollback : Commit;
+    CHK(con.execute(et, deadlock, nospace) == 0);
     if (deadlock) {
       LL1("pkdelete: stop on deadlock [at 2]");
     } else {
       set.lock();
-      set.notpending(lst);
+      set.notpending(lst, et);
       set.unlock();
     }
   }
@@ -3418,6 +3467,7 @@ hashindexupdate(Par par, const ITab& itab)
   CHK(con.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
     unsigned i = thrrow(par, j2);
@@ -3435,7 +3485,7 @@ hashindexupdate(Par par, const ITab& itab)
     lst.push(i);
     if (lst.cnt() == par.m_batch) {
       deadlock = par.m_deadlock;
-      CHK(con.execute(Commit, deadlock) == 0);
+      CHK(con.execute(Commit, deadlock, nospace) == 0);
       if (deadlock) {
         LL1("hashindexupdate: stop on deadlock [at 1]");
         break;
@@ -3451,9 +3501,9 @@ hashindexupdate(Par par, const ITab& itab)
   }
   if (! deadlock && lst.cnt() != 0) {
     deadlock = par.m_deadlock;
-    CHK(con.execute(Commit, deadlock) == 0);
+    CHK(con.execute(Commit, deadlock, nospace) == 0);
     if (deadlock) {
-      LL1("hashindexupdate: stop on deadlock [at 1]");
+      LL1("hashindexupdate: stop on deadlock [at 2]");
     } else {
       set.lock();
       set.notpending(lst);
@@ -3474,6 +3524,7 @@ hashindexdelete(Par par, const ITab& itab)
   CHK(con.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
     unsigned i = thrrow(par, j2);
@@ -3488,7 +3539,7 @@ hashindexdelete(Par par, const ITab& itab)
     lst.push(i);
     if (lst.cnt() == par.m_batch) {
       deadlock = par.m_deadlock;
-      CHK(con.execute(Commit, deadlock) == 0);
+      CHK(con.execute(Commit, deadlock, nospace) == 0);
       if (deadlock) {
         LL1("hashindexdelete: stop on deadlock [at 1]");
         break;
@@ -3503,7 +3554,7 @@ hashindexdelete(Par par, const ITab& itab)
   }
   if (! deadlock && lst.cnt() != 0) {
     deadlock = par.m_deadlock;
-    CHK(con.execute(Commit, deadlock) == 0);
+    CHK(con.execute(Commit, deadlock, nospace) == 0);
     if (deadlock) {
       LL1("hashindexdelete: stop on deadlock [at 2]");
     } else {
@@ -3875,6 +3926,7 @@ scanupdatetable(Par par)
   CHK(con2.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   while (1) {
     int ret;
     deadlock = par.m_deadlock;
@@ -3910,7 +3962,7 @@ scanupdatetable(Par par)
       set.unlock();
       if (lst.cnt() == par.m_batch) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdatetable: stop on deadlock [at 2]");
           goto out;
@@ -3927,7 +3979,7 @@ scanupdatetable(Par par)
       CHK((ret = con.nextScanResult(false)) == 0 || ret == 1 || ret == 2);
       if (ret == 2 && lst.cnt() != 0) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdatetable: stop on deadlock [at 3]");
           goto out;
@@ -3974,6 +4026,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   CHK(con2.startTransaction() == 0);
   Lst lst;
   bool deadlock = false;
+  bool nospace = false;
   while (1) {
     int ret;
     deadlock = par.m_deadlock;
@@ -4009,7 +4062,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
       set.unlock();
       if (lst.cnt() == par.m_batch) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdateindex: stop on deadlock [at 2]");
           goto out;
@@ -4026,7 +4079,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
       CHK((ret = con.nextScanResult(false)) == 0 || ret == 1 || ret == 2);
       if (ret == 2 && lst.cnt() != 0) {
         deadlock = par.m_deadlock;
-        CHK(con2.execute(Commit, deadlock) == 0);
+        CHK(con2.execute(Commit, deadlock, nospace) == 0);
         if (deadlock) {
           LL1("scanupdateindex: stop on deadlock [at 3]");
           goto out;
@@ -4094,6 +4147,10 @@ readverify(Par par)
   if (par.m_noverify)
     return 0;
   par.m_verify = true;
+  if (par.m_abortpct != 0) {
+    LL2("skip verify in this version"); // implement in 5.0 version
+    par.m_verify = false;
+  }
   par.m_lockmode = NdbOperation::LM_CommittedRead;
   CHK(pkread(par) == 0);
   CHK(scanreadall(par) == 0);
@@ -4106,6 +4163,10 @@ readverifyfull(Par par)
   if (par.m_noverify)
     return 0;
   par.m_verify = true;
+  if (par.m_abortpct != 0) {
+    LL2("skip verify in this version"); // implement in 5.0 version
+    par.m_verify = false;
+  }
   par.m_lockmode = NdbOperation::LM_CommittedRead;
   const Tab& tab = par.tab();
   if (par.m_no == 0) {
@@ -4457,11 +4518,11 @@ runstep(Par par, const char* fname, TFunc func, unsigned mode)
   for (n = 0; n < threads; n++) {
     LL4("start " << n);
     Thr& thr = *g_thrlist[n];
-    thr.m_par.m_tab = par.m_tab;
-    thr.m_par.m_set = par.m_set;
-    thr.m_par.m_tmr = par.m_tmr;
-    thr.m_par.m_lno = par.m_lno;
-    thr.m_par.m_slno = par.m_slno;
+    Par oldpar = thr.m_par;
+    // update parameters
+    thr.m_par = par;
+    thr.m_par.m_no = oldpar.m_no;
+    thr.m_par.m_con = oldpar.m_con;
     thr.m_func = func;
     thr.start();
   }
@@ -4591,6 +4652,24 @@ tbusybuild(Par par)
 }
 
 static int
+trollback(Par par)
+{
+  par.m_abortpct = 50;
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
+  RUNSTEP(par, pkinsert, MT);
+  RUNSTEP(par, createindex, ST);
+  RUNSTEP(par, invalidateindex, MT);
+  RUNSTEP(par, readverify, ST);
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
+    RUNSTEP(par, mixedoperations, MT);
+    RUNSTEP(par, readverify, ST);
+  }
+  return 0;
+}
+
+static int
 ttimebuild(Par par)
 {
   Tmr t1;
@@ -4712,6 +4791,7 @@ tcaselist[] = {
   TCase("d", tpkopsread, "pk operations and scan reads"),
   TCase("e", tmixedops, "pk operations and scan operations"),
   TCase("f", tbusybuild, "pk operations and index build"),
+  TCase("g", trollback, "operations with random rollbacks"),
   TCase("t", ttimebuild, "time index build"),
   TCase("u", ttimemaint, "time index maintenance"),
   TCase("v", ttimescan, "time full scan table vs index on pk"),
