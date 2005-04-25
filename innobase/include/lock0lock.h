@@ -216,6 +216,7 @@ actual record is being moved. */
 void
 lock_rec_store_on_page_infimum(
 /*===========================*/
+	page_t*	page,	/* in: page containing the record */
 	rec_t*	rec);	/* in: record whose lock state is stored
 			on the infimum record of the same page; lock
 			bits are reset on the record */

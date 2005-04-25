@@ -382,10 +382,10 @@ Returns the value of the modify clock. The caller must have an s-lock
 or x-lock on the block. */
 UNIV_INLINE
 dulint
-buf_frame_get_modify_clock(
+buf_block_get_modify_clock(
 /*=======================*/
 				/* out: value */
-	buf_frame_t*	frame);	/* in: pointer to a frame */
+	buf_block_t*	block);	/* in: block */
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value

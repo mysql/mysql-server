@@ -515,8 +515,12 @@ page_cur_insert_rec_write_log(
 	byte*	log_ptr;
 	byte*	log_end;
 	ulint	i;
+	ulint	comp;
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
+	ut_ad(buf_frame_align(insert_rec) == buf_frame_align(cursor_rec));
+	ut_ad(!page_rec_is_comp(insert_rec) == !index->table->comp);
+	comp = page_rec_is_comp(insert_rec);
 
 	{
 		mem_heap_t*	heap		= NULL;
@@ -565,7 +569,7 @@ page_cur_insert_rec_write_log(
 				ins_ptr++;
 				cur_ptr++;
 			} else if ((i < extra_size)
-				   && (i >= extra_size - (index->table->comp
+				   && (i >= extra_size - (comp
 					? REC_N_NEW_EXTRA_BYTES
 					: REC_N_OLD_EXTRA_BYTES))) {
 				i = extra_size;
@@ -580,7 +584,7 @@ page_cur_insert_rec_write_log(
 	if (mtr_get_log_mode(mtr) != MTR_LOG_SHORT_INSERTS) {
 
 		log_ptr = mlog_open_and_write_index(mtr, insert_rec, index,
-				index->table->comp
+				comp
 				? MLOG_COMP_REC_INSERT : MLOG_REC_INSERT,
 				2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
 
@@ -605,8 +609,8 @@ page_cur_insert_rec_write_log(
 		log_end = &log_ptr[5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
 	}
 
-	if ((rec_get_info_and_status_bits(insert_rec, index->table->comp) !=
-	     rec_get_info_and_status_bits(cursor_rec, index->table->comp))
+	if ((rec_get_info_and_status_bits(insert_rec, comp) !=
+	     rec_get_info_and_status_bits(cursor_rec, comp))
 	    || (extra_size != cur_extra_size)
 	    || (rec_size != cur_rec_size)) {
 
@@ -622,8 +626,7 @@ page_cur_insert_rec_write_log(
 	if (extra_info_yes) {
 		/* Write the info bits */
 		mach_write_to_1(log_ptr,
-			rec_get_info_and_status_bits(insert_rec,
-							index->table->comp));
+			rec_get_info_and_status_bits(insert_rec, comp));
 		log_ptr++;
 
 		/* Write the record origin offset */
@@ -757,6 +760,8 @@ page_cur_parse_insert_rec(
 		return(ptr + end_seg_len);
 	}
 
+	ut_ad(!!page_is_comp(page) == index->table->comp);
+
 	/* Read from the log the inserted index record end segment which
 	differs from the cursor record */
 
@@ -771,7 +776,7 @@ page_cur_parse_insert_rec(
 
 	if (extra_info_yes == 0) {
 		info_and_status_bits = rec_get_info_and_status_bits(
-					cursor_rec, index->table->comp);
+					cursor_rec, page_is_comp(page));
 		origin_offset = rec_offs_extra_size(offsets);
 		mismatch_index = rec_offs_size(offsets) - end_seg_len;
 	}
@@ -807,7 +812,7 @@ page_cur_parse_insert_rec(
 	ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
 	ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
 
-	rec_set_info_and_status_bits(buf + origin_offset, index->table->comp,
+	rec_set_info_and_status_bits(buf + origin_offset, page_is_comp(page),
 							info_and_status_bits);
 
 	page_cur_position(cursor_rec, &cursor);
@@ -861,7 +866,7 @@ page_cur_insert_rec_low(
 	rec_t*		owner_rec;
 	ulint		n_owned;
 	mem_heap_t*	heap		= NULL;
-	ibool		comp		= index->table->comp;
+	ulint		comp;
 
 	ut_ad(cursor && mtr);
 	ut_ad(tuple || rec);
@@ -869,8 +874,8 @@ page_cur_insert_rec_low(
 	ut_ad(rec || dtuple_check_typed(tuple));
 
 	page = page_cur_get_page(cursor);
-
-	ut_ad(page_is_comp(page) == comp);
+	comp = page_is_comp(page);
+	ut_ad(index->table->comp == !!comp);
 
 	ut_ad(cursor->rec != page_get_supremum_rec(page));	
 
@@ -1000,8 +1005,10 @@ page_copy_rec_list_to_created_page_write_log(
 {
 	byte*	log_ptr;
 
+	ut_ad(!!page_is_comp(page) == index->table->comp);
+
 	log_ptr = mlog_open_and_write_index(mtr, page, index,
-			index->table->comp
+			page_is_comp(page)
 			? MLOG_COMP_LIST_END_COPY_CREATED
 			: MLOG_LIST_END_COPY_CREATED, 4);
 	ut_a(log_ptr);
@@ -1084,7 +1091,7 @@ page_copy_rec_list_end_to_created_page(
 	ulint	log_mode;
 	byte*	log_ptr;
 	ulint	log_data_len;
-	ibool		comp		= page_is_comp(page);
+	ulint		comp		= page_is_comp(page);
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1230,8 +1237,10 @@ page_cur_delete_rec_write_log(
 {
 	byte*	log_ptr;
 
+	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
-			index->table->comp
+			page_rec_is_comp(rec)
 			? MLOG_COMP_REC_DELETE
 			: MLOG_REC_DELETE, 2);
 
@@ -1242,7 +1251,7 @@ page_cur_delete_rec_write_log(
 	}
 
 	/* Write the cursor rec offset as a 2-byte ulint */
-	mach_write_to_2(log_ptr, rec - buf_frame_align(rec));
+	mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
 
 	mlog_close(mtr, log_ptr + 2);
 }	
@@ -1320,6 +1329,7 @@ page_cur_delete_rec(
 	page = page_cur_get_page(cursor);
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
+	ut_ad(!!page_is_comp(page) == index->table->comp);
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(current_rec != page_get_supremum_rec(page));	

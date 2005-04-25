@@ -481,17 +481,11 @@ Returns the value of the modify clock. The caller must have an s-lock
 or x-lock on the block. */
 UNIV_INLINE
 dulint
-buf_frame_get_modify_clock(
+buf_block_get_modify_clock(
 /*=======================*/
 				/* out: value */
-	buf_frame_t*	frame)	/* in: pointer to a frame */
+	buf_block_t*	block)	/* in: block */
 {
-	buf_block_t*	block;
-
-	ut_ad(frame);
-
-	block = buf_block_align(frame);
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));

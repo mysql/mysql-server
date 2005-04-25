@@ -736,7 +736,7 @@ dict_truncate_index_tree(
 	dulint		index_id;
 	byte*		ptr;
 	ulint		len;
-	ibool		comp;
+	ulint		comp;
 	dict_index_t*	index;
 
 #ifdef UNIV_SYNC_DEBUG

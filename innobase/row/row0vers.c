@@ -61,7 +61,7 @@ row_vers_impl_x_locked_off_kernel(
 	ibool		rec_del;
 	ulint		err;
 	mtr_t		mtr;
-	ibool		comp;
+	ulint		comp;
 	
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -121,10 +121,10 @@ row_vers_impl_x_locked_off_kernel(
 		goto exit_func;
 	}
 
-	comp = index->table->comp;
+	comp = page_rec_is_comp(rec);
 	ut_ad(index->table == clust_index->table);
-	ut_ad(comp == page_is_comp(buf_frame_align(rec)));
-	ut_ad(comp == page_is_comp(buf_frame_align(clust_rec)));
+	ut_ad(!!comp == index->table->comp);
+	ut_ad(!comp == !page_rec_is_comp(clust_rec));
 
 	/* We look up if some earlier version, which was modified by the trx_id
 	transaction, of the clustered index record would require rec to be in
@@ -310,7 +310,7 @@ row_vers_old_has_index_entry(
 	dtuple_t*	row;
 	dtuple_t*	entry;
 	ulint		err;
-	ibool		comp;
+	ulint		comp;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
 	   	|| mtr_memo_contains(mtr, buf_block_align(rec),
@@ -322,8 +322,8 @@ row_vers_old_has_index_entry(
 
 	clust_index = dict_table_get_first_index(index->table);
 
-	comp = index->table->comp;
-	ut_ad(comp == page_is_comp(buf_frame_align(rec)));
+	comp = page_rec_is_comp(rec);
+	ut_ad(!index->table->comp == !comp);
 	heap = mem_heap_create(1024);
 	clust_offsets = rec_get_offsets(rec, clust_index, NULL,
 					ULINT_UNDEFINED, &heap);

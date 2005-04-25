@@ -15,6 +15,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "dict0boot.h"
 #include "log0recv.h"
+#include "page0page.h"
 
 /************************************************************
 Catenates n bytes to the mtr log. */
@@ -405,7 +406,9 @@ mlog_open_and_write_index(
 	const byte*	log_start;
 	const byte*	log_end;
 
-	if (!index->table->comp) {
+	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+
+	if (!page_rec_is_comp(rec)) {
 		log_start = log_ptr = mlog_open(mtr, 11 + size);
 		if (!log_ptr) {
 			return(NULL); /* logging is disabled */
@@ -497,6 +500,8 @@ mlog_parse_index(
 	ulint		i, n, n_uniq;
 	dict_table_t*	table;
 	dict_index_t*	ind;
+
+	ut_ad(comp == FALSE || comp == TRUE);
 
 	if (comp) {
 		if (end_ptr < ptr + 4) {

@@ -155,14 +155,27 @@ page_header_reset_last_insert(
 /****************************************************************
 Determine whether the page is in new-style compact format. */
 UNIV_INLINE
-ibool
+ulint
 page_is_comp(
 /*=========*/
-			/* out: TRUE if the page is in compact format
-			FALSE if it is in old-style format */
-	page_t* page)	/* in: index page */
+			/* out: nonzero if the page is in compact
+			format, zero if it is in old-style format */
+	page_t*	page)	/* in: index page */
 {
-	return(!!(page_header_get_field(page, PAGE_N_HEAP) & 0x8000));
+	return(UNIV_EXPECT(page_header_get_field(page, PAGE_N_HEAP) & 0x8000,
+		0x8000));
+}
+
+/****************************************************************
+TRUE if the record is on a page in compact format. */
+UNIV_INLINE
+ulint
+page_rec_is_comp(
+/*=============*/
+				/* out: nonzero if in compact format */
+	const rec_t*	rec)	/* in: record */
+{
+	return(page_is_comp(ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE)));
 }
 
 /****************************************************************
@@ -205,24 +218,81 @@ page_get_supremum_rec(
 TRUE if the record is a user record on the page. */
 UNIV_INLINE
 ibool
+page_rec_is_user_rec_low(
+/*=====================*/
+			/* out: TRUE if a user record */
+	ulint	offset)	/* in: record offset on page */
+{
+	ut_ad(offset >= PAGE_NEW_INFIMUM);
+#if PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM
+# error "PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM"
+#endif
+#if PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM
+# error "PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM"
+#endif
+#if PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM
+# error "PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM"
+#endif
+#if PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM
+# error "PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM"
+#endif
+#if PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END
+# error "PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END"
+#endif
+#if PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END
+# error "PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END"
+#endif
+	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
+
+	return(UNIV_LIKELY(offset != PAGE_NEW_SUPREMUM)
+		&& UNIV_LIKELY(offset != PAGE_NEW_INFIMUM)
+		&& UNIV_LIKELY(offset != PAGE_OLD_INFIMUM)
+		&& UNIV_LIKELY(offset != PAGE_OLD_SUPREMUM));
+}
+
+/****************************************************************
+TRUE if the record is the supremum record on a page. */
+UNIV_INLINE
+ibool
+page_rec_is_supremum_low(
+/*=====================*/
+			/* out: TRUE if the supremum record */
+	ulint	offset)	/* in: record offset on page */
+{
+	ut_ad(offset >= PAGE_NEW_INFIMUM);
+	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
+
+	return(UNIV_UNLIKELY(offset == PAGE_NEW_SUPREMUM)
+		|| UNIV_UNLIKELY(offset == PAGE_OLD_SUPREMUM));
+}
+
+/****************************************************************
+TRUE if the record is the infimum record on a page. */
+UNIV_INLINE
+ibool
+page_rec_is_infimum_low(
+/*=====================*/
+			/* out: TRUE if the infimum record */
+	ulint	offset)	/* in: record offset on page */
+{
+	ut_ad(offset >= PAGE_NEW_INFIMUM);
+	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
+
+	return(UNIV_UNLIKELY(offset == PAGE_NEW_INFIMUM)
+		|| UNIV_UNLIKELY(offset == PAGE_OLD_INFIMUM));
+}
+
+/****************************************************************
+TRUE if the record is a user record on the page. */
+UNIV_INLINE
+ibool
 page_rec_is_user_rec(
 /*=================*/
-			/* out: TRUE if a user record */
-	rec_t*	rec)	/* in: record */
+				/* out: TRUE if a user record */
+	const rec_t*	rec)	/* in: record */
 {
-	ut_ad(rec);
-
-	if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
-
-		return(FALSE);
-	}
-
-	if (rec == page_get_infimum_rec(buf_frame_align(rec))) {
-
-	     	return(FALSE);
-	}
-
-	return(TRUE);
+	return(page_rec_is_user_rec_low(
+			ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /****************************************************************
@@ -231,17 +301,11 @@ UNIV_INLINE
 ibool
 page_rec_is_supremum(
 /*=================*/
-			/* out: TRUE if the supremum record */
-	rec_t*	rec)	/* in: record */
+				/* out: TRUE if the supremum record */
+	const rec_t*	rec)	/* in: record */
 {
-	ut_ad(rec);
-
-	if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(page_rec_is_supremum_low(
+			ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /****************************************************************
@@ -250,67 +314,11 @@ UNIV_INLINE
 ibool
 page_rec_is_infimum(
 /*================*/
-			/* out: TRUE if the infimum record */
-	rec_t*	rec)	/* in: record */
+				/* out: TRUE if the infimum record */
+	const rec_t*	rec)	/* in: record */
 {
-	ut_ad(rec);
-
-	if (rec == page_get_infimum_rec(buf_frame_align(rec))) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
-}
-
-/****************************************************************
-TRUE if the record is the first user record on the page. */
-UNIV_INLINE
-ibool
-page_rec_is_first_user_rec(
-/*=======================*/
-			/* out: TRUE if first user record */
-	rec_t*	rec)	/* in: record */
-{
-	ut_ad(rec);
-
-	if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
-
-		return(FALSE);
-	}
-
-	if (rec == page_rec_get_next(
-	     		page_get_infimum_rec(buf_frame_align(rec)))) {
-
-	     	return(TRUE);
-	}
-
-	return(FALSE);
-}
-
-/****************************************************************
-TRUE if the record is the last user record on the page. */
-UNIV_INLINE
-ibool
-page_rec_is_last_user_rec(
-/*======================*/
-			/* out: TRUE if last user record */
-	rec_t*	rec)	/* in: record */
-{
-	ut_ad(rec);
-
-	if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
-
-		return(FALSE);
-	}
-
-	if (page_rec_get_next(rec)
-			== page_get_supremum_rec(buf_frame_align(rec))) {
-
-	     	return(TRUE);
-	}
-
-	return(FALSE);
+	return(page_rec_is_infimum_low(
+			ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /*****************************************************************
@@ -340,22 +348,26 @@ page_cmp_dtuple_rec_with_match(
 				matched; when function returns contains the
 				value for current comparison */
 {
-	page_t*	page;
+	ulint	rec_offset;
 
 	ut_ad(dtuple_check_typed(dtuple));
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_offs_comp(offsets) == !page_rec_is_comp(rec));
 
-	page = buf_frame_align(rec);	
+	rec_offset = ut_align_offset(rec, UNIV_PAGE_SIZE);
 
-	if (rec == page_get_infimum_rec(page)) {
+	if (UNIV_UNLIKELY(rec_offset == PAGE_NEW_INFIMUM)
+			|| UNIV_UNLIKELY(rec_offset == PAGE_OLD_INFIMUM)) {
 		return(1);
-	} else if (rec == page_get_supremum_rec(page)) {
+	}
+	if (UNIV_UNLIKELY(rec_offset == PAGE_NEW_SUPREMUM)
+			|| UNIV_UNLIKELY(rec_offset == PAGE_OLD_SUPREMUM)) {
 		return(-1);
-	} else {
-		return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
+	}
+
+	return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
 						matched_fields,
 						matched_bytes));
-	}
 }
 
 /*****************************************************************
@@ -482,7 +494,7 @@ page_dir_slot_set_rec(
 {
 	ut_ad(page_rec_check(rec));
 
-	mach_write_to_2(slot, rec - buf_frame_align(rec));
+	mach_write_to_2(slot, ut_align_offset(rec, UNIV_PAGE_SIZE));
 }
 
 /*******************************************************************
@@ -494,8 +506,8 @@ page_dir_slot_get_n_owned(
 					/* out: number of records */
 	page_dir_slot_t* 	slot)	/* in: page directory slot */
 {
-	return(rec_get_n_owned(page_dir_slot_get_rec(slot),
-		page_is_comp(buf_frame_align(slot))));
+	rec_t*	rec	= page_dir_slot_get_rec(slot);
+	return(rec_get_n_owned(rec, page_rec_is_comp(rec)));
 }
 
 /*******************************************************************
@@ -508,8 +520,8 @@ page_dir_slot_set_n_owned(
 	ulint			n)	/* in: number of records owned 
 					by the slot */
 {
-	rec_set_n_owned(page_dir_slot_get_rec(slot),
-		page_is_comp(buf_frame_align(slot)), n);
+	rec_t*	rec	= page_dir_slot_get_rec(slot);
+	rec_set_n_owned(rec, page_rec_is_comp(rec), n);
 }
 
 /****************************************************************
@@ -540,26 +552,25 @@ page_rec_get_next(
 
 	ut_ad(page_rec_check(rec));	
 
-	page = buf_frame_align(rec);
+	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	offs = rec_get_next_offs(rec, page_is_comp(page));
 
-	if (offs >= UNIV_PAGE_SIZE) {
+	if (UNIV_UNLIKELY(offs >= UNIV_PAGE_SIZE)) {
 		fprintf(stderr,
-"InnoDB: Next record offset is nonsensical %lu in record at offset %lu\n",
-		(ulong)offs, (ulong)(rec - page));
-		fprintf(stderr,
-"\nInnoDB: rec address %p, first buffer frame %p\n"
+"InnoDB: Next record offset is nonsensical %lu in record at offset %lu\n"
+"InnoDB: rec address %p, first buffer frame %p\n"
 "InnoDB: buffer pool high end %p, buf fix count %lu\n",
+				(ulong)offs, (ulong)(rec - page),
 				rec, buf_pool->frame_zero,
 				buf_pool->high_end,
 				(ulong)buf_block_align(rec)->buf_fix_count);
 		buf_page_print(page);
 
-		ut_a(0);
+		ut_error;
 	}
 
-	if (offs == 0) {
+	if (UNIV_UNLIKELY(offs == 0)) {
 		
 		return(NULL);
 	}
@@ -581,15 +592,12 @@ page_rec_set_next(
 	ulint	offs;
 
 	ut_ad(page_rec_check(rec));	
-	ut_a((next == NULL)
-	      || (buf_frame_align(rec) == buf_frame_align(next)));
-
-	page = buf_frame_align(rec);
-
-	ut_ad(rec != page_get_supremum_rec(page));
-	ut_ad(next != page_get_infimum_rec(page));
+	ut_ad(!page_rec_is_supremum(rec));
+	ut_ad(!page_rec_is_infimum(next));
+	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	if (next) {
+		ut_a(page == ut_align_down(next, UNIV_PAGE_SIZE));
 		offs = (ulint) (next - page);
 	} else {
 		offs = 0;
@@ -613,13 +621,12 @@ page_rec_get_prev(
 	rec_t*			rec2;
 	rec_t*			prev_rec = NULL;
 	page_t*			page;
-	ibool			comp;
 
 	ut_ad(page_rec_check(rec));	
 
 	page = buf_frame_align(rec);
 
-	ut_ad(rec != page_get_infimum_rec(page));
+	ut_ad(!page_rec_is_infimum(rec));
 
 	slot_no = page_dir_find_owner_slot(rec);
 
@@ -628,7 +635,6 @@ page_rec_get_prev(
 	slot = page_dir_get_nth_slot(page, slot_no - 1);
 	
 	rec2 = page_dir_slot_get_rec(slot);
-	comp = page_is_comp(page);
 	
 	while (rec != rec2) {
 		prev_rec = rec2;
@@ -649,13 +655,16 @@ page_rec_find_owner_rec(
 			/* out: the owner record */
 	rec_t*	rec)	/* in: the physical record */
 {
-	ibool	comp;
-
 	ut_ad(page_rec_check(rec));
-	comp = page_is_comp(buf_frame_align(rec));
 
-	while (rec_get_n_owned(rec, comp) == 0) {
-		rec = page_rec_get_next(rec);
+	if (page_rec_is_comp(rec)) {
+		while (rec_get_n_owned(rec, TRUE) == 0) {
+			rec = page_rec_get_next(rec);
+		}
+	} else {
+		while (rec_get_n_owned(rec, FALSE) == 0) {
+			rec = page_rec_get_next(rec);
+		}
 	}
 
 	return(rec);
@@ -691,10 +700,17 @@ ulint
 page_get_free_space_of_empty(
 /*=========================*/
 				/* out: free space */
-	ibool comp)		/* in: TRUE=compact page layout */
+	ulint	comp)		/* in: nonzero=compact page layout */
 {
+	if (UNIV_LIKELY(comp)) {
+		return((ulint)(UNIV_PAGE_SIZE
+		- PAGE_NEW_SUPREMUM_END
+		- PAGE_DIR
+		- 2 * PAGE_DIR_SLOT_SIZE));
+	}
+
 	return((ulint)(UNIV_PAGE_SIZE
-		- (comp ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END)
+		- PAGE_OLD_SUPREMUM_END
 		- PAGE_DIR
 		- 2 * PAGE_DIR_SLOT_SIZE));
 }
@@ -716,17 +732,21 @@ page_get_max_insert_size(
 {
 	ulint	occupied;
 	ulint	free_space;
-	ibool	comp;
 
-	comp = page_is_comp(page);
-
-	occupied = page_header_get_field(page, PAGE_HEAP_TOP)
-		- (comp ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END)
-		+ page_dir_calc_reserved_space(
+	if (page_is_comp(page)) {
+		occupied = page_header_get_field(page, PAGE_HEAP_TOP)
+		- PAGE_NEW_SUPREMUM_END + page_dir_calc_reserved_space(
 			n_recs + page_dir_get_n_heap(page) - 2);
 
-	free_space = page_get_free_space_of_empty(comp);
-		     
+		free_space = page_get_free_space_of_empty(TRUE);
+	} else {
+		occupied = page_header_get_field(page, PAGE_HEAP_TOP)
+		- PAGE_OLD_SUPREMUM_END + page_dir_calc_reserved_space(
+			n_recs + page_dir_get_n_heap(page) - 2);
+
+		free_space = page_get_free_space_of_empty(FALSE);
+	}
+
 	/* Above the 'n_recs +' part reserves directory space for the new
 	inserted records; the '- 2' excludes page infimum and supremum
 	records */
@@ -752,14 +772,11 @@ page_get_max_insert_size_after_reorganize(
 {
 	ulint	occupied;
 	ulint	free_space;
-	ibool	comp;
 
-	comp = page_is_comp(page);
-	
 	occupied = page_get_data_size(page)
 		+ page_dir_calc_reserved_space(n_recs + page_get_n_recs(page));
 
-	free_space = page_get_free_space_of_empty(comp);
+	free_space = page_get_free_space_of_empty(page_is_comp(page));
 
 	if (occupied > free_space) {
 
@@ -783,6 +800,7 @@ page_mem_free(
 	ulint		garbage;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_offs_comp(offsets) == !page_rec_is_comp(rec));
 	free = page_header_get_ptr(page, PAGE_FREE);
 
 	page_rec_set_next(rec, free);
