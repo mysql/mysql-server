@@ -226,3 +226,17 @@ select * from t1;
 a	b
 0	2
 drop table t1;
+create table t1 (a int, b varchar(10), key b(b(5))) engine=myisam;
+create table t2 (a int, b varchar(10)) engine=myisam;
+insert into t1 values ( 1, 'abcd1e');
+insert into t1 values ( 2, 'abcd2e');
+insert into t2 values ( 1, 'abcd1e');
+insert into t2 values ( 2, 'abcd2e');
+analyze table t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+update t1, t2 set t1.a = t2.a where t2.b = t1.b;
+show warnings;
+Level	Code	Message
+drop table t1, t2;

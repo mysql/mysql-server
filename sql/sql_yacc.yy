@@ -1407,6 +1407,16 @@ create_function_tail:
 					      lex->uint_geom_type)))
 	      YYABORT;
 
+	    sp->m_returns_cs= new_field->charset;
+
+            if (new_field->sql_type == FIELD_TYPE_SET ||
+                new_field->sql_type == FIELD_TYPE_ENUM)
+            {
+	      new_field->interval= 
+                sp->create_typelib(&new_field->interval_list);
+            }
+            sp_prepare_create_field(YYTHD, new_field);
+
 	    if (prepare_create_field(new_field, &unused1, &unused2, &unused2,
 				     0))
 	      YYABORT;
@@ -1415,8 +1425,8 @@ create_function_tail:
 	    sp->m_returns_cs= new_field->charset;
 	    sp->m_returns_len= new_field->length;
 	    sp->m_returns_pack= new_field->pack_flag;
-	    sp->m_returns_typelib= 
-              sp->create_typelib(&new_field->interval_list);
+            sp->m_returns_typelib= new_field->interval;
+            new_field->interval= NULL;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
@@ -3305,6 +3315,11 @@ alter:
 	  {
 	    LEX *lex= Lex;
 
+	    if (lex->sphead)
+	    {
+	      my_error(ER_SP_NO_DROP_SP, MYF(0), "PROCEDURE");
+	      YYABORT;
+	    }
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
           }
 	  sp_a_chistics
@@ -3318,6 +3333,11 @@ alter:
 	  {
 	    LEX *lex= Lex;
 
+	    if (lex->sphead)
+	    {
+	      my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
+	      YYABORT;
+	    }
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
           }
 	  sp_a_chistics
@@ -3932,7 +3952,6 @@ select_part2:
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX *sel= lex->current_select;
-	  lex->lock_option= TL_READ;
 	  if (sel->linkage != UNION_TYPE)
 	    mysql_init_select(lex);
 	  lex->current_select->parsing_place= SELECT_LIST;
@@ -4598,14 +4617,16 @@ simple_expr:
 	  { $$= new Item_int((char*) "TRUE",1,1); }
 	| ident '.' ident '(' udf_expr_list ')'
 	  {
+	    LEX *lex= Lex;
 	    sp_name *name= new sp_name($1, $3);
 
 	    name->init_qname(YYTHD);
-	    sp_add_to_hash(&Lex->spfuns, name);
+	    sp_add_to_hash(&lex->spfuns, name);
 	    if ($5)
 	      $$= new Item_func_sp(name, *$5);
 	    else
 	      $$= new Item_func_sp(name);
+	    lex->safe_to_cache_query=0;
 	  }
 	| IDENT_sys '(' udf_expr_list ')'
           {
@@ -4686,13 +4707,15 @@ simple_expr:
             else
 #endif /* HAVE_DLOPEN */
             {
+	      LEX *lex= Lex;
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
-              sp_add_to_hash(&Lex->spfuns, name);
+              sp_add_to_hash(&lex->spfuns, name);
               if ($3)
                 $$= new Item_func_sp(name, *$3);
               else
                 $$= new Item_func_sp(name);
+	      lex->safe_to_cache_query=0;
 	    }
           }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
@@ -5969,10 +5992,7 @@ update:
 	{
 	  LEX *lex= Lex;
           if (lex->select_lex.table_list.elements > 1)
-	  {
             lex->sql_command= SQLCOM_UPDATE_MULTI;
-	    lex->multi_lock_option= $3;
-	  }
 	  else if (lex->select_lex.get_table_list()->derived)
 	  {
 	    /* it is single table update and it is update of derived table */
@@ -5980,8 +6000,12 @@ update:
                      lex->select_lex.get_table_list()->alias, "UPDATE");
 	    YYABORT;
 	  }
-	  else
-	    Select->set_lock_for_tables($3);
+          /*
+            In case of multi-update setting write lock for all tables may
+            be too pessimistic. We will decrease lock level if possible in
+            mysql_multi_update().
+          */
+          Select->set_lock_for_tables($3);
 	}
 	where_clause opt_order_clause delete_limit_clause {}
 	;

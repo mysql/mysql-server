@@ -116,15 +116,12 @@ char*	innobase_unix_file_flush_method		= NULL;
 values */
 
 uint	innobase_flush_log_at_trx_commit	= 1;
+ulong	innobase_fast_shutdown			= 1;
 my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool innobase_use_doublewrite    = TRUE;
 my_bool innobase_use_checksums      = TRUE;
 my_bool innobase_use_large_pages    = FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
-my_bool	innobase_fast_shutdown			= TRUE;
-my_bool innobase_very_fast_shutdown		= FALSE; /* this can be set to
-							 1 just prior calling
-							 innobase_end() */
 my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog        = FALSE;
 my_bool innobase_create_status_file		= FALSE;
@@ -1238,8 +1235,6 @@ innobase_init(void)
 	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
-	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
-
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
 
@@ -1330,17 +1325,7 @@ innobase_end(void)
 #endif
 	if (innodb_inited) {
 
-#ifndef __NETWARE__ 	/* NetWare can't close unclosed files, kill remaining
-                        threads, etc, so we disable the very fast shutdown */
-	  	if (innobase_very_fast_shutdown) {
-	    		srv_very_fast_shutdown = TRUE;
-	    		fprintf(stderr,
-"InnoDB: MySQL has requested a very fast shutdown without flushing\n"
-"InnoDB: the InnoDB buffer pool to data files. At the next mysqld startup\n"
-"InnoDB: InnoDB will do a crash recovery!\n");
-	  	}
-#endif
-
+	        srv_fast_shutdown = (ulint) innobase_fast_shutdown;
 	  	innodb_inited = 0;
 	  	if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
 	    		err = 1;
@@ -6533,7 +6518,7 @@ prototype for this function ! */
 
 ibool
 innobase_query_is_update(void)
-/*===========================*/
+/*==========================*/
 {
 	THD*	thd;
 	

@@ -410,6 +410,31 @@ begin
   label L1;
 end|
 
+# Check in and inout arguments.
+--disable_warnings
+drop procedure if exists p|
+--enable_warnings
+create procedure p(in x int, inout y int, out z int)
+begin
+  set y = x+y;
+  set z = x+y;
+end|
+
+set @tmp_x = 42|
+set @tmp_y = 3|
+set @tmp_z = 0|
+# For reference: this is ok
+call p(@tmp_x, @tmp_y, @tmp_z)|
+select @tmp_x, @tmp_y, @tmp_z|
+
+--error ER_SP_NOT_VAR_ARG
+call p(42, 43, @tmp_z)|
+--error ER_SP_NOT_VAR_ARG
+call p(42, @tmp_y, 43)|
+
+drop procedure p|
+
+
 #
 # BUG#1965
 #
@@ -790,6 +815,20 @@ begin
   end;
 end|
 drop procedure bug9073|
+
+
+#
+# BUG#7047: Stored procedure crash if alter procedure
+#
+--error ER_SP_NO_DROP_SP
+create procedure bug7047()
+  alter procedure bug7047|
+--error ER_SP_NO_DROP_SP
+create function bug7047() returns int
+begin
+  alter function bug7047;
+  return 0;
+end|
 
 
 #

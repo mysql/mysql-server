@@ -260,13 +260,15 @@ int check_user(THD *thd, enum enum_server_command command,
   
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   thd->master_access= GLOBAL_ACLS;			// Full rights
-  /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
+  /* Change database if necessary */
   if (db && db[0])
   {
     thd->db= 0;
     thd->db_length= 0;
     if (mysql_change_db(thd, db))
     {
+      /* Send the error to the client */
+      net_send_error(thd);
       if (thd->user_connect)
 	decrease_user_connections(thd->user_connect);
       DBUG_RETURN(-1);
@@ -395,11 +397,13 @@ int check_user(THD *thd, enum enum_server_command command,
 	  check_for_max_user_connections(thd, thd->user_connect))
 	DBUG_RETURN(-1);
 
-      /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
+      /* Change database if necessary */
       if (db && db[0])
       {
         if (mysql_change_db(thd, db))
         {
+          /* Send error to the client */
+          net_send_error(thd);
           if (thd->user_connect)
             decrease_user_connections(thd->user_connect);
           DBUG_RETURN(-1);
@@ -2264,9 +2268,11 @@ mysql_execute_command(THD *thd)
     A better approach would be to reset this for any commands
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
+    Don't reset warnings when executing a stored routine.
   */
-  if (all_tables || &lex->select_lex != lex->all_selects_list ||
-      lex->spfuns.records || lex->spprocs.records)
+  if ((all_tables || &lex->select_lex != lex->all_selects_list ||
+       lex->spfuns.records || lex->spprocs.records) &&
+      !thd->spcont)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION

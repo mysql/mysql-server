@@ -179,11 +179,11 @@ ErrorBundle ErrorCodes[] = {
    */
   { 623,  IS, "623" },
   { 624,  IS, "624" },
-  { 625,  IS, "Out of memory in Ndb Kernel, index part (increase IndexMemory)" },
+  { 625,  IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
   { 640,  IS, "Too many hash indexes (should not happen)" },
   { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
-  { 827,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
-  { 902,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
+  { 827,  IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
+  { 902,  IS, "Out of memory in Ndb Kernel, ordered index data (increase DataMemory)" },
   { 903,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  IS, "Out of attribute records (increase MaxNoOfAttributes)" },
@@ -356,6 +356,8 @@ ErrorBundle ErrorCodes[] = {
   { 1226, SE, "Table is being dropped" },
   { 1228, SE, "Cannot use drop table for drop index" },
   { 1229, SE, "Too long frm data supplied" },
+  { 1231, SE, "Invalid table or index to scan" },
+  { 1232, SE, "Invalid table or index to scan" },
 
   /**
    * FunctionNotImplemented
