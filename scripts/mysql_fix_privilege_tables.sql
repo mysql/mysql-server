@@ -9,7 +9,7 @@
 -- this sql script.
 -- On windows you should do 'mysql --force mysql < mysql_fix_privilege_tables.sql'
 
-set table_type=MyISAM;
+set storage_engine=MyISAM;
 
 CREATE TABLE IF NOT EXISTS func (
   name char(64) binary DEFAULT '' NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS tables_priv (
 ALTER TABLE tables_priv
   modify Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   modify Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
-ALTER TABLE procs_priv type=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE procs_priv ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE procs_priv
   modify Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
@@ -320,19 +320,19 @@ KEY Grantor (Grantor)
 
 CREATE TABLE IF NOT EXISTS help_topic (
 help_topic_id int unsigned not null,
-name char(64) not null,
+name varchar(64) not null,
 help_category_id smallint unsigned not null,
 description text not null,
 example text not null,
-url char(128) not null,
+url varchar(128) not null,
 primary key (help_topic_id), unique index (name)
 ) CHARACTER SET utf8 comment='help topics';
 
 CREATE TABLE IF NOT EXISTS help_category (
 help_category_id smallint unsigned not null,
-name char(64) not null,
+name varchar(64) not null,
 parent_category_id smallint unsigned null,
-url char(128) not null,
+url varchar(128) not null,
 primary key (help_category_id),
 unique index (name)
 ) CHARACTER SET utf8 comment='help categories';
@@ -345,7 +345,7 @@ primary key (help_keyword_id, help_topic_id)
 
 CREATE TABLE IF NOT EXISTS help_keyword (
 help_keyword_id int unsigned not null,
-name char(64) not null,
+name varchar(64) not null,
 primary key (help_keyword_id),
 unique index (name)
 ) CHARACTER SET utf8 comment='help keywords';
@@ -492,35 +492,3 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT 0 NOT NULL;
-
-#
-# Change all varchar fields in privilege tables to CHAR, to ensure that
-# we can use the privilege tables in MySQL 4.1
-# Note that for this hack to work, we must change all CHAR() columns at
-# the same time
-#
-
-ALTER TABLE mysql.user
-modify Host char(60) binary DEFAULT '' NOT NULL,
-modify User char(16) binary DEFAULT '' NOT NULL,
-modify Password char(41) binary DEFAULT '' NOT NULL;
-
-ALTER TABLE mysql.db
-modify Host char(60) binary DEFAULT '' NOT NULL,
-modify Db char(64) binary DEFAULT '' NOT NULL,
-modify User char(16) binary DEFAULT '' NOT NULL;
-
-ALTER TABLE mysql.host
-modify Host char(60) binary DEFAULT '' NOT NULL,
-modify Db char(64) binary DEFAULT '' NOT NULL;
-
-ALTER TABLE help_topic
-modify name char(64) not null,
-modify url  char(128) not null;
-
-ALTER TABLE help_category
-modify name char(64) not null,
-modify url char(128) not null;
-
-ALTER TABLE help_keyword
-modify name char(64) not null;

@@ -322,8 +322,8 @@ prepare stmt4 from ' show storage engines ';
 execute stmt4;
 Engine	Support	Comment
 MyISAM	YES/NO	Default engine as of MySQL 3.23 with great performance
-HEAP	YES/NO	Alias for MEMORY
 MEMORY	YES/NO	Hash based, stored in memory, useful for temporary tables
+HEAP	YES/NO	Alias for MEMORY
 MERGE	YES/NO	Collection of identical MyISAM tables
 MRG_MYISAM	YES/NO	Alias for MERGE
 ISAM	YES/NO	Obsolete storage engine, now replaced by MyISAM
