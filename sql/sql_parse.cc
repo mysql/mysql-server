@@ -3010,6 +3010,10 @@ unsent_create_error:
     goto error;
 #else
     {
+      /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
+      if (lex->only_view)
+        first_table->skip_temporary= 1;
+
       if (check_db_used(thd, all_tables) ||
 	  check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
 		       &first_table->grant.privilege, 0, 0))
