@@ -4355,7 +4355,7 @@ int ndbcluster_drop_database(const char *path)
   List_iterator_fast<char> it(drop_list);
   while ((tabname=it++))
   {
-    if (!dict->dropTable(tabname))
+    if (dict->dropTable(tabname))
     {
       const NdbError err= dict->getNdbError();
       if (err.code != 709)
