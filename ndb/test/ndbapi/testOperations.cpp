@@ -635,7 +635,14 @@ runLockUpgrade2(NDBT_Context* ctx, NDBT_Step* step){
     ndbout_c("wait 3 - done");
     
     NdbSleep_MilliSleep(200);
-    CHECK(hugoOps.execute_Commit(pNdb) == 0);      
+    if(ctx->getProperty("LU_COMMIT", (Uint32)0) == 0)
+    {
+      CHECK(hugoOps.execute_Commit(pNdb) == 0);
+    }
+    else
+    {
+      CHECK(hugoOps.execute_Rollback(pNdb) == 0);
+    }
   } while(0);
 
   return result;
@@ -650,7 +657,7 @@ main(int argc, const char** argv){
 
   NDBT_TestSuite ts("testOperations");
 
-  for(Uint32 i = 0; i <6; i++)
+  for(Uint32 i = 0; i < 12; i++)
   {
     BaseString name("bug_9749");
     name.appfmt("_%d", i);
@@ -658,8 +665,9 @@ main(int argc, const char** argv){
 						    name.c_str(), "");    
     
     pt->setProperty("LOCK_UPGRADE", 1 + (i & 1));
-    pt->setProperty("LU_OP", 1 + (i >> 1));
-    
+    pt->setProperty("LU_OP", 1 + ((i >> 1) % 3));
+    pt->setProperty("LU_COMMIT", i / 6);
+
     pt->addInitializer(new NDBT_Initializer(pt,
 					    "runClearTable", 
 					    runClearTable));
