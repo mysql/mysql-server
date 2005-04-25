@@ -2228,7 +2228,7 @@ print_warnings()
 
   /* Bail out when no warnings */
   my_ulonglong num_rows = mysql_num_rows(result);
-  if( num_rows == 0 ) 
+  if (num_rows == 0) 
   {
     mysql_free_result(result);
     return;
@@ -2237,7 +2237,6 @@ print_warnings()
   /* Print the warnings */
   while ((cur= mysql_fetch_row(result)))
   {
-    mysql_field_seek(result, 0);
     tee_fprintf(PAGER, "%s (Code %s): %s\n", cur[0], cur[1], cur[2]);
   }
   mysql_free_result(result);
