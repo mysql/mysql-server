@@ -6,7 +6,7 @@ AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.0.5-beta)
+AM_INIT_AUTOMAKE(mysql, 5.0.6-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
