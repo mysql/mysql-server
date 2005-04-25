@@ -665,10 +665,6 @@ Backup::checkNodeFail(Signal* signal,
 		      NodeId newCoord,
 		      Uint32 theFailedNodes[NodeBitmask::Size])
 {
-  ndbrequire( ptr.p->nodes.get(newCoord)); /* just to make sure newCoord
-					    * is part of the backup
-					    */
-  
   NdbNodeBitmask mask;
   mask.assign(2, theFailedNodes);
 
