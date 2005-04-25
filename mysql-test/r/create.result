@@ -210,7 +210,7 @@ drop table if exists t1;
 SET SESSION storage_engine="heap";
 SELECT @@storage_engine;
 @@storage_engine
-HEAP
+MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
@@ -222,7 +222,7 @@ SET SESSION storage_engine="gemini";
 ERROR 42000: Unknown table engine 'gemini'
 SELECT @@storage_engine;
 @@storage_engine
-HEAP
+MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
@@ -371,7 +371,7 @@ drop database mysqltest;
 SET SESSION storage_engine="heap";
 SELECT @@storage_engine;
 @@storage_engine
-HEAP
+MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
@@ -383,7 +383,7 @@ SET SESSION storage_engine="gemini";
 ERROR 42000: Unknown table engine 'gemini'
 SELECT @@storage_engine;
 @@storage_engine
-HEAP
+MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table

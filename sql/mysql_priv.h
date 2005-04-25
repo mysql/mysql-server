@@ -647,6 +647,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
                         uint convert_blob_length);
+void sp_prepare_create_field(THD *thd, create_field *sql_field);
 int prepare_create_field(create_field *sql_field, 
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,

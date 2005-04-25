@@ -189,3 +189,15 @@ insert into t1 values (0, '1');
 update t1 set b = b + 1 where a = 0;
 select * from t1;
 drop table t1;
+
+# BUG#9103 "Erroneous data truncation warnings on multi-table updates"
+create table t1 (a int, b varchar(10), key b(b(5))) engine=myisam;
+create table t2 (a int, b varchar(10)) engine=myisam;
+insert into t1 values ( 1, 'abcd1e');
+insert into t1 values ( 2, 'abcd2e');
+insert into t2 values ( 1, 'abcd1e');
+insert into t2 values ( 2, 'abcd2e');
+analyze table t1,t2;
+update t1, t2 set t1.a = t2.a where t2.b = t1.b;
+show warnings;
+drop table t1, t2;

@@ -796,17 +796,27 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
       /* Store WHERE clause for post-processing in setup_ancestor */
       table->where= view_select->where;
-
       /*
-        Add subqueries units to SELECT in which we merging current view.
-
+        Add subqueries units to SELECT into which we merging current view.
+        
+        unit(->next)* chain starts with subqueries that are used by this
+        view and continues with subqueries that are used by other views.
+        We must not add any subquery twice (otherwise we'll form a loop),
+        to do this we remember in end_unit the first subquery that has 
+        been already added.
+                
         NOTE: we do not support UNION here, so we take only one select
       */
+      SELECT_LEX_NODE *end_unit= table->select_lex->slave;
+      SELECT_LEX_UNIT *next_unit;
       for (SELECT_LEX_UNIT *unit= lex->select_lex.first_inner_unit();
            unit;
-           unit= unit->next_unit())
+           unit= next_unit)
       {
+        if (unit == end_unit)
+          break;
         SELECT_LEX_NODE *save_slave= unit->slave;
+        next_unit= unit->next_unit();
         unit->include_down(table->select_lex);
         unit->slave= save_slave; // fix include_down initialisation
       }
