@@ -262,6 +262,7 @@ our $opt_socket;
 our $opt_source_dist;
 
 our $opt_start_and_exit;
+our $opt_start_dirty;
 our $opt_start_from;
 
 our $opt_strace_client;
@@ -305,6 +306,7 @@ sub initial_setup ();
 sub command_line_setup ();
 sub executable_setup ();
 sub environment_setup ();
+sub kill_running_server ();
 sub kill_and_cleanup ();
 sub ndbcluster_install ();
 sub ndbcluster_start ();
@@ -353,14 +355,22 @@ sub main () {
 
   if ( ! $glob_use_running_server )
   {
-    kill_and_cleanup();
-    mysql_install_db();
+
+    if ( $opt_start_dirty )
+    {
+      kill_running_server();
+    }
+    else
+    {
+      kill_and_cleanup();
+      mysql_install_db();
 
 #    mysql_loadstd();  FIXME copying from "std_data" .frm and
 #                      .MGR but there are none?!
+    }
   }
 
-  if ( $opt_start_and_exit )
+  if ( $opt_start_and_exit or $opt_start_dirty )
   {
     if ( ndbcluster_start() )
     {
@@ -531,6 +541,7 @@ sub command_line_setup () {
              'script-debug'             => \$opt_script_debug,
              'sleep=i'                  => \$opt_sleep,
              'socket=s'                 => \$opt_socket,
+             'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_and_exit,
              'start-from=s'             => \$opt_start_from,
              'timer'                    => \$opt_timer,
@@ -951,7 +962,7 @@ sub handle_int_signal () {
 #
 ##############################################################################
 
-sub kill_and_cleanup () {
+sub kill_running_server () {
 
   if ( $opt_fast or $glob_use_embedded_server )
   {
@@ -976,6 +987,11 @@ sub kill_and_cleanup () {
     ndbcluster_stop();
     $master->[0]->{'ndbcluster'}= 1;
   }
+}
+
+sub kill_and_cleanup () {
+
+  kill_running_server ();
 
   mtr_report("Removing Stale Files");
 
@@ -1461,7 +1477,15 @@ sub run_testcase ($) {
   # ----------------------------------------------------------------------
 
   {
-    unlink("r/$tname.reject");
+    # remove the old reject file
+    if ( $opt_suite eq "main" )
+    {
+      unlink("r/$tname.reject");
+    }
+    else
+    {
+      unlink("suite/$opt_suite/r/$tname.reject");
+    }
     unlink($path_timefile);
 
     my $res= run_mysqltest($tinfo, $tinfo->{'master_opt'});
@@ -2155,7 +2179,7 @@ Options to run test on running server
 
   extern                Use running server for tests FIXME DANGEROUS
   ndbconnectstring=STR  Use running cluster, and connect using STR      
-  user=USER             The databse user name
+  user=USER             User for connect to server
 
 Options for debugging the product
 
@@ -2182,6 +2206,7 @@ Misc options
   compress              Use the compressed protocol between client and server
   timer                 Show test case execution time
   start-and-exit        Only initiate and start the "mysqld" servers
+  start-dirty           Only start the "mysqld" servers without initiation
   fast                  Don't try to cleanup from earlier runs
   reorder               Reorder tests to get less server restarts
   help                  Get this help text

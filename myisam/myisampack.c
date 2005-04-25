@@ -1712,7 +1712,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
     ulong tot_blob_length=0;
     if (! error)
     {
-      if (flush_buffer(max_calc_length+max_pack_length))
+      if (flush_buffer((ulong) max_calc_length + (ulong) max_pack_length))
 	break;
       record_pos=file_buffer.pos;
       file_buffer.pos+=max_pack_length;
@@ -1935,7 +1935,20 @@ static void init_file_buffer(File file, pbool read_buffer)
 static int flush_buffer(ulong neaded_length)
 {
   ulong length;
-  if ((ulong) (file_buffer.end - file_buffer.pos) > neaded_length)
+
+  /*
+    file_buffer.end is 8 bytes lower than the real end of the buffer.
+    This is done so that the end-of-buffer condition does not need to be
+    checked for every byte (see write_bits()). Consequently,
+    file_buffer.pos can become greater than file_buffer.end. The
+    algorithms in the other functions ensure that there will never be
+    more than 8 bytes written to the buffer without an end-of-buffer
+    check. So the buffer cannot be overrun. But we need to check for the
+    near-to-buffer-end condition to avoid a negative result, which is
+    casted to unsigned and thus becomes giant.
+  */
+  if ((file_buffer.pos < file_buffer.end) &&
+      ((ulong) (file_buffer.end - file_buffer.pos) > neaded_length))
     return 0;
   length=(ulong) (file_buffer.pos-file_buffer.buffer);
   file_buffer.pos=file_buffer.buffer;
@@ -2007,7 +2020,7 @@ static void write_bits (register ulong value, register uint bits)
     }
 #endif
     if (file_buffer.pos >= file_buffer.end)
-      VOID(flush_buffer((uint) ~0));
+      VOID(flush_buffer(~ (ulong) 0));
     file_buffer.bits=(int) (BITS_SAVED - bits);
     file_buffer.current_byte=(uint) (value << (BITS_SAVED - bits));
   }

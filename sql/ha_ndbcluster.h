@@ -457,6 +457,9 @@ class ha_ndbcluster: public handler
   static Thd_ndb* seize_thd_ndb();
   static void release_thd_ndb(Thd_ndb* thd_ndb);
  
+static void set_dbname(const char *pathname, char *dbname);
+static void set_tabname(const char *pathname, char *tabname);
+
   /*
     Condition pushdown
   */
@@ -537,7 +540,6 @@ private:
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
-  void set_tabname(const char *pathname, char *tabname);
 
   bool set_hidden_key(NdbOperation*,
                       uint fieldnr, const byte* field_ptr);

@@ -3572,6 +3572,159 @@ drop procedure bug9674_2|
 
 
 #
+# BUG#9598: stored procedure call within stored procedure overwrites IN variable
+#
+--disable_warnings
+drop procedure if exists bug9598_1|
+drop procedure if exists bug9598_2|
+--enable_warnings
+create procedure bug9598_1(in var_1 char(16),
+                           out var_2 integer, out var_3 integer)
+begin
+  set var_2 = 50;
+  set var_3 = 60;
+end|
+
+create procedure bug9598_2(in v1 char(16),
+                           in v2 integer,
+                           in v3 integer,
+                           in v4 integer,
+                           in v5 integer)
+begin
+  select v1,v2,v3,v4,v5;
+  call bug9598_1(v1,@tmp1,@tmp2);
+  select v1,v2,v3,v4,v5;
+end|
+
+call bug9598_2('Test',2,3,4,5)|
+select @tmp1, @tmp2|
+
+drop procedure bug9598_1|
+drop procedure bug9598_2|
+
+
+#
+# BUG#9902: Crash with simple stored function using user defined variables
+#
+--disable_warnings
+drop procedure if exists bug9902|
+--enable_warnings
+create function bug9902() returns int(11)
+begin
+  set @x = @x + 1;
+  return @x;
+end|
+
+set @qcs1 = @@query_cache_size|
+set global query_cache_size = 100000|
+set @x = 1|
+insert into t1 values ("qc", 42)|
+select bug9902() from t1|
+select bug9902() from t1|
+select @x|
+
+set global query_cache_size = @qcs1|
+delete from t1|
+drop function bug9902|
+
+
+#
+# BUG#6898: Stored procedure crash if GOTO statements exist
+#
+--disable_warnings
+drop procedure if exists bug6898|
+--enable_warnings
+create procedure bug6898()
+begin
+  goto label1;
+  label label1;
+  begin end;
+  goto label1;
+end|
+drop procedure bug6898|
+
+
+#
+# BUG#9102: Stored proccedures: function which returns blob causes crash
+#
+--disable_warnings
+drop function if exists bug9102|
+--enable_warnings
+create function bug9102() returns blob return 'a'|
+select bug9102()|
+drop function bug9102|
+
+
+#
+# BUG#7648: Stored procedure crash when invoking a function that returns a bit
+#
+--disable_warnings
+drop function if exists bug7648|
+--enable_warnings
+create function bug7648() returns bit(8) return 'a'|
+select bug7648()|
+drop function bug7648|
+
+
+#
+# BUG#9775: crash if create function that returns enum or set
+#
+--disable_warnings
+drop function if exists bug9775|
+--enable_warnings
+create function bug9775(v1 char(1)) returns enum('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('c')|
+drop function bug9775|
+create function bug9775(v1 int) returns enum('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3)|
+drop function bug9775|
+
+create function bug9775(v1 char(1)) returns set('a','b') return v1|
+select bug9775('a'),bug9775('b'),bug9775('a,b'),bug9775('c')|
+drop function bug9775|
+create function bug9775(v1 int) returns set('a','b') return v1|
+select bug9775(1),bug9775(2),bug9775(3),bug9775(4)|
+drop function bug9775|
+
+
+#
+# BUG#8861: If Return is a YEAR data type, value is not shown in year format
+#
+--disable_warnings
+drop function if exists bug8861|
+--enable_warnings
+create function bug8861(v1 int) returns year return v1|
+select bug8861(05)|
+set @x = bug8861(05)|
+select @x|
+drop function bug8861|
+
+
+#
+# BUG#9004: Inconsistent behaviour of SP re. warnings
+#
+--disable_warnings
+drop procedure if exists bug9004_1|
+drop procedure if exists bug9004_2|
+--enable_warnings
+create procedure bug9004_1(x char(16))
+begin
+  insert into t1 values (x, 42);
+  insert into t1 values (x, 17);
+end|
+create procedure bug9004_2(x char(16))
+  call bug9004_1(x)|
+
+# Truncation warnings expected...
+call bug9004_1('12345678901234567')|
+call bug9004_2('12345678901234567890')|
+
+delete from t1|
+drop procedure bug9004_1|
+drop procedure bug9004_2|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

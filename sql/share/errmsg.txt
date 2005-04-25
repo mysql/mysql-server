@@ -5213,7 +5213,7 @@ ER_VIEW_INVALID
 	eng "View '%-.64s.%-.64s' references invalid table(s) or column(s) or function(s)"
 	rus "View '%-.64s.%-.64s' ссылается на несуществующие таблицы или столбцы или функции"
 ER_SP_NO_DROP_SP  
-	eng "Can't drop a %s from within another stored routine"
+	eng "Can't drop or alter a %s from within another stored routine"
 ER_SP_GOTO_IN_HNDLR  
 	eng "GOTO is not allowed in a stored procedure handler"
 ER_TRG_ALREADY_EXISTS  
@@ -5340,3 +5340,5 @@ ER_TABLE_DEF_CHANGED
 	eng "Table definition has changed, please retry transaction"
 ER_SP_DUP_HANDLER 42000
 	eng "Duplicate handler declared in the same block"
+ER_SP_NOT_VAR_ARG 42000
+	eng "OUT or INOUT argument %d for routine %s is not a variable"
