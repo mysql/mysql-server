@@ -4546,33 +4546,32 @@ Dbacc::check_lock_upgrade(Signal* signal,
   
   // Find end of parallell que
   tmp = lock_owner;
+  Uint32 lockMode = next.p->lockMode > lock_owner.p->lockMode ?
+    next.p->lockMode : lock_owner.p->lockMode;
   while(tmp.p->nextParallelQue != RNIL)
   {
     jam();
     tmp.i = tmp.p->nextParallelQue;
+    tmp.p->lockMode = lockMode;
     ptrCheckGuard(tmp, coprecsize, operationrec);
   }
+  tmp.p->lockMode = lockMode;
   
   next.p->prevParallelQue = tmp.i;
   tmp.p->nextParallelQue = next.i;
   
   OperationrecPtr save = operationRecPtr;
-  Uint32 lockMode = lock_owner.p->lockMode;
 
-  Uint32 TelementIsDisappeared = 0; // lock upgrade = all reads
-  Uint32 ThashValue = lock_owner.p->hashValue;
   Uint32 localdata[2];
   localdata[0] = lock_owner.p->localdata[0];
   localdata[1] = lock_owner.p->localdata[1];
   do {
-    next.p->elementIsDisappeared = TelementIsDisappeared;
-    next.p->hashValue = ThashValue;
     next.p->localdata[0] = localdata[0];
     next.p->localdata[1] = localdata[1];
+    next.p->lockMode = lockMode;
     
     operationRecPtr = next;
-    next.p->lockMode = lockMode;
-    TelementIsDisappeared = executeNextOperation(signal);
+    executeNextOperation(signal);
     if (next.p->nextParallelQue != RNIL) 
     {
       jam();
