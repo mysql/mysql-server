@@ -135,6 +135,24 @@ abort	DELETE		none	-
 
 1) alternatively, store prevTupVersion in operation record.
 
+Abort from ordered index error
+------------------------------
+
+Obviously, index update failure causes operation failure.
+The operation is then aborted later by TC.
+
+The problem here is with multiple indexes.  Some may have been
+updated successfully before the one that failed.  Therefore
+the trigger code aborts the successful ones already in
+the prepare phase.
+
+In other words, multiple indexes are treated as one.
+
+Abort from any cause
+--------------------
+
+[ hairy stuff ]
+
 Read attributes, query status
 -----------------------------
 
@@ -170,14 +188,11 @@ used to decide if the scan can see the tuple.
 This signal may also be called during any phase since commit/abort
 of all operations is not done in one time-slice.
 
-Commit and abort
-----------------
-
-[ hairy stuff ]
-
 Problems
 --------
 
 Current abort code can destroy a tuple version too early.  This
 happens in test case "ticuur" (insert-commit-update-update-rollback),
 if abort of first update arrives before abort of second update.
+
+vim: set textwidth=68:

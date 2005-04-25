@@ -20,9 +20,7 @@
    Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#if defined (HAVE_CONFIG_H)
-#include <config.h>
-#endif
+#include "config_readline.h"
 
 #include <stdio.h>
 

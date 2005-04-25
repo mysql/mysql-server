@@ -71,14 +71,22 @@ typedef struct st_filesort_info
 
 
 /*
-  Values in this enum are used to indicate during which operations value
-  of TIMESTAMP field should be set to current timestamp.
+  Values in this enum are used to indicate how a tables TIMESTAMP field
+  should be treated. It can be set to the current timestamp on insert or
+  update or both.
+  WARNING: The values are used for bit operations. If you change the
+  enum, you must keep the bitwise relation of the values. For example:
+  (int) TIMESTAMP_AUTO_SET_ON_BOTH must be equal to
+  (int) TIMESTAMP_AUTO_SET_ON_INSERT | (int) TIMESTAMP_AUTO_SET_ON_UPDATE.
+  We use an enum here so that the debugger can display the value names.
 */
 enum timestamp_auto_set_type
 {
   TIMESTAMP_NO_AUTO_SET= 0, TIMESTAMP_AUTO_SET_ON_INSERT= 1,
   TIMESTAMP_AUTO_SET_ON_UPDATE= 2, TIMESTAMP_AUTO_SET_ON_BOTH= 3
 };
+#define clear_timestamp_auto_bits(_target_, _bits_) \
+  (_target_)= (enum timestamp_auto_set_type)((int)(_target_) & ~(int)(_bits_))
 
 class Field_timestamp;
 class Field_blob;

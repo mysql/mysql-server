@@ -847,7 +847,6 @@ struct show_var_st init_vars[]= {
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
 #endif
   {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
-  {"log_update",              (char*) &opt_update_log,              SHOW_BOOL},
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
