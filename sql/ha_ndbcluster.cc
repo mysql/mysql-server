@@ -4359,7 +4359,10 @@ int ndbcluster_drop_database(const char *path)
     {
       const NdbError err= dict->getNdbError();
       if (err.code != 709)
+      {
+        ERR_PRINT(err);
         ret= ndb_to_mysql_error(&err);
+      }
     }
   }
   DBUG_RETURN(ret);      
