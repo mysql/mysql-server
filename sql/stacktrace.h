@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-#ifdef HAVE_LINUXTHREADS
+#ifdef TARGET_OS_LINUX
 #if defined(HAVE_STACKTRACE) || (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__)))
 #undef HAVE_STACKTRACE
 #define HAVE_STACKTRACE
@@ -30,7 +30,7 @@ extern char* heap_start;
 void print_stacktrace(gptr stack_bottom, ulong thread_stack);
 void safe_print_str(const char* name, const char* val, int max_len);
 #endif /* (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
-#endif /* HAVE_LINUXTHREADS */
+#endif /* TARGET_OS_LINUX */
 
 /* Define empty prototypes for functions that are not implemented */
 #ifndef HAVE_STACKTRACE
