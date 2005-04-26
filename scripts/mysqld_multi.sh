@@ -66,6 +66,11 @@ sub main
 	else
 	{
 	  $opt_config_file= $1;
+	  if (!($opt_config_file =~ m/\//))
+	  {
+	    # No path. Use current working directory
+	    $opt_config_file= "./" . $opt_config_file;
+	  }
 	}
       }
     }
@@ -82,7 +87,11 @@ sub main
   {
     $flag_exit= 1;
   }
-
+  if (!($opt_config_file =~ m/\//))
+  {
+    # No path. Use current working directory
+    $opt_config_file= "./" . $opt_config_file;
+  }
   usage() if ($opt_help);
 
   if ($opt_verbose && $opt_silent)
