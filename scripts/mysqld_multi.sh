@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.13";
+$VER="2.14";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -160,6 +160,31 @@ sub main
 }
 
 ####
+#### Quote option argument. Add double quotes around the argument
+#### and escape the following: $, \, "
+#### This function is needed, because my_print_defaults drops possible
+#### quotes, single or double, from in front of an argument and from
+#### the end.
+####
+
+sub quote_opt_arg
+{
+  my ($option)= @_;
+
+  if ($option =~ m/(\-\-[a-zA-Z0-9\_\-]+)=(.*)/)
+  {
+    $option= $1;
+    $arg= $2;
+    $arg=~ s/\\/\\\\/g; # Escape escape character first to avoid doubling.
+    $arg=~ s/\$/\\\$/g;
+    $arg=~ s/\"/\\\"/g;
+    $arg= "\"" . $arg . "\"";
+    $option= $option . "=" . $arg;
+  }
+  return $option;
+}
+
+####
 #### Init log file. Check for appropriate place for log file, in the following
 #### order my_print_defaults mysqld datadir, @datadir@, /var/log, /tmp
 ####
@@ -293,6 +318,7 @@ sub start_mysqlds()
       else
       {
 	$options[$j]=~ s/;/\\;/g;
+	$options[$j]= quote_opt_arg($options[$j]);
 	$tmp.= " $options[$j]";
       }
     }
