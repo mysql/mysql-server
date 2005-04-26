@@ -25,6 +25,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "mtr0mtr.h"
 #include "mtr0log.h"
+#include "dict0dict.h"
 
 	 
 /*
@@ -2732,7 +2733,15 @@ fil_load_single_table_tablespace(
 	sprintf(filepath, "%s/%s/%s", fil_path_to_mysql_datadir, dbname,
 								filename);
 	srv_normalize_path_for_win(filepath);
+#ifdef __WIN__
+	/* If lower_case_table_names is 0 or 2, then MySQL allows database
+	directory names with upper case letters. On Windows, all table and
+	database names in InnoDB are internally always in lower case. Put the
+	file path to lower case, so that we are consistent with InnoDB's
+	internal data dictionary. */
 
+	dict_casedn_str(filepath);
+#endif
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_ONLY, &success);
 	if (!success) {
