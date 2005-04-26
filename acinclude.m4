@@ -168,7 +168,7 @@ mysql_cv_btype_struct_rlimit=none
 #undef inline
 #endif
 #include <stdlib.h>
-#include <sys/resources.h>
+#include <sys/resource.h>
 ],
 [struct rlimit64 rl; setrlimit(RLIMIT_CORE, &rl);],
 mysql_cv_btype_struct_rlimit="struct rlimit64")]
