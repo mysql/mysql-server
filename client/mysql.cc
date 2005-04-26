@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.9";
+const char *VER= "14.10";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -235,7 +235,7 @@ static COMMANDS commands[] = {
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,
-    "Set query delimiter. " },
+    "Set statement delimiter. NOTE: Takes the rest of the line as new delimiter." },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
