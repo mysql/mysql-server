@@ -67,7 +67,7 @@ character-set=latin1
 "Column '%-.64s' cannot be null",
 "Unknown database '%-.64s'",
 "Table '%-.64s' already exists",
-"Unknown table '%-.180s'",
+"Unknown table '%-.100s'",
 "Column '%-.64s' in %-.64s is ambiguous",
 "Server shutdown in progress",
 "Unknown column '%-.64s' in '%-.64s'",
