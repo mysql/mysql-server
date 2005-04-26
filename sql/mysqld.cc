@@ -2022,7 +2022,7 @@ static void init_signals(void)
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     /* Change limits so that we will get a core file */
-    struct rlimit rl;
+    STRUCT_RLIMIT rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
     if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
