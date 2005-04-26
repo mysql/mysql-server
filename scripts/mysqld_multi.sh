@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.12";
+$VER="2.13";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -37,13 +37,13 @@ main();
 
 sub main
 {
-  my ($flag_exit);
+  my $flag_exit= 0;
 
   if (!defined(my_which(my_print_defaults)))
   {
     # We can't throw out yet, since --version, --help, or --example may
     # have been given
-    print "WARNING! my_print_defaults command not found!\n";
+    print "WARNING: my_print_defaults command not found.\n";
     print "Please make sure you have this command available and\n";
     print "in your path. The command is available from the latest\n";
     print "MySQL distribution.\n";
@@ -76,10 +76,14 @@ sub main
     chop @defops;
     splice @ARGV, 0, 0, @defops;
   }
-  GetOptions("help","example","version","mysqld=s","mysqladmin=s",
-             "config-file=s","user=s","password=s","log=s","no-log","tcp-ip",
-             "silent","verbose")
-  || die "Wrong option! See $my_progname --help for detailed information!\n";
+  if (!GetOptions("help","example","version","mysqld=s","mysqladmin=s",
+		  "config-file=s","user=s","password=s","log=s","no-log",
+		  "tcp-ip", "silent","verbose"))
+  {
+    $flag_exit= 1;
+  }
+
+  usage() if ($opt_help);
 
   if ($opt_verbose && $opt_silent)
   {
@@ -95,15 +99,14 @@ sub main
     exit(0);
   }
   example() if ($opt_example);
-  usage() if ($opt_help);
   if ($flag_exit)
   {
-    print "Error with an option, see $my_progname --help for more info!\n";
+    print "Error with an option, see $my_progname --help for more info.\n";
     exit(1);
   }
   if (!defined(my_which(my_print_defaults)))
   {
-    print "ABORT: Can't find command 'my_print_defaults'!\n";
+    print "ABORT: Can't find command 'my_print_defaults'.\n";
     print "This command is available from the latest MySQL\n";
     print "distribution. Please make sure you have the command\n";
     print "in your PATH.\n";
