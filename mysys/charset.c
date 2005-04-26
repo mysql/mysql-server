@@ -581,15 +581,15 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
   {
     char escape=0;
 #ifdef USE_MB
-    int l;
-    if (use_mb_flag && (l= my_ismbchar(charset_info, from, end)))
+    int tmp_length;
+    if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
     {
-      if (to + l >= to_end)
+      if (to + tmp_length > to_end)
       {
         overflow=1;
         break;
       }
-      while (l--)
+      while (tmp_length--)
 	*to++= *from++;
       from--;
       continue;
@@ -605,7 +605,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
      multi-byte character into a valid one. For example, 0xbf27 is not
      a valid GBK character, but 0xbf5c is. (0x27 = ', 0x5c = \)
     */
-    if (use_mb_flag && (l= my_mbcharlen(charset_info, *from)) > 1)
+    if (use_mb_flag && (tmp_length= my_mbcharlen(charset_info, *from)) > 1)
       escape= *from;
     else
 #endif
@@ -634,7 +634,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
     }
     if (escape)
     {
-      if (to + 2 >= to_end)
+      if (to + 2 > to_end)
       {
         overflow=1;
         break;
@@ -644,7 +644,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
     }
     else
     {
-      if (to + 1 >= to_end)
+      if (to + 1 > to_end)
       {
         overflow=1;
         break;
