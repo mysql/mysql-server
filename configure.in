@@ -1754,6 +1754,8 @@ AC_C_BIGENDIAN
 MYSQL_TYPE_ACCEPT
 
 #---END:
+# Figure out what type of struct rlimit to use with setrlimit
+MYSQL_TYPE_STRUCT_RLIMIT
 # Find where the stack goes
 MYSQL_STACK_DIRECTION
 # We want to skip alloca on irix unconditionally. It may work on some version..
