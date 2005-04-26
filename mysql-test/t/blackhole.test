@@ -96,4 +96,32 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 select * from t1 where MATCH(a,b) AGAINST ("only");
 
-drop table if exists t1,t2;
+# Test that every DML (except SELECT) and DDL gets into binlog
+# so that blackhole can be used as "binlog propagator"
+
+reset master;
+drop table t1,t2;
+create table t1 (a int) engine=blackhole;
+delete from t1 where a=10;
+update t1 set a=11 where a=15;
+insert into t1 values(1);
+insert ignore into t1 values(1);
+replace into t1 values(100);
+create table t2 (a varchar(200)) engine=blackhole;
+load data infile '../../std_data/words.dat' into table t2;
+alter table t1 add b int;
+alter table t1 drop b;
+create table t3 like t1;
+insert into t1 select * from t3;
+replace into t1 select * from t3;
+# Just to verify
+select * from t1;
+select * from t2;
+select * from t3;
+
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
+--replace_column 2 # 5 #
+show binlog events;
+
+drop table t1,t2,t3;
