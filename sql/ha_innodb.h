@@ -321,3 +321,5 @@ int innobase_rollback_by_xid(
 int innobase_xa_end(THD *thd);
 
 
+int innobase_repl_report_sent_binlog(THD *thd, char *log_file_name,
+                               my_off_t end_offset);
