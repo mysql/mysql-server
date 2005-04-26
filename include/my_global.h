@@ -107,6 +107,7 @@
 #undef THREAD
 #undef HAVE_mit_thread
 #undef HAVE_LINUXTHREADS
+#undef HAVE_NPTL
 #undef HAVE_UNIXWARE7_THREADS
 #endif
 
