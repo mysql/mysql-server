@@ -255,6 +255,9 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
       if (*pos)					/* Found null */
       {
 	nr^= (nr << 1) | 1;
+	/* Add key pack length (2) to key for VARCHAR segments */
+        if (seg->type == HA_KEYTYPE_VARTEXT1)
+          key+= 2;
 	continue;
       }
       pos++;
@@ -390,6 +393,9 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
       if (*pos)
       {
 	nr^= (nr << 1) | 1;
+	/* Add key pack length (2) to key for VARCHAR segments */
+        if (seg->type == HA_KEYTYPE_VARTEXT1)
+          key+= 2;
 	continue;
       }
       pos++;
@@ -584,7 +590,12 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
       if (found_null != (int) *key++)
 	return 1;
       if (found_null)
+      {
+        /* Add key pack length (2) to key for VARCHAR segments */
+        if (seg->type == HA_KEYTYPE_VARTEXT1)
+          key+= 2;
 	continue;
+      }
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
