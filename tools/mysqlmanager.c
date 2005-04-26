@@ -101,7 +101,7 @@ static CHARSET_INFO *cs= &my_charset_latin1;
   set by the user
 */
 
-#if defined(__i386__) && defined(HAVE_LINUXTHREADS)
+#if defined(__i386__) && defined(TARGET_OS_LINUX)
 #define DO_STACKTRACE 1
 #endif
 
