@@ -1442,6 +1442,12 @@ create_function_tail:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
+	    if (sp->m_multi_results)
+	    {
+	      my_message(ER_SP_NO_RETSET_IN_FUNC, ER(ER_SP_NO_RETSET_IN_FUNC),
+	                 MYF(0));
+	      YYABORT;
+	    }
 	    if (sp->check_backpatch(YYTHD))
 	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
