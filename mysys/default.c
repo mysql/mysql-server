@@ -402,33 +402,48 @@ static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
       continue;
 
     /* Configuration File Directives */
-    if ((*ptr == '!') && (recursion_level < max_recursion_level))
+    if ((*ptr == '!'))
     {
+      if (recursion_level >= max_recursion_level)
+      {
+        for (end= ptr + strlen(ptr) - 1; 
+             my_isspace(&my_charset_latin1, *(end - 1));
+             end--)
+        {}
+        end[0]= 0;
+        fprintf(stderr,
+                "Warning: skipping '%s' directive as maximum include"
+                "recursion level was reached in file %s at line %d\n",
+                ptr, name, line);
+        continue;
+      }
+
       /* skip over `!' and following whitespace */
       for (++ptr; my_isspace(&my_charset_latin1, ptr[0]); ptr++)
       {}
 
-      if ((!strncmp(ptr, includedir_keyword, sizeof(includedir_keyword) - 1))
-         && my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
+      if ((!strncmp(ptr, includedir_keyword,
+                    sizeof(includedir_keyword) - 1)) &&
+          my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
       {
         /* skip over "includedir" and following whitespace */
         for (ptr+= sizeof(includedir_keyword) - 1;
             my_isspace(&my_charset_latin1, ptr[0]); ptr++)
         {}
 
-        /* trim trailing whitespace from directory name */
-        end= ptr + strlen(ptr) - 1;
-        /* fgets() stores the newline character in the buffer */
-        if ((end[0] == '\n') || (end[0] == '\r') ||
-            my_isspace(&my_charset_latin1, end[0]))
-        {
-          for (; my_isspace(&my_charset_latin1, *(end - 1)); end--)
-          {}
-          end[0]= 0;
-        }
+        /*
+          trim trailing whitespace from directory name
+          The -1 below is for the newline added by fgets()
+          Note that my_isspace() is true for \r and \n
+        */
+        for (end= ptr + strlen(ptr) - 1; 
+             my_isspace(&my_charset_latin1, *(end - 1));
+             end--)
+        {}
+        end[0]= 0;
 
         /* print error msg if there is nothing after !includedir directive */
-        if (end == ptr)
+        if (end <= ptr)
         {
           fprintf(stderr,
                   "error: Wrong !includedir directive in config "
@@ -468,8 +483,8 @@ static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 
         my_dirend(search_dir);
       }
-      else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1))
-          && my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword) - 1]))
+      else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1)) &&
+               my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword)-1]))
       {
         /* skip over `include' and following whitespace */
         for (ptr+= sizeof(include_keyword) - 1;
@@ -477,12 +492,13 @@ static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
         {}
 
         /* trim trailing whitespace from filename */
-        end= ptr + strlen(ptr) - 1;
-        for (; my_isspace(&my_charset_latin1, *(end - 1)) ; end--)
+        for (end= ptr + strlen(ptr) - 1;
+             my_isspace(&my_charset_latin1, *(end - 1));
+             end--)
         {}
         end[0]= 0;
 
-        if (end == ptr)
+        if (end <= ptr)
         {
           fprintf(stderr,
                   "error: Wrong !include directive in config "
@@ -497,14 +513,6 @@ static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 
       continue;
     }
-    else
-      if (recursion_level >= max_recursion_level)
-      {
-        fprintf(stderr,
-                "warning: skipping !include directive as maximum include"
-                "recursion level was reached in file %s at line %d\n",
-                name, line);
-      }
 
     if (*ptr == '[')				/* Group name */
     {
