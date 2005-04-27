@@ -1623,7 +1623,7 @@ innobase_report_binlog_offset_and_commit(
                                   (char*)mem_alloc_noninline(FN_REFLEN + 100);
                 }
 
-                ut_a(strlen(log_file_name) <= FN_REFLEN + 100);
+                ut_a(strlen(log_file_name) < FN_REFLEN + 100);
 
                 strcpy(trx->repl_wait_binlog_name, log_file_name);
 
