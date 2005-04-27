@@ -612,6 +612,12 @@ extern pthread_mutexattr_t my_fast_mutexattr;
 #else
 #define MY_MUTEX_INIT_FAST   NULL
 #endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+extern pthread_mutexattr_t my_errorcheck_mutexattr;
+#define MY_MUTEX_INIT_ERRCHK &my_errorcheck_mutexattr
+#else
+#define MY_MUTEX_INIT_ERRCHK   NULL
+#endif
 
 extern my_bool my_thread_global_init(void);
 extern void my_thread_global_end(void);
