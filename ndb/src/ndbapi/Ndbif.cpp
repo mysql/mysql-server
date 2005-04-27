@@ -453,7 +453,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tFirstDataPtr = int2void(tFirstData);
       if(tFirstDataPtr != 0){
 	tOp = void2rec_op(tFirstDataPtr);
-	if (tOp->checkMagicNumber() == 0) {
+	if (tOp->checkMagicNumber(false) == 0) {
 	  tCon = tOp->theNdbCon;
 	  if (tCon != NULL) {
 	    if ((tCon->theSendStatus == NdbConnection::sendTC_OP) ||
@@ -466,11 +466,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	    }//if
 	  }//if
 	}//if
-      } else {
-#ifdef VM_TRACE
-	ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
-#endif
       }
+#ifdef VM_TRACE
+      ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
+#endif
+      return;
       break;
     }
   case GSN_TCKEYREF:
