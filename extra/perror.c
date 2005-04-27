@@ -24,7 +24,7 @@
 #include <errno.h>
 #include <my_getopt.h>
 #ifdef HAVE_NDBCLUSTER_DB
-#include "../ndb/src/ndbapi/ndberror.c"
+#include "../storage/ndb/src/ndbapi/ndberror.c"
 #endif
 
 static my_bool verbose, print_all_codes;

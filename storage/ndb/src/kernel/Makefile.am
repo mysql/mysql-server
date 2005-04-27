@@ -1,12 +1,12 @@
 SUBDIRS = error blocks vm
 
-include $(top_srcdir)/ndb/config/common.mk.am
+include $(top_srcdir)/storage/ndb/config/common.mk.am
 
 ndbbin_PROGRAMS = ndbd
 
 ndbd_SOURCES = main.cpp SimBlockList.cpp
 
-include $(top_srcdir)/ndb/config/type_kernel.mk.am
+include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
 INCLUDES += \
               -Iblocks/cmvmi \
@@ -45,14 +45,14 @@ LDADD +=  \
               blocks/dbtux/libdbtux.a \
               vm/libkernel.a	\
               error/liberror.a \
-              $(top_builddir)/ndb/src/common/transporter/libtransporter.la   \
-              $(top_builddir)/ndb/src/common/debugger/libtrace.la     \
-              $(top_builddir)/ndb/src/common/debugger/signaldata/libsignaldataprint.la \
-              $(top_builddir)/ndb/src/common/logger/liblogger.la       \
-              $(top_builddir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
-              $(top_builddir)/ndb/src/mgmapi/libmgmapi.la \
-              $(top_builddir)/ndb/src/common/portlib/libportlib.la      \
-              $(top_builddir)/ndb/src/common/util/libgeneral.la  \
+              $(top_builddir)/storage/ndb/src/common/transporter/libtransporter.la   \
+              $(top_builddir)/storage/ndb/src/common/debugger/libtrace.la     \
+              $(top_builddir)/storage/ndb/src/common/debugger/signaldata/libsignaldataprint.la \
+              $(top_builddir)/storage/ndb/src/common/logger/liblogger.la       \
+              $(top_builddir)/storage/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
+              $(top_builddir)/storage/ndb/src/mgmapi/libmgmapi.la \
+              $(top_builddir)/storage/ndb/src/common/portlib/libportlib.la      \
+              $(top_builddir)/storage/ndb/src/common/util/libgeneral.la  \
          $(top_builddir)/dbug/libdbug.a \
          $(top_builddir)/mysys/libmysys.a \
          $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
@@ -62,14 +62,14 @@ LDADD +=  \
 
 windoze-dsp: ndbd.dsp
 
-ndbd.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ $(ndbbin_PROGRAMS)
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndbd_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+storage/ndbd.dsp: Makefile \
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ $(ndbbin_PROGRAMS)
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndbd_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)

@@ -1,18 +1,18 @@
 
 INCLUDES += \
         -I$(srcdir) -I$(top_srcdir)/include \
-	-I$(top_srcdir)/ndb/include \
-        -I$(top_srcdir)/ndb/src/kernel/vm \
-        -I$(top_srcdir)/ndb/src/kernel/error \
-	-I$(top_srcdir)/ndb/src/kernel \
-	-I$(top_srcdir)/ndb/include/kernel \
-	-I$(top_srcdir)/ndb/include/transporter \
-	-I$(top_srcdir)/ndb/include/debugger \
-	-I$(top_srcdir)/ndb/include/mgmapi \
-	-I$(top_srcdir)/ndb/include/mgmcommon \
-        -I$(top_srcdir)/ndb/include/ndbapi \
-        -I$(top_srcdir)/ndb/include/util \
-	-I$(top_srcdir)/ndb/include/portlib \
-	-I$(top_srcdir)/ndb/include/logger
+	-I$(top_srcdir)/storage/ndb/include \
+        -I$(top_srcdir)/storage/ndb/src/kernel/vm \
+        -I$(top_srcdir)/storage/ndb/src/kernel/error \
+	-I$(top_srcdir)/storage/ndb/src/kernel \
+	-I$(top_srcdir)/storage/ndb/include/kernel \
+	-I$(top_srcdir)/storage/ndb/include/transporter \
+	-I$(top_srcdir)/storage/ndb/include/debugger \
+	-I$(top_srcdir)/storage/ndb/include/mgmapi \
+	-I$(top_srcdir)/storage/ndb/include/mgmcommon \
+        -I$(top_srcdir)/storage/ndb/include/ndbapi \
+        -I$(top_srcdir)/storage/ndb/include/util \
+	-I$(top_srcdir)/storage/ndb/include/portlib \
+	-I$(top_srcdir)/storage/ndb/include/logger
 
 #AM_LDFLAGS = @ndb_ldflags@

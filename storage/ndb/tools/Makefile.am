@@ -32,8 +32,8 @@ ndb_restore_SOURCES = restore/restore_main.cpp \
                       restore/consumer_printer.cpp \
                       restore/Restore.cpp
 
-include $(top_srcdir)/ndb/config/common.mk.am
-include $(top_srcdir)/ndb/config/type_ndbapitools.mk.am
+include $(top_srcdir)/storage/ndb/config/common.mk.am
+include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 
 ndb_test_platform_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_waiter_LDFLAGS = @ndb_bin_am_ldflags@
@@ -60,97 +60,97 @@ windoze-dsp: \
   ndb_select_count.dsp
 
 ndb_waiter.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_waiter
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_waiter_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_waiter
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_waiter_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 ndb_drop_table.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_drop_table
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_drop_table_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_drop_table
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_drop_table_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 ndb_delete_all.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_delete_all
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_delete_all_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_delete_all
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_delete_all_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 ndb_desc.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_desc
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_desc_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_desc
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_desc_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 ndb_drop_index.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_drop_index
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_drop_index_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_drop_index
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_drop_index_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 ndb_show_tables.dsp: Makefile \
                $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_show_tables
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_show_tables_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_show_tables
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_show_tables_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 ndb_select_all.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_select_all
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_select_all_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_select_all
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_select_all_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 ndb_select_count.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ ndb_select_count
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_select_count_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ ndb_select_count
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_select_count_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)

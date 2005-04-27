@@ -1,6 +1,6 @@
 
 INCLUDES += -I$(srcdir) -I$(top_srcdir)/include \
-	-I$(top_srcdir)/ndb/include \
-        -I$(top_srcdir)/ndb/include/util \
-        -I$(top_srcdir)/ndb/include/portlib \
-        -I$(top_srcdir)/ndb/include/logger
+	-I$(top_srcdir)/storage/ndb/include \
+        -I$(top_srcdir)/storage/ndb/include/util \
+        -I$(top_srcdir)/storage/ndb/include/portlib \
+        -I$(top_srcdir)/storage/ndb/include/logger
