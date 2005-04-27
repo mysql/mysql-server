@@ -3062,10 +3062,15 @@ int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
   DBUG_RETURN(extra(operation));
 }
 
+static const char *ha_ndbcluster_exts[] = {
+ ha_ndb_ext,
+ NullS
+};
 
 const char** ha_ndbcluster::bas_ext() const
-{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
-
+{
+  return ha_ndbcluster_exts;
+}
 
 /*
   How many seeks it will take to read through the table
