@@ -341,3 +341,28 @@ start backup
        (ERROR_INSERTED(10022))) {
   if (ERROR_INSERTED(10029)) {
     if(trigPtr.p->operation->noOfBytes > 123 && ERROR_INSERTED(10030)) {
+
+----- XXX ---
+
+DEFINE_BACKUP_REF ->
+  ABORT_BACKUP_ORD(no reply) when all DEFINE_BACKUP replies has arrived
+
+START_BACKUP_REF
+  ABORT_BACKUP_ORD(no reply) when all START_BACKUP_ replies has arrived
+
+BACKUP_FRAGMENT_REF
+  ABORT_BACKUP_ORD(reply) directly to all nodes running BACKUP_FRAGMENT
+
+  When all nodes has replied BACKUP_FRAGMENT
+    ABORT_BACKUP_ORD(no reply)
+
+STOP_BACKUP_REF
+  ABORT_BACKUP_ORD(no reply) when all STOP_BACKUP_ replies has arrived
+
+NF_COMPLETE_REP
+  slave dies
+    master sends OUTSTANDING_REF to self
+    slave does nothing
+
+  master dies
+    slave elects self as master and sets only itself as participant
