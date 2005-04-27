@@ -5342,3 +5342,5 @@ ER_SP_DUP_HANDLER 42000
 	eng "Duplicate handler declared in the same block"
 ER_SP_NOT_VAR_ARG 42000
 	eng "OUT or INOUT argument %d for routine %s is not a variable"
+ER_SP_NO_RETSET_IN_FUNC 0A000
+	eng "Not allowed to return a result set from a function"
