@@ -232,6 +232,7 @@ public:
      */
     bool newScan();
     bool scanConf(Uint32 noOfOps, Uint32 opLen);
+    bool closeScan();
     
     /**
      * Per record
@@ -330,7 +331,7 @@ public:
     
     Uint8 fileOpened;
     Uint8 fileRunning;
-    Uint8 fileDone;
+    Uint8 fileClosing;
     Uint8 scanRunning;
   }; 
   typedef Ptr<BackupFile> BackupFilePtr;
@@ -403,13 +404,11 @@ public:
 		 ArrayPool<TriggerRecord> & trp) 
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
       , tables(tp), triggers(trp), files(bp), pages(pp)
-      , masterData(b, validMasterTransitions, validMasterTransitionsCount)
-	, backup(b)
-    {
-      closingFiles    = false;
-      okToCleanMaster = true;
-    }
+      , masterData(b), backup(b)
+      {
+      }
     
+    Uint32 m_gsn;
     CompoundState slaveState; 
     
     Uint32 clientRef;
@@ -420,9 +419,6 @@ public:
     Uint32 errorCode;
     NdbNodeBitmask nodes;
     
-    bool okToCleanMaster;
-    bool closingFiles;
-
     Uint64 noOfBytes;
     Uint64 noOfRecords;
     Uint64 noOfLogBytes;
@@ -444,15 +440,13 @@ public:
     SimpleProperties props;// Used for (un)packing backup request
     
     struct MasterData {
-      MasterData(Backup & b, const State valid[], Uint32 count) 
-	: state(b, valid, count, 0) 
-      {
-      }
+      MasterData(Backup & b) 
+	{
+	}
       MutexHandle2<BACKUP_DEFINE_MUTEX> m_defineBackupMutex;
       MutexHandle2<DICT_COMMIT_TABLE_MUTEX> m_dictCommitTableMutex;
 
       Uint32 gsn;
-      CompoundState state;
       SignalCounter sendCounter;
       Uint32 errorCode;
       struct {
@@ -557,7 +551,8 @@ public:
   void stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId);
   
   void defineBackupRef(Signal*, BackupRecordPtr, Uint32 errCode = 0);
-  
+  void backupFragmentRef(Signal * signal, BackupFilePtr filePtr);
+
   void nextFragment(Signal*, BackupRecordPtr);
   
   void sendCreateTrig(Signal*, BackupRecordPtr ptr, TablePtr tabPtr);
@@ -578,14 +573,14 @@ public:
   void sendAbortBackupOrd(Signal* signal, BackupRecordPtr ptr, Uint32 errCode);
   void sendAbortBackupOrdSlave(Signal* signal, BackupRecordPtr ptr, 
 			       Uint32 errCode);
-  void masterAbort(Signal*, BackupRecordPtr ptr, bool controlledAbort);
+  void masterAbort(Signal*, BackupRecordPtr ptr);
   void masterSendAbortBackup(Signal*, BackupRecordPtr ptr);
   void slaveAbort(Signal*, BackupRecordPtr ptr);
   
   void abortFile(Signal* signal, BackupRecordPtr ptr, BackupFilePtr filePtr);
   void abortFileHook(Signal* signal, BackupFilePtr filePtr, bool scanDone);
   
-  bool verifyNodesAlive(const NdbNodeBitmask& aNodeBitMask);
+  bool verifyNodesAlive(BackupRecordPtr, const NdbNodeBitmask& aNodeBitMask);
   bool checkAbort(BackupRecordPtr ptr);
   void checkNodeFail(Signal* signal,
 		     BackupRecordPtr ptr,
@@ -603,9 +598,8 @@ public:
   void sendBackupRef(BlockReference ref, Signal *signal,
 		     Uint32 senderData, Uint32 errorCode);
   void dumpUsedResources();
-  void cleanupMasterResources(BackupRecordPtr ptr);
-  void cleanupSlaveResources(BackupRecordPtr ptr);
-  void cleanupFinalResources(BackupRecordPtr ptr);
+  void cleanup(Signal*, BackupRecordPtr ptr);
+  void abort_scan(Signal*, BackupRecordPtr ptr);
   void removeBackup(Signal*, BackupRecordPtr ptr);
 
   void sendSTTORRY(Signal*);

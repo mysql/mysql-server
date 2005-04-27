@@ -1022,7 +1022,7 @@ private:
   Uint32 placeReadInLockQueue(Signal* signal);
   void placeSerialQueueRead(Signal* signal);
   void checkOnlyReadEntry(Signal* signal);
-  void getNoParallelTransaction(Signal* signal);
+  Uint32 getNoParallelTransaction(const Operationrec*);
   void moveLastParallelQueue(Signal* signal);
   void moveLastParallelQueueWrite(Signal* signal);
   Uint32 placeWriteInLockQueue(Signal* signal);
@@ -1100,6 +1100,8 @@ private:
   Uint32 executeNextOperation(Signal* signal);
   void releaselock(Signal* signal);
   void takeOutFragWaitQue(Signal* signal);
+  void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
+			  OperationrecPtr release_op);
   void allocOverflowPage(Signal* signal);
   bool getrootfragmentrec(Signal* signal, RootfragmentrecPtr&, Uint32 fragId);
   void insertLockOwnersList(Signal* signal, const OperationrecPtr&);
@@ -1263,7 +1265,6 @@ private:
   OperationrecPtr mlpqOperPtr;
   OperationrecPtr queOperPtr;
   OperationrecPtr readWriteOpPtr;
-  OperationrecPtr tgnptMainOpPtr;
   Uint32 cfreeopRec;
   Uint32 coprecsize;
 /* --------------------------------------------------------------------------------- */
@@ -1514,7 +1515,6 @@ private:
   Uint32 turlIndex;
   Uint32 tlfrTmp1;
   Uint32 tlfrTmp2;
-  Uint32 tgnptNrTransaction;
   Uint32 tudqeIndex;
   Uint32 tscanTrid1;
   Uint32 tscanTrid2;

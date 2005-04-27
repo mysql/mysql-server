@@ -90,10 +90,8 @@ printBACKUP_FRAGMENT_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 bno){
 bool 
 printBACKUP_FRAGMENT_REF(FILE * out, const Uint32 * data, Uint32 l, Uint16 bno){
   BackupFragmentRef* sig = (BackupFragmentRef*)data;
-  fprintf(out, " backupPtr: %d backupId: %d\n",
-	  sig->backupPtr, sig->backupId);
-  fprintf(out, " tableId: %d fragmentNo: %d errorCode: %d\n",
-	  sig->tableId, sig->fragmentNo, sig->errorCode);
+  fprintf(out, " backupPtr: %d backupId: %d nodeId: %d errorCode: %d\n",
+	  sig->backupPtr, sig->backupId, sig->nodeId, sig->errorCode);
   return true;
 }
 
