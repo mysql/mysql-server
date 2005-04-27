@@ -5090,7 +5090,7 @@ ER_SP_LABEL_MISMATCH 42000
 ER_SP_UNINIT_VAR 01000 
 	eng "Referring to uninitialized variable %s"
 ER_SP_BADSELECT 0A000 
-	eng "SELECT in a stored procedure must have INTO"
+	eng "PROCEDURE %s can't return a result set in the given context"
 ER_SP_BADRETURN 42000 
 	eng "RETURN is only allowed in a FUNCTION"
 ER_SP_BADSTATEMENT 0A000 

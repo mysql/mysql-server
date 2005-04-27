@@ -835,10 +835,6 @@ end|
 # BUG#8408: Stored procedure crash if function contains SHOW
 # BUG#9058: Stored Procedures: Crash if function included SELECT
 #
---disable_warnings
-drop function if exists bug8408|
-drop procedure if exists bug8408|
---enable_warnings
 
 # Some things are caught when parsing
 --error ER_SP_NO_RETSET_IN_FUNC
@@ -861,21 +857,26 @@ begin
   return b;
 end|
 
+--disable_warnings
+drop function if exists bug8408_f|
+drop procedure if exists bug8408_p|
+--enable_warnings
+
 # Some things must be caught at invokation time
-create function bug8408() returns int
+create function bug8408_f() returns int
 begin
-  call bug8408();
+  call bug8408_p();
   return 0;
 end|
-create procedure bug8408()
+create procedure bug8408_p()
   select * from t1|
 
-call bug8408()|
+call bug8408_p()|
 --error ER_SP_BADSELECT
-select bug8408()|
+select bug8408_f()|
 
-drop procedure bug8408|
-drop function bug8408|
+drop procedure bug8408_p|
+drop function bug8408_f|
 
 # But this is ok
 create function bug8408() returns int

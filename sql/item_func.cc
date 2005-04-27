@@ -4554,7 +4554,7 @@ Item_func_sp::execute(Item **itp)
 {
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
-  bool clcap_mr;
+  ulong old_client_capabilites;
   int res;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
@@ -4568,7 +4568,7 @@ Item_func_sp::execute(Item **itp)
     DBUG_RETURN(-1);
   }
 
-  clcap_mr= (thd->client_capabilities & CLIENT_MULTI_RESULTS);
+  old_client_capabilites= thd->client_capabilities;
   thd->client_capabilities &= ~CLIENT_MULTI_RESULTS;
 
 #ifndef EMBEDDED_LIBRARY
@@ -4586,8 +4586,7 @@ Item_func_sp::execute(Item **itp)
 			     m_sp->m_db.str, m_sp->m_name.str, 0))
   {
     sp_restore_security_context(thd, m_sp, &save_ctx);
-    if (clcap_mr)
-      thd->client_capabilities |= CLIENT_MULTI_RESULTS;
+    thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
     DBUG_RETURN(-1);
   }
 #endif
@@ -4602,8 +4601,7 @@ Item_func_sp::execute(Item **itp)
   thd->net.no_send_ok= nsok;
 #endif
 
-  if (clcap_mr)
-    thd->client_capabilities |= CLIENT_MULTI_RESULTS;
+  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
 
   DBUG_RETURN(res);
 }
