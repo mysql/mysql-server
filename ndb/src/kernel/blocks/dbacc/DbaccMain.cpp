@@ -1936,9 +1936,7 @@ void Dbacc::insertelementLab(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 Uint32 Dbacc::placeReadInLockQueue(Signal* signal) 
 {
-  tgnptMainOpPtr = queOperPtr;
-  getNoParallelTransaction(signal);
-  if (tgnptNrTransaction == 1) {
+  if (getNoParallelTransaction(queOperPtr.p) == 1) {
     if ((queOperPtr.p->transId1 == operationRecPtr.p->transId1) && 
         (queOperPtr.p->transId2 == operationRecPtr.p->transId2)) {
       /* --------------------------------------------------------------------------------- */
@@ -2021,9 +2019,7 @@ void Dbacc::placeSerialQueueRead(Signal* signal)
     checkOnlyReadEntry(signal);
     return;
   }//if
-  tgnptMainOpPtr = readWriteOpPtr;
-  getNoParallelTransaction(signal);
-  if (tgnptNrTransaction == 1) {
+  if (getNoParallelTransaction(readWriteOpPtr.p) == 1) {
     jam();
     /* --------------------------------------------------------------------------------- */
     /* THERE WAS ONLY ONE TRANSACTION INVOLVED IN THE PARALLEL QUEUE. IF THIS IS OUR     */
@@ -2104,24 +2100,23 @@ void Dbacc::checkOnlyReadEntry(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* GET_NO_PARALLEL_TRANSACTION                                                       */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::getNoParallelTransaction(Signal* signal) 
+Uint32
+Dbacc::getNoParallelTransaction(const Operationrec * op) 
 {
-  OperationrecPtr tnptOpPtr;
-
-  tgnptNrTransaction = 1;
-  tnptOpPtr.i = tgnptMainOpPtr.p->nextParallelQue;
-  while ((tnptOpPtr.i != RNIL) &&
-         (tgnptNrTransaction == 1)) {
+  OperationrecPtr tmp;
+  
+  tmp.i= op->nextParallelQue;
+  Uint32 transId[2] = { op->transId1, op->transId2 };
+  while (tmp.i != RNIL) 
+  {
     jam();
-    ptrCheckGuard(tnptOpPtr, coprecsize, operationrec);
-    if ((tnptOpPtr.p->transId1 == tgnptMainOpPtr.p->transId1) &&
-        (tnptOpPtr.p->transId2 == tgnptMainOpPtr.p->transId2)) {
-      tnptOpPtr.i = tnptOpPtr.p->nextParallelQue;
-    } else {
-      jam();
-      tgnptNrTransaction++;
-    }//if
-  }//while
+    ptrCheckGuard(tmp, coprecsize, operationrec);
+    if (tmp.p->transId1 == transId[0] && tmp.p->transId2 == transId[1])
+      tmp.i = tmp.p->nextParallelQue;
+    else
+      return 2;
+  }
+  return 1;
 }//Dbacc::getNoParallelTransaction()
 
 void Dbacc::moveLastParallelQueue(Signal* signal) 
@@ -2162,9 +2157,7 @@ void Dbacc::moveLastParallelQueueWrite(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 Uint32 Dbacc::placeWriteInLockQueue(Signal* signal) 
 {
-  tgnptMainOpPtr = queOperPtr;
-  getNoParallelTransaction(signal);
-  if (!((tgnptNrTransaction == 1) &&
+  if (!((getNoParallelTransaction(queOperPtr.p) == 1) &&
 	(queOperPtr.p->transId1 == operationRecPtr.p->transId1) &&
 	(queOperPtr.p->transId2 == operationRecPtr.p->transId2))) {
     jam();
@@ -2215,9 +2208,7 @@ void Dbacc::placeSerialQueueWrite(Signal* signal)
   }//if
   readWriteOpPtr.i = readWriteOpPtr.p->nextSerialQue;
   ptrCheckGuard(readWriteOpPtr, coprecsize, operationrec);
-  tgnptMainOpPtr = readWriteOpPtr;
-  getNoParallelTransaction(signal);
-  if (tgnptNrTransaction == 1) {
+  if (getNoParallelTransaction(readWriteOpPtr.p) == 1) {
     /* --------------------------------------------------------------------------------- */
     /* THERE WAS ONLY ONE TRANSACTION INVOLVED IN THE PARALLEL QUEUE. IF THIS IS OUR     */
     /* TRANSACTION WE CAN STILL GET HOLD OF THE LOCK.                                    */
@@ -5802,8 +5793,152 @@ void Dbacc::commitOperation(Signal* signal)
       ptrCheckGuard(tolqTmpPtr, coprecsize, operationrec);
       tolqTmpPtr.p->prevParallelQue = operationRecPtr.p->prevParallelQue;
     }//if
-  }//if
+
+    /**
+     * Check possible lock upgrade
+     * 1) Find lock owner
+     * 2) Count transactions in parallel que
+     * 3) If count == 1 and TRANSID(next serial) == TRANSID(lock owner)
+     *      upgrade next serial
+     */
+    if(operationRecPtr.p->lockMode)
+    {
+      jam();
+      /**
+       * Committing a non shared operation can't lead to lock upgrade
+       */
+      return;
+    }
+    
+    OperationrecPtr lock_owner;
+    lock_owner.i = operationRecPtr.p->prevParallelQue;
+    ptrCheckGuard(lock_owner, coprecsize, operationrec);
+    Uint32 transid[2] = { lock_owner.p->transId1, 
+			  lock_owner.p->transId2 };
+    
+    
+    while(lock_owner.p->prevParallelQue != RNIL)
+    {
+      lock_owner.i = lock_owner.p->prevParallelQue;
+      ptrCheckGuard(lock_owner, coprecsize, operationrec);
+      
+      if(lock_owner.p->transId1 != transid[0] || 
+	 lock_owner.p->transId2 != transid[1])
+      {
+	jam();
+	/**
+	 * If more than 1 trans in lock queue -> no lock upgrade
+	 */
+	return;
+      }
+    }
+    
+    check_lock_upgrade(signal, lock_owner, operationRecPtr);
+  }
 }//Dbacc::commitOperation()
+
+void
+Dbacc::check_lock_upgrade(Signal* signal, 
+			  OperationrecPtr lock_owner,
+			  OperationrecPtr release_op)
+{
+  if((lock_owner.p->transId1 == release_op.p->transId1 &&
+      lock_owner.p->transId2 == release_op.p->transId2) ||
+     release_op.p->lockMode ||
+     lock_owner.p->nextSerialQue == RNIL)
+  {
+    jam();
+    /**
+     * No lock upgrade if same trans or lock owner has no serial queue
+     *                 or releasing non shared op
+     */
+    return;
+  }
+
+  OperationrecPtr next;
+  next.i = lock_owner.p->nextSerialQue;
+  ptrCheckGuard(next, coprecsize, operationrec);
+  
+  if(lock_owner.p->transId1 != next.p->transId1 ||
+     lock_owner.p->transId2 != next.p->transId2)
+  {
+    jam();
+    /**
+     * No lock upgrad if !same trans in serial queue
+     */
+    return;
+  }
+  
+  if (getNoParallelTransaction(lock_owner.p) > 1)
+  {
+    jam();
+    /**
+     * No lock upgrade if more than 1 transaction in parallell queue
+     */
+    return;
+  }
+
+  if (getNoParallelTransaction(next.p) > 1)
+  {
+    jam();
+    /**
+     * No lock upgrade if more than 1 transaction in next's parallell queue
+     */
+    return;
+  }
+  
+  OperationrecPtr tmp;
+  tmp.i = lock_owner.p->nextSerialQue = next.p->nextSerialQue;
+  if(tmp.i != RNIL)
+  {
+    ptrCheckGuard(tmp, coprecsize, operationrec);
+    ndbassert(tmp.p->prevSerialQue == next.i);
+    tmp.p->prevSerialQue = lock_owner.i;
+  }
+  next.p->nextSerialQue = next.p->prevSerialQue = RNIL;
+  
+  // Find end of parallell que
+  tmp = lock_owner;
+  Uint32 lockMode = next.p->lockMode > lock_owner.p->lockMode ?
+    next.p->lockMode : lock_owner.p->lockMode;
+  while(tmp.p->nextParallelQue != RNIL)
+  {
+    jam();
+    tmp.i = tmp.p->nextParallelQue;
+    tmp.p->lockMode = lockMode;
+    ptrCheckGuard(tmp, coprecsize, operationrec);
+  }
+  tmp.p->lockMode = lockMode;
+  
+  next.p->prevParallelQue = tmp.i;
+  tmp.p->nextParallelQue = next.i;
+  
+  OperationrecPtr save = operationRecPtr;
+
+  Uint32 localdata[2];
+  localdata[0] = lock_owner.p->localdata[0];
+  localdata[1] = lock_owner.p->localdata[1];
+  do {
+    next.p->localdata[0] = localdata[0];
+    next.p->localdata[1] = localdata[1];
+    next.p->lockMode = lockMode;
+    
+    operationRecPtr = next;
+    executeNextOperation(signal);
+    if (next.p->nextParallelQue != RNIL) 
+    {
+      jam();
+      next.i = next.p->nextParallelQue;
+      ptrCheckGuard(next, coprecsize, operationrec);
+    } else {
+      jam();
+      break;
+    }//if
+  } while (1);
+  
+  operationRecPtr = save;
+  
+}
 
 /* ------------------------------------------------------------------------- */
 /* RELEASELOCK                                                               */
@@ -5841,6 +5976,8 @@ void Dbacc::releaselock(Signal* signal)
       ptrCheckGuard(trlTmpOperPtr, coprecsize, operationrec);
       trlTmpOperPtr.p->prevSerialQue = trlOperPtr.i;
     }//if
+
+    check_lock_upgrade(signal, copyInOperPtr, operationRecPtr);
     /* --------------------------------------------------------------------------------- */
     /*       SINCE THERE ARE STILL ITEMS IN THE PARALLEL QUEUE WE NEED NOT WORRY ABOUT   */
     /*       STARTING QUEUED OPERATIONS. THUS WE CAN END HERE.                           */
@@ -8348,7 +8485,7 @@ void Dbacc::checkSendLcpConfLab(Signal* signal)
     break;
   }//switch
   lcpConnectptr.p->noOfLcpConf++;
-  ndbrequire(lcpConnectptr.p->noOfLcpConf <= 2);
+  ndbrequire(lcpConnectptr.p->noOfLcpConf <= 4);
   fragrecptr.p->fragState = ACTIVEFRAG;
   rlpPageptr.i = fragrecptr.p->zeroPagePtr;
   ptrCheckGuard(rlpPageptr, cpagesize, page8);
@@ -8366,7 +8503,7 @@ void Dbacc::checkSendLcpConfLab(Signal* signal)
   }//for
   signal->theData[0] = fragrecptr.p->lcpLqhPtr;
   sendSignal(lcpConnectptr.p->lcpUserblockref, GSN_ACC_LCPCONF, signal, 1, JBB);
-  if (lcpConnectptr.p->noOfLcpConf == 2) {
+  if (lcpConnectptr.p->noOfLcpConf == 4) {
     jam();
     releaseLcpConnectRec(signal);
     rootfragrecptr.i = fragrecptr.p->myroot;
@@ -8397,6 +8534,13 @@ void Dbacc::execACC_CONTOPREQ(Signal* signal)
   /* LOCAL FRAG ID                   */
   tresult = 0;
   ptrCheckGuard(lcpConnectptr, clcpConnectsize, lcpConnectrec);
+  if(ERROR_INSERTED(3002) && lcpConnectptr.p->noOfLcpConf < 2)
+  {
+    sendSignalWithDelay(cownBlockref, GSN_ACC_CONTOPREQ, signal, 300, 
+			signal->getLength());
+    return;
+  }
+  
   ndbrequire(lcpConnectptr.p->lcpstate == LCP_ACTIVE);
   rootfragrecptr.i = lcpConnectptr.p->rootrecptr;
   ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
@@ -8430,6 +8574,15 @@ void Dbacc::execACC_CONTOPREQ(Signal* signal)
   }//while
   signal->theData[0] = fragrecptr.p->lcpLqhPtr;
   sendSignal(lcpConnectptr.p->lcpUserblockref, GSN_ACC_CONTOPCONF, signal, 1, JBA);
+
+  lcpConnectptr.p->noOfLcpConf++;
+  if (lcpConnectptr.p->noOfLcpConf == 4) {
+    jam();
+    releaseLcpConnectRec(signal);
+    rootfragrecptr.i = fragrecptr.p->myroot;
+    ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
+    rootfragrecptr.p->rootState = ACTIVEROOT;
+  }//if
   return;	/* ALL QUEUED OPERATION ARE RESTARTED IF NEEDED. */
 }//Dbacc::execACC_CONTOPREQ()
 
