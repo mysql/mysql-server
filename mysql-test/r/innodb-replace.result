@@ -1,3 +1,4 @@
+drop table if exists t1;
 create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) engine=innodb;
 select * from t1;
 c1	c2	stamp

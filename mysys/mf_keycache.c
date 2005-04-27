@@ -1025,8 +1025,8 @@ static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count)
     for a too long time (this time is determined by parameter age_threshold).
 */
 
-static inline void unreg_request(KEY_CACHE *keycache,
-                                 BLOCK_LINK *block, int at_end)
+static void unreg_request(KEY_CACHE *keycache,
+                          BLOCK_LINK *block, int at_end)
 {
   if (! --block->requests)
   {
@@ -1045,10 +1045,13 @@ static inline void unreg_request(KEY_CACHE *keycache,
     }
     link_block(keycache, block, hot, (my_bool)at_end);
     block->last_hit_time= keycache->keycache_time;
-    if (++keycache->keycache_time - keycache->used_ins->last_hit_time >
+    keycache->keycache_time++;
+
+    block= keycache->used_ins;
+    /* Check if we should link a hot block to the warm block */
+    if (block && keycache->keycache_time - block->last_hit_time >
 	keycache->age_threshold)
     {
-      block= keycache->used_ins;
       unlink_block(keycache, block);
       link_block(keycache, block, 0, 0);
       if (block->temperature != BLOCK_WARM)
