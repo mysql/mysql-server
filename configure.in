@@ -2405,17 +2405,24 @@ then
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
+    # Use system readline library
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
     MYSQL_CHECK_LIBEDIT_INTERFACE
     MYSQL_CHECK_NEW_RL_INTERFACE
     MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
     AC_LANG_RESTORE
-    if [test "$mysql_cv_new_rl_interface" = "yes"] || [test "$mysql_cv_libedit_interface" = "no"]
+    if [test "$mysql_cv_new_rl_interface" = "yes"]
     then
+        # Use the new readline interface
         readline_link="-lreadline"
-    else
+    elif [test "$mysql_cv_libedit_interface" = "yes"]; then
+        # Use libedit
         readline_link="-ledit"
+    else
+       AC_MSG_ERROR([Could not find system readline or libedit libraries
+          Use --with-readline or --with-libedit to use the bundled
+          versions of libedit or readline])
     fi
 fi
 fi
