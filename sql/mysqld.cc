@@ -2022,7 +2022,7 @@ static void init_signals(void)
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     /* Change limits so that we will get a core file */
-    struct rlimit rl;
+    STRUCT_RLIMIT rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
     if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
@@ -5495,7 +5495,7 @@ The minimum value for this variable is 4096.",
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
-#ifdef DOES_NOTHING_YET
+#ifdef HAVE_REPLICATION
   {"sync-replication", OPT_SYNC_REPLICATION,
    "Enable synchronous replication.",
    (gptr*) &global_system_variables.sync_replication,
@@ -5511,7 +5511,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.sync_replication_timeout,
    (gptr*) &global_system_variables.sync_replication_timeout,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
-#endif
+#endif /* HAVE_REPLICATION */
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
    (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,

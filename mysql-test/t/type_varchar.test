@@ -1,5 +1,5 @@
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, t2;
 --enable_warnings
 
 create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
@@ -106,3 +106,15 @@ insert into t1 values ('test', 'something');
 update t1 set othercol='somethingelse' where pkcol='test';
 select * from t1;
 drop table t1;
+
+#
+# Bug #9489: problems with key handling
+#
+
+create table t1 (a int, b varchar(12));
+insert into t1 values (1, 'A'), (22, NULL);
+create table t2 (a int);
+insert into t2 values (22), (22);
+select t1.a, t1.b, min(t1.b) from t1 inner join t2 ON t2.a = t1.a 
+  group by t1.b, t1.a;
+drop table t1, t2;

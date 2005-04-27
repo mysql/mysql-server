@@ -2257,8 +2257,7 @@ inline double get_index_only_read_time(const PARAM* param, ha_rows records,
 			 param->table->file->ref_length) + 1);
   read_time=((double) (records+keys_per_block-1)/
              (double) keys_per_block);
-  /* Add 0.01 to avoid cost races between 'range' and 'index' */
-  return read_time + 0.01;
+  return read_time;
 }
 
 
@@ -3150,10 +3149,16 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           (param->table->file->index_flags(keynr, param->max_key_part,1) &
            HA_KEYREAD_ONLY) &&
           !(pk_is_clustered && keynr == param->table->s->primary_key))
-        /* We can resolve this by only reading through this key. */
+      {
+        /*
+          We can resolve this by only reading through this key. 
+          0.01 is added to avoid races between range and 'index' scan.
+        */
         found_read_time= get_index_only_read_time(param,found_records,keynr) +
-                         cpu_cost;
+                         cpu_cost + 0.01;
+      }
       else
+      {
         /*
           cost(read_through_index) = cost(disk_io) + cost(row_in_range_checks)
           The row_in_range check is in QUICK_RANGE_SELECT::cmp_next function.
@@ -3161,8 +3166,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 	found_read_time= param->table->file->read_time(keynr,
                                                        param->range_count,
                                                        found_records) +
-			 cpu_cost;
-
+			 cpu_cost + 0.01;
+      }
       DBUG_PRINT("info",("key %s: found_read_time: %g (cur. read_time: %g)",
                          param->table->key_info[keynr].name, found_read_time,
                          read_time));
