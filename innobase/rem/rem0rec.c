@@ -218,20 +218,15 @@ rec_init_offsets(
 					We do not advance offs, and we set
 					the length to zero and enable the
 					SQL NULL flag in offsets[]. */
-					len = REC_OFFS_SQL_NULL;
+					len = offs | REC_OFFS_SQL_NULL;
 					goto resolved;
 				}
 				null_mask <<= 1;
-
-				ut_ad(!field->fixed_len);
-				goto variable_length;
 			}
 
 			if (UNIV_UNLIKELY(!field->fixed_len)) {
-				dtype_t*	type;
-			variable_length:
 				/* Variable-length field: read the length */
-				type = dict_col_get_type(
+				dtype_t*	type = dict_col_get_type(
 						dict_field_get_col(field));
 				len = *lens--;
 				if (UNIV_UNLIKELY(dtype_get_len(type) > 255)

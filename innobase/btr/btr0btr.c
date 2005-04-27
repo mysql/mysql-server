@@ -1273,17 +1273,20 @@ btr_page_get_sure_split_rec(
                     	    	supremum record of page */
 
 				if (rec == ins_rec) {
-					next_rec = NULL;
+					rec = NULL;
+					goto func_exit;
 				} else if (rec == NULL) {
 					next_rec = page_rec_get_next(ins_rec);
 				} else {
 					next_rec = page_rec_get_next(rec);
 				}
-				if (!page_rec_is_supremum(next_rec))) {
+				ut_ad(next_rec);
+				if (!page_rec_is_supremum(next_rec)) {
 					rec = next_rec;
 				}
                     	}
 
+		func_exit:
 			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
@@ -1323,7 +1326,7 @@ btr_page_insert_fits(
 
 	ut_ad(!split_rec == !offsets);
 	ut_ad(!offsets
-		|| page_is_comp(page) == !!rec_offs_comp(offsets));
+		|| !page_is_comp(page) == !rec_offs_comp(offsets));
 	ut_ad(!offsets
 		|| rec_offs_validate(split_rec, cursor->index, offsets));
 

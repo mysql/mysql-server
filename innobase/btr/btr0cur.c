@@ -1426,7 +1426,7 @@ btr_cur_update_in_place(
 	rec_t*		rec;
 	dulint		roll_ptr	= ut_dulint_zero;
 	trx_t*		trx;
-	ibool		was_delete_marked;
+	ulint		was_delete_marked;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1434,6 +1434,7 @@ btr_cur_update_in_place(
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
+	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
 	trx = thr_get_trx(thr);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
@@ -1547,6 +1548,7 @@ btr_cur_optimistic_update(
 	page = btr_cur_get_page(cursor);
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
+	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
 	
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
@@ -1596,8 +1598,8 @@ btr_cur_optimistic_update(
 	old_rec_size = rec_offs_size(offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry);
 	
-	if (new_rec_size >=
-			page_get_free_space_of_empty(page_is_comp(page)) / 2) {
+	if (UNIV_UNLIKELY(new_rec_size >= page_get_free_space_of_empty(
+				page_is_comp(page)) / 2)) {
 
 		mem_heap_free(heap);		
 
@@ -1607,8 +1609,9 @@ btr_cur_optimistic_update(
 	max_size = old_rec_size
 			+ page_get_max_insert_size_after_reorganize(page, 1);
 
-	if (page_get_data_size(page) - old_rec_size + new_rec_size
-					< BTR_CUR_PAGE_COMPRESS_LIMIT) {
+	if (UNIV_UNLIKELY(page_get_data_size(page)
+					- old_rec_size + new_rec_size
+					< BTR_CUR_PAGE_COMPRESS_LIMIT)) {
 
 		/* The page would become too empty */
 
@@ -2034,14 +2037,14 @@ btr_cur_parse_del_mark_set_clust_rec(
 	page_t*		page)	/* in: page or NULL */
 {
 	ulint	flags;
-	ibool	val;
+	ulint	val;
 	ulint	pos;
 	dulint	trx_id;
 	dulint	roll_ptr;
 	ulint	offset;
 	rec_t*	rec;
 
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!page || !!page_is_comp(page) == index->table->comp);
 
 	if (end_ptr < ptr + 2) {
 
@@ -2127,6 +2130,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
+	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	if (btr_cur_print_record_ops && thr) {
@@ -2135,7 +2139,7 @@ btr_cur_del_mark_set_clust_rec(
 	}
 
 	ut_ad(index->type & DICT_CLUSTERED);
-	ut_ad(rec_get_deleted_flag(rec, index->table->comp) == FALSE);
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	err = lock_clust_rec_modify_check_and_lock(flags,
 						rec, index, offsets, thr);
@@ -2230,7 +2234,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 	byte*		end_ptr,/* in: buffer end */
 	page_t*		page)	/* in: page or NULL */
 {
-	ibool	val;
+	ulint	val;
 	ulint	offset;
 	rec_t*	rec;
 

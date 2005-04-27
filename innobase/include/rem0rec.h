@@ -162,10 +162,10 @@ rec_set_info_and_status_bits(
 /**********************************************************
 The following function tells if record is delete marked. */
 UNIV_INLINE
-ibool
+ulint
 rec_get_deleted_flag(
 /*=================*/
-			/* out: TRUE if delete marked */
+			/* out: nonzero if delete marked */
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
@@ -176,7 +176,7 @@ rec_set_deleted_flag(
 /*=================*/
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp,	/* in: nonzero=compact page format */
-	ibool	flag);	/* in: TRUE if delete marked */
+	ulint	flag);	/* in: nonzero if delete marked */
 /**********************************************************
 The following function tells if a new-style record is a node pointer. */
 UNIV_INLINE
