@@ -29,9 +29,9 @@ libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
-LDADD =			$(top_builddir)/myisam/libmyisam.a \
-			$(top_builddir)/myisammrg/libmyisammrg.a \
-			$(top_builddir)/heap/libheap.a \
+LDADD =			$(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/storage/myisammrg/libmyisammrg.a \
+			$(top_builddir)/storage/heap/libheap.a \
 			$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \

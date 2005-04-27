@@ -72,7 +72,7 @@ TODO:
 #ifndef MASTER
 #include "../srclib/myisammrg/myrg_def.h"
 #else
-#include "../myisammrg/myrg_def.h"
+#include "../storage/myisammrg/myrg_def.h"
 #endif
 
 static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,

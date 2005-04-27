@@ -1,0 +1,2 @@
+
+INCLUDES += -I$(top_srcdir)/storage/ndb/include/mgmapi
