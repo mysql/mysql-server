@@ -40,6 +40,9 @@ pthread_mutex_t LOCK_gethostbyname_r;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+pthread_mutexattr_t my_errorcheck_mutexattr;
+#endif
 
 /*
   initialize thread environment
@@ -75,6 +78,14 @@ my_bool my_thread_global_init(void)
   pthread_mutexattr_settype(&my_fast_mutexattr,
                             PTHREAD_MUTEX_ADAPTIVE_NP);
 #endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+  /*
+    Set mutex type to "errorcheck" a.k.a "adaptive"
+  */
+  pthread_mutexattr_init(&my_errorcheck_mutexattr);
+  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
+                            PTHREAD_MUTEX_ERRORCHECK);
+#endif
 
   pthread_mutex_init(&THR_LOCK_malloc,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_open,MY_MUTEX_INIT_FAST);
@@ -107,6 +118,9 @@ void my_thread_global_end(void)
   pthread_key_delete(THR_KEY_mysys);
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
+#endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+  pthread_mutexattr_destroy(&my_errorcheck_mutexattr);
 #endif
   pthread_mutex_destroy(&THR_LOCK_malloc);
   pthread_mutex_destroy(&THR_LOCK_open);
