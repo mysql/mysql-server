@@ -1,4 +1,4 @@
-/*	$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $	*/
+/*	$NetBSD: term.c,v 1.40 2004/05/22 23:21:28 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,14 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
-#else
-__RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * term.c: Editor/termcap-curses interface
@@ -55,23 +44,22 @@ __RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#ifdef HAVE_TERMCAP_H
-#include <termcap.h>
-#endif
+
 #ifdef HAVE_CURSES_H
-#include <curses.h>
-#endif
-#ifdef HAVE_NCURSES_H
-#include <ncurses.h>
+# include <curses.h>
+#elif HAVE_NCURSES_H
+# include <ncurses.h>
 #endif
 
-#include "el.h"
-
-#if !defined(HAVE_TERMCAP_H) && defined(HAVE_TERM_H)
-#include <term.h>
+/* Solaris's term.h does horrid things. */
+#if (defined(HAVE_TERM_H) && !defined(_SUNOS))
+# include <term.h>
 #endif
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
+
+#include "el.h"
 
 /*
  * IMPORTANT NOTE: these routines are allowed to look at the current screen
@@ -356,6 +344,7 @@ term_init(EditLine *el)
 	term_init_arrow(el);
 	return (0);
 }
+
 /* term_end():
  *	Clean up the terminal stuff
  */
@@ -372,6 +361,8 @@ term_end(EditLine *el)
 	el->el_term.t_str = NULL;
 	el_free((ptr_t) el->el_term.t_val);
 	el->el_term.t_val = NULL;
+	el_free((ptr_t) el->el_term.t_fkey);
+	el->el_term.t_fkey = NULL;
 	term_free_display(el);
 }
 
@@ -648,7 +639,8 @@ mc_again:
 				 * from col 0
 				 */
 				if (EL_CAN_TAB ?
-				    (((unsigned int)-del) > (((unsigned int) where >> 3) +
+				    ((unsigned int)-del >
+				    (((unsigned int) where >> 3) +
 				     (where & 07)))
 				    : (-del > where)) {
 					term__putc('\r');	/* do a CR */
@@ -876,6 +868,12 @@ term_clear_to_bottom(EditLine *el)
 }
 #endif
 
+protected void
+term_get(EditLine *el, const char **term)
+{
+	*term = el->el_term.t_name;
+}
+
 
 /* term_set():
  *	Read in the terminal capabilities from the requested terminal
@@ -937,8 +935,11 @@ term_set(EditLine *el, const char *term)
 		/* Get the size */
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
-		for (t = tstr; t->name != NULL; t++)
-			term_alloc(el, t, tgetstr(t->name, &area));
+		for (t = tstr; t->name != NULL; t++) {
+			/* XXX: some systems tgetstr needs non const */
+			term_alloc(el, t, tgetstr(strchr(t->name, *t->name),
+			    &area));
+		}
 	}
 
 	if (Val(T_co) < 2)
@@ -957,6 +958,7 @@ term_set(EditLine *el, const char *term)
 		return (-1);
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 	term_bind_arrow(el);
+	el->el_term.t_name = term;
 	return (i <= 0 ? -1 : 0);
 }
 
@@ -1078,32 +1080,32 @@ term_reset_arrow(EditLine *el)
 	static const char stOH[] = {033, 'O', 'H', '\0'};
 	static const char stOF[] = {033, 'O', 'F', '\0'};
 
-	el_key_add(el, strA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-	el_key_add(el, strB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-	el_key_add(el, strC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-	el_key_add(el, strD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-	el_key_add(el, strH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-	el_key_add(el, strF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
-	el_key_add(el, stOA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-	el_key_add(el, stOB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-	el_key_add(el, stOC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-	el_key_add(el, stOD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-	el_key_add(el, stOH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-	el_key_add(el, stOF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+	key_add(el, strA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+	key_add(el, strB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+	key_add(el, strC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+	key_add(el, strD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+	key_add(el, strH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+	key_add(el, strF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+	key_add(el, stOA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+	key_add(el, stOB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+	key_add(el, stOC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+	key_add(el, stOD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+	key_add(el, stOH, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+	key_add(el, stOF, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
 
 	if (el->el_map.type == MAP_VI) {
-		el_key_add(el, &strA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-		el_key_add(el, &strB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-		el_key_add(el, &strC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-		el_key_add(el, &strD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-		el_key_add(el, &strH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-		el_key_add(el, &strF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
-		el_key_add(el, &stOA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
-		el_key_add(el, &stOB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
-		el_key_add(el, &stOC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
-		el_key_add(el, &stOD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
-		el_key_add(el, &stOH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
-		el_key_add(el, &stOF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+		key_add(el, &strA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+		key_add(el, &strB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+		key_add(el, &strC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+		key_add(el, &strD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+		key_add(el, &strH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+		key_add(el, &strF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+		key_add(el, &stOA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
+		key_add(el, &stOB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
+		key_add(el, &stOC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
+		key_add(el, &stOD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+		key_add(el, &stOH[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+		key_add(el, &stOF[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
 	}
 }
 
@@ -1157,7 +1159,7 @@ term_print_arrow(EditLine *el, const char *name)
 	for (i = 0; i < A_K_NKEYS; i++)
 		if (*name == '\0' || strcmp(name, arrow[i].name) == 0)
 			if (arrow[i].type != XK_NOD)
-				el_key_kprint(el, arrow[i].name, &arrow[i].fun,
+				key_kprint(el, arrow[i].name, &arrow[i].fun,
 				    arrow[i].type);
 }
 
@@ -1198,20 +1200,20 @@ term_bind_arrow(EditLine *el)
 			 *    unassigned key.
 		         */
 			if (arrow[i].type == XK_NOD)
-				el_key_clear(el, map, p);
+				key_clear(el, map, p);
 			else {
 				if (p[1] && (dmap[j] == map[j] ||
 					map[j] == ED_SEQUENCE_LEAD_IN)) {
-					el_key_add(el, p, &arrow[i].fun,
+					key_add(el, p, &arrow[i].fun,
 					    arrow[i].type);
 					map[j] = ED_SEQUENCE_LEAD_IN;
 				} else if (map[j] == ED_UNASSIGNED) {
-					el_key_clear(el, map, p);
+					key_clear(el, map, p);
 					if (arrow[i].type == XK_CMD)
 						map[j] = arrow[i].fun.cmd;
 					else
-						el_key_add(el, p, &arrow[i].fun,
-						           arrow[i].type);
+						key_add(el, p, &arrow[i].fun,
+						    arrow[i].type);
 				}
 			}
 		}
@@ -1244,12 +1246,10 @@ term__flush(void)
 /* term_telltc():
  *	Print the current termcap characteristics
  */
-char		*el_key__decode_str(const char *, char *, const char *);
-
 protected int
 /*ARGSUSED*/
-term_telltc(EditLine *el, int argc __attribute__((unused)),
-	    const char **argv __attribute__((unused)))
+term_telltc(EditLine *el, int argc __attribute__((__unused__)), 
+    const char **argv __attribute__((__unused__)))
 {
 	const struct termcapstr *t;
 	char **ts;
@@ -1273,7 +1273,7 @@ term_telltc(EditLine *el, int argc __attribute__((unused)),
 		(void) fprintf(el->el_outfile, "\t%25s (%s) == %s\n",
 		    t->long_name,
 		    t->name, *ts && **ts ?
-		    el_key__decode_str(*ts, upbuf, "") : "(empty)");
+		    key__decode_str(*ts, upbuf, "") : "(empty)");
 	(void) fputc('\n', el->el_outfile);
 	return (0);
 }
@@ -1284,8 +1284,8 @@ term_telltc(EditLine *el, int argc __attribute__((unused)),
  */
 protected int
 /*ARGSUSED*/
-term_settc(EditLine *el, int argc __attribute__((unused)), 
-	   const char **argv __attribute__((unused)))
+term_settc(EditLine *el, int argc __attribute__((__unused__)),
+    const char **argv)
 {
 	const struct termcapstr *ts;
 	const struct termcapval *tv;
@@ -1361,9 +1361,8 @@ term_settc(EditLine *el, int argc __attribute__((unused)),
  */
 protected int
 /*ARGSUSED*/
-term_echotc(EditLine *el __attribute__((unused)), 
-	    int argc __attribute__((unused)),
-	    const char **argv __attribute__((unused)))
+term_echotc(EditLine *el, int argc __attribute__((__unused__)),
+    const char **argv)
 {
 	char *cap, *scap, *ep;
 	int arg_need, arg_cols, arg_rows;
@@ -1422,7 +1421,7 @@ term_echotc(EditLine *el __attribute__((unused)),
 			}
 		(void) fprintf(el->el_outfile, fmtd, 0);
 #else
-		(void) fprintf(el->el_outfile, fmtd, el->el_tty.t_speed);
+		(void) fprintf(el->el_outfile, fmtd, (int)el->el_tty.t_speed);
 #endif
 		return (0);
 	} else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {
@@ -1441,8 +1440,10 @@ term_echotc(EditLine *el __attribute__((unused)),
 			scap = el->el_term.t_str[t - tstr];
 			break;
 		}
-	if (t->name == NULL)
-		scap = tgetstr(*argv, &area);
+	if (t->name == NULL) {
+		/* XXX: some systems tgetstr needs non const */
+		scap = tgetstr(strchr(*argv, **argv), &area);
+	}
 	if (!scap || scap[0] == '\0') {
 		if (!silent)
 			(void) fprintf(el->el_errfile,

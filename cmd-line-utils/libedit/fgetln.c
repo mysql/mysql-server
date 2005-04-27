@@ -1,109 +1,88 @@
+/*	$NetBSD: fgetln.c,v 1.2 2003/12/10 01:30:27 lukem Exp $	*/
+
+/*-
+ * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Christos Zoulas.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *        This product includes software developed by the NetBSD
+ *        Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <config.h>
 #include <stdio.h>
-#include "compat.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
-#ifndef HAVE_FGETLN
 
-#ifdef HAVE_GETLINE
-
-extern int getline (char **lineptr, size_t *n, FILE *stream);
-
-#else
-
-/* The interface here is that of GNU libc's getline */
-static int
-getline (char **lineptr, size_t *n, FILE *stream)
+char *
+fgetln(FILE *fp, size_t *len)
 {
-#define EXPAND_CHUNK 16
+	static char *buf = NULL;
+	static size_t bufsiz = 0;
+	char *ptr;
 
-  int n_read = 0;
-  char *line = *lineptr;
 
-  if (lineptr == NULL) return -1;
-  if (n == NULL) return -1;
-  if (stream == NULL) return -1;
-  if (*lineptr == NULL || *n == 0) return -1;
-  
-#ifdef HAVE_FLOCKFILE
-  flockfile (stream);
-#endif  
-  
-  while (1)
-    {
-      int c;
-      
-#ifdef HAVE_FLOCKFILE
-      c = getc_unlocked (stream);
-#else
-      c = getc (stream);
-#endif      
+	if (buf == NULL) {
+		bufsiz = BUFSIZ;
+		if ((buf = malloc(bufsiz)) == NULL)
+			return NULL;
+	}
 
-      if (c == EOF)
-        {
-          if (n_read > 0)
-	    line[n_read] = '\0';
-          break;
-        }
+	if (fgets(buf, bufsiz, fp) == NULL)
+		return NULL;
+	*len = 0;
 
-      if (n_read + 2 >= *n)
-        {
-	  size_t new_size;
+	while ((ptr = strchr(&buf[*len], '\n')) == NULL) {
+		size_t nbufsiz = bufsiz + BUFSIZ;
+		char *nbuf = realloc(buf, nbufsiz);
 
-	  if (*n == 0)
-	    new_size = 16;
-	  else
-	    new_size = *n * 2;
+		if (nbuf == NULL) {
+			int oerrno = errno;
+			free(buf);
+			errno = oerrno;
+			buf = NULL;
+			return NULL;
+		} else
+			buf = nbuf;
 
-	  if (*n >= new_size)    /* Overflowed size_t */
-	    line = NULL;
-	  else
-	    line = (char *) (*lineptr ? (char*) realloc(*lineptr, new_size) :
-			     (char*) malloc(new_size));
+		*len = bufsiz;
+		if (fgets(&buf[bufsiz], BUFSIZ, fp) == NULL)
+			return buf;
 
-	  if (line)
-	    {
-	      *lineptr = line;
-	      *n = new_size;
-	    }
-	  else
-	    {
-	      if (*n > 0)
-		{
-		  (*lineptr)[*n - 1] = '\0';
-		  n_read = *n - 2;
-		}
-	      break;
-	    }
-        }
+		bufsiz = nbufsiz;
+	}
 
-      line[n_read] = c;
-      n_read++;
-
-      if (c == '\n')
-        {
-          line[n_read] = '\0';
-          break;
-        }
-    }
-
-#ifdef HAVE_FLOCKFILE
-  funlockfile (stream);
-#endif
-
-  return n_read - 1;
+	*len = (ptr - buf) + 1;
+	return buf;
 }
-#endif /* ! HAVE_GETLINE */
 
-char *fgetln(FILE *stream, size_t *len)
-{
-  char *ptr = NULL;
-  int sz;
-  size_t length= 0;
-
-  sz = getline(&ptr,  &length, stream);
-  if(len) {
-    *len = sz;
-  }
-
-  return sz >= 0 ? ptr : NULL;
-}
-#endif

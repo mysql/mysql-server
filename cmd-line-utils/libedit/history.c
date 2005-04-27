@@ -1,4 +1,4 @@
-/*	$NetBSD: history.c,v 1.22 2003/01/21 18:40:24 christos Exp $	*/
+/*	$NetBSD: history.c,v 1.28 2004/11/27 18:31:45 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,14 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: history.c,v 1.22 2003/01/21 18:40:24 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * hist.c: History access functions
@@ -51,11 +40,7 @@ __RCSID("$NetBSD: history.c,v 1.22 2003/01/21 18:40:24 christos Exp $");
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#ifdef HAVE_VIS_H
 #include <vis.h>
-#else
-#include "np/vis.h"
-#endif
 #include <sys/stat.h>
 
 static const char hist_cookie[] = "_HiStOrY_V2_\n";
@@ -91,6 +76,7 @@ struct history {
 #define	HENTER(h, ev, str)	(*(h)->h_enter)((h)->h_ref, ev, str)
 #define	HADD(h, ev, str)	(*(h)->h_add)((h)->h_ref, ev, str)
 
+#define	h_strdup(a)	strdup(a)
 #define	h_malloc(a)	malloc(a)
 #define	h_realloc(a, b)	realloc((a), (b))
 #define	h_free(a)	free(a)
@@ -249,19 +235,18 @@ history_def_next(ptr_t p, HistEvent *ev)
 {
 	history_t *h = (history_t *) p;
 
-	if (h->cursor != &h->list)
-		h->cursor = h->cursor->next;
-	else {
+	if (h->cursor == &h->list) {
 		he_seterrev(ev, _HE_EMPTY_LIST);
 		return (-1);
 	}
 
-	if (h->cursor != &h->list)
-		*ev = h->cursor->ev;
-	else {
+	if (h->cursor->next == &h->list) {
 		he_seterrev(ev, _HE_END_REACHED);
 		return (-1);
 	}
+
+        h->cursor = h->cursor->next;
+        *ev = h->cursor->ev;
 
 	return (0);
 }
@@ -275,20 +260,19 @@ history_def_prev(ptr_t p, HistEvent *ev)
 {
 	history_t *h = (history_t *) p;
 
-	if (h->cursor != &h->list)
-		h->cursor = h->cursor->prev;
-	else {
+	if (h->cursor == &h->list) {
 		he_seterrev(ev,
 		    (h->cur > 0) ? _HE_END_REACHED : _HE_EMPTY_LIST);
 		return (-1);
 	}
 
-	if (h->cursor != &h->list)
-		*ev = h->cursor->ev;
-	else {
+	if (h->cursor->prev == &h->list) {
 		he_seterrev(ev, _HE_START_REACHED);
 		return (-1);
 	}
+
+        h->cursor = h->cursor->prev;
+        *ev = h->cursor->ev;
 
 	return (0);
 }
@@ -374,7 +358,8 @@ history_def_add(ptr_t p, HistEvent *ev, const char *str)
  */
 /* ARGSUSED */
 private void
-history_def_delete(history_t *h, HistEvent *ev __attribute__((unused)), hentry_t *hp)
+history_def_delete(history_t *h, 
+		   HistEvent *ev __attribute__((__unused__)), hentry_t *hp)
 {
 	HistEventPrivate *evp = (void *)&hp->ev;
 	if (hp == &h->list)
@@ -397,7 +382,7 @@ history_def_insert(history_t *h, HistEvent *ev, const char *str)
 	h->cursor = (hentry_t *) h_malloc(sizeof(hentry_t));
 	if (h->cursor == NULL)
 		goto oomem;
-	if ((h->cursor->ev.str = strdup(str)) == NULL) {
+	if ((h->cursor->ev.str = h_strdup(str)) == NULL) {
 		h_free((ptr_t)h->cursor);
 		goto oomem;
 	}
@@ -447,7 +432,7 @@ history_def_enter(ptr_t p, HistEvent *ev, const char *str)
  */
 /* ARGSUSED */
 private int
-history_def_init(ptr_t *p, HistEvent *ev __attribute__((unused)), int n)
+history_def_init(ptr_t *p, HistEvent *ev __attribute__((__unused__)), int n)
 {
 	history_t *h = (history_t *) h_malloc(sizeof(history_t));
 	if (h == NULL)
@@ -661,6 +646,12 @@ history_load(History *h, const char *fname)
 	if ((fp = fopen(fname, "r")) == NULL)
 		return (i);
 
+	if ((line = fgetln(fp, &sz)) == NULL)
+		goto done;
+
+	if (strncmp(line, hist_cookie, sz) != 0)
+		goto done;
+
 	ptr = h_malloc(max_size = 1024);
 	if (ptr == NULL)
 		goto done;
@@ -674,7 +665,7 @@ history_load(History *h, const char *fname)
 
 		if (max_size < sz) {
 			char *nptr;
-			max_size = (sz + 1023) & ~1023;
+			max_size = (sz + 1024) & ~1023;
 			nptr = h_realloc(ptr, max_size);
 			if (nptr == NULL) {
 				i = -1;
@@ -714,16 +705,18 @@ history_save(History *h, const char *fname)
 
 	if (fchmod(fileno(fp), S_IRUSR|S_IWUSR) == -1)
 		goto done;
+	if (fputs(hist_cookie, fp) == EOF)
+		goto done;
 	ptr = h_malloc(max_size = 1024);
 	if (ptr == NULL)
 		goto done;
 	for (i = 0, retval = HLAST(h, &ev);
 	    retval != -1;
 	    retval = HPREV(h, &ev), i++) {
-		len = strlen(ev.str) * 4 + 1;
+		len = strlen(ev.str) * 4;
 		if (len >= max_size) {
 			char *nptr;
-			max_size = (len + 1023) & ~1023;
+			max_size = (len + 1024) & ~1023;
 			nptr = h_realloc(ptr, max_size);
 			if (nptr == NULL) {
 				i = -1;
@@ -732,7 +725,7 @@ history_save(History *h, const char *fname)
 			ptr = nptr;
 		}
 		(void) strvis(ptr, ev.str, VIS_WHITE);
-		(void) fprintf(fp, "%s\n", ev.str);
+		(void) fprintf(fp, "%s\n", ptr);
 	}
 oomem:
 	h_free((ptr_t)ptr);
