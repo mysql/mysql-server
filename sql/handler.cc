@@ -2412,6 +2412,7 @@ TYPELIB *ha_known_exts(void)
   return &known_extensions;
 }
 
+#ifdef HAVE_REPLICATION
 /*
   Reports to table handlers up to which position we have sent the binlog
   to a slave in replication
@@ -2468,3 +2469,4 @@ int ha_repl_report_replication_stop(THD *thd)
 
   return 0;
 }
+#endif /* HAVE_REPLICATION */
