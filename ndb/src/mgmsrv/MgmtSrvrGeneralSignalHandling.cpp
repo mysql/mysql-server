@@ -108,6 +108,7 @@ MgmtSrvr::sendRecSignal(Uint16 aNodeId,
     return -1;
   }
   theWaitState = aWaitState;
+  theWaitNode = aNodeId;
   return receiveOptimisedResponse(waitTime);
 }
 
@@ -119,11 +120,12 @@ MgmtSrvr::receiveOptimisedResponse(int waitTime)
   theFacade->checkForceSend(_blockNumber);
   NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
   
-  while (theWaitState != NO_WAIT && waitTime > 0) {
+  while (theWaitState != NO_WAIT && theWaitState != WAIT_NODEFAILURE
+	 && waitTime > 0) {
     NdbCondition_WaitTimeout(theMgmtWaitForResponseCondPtr, 
 			     theFacade->theMutexPtr,
 			     waitTime);
-    if(theWaitState == NO_WAIT)
+    if(theWaitState == NO_WAIT || theWaitState == WAIT_NODEFAILURE)
       break;
     waitTime = (maxTime - NdbTick_CurrentMillisecond());
   }//while
