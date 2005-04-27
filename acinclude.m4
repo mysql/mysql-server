@@ -1005,7 +1005,7 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
  if test -z "$OPENSSL_LIB" -o -z "$OPENSSL_INCLUDE" ; then
    echo "Could not find an installation of OpenSSL"
    if test -n "$OPENSSL_LIB" ; then
-    if test "$IS_LINUX" = "true"; then
+    if test "$TARGET_LINUX" = "true"; then
       echo "Looks like you've forgotten to install OpenSSL development RPM"
     fi
    fi
