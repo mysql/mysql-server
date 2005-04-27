@@ -506,7 +506,6 @@ Item_sum_distinct::Item_sum_distinct(THD *thd, Item_sum_distinct *original)
   This is to speedup SUM/AVG(DISTINCT) evaluation for 8-32 bit integer
   values.
 */
-
 struct Hybrid_type_traits_fast_decimal: public
        Hybrid_type_traits_integer
 {
@@ -521,13 +520,16 @@ struct Hybrid_type_traits_fast_decimal: public
     val->traits= Hybrid_type_traits_decimal::instance();
     val->traits->div(val, u);
   }
-  static const Hybrid_type_traits_fast_decimal *instance()
-  {
-    static const Hybrid_type_traits_fast_decimal fast_decimal_traits;
-    return &fast_decimal_traits;
-  }
+  static const Hybrid_type_traits_fast_decimal *instance();
 };
 
+static const Hybrid_type_traits_fast_decimal fast_decimal_traits_instance;
+
+const Hybrid_type_traits_fast_decimal
+  *Hybrid_type_traits_fast_decimal::instance()
+{
+  return &fast_decimal_traits_instance;
+}
 
 void Item_sum_distinct::fix_length_and_dec()
 {
