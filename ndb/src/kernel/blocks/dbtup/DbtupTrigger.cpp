@@ -973,25 +973,7 @@ Dbtup::executeTuxInsertTriggers(Signal* signal,
   req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpAdd;
-  // loop over index list
-  const ArrayList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
-  TriggerPtr triggerPtr;
-  triggerList.first(triggerPtr);
-  while (triggerPtr.i != RNIL) {
-    ljam();
-    req->indexId = triggerPtr.p->indexId;
-    req->errorCode = RNIL;
-    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
-    ljamEntry();
-    if (req->errorCode != 0) {
-      ljam();
-      terrorCode = req->errorCode;
-      return -1;
-    }
-    triggerList.next(triggerPtr);
-  }
-  return 0;
+  return addTuxEntries(signal, regOperPtr, regTabPtr);
 }
 
 int
@@ -1012,9 +994,18 @@ Dbtup::executeTuxUpdateTriggers(Signal* signal,
   req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpAdd;
-  // loop over index list
+  return addTuxEntries(signal, regOperPtr, regTabPtr);
+}
+
+int
+Dbtup::addTuxEntries(Signal* signal,
+                     Operationrec* regOperPtr,
+                     Tablerec* regTabPtr)
+{
+  TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   const ArrayList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
+  Uint32 failPtrI;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {
     ljam();
@@ -1026,11 +1017,29 @@ Dbtup::executeTuxUpdateTriggers(Signal* signal,
     if (req->errorCode != 0) {
       ljam();
       terrorCode = req->errorCode;
-      return -1;
+      failPtrI = triggerPtr.i;
+      goto fail;
     }
     triggerList.next(triggerPtr);
   }
   return 0;
+fail:
+  req->opInfo = TuxMaintReq::OpRemove;
+  triggerList.first(triggerPtr);
+  while (triggerPtr.i != failPtrI) {
+    ljam();
+    req->indexId = triggerPtr.p->indexId;
+    req->errorCode = RNIL;
+    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
+        signal, TuxMaintReq::SignalLength);
+    ljamEntry();
+    ndbrequire(req->errorCode == 0);
+    triggerList.next(triggerPtr);
+  }
+#ifdef VM_TRACE
+  ndbout << "aborted partial tux update: op " << hex << regOperPtr << endl;
+#endif
+  return -1;
 }
 
 int
@@ -1049,7 +1058,6 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   // get version
-  // XXX could add prevTupVersion to Operationrec
   Uint32 tupVersion;
   if (regOperPtr->optype == ZINSERT) {
     if (! regOperPtr->deleteInsertFlag)
@@ -1087,21 +1095,7 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
   req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
-  // loop over index list
-  const ArrayList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
-  TriggerPtr triggerPtr;
-  triggerList.first(triggerPtr);
-  while (triggerPtr.i != RNIL) {
-    ljam();
-    req->indexId = triggerPtr.p->indexId;
-    req->errorCode = RNIL;
-    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
-    ljamEntry();
-    // commit must succeed
-    ndbrequire(req->errorCode == 0);
-    triggerList.next(triggerPtr);
-  }
+  removeTuxEntries(signal, regOperPtr, regTabPtr);
 }
 
 void
@@ -1132,7 +1126,15 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
   req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
-  // loop over index list
+  removeTuxEntries(signal, regOperPtr, regTabPtr);
+}
+
+void
+Dbtup::removeTuxEntries(Signal* signal,
+                        Operationrec* regOperPtr,
+                        Tablerec* regTabPtr)
+{
+  TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   const ArrayList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
@@ -1143,7 +1145,7 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
         signal, TuxMaintReq::SignalLength);
     ljamEntry();
-    // abort must succeed
+    // must succeed
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);
   }

@@ -83,4 +83,43 @@ Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("only");
 a	b
-drop table if exists t1,t2;
+reset master;
+drop table t1,t2;
+create table t1 (a int) engine=blackhole;
+delete from t1 where a=10;
+update t1 set a=11 where a=15;
+insert into t1 values(1);
+insert ignore into t1 values(1);
+replace into t1 values(100);
+create table t2 (a varchar(200)) engine=blackhole;
+load data infile '../../std_data/words.dat' into table t2;
+alter table t1 add b int;
+alter table t1 drop b;
+create table t3 like t1;
+insert into t1 select * from t3;
+replace into t1 select * from t3;
+select * from t1;
+a
+select * from t2;
+a
+select * from t3;
+a
+show binlog events;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	#	Start	1	#	Server ver: VERSION, Binlog ver: 3
+master-bin.000001	#	Query	1	#	use `test`; drop table t1,t2
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=blackhole
+master-bin.000001	#	Query	1	#	use `test`; delete from t1 where a=10
+master-bin.000001	#	Query	1	#	use `test`; update t1 set a=11 where a=15
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(1)
+master-bin.000001	#	Query	1	#	use `test`; insert ignore into t1 values(1)
+master-bin.000001	#	Query	1	#	use `test`; replace into t1 values(100)
+master-bin.000001	#	Query	1	#	use `test`; create table t2 (a varchar(200)) engine=blackhole
+master-bin.000001	#	Create_file	1	#	db=test;table=t2;file_id=1;block_len=581
+master-bin.000001	#	Exec_load	1	#	;file_id=1
+master-bin.000001	#	Query	1	#	use `test`; alter table t1 add b int
+master-bin.000001	#	Query	1	#	use `test`; alter table t1 drop b
+master-bin.000001	#	Query	1	#	use `test`; create table t3 like t1
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 select * from t3
+master-bin.000001	#	Query	1	#	use `test`; replace into t1 select * from t3
+drop table t1,t2,t3;

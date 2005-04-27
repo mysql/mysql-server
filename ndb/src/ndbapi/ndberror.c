@@ -140,10 +140,10 @@ ErrorBundle ErrorCodes[] = {
   { 4008, UR, "Receive from NDB failed" },
   { 4009, UR, "Cluster Failure" },
   { 4012, UR, 
-   "Time-out, most likely caused by simple read or cluster failure" }, 
+    "Request ndbd time-out, maybe due to high load or communication problems"}, 
   { 4024, UR, 
-   "Time-out, most likely caused by simple read or cluster failure" }, 
-
+    "Time-out, most likely caused by simple read or cluster failure" }, 
+  
   /**
    * TemporaryResourceError
    */
@@ -175,10 +175,11 @@ ErrorBundle ErrorCodes[] = {
    */
   { 623,  IS, "623" },
   { 624,  IS, "624" },
-  { 625,  IS, "Out of memory in Ndb Kernel, index part (increase IndexMemory)" },
+  { 625,  IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
   { 800,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
-  { 827,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
+  { 827,  IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
+  { 902,  IS, "Out of memory in Ndb Kernel, ordered index data (increase DataMemory)" },
   { 832,  IS, "832" },
 
   /**
@@ -205,7 +206,7 @@ ErrorBundle ErrorCodes[] = {
    * Internal errors
    */
   { 892,  IE, "Inconsistent hash index. The index needs to be dropped and recreated" },
-  { 895,  IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
+  { 901,  IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
   { 202,  IE, "202" },
   { 203,  IE, "203" },
   { 207,  IE, "207" },
@@ -347,7 +348,7 @@ ErrorBundle ErrorCodes[] = {
   { 1325, IE, "File or scan error" },
   { 1326, IE, "Backup abortet due to node failure" },
   { 1327, IE, "1327" },
-
+  
   { 1340, IE, "Backup undefined error" },
   { 1342, AE, "Backup failed to allocate buffers (check configuration)" },
   { 1343, AE, "Backup failed to setup fs buffers (check configuration)" },
@@ -357,7 +358,8 @@ ErrorBundle ErrorCodes[] = {
   { 1347, AE, "Backup failed to allocate table memory (check configuration)" },
   { 1348, AE, "Backup failed to allocate file record (check configuration)" },
   { 1349, AE, "Backup failed to allocate attribute record (check configuration)" },
-
+  { 1329, AE, "Backup during software upgrade not supported" },
+  
   /**
    * Still uncategorized
    */

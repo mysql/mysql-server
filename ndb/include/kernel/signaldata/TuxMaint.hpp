@@ -36,8 +36,8 @@ public:
   };
   enum ErrorCode {
     NoError = 0,        // must be zero
-    SearchError = 895,  // add + found or remove + not found
-    NoMemError = 827
+    SearchError = 901,  // add + found or remove + not found
+    NoMemError = 902
   };
   STATIC_CONST( SignalLength = 8 );
 private:

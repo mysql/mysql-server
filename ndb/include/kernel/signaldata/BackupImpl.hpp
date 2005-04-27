@@ -75,7 +75,7 @@ class DefineBackupRef {
 
   friend bool printDEFINE_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
   enum ErrorCode {
     Undefined = 1340,
@@ -92,6 +92,7 @@ private:
   Uint32 backupId;
   Uint32 backupPtr;
   Uint32 errorCode;
+  Uint32 nodeId;
 };
 
 class DefineBackupConf {
@@ -158,7 +159,7 @@ class StartBackupRef {
 
   friend bool printSTART_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 
   enum ErrorCode {
     FailedToAllocateTriggerRecord = 1
@@ -168,6 +169,7 @@ private:
   Uint32 backupPtr;
   Uint32 signalNo;
   Uint32 errorCode;
+  Uint32 nodeId;
 };
 
 class StartBackupConf {
@@ -232,9 +234,8 @@ public:
 private:
   Uint32 backupId;
   Uint32 backupPtr;
-  Uint32 tableId;
-  Uint32 fragmentNo;
   Uint32 errorCode;
+  Uint32 nodeId;
 };
 
 class BackupFragmentConf {
@@ -296,12 +297,13 @@ class StopBackupRef {
 
   friend bool printSTOP_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
 
 private:
   Uint32 backupId;
   Uint32 backupPtr;
   Uint32 errorCode;
+  Uint32 nodeId;
 };
 
 class StopBackupConf {
