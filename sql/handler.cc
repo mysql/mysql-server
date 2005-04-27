@@ -175,9 +175,10 @@ enum db_type ha_checktype(enum db_type database_type)
   
   return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
           (enum db_type) thd->variables.table_type :
-          (enum db_type) global_system_variables.table_type !=
-          DB_TYPE_UNKNOWN ?
-          (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM);
+          ((enum db_type) global_system_variables.table_type !=
+           DB_TYPE_UNKNOWN ?
+           (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM)
+          );
 } /* ha_checktype */
 
 
