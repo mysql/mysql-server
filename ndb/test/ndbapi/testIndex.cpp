@@ -1323,14 +1323,14 @@ TESTCASE("NFNR2_O",
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
-  TC_PROPERTY("PauseThreads", 2);
+  TC_PROPERTY("PauseThreads", 1);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
   INITIALIZER(runLoadTable);
   STEP(runRestarts);
   STEP(runTransactions2);
-  STEP(runTransactions2);
+  //STEP(runTransactions2);
   FINALIZER(runVerifyIndex);
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(createPkIndex_Drop);
