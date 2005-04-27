@@ -47,9 +47,15 @@ case "$cpu_family--$model_name" in
     cpu_flag="powerpc";
     ;;
   *)
-    cpu_flag="i386";
+    cpu_flag="";
     ;;
 esac
+
+if test -z "$cpu_flag"; then
+  echo "BUILD/check-cpu: Oops, could not findout what kind of cpu this machine is using."
+  check_cpu_flags=""
+  return
+fi
 
 echo "cpu_flag: $cpu_flag"
 
