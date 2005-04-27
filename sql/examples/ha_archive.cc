@@ -431,11 +431,44 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
 }
 
 
-/* 
+/*
   We just implement one additional file extension.
 */
+static const char *ha_archive_exts[] = {
+  ARZ,
+  ARN,
+  ARM,
+  NullS
+};
+
 const char **ha_archive::bas_ext() const
-{ static const char *ext[]= { ARZ, ARN, ARM, NullS }; return ext; }
+{
+  return ha_archive_exts;
+}
+
+
+/*
+  Rename all files that this handler defines in bas_ext list
+
+  NOTE Don't care if the .arn file is missing
+*/
+int ha_archive::rename_table(const char * from, const char * to)
+{
+  DBUG_ENTER("ha_archive::rename_table");
+  for (const char **ext=bas_ext(); *ext ; ext++)
+  {
+    if (rename_file_ext(from,to,*ext))
+    {
+      if (my_errno == ENOENT &&
+          !my_strcasecmp(system_charset_info, *ext, ARN))
+        continue;
+
+      DBUG_RETURN(my_errno);
+    }
+
+  }
+  DBUG_RETURN(0);
+}
 
 
 /* 

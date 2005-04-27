@@ -43,11 +43,11 @@ void Hybrid_type_traits::fix_length_and_dec(Item *item, Item *arg) const
   item->max_length= item->float_length(arg->decimals);
 }
 
+static const Hybrid_type_traits real_traits_instance;
 
 const Hybrid_type_traits *Hybrid_type_traits::instance()
 {
-  static const Hybrid_type_traits real_traits;
-  return &real_traits;
+  return &real_traits_instance;
 }
 
 
@@ -67,11 +67,11 @@ Hybrid_type_traits::val_str(Hybrid_type *val, String *to, uint8 decimals) const
 }
 
 /* Hybrid_type_traits_decimal */
+static const Hybrid_type_traits_decimal decimal_traits_instance;
 
 const Hybrid_type_traits_decimal *Hybrid_type_traits_decimal::instance()
 {
-  static const Hybrid_type_traits_decimal decimal_traits;
-  return &decimal_traits;
+  return &decimal_traits_instance;
 }
 
 
@@ -143,11 +143,11 @@ Hybrid_type_traits_decimal::val_str(Hybrid_type *val, String *to,
 }
 
 /* Hybrid_type_traits_integer */
+static const Hybrid_type_traits_integer integer_traits_instance;
 
 const Hybrid_type_traits_integer *Hybrid_type_traits_integer::instance()
 {
-  static const Hybrid_type_traits_integer integer_traits;
-  return &integer_traits;
+  return &integer_traits_instance;
 }
 
 void
