@@ -1301,6 +1301,8 @@ public:
 
   void cleanup()
   {
+    if (result_field)
+      delete result_field;
     Item_func::cleanup();
     result_field= NULL;
   }
