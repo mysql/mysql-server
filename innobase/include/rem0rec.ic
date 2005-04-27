@@ -578,19 +578,21 @@ rec_set_info_and_status_bits(
 /**********************************************************
 The following function tells if record is delete marked. */
 UNIV_INLINE
-ibool
+ulint
 rec_get_deleted_flag(
 /*=================*/
-			/* out: TRUE if delete marked */
+			/* out: nonzero if delete marked */
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp)	/* in: nonzero=compact page format */
 {
 	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
-		return(0 != rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
-				REC_INFO_DELETED_FLAG, REC_INFO_BITS_SHIFT));
+		return(UNIV_UNLIKELY(rec_get_bit_field_1(rec,
+				REC_NEW_INFO_BITS, REC_INFO_DELETED_FLAG,
+				REC_INFO_BITS_SHIFT)));
 	} else {
-		return(0 != rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
-				REC_INFO_DELETED_FLAG, REC_INFO_BITS_SHIFT));
+		return(UNIV_UNLIKELY(rec_get_bit_field_1(rec,
+				REC_OLD_INFO_BITS, REC_INFO_DELETED_FLAG,
+				REC_INFO_BITS_SHIFT)));
 	}
 }
 
@@ -602,12 +604,9 @@ rec_set_deleted_flag(
 /*=================*/
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp,	/* in: nonzero=compact page format */
-	ibool	flag)	/* in: TRUE if delete marked */
+	ulint	flag)	/* in: nonzero if delete marked */
 {
 	ulint	val;
-
-	ut_ad(TRUE == 1);
-	ut_ad(flag <= TRUE);
 
 	val = rec_get_info_bits(rec, comp);
 	

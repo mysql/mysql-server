@@ -3459,7 +3459,7 @@ rec_loop:
 	/* PHASE 4: Look for matching records in a loop */
 	
 	rec = btr_pcur_get_rec(pcur);
-	ut_ad(!page_rec_is_comp(rec) == !index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
 #ifdef UNIV_SEARCH_DEBUG
 /*
 	fputs("Using ", stderr);
