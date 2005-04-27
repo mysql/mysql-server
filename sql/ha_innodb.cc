@@ -1619,7 +1619,7 @@ innobase_report_binlog_offset_and_commit(
                 if (trx->repl_wait_binlog_name == NULL) {
 
                         trx->repl_wait_binlog_name =
-                                        (char*)mem_alloc(FN_REFLEN + 100);
+                                  (char*)mem_alloc_noninline(FN_REFLEN + 100);
                 }
 
                 ut_a(strlen(log_file_name) <= FN_REFLEN + 100);
