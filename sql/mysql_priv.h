@@ -975,7 +975,8 @@ extern pthread_t signal_thread;
 extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **table,uint count);
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
+                              bool ignore_global_read_lock= FALSE);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
@@ -988,6 +989,8 @@ void unlock_global_read_lock(THD *thd);
 bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh, bool is_not_commit);
 void start_waiting_global_read_lock(THD *thd);
 void make_global_read_lock_block_commit(THD *thd);
+my_bool set_protect_against_global_read_lock(void);
+void unset_protect_against_global_read_lock(void);
 
 /* Lock based on name */
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
