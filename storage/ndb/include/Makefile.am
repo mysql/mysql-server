@@ -1,5 +1,5 @@
 
-include $(top_srcdir)/ndb/config/common.mk.am
+include $(top_srcdir)/storage/ndb/config/common.mk.am
 
 ndbinclude_HEADERS = \
 ndb_constants.h \

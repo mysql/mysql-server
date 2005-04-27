@@ -584,8 +584,8 @@ if [ x$SOURCE_DIST = x1 ] ; then
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
  MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
- NDB_TOOLS_DIR="$BASEDIR/ndb/tools"
- NDB_MGM="$BASEDIR/ndb/src/mgmclient/ndb_mgm"
+ NDB_TOOLS_DIR="$BASEDIR/storage/ndb/tools"
+ NDB_MGM="$BASEDIR/storage/ndb/src/mgmclient/ndb_mgm"
 
  if [ -n "$USE_PURIFY" ] ; then
    PSUP="$MYSQL_TEST_DIR/purify.suppress"

@@ -15,8 +15,9 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 INCLUDES =		-I$(top_srcdir)/include 
-LDADD =			libheap.a ../mysys/libmysys.a ../dbug/libdbug.a \
-			../strings/libmystrings.a
+LDADD =			libheap.a $(top_srcdir)/mysys/libmysys.a \
+			$(top_srcdir)/dbug/libdbug.a \
+			$(top_srcdir)/strings/libmystrings.a
 pkglib_LIBRARIES =	libheap.a
 noinst_PROGRAMS	=	hp_test1 hp_test2
 hp_test1_LDFLAGS = @NOINST_LDFLAGS@

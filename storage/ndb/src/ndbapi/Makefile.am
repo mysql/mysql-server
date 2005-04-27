@@ -36,13 +36,13 @@ libndbapi_la_SOURCES = \
         ndb_cluster_connection.cpp \
 	NdbBlob.cpp
 
-INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi
+INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
 # Ndbapi cannot handle -O3
 NDB_CXXFLAGS_RELEASE_LOC = -O2
 
-include $(top_srcdir)/ndb/config/common.mk.am
-include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
+include $(top_srcdir)/storage/ndb/config/common.mk.am
+include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
@@ -50,13 +50,13 @@ include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
 windoze-dsp: libndbapi.dsp
 
 libndbapi.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-lib.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(libndbapi_la_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LIB $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-lib.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libndbapi_la_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)

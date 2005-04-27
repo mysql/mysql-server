@@ -73,9 +73,9 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/myisam/libmyisam.a \
-		$(top_builddir)/myisammrg/libmyisammrg.a \
-		$(top_builddir)/heap/libheap.a \
+		$(top_builddir)/storage/myisam/libmyisam.a \
+		$(top_builddir)/storage/myisammrg/libmyisammrg.a \
+		$(top_builddir)/storage/heap/libheap.a \
 		@innodb_libs@ @bdb_libs_with_path@ \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
