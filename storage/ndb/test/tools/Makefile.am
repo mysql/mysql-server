@@ -19,8 +19,8 @@ copy_tab_SOURCES = copy_tab.cpp
 create_index_SOURCES = create_index.cpp
 ndb_cpcc_SOURCES = cpcc.cpp
 
-include $(top_srcdir)/ndb/config/common.mk.am
-include $(top_srcdir)/ndb/config/type_ndbapitest.mk.am
+include $(top_srcdir)/storage/ndb/config/common.mk.am
+include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
 
 ndb_cpcc_LDADD = $(LDADD)
 

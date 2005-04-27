@@ -79,10 +79,10 @@ DbCreate_SOURCES = bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterfa
 DbAsyncGenerator_SOURCES = bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp bench/dbGenerator.h bench/macros.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
 
-INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
+INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/kernel
 
-include $(top_srcdir)/ndb/config/common.mk.am
-include $(top_srcdir)/ndb/config/type_ndbapitest.mk.am
+include $(top_srcdir)/storage/ndb/config/common.mk.am
+include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
 
 ##testDict_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
 ##testIndex_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
@@ -99,61 +99,61 @@ windoze-dsp: flexBench.dsp testBasic.dsp testBlobs.dsp \
              testScan.dsp
 
 flexBench.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ flexBench
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(flexBench_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ flexBench
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(flexBench_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 testBasic.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ testBasic
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(testBasic_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ testBasic
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testBasic_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 testOIBasic.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ testOIBasic
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(testOIBasic_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ testOIBasic
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testOIBasic_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 testBlobs.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ testBlobs
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(testBlobs_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ testBlobs
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testBlobs_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
 
 testScan.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-prg.am \
-               $(top_srcdir)/ndb/config/win-name \
-               $(top_srcdir)/ndb/config/win-includes \
-               $(top_srcdir)/ndb/config/win-sources \
-               $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ testScan
-	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(testScan_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+               $(top_srcdir)/storage/ndb/config/win-prg.am \
+               $(top_srcdir)/storage/ndb/config/win-name \
+               $(top_srcdir)/storage/ndb/config/win-includes \
+               $(top_srcdir)/storage/ndb/config/win-sources \
+               $(top_srcdir)/storage/ndb/config/win-libraries
+	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/storage/ndb/config/win-name $@ testScan
+	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testScan_SOURCES)
+	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)

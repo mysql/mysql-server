@@ -47,8 +47,8 @@ ndbapi.html: $(noinst_HEADERS)
 	@RM@ -f ndbapi.pdf ndbapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
-	@CP@ $(top_srcdir)/ndb/include/ndbapi/*  $(DOXYTMP); \
-	@CP@ $(top_srcdir)/ndb/ndbapi-examples/*/*.[ch]pp $(DOXYTMP); \
+	@CP@ $(top_srcdir)/storage/ndb/include/ndbapi/*  $(DOXYTMP); \
+	@CP@ $(top_srcdir)/storage/ndb/ndbapi-examples/*/*.[ch]pp $(DOXYTMP); \
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
 	mv footer.html $(DOXYTMP); \
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.ndbapi); \
@@ -74,7 +74,7 @@ mgmapi.html: $(noinst_HEADERS)
 	@RM@ -f mgmapi.pdf mgmapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
-	@CP@ $(top_srcdir)/ndb/include/mgmapi/*  $(DOXYTMP); \
+	@CP@ $(top_srcdir)/storage/ndb/include/mgmapi/*  $(DOXYTMP); \
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
 	mv footer.html $(DOXYTMP); \
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.mgmapi); \
@@ -97,7 +97,7 @@ mgmapi.pdf: mgmapi.html
 #        src/client
 ndbdoc: DUMMY
 	mkdir -p $(OUTDIR)
-	cd $(top_srcdir)/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.ndb
+	cd $(top_srcdir)/storage/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.ndb
 
 ###
 #
@@ -105,10 +105,10 @@ ndbdoc: DUMMY
 
 odbcdoc: DUMMY
 	mkdir -p $(OUTDIR)
-	cd $(top_srcdir)/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.odbc
+	cd $(top_srcdir)/storage/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.odbc
 
 testdoc: DUMMY
 	mkdir -p $(OUTDIR)
-	cd $(top_srcdir)/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.test
+	cd $(top_srcdir)/storage/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.test
 
 windoze-dsp:
