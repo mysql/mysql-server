@@ -1213,7 +1213,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   }
 
   pthread_mutex_lock(&tmp->mutex);
-  table=tmp->get_local_table(thd);
+  table= tmp->get_local_table(thd);
   pthread_mutex_unlock(&tmp->mutex);
   if (table)
     thd->di=tmp;
