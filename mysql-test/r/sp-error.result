@@ -594,4 +594,52 @@ alter function bug7047;
 return 0;
 end|
 ERROR HY000: Can't drop or alter a FUNCTION from within another stored routine
+drop function if exists bug8408|
+drop procedure if exists bug8408|
+create function bug8408() returns int
+begin
+select * from t1;
+return 0;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create function bug8408() returns int
+begin
+show warnings;
+return 0;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create function bug8408(a int) returns int
+begin
+declare b int;
+select b;
+return b;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create function bug8408() returns int
+begin
+call bug8408();
+return 0;
+end|
+create procedure bug8408()
+select * from t1|
+call bug8408()|
+val	x
+select bug8408()|
+ERROR 0A000: SELECT in a stored procedure must have INTO
+drop procedure bug8408|
+drop function bug8408|
+create function bug8408() returns int
+begin
+declare n int default 0;
+select count(*) into n from t1;
+return n;
+end|
+insert into t1 value (2, 2.7), (3, 3.14), (7, 7.0)|
+select *,bug8408() from t1|
+val	x	bug8408()
+2	2.7	3
+3	3.14	3
+7	7	3
+drop function bug8408|
+delete from t1|
 drop table t1|
