@@ -192,8 +192,6 @@ select count(*) from t3;
 count(*)
 1199
 rename table t3 to t4;
-Warnings:
-Error	7	Error on rename of './test/t3.ARN' to './test/t4.ARN' (Errcode: 2)
 select * from t4 where fld3='bonfire';
 auto	fld1	companynr	fld3	fld4	fld5	fld6
 1191	068504	00	bonfire	corresponds	positively	
