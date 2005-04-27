@@ -385,8 +385,6 @@ impossible position";
     goto err;
   }
 
-  printf("Binlog file name %s\n", log_file_name);
-
   if (thd->variables.sync_replication)
     ha_repl_report_sent_binlog(thd, log_file_name, pos);
 
@@ -537,9 +535,6 @@ impossible position";
 	goto err;
       }
 
-      printf("Dump loop: %s: Current log position %lu\n", log_file_name,
-                  (ulong)my_b_tell(&log));
-
       if (thd->variables.sync_replication)
         ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
 
@@ -656,9 +651,6 @@ impossible position";
 	    goto err;
 	  }
 
-          printf("Second loop: %s: Current log position %lu\n", log_file_name,
-                  (ulong)my_b_tell(&log));
-
           if (thd->variables.sync_replication)
             ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
 
@@ -730,15 +722,12 @@ impossible position";
       if (thd->variables.sync_replication)
         ha_repl_report_sent_binlog(thd, log_file_name, 0);
 
-      printf("Binlog file name of a new binlog %s\n", log_file_name);
-
       packet->length(0);
       packet->append('\0');
     }
   }
 
 end:
-  printf("Ending replication\n");
   if (thd->variables.sync_replication)
     ha_repl_report_replication_stop(thd);
 
@@ -755,8 +744,6 @@ end:
 err:
   if (thd->variables.sync_replication)
     ha_repl_report_replication_stop(thd);
-
-  printf("Ending replication in error %s\n", errmsg);
 
   thd->proc_info = "Waiting to finalize termination";
   end_io_cache(&log);
