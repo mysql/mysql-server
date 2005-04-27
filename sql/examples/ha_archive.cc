@@ -455,17 +455,22 @@ const char **ha_archive::bas_ext() const
 int ha_archive::rename_table(const char * from, const char * to)
 {
   DBUG_ENTER("ha_archive::rename_table");
+  DBUG_PRINT("enter", ("from: %s, to: %s", from, to));
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
-    if (rename_file_ext(from,to,*ext))
+    // Check if the .arn file exists before rename
+    if (!my_strcasecmp(system_charset_info, *ext, ARN))
     {
-      if (my_errno == ENOENT &&
-          !my_strcasecmp(system_charset_info, *ext, ARN))
+      char name[FN_REFLEN];
+      (void)strxnmov(name, FN_REFLEN, from, ARN, NullS);
+      if (access(name, F_OK))
+      {
+        DBUG_PRINT("info", ("%s does not exist on disk, skipping it", name));
         continue;
-
-      DBUG_RETURN(my_errno);
+      }
     }
-
+    if (rename_file_ext(from,to,*ext))
+      DBUG_RETURN(my_errno);
   }
   DBUG_RETURN(0);
 }
