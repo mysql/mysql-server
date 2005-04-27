@@ -1,0 +1,15 @@
+
+LDADD += \
+         $(top_builddir)/storage/ndb/src/libndbclient.la \
+         $(top_builddir)/dbug/libdbug.a \
+         $(top_builddir)/mysys/libmysys.a \
+         $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
+
+INCLUDES += -I$(srcdir) -I$(top_srcdir)/include \
+	-I$(top_srcdir)/storage/ndb/include \
+        -I$(top_srcdir)/storage/ndb/include/ndbapi \
+        -I$(top_srcdir)/storage/ndb/include/util \
+        -I$(top_srcdir)/storage/ndb/include/portlib \
+        -I$(top_srcdir)/storage/ndb/test/include \
+        -I$(top_srcdir)/storage/ndb/include/mgmapi \
+        -I$(top_srcdir)/storage/ndb/include/kernel
