@@ -11,15 +11,15 @@ done
 
 commands="\
 $make -k distclean || true 
-/bin/rm -rf */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache bdb/dist/autom4te.cache autom4te.cache innobase/autom4te.cache;
+/bin/rm -rf */.deps/*.P config.cache storage/innobase/config.cache storage/bdb/build_unix/config.cache bdb/dist/autom4te.cache autom4te.cache innobase/autom4te.cache;
 
 aclocal    || (echo \"Can't execute aclocal\"     && exit 1)
 autoheader || (echo \"Can't execute autoheader\"  && exit 1)
 aclocal    || (echo \"Can't execute aclocal\"     && exit 1)
 automake   || (echo \"Can't execute automake\"    && exit 1)
 autoconf   || (echo \"Can't execute autoconf\"    && exit 1)
-(cd bdb/dist && sh s_all)
-(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+(cd storage/bdb/dist && sh s_all)
+(cd storage/innobase && aclocal && autoheader && aclocal && automake && autoconf)
 if [ -d gemini ]
 then
    (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)
