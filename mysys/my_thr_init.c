@@ -40,9 +40,6 @@ pthread_mutex_t LOCK_gethostbyname_r;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_errchk_mutexattr;
-#endif
 
 /*
   initialize thread environment
@@ -62,19 +59,21 @@ my_bool my_thread_global_init(void)
     fprintf(stderr,"Can't initialize threads: error %d\n",errno);
     return 1;
   }
+
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_init(&my_fast_mutexattr);
   /*
-    Note that the following statement may give a compiler warning under
-    some configurations, but there isn't anything we can do about this as
-    this is a bug in the header files for the thread implementation
+    Set mutex type to "fast" a.k.a "adaptive"
+
+    The mutex kind determines what happens if a thread attempts to lock
+    a mutex it already owns with pthread_mutex_lock(3). If the mutex
+    is of the ``fast'' kind, pthread_mutex_lock(3) simply suspends
+    the calling thread forever. If the mutex is of the ``error checking''
+    kind, pthread_mutex_lock(3) returns immediately with the error
+    code EDEADLK.
   */
-  pthread_mutexattr_setkind_np(&my_fast_mutexattr,PTHREAD_MUTEX_ADAPTIVE_NP);
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_init(&my_errchk_mutexattr);
-  pthread_mutexattr_setkind_np(&my_errchk_mutexattr,
-			       PTHREAD_MUTEX_ERRORCHECK_NP);
+  pthread_mutexattr_init(&my_fast_mutexattr);
+  pthread_mutexattr_settype(&my_fast_mutexattr,
+                            PTHREAD_MUTEX_ADAPTIVE_NP);
 #endif
 
   pthread_mutex_init(&THR_LOCK_malloc,MY_MUTEX_INIT_FAST);
@@ -108,9 +107,6 @@ void my_thread_global_end(void)
   pthread_key_delete(THR_KEY_mysys);
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_destroy(&my_errchk_mutexattr);
 #endif
   pthread_mutex_destroy(&THR_LOCK_malloc);
   pthread_mutex_destroy(&THR_LOCK_open);
