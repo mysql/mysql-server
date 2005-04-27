@@ -7046,6 +7046,7 @@ static void test_set_option()
   bug #89 (reported by mark@mysql.com)
 */
 
+#ifndef EMBEDDED_LIBRARY
 static void test_prepare_grant()
 {
   int rc;
@@ -7138,7 +7139,7 @@ static void test_prepare_grant()
 
   }
 }
-
+#endif
 
 /*
   Test a crash when invalid/corrupted .frm is used in the
@@ -12597,7 +12598,7 @@ static void test_bug8330()
   const char *stmt_text;
   MYSQL_STMT *stmt[2];
   int i, rc;
-  char *query= "select a,b from t1 where a=?";
+  const char *query= "select a,b from t1 where a=?";
   MYSQL_BIND bind[2];
   long lval[2];
 
@@ -12788,7 +12789,7 @@ static void test_bug8722()
 }
 
 
-MYSQL_STMT *open_cursor(char *query)
+MYSQL_STMT *open_cursor(const char *query)
 {
   int rc;
   const ulong type= (ulong)CURSOR_TYPE_READ_ONLY;
