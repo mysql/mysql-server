@@ -2,6 +2,10 @@
 # Test of math functions
 #
 
+--disable_warnings                                                              
+drop table if exists t1;                                                        
+--enable_warnings                                                               
+
 select floor(5.5),floor(-5.5);
 explain extended select floor(5.5),floor(-5.5);
 select ceiling(5.5),ceiling(-5.5);
@@ -58,3 +62,12 @@ explain extended select degrees(pi()),radians(360);
 
 --error 1054
 select rand(rand);
+
+#
+# Bug #9837: problem with round()
+#
+
+create table t1 select round(1, 6);
+show create table t1;
+select * from t1;
+drop table t1;
