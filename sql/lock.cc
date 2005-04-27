@@ -79,7 +79,8 @@ static int unlock_external(THD *thd, TABLE **table,uint count);
 static void print_lock_error(int error);
 
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
+                              bool ignore_global_read_lock)
 {
   MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
@@ -90,7 +91,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
     if (!(sql_lock = get_lock_data(thd,tables,count, 0,&write_lock_used)))
       break;
 
-    if (global_read_lock && write_lock_used)
+    if (global_read_lock && write_lock_used && ! ignore_global_read_lock)
     {
       /*
 	Someone has issued LOCK ALL TABLES FOR READ and we want a write lock
@@ -865,3 +866,49 @@ void make_global_read_lock_block_commit(THD *thd)
   pthread_mutex_unlock(&LOCK_open);
   thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
 }
+
+
+/*
+  Set protection against global read lock.
+
+  SYNOPSIS
+    set_protect_against_global_read_lock()
+    void
+
+  RETURN
+    FALSE       OK, no global read lock exists.
+    TRUE        Error, global read lock exists already.
+*/
+
+my_bool set_protect_against_global_read_lock(void)
+{
+  my_bool       global_read_lock_exists;
+
+  pthread_mutex_lock(&LOCK_open);
+  if (! (global_read_lock_exists= test(global_read_lock)))
+    protect_against_global_read_lock++;
+  pthread_mutex_unlock(&LOCK_open);
+  return global_read_lock_exists;
+}
+
+
+/*
+  Unset protection against global read lock.
+
+  SYNOPSIS
+    unset_protect_against_global_read_lock()
+    void
+
+  RETURN
+    void
+*/
+
+void unset_protect_against_global_read_lock(void)
+{
+  pthread_mutex_lock(&LOCK_open);
+  protect_against_global_read_lock--;
+  pthread_mutex_unlock(&LOCK_open);
+  pthread_cond_broadcast(&COND_refresh);
+}
+
+
