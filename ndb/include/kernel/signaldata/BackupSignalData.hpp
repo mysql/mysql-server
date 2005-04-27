@@ -240,6 +240,9 @@ public:
     FileOrScanError = 1325, //                       slave -> coordinator
     BackupFailureDueToNodeFail = 1326, //             slave -> slave
     OkToClean = 1327                  //             master -> slave
+    
+    ,AbortScan = 1328
+    ,IncompatibleVersions = 1329
   };
 private:
   Uint32 requestType;
