@@ -939,32 +939,19 @@ rec_offs_comp(
 }
 
 /**********************************************************
-Returns TRUE if the nth field of rec is SQL NULL. */
+Returns nonzero if the extern bit is set in nth field of rec. */
 UNIV_INLINE
-ibool
-rec_offs_nth_null(
-/*==============*/
-				/* out: TRUE if SQL NULL */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint		n)	/* in: nth field */
-{
-	ut_ad(rec_offs_validate(NULL, NULL, offsets));
-	ut_ad(n < rec_offs_n_fields(offsets));
-	return((rec_offs_base(offsets)[1 + n] & REC_OFFS_SQL_NULL) != 0);
-}
-/**********************************************************
-Returns TRUE if the extern bit is set in nth field of rec. */
-UNIV_INLINE
-ibool
+ulint
 rec_offs_nth_extern(
 /*================*/
-				/* out: TRUE if externally stored */
+				/* out: nonzero if externally stored */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n)	/* in: nth field */
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
-	return((rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL) != 0);
+	return(UNIV_UNLIKELY(rec_offs_base(offsets)[1 + n]
+				& REC_OFFS_EXTERNAL));
 }
 
 /**********************************************************

@@ -303,21 +303,12 @@ rec_offs_comp(
 				/* out: TRUE if compact format */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**********************************************************
-Returns TRUE if the nth field of rec is SQL NULL. */
+Returns nonzero if the extern bit is set in nth field of rec. */
 UNIV_INLINE
-ibool
-rec_offs_nth_null(
-/*==============*/
-				/* out: TRUE if SQL NULL */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint		n);	/* in: nth field */
-/**********************************************************
-Returns TRUE if the extern bit is set in nth field of rec. */
-UNIV_INLINE
-ibool
+ulint
 rec_offs_nth_extern(
 /*================*/
-				/* out: TRUE if externally stored */
+				/* out: nonzero if externally stored */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n);	/* in: nth field */
 /**********************************************************

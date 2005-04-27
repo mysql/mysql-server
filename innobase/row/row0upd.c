@@ -815,9 +815,10 @@ row_upd_build_difference_binary(
 			goto skip_compare;
 		}
 
-		extern_bit = rec_offs_nth_extern(offsets, i);
+		extern_bit = upd_ext_vec_contains(ext_vec, n_ext_vec, i);
 		
-		if (extern_bit != upd_ext_vec_contains(ext_vec, n_ext_vec, i)
+		if (UNIV_UNLIKELY(extern_bit ==
+				!rec_offs_nth_extern(offsets, i))
 		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
@@ -826,12 +827,8 @@ row_upd_build_difference_binary(
 
 			upd_field_set_field_no(upd_field, i, index, trx);
 
-			if (upd_ext_vec_contains(ext_vec, n_ext_vec, i)) {
-				upd_field->extern_storage = TRUE;
-			} else {
-				upd_field->extern_storage = FALSE;
-			}
-				
+			upd_field->extern_storage = extern_bit;
+
 			n_diff++;
 		}
 skip_compare:
