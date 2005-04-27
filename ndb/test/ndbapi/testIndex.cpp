@@ -1329,7 +1329,7 @@ TESTCASE("NFNR2_O",
   INITIALIZER(runLoadTable);
   STEP(runRestarts);
   STEP(runTransactions2);
-  STEP(runTransactions2);
+  //STEP(runTransactions2);
   FINALIZER(runVerifyIndex);
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(createPkIndex_Drop);
