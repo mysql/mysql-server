@@ -72,7 +72,7 @@ static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
     {
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0), 1);
+		      MYF(0), 1L);
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -89,7 +89,7 @@ static int check_insert_fields(THD *thd, TABLE *table, List<Item> &fields,
     {
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0), 1);
+		      MYF(0), 1L);
       return -1;
     }
     TABLE_LIST table_list;

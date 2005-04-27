@@ -2055,8 +2055,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 			     KEY_OPTIMIZE_EXISTS) |
 			    ((old->optimize | new_fields->optimize) &
 			     KEY_OPTIMIZE_REF_OR_NULL));
-            old->null_rejecting= old->null_rejecting && 
-                                 new_fields->null_rejecting;
+            old->null_rejecting= (old->null_rejecting &&
+                                  new_fields->null_rejecting);
 	  }
 	}
 	else if (old->eq_func && new_fields->eq_func &&
@@ -2068,8 +2068,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 			   KEY_OPTIMIZE_EXISTS) |
 			  ((old->optimize | new_fields->optimize) &
 			   KEY_OPTIMIZE_REF_OR_NULL));
-          old->null_rejecting= old->null_rejecting && 
-                               new_fields->null_rejecting;
+          old->null_rejecting= (old->null_rejecting &&
+                                new_fields->null_rejecting);
 	}
 	else if (old->eq_func && new_fields->eq_func &&
 		 (old->val->is_null() || new_fields->val->is_null()))
@@ -2081,7 +2081,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  if (old->val->is_null())
 	    old->val= new_fields->val;
           /* The referred expression can be NULL: */ 
-          old->null_rejecting= false;
+          old->null_rejecting= 0;
 	}
 	else
 	{
@@ -2242,6 +2242,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     If the condition has form "tbl.keypart = othertbl.field" and 
     othertbl.field can be NULL, there will be no matches if othertbl.field 
     has NULL value.
+    We use null_rejecting in add_not_null_conds() to add
+    'othertbl.field IS NOT NULL' to tab->select_cond.
   */
   (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
                                  ((*value)->type() == Item::FIELD_ITEM) &&
