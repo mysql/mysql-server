@@ -593,10 +593,10 @@ page_rec_set_next(
 
 	ut_ad(page_rec_check(rec));	
 	ut_ad(!page_rec_is_supremum(rec));
-	ut_ad(!page_rec_is_infimum(next));
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	if (next) {
+		ut_ad(!page_rec_is_infimum(next));
 		ut_a(page == ut_align_down(next, UNIV_PAGE_SIZE));
 		offs = (ulint) (next - page);
 	} else {
