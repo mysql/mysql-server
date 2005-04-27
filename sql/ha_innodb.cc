@@ -45,9 +45,57 @@ have disables the InnoDB inlining in this file. */
 
 #include "ha_innodb.h"
 
-pthread_mutex_t innobase_share_mutex, // to protect innobase_open_files
-                prepare_commit_mutex; // to force correct commit order in binlog
+pthread_mutex_t innobase_share_mutex, /* to protect innobase_open_files */
+                prepare_commit_mutex; /* to force correct commit order in
+				      binlog */
 bool innodb_inited= 0;
+
+/*-----------------------------------------------------------------*/
+/* These variables are used to implement (semi-)synchronous MySQL binlog
+replication for InnoDB tables. */
+
+pthread_cond_t  innobase_repl_cond;             /* Posix cond variable;
+                                                this variable is signaled
+                                                when enough binlog has been
+                                                sent to slave, so that a
+                                                waiting trx can return the
+                                                'ok' message to the client
+                                                for a commit */
+pthread_mutex_t innobase_repl_cond_mutex;       /* Posix cond variable mutex
+                                                that also protects the next
+                                                innobase_repl_... variables */
+uint            innobase_repl_state;            /* 1 if synchronous replication
+                                                is switched on and is working
+                                                ok; else 0 */
+uint            innobase_repl_file_name_inited  = 0; /* This is set to 1 when
+                                                innobase_repl_file_name
+                                                contains meaningful data */
+char*           innobase_repl_file_name;        /* The binlog name up to which
+                                                we have sent some binlog to
+                                                the slave */
+my_off_t        innobase_repl_pos;              /* The position in that file
+                                                up to which we have sent the
+                                                binlog to the slave */
+uint            innobase_repl_n_wait_threads    = 0; /* This tells how many
+                                                transactions currently are
+                                                waiting for the binlog to be
+                                                sent to the client */
+uint            innobase_repl_wait_file_name_inited = 0; /* This is set to 1
+                                                when we know the 'smallest'
+                                                wait position */
+char*           innobase_repl_wait_file_name;   /* NULL, or the 'smallest'
+                                                innobase_repl_file_name that
+                                                a transaction is waiting for */
+my_off_t        innobase_repl_wait_pos;         /* The smallest position in
+                                                that file that a trx is
+                                                waiting for: the trx can
+                                                proceed and send an 'ok' to
+                                                the client when MySQL has sent
+                                                the binlog up to this position
+                                                to the slave */
+/*-----------------------------------------------------------------*/
+
+
 
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
 uses unsigned char; the header univ.i which we include next defines
@@ -97,7 +145,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_log_file_size, innobase_log_buffer_size,
      innobase_buffer_pool_awe_mem_mb,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
-     innobase_file_io_threads, innobase_lock_wait_timeout,
+     innobase_file_io_threads,  innobase_lock_wait_timeout,
      innobase_thread_concurrency, innobase_force_recovery,
      innobase_open_files;
 
@@ -1531,10 +1579,10 @@ innobase_commit(
 	DBUG_RETURN(0);
 }
 
-/* The following defined-out code will be enabled later when we put the
+/* TODO: put the
 MySQL-4.1 functionality back to 5.0. This is needed to get InnoDB Hot Backup
 to work. */
-#if 0
+
 /*********************************************************************
 This is called when MySQL writes the binlog entry for the current
 transaction. Writes to the InnoDB tablespace info which tells where the
@@ -1563,6 +1611,25 @@ innobase_report_binlog_offset_and_commit(
 	trx->mysql_log_file_name = log_file_name;
 	trx->mysql_log_offset = (ib_longlong)end_offset;
 
+#ifdef HAVE_REPLICATION
+        if (thd->variables.sync_replication) {
+                /* Let us store the binlog file name and the position, so that
+                we know how long to wait for the binlog to the replicated to
+                the slave in synchronous replication. */
+
+                if (trx->repl_wait_binlog_name == NULL) {
+
+                        trx->repl_wait_binlog_name =
+                                  (char*)mem_alloc_noninline(FN_REFLEN + 100);
+                }
+
+                ut_a(strlen(log_file_name) < FN_REFLEN + 100);
+
+                strcpy(trx->repl_wait_binlog_name, log_file_name);
+
+                trx->repl_wait_binlog_pos = (ib_longlong)end_offset;
+        }
+#endif /* HAVE_REPLICATION */
 	trx->flush_log_later = TRUE;
 
 	innobase_commit(thd, trx_handle);
@@ -1572,6 +1639,7 @@ innobase_report_binlog_offset_and_commit(
 	return(0);
 }
 
+#if 0
 /***********************************************************************
 This function stores the binlog offset and flushes logs. */
 
@@ -1602,7 +1670,6 @@ innobase_store_binlog_offset_and_flush_log(
 	/* Syncronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
-
 #endif
 
 /*********************************************************************
@@ -1631,8 +1698,214 @@ innobase_commit_complete(
                 trx_commit_complete_for_mysql(trx);
         }
 
+#ifdef HAVE_REPLICATION
+        if (thd->variables.sync_replication
+            && trx->repl_wait_binlog_name
+            && innobase_repl_state != 0) {
+
+		struct timespec abstime;
+		int	cmp;
+		int	ret;
+
+                /* In synchronous replication, let us wait until the MySQL
+                replication has sent the relevant binlog segment to the
+                replication slave. */
+
+                pthread_mutex_lock(&innobase_repl_cond_mutex);
+try_again:
+                if (innobase_repl_state == 0) {
+
+                        pthread_mutex_unlock(&innobase_repl_cond_mutex);
+
+                        return(0);
+                }
+
+                cmp = strcmp(innobase_repl_file_name,
+                                        trx->repl_wait_binlog_name);
+                if (cmp > 0
+                    || (cmp == 0 && innobase_repl_pos
+                                    >= (my_off_t)trx->repl_wait_binlog_pos)) {
+                        /* We have already sent the relevant binlog to the
+                        slave: no need to wait here */
+
+                        pthread_mutex_unlock(&innobase_repl_cond_mutex);
+
+/*                      printf("Binlog now sent\n"); */
+
+                        return(0);
+                }
+
+                /* Let us update the info about the minimum binlog position
+                of waiting threads in the innobase_repl_... variables */
+
+                if (innobase_repl_wait_file_name_inited != 0) {
+                        cmp = strcmp(trx->repl_wait_binlog_name,
+                                        innobase_repl_wait_file_name);
+                        if (cmp < 0
+                            || (cmp == 0 && (my_off_t)trx->repl_wait_binlog_pos
+                                         <= innobase_repl_wait_pos)) {
+                                /* This thd has an even lower position, let
+                                us update the minimum info */
+
+                                strcpy(innobase_repl_wait_file_name,
+                                        trx->repl_wait_binlog_name);
+
+                                innobase_repl_wait_pos =
+                                        trx->repl_wait_binlog_pos;
+                        }
+                } else {
+                        strcpy(innobase_repl_wait_file_name,
+                                                trx->repl_wait_binlog_name);
+
+                        innobase_repl_wait_pos = trx->repl_wait_binlog_pos;
+
+                        innobase_repl_wait_file_name_inited = 1;
+                }
+                set_timespec(abstime, thd->variables.sync_replication_timeout);
+
+                /* Let us suspend this thread to wait on the condition;
+                when replication has progressed far enough, we will release
+                these waiting threads. The following call
+                pthread_cond_timedwait also atomically unlocks
+                innobase_repl_cond_mutex. */
+
+                innobase_repl_n_wait_threads++;
+
+/*              printf("Waiting for binlog to be sent\n"); */
+
+                ret = pthread_cond_timedwait(&innobase_repl_cond,
+                                        &innobase_repl_cond_mutex, &abstime);
+                innobase_repl_n_wait_threads--;
+
+                if (ret != 0) {
+                        ut_print_timestamp(stderr);
+
+                        fprintf(stderr,
+"  InnoDB: Error: MySQL synchronous replication\n"
+"InnoDB: was not able to send the binlog to the slave within the\n"
+"InnoDB: timeout %lu. We assume that the slave has become inaccessible,\n"
+"InnoDB: and switch off synchronous replication until the communication.\n"
+"InnoDB: to the slave works again.\n",
+				thd->variables.sync_replication_timeout);
+                        fprintf(stderr,
+"InnoDB: MySQL synchronous replication has sent binlog\n"
+"InnoDB: to the slave up to file %s, position %lu\n", innobase_repl_file_name,
+                                        (ulong)innobase_repl_pos);
+                        fprintf(stderr,
+"InnoDB: This transaction needs it to be sent up to\n"
+"InnoDB: file %s, position %lu\n", trx->repl_wait_binlog_name,
+                                        (uint)trx->repl_wait_binlog_pos);
+
+                        innobase_repl_state = 0;
+
+                        pthread_mutex_unlock(&innobase_repl_cond_mutex);
+
+                        return(0);
+                }
+
+                goto try_again;
+        }
+#endif HAVE_REPLICATION
 	return(0);
 }
+
+#ifdef HAVE_REPLICATION
+/*********************************************************************
+In synchronous replication, reports to InnoDB up to which binlog position
+we have sent the binlog to the slave. Note that replication is synchronous
+for one slave only. For other slaves, we do nothing in this function. This
+function is used in a replication master. */
+
+int
+innobase_repl_report_sent_binlog(
+/*=============================*/
+                                /* out: 0 */
+        THD*    thd,            /* in: thread doing the binlog communication to
+                                the slave */
+        char*   log_file_name,  /* in: binlog file name */
+        my_off_t end_offset)    /* in: the offset in the binlog file up to
+                                which we sent the contents to the slave */
+{
+        int     cmp;
+        ibool   can_release_threads     = 0;
+
+        /* If synchronous replication is not switched on, or this thd is
+        sending binlog to a slave where we do not need synchronous replication,
+        then return immediately */
+
+        if (thd->server_id != thd->variables.sync_replication_slave_id) {
+
+                /* Do nothing */
+
+                return(0);
+        }
+
+        pthread_mutex_lock(&innobase_repl_cond_mutex);
+
+        if (innobase_repl_state == 0) {
+
+                ut_print_timestamp(stderr);
+                fprintf(stderr,
+"  InnoDB: Switching MySQL synchronous replication on again at\n"
+"InnoDB: binlog file %s, position %lu\n", log_file_name, (ulong)end_offset);
+
+                innobase_repl_state = 1;
+        }
+
+        /* The position should increase monotonically, since just one thread
+        is sending the binlog to the slave for which we want synchronous
+        replication. Let us check this, and print an error to the .err log
+        if that is not the case. */
+
+        if (innobase_repl_file_name_inited) {
+                cmp = strcmp(log_file_name, innobase_repl_file_name);
+
+                if (cmp < 0
+                    || (cmp == 0 && end_offset < innobase_repl_pos)) {
+
+                        ut_print_timestamp(stderr);
+                        fprintf(stderr,
+"  InnoDB: Error: MySQL synchronous replication has sent binlog\n"
+"InnoDB: to the slave up to file %s, position %lu\n", innobase_repl_file_name,
+                                        (ulong)innobase_repl_pos);
+                        fprintf(stderr,
+"InnoDB: but now MySQL reports that it sent the binlog only up to\n"
+"InnoDB: file %s, position %lu\n", log_file_name, (ulong)end_offset);
+
+                }
+        }
+
+        strcpy(innobase_repl_file_name, log_file_name);
+        innobase_repl_pos = end_offset;
+        innobase_repl_file_name_inited = 1;
+
+        if (innobase_repl_n_wait_threads > 0) {
+                /* Let us check if some of the waiting threads doing a trx
+                commit can now proceed */
+
+                cmp = strcmp(innobase_repl_file_name,
+                                        innobase_repl_wait_file_name);
+                if (cmp > 0
+                    || (cmp == 0 && innobase_repl_pos
+                                    >= innobase_repl_wait_pos)) {
+
+                        /* Yes, at least one waiting thread can now proceed:
+                        let us release all waiting threads with a broadcast */
+
+                        can_release_threads = 1;
+
+                        innobase_repl_wait_file_name_inited = 0;
+                }
+        }
+
+        pthread_mutex_unlock(&innobase_repl_cond_mutex);
+
+        if (can_release_threads) {
+
+                pthread_cond_broadcast(&innobase_repl_cond);
+        }
+}
+#endif /* HAVE_REPLICATION */
 
 /*********************************************************************
 Rolls back a transaction or the latest SQL statement. */

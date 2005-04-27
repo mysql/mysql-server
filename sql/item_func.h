@@ -1318,7 +1318,7 @@ public:
   longlong val_int()
   {
     if (execute(&result_field))
-      return 0LL;
+      return (longlong) 0;
     return result_field->val_int();   
   }
 

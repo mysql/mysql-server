@@ -622,7 +622,8 @@ private:
     WAIT_STOP,
     WAIT_BACKUP_STARTED,
     WAIT_BACKUP_COMPLETED,
-    WAIT_VERSION
+    WAIT_VERSION,
+    WAIT_NODEFAILURE
   };
 
   /**
@@ -706,6 +707,7 @@ private:
   NdbApiSignal* theSignalIdleList;
   // List of unused signals
   
+  Uint32 theWaitNode;
   WaitSignalType theWaitState;
   // State denoting a set of signals we accept to recieve.
 
