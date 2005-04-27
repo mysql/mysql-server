@@ -515,3 +515,10 @@ explain select c from t2 where a = 2 and b = 'val-2' group by c;
 select c from t2 where a = 2 and b = 'val-2' group by c;
 drop table t1,t2;
 
+# Test for BUG#9298 "Wrong handling of int4 unsigned columns in GROUP functions"
+# (the actual problem was with protocol code, not GROUP BY)
+create table t1 (b int4 unsigned not null);
+insert into t1 values(3000000000);
+select * from t1;
+select min(b) from t1;
+drop table t1;
