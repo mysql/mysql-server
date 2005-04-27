@@ -336,7 +336,7 @@ AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
-
+echo "GXX: $GXX"
 if test "$GXX" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
@@ -344,36 +344,16 @@ then
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
 
-  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
-  # we will gets some problems when linking static programs.
-  # The following code is used to fix this problem.
-
+  #CXX_VERNO=`echo $CXX_VERSION | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
+  echo "CXX: $CXX"
   if echo $CXX | grep gcc > /dev/null 2>&1
   then
-    GCC_VERSION=`gcc -v 2>&1 | grep version | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
-    case $SYSTEM_TYPE in
-      *freebsd*)
-        # The libsupc++ library on freebsd with gcc 3.4.2 is dependent on 
-        # libstdc++, disable it  since other solution works fine
-        GCC_VERSION="NOSUPCPP_$GCC_VERSION"
-      ;;
-      *) 
-      ;;
-    esac
-    echo "Using gcc version '$GCC_VERSION'"
-    case "$GCC_VERSION" in
-      3.4.*|3.5.*)
-        # Statically link the language support function's found in libsupc++.a
-        LIBS="$LIBS -lsupc++"
-	echo "Using -libsupc++ for static linking with gcc"
-      ;;
-      *)
-        # Using -lsupc++ doesn't work in gcc 3.3 on SuSE 9.2
-        # (causes link failures when linking things staticly)
-        CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
-	echo "Using MYSYS_NEW for static linking with gcc"
-      ;;
-    esac
+    echo "Setting CXXFLAGS"
+    # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
+    # we will gets some problems when linking static programs.
+    # The following code is used to fix this problem.
+    CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
+    echo "Using MYSYS_NEW for static linking with gcc"
   fi
 fi
 
