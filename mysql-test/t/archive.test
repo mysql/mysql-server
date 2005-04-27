@@ -1312,4 +1312,15 @@ INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily',''
 # 
 # Cleanup, test is over
 #
-drop table t1, t2;
+
+#
+# Test rename of table
+#
+create table t3 engine=archive select * from t2;
+select * from t3 where fld3='bonfire';
+select count(*) from t3;
+rename table t3 to t4;
+select * from t4 where fld3='bonfire';
+select count(*) from t4;
+
+drop table t1, t2, t4;
