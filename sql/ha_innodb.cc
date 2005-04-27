@@ -5340,15 +5340,14 @@ ha_innobase::store_lock(
 		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
 		    thd->lex->sql_command != SQLCOM_SELECT &&
 		    thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
-		    thd->lex->sql_command != SQLCOM_DELETE_MULTI ) {
+		    thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
+		    thd->lex->sql_command != SQLCOM_LOCK_TABLES) {
 
 			/* In case we have innobase_locks_unsafe_for_binlog
 			option set and isolation level of the transaction
 			is not set to serializable and MySQL is doing
 			INSERT INTO...SELECT without FOR UPDATE or IN
-			SHARE MODE we use consistent read for select. 
-			Similarly, in case of DELETE...SELECT and
-			UPDATE...SELECT when these are not multi table.*/
+			SHARE MODE we use consistent read for select. */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
