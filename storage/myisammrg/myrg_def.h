@@ -17,7 +17,7 @@
 /* This file is included by all myisam-merge files */
 
 #ifndef N_MAXKEY
-#include "../myisam/myisamdef.h"
+#include "../storage/myisam/myisamdef.h"
 #endif
 
 #include "myisammrg.h"
