@@ -186,8 +186,14 @@ static int free_share(EXAMPLE_SHARE *share)
   exist for the storage engine. This is also used by the default rename_table and
   delete_table method in handler.cc.
 */
+static const char *ha_example_exts[] = {
+  NullS
+};
+
 const char **ha_example::bas_ext() const
-{ static const char *ext[]= { NullS }; return ext; }
+{
+  return ha_example_exts;
+}
 
 
 /*

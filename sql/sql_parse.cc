@@ -4052,7 +4052,7 @@ unsent_create_error:
 	{
 	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
 	  {
-	    my_message(ER_SP_BADSELECT, ER(ER_SP_BADSELECT), MYF(0));
+	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
 #ifndef EMBEDDED_LIBRARY
 	    thd->net.no_send_ok= nsok;
 #endif
