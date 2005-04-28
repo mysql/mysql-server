@@ -32,8 +32,16 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
+static const char *ha_myisammrg_exts[] = {
+  ".MRG",
+  NullS
+};
+
 const char **ha_myisammrg::bas_ext() const
-{ static const char *ext[]= { ".MRG", NullS }; return ext; }
+{
+  return ha_myisammrg_exts;
+}
+
 
 const char *ha_myisammrg::index_type(uint key_number)
 {

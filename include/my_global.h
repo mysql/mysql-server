@@ -97,7 +97,7 @@
 
 
 /* Fix problem with S_ISLNK() on Linux */
-#if defined(HAVE_LINUXTHREADS)
+#if defined(TARGET_OS_LINUX)
 #undef  _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -107,6 +107,7 @@
 #undef THREAD
 #undef HAVE_mit_thread
 #undef HAVE_LINUXTHREADS
+#undef HAVE_NPTL
 #undef HAVE_UNIXWARE7_THREADS
 #endif
 
@@ -246,13 +247,13 @@ C_MODE_START int __cxa_pure_virtual() {\
 #endif
 
 /* In Linux-alpha we have atomic.h if we are using gcc */
-#if defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && defined(__alpha__) && (__GNUC__ > 2 || ( __GNUC__ == 2 &&  __GNUC_MINOR__ >= 95)) && !defined(HAVE_ATOMIC_ADD)
+#if defined(TARGET_OS_LINUX) && defined(__GNUC__) && defined(__alpha__) && (__GNUC__ > 2 || ( __GNUC__ == 2 &&  __GNUC_MINOR__ >= 95)) && !defined(HAVE_ATOMIC_ADD)
 #define HAVE_ATOMIC_ADD
 #define HAVE_ATOMIC_SUB
 #endif
 
 /* In Linux-ia64 including atomic.h will give us an error */
-#if (defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && (defined(__ia64__)||defined(__powerpc64__))) || !defined(THREAD)
+#if (defined(TARGET_OS_LINUX) && defined(__GNUC__) && (defined(__ia64__)||defined(__powerpc64__))) || !defined(THREAD)
 #undef HAVE_ATOMIC_ADD
 #undef HAVE_ATOMIC_SUB
 #endif
@@ -799,7 +800,7 @@ typedef unsigned long	uint32; /* Short for unsigned integer >= 32 bits */
 #error "Neither int or long is of 4 bytes width"
 #endif
 
-#if !defined(HAVE_ULONG) && !defined(HAVE_LINUXTHREADS) && !defined(__USE_MISC)
+#if !defined(HAVE_ULONG) && !defined(TARGET_OS_LINUX) && !defined(__USE_MISC)
 typedef unsigned long	ulong;		  /* Short for unsigned long */
 #endif
 #ifndef longlong_defined

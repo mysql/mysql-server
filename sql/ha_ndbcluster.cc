@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+ /* Copyright (C) 2000-2003 MySQL AB
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -3074,10 +3074,15 @@ int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
   DBUG_RETURN(extra(operation));
 }
 
+static const char *ha_ndbcluster_exts[] = {
+ ha_ndb_ext,
+ NullS
+};
 
 const char** ha_ndbcluster::bas_ext() const
-{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
-
+{
+  return ha_ndbcluster_exts;
+}
 
 /*
   How many seeks it will take to read through the table
@@ -4479,6 +4484,7 @@ int ndbcluster_drop_database(const char *path)
   uint i;
   char *tabname;
   List<char> drop_list;
+  int ret= 0;
   ha_ndbcluster::set_dbname(path, (char *)&dbname);
   DBUG_PRINT("enter", ("db: %s", dbname));
   
@@ -4505,10 +4511,18 @@ int ndbcluster_drop_database(const char *path)
   ndb->setDatabaseName(dbname);
   List_iterator_fast<char> it(drop_list);
   while ((tabname=it++))
+  {
     if (dict->dropTable(tabname))
-      ERR_RETURN(dict->getNdbError());      
-
-  DBUG_RETURN(0);
+    {
+      const NdbError err= dict->getNdbError();
+      if (err.code != 709)
+      {
+        ERR_PRINT(err);
+        ret= ndb_to_mysql_error(&err);
+      }
+    }
+  }
+  DBUG_RETURN(ret);      
 }
 
 
