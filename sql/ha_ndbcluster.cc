@@ -336,7 +336,17 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
   NDBDICT *dict= get_ndb()->getDictionary();
   DBUG_PRINT("info", ("invalidating %s", m_tabname));
   if (global)
-    dict->invalidateTable(m_tabname);
+  {
+    if (((const NDBTAB *)m_table)->getObjectStatus() 
+        == NdbDictionary::Object::Invalid)
+    {
+      // Global cache has already been invalidated
+      dict->removeCachedTable(m_tabname);
+      global= FALSE;
+    }
+    else
+      dict->invalidateTable(m_tabname);
+  }
   else
     dict->removeCachedTable(m_tabname);
   table->version=0L;			/* Free when thread is ready */
@@ -779,6 +789,7 @@ int ha_ndbcluster::get_metadata(const char *path)
 
     if (!(tab= dict->getTable(m_tabname)))
       ERR_RETURN(dict->getNdbError());
+    // Check if thread has stale local cache
     if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
     {
       invalidate_dictionary_cache(FALSE);
@@ -804,6 +815,7 @@ int ha_ndbcluster::get_metadata(const char *path)
       if (!invalidating_ndb_table)
       {
 	DBUG_PRINT("info", ("Invalidating table"));
+        m_table= (void *) tab;
         invalidate_dictionary_cache(TRUE);
 	invalidating_ndb_table= TRUE;
       }
@@ -3288,7 +3300,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         thd->transaction.stmt.ndb_tid= 0;
       }
     }
-    m_table= NULL;
     m_table_info= NULL;
     /*
       This is the place to make sure this handler instance
@@ -3910,7 +3921,13 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   dict= ndb->getDictionary();
   if (!(orig_tab= dict->getTable(m_tabname)))
     ERR_RETURN(dict->getNdbError());
-
+  // Check if thread has stale local cache
+  if (orig_tab->getObjectStatus() == NdbDictionary::Object::Invalid)
+  {
+    dict->removeCachedTable(m_tabname);
+    if (!(orig_tab= dict->getTable(m_tabname)))
+      ERR_RETURN(dict->getNdbError());
+  }
   m_table= (void *)orig_tab;
   // Change current database to that of target table
   set_dbname(to);
@@ -4278,7 +4295,6 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
       DBUG_RETURN(1);
     ERR_RETURN(err);
   }
-  
   DBUG_PRINT("info", ("Found table %s", tab->getName()));
   
   len= tab->getFrmLength();  
