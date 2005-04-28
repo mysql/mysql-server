@@ -334,11 +334,15 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
 void ha_ndbcluster::invalidate_dictionary_cache(bool global)
 {
   NDBDICT *dict= get_ndb()->getDictionary();
+  DBUG_ENTER("invalidate_dictionary_cache");
   DBUG_PRINT("info", ("invalidating %s", m_tabname));
+
   if (global)
   {
-    if (((const NDBTAB *)m_table)->getObjectStatus() 
-        == NdbDictionary::Object::Invalid)
+    const NDBTAB *tab= dict->getTable(m_tabname);
+    if (!tab)
+      DBUG_VOID_RETURN;
+    if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
     {
       // Global cache has already been invalidated
       dict->removeCachedTable(m_tabname);
@@ -381,6 +385,7 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
       break;
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 int ha_ndbcluster::ndb_err(NdbConnection *trans)
@@ -815,7 +820,6 @@ int ha_ndbcluster::get_metadata(const char *path)
       if (!invalidating_ndb_table)
       {
 	DBUG_PRINT("info", ("Invalidating table"));
-        m_table= (void *) tab;
         invalidate_dictionary_cache(TRUE);
 	invalidating_ndb_table= TRUE;
       }
