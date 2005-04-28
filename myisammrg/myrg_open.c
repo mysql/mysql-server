@@ -80,7 +80,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       continue;		/* Skip comments */
     }
 
-    if (!test_if_hard_path(buff))
+    if (!has_path(buff))
     {
       VOID(strmake(name_buff+dir_length,buff,
                    sizeof(name_buff)-1-dir_length));
