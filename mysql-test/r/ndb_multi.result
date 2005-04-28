@@ -13,6 +13,26 @@ a
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	0
+select * from t1;
+a
+2
+drop table t1;
+create table t1 (a int) engine=ndbcluster;
+insert into t1 value (2);
+select * from t1;
+a
+2
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	0
+drop table t1;
+create table t1 (a int) engine=ndbcluster;
+insert into t1 value (2);
+select * from t1;
+ERROR HY000: Got error 241 'Invalid schema object version' from ndbcluster
+select * from t1;
+a
+2
 flush status;
 select * from t1;
 a
@@ -20,7 +40,7 @@ a
 update t1 set a=3 where a=2;
 show status like 'handler_discover%';
 Variable_name	Value
-Handler_discover	1
+Handler_discover	0
 create table t3 (a int not null primary key, b varchar(22),
 c int, last_col text) engine=ndb;
 insert into t3 values(1, 'Hi!', 89, 'Longtext column');
