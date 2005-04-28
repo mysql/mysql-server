@@ -764,3 +764,23 @@ non PS, 1.0 in parameter	1.0
 PS, 1.0 in parameter    	1.0
 deallocate prepare stmt;
 drop table t1;
+create table t1 (
+strippedproductid char(15) not null default '',
+zlevelprice decimal(10,2) default null,
+primary key (strippedproductid)
+);
+create table t2 (
+productid char(15) not null default '',
+zlevelprice char(21) default null,
+primary key (productid)
+);
+insert into t1 values ('002trans','49.99');
+insert into t1 values ('003trans','39.98');
+insert into t1 values ('004trans','31.18');
+insert INTO t2 SELECT * FROM t1;
+select * from t2;
+productid	zlevelprice
+002trans	49.99
+003trans	39.98
+004trans	31.18
+drop table t1, t2;
