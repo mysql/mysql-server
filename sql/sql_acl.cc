@@ -1526,6 +1526,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   key_copy((byte *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
+  table->file->ha_set_all_bits_in_read_set();
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0], 0,
 				  (byte *) user_key, table->key_info->key_length,
@@ -1619,6 +1620,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
+  table->file->ha_set_all_bits_in_read_set();
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0], 0,
                                   user_key, table->key_info->key_length,
@@ -1752,6 +1754,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       We should NEVER delete from the user table, as a uses can still
       use mysqld even if he doesn't have any privileges in the user table!
     */
+    table->file->ha_set_all_bits_in_read_set();
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (cmp_record(table,record[1]) &&
 	(error=table->file->update_row(table->record[1],table->record[0])))
@@ -1834,6 +1837,7 @@ static int replace_db_table(TABLE *table, const char *db,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
+  table->file->ha_set_all_bits_in_read_set();
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0],0,
                                   user_key, table->key_info->key_length,
@@ -1870,6 +1874,7 @@ static int replace_db_table(TABLE *table, const char *db,
     /* update old existing row */
     if (rights)
     {
+      table->file->ha_set_all_bits_in_read_set();
       table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
       if ((error=table->file->update_row(table->record[1],table->record[0])))
 	goto table_error;			/* purecov: deadcode */
@@ -2203,6 +2208,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              table->key_info->key_length);
 
+    table->file->ha_set_all_bits_in_read_set();
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (table->file->index_read(table->record[0], user_key,
 				table->key_info->key_length,
@@ -2280,6 +2286,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
 
+    table->file->ha_set_all_bits_in_read_set();
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (table->file->index_read(table->record[0], user_key,
 				key_prefix_length,
@@ -2378,6 +2385,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
+  table->file->ha_set_all_bits_in_read_set();
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0], 0,
                                   user_key, table->key_info->key_length,

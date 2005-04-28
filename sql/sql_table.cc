@@ -3825,7 +3825,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     this function does not set field->query_id in the columns to the
     current query id
   */
-  from->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+  to->file->ha_set_all_bits_in_write_set();
+  from->file->ha_set_all_bits_in_read_set();
+  from->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS); //To be removed RONM
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
   if (ignore ||
       handle_duplicates == DUP_REPLACE)
@@ -3991,6 +3993,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 	/* InnoDB must be told explicitly to retrieve all columns, because
 	this function does not set field->query_id in the columns to the
 	current query id */
+        t->file->ha_set_all_bits_in_read_set();
 	t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
 
 	if (t->file->ha_rnd_init(1))

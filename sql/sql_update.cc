@@ -188,7 +188,11 @@ int mysql_update(THD *thd,
   {
     bool res;
     select_lex->no_wrap_view_item= 1;
-    res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
+    /*
+      Indicate that the set of fields is to be updated by passing 2 for
+      set_query_id.
+    */
+    res= setup_fields(thd, 0, table_list, fields, 2, 0, 0);
     select_lex->no_wrap_view_item= 0;
     if (res)
       DBUG_RETURN(1);			/* purecov: inspected */
@@ -268,6 +272,7 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
+    table->file->ha_set_all_bits_in_read_set();
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {

@@ -921,6 +921,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     {
       DBUG_RETURN(1);
     }
+    file->ha_set_primary_key_in_read_set();
     DBUG_RETURN(0);
   }
 
@@ -951,6 +952,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     file->close();
     goto failure;
   }
+  file->ha_set_primary_key_in_read_set();
   free_file= TRUE;
   last_rowid= file->ref;
   DBUG_RETURN(0);
@@ -5627,6 +5629,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   */
   if (head->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY))
     DBUG_RETURN(1);
+  head->file->ha_set_primary_key_in_read_set();
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
