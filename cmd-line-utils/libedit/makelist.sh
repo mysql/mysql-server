@@ -68,7 +68,7 @@ case $FLAG in
 	/\(\):/ {
 	    pr = substr($2, 1, 2);
 	    if (pr == "vi" || pr == "em" || pr == "ed") {
-		name = substr($2, 1, length($2) - 3);
+		name = substr($2, 1, index($2,"(") - 1);
 #
 # XXX:	need a space between name and prototype so that -fc and -fh
 #	parsing is much easier
@@ -97,7 +97,7 @@ case $FLAG in
 	/\(\):/ {
 	    pr = substr($2, 1, 2);
 	    if (pr == "vi" || pr == "em" || pr == "ed") {
-		name = substr($2, 1, length($2) - 3);
+		name = substr($2, 1, index($2,"(") - 1);
 		uname = "";
 		fname = "";
 		for (i = 1; i <= length(name); i++) {
@@ -117,6 +117,7 @@ case $FLAG in
 		printf("      \"");
 		for (i = 2; i < NF; i++)
 		    printf("%s ", $i);
+                sub("\r", "", $i);
 		printf("%s\" },\n", $i);
 		ok = 0;
 	    }
@@ -219,7 +220,7 @@ case $FLAG in
 	/\(\):/ {
 	    pr = substr($2, 1, 2);
 	    if (pr == "vi" || pr == "em" || pr == "ed") {
-		name = substr($2, 1, length($2) - 3);
+		name = substr($2, 1, index($2, "(") - 1);
 		fname = "";
 		for (i = 1; i <= length(name); i++) {
 		    s = substr(name, i, 1);

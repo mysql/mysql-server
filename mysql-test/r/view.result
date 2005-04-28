@@ -1694,3 +1694,21 @@ col1	col2	col2	col3
 5	david	NULL	NULL
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
+create table t1 as select 1 A union select 2 union select 3;
+create table t2 as select * from t1;
+create view v1 as select * from t1 where a in (select * from t2);
+select * from v1 A, v1 B where A.a = B.a;
+A	A
+1	1
+2	2
+3	3
+create table t3 as select a a,a b from t2;
+create view v2 as select * from t3 where 
+a in (select * from t1) or b in (select * from t2);
+select * from v2 A, v2 B where A.a = B.b;
+a	b	a	b
+1	1	1	1
+2	2	2	2
+3	3	3	3
+drop view v1, v2;
+drop table t1, t2, t3;

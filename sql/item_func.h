@@ -1301,6 +1301,8 @@ public:
 
   void cleanup()
   {
+    if (result_field)
+      delete result_field;
     Item_func::cleanup();
     result_field= NULL;
   }
@@ -1318,7 +1320,7 @@ public:
   longlong val_int()
   {
     if (execute(&result_field))
-      return 0LL;
+      return (longlong) 0;
     return result_field->val_int();   
   }
 

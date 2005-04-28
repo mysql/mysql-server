@@ -184,6 +184,20 @@ fld1	fld3
 250503	heaving
 250504	population
 250505	bomb
+create table t3 engine=archive select * from t2;
+select * from t3 where fld3='bonfire';
+auto	fld1	companynr	fld3	fld4	fld5	fld6
+1191	068504	00	bonfire	corresponds	positively	
+select count(*) from t3;
+count(*)
+1199
+rename table t3 to t4;
+select * from t4 where fld3='bonfire';
+auto	fld1	companynr	fld3	fld4	fld5	fld6
+1191	068504	00	bonfire	corresponds	positively	
+select count(*) from t4;
+count(*)
+1199
 INSERT INTO t2 VALUES (1,000001,00,'Omaha','teethe','neat','');
 INSERT INTO t2 VALUES (2,011401,37,'breaking','dreaded','Steinberg','W');
 INSERT INTO t2 VALUES (3,011402,37,'Romans','scholastics','jarring','');
@@ -5020,4 +5034,4 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 3	011402	37	Romans	scholastics	jarring	
 4	011403	37	intercepted	audiology	tinily	
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
-drop table t1, t2;
+drop table t1, t2, t4;

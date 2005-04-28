@@ -2,6 +2,10 @@
 # Test of math functions
 #
 
+--disable_warnings                                                              
+drop table if exists t1;                                                        
+--enable_warnings                                                               
+
 select floor(5.5),floor(-5.5);
 explain extended select floor(5.5),floor(-5.5);
 select ceiling(5.5),ceiling(-5.5);

@@ -814,14 +814,14 @@ static bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
     We should check it before calc_time_diff call.
   */
   if (l_time1->time_type == MYSQL_TIMESTAMP_TIME)  // Time value
-    days= l_time1->day - l_sign*l_time2->day;
+    days= (long)l_time1->day - l_sign * (long)l_time2->day;
   else
   {
     days= calc_daynr((uint) l_time1->year,
 		     (uint) l_time1->month,
 		     (uint) l_time1->day);
     if (l_time2->time_type == MYSQL_TIMESTAMP_TIME)
-      days-= l_sign*l_time2->day;
+      days-= l_sign * (long)l_time2->day;
     else
       days-= l_sign*calc_daynr((uint) l_time2->year,
 			       (uint) l_time2->month,
