@@ -89,3 +89,18 @@ flush status;
 select * from t1 group by d;
 show status like "created_tmp%tables";
 drop table t1;
+
+# Fix for BUG#8921: Check that temporary table is ingored by view commands.
+create temporary table t1 as select 'This is temp. table' A;
+create view t1 as select 'This is view' A;
+select * from t1;
+show create table t1;
+show create view t1;
+drop view t1;
+select * from t1;
+create view t1 as select 'This is view again' A;
+select * from t1;
+drop table t1;
+select * from t1;
+drop view t1;
+
