@@ -1,4 +1,4 @@
-dnl -*- ksh -*-
+bdnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
@@ -115,8 +115,6 @@ AC_SUBST(SAVE_CXXFLAGS)
 AC_SUBST(SAVE_LDFLAGS)
 AC_SUBST(SAVE_CXXLDFLAGS)
 AC_SUBST(CXXLDFLAGS)
-
-AC_PREREQ(2.58)dnl		Minimum Autoconf version required.
 
 #AC_ARG_PROGRAM			# Automaticly invoked by AM_INIT_AUTOMAKE
 
