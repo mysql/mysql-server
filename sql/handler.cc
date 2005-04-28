@@ -1255,13 +1255,17 @@ int handler::delete_table(const char *name)
 
 int handler::rename_table(const char * from, const char * to)
 {
-  DBUG_ENTER("handler::rename_table");
-  for (const char **ext=bas_ext(); *ext ; ext++)
+  int error= 0;
+  for (const char **ext= bas_ext(); *ext ; ext++)
   {
-    if (rename_file_ext(from,to,*ext))
-      DBUG_RETURN(my_errno);
+    if (rename_file_ext(from, to, *ext))
+    {
+      if ((error=my_errno) != ENOENT)
+	break;
+      error= 0;
+    }
   }
-  DBUG_RETURN(0);
+  return error;
 }
 
 /*
