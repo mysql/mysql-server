@@ -48,6 +48,7 @@ sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
 sinclude(config/ac-macros/openssl.m4)
 sinclude(config/ac-macros/readline.m4)
+sinclude(config/ac-macros/yassl.m4)
 sinclude(config/ac-macros/zlib.m4)
 
 # Remember to add a directory sql/share/LANGUAGE
@@ -2226,6 +2227,7 @@ AC_SUBST(tools_dirs)
 #MYSQL_CHECK_CPU
 MYSQL_CHECK_VIO
 MYSQL_CHECK_OPENSSL
+MYSQL_CHECK_YASSL
 
 libmysqld_dirs=
 if test "$with_embedded_server" = "yes"
