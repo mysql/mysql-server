@@ -203,7 +203,7 @@ class ha_ndbcluster: public handler
   void print_results();
 
   longlong get_auto_increment();
-  void invalidateDictionaryCache();
+  void invalidate_dictionary_cache(bool global);
   int ndb_err(NdbConnection*);
   bool uses_blob_value(bool all_fields);
 
@@ -215,7 +215,7 @@ class ha_ndbcluster: public handler
   NdbConnection *m_active_trans;
   NdbResultSet *m_active_cursor;
   void *m_table;
-  int m_tableVersion;
+  int m_table_version;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
