@@ -400,6 +400,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   const char **table_names, **pos;
   TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
   THD *thd= current_thd;
+  uint dirlgt= dirname_length(name);
   DBUG_ENTER("ha_myisammrg::create");
 
   if (!(table_names= (const char**)
@@ -413,11 +414,30 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
       tbl= find_temporary_table(thd, tables->db, tables->table_name);
     if (!tbl)
     {
-      uint length= my_snprintf(buff,FN_REFLEN,"%s%s/%s",
-			       mysql_real_data_home,
+      /*
+        Construct the path to the MyISAM table. Try to meet two conditions:
+        1.) Allow to include MyISAM tables from different databases, and
+        2.) allow for moving DATADIR around in the file system.
+        The first means that we need paths in the .MRG file. The second
+        means that we should not have absolute paths in the .MRG file.
+        The best, we can do, is to use 'mysql_data_home', which is '.'
+        in mysqld and may be an absolute path in an embedded server.
+        This means that it might not be possible to move the DATADIR of
+        an embedded server without changing the paths in the .MRG file.
+      */
+      uint length= my_snprintf(buff, FN_REFLEN, "%s/%s/%s", mysql_data_home,
 			       tables->db, tables->table_name);
-      if (!(table_name= thd->strmake(buff, length)))
-	DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      /*
+        If a MyISAM table is in the same directory as the MERGE table,
+        we use the table name without a path. This means that the
+        DATADIR can easily be moved even for an embedded server as long
+        as the MyISAM tables are from the same database as the MERGE table.
+      */
+      if ((dirname_length(buff) == dirlgt) && ! memcmp(buff, name, dirlgt))
+        table_name= tables->real_name;
+      else
+        if (! (table_name= thd->strmake(buff, length)))
+          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     else
       table_name= (*tbl)->s->path;
