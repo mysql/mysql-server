@@ -24,6 +24,7 @@ BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \
                         $(top_builddir)/include/mysqld_ername.h
 pkginclude_HEADERS=	$(BUILT_SOURCES)
 CLEANFILES =		$(BUILT_SOURCES)
+DIST_SUBDIRS=           yassl
 
 # This will build mysqld_error.h and sql_state.h
 $(top_builddir)/include/mysqld_error.h: comp_err
