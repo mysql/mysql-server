@@ -19,8 +19,6 @@ if test -r /proc/cpuinfo ; then
   if test -z "$model_name" ; then
     model_name=`uname -m`
   fi
-else
-  exit 0
 fi
 
 case "$cpu_family--$model_name" in
