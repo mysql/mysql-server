@@ -10971,7 +10971,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
       */
       if (!(select->quick= (tab->type == JT_FT ?
 			    new FT_SELECT(thd, table, tab->ref.key) :
-			    get_quick_select_for_ref(thd, table, &tab->ref))))
+			    get_quick_select_for_ref(thd, table, &tab->ref, 
+                                                     tab->found_records))))
 	goto err;
     }
   }
