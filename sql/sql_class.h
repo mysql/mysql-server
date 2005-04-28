@@ -760,8 +760,15 @@ public:
   /*
     - if set_query_id=1, we set field->query_id for all fields. In that case 
     field list can not contain duplicates.
+    0: Means query_id is not set and no indicator to handler of fields used
+       is set
+    1: Means query_id is set for fields in list and bit in read set is set
+       to inform handler of that field is to be read
+    2: Means query is set for fields in list and bit is set in update set
+       to inform handler that it needs to update this field in write_row
+       and update_row
   */
-  bool set_query_id;
+  ulong set_query_id;
   /*
     This variable is used in post-parse stage to declare that sum-functions,
     or functions which have sense only if GROUP BY is present, are allowed.

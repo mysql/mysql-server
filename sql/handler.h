@@ -483,6 +483,9 @@ public:
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
+  MY_BITMAP read_set;
+  MY_BITMAP write_set;
+  bool rw_set_allocated;
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -492,9 +495,13 @@ public:
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
     raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0),
-    pushed_cond(NULL)
+    pushed_cond(NULL), rw_set_allocated(0)
     {}
-  virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
+  virtual ~handler(void)
+  {
+    ha_deallocate_read_write_set(); 
+    /* TODO: DBUG_ASSERT(inited == NONE); */
+  }
   int ha_open(const char *name, int mode, int test_if_locked);
   void update_auto_increment();
   virtual void print_error(int error, myf errflag);
@@ -559,6 +566,77 @@ public:
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
   }
+  /*
+    These are a set of routines used to enable handlers to only read/write
+    partial lists of the fields in the table. The bit vector is maintained
+    by the server part and is used by the handler at calls to read/write
+    data in the table.
+    It replaces the use of query id's for this purpose. The benefit is that
+    the handler can also set bits in the read/write set if it has special
+    needs and it is also easy for other parts of the server to interact
+    with the handler (e.g. the replication part for row-level logging).
+    The routines are all part of the general handler and are not possible
+    to override by a handler. A handler can however set/reset bits by
+    calling these routines.
+  */
+  void ha_set_all_bits_in_read_set()
+  {
+    bitmap_set_all(&read_set);
+  }
+  void ha_set_all_bits_in_write_set()
+  {
+    bitmap_set_all(&write_set);
+  }
+  void ha_set_bit_in_read_set(uint fieldnr)
+  {
+    bitmap_set_bit(&read_set, fieldnr);
+  }
+  void ha_clear_bit_in_read_set(uint fieldnr)
+  {
+    bitmap_clear_bit(&read_set, fieldnr);
+  }
+  void ha_set_bit_in_write_set(uint fieldnr)
+  {
+    bitmap_set_bit(&write_set, fieldnr);
+  }
+  void ha_clear_bit_in_write_set(uint fieldnr)
+  {
+    bitmap_clear_bit(&write_set, fieldnr);
+  }
+  void ha_set_bit_in_rw_set(uint fieldnr, bool write_set)
+  {
+    if (!write_set)
+      ha_set_bit_in_read_set(fieldnr);
+    else
+      ha_set_bit_in_write_set(fieldnr);
+  }
+  my_bool ha_get_bit_in_read_set(uint fieldnr)
+  {
+    return bitmap_is_set(&read_set, fieldnr);
+  }
+  my_bool ha_get_all_bit_in_read_set()
+  {
+    return bitmap_is_set_all(&read_set);
+  }
+  my_bool ha_get_all_bit_in_write_set()
+  {
+    return bitmap_is_set_all(&write_set);
+  }
+  my_bool ha_get_bit_in_write_set(uint fieldnr)
+  {
+    return bitmap_is_set(&write_set, fieldnr);
+  }
+  void ha_clear_all_set()
+  {
+    bitmap_clear_all(&read_set);
+    bitmap_clear_all(&write_set);
+    bitmap_set_bit(&read_set,0);
+    bitmap_set_bit(&write_set,0);
+  }
+  void ha_set_primary_key_in_read_set();
+  int ha_allocate_read_write_set(ulong no_fields);
+  void ha_deallocate_read_write_set();
+
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
