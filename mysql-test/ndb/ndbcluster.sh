@@ -18,7 +18,7 @@ cd $CWD
 # Are we using a source or a binary distribution?
 if [ -d ../sql ] ; then
    SOURCE_DIST=1
-   ndbtop=$BASEDIR/ndb
+   ndbtop=$BASEDIR/storage/ndb
    exec_ndb=$ndbtop/src/kernel/ndbd
    exec_mgmtsrvr=$ndbtop/src/mgmsrv/ndb_mgmd
    exec_waiter=$ndbtop/tools/ndb_waiter
