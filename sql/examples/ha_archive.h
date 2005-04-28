@@ -104,7 +104,6 @@ public:
   int end_bulk_insert();
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
-  int rename_table(const char * from, const char * to);
 };
 
 handlerton *archive_db_init(void);
