@@ -179,6 +179,10 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     Field **field;
     for (field=table->field; *field ; field++)
       fields_vars.push_back(new Item_field(*field));
+    /*
+      Since all fields is be set we set all bits in the write set
+    */
+    table->file->ha_set_all_bits_in_write_set();
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     /*
       Let us also prepare SET clause, altough it is probably empty
@@ -191,8 +195,12 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
   {						// Part field list
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    if (setup_fields(thd, 0, table_list, fields_vars, 1, 0, 0) ||
-        setup_fields(thd, 0, table_list, set_fields, 1, 0, 0) ||
+    /*
+      Indicate that both variables in field list and fields in update_list
+      is to be included in write set of table
+    */
+    if (setup_fields(thd, 0, table_list, fields_vars, 2, 0, 0) ||
+        setup_fields(thd, 0, table_list, set_fields, 2, 0, 0) ||
         check_that_all_fields_are_given_values(thd, table))
       DBUG_RETURN(TRUE);
     /*

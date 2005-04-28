@@ -102,6 +102,14 @@ void bitmap_free(MY_BITMAP *map)
 
 void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit)
 {
+  if (map->bitmap)
+  {
+    DBUG_PRINT("info", ("Bitmap not defined"));
+  }
+  if (bitmap_bit >= map->bitmap_size*8)
+  {
+    DBUG_PRINT("info", ("bit %d size in bytes %d", bitmap_bit, map->bitmap_size));
+  }
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
   bitmap_lock(map);
   bitmap_fast_set_bit(map, bitmap_bit);

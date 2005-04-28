@@ -1954,6 +1954,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
     DBUG_RETURN(1);
   }
+  table->file->ha_clear_all_set();
   if ((error=table->file->start_stmt(thd)))
   {
     table->file->print_error(error,MYF(0));
@@ -2588,6 +2589,8 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
 
   if (thd->set_query_id)
   {
+    table->file->ha_set_bit_in_rw_set(field->fieldnr,
+                                      (bool)(thd->set_query_id-1));
     if (field->query_id != thd->query_id)
     {
       field->query_id=thd->query_id;
@@ -3098,7 +3101,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ****************************************************************************/
 
 bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
-                  List<Item> &fields, bool set_query_id,
+                  List<Item> &fields, ulong set_query_id,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
@@ -3547,7 +3550,10 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	fields marked in setup_tables during fix_fields of view columns
       */
       if (table)
+      {
 	table->used_fields= table->s->fields;
+        table->file->ha_set_all_bits_in_read_set();
+      }
     }
   }
   if (found)

@@ -105,6 +105,11 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 #endif
     clear_timestamp_auto_bits(table->timestamp_field_type,
                               TIMESTAMP_AUTO_SET_ON_INSERT);
+    /*
+      No fields are provided so all fields must be provided in the values.
+      Thus we set all bits in the write set.
+    */
+    table->file->ha_set_all_bits_in_write_set();
   }
   else
   {						// Part field list
@@ -120,7 +125,11 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     thd->lex->select_lex.no_wrap_view_item= 1;
     save_next= table_list->next_local;        // fields only from first table
     table_list->next_local= 0;
-    res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
+    /*
+      Indicate fields in list is to be updated by setting set_query_id
+      parameter to 2. This sets the bit in the write_set for each field.
+    */
+    res= setup_fields(thd, 0, table_list, fields, 2, 0, 0);
     table_list->next_local= save_next;
     thd->lex->select_lex.no_wrap_view_item= 0;
     if (res)
@@ -209,9 +218,10 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
 
   /*
     Check the fields we are going to modify. This will set the query_id
-    of all used fields to the threads query_id.
+    of all used fields to the threads query_id. It will also set all
+    fields into the write set of this table.
   */
-  if (setup_fields(thd, 0, insert_table_list, update_fields, 1, 0, 0))
+  if (setup_fields(thd, 0, insert_table_list, update_fields, 2, 0, 0))
     return -1;
 
   if (table->timestamp_field)
@@ -788,7 +798,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
     DBUG_RETURN(TRUE);
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+  {
+    table->file->ha_set_primary_key_in_read_set();
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+  }
   thd->lex->select_lex.first_execution= 0;
   DBUG_RETURN(FALSE);
 }
