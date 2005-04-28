@@ -454,6 +454,7 @@ void Item_ident::cleanup()
   db_name= orig_db_name; 
   table_name= orig_table_name;
   field_name= orig_field_name;
+  depended_from= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2334,7 +2335,7 @@ bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 */
 
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
-			      Item_ident *resolved_item,
+                              Item_ident *resolved_item,
                               Item_ident *mark_item)
 {
   const char *db_name= (resolved_item->db_name ?
@@ -2359,6 +2360,71 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 }
 
 
+/*
+  Mark range of selects and resolved identifier (field/reference) item as
+  dependent
+
+  SYNOPSIS
+    mark_select_range_as_dependent()
+    thd           - thread handler
+    current_sel   - current select (select where resolved_item was placed)
+    last_select   - select where resolved_item was resolved
+    found_field   - field which was found during resolving
+    found_item    - Item which was found during resolving (if resolved
+                    identifier belongs to VIEW)
+    resolved_item - Identifier which was resolved
+
+  NOTE:
+    We have to mark all items between current_sel (including) and
+    last_select (excluding) as dependend (select before last_select should
+    be marked with actual table mask used by resolved item, all other with
+    OUTER_REF_TABLE_BIT) and also write dependence information to Item of
+    resolved identifier.
+*/
+
+void mark_select_range_as_dependent(THD *thd,
+                                    SELECT_LEX *current_sel,
+                                    SELECT_LEX *last_select,
+                                    Field *found_field, Item *found_item,
+                                    Item_ident *resolved_item)
+{
+  /*
+    Go from current SELECT to SELECT where field was resolved (it
+    have to be reachable from current SELECT, because it was already
+    done once when we resolved this field and cached result of
+    resolving)
+  */
+  SELECT_LEX *previous_select= current_sel;
+  for(;
+      previous_select->outer_select() != last_select;
+      previous_select= previous_select->outer_select())
+  {
+    Item_subselect *prev_subselect_item=
+      previous_select->master_unit()->item;
+    prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+    prev_subselect_item->const_item_cache= 0;
+  }
+  {
+    Item_subselect *prev_subselect_item=
+      previous_select->master_unit()->item;
+    Item_ident *dependent= resolved_item;
+    if (found_field == view_ref_found)
+    {
+      Item::Type type= found_item->type();
+      prev_subselect_item->used_tables_cache|=
+        found_item->used_tables();
+      dependent= ((type == Item::REF_ITEM || type == Item::FIELD_ITEM) ?
+                  (Item_ident*) found_item :
+                  0);
+    }
+    else
+      prev_subselect_item->used_tables_cache|=
+        found_field->table->map;
+    prev_subselect_item->const_item_cache= 0;
+    mark_as_dependent(thd, last_select, current_sel, resolved_item,
+                      dependent);
+  }
+}
 
 
 /*
