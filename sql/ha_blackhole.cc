@@ -25,10 +25,13 @@
 #include "ha_blackhole.h"
 
 
+static const char *ha_black_hole_exts[] = {
+  NullS
+};
+
 const char **ha_blackhole::bas_ext() const
-{ 
-  static const char *ext[]= { NullS }; 
-  return ext; 
+{
+  return ha_blackhole_exts;
 }
 
 int ha_blackhole::open(const char *name, int mode, uint test_if_locked)
