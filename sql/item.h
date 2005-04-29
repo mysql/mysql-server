@@ -180,7 +180,8 @@ public:
   { return save_in_field(field, 1); }
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
-  virtual Item_result result_type () const { return REAL_RESULT; }
+  virtual Item_result result_type() const { return REAL_RESULT; }
+  virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
@@ -421,6 +422,10 @@ public:
   enum Item_result result_type () const
   {
     return field->result_type();
+  }
+  Item_result cast_to_int_type() const
+  {
+    return field->cast_to_int_type();
   }
   enum_field_types field_type() const
   {

@@ -4,7 +4,6 @@
 
 select CAST(1-2 AS UNSIGNED);
 select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
-select CONVERT('-1',UNSIGNED);
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
@@ -21,6 +20,15 @@ select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
 select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
 select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
+
+# out-of-range cases
+select cast('18446744073709551616' as unsigned);
+select cast('18446744073709551616' as signed);
+select cast('9223372036854775809' as signed);
+select cast('-1' as unsigned);
+select cast('abc' as signed);
+select cast('1a' as signed);
+select cast('' as signed);
 
 #
 # Character set convertion
@@ -118,3 +126,19 @@ select date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour);
 select timediff(cast('2004-12-30 12:00:00' as time), '12:00:00');
 # Still we should not throw away "days" part of time value
 select timediff(cast('1 12:00:00' as time), '12:00:00');
+
+#
+# Bug #7036: Casting from string to unsigned would cap value of result at
+# maximum signed value instead of maximum unsigned value
+#
+select cast(18446744073709551615 as unsigned);
+select cast(18446744073709551615 as signed);
+select cast('18446744073709551615' as unsigned);
+select cast('18446744073709551615' as signed);
+select cast('9223372036854775807' as signed);
+
+select cast(concat('184467440','73709551615') as unsigned);
+select cast(concat('184467440','73709551615') as signed);
+
+select cast(repeat('1',20) as unsigned);
+select cast(repeat('1',20) as signed);
