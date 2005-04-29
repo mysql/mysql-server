@@ -3266,7 +3266,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
       {
         invalidate_dictionary_cache(FALSE);
-        if (!(tab= dict->getTable(m_tabname)))
+        if (!(tab= dict->getTable(m_tabname, &tab_info)))
           ERR_RETURN(dict->getNdbError());
         DBUG_PRINT("info", ("Table schema version: %d", 
                             tab->getObjectVersion()));
