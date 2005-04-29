@@ -319,6 +319,56 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 
 
 /*
+  Skip over keyword and get argument after keyword
+
+  SYNOPSIS
+   get_argument()
+   keyword		Include directive keyword
+   kwlen		Length of keyword
+   ptr			Pointer to the keword in the line under process
+   line			line number
+
+  RETURN
+   0	error
+   #	Returns pointer to the argument after the keyword.
+*/
+
+static char *get_argument(const char *keyword, uint kwlen,
+                          char *ptr, char *name, uint line)
+{
+  char *end;
+
+  /* Skip over "include / includedir keyword" and following whitespace */
+
+  for (ptr+= kwlen - 1;
+       my_isspace(&my_charset_latin1, ptr[0]);
+       ptr++)
+  {}
+
+  /*
+    Trim trailing whitespace from directory name
+    The -1 below is for the newline added by fgets()
+    Note that my_isspace() is true for \r and \n
+  */
+  for (end= ptr + strlen(ptr) - 1;
+       my_isspace(&my_charset_latin1, *(end - 1));
+       end--)
+  {}
+  end[0]= 0;                                    /* Cut off end space */
+
+  /* Print error msg if there is nothing after !include* directive */
+  if (end <= ptr)
+  {
+    fprintf(stderr,
+	    "error: Wrong '!%s' directive in config file: %s at line %d\n",
+	    keyword, name, line);
+    return 0;
+  }
+  return ptr;
+}
+
+
+/*
   Open a configuration file (if exists) and read given options from it
 
   SYNOPSIS
@@ -426,31 +476,10 @@ static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
                     sizeof(includedir_keyword) - 1)) &&
           my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
       {
-        /* skip over "includedir" and following whitespace */
-        for (ptr+= sizeof(includedir_keyword) - 1;
-            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
-        {}
-
-        /*
-          trim trailing whitespace from directory name
-          The -1 below is for the newline added by fgets()
-          Note that my_isspace() is true for \r and \n
-        */
-        for (end= ptr + strlen(ptr) - 1; 
-             my_isspace(&my_charset_latin1, *(end - 1));
-             end--)
-        {}
-        end[0]= 0;
-
-        /* print error msg if there is nothing after !includedir directive */
-        if (end <= ptr)
-        {
-          fprintf(stderr,
-                  "error: Wrong !includedir directive in config "
-                  "file: %s at line %d\n",
-                  name,line);
-          goto err;
-        }
+	if (!(ptr= get_argument(includedir_keyword,
+                                sizeof(includedir_keyword),
+                                ptr, name, line)))
+	  goto err;
 
         if (!(search_dir= my_dir(ptr, MYF(MY_WME))))
           goto err;
@@ -486,26 +515,10 @@ static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
       else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1)) &&
                my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword)-1]))
       {
-        /* skip over `include' and following whitespace */
-        for (ptr+= sizeof(include_keyword) - 1;
-            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
-        {}
-
-        /* trim trailing whitespace from filename */
-        for (end= ptr + strlen(ptr) - 1;
-             my_isspace(&my_charset_latin1, *(end - 1));
-             end--)
-        {}
-        end[0]= 0;
-
-        if (end <= ptr)
-        {
-          fprintf(stderr,
-                  "error: Wrong !include directive in config "
-                  "file: %s at line %d\n",
-                  name,line);
-          goto err;
-        }
+	if (!(ptr= get_argument(include_keyword,
+                                sizeof(include_keyword), ptr,
+                                name, line)))
+	  goto err;
 
         search_default_file_with_ext(args, alloc, "", "", ptr, group,
                                      recursion_level + 1);
