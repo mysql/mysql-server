@@ -3010,6 +3010,10 @@ unsent_create_error:
     goto error;
 #else
     {
+      /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
+      if (lex->only_view)
+        first_table->skip_temporary= 1;
+
       if (check_db_used(thd, all_tables) ||
 	  check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
 		       &first_table->grant.privilege, 0, 0))
@@ -4052,7 +4056,7 @@ unsent_create_error:
 	{
 	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
 	  {
-	    my_message(ER_SP_BADSELECT, ER(ER_SP_BADSELECT), MYF(0));
+	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
 #ifndef EMBEDDED_LIBRARY
 	    thd->net.no_send_ok= nsok;
 #endif

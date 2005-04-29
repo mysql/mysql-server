@@ -26,9 +26,14 @@
 /*****************************************************************************
 ** HEAP tables
 *****************************************************************************/
+static const char *ha_heap_exts[] = {
+  NullS
+};
 
 const char **ha_heap::bas_ext() const
-{ static const char *ext[1]= { NullS }; return ext; }
+{
+  return ha_heap_exts;
+}
 
 /*
   Hash index statistics is updated (copied from HP_KEYDEF::hash_buckets to 

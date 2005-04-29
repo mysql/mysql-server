@@ -53,11 +53,14 @@ max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --wit
 max_no_es_configs="$max_leave_isam_configs --without-isam"
 max_configs="$max_no_es_configs --with-embedded-server"
 
-alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
-amd64_cflags=""				# If dropping '--with-big-tables', add here  "-DBIG_TABLES"
-pentium_cflags="-mcpu=pentiumpro"
-pentium64_cflags="-mcpu=nocona -m64"
-ppc_cflags="-mpowerpc -mcpu=powerpc"
+path=`dirname $0`
+. "$path/check-cpu"
+
+alpha_cflags="$check_cpu_cflags -Wa,-m$cpu_flag"
+amd64_cflags="$check_cpu_cflags"
+pentium_cflags="$check_cpu_cflags"
+pentium64_cflags="$check_cpu_cflags -m64"
+ppc_cflags="$check_cpu_cflags"
 sparc_cflags=""
 
 # be as fast as we can be without losing our ability to backtrace

@@ -702,3 +702,12 @@ c
 val-74
 val-98
 drop table t1,t2;
+create table t1 (b int4 unsigned not null);
+insert into t1 values(3000000000);
+select * from t1;
+b
+3000000000
+select min(b) from t1;
+min(b)
+3000000000
+drop table t1;

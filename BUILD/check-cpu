@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# Check cpu of current machine and find the
+# best compiler optimization flags for gcc
+#
+#
+
+if test -r /proc/cpuinfo ; then
+  cpuinfo="cat /proc/cpuinfo"
+  cpu_family=`$cpuinfo | grep 'family' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+  if test -z "$cpu_family" ; then
+    cpu_family=`$cpuinfo | grep 'cpu' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+  fi
+  cpu_vendor=`$cpuinfo | grep 'vendor_id' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+  model_name=`$cpuinfo | grep 'model name' | cut -d ':' -f 2 | head -1`
+  if test -z "$model_name" ; then
+    model_name=`$cpuinfo | grep 'cpu model' | cut -d ':' -f 2 | head -1`
+  fi
+  if test -z "$model_name" ; then
+    model_name=`uname -m`
+  fi
+fi
+
+case "$cpu_family--$model_name" in
+  Alpha*EV6*)
+    cpu_flag="ev6";
+    ;;
+  *Xeon*)
+    cpu_flag="nocona";
+    ;;
+  *Pentium*4*CPU*)
+    cpu_flag="pentium4";
+    ;;
+  *Athlon*64*)
+    cpu_flag="athlon64";
+    ;;
+  *Athlon*)
+    cpu_flag="athlon";
+    ;;
+  *Itanium*)
+    # Don't need to set any flags for itanium(at the moment)
+    cpu_flag="";
+    ;;
+  *ppc)
+    cpu_flag="powerpc";
+    ;;
+  *)
+    cpu_flag="";
+    ;;
+esac
+
+if test -z "$cpu_flag"; then
+  echo "BUILD/check-cpu: Oops, could not findout what kind of cpu this machine is using."
+  check_cpu_flags=""
+  return
+fi
+
+echo "cpu_flag: $cpu_flag"
+
+if test -z "$CC" ; then
+  cc="gcc";
+else
+  cc=$CC
+
+fi
+
+cc_ver=`$cc --version | sed 1q`
+cc_verno=`echo $cc_ver | sed -e 's/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
+
+case "$cc_ver--$cc_verno" in
+  *GCC*--3.4*|*GCC*--3.5*|*GCC*--4.*)
+    check_cpu_cflags="-mtune=$cpu_flag -march=$cpu_flag"
+    ;;
+  *GCC*)
+    check_cpu_cflags="-mcpu=$cpu_flag -march=$cpu_flag"
+    ;;
+  *)
+    check_cpu_cflags=""
+    ;;
+esac
+echo $check_cpu_cflags
