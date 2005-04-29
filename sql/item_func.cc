@@ -582,12 +582,85 @@ void Item_func_signed::print(String *str)
 }
 
 
+longlong Item_func_signed::val_int_from_str(int *error)
+{
+  char buff[MAX_FIELD_WIDTH], *end;
+  String tmp(buff,sizeof(buff), &my_charset_bin), *res;
+  longlong value;
+
+  /*
+    For a string result, we must first get the string and then convert it
+    to a longlong
+  */
+
+  if (!(res= args[0]->val_str(&tmp)))
+  {
+    null_value= 1;
+    *error= 0;
+    return 0;
+  }
+  null_value= 0;
+  end= (char*) res->ptr()+ res->length();
+  value= my_strtoll10(res->ptr(), &end, error);
+  if (*error > 0 || end != res->ptr()+ res->length())
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        res->c_ptr());
+  return value;
+}
+
+
+longlong Item_func_signed::val_int()
+{
+  longlong value;
+  int error;
+
+  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  {
+    value= args[0]->val_int();
+    null_value= args[0]->null_value; 
+    return value;
+  }
+
+  value= val_int_from_str(&error);
+  if (value < 0 && error == 0)
+  {
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                 "Cast to signed converted positive out-of-range integer to "
+                 "it's negative complement");
+  }
+  return value;
+}
+
+
 void Item_func_unsigned::print(String *str)
 {
   str->append("cast(", 5);
   args[0]->print(str);
   str->append(" as unsigned)", 13);
 
+}
+
+
+longlong Item_func_unsigned::val_int()
+{
+  longlong value;
+  int error;
+
+  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  {
+    value= args[0]->val_int();
+    null_value= args[0]->null_value; 
+    return value;
+  }
+
+  value= val_int_from_str(&error);
+  if (error < 0)
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                 "Cast to unsigned converted negative integer to it's "
+                 "positive complement");
+  return value;
 }
 
 
