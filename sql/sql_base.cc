@@ -2689,6 +2689,14 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (found == WRONG_GRANT)
 	return (Field*) 0;
+      {
+        SELECT_LEX *current_sel= thd->lex->current_select;
+        SELECT_LEX *last_select= item->cached_table->select_lex;
+        /* check that field was resolved in outer query */
+        if (current_sel != last_select)
+          mark_select_range_as_dependent(thd, current_sel, last_select,
+                                         found, *ref, item);
+      }
       return found;
     }
   }

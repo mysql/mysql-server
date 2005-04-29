@@ -1795,6 +1795,12 @@ public:
   static enum_field_types get_real_type(Item *);
 };
 
+class st_select_lex;
+void mark_select_range_as_dependent(THD *thd,
+                                    st_select_lex *current_sel,
+                                    st_select_lex *last_select,
+                                    Field *found_field, Item *found_item,
+                                    Item_ident *resolved_item);
 
 extern Item_buff *new_Item_buff(Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
