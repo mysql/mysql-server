@@ -1189,9 +1189,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
   int  store(const char *to, uint length, CHARSET_INFO *charset);
-  int  store(double nr) { return 1; }
-  int  store(longlong nr) { return 1; }
-  int  store_decimal(const my_decimal *) { return 1; }
+  int  store(double nr);
+  int  store(longlong nr);
+  int  store_decimal(const my_decimal *);
   void get_key_image(char *buff,uint length,imagetype type);
 };
 #endif /*HAVE_SPATIAL*/
