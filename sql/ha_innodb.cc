@@ -1611,6 +1611,7 @@ innobase_report_binlog_offset_and_commit(
 	trx->mysql_log_file_name = log_file_name;
 	trx->mysql_log_offset = (ib_longlong)end_offset;
 
+#ifdef HAVE_REPLICATION
         if (thd->variables.sync_replication) {
                 /* Let us store the binlog file name and the position, so that
                 we know how long to wait for the binlog to the replicated to
@@ -1619,19 +1620,19 @@ innobase_report_binlog_offset_and_commit(
                 if (trx->repl_wait_binlog_name == NULL) {
 
                         trx->repl_wait_binlog_name =
-                                        (char*)mem_alloc(FN_REFLEN + 100);
+                                  (char*)mem_alloc_noninline(FN_REFLEN + 100);
                 }
 
-                ut_a(strlen(log_file_name) <= FN_REFLEN + 100);
+                ut_a(strlen(log_file_name) < FN_REFLEN + 100);
 
                 strcpy(trx->repl_wait_binlog_name, log_file_name);
 
                 trx->repl_wait_binlog_pos = (ib_longlong)end_offset;
         }
-
+#endif /* HAVE_REPLICATION */
 	trx->flush_log_later = TRUE;
 
-	innobase_commit(thd, trx_handle);
+	innobase_commit(thd, TRUE);
 
 	trx->flush_log_later = FALSE;
 
@@ -1681,10 +1682,7 @@ innobase_commit_complete(
                                 /* out: 0 */
         THD*    thd)            /* in: user thread */
 {
-	struct timespec abstime;
 	trx_t*	trx;
-	int	cmp;
-	int	ret;
 
         trx = (trx_t*) thd->ha_data[innobase_hton.slot];
 
@@ -1700,20 +1698,18 @@ innobase_commit_complete(
                 trx_commit_complete_for_mysql(trx);
         }
 
-        printf("Wait binlog name %s, repl state %lu\n",
-                        trx->repl_wait_binlog_name,
-                        (uint)innobase_repl_state);
-
+#ifdef HAVE_REPLICATION
         if (thd->variables.sync_replication
             && trx->repl_wait_binlog_name
             && innobase_repl_state != 0) {
 
+		struct timespec abstime;
+		int	cmp;
+		int	ret;
+
                 /* In synchronous replication, let us wait until the MySQL
                 replication has sent the relevant binlog segment to the
                 replication slave. */
-
-/* TODO: Make sure MySQL uses some way (TCP_NODELAY?) to ensure that the data
-has been received in the slave! */
 
                 pthread_mutex_lock(&innobase_repl_cond_mutex);
 try_again:
@@ -1809,10 +1805,11 @@ try_again:
 
                 goto try_again;
         }
-
+#endif HAVE_REPLICATION
 	return(0);
 }
 
+#ifdef HAVE_REPLICATION
 /*********************************************************************
 In synchronous replication, reports to InnoDB up to which binlog position
 we have sent the binlog to the slave. Note that replication is synchronous
@@ -1908,6 +1905,7 @@ innobase_repl_report_sent_binlog(
                 pthread_cond_broadcast(&innobase_repl_cond);
         }
 }
+#endif /* HAVE_REPLICATION */
 
 /*********************************************************************
 Rolls back a transaction or the latest SQL statement. */
@@ -2138,16 +2136,19 @@ ha_innobase::get_row_type() const
 
 /********************************************************************
 Gives the file extension of an InnoDB single-table tablespace. */
+static const char* ha_innobase_exts[] = {
+  ".ibd",
+  NullS
+};
 
 const char**
 ha_innobase::bas_ext() const
 /*========================*/
 				/* out: file extension string */
 {
-	static const char* ext[] = {".ibd", NullS};
-
-	return(ext);
+  return ha_innobase_exts;
 }
+
 
 /*********************************************************************
 Normalizes a table name string. A normalized name consists of the

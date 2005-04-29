@@ -1,4 +1,4 @@
-/*	$NetBSD: el.h,v 1.13 2002/11/15 14:32:33 christos Exp $	*/
+/*	$NetBSD: el.h,v 1.16 2003/10/18 23:48:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,9 +51,10 @@
 
 #define	EL_BUFSIZ	1024		/* Maximum line size		*/
 
-#define	HANDLE_SIGNALS	1<<0
-#define	NO_TTY		1<<1
-#define	EDIT_DISABLED	1<<2
+#define	HANDLE_SIGNALS	0x01
+#define	NO_TTY		0x02
+#define	EDIT_DISABLED	0x04
+#define	UNBUFFERED	0x08
 
 typedef int bool_t;			/* True or not			*/
 
@@ -91,6 +88,7 @@ typedef struct el_state_t {
 /*
  * Until we come up with something better...
  */
+#define	el_strdup(a)	strdup(a)
 #define	el_malloc(a)	malloc(a)
 #define	el_realloc(a,b)	realloc(a, b)
 #define	el_free(a)	free(a)
@@ -98,7 +96,7 @@ typedef struct el_state_t {
 #include "tty.h"
 #include "prompt.h"
 #include "key.h"
-#include "libedit_term.h"
+#include "el_term.h"
 #include "refresh.h"
 #include "chared.h"
 #include "common.h"

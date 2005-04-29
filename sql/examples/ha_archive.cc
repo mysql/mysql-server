@@ -431,11 +431,20 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
 }
 
 
-/* 
+/*
   We just implement one additional file extension.
 */
+static const char *ha_archive_exts[] = {
+  ARZ,
+  ARN,
+  ARM,
+  NullS
+};
+
 const char **ha_archive::bas_ext() const
-{ static const char *ext[]= { ARZ, ARN, ARM, NullS }; return ext; }
+{
+  return ha_archive_exts;
+}
 
 
 /* 
