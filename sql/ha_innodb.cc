@@ -1632,7 +1632,7 @@ innobase_report_binlog_offset_and_commit(
 #endif /* HAVE_REPLICATION */
 	trx->flush_log_later = TRUE;
 
-	innobase_commit(thd, trx_handle);
+	innobase_commit(thd, TRUE);
 
 	trx->flush_log_later = FALSE;
 
