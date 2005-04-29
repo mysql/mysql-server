@@ -75,8 +75,11 @@ public:
       Changed,                ///< The object has been modified in memory 
                               ///< and has to be commited in NDB Kernel for 
                               ///< changes to take effect
-      Retrieved               ///< The object exist and has been read 
+      Retrieved,              ///< The object exist and has been read 
                               ///< into main memory from NDB Kernel
+      Invalid                 ///< The object has been invalidated
+                              ///< and should not be used
+      
     };
 
     /**
