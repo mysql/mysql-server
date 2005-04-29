@@ -434,7 +434,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
         as the MyISAM tables are from the same database as the MERGE table.
       */
       if ((dirname_length(buff) == dirlgt) && ! memcmp(buff, name, dirlgt))
-        table_name= tables->real_name;
+        table_name= tables->table_name;
       else
         if (! (table_name= thd->strmake(buff, length)))
           DBUG_RETURN(HA_ERR_OUT_OF_MEM);
