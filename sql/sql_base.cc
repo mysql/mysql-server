@@ -3858,11 +3858,8 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     TABLE *table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if ((value->save_in_field(field, 0) < 0) && !ignore_errors)
-    {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+    if (value->save_in_field(field, 0) == -1)
       DBUG_RETURN(TRUE);
-    }
   }
   DBUG_RETURN(thd->net.report_error);
 }
