@@ -4554,6 +4554,7 @@ Item_func_sp::execute(Item **itp)
 {
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
+  ulong old_client_capabilites;
   int res;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
@@ -4566,6 +4567,9 @@ Item_func_sp::execute(Item **itp)
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
     DBUG_RETURN(-1);
   }
+
+  old_client_capabilites= thd->client_capabilities;
+  thd->client_capabilities &= ~CLIENT_MULTI_RESULTS;
 
 #ifndef EMBEDDED_LIBRARY
   my_bool nsok= thd->net.no_send_ok;
@@ -4582,6 +4586,7 @@ Item_func_sp::execute(Item **itp)
 			     m_sp->m_db.str, m_sp->m_name.str, 0))
   {
     sp_restore_security_context(thd, m_sp, &save_ctx);
+    thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
     DBUG_RETURN(-1);
   }
 #endif
@@ -4595,6 +4600,9 @@ Item_func_sp::execute(Item **itp)
 #ifndef EMBEDDED_LIBRARY
   thd->net.no_send_ok= nsok;
 #endif
+
+  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
+
   DBUG_RETURN(res);
 }
 

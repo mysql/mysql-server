@@ -1632,7 +1632,7 @@ innobase_report_binlog_offset_and_commit(
 #endif /* HAVE_REPLICATION */
 	trx->flush_log_later = TRUE;
 
-	innobase_commit(thd, trx_handle);
+	innobase_commit(thd, TRUE);
 
 	trx->flush_log_later = FALSE;
 
@@ -2136,16 +2136,19 @@ ha_innobase::get_row_type() const
 
 /********************************************************************
 Gives the file extension of an InnoDB single-table tablespace. */
+static const char* ha_innobase_exts[] = {
+  ".ibd",
+  NullS
+};
 
 const char**
 ha_innobase::bas_ext() const
 /*========================*/
 				/* out: file extension string */
 {
-	static const char* ext[] = {".ibd", NullS};
-
-	return(ext);
+  return ha_innobase_exts;
 }
+
 
 /*********************************************************************
 Normalizes a table name string. A normalized name consists of the

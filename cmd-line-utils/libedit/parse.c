@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.16 2003/01/21 18:40:24 christos Exp $	*/
+/*	$NetBSD: parse.c,v 1.20 2003/12/05 13:37:48 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,14 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: parse.c,v 1.16 2003/01/21 18:40:24 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * parse.c: parse an editline extended command
@@ -59,7 +48,6 @@ __RCSID("$NetBSD: parse.c,v 1.16 2003/01/21 18:40:24 christos Exp $");
  *	setty
  */
 #include "el.h"
-#include "tokenizer.h"
 #include <stdlib.h>
 
 private const struct {
@@ -87,9 +75,8 @@ parse_line(EditLine *el, const char *line)
 	int argc;
 	Tokenizer *tok;
 
-	if (!(tok = tok_init(NULL)))
-          return -1;
-	tok_line(tok, line, &argc, &argv);
+	tok = tok_init(NULL);
+	tok_str(tok, line, &argc, &argv);
 	argc = el_parse(el, argc, argv);
 	tok_end(tok);
 	return (argc);
@@ -207,7 +194,7 @@ parse__escape(const char **const ptr)
 			c = *p;
 			break;
 		}
-	} else if (*p == '^' && isalpha((unsigned char) p[1])) {
+	} else if (*p == '^') {
 		p++;
 		c = (*p == '?') ? '\177' : (*p & 0237);
 	} else
@@ -215,6 +202,7 @@ parse__escape(const char **const ptr)
 	*ptr = ++p;
 	return (c);
 }
+
 /* parse__string():
  *	Parse the escapes from in and put the raw string out
  */
@@ -236,6 +224,14 @@ parse__string(char *out, const char *in)
 				return (NULL);
 			*out++ = n;
 			break;
+
+		case 'M':
+			if (in[1] == '-' && in[2] != '\0') {
+				*out++ = '\033';
+				in += 2;
+				break;
+			}
+			/*FALLTHROUGH*/
 
 		default:
 			*out++ = *in++;
