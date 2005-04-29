@@ -558,7 +558,7 @@ private:
   void print_results();
 
   ulonglong get_auto_increment();
-  void invalidateDictionaryCache();
+  void invalidate_dictionary_cache(bool global);
   int ndb_err(NdbTransaction*);
   bool uses_blob_value(bool all_fields);
 
@@ -596,7 +596,7 @@ private:
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
   void *m_table;
-  int m_tableVersion;
+  int m_table_version;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
