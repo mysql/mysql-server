@@ -31,6 +31,7 @@
 #define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
 #endif
 #include <my_getopt.h>
+#include <assert.h>
 
 #if INT_MAX > 32767
 #define BITS_SAVED 32
@@ -1991,7 +1992,9 @@ static void write_bits (register ulong value, register uint bits)
   {
     reg3 uint byte_buff;
     bits= (uint) -file_buffer.bits;
-    byte_buff=file_buffer.current_byte | (uint) (value >> bits);
+    DBUG_ASSERT(bits <= 8 * sizeof(value));
+    byte_buff= (file_buffer.current_byte |
+               ((bits != 8 * sizeof(value)) ? (uint) (value >> bits) : 0));
 #if BITS_SAVED == 32
     *file_buffer.pos++= (byte) (byte_buff >> 24) ;
     *file_buffer.pos++= (byte) (byte_buff >> 16) ;
@@ -1999,7 +2002,9 @@ static void write_bits (register ulong value, register uint bits)
     *file_buffer.pos++= (byte) (byte_buff >> 8) ;
     *file_buffer.pos++= (byte) byte_buff;
 
-    value&=(1 << bits)-1;
+    DBUG_ASSERT(bits <= 8 * sizeof(ulong));
+    if (bits != 8 * sizeof(value))
+      value&= (((ulong) 1) << bits) - 1;
 #if BITS_SAVED == 16
     if (bits >= sizeof(uint))
     {

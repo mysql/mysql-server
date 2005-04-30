@@ -6893,6 +6893,11 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 				      &join->tmp_table_param,
 				      error, 0))
 	    DBUG_RETURN(-1);		       
+            /* 
+              If table->file->write_row() was failed because of 'out of memory'
+              and tmp table succesfully created, reset error.
+             */
+            error=0;
         }
         if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0)
 	{
