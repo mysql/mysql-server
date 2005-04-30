@@ -3271,7 +3271,8 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
     from the argument if the argument is NULL
     and the variable has previously been initialized.
   */
-  if (!entry->collation.collation || !args[0]->null_value)
+  null_item= (args[0]->type() == NULL_ITEM);
+  if (!entry->collation.collation || !null_item)
     entry->collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
   collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
   cached_result_type= args[0]->result_type();
@@ -3315,8 +3316,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
     char *pos= (char*) entry+ ALIGN_SIZE(sizeof(user_var_entry));
     if (entry->value && entry->value != pos)
       my_free(entry->value,MYF(0));
-    entry->value=0;
-    entry->length=0;
+    entry->value= 0;
+    entry->length= 0;
   }
   else
   {
@@ -3355,9 +3356,9 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
     if (type == DECIMAL_RESULT)
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
-    entry->type=type;
     entry->collation.set(cs, dv);
   }
+  entry->type=type;
   return 0;
 }
 
@@ -3366,6 +3367,12 @@ bool
 Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
                                     CHARSET_INFO *cs, Derivation dv)
 {
+  /*
+    If we set a variable explicitely to NULL then keep the old
+    result type of the variable
+  */
+  if ((null_value= args[0]->null_value) && null_item)
+    type= entry->type;                          // Don't change type of item
   if (::update_hash(entry, (null_value= args[0]->null_value),
                     ptr, length, type, cs, dv))
   {
