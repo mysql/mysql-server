@@ -2223,7 +2223,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
 
   thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
-  (void) stmt->cursor->fetch(num_rows);
+  stmt->cursor->fetch(num_rows);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
