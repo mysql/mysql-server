@@ -7,6 +7,8 @@ CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
 select CAST('10 ' as unsigned integer);
 CAST('10 ' as unsigned integer)
 10
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '10 '
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
 18446744073709551611	18446744073709551611
