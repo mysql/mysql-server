@@ -262,12 +262,8 @@ public:
     null_value= args[0]->null_value;
     return tmp;
   }
-  longlong val_int()
-  {
-    longlong tmp= args[0]->val_int();
-    null_value= args[0]->null_value; 
-    return tmp;
-  }
+  longlong val_int();
+  longlong val_int_from_str(int *error);
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
   void print(String *str);
@@ -281,6 +277,7 @@ public:
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
+  longlong val_int();
   void print(String *str);
 };
 
