@@ -2367,8 +2367,8 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   SYNOPSIS
     mark_select_range_as_dependent()
     thd           - thread handler
-    current_sel   - current select (select where resolved_item was placed)
     last_select   - select where resolved_item was resolved
+    current_sel   - current select (select where resolved_item was placed)
     found_field   - field which was found during resolving
     found_item    - Item which was found during resolving (if resolved
                     identifier belongs to VIEW)
@@ -2383,8 +2383,8 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 */
 
 void mark_select_range_as_dependent(THD *thd,
-                                    SELECT_LEX *current_sel,
                                     SELECT_LEX *last_select,
+                                    SELECT_LEX *current_sel,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item)
 {
