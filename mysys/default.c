@@ -410,6 +410,56 @@ static int search_default_file(Process_option_func opt_handler,
 
 
 /*
+  Skip over keyword and get argument after keyword
+
+  SYNOPSIS
+   get_argument()
+   keyword		Include directive keyword
+   kwlen		Length of keyword
+   ptr			Pointer to the keword in the line under process
+   line			line number
+
+  RETURN
+   0	error
+   #	Returns pointer to the argument after the keyword.
+*/
+
+static char *get_argument(const char *keyword, uint kwlen,
+                          char *ptr, char *name, uint line)
+{
+  char *end;
+
+  /* Skip over "include / includedir keyword" and following whitespace */
+
+  for (ptr+= kwlen - 1;
+       my_isspace(&my_charset_latin1, ptr[0]);
+       ptr++)
+  {}
+
+  /*
+    Trim trailing whitespace from directory name
+    The -1 below is for the newline added by fgets()
+    Note that my_isspace() is true for \r and \n
+  */
+  for (end= ptr + strlen(ptr) - 1;
+       my_isspace(&my_charset_latin1, *(end - 1));
+       end--)
+  {}
+  end[0]= 0;                                    /* Cut off end space */
+
+  /* Print error msg if there is nothing after !include* directive */
+  if (end <= ptr)
+  {
+    fprintf(stderr,
+	    "error: Wrong '!%s' directive in config file: %s at line %d\n",
+	    keyword, name, line);
+    return 0;
+  }
+  return ptr;
+}
+
+
+/*
   Open a configuration file (if exists) and read given options from it
 
   SYNOPSIS
@@ -497,40 +547,34 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       continue;
 
     /* Configuration File Directives */
-    if ((*ptr == '!') && (recursion_level < max_recursion_level))
+    if ((*ptr == '!'))
     {
+      if (recursion_level >= max_recursion_level)
+      {
+        for (end= ptr + strlen(ptr) - 1; 
+             my_isspace(&my_charset_latin1, *(end - 1));
+             end--)
+        {}
+        end[0]= 0;
+        fprintf(stderr,
+                "Warning: skipping '%s' directive as maximum include"
+                "recursion level was reached in file %s at line %d\n",
+                ptr, name, line);
+        continue;
+      }
+
       /* skip over `!' and following whitespace */
       for (++ptr; my_isspace(&my_charset_latin1, ptr[0]); ptr++)
       {}
 
-      if ((!strncmp(ptr, includedir_keyword, sizeof(includedir_keyword) - 1))
-         && my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
+      if ((!strncmp(ptr, includedir_keyword,
+                    sizeof(includedir_keyword) - 1)) &&
+          my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
       {
-        /* skip over "includedir" and following whitespace */
-        for (ptr+= sizeof(includedir_keyword) - 1;
-            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
-        {}
-
-        /* trim trailing whitespace from directory name */
-        end= ptr + strlen(ptr) - 1;
-        /* fgets() stores the newline character in the buffer */
-        if ((end[0] == '\n') || (end[0] == '\r') ||
-            my_isspace(&my_charset_latin1, end[0]))
-        {
-          for (; my_isspace(&my_charset_latin1, *(end - 1)); end--)
-          {}
-          end[0]= 0;
-        }
-
-        /* print error msg if there is nothing after !includedir directive */
-        if (end == ptr)
-        {
-          fprintf(stderr,
-                  "error: Wrong !includedir directive in config "
-                  "file: %s at line %d\n",
-                  name,line);
-          goto err;
-        }
+	if (!(ptr= get_argument(includedir_keyword,
+                                sizeof(includedir_keyword),
+                                ptr, name, line)))
+	  goto err;
 
         if (!(search_dir= my_dir(ptr, MYF(MY_WME))))
           goto err;
@@ -559,28 +603,13 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
         my_dirend(search_dir);
       }
-      else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1))
-          && my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword) - 1]))
+      else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1)) &&
+               my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword)-1]))
       {
-        /* skip over `include' and following whitespace */
-        for (ptr+= sizeof(include_keyword) - 1;
-            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
-        {}
-
-        /* trim trailing whitespace from filename */
-        end= ptr + strlen(ptr) - 1;
-        for (; my_isspace(&my_charset_latin1, *(end - 1)) ; end--)
-        {}
-        end[0]= 0;
-
-        if (end == ptr)
-        {
-          fprintf(stderr,
-                  "error: Wrong !include directive in config "
-                  "file: %s at line %d\n",
-                  name,line);
-          goto err;
-        }
+	if (!(ptr= get_argument(include_keyword,
+                                sizeof(include_keyword), ptr,
+                                name, line)))
+	  goto err;
 
         search_default_file_with_ext(opt_handler, handler_ctx, "", "", ptr,
                                      recursion_level + 1);
@@ -588,14 +617,6 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
       continue;
     }
-    else
-      if (recursion_level >= max_recursion_level)
-      {
-        fprintf(stderr,
-                "warning: skipping !include directive as maximum include"
-                "recursion level was reached in file %s at line %d\n",
-                name, line);
-      }
 
     if (*ptr == '[')				/* Group name */
     {
