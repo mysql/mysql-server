@@ -967,4 +967,12 @@ x509* PemToDer(const char* fname, CertType type)
 
 } // namespace
 
+#ifdef __GNUC__
+template class TaoCrypt::HMAC<TaoCrypt::MD5>;
+template class TaoCrypt::HMAC<TaoCrypt::SHA>;
+template class TaoCrypt::HMAC<TaoCrypt::RIPEMD160>;
+template class TaoCrypt::Mode_BASE<16>;
+template class TaoCrypt::Mode_BASE<8>;
+#endif
+
 #endif // !USE_CRYPTOPP_LIB

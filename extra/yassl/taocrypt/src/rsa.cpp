@@ -213,3 +213,22 @@ word32 SSL_Decrypt(const RSA_PublicKey& key, const byte* sig, byte* plain)
 
 
 } // namespace
+
+#ifdef __GNUC__
+template TaoCrypt::AllocatorWithCleanup<unsigned char>::pointer TaoCrypt::StdReallocate<unsigned char, TaoCrypt::AllocatorWithCleanup<unsigned char> >(TaoCrypt::AllocatorWithCleanup<unsigned char>&, unsigned char*, TaoCrypt::AllocatorWithCleanup<unsigned char>::size_type, TaoCrypt::AllocatorWithCleanup<unsigned char>::size_type, bool);
+template TaoCrypt::AllocatorWithCleanup<unsigned int>::pointer TaoCrypt::StdReallocate<unsigned int, TaoCrypt::AllocatorWithCleanup<unsigned int> >(TaoCrypt::AllocatorWithCleanup<unsigned int>&, unsigned int*, TaoCrypt::AllocatorWithCleanup<unsigned int>::size_type, TaoCrypt::AllocatorWithCleanup<unsigned int>::size_type, bool);
+template TaoCrypt::Integer* mySTL::uninit_copy<TaoCrypt::Integer*, TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*, TaoCrypt::Integer*);
+template TaoCrypt::Integer* mySTL::uninit_fill_n<TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer>(TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer const&);
+template TaoCrypt::WindowSlider* mySTL::uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
+template class TaoCrypt::AbstractGroup<TaoCrypt::Integer>;
+template class TaoCrypt::AbstractRing<TaoCrypt::Integer>;
+template class TaoCrypt::RSA_Decryptor<TaoCrypt::RSA_BlockType2>;
+template class TaoCrypt::RSA_Encryptor<TaoCrypt::RSA_BlockType1>;
+template class TaoCrypt::RSA_Encryptor<TaoCrypt::RSA_BlockType2>;
+template mySTL::vector<TaoCrypt::Integer>* mySTL::uninit_fill_n<mySTL::vector<TaoCrypt::Integer>*, unsigned int, mySTL::vector<TaoCrypt::Integer> >(mySTL::vector<TaoCrypt::Integer>*, unsigned int, mySTL::vector<TaoCrypt::Integer> const&);
+template void mySTL::destroy<TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*);
+template void mySTL::destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
+template void mySTL::destroy<mySTL::vector<TaoCrypt::Integer>*>(mySTL::vector<TaoCrypt::Integer>*, mySTL::vector<TaoCrypt::Integer>*);
+#endif
+
+

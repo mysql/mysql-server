@@ -294,7 +294,7 @@ case "$target_os" in
          AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
          case "$LDFLAGS" in
            *-belf*) ;;
-           *) echo "Adding -belf option to ldflags."
+           *) AC_MSG_WARN([Adding -belf option to ldflags.])
               LDFLAGS="$LDFLAGS -belf"
            ;;
          esac
@@ -305,7 +305,7 @@ case "$target_os" in
          case "$LDFLAGS" in
            *-belf*) ;;
            *)
-	     echo "Adding -belf option to ldflags."
+	     AC_MSG_WARN([Adding -belf option to ldflags.])
              LDFLAGS="$LDFLAGS -belf"
            ;;
          esac
@@ -336,7 +336,6 @@ AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
-echo "GXX: $GXX"
 if test "$GXX" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
@@ -344,22 +343,29 @@ then
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
 
-  #CXX_VERNO=`echo $CXX_VERSION | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
-  echo "CXX: $CXX"
-  if echo $CXX | grep gcc > /dev/null 2>&1
-  then
-    echo "Setting CXXFLAGS"
-    # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
-    # we will gets some problems when linking static programs.
-    # The following code is used to fix this problem.
-    CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
-    echo "Using MYSYS_NEW for static linking with gcc"
-  fi
+  CXX_VERNO=`echo $CXX_VERSION | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
+  case "$CXX_VERNO" in
+    3.*)
+      USE_MYSYS_NEW="-DUSE_MYSYS_NEW" # yassl needs it
+      if echo $CXX | grep gcc > /dev/null 2>&1
+      then
+        # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
+        # we will gets some problems when linking static programs.
+        # The following code is used to fix this problem.
+        CXXFLAGS="$CXXFLAGS $USE_MYSYS_NEW"
+        AC_MSG_WARN([Using MYSYS_NEW for static linking with gcc])
+      fi
+    ;;
+    *)
+      USE_MYSYS_NEW=""
+    ;;
+  esac
+  AC_SUBST(USE_MYSYS_NEW)
 fi
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
-# Any wariation of Linux
+# Any variation of Linux
 if expr "$target_os" : "[[Ll]]inux.*" > /dev/null
 then
   MYSQLD_DEFAULT_SWITCHES="--skip-locking"
@@ -937,7 +943,7 @@ case $SYSTEM_TYPE in
   *solaris2.7*)
     # Solaris 2.7 has a broken /usr/include/widec.h
     # Make a fixed copy in ./include
-    echo "Fixing broken include files for $SYSTEM_TYPE"
+    AC_MSG_WARN([Fixing broken include files for $SYSTEM_TYPE])
     echo "  - Creating local copy of widec.h"
     if test ! -d include
     then
@@ -951,7 +957,7 @@ case $SYSTEM_TYPE in
   *solaris2.8*)
     # Solaris 2.8 has a broken /usr/include/widec.h
     # Make a fixed copy in ./include
-    echo "Fixing broken include files for $SYSTEM_TYPE"
+    AC_MSG_WARN([Fixing broken include files for $SYSTEM_TYPE])
     echo "  - Creating local copy of widec.h"
     if test ! -d include
     then
@@ -963,7 +969,7 @@ case $SYSTEM_TYPE in
     CXXFLAGS="$CXXFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
     ;;
   *solaris2.5.1*)
-    echo "Enabling getpass() workaround for Solaris 2.5.1"
+    AC_MSG_WARN([Enabling getpass() workaround for Solaris 2.5.1])
     CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS -DHAVE_RWLOCK_T";
     CXXFLAGS="$CXXFLAGS -DHAVE_RWLOCK_T -DSOLARIS"
     ;;
@@ -972,26 +978,26 @@ case $SYSTEM_TYPE in
     CXXFLAGS="$CXXFLAGS -DHAVE_RWLOCK_T"
     ;;
   *SunOS*)
-    echo "Enabling getpass() workaround for SunOS"
+    AC_MSG_WARN([Enabling getpass() workaround for SunOS])
     CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS";
     ;;
   *hpux10.20*)
-    echo "Enabling workarounds for hpux 10.20"
+    AC_MSG_WARN([Enabling workarounds for hpux 10.20])
     CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX10 -DSIGNAL_WITH_VIO_CLOSE -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT -DHAVE_POSIX1003_4a_MUTEX"
     CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX10 -DSIGNAL_WITH_VIO_CLOSE -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT -DHAVE_POSIX1003_4a_MUTEX"
     if test "$with_named_thread" = "no"
     then 
-      echo "Using --with-named-thread=-lpthread"
+      AC_MSG_WARN([Using --with-named-thread=-lpthread])
       with_named_thread="-lcma"
     fi
     ;;
   *hpux11.*)
-    echo "Enabling workarounds for hpux 11"
+    AC_MSG_WARN([Enabling workarounds for hpux 11])
     CFLAGS="$CFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     CXXFLAGS="$CXXFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
-      echo "Using --with-named-thread=-lpthread"
+      AC_MSG_WARN([Using --with-named-thread=-lpthread])
       with_named_thread="-lpthread"
     fi
     # Fixes for HPUX 11.0 compiler
@@ -1047,7 +1053,7 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *freebsd*)
-    echo "Adding fix for interrupted reads"
+    AC_MSG_WARN([Adding fix for interrupted reads])
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
     if test "$OSVERSION" -gt "480100" && \
        test "$OSVERSION" -lt "500000" || \
@@ -1060,13 +1066,13 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *netbsd*)
-    echo "Adding flag -Dunix"
+    AC_MSG_WARN([Adding flag -Dunix])
     CFLAGS="$CFLAGS -Dunix"
     CXXFLAGS="$CXXFLAGS -Dunix"
     OVERRIDE_MT_LD_ADD="\$(top_srcdir)/mit-pthreads/obj/libpthread.a"
     ;;
   *bsdi*)
-    echo "Adding fix for BSDI"
+    AC_MSG_WARN([Adding fix for BSDI])
     CFLAGS="$CFLAGS -D__BSD__ -DHAVE_BROKEN_REALPATH"
     AC_DEFINE_UNQUOTED([SOCKOPT_OPTLEN_TYPE], [size_t],
                        [Last argument to get/setsockopt])
@@ -1074,13 +1080,13 @@ case $SYSTEM_TYPE in
    *sgi-irix6*)
     if test "$with_named_thread" = "no"
     then 
-      echo "Using --with-named-thread=-lpthread"
+      AC_MSG_WARN([Using --with-named-thread=-lpthread])
       with_named_thread="-lpthread"
     fi
     CXXFLAGS="$CXXFLAGS -D_BOOL"
     ;;
     *aix4.3*)
-      echo "Adding defines for AIX"
+      AC_MSG_WARN([Adding defines for AIX])
       CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS -DSIGNALS_DONT_BREAK_READ"
       CXXFLAGS="$CXXFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS -DSIGNALS_DONT_BREAK_READ"
     ;;
@@ -1088,11 +1094,11 @@ dnl Is this the right match for DEC OSF on alpha?
     *dec-osf*)
       if test "$ac_cv_prog_gcc" = "yes" && test "$host_cpu" = "alpha"
       then
-	  echo "Adding defines for DEC OSF on alpha"
+	  AC_MSG_WARN([Adding defines for DEC OSF on alpha])
 	  CFLAGS="$CFLAGS -mieee"
 	  CXXFLAGS="$CXXFLAGS -mieee"
       fi
-      echo "Adding defines for OSF1"
+      AC_MSG_WARN([Adding defines for OSF1])
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
       CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
       CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
@@ -1379,7 +1385,7 @@ then
 	    CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
           fi
         else
-          { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+          { AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) };
         fi
       else
         AC_MSG_RESULT("no")
@@ -1425,7 +1431,7 @@ then
       fi
       AC_MSG_RESULT("yes")
     else
-      { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+      { AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) };
     fi
   else
     AC_MSG_RESULT("no")
@@ -1468,7 +1474,7 @@ then
       fi
       AC_MSG_RESULT("yes")
     else
-      { echo "configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+      { AC_MSG_ERROR([configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual.]) };
     fi
   else
     AC_MSG_RESULT("no")
@@ -2239,7 +2245,7 @@ if test "$with_tools" = "yes"
 then
   if test "$THREAD_SAFE_CLIENT" = "no"
   then
-    echo "Warning: extra-tools disabled because --enable-thread-safe-client wasn't used"
+    AC_MSG_WARN([extra-tools disabled because --enable-thread-safe-client wasn't used])
   else
     tools_dirs="tools"
   fi

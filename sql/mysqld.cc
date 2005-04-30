@@ -6989,5 +6989,4 @@ template class I_List_iterator<THD>;
 template class I_List<i_string>;
 template class I_List<i_string_pair>;
 template class I_List<NAMED_LIST>;
-FIX_GCC_LINKING_PROBLEM
 #endif
