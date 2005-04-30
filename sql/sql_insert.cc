@@ -89,7 +89,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     }
     if (values.elements != table->s->fields)
     {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -112,7 +112,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     int res;
     if (fields.elements != values.elements)
     {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return -1;
     }
 
