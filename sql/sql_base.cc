@@ -2692,9 +2692,12 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       {
         SELECT_LEX *current_sel= thd->lex->current_select;
         SELECT_LEX *last_select= item->cached_table->select_lex;
-        /* check that field was resolved in outer query */
+        /*
+          If the field was an outer referencee, mark all selects using this
+          sub query as dependent of the outer query
+        */
         if (current_sel != last_select)
-          mark_select_range_as_dependent(thd, current_sel, last_select,
+          mark_select_range_as_dependent(thd, last_select, current_sel,
                                          found, *ref, item);
       }
       return found;
