@@ -918,7 +918,7 @@ void SSL::setKeys()
 
 
 // local functors
-namespace {
+namespace yassl_int_cpp_local1 {
 
 struct SumData {
     uint total_;
@@ -934,14 +934,13 @@ struct SumBuffer {
 };
 
 } // namespace for locals
-
+using namespace yassl_int_cpp_local1;
 
 uint SSL::bufferedData()
 {
     return mySTL::for_each(buffers_.getData().begin(),buffers_.getData().end(),
                            SumData()).total_;
 }
-
 
 // use input buffer to fill data
 void SSL::fillData(Data& data)
@@ -1377,7 +1376,7 @@ Sessions::~Sessions()
 }
 
 
-namespace { // locals
+namespace yassl_int_cpp_local2 { // locals
 
 typedef mySTL::list<SSL_SESSION*>::iterator iterator;
 
@@ -1395,7 +1394,7 @@ struct sess_match {
 
 
 } // local namespace
-
+using namespace yassl_int_cpp_local2;
 
 // lookup session by id, return a copy if space provided
 SSL_SESSION* Sessions::lookup(const opaque* id, SSL_SESSION* copy)
@@ -1965,7 +1964,10 @@ X509_NAME* X509::GetSubject()
     return &subject_;
 }
 
-
-
-
 } // namespace
+
+#ifdef __GNUC__
+template yaSSL::yassl_int_cpp_local1::SumData mySTL::for_each<mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData>(mySTL::list<yaSSL::input_buffer*>::iterator, mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData);
+template yaSSL::yassl_int_cpp_local1::SumBuffer mySTL::for_each<mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer>(mySTL::list<yaSSL::output_buffer*>::iterator, mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer);
+template mySTL::list<yaSSL::SSL_SESSION*>::iterator mySTL::find_if<mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match>(mySTL::list<yaSSL::SSL_SESSION*>::iterator, mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match);
+#endif

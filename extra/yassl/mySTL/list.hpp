@@ -91,18 +91,18 @@ public:
         {
             iterator tmp = *this;
             current_ = current_->next_;
-            return tmp;
+            return *this;
         }
 
         iterator& operator--(int)
         {
             iterator tmp = *this;
             current_ = current_->prev_;
-            return tmp;
+            return *this;
         }
 
         bool operator==(const iterator& other) const
-        { 
+        {
             return current_ == other.current_;
         }
 
@@ -237,8 +237,8 @@ void list<T>::pop_back()
 template<typename T> 
 T list<T>::back() const
 {
-    if (back == 0) return 0;
-    return back->value_;
+    if (tail_ == 0) return 0;
+    return tail_->value_;
 }
 
 
