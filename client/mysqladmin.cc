@@ -1346,6 +1346,3 @@ static my_bool wait_pidfile(char *pidfile, time_t last_modified,
   }
   DBUG_RETURN(error);
 }
-#ifdef __GNUC__
-FIX_GCC_LINKING_PROBLEM
-#endif

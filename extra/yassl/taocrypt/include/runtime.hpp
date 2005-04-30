@@ -25,7 +25,7 @@
 
 
 
-#if !defined(yaSSL_NEW_HPP) && defined(DEFINE_CXA_PURE_VIRTUAL)
+#if !defined(yaSSL_NEW_HPP) && defined(USE_MYSYS_NEW)
 
 #define yaSSL_NEW_HPP
 
@@ -54,38 +54,16 @@ static void operator delete[] (void* ptr)
 }
 
 
-#ifdef __GNUC__
-
 extern "C" {
+#include <assert.h>
 
 static int __cxa_pure_virtual()
 {
     // oops, pure virtual called!
+    assert("Pure virtual method called." == "Aborted");
     return 0;
 }
 
-// simple guards for now that aren't perfect
-// does yaSSL need full locking for two Integer statics,
-// the Factory, and Session list?
-// could leak ~ 8 bytes if two threads try to initialize at same time
-// gcc didn't implement until 3.4
-
-
-typedef long long __guard;
-
-
-static int __cxa_guard_acquire(__guard* g)
-{
-    return !*(char*)g;
-}
-
-static void __cxa_guard_release(__guard* g)
-{
-    *(char*)g = 1;
-}
-
-
 } // extern "C"
-#endif // __GNUC__
 
 #endif // yaSSL_NEW_HPP

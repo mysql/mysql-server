@@ -1805,7 +1805,7 @@ try_again:
 
                 goto try_again;
         }
-#endif HAVE_REPLICATION
+#endif // HAVE_REPLICATION
 	return(0);
 }
 
