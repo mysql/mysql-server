@@ -1797,8 +1797,8 @@ public:
 
 class st_select_lex;
 void mark_select_range_as_dependent(THD *thd,
-                                    st_select_lex *current_sel,
                                     st_select_lex *last_select,
+                                    st_select_lex *current_sel,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 
