@@ -685,6 +685,9 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
   thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong default values
   while ((field=it++))
   {
+    /*
+      regfield don't have to be deleted as it's allocated with sql_alloc()
+    */
     Field *regfield=make_field((char*) buff+field->offset,field->length,
                                null_pos,
 			       null_count & 7,
@@ -696,7 +699,8 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 			       field->interval,
 			       field->field_name,
 			       &table);
-    DBUG_ASSERT(regfield);
+    if (!regfield)
+      goto err;                                 // End of memory
 
     if (!(field->flags & NOT_NULL_FLAG))
       null_count++;
@@ -730,7 +734,6 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
       regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),system_charset_info);
     else
       regfield->reset();
-    delete regfield;
   }
 
   /* Fill not used startpos */

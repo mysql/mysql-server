@@ -1071,6 +1071,7 @@ class Item_func_set_user_var :public Item_func
   char buffer[MAX_FIELD_WIDTH];
   String value;
   my_decimal decimal_buff;
+  bool null_item;
   union
   {
     longlong vint;
