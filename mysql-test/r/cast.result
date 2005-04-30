@@ -4,9 +4,6 @@ CAST(1-2 AS UNSIGNED)
 select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
 CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
 -1
-select CONVERT('-1',UNSIGNED);
-CONVERT('-1',UNSIGNED)
-18446744073709551615
 select CAST('10 ' as unsigned integer);
 CAST('10 ' as unsigned integer)
 10
@@ -100,6 +97,41 @@ select 10E+0+'a';
 10
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
+select cast('18446744073709551616' as unsigned);
+cast('18446744073709551616' as unsigned)
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '18446744073709551616'
+select cast('18446744073709551616' as signed);
+cast('18446744073709551616' as signed)
+-1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '18446744073709551616'
+select cast('9223372036854775809' as signed);
+cast('9223372036854775809' as signed)
+-9223372036854775807
+Warnings:
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+select cast('-1' as unsigned);
+cast('-1' as unsigned)
+18446744073709551615
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+select cast('abc' as signed);
+cast('abc' as signed)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abc'
+select cast('1a' as signed);
+cast('1a' as signed)
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1a'
+select cast('' as signed);
+cast('' as signed)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
 set names binary;
 select cast(_latin1'test' as char character set latin2);
 cast(_latin1'test' as char character set latin2)
@@ -255,6 +287,39 @@ timediff(cast('2004-12-30 12:00:00' as time), '12:00:00')
 select timediff(cast('1 12:00:00' as time), '12:00:00');
 timediff(cast('1 12:00:00' as time), '12:00:00')
 24:00:00
+select cast(18446744073709551615 as unsigned);
+cast(18446744073709551615 as unsigned)
+18446744073709551615
+select cast(18446744073709551615 as signed);
+cast(18446744073709551615 as signed)
+-1
+select cast('18446744073709551615' as unsigned);
+cast('18446744073709551615' as unsigned)
+18446744073709551615
+select cast('18446744073709551615' as signed);
+cast('18446744073709551615' as signed)
+-1
+Warnings:
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+select cast('9223372036854775807' as signed);
+cast('9223372036854775807' as signed)
+9223372036854775807
+select cast(concat('184467440','73709551615') as unsigned);
+cast(concat('184467440','73709551615') as unsigned)
+18446744073709551615
+select cast(concat('184467440','73709551615') as signed);
+cast(concat('184467440','73709551615') as signed)
+-1
+Warnings:
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+select cast(repeat('1',20) as unsigned);
+cast(repeat('1',20) as unsigned)
+11111111111111111111
+select cast(repeat('1',20) as signed);
+cast(repeat('1',20) as signed)
+-7335632962598440505
+Warnings:
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
 select cast('1.2' as decimal(3,2));
 cast('1.2' as decimal(3,2))
 1.20
