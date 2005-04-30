@@ -1798,6 +1798,9 @@ If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again]);
 fi
 fi
+AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
+AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
+
 MYSQL_PTHREAD_YIELD
 
 ######################################################################

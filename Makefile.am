@@ -102,5 +102,10 @@ tags:
 test:
 	cd mysql-test; ./mysql-test-run && ./mysql-test-run --ps-protocol
 
+test-force:
+	cd mysql-test; \
+	mysql-test-run --force ;\
+	mysql-test-run --ps-protocol --force
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
