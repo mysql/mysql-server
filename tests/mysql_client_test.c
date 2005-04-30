@@ -12855,6 +12855,59 @@ static void test_bug9159()
   myquery(rc);
 }
 
+
+/* Crash when opening a cursor to a query with DISTICNT and no key */
+
+static void test_bug9520()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  char a[6];
+  ulong a_len;
+  int rc, row_count= 0;
+
+  myheader("test_bug9520");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (a char(5), b char(5), c char(5),"
+                     " primary key (a, b, c))");
+  rc= mysql_query(mysql, "insert into t1 values ('x', 'y', 'z'), "
+                  " ('a', 'b', 'c'), ('k', 'l', 'm')");
+  myquery(rc);
+
+  stmt= open_cursor("select distinct b from t1");
+
+  /*
+    Not crashes with:
+    stmt= open_cursor("select distinct a from t1");
+  */
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char*) a;
+  bind[0].buffer_length= sizeof(a);
+  bind[0].length= &a_len;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    row_count++;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  printf("Fetched %d rows\n", row_count);
+  DBUG_ASSERT(row_count == 3);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -13080,6 +13133,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug8722", test_bug8722 },
   { "test_bug8880", test_bug8880 },
   { "test_bug9159", test_bug9159 },
+  { "test_bug9520", test_bug9520 },
   { 0, 0 }
 };
 
