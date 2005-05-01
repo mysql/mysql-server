@@ -114,17 +114,31 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 static Next_select_func setup_end_select_func(JOIN *join);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
-static int sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
-static int sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
-static int flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last);
-static int end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static int end_send_group(JOIN *join, JOIN_TAB *join_tab,bool end_of_records);
-static int end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static int end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static int end_unique_update(JOIN *join,JOIN_TAB *join_tab,
-			     bool end_of_records);
-static int end_write_group(JOIN *join, JOIN_TAB *join_tab,
-			   bool end_of_records);
+
+static enum_nested_loop_state
+sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+static enum_nested_loop_state
+evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
+                     int error, my_bool *report_error);
+static enum_nested_loop_state
+evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab);
+static enum_nested_loop_state
+sub_select(JOIN *join,JOIN_TAB *join_tab, bool end_of_records);
+static enum_nested_loop_state
+flush_cached_records(JOIN *join, JOIN_TAB *join_tab, bool skip_last);
+static enum_nested_loop_state
+end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+static enum_nested_loop_state
+end_send_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+static enum_nested_loop_state
+end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+static enum_nested_loop_state
+end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+static enum_nested_loop_state
+end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+static enum_nested_loop_state
+end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+
 static int test_if_group_changed(List<Item_buff> &list);
 static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
@@ -1800,13 +1814,7 @@ Cursor::open(JOIN *join_arg)
     happen for the first table in join_tab list
   */
   DBUG_ASSERT(join_tab->table->null_row == 0);
-
-  /*
-    There is always at least one record in the table, as otherwise we
-    wouldn't have opened the cursor. Therefore a failure is the only
-    reason read_first_record can return not 0.
-  */
-  DBUG_RETURN(join_tab->read_first_record(join_tab));
+  DBUG_RETURN(0);
 }
 
 
@@ -1816,97 +1824,36 @@ Cursor::open(JOIN *join_arg)
   PRECONDITION:
     Cursor is open
   RETURN VALUES:
-    -4  there are more rows, send_eof sent to the client
-     0  no more rows, send_eof was sent to the client, cursor is closed
- other  fatal fetch error, cursor is closed (error is not reported)
+    none, this function will send error or OK to network if necessary.
 */
 
-int
+void
 Cursor::fetch(ulong num_rows)
 {
   THD *thd= join->thd;
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
-  COND *on_expr= *join_tab->on_expr_ref;
-  COND *select_cond= join_tab->select_cond;
-  READ_RECORD *info= &join_tab->read_record;
-  int error= 0;
+  enum_nested_loop_state error= NESTED_LOOP_OK;
 
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
 
   join->fetch_limit+= num_rows;
 
-  /*
-    Run while there are new rows in the first table;
-    For each row, satisfying ON and WHERE clauses (those parts of them which
-    can be evaluated early), call next_select.
-  */
-  do
-  {
-    int no_more_rows;
 
-    join->examined_rows++;
-
-    if (thd->killed)                            /* Aborted by user */
-    {
-      my_message(ER_SERVER_SHUTDOWN, ER(ER_SERVER_SHUTDOWN), MYF(0));
-      return -1;
-    }
-
-    if (on_expr == 0 || on_expr->val_int())
-    {
-      if (select_cond == 0 || select_cond->val_int())
-      {
-        /*
-          TODO: call table->unlock_row() to unlock row failed selection,
-          when this feature will be used.
-        */
-        error= join_tab->next_select(join, join_tab + 1, 0);
-        DBUG_ASSERT(error <= 0);
-        if (error)
-        {
-          /* real error or LIMIT/FETCH LIMIT worked */
-          if (error == -4)
-          {
-            /*
-              FETCH LIMIT, read ahead one row, and close cursor
-              if there is no more rows XXX: to be fixed to support
-              non-equi-joins!
-            */
-            if ((no_more_rows= info->read_record(info)))
-              error= no_more_rows > 0 ? -1: 0;
-          }
-          break;
-        }
-      }
-    }
-    /* read next row; break loop if there was an error */
-    if ((no_more_rows= info->read_record(info)))
-    {
-      if (no_more_rows > 0)
-        error= -1;
-      else
-      {
-        enum { END_OF_RECORDS= 1 };
-        error= join_tab->next_select(join, join_tab+1, (int) END_OF_RECORDS);
-      }
-      break;
-    }
-  }
-  while (thd->net.report_error == 0);
-
-  if (thd->net.report_error)
-    error= -1;
-
-  if (error == -3)                              /* LIMIT clause worked */
-    error= 0;
+  error= sub_select(join, join_tab, 0);
+  if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
+    error= sub_select(join,join_tab,1);
+  if (error == NESTED_LOOP_QUERY_LIMIT)
+    error= NESTED_LOOP_OK;                    /* select_limit used */
+  if (error == NESTED_LOOP_CURSOR_LIMIT)
+    join->resume_nested_loop= TRUE;
 
 #ifdef USING_TRANSACTIONS
     ha_release_temporary_latches(thd);
 #endif
 
   thd->restore_backup_item_arena(this, &thd->stmt_backup);
-  if (error == -4)
+  if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
     /* Fetch limit worked, possibly more rows are there */
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
@@ -1916,20 +1863,19 @@ Cursor::fetch(ulong num_rows)
   else
   {
     close();
-    if (error == 0)
+    if (error == NESTED_LOOP_OK)
     {
       thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
       ::send_eof(thd);
       thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
     }
-    else
+    else if (error != NESTED_LOOP_KILLED)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     /* free cursor memory */
     free_items(free_list);
     free_list= 0;
     free_root(&main_mem_root, MYF(0));
   }
-  return error;
 }
 
 
@@ -2546,8 +2492,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 			     KEY_OPTIMIZE_EXISTS) |
 			    ((old->optimize | new_fields->optimize) &
 			     KEY_OPTIMIZE_REF_OR_NULL));
-            old->null_rejecting= old->null_rejecting && 
-                                 new_fields->null_rejecting;
+            old->null_rejecting= (old->null_rejecting &&
+                                  new_fields->null_rejecting);
 	  }
 	}
 	else if (old->eq_func && new_fields->eq_func &&
@@ -2559,8 +2505,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 			   KEY_OPTIMIZE_EXISTS) |
 			  ((old->optimize | new_fields->optimize) &
 			   KEY_OPTIMIZE_REF_OR_NULL));
-          old->null_rejecting= old->null_rejecting && 
-                               new_fields->null_rejecting;
+          old->null_rejecting= (old->null_rejecting &&
+                                new_fields->null_rejecting);
 	}
 	else if (old->eq_func && new_fields->eq_func &&
 		 (old->val->is_null() || new_fields->val->is_null()))
@@ -2572,7 +2518,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  if (old->val->is_null())
 	    old->val= new_fields->val;
           /* The referred expression can be NULL: */ 
-          old->null_rejecting= false;
+          old->null_rejecting= 0;
 	}
 	else
 	{
@@ -2734,6 +2680,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     If the condition has form "tbl.keypart = othertbl.field" and 
     othertbl.field can be NULL, there will be no matches if othertbl.field 
     has NULL value.
+    We use null_rejecting in add_not_null_conds() to add
+    'othertbl.field IS NOT NULL' to tab->select_cond.
   */
   (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
                                  ((*value)->type() == Item::FIELD_ITEM) &&
@@ -8949,7 +8897,8 @@ static Next_select_func setup_end_select_func(JOIN *join)
 static int
 do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 {
-  int error= 0;
+  int rc= 0;
+  enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab;
   DBUG_ENTER("do_select");
 
@@ -8979,24 +8928,30 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (!join->conds || join->conds->val_int())
     {
       Next_select_func end_select= join->join_tab[join->tables-1].next_select;
-      if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
-	error=(*end_select)(join,join_tab,1);
+      error= (*end_select)(join,join_tab,0);
+      if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
+	error= (*end_select)(join,join_tab,1);
     }
     else if (join->send_row_on_empty_set())
-      error= join->result->send_data(*join->fields);
+      rc= join->result->send_data(*join->fields);
   }
   else
   {
     error= sub_select(join,join_tab,0);
-    if (error >= 0)
+    if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= sub_select(join,join_tab,1);
-    if (error == -3)
-      error= 0;					/* select_limit used */
+    if (error == NESTED_LOOP_QUERY_LIMIT)
+      error= NESTED_LOOP_OK;                    /* select_limit used */
   }
+  if (error == NESTED_LOOP_NO_MORE_ROWS)
+    error= NESTED_LOOP_OK;
 
-  if (error >= 0)
+  if (error == NESTED_LOOP_OK)
   {
-    error=0;
+    /*
+      Sic: this branch works even if rc != 0, e.g. when
+      send_data above returns an error.
+    */
     if (!table)					// If sending data to client
     {
       /*
@@ -9005,10 +8960,12 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       */
       join->join_free(0);				// Unlock all cursors
       if (join->result->send_eof())
-	error= 1;				// Don't send error
+	rc= 1;                                  // Don't send error
     }
     DBUG_PRINT("info",("%ld records output",join->send_records));
   }
+  else
+    rc= -1;
   if (table)
   {
     int tmp, new_errno= 0;
@@ -9026,40 +8983,42 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       table->file->print_error(new_errno,MYF(0));
   }
 #ifndef DBUG_OFF
-  if (error)
+  if (rc)
   {
     DBUG_PRINT("error",("Error: do_select() failed"));
   }
 #endif
-  DBUG_RETURN(join->thd->net.report_error ? -1 : error);
+  DBUG_RETURN(join->thd->net.report_error ? -1 : rc);
 }
 
 
-static int
+static enum_nested_loop_state
 sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
-  int error;
+  enum_nested_loop_state rc;
 
   if (end_of_records)
   {
-    if ((error=flush_cached_records(join,join_tab,FALSE)) < 0)
-      return error; /* purecov: inspected */
-    return sub_select(join,join_tab,end_of_records);
+    rc= flush_cached_records(join,join_tab,FALSE);
+    if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
+      rc= sub_select(join,join_tab,end_of_records);
+    return rc;
   }
   if (join->thd->killed)		// If aborted by user
   {
     join->thd->send_kill_message();
-    return -2;				 /* purecov: inspected */
+    return NESTED_LOOP_KILLED;                   /* purecov: inspected */
   }
   if (join_tab->use_quick != 2 || test_if_quick_select(join_tab) <= 0)
   {
     if (!store_record_in_cache(&join_tab->cache))
-      return 0;					// There is more room in cache
+      return NESTED_LOOP_OK;                     // There is more room in cache
     return flush_cached_records(join,join_tab,FALSE);
   }
-  if ((error=flush_cached_records(join,join_tab,TRUE)) < 0)
-    return error; /* purecov: inspected */
-  return sub_select(join,join_tab,end_of_records); /* Use ordinary select */
+  rc= flush_cached_records(join, join_tab, TRUE);
+  if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
+    rc= sub_select(join, join_tab, end_of_records);
+  return rc;
 }
 
 /*
@@ -9171,11 +9130,10 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     table of the embedding nested join, if any.
 
   RETURN
-    0, if success
-    # of the error, otherwise
+    return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
 */
 
-static int
+static enum_nested_loop_state
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   join_tab->table->null_row=0;
@@ -9183,206 +9141,258 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     return (*join_tab->next_select)(join,join_tab+1,end_of_records);
 
   int error;
-  JOIN_TAB *first_unmatched;
-  JOIN_TAB *tab;
-  /* Cache variables for faster loop */
-  COND *select_cond= join_tab->select_cond;
+  enum_nested_loop_state rc;
   my_bool *report_error= &(join->thd->net.report_error);
+  READ_RECORD *info= &join_tab->read_record;
 
-  join->return_tab= join_tab;
-
-  if (join_tab->last_inner)
+  if (join->resume_nested_loop)
   {
-    /* join_tab is the first inner table for an outer join operation. */
-
-    /* Set initial state of guard variables for this table.*/
-    join_tab->found=0;
-    join_tab->not_null_compl= 1;
-
-    /* Set first_unmatched for the last inner table of this group */
-    join_tab->last_inner->first_unmatched= join_tab; 
+    /* If not the last table, plunge down the nested loop */
+    if (join_tab < join->join_tab + join->tables - 1)
+      rc= (*join_tab->next_select)(join, join_tab + 1, 0);
+    else
+    {
+      join->resume_nested_loop= FALSE;
+      rc= NESTED_LOOP_OK;
+    }
   }
-
-  if (!(error=(*join_tab->read_first_record)(join_tab)))
+  else
   {
-    bool not_exists_optimize= join_tab->table->reginfo.not_exists_optimize;
-    bool not_used_in_distinct=join_tab->not_used_in_distinct;
-    ha_rows found_records=join->found_records;
-    READ_RECORD *info= &join_tab->read_record;
+    join->return_tab= join_tab;
 
+    if (join_tab->last_inner)
+    {
+      /* join_tab is the first inner table for an outer join operation. */
+
+      /* Set initial state of guard variables for this table.*/
+      join_tab->found=0;
+      join_tab->not_null_compl= 1;
+
+      /* Set first_unmatched for the last inner table of this group */
+      join_tab->last_inner->first_unmatched= join_tab;
+    }
     join->thd->row_count= 0;
-    do
-    {
-      if (join->thd->killed)			// Aborted by user
-      {
-	join->thd->send_kill_message();
-	return -2;				/* purecov: inspected */
-      }
-      DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
-      if (!select_cond || select_cond->val_int())
-      {
-        /* 
-          There is no select condition or the attached pushed down
-          condition is true => a match is found.
-	*/
-        bool found= 1;
-	while (join_tab->first_unmatched && found)
-        {
-          /*
-             The while condition is always false if join_tab is not
-             the last inner join table of an outer join operation. 
-	  */ 
-          first_unmatched= join_tab->first_unmatched;
-          /*
-             Mark that a match for current outer table is found.
-             This activates push down conditional predicates attached
-             to the all inner tables of the outer join.
-	  */  
-          first_unmatched->found= 1;
-          for (tab= first_unmatched; tab <= join_tab; tab++)
-          { 
-            /* Check all predicates that has just been activated. */
-            /*
-              Actually all predicates non-guarded by first_unmatched->found
-              will be re-evaluated again. It could be fixed, but, probably,
-              it's not worth doing now.
-	    */ 
-            if (tab->select_cond && !tab->select_cond->val_int())
-            {
-              /* The condition attached to table tab is false */
-              if (tab == join_tab)
-                found= 0;
-              else
-              {
-                /*
-                  Set a return point if rejected predicate is attached 
-                  not to the last table of the current nest level.
-		*/
-                join->return_tab= tab;
-                return 0;
-              }
-            }
-          }
-          /* 
-             Check whether join_tab is not the last inner table
-             for another embedding outer join.
-          */
-          if ((first_unmatched= first_unmatched->first_upper) &&
-              first_unmatched->last_inner != join_tab)
-            first_unmatched= 0;
-          join_tab->first_unmatched= first_unmatched;
-        }
-        
-        /*
-           It was not just a return to lower loop level when one
-           of the newly activated predicates is evaluated as false 
-           (See above join->return_tab= tab).
-	*/             
-        join->examined_rows++;
-        join->thd->row_count++;
-              
-        if (found)
-        {
-          if (not_exists_optimize)
-            break;
-          /* A match from join_tab is found for the current partial join. */
-	  if ((error=(*join_tab->next_select)(join, join_tab+1, 0)) < 0)
-	    return error;
-          if (join->return_tab < join_tab)
-              return 0;
-	  /*
-	    Test if this was a SELECT DISTINCT query on a table that
-	    was not in the field list;  In this case we can abort if
-	    we found a row, as no new rows can be added to the result.
-	  */
-	  if (not_used_in_distinct && found_records != join->found_records)
-	    return 0;
-	}
-	else
-	  info->file->unlock_row();    
-      }
-      else
-      {
-        /* 
-           The condition pushed down to the table join_tab rejects all rows 
-           with the beginning coinciding with the current partial join.
-	*/ 
-        join->examined_rows++;
-        join->thd->row_count++;
-      }
 
-    } while (!(error=info->read_record(info)) && !(*report_error));
+    error= (*join_tab->read_first_record)(join_tab);
+    rc= evaluate_join_record(join, join_tab, error, report_error);
   }
-  if (error > 0 || (*report_error))				// Fatal error
-    return -1;
 
-  if (join_tab->last_inner && !join_tab->found)
-  {        
-    /* 
-      The table join_tab is the first inner table of a outer join operation
-      and no matches has been found for the current outer row.
+  while (rc == NESTED_LOOP_OK)
+  {
+    error= info->read_record(info);
+    rc= evaluate_join_record(join, join_tab, error, report_error);
+  }
+
+  if (rc == NESTED_LOOP_NO_MORE_ROWS &&
+      join_tab->last_inner && !join_tab->found)
+    rc= evaluate_null_complemented_join_record(join, join_tab);
+
+  if (rc == NESTED_LOOP_NO_MORE_ROWS)
+    rc= NESTED_LOOP_OK;
+  return rc;
+}
+
+
+/*
+  Process one record of the nested loop join.
+
+  DESCRIPTION
+    This function will evaluate parts of WHERE/ON clauses that are
+    applicable to the partial record on hand and in case of success
+    submit this record to the next level of the nested loop.
+*/
+
+static enum_nested_loop_state
+evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
+                     int error, my_bool *report_error)
+{
+  bool not_exists_optimize= join_tab->table->reginfo.not_exists_optimize;
+  bool not_used_in_distinct=join_tab->not_used_in_distinct;
+  ha_rows found_records=join->found_records;
+  COND *select_cond= join_tab->select_cond;
+
+  if (error > 0 || (*report_error))				// Fatal error
+    return NESTED_LOOP_ERROR;
+  if (error < 0)
+    return NESTED_LOOP_NO_MORE_ROWS;
+  if (join->thd->killed)			// Aborted by user
+  {
+    join->thd->send_kill_message();
+    return NESTED_LOOP_KILLED;               /* purecov: inspected */
+  }
+  DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
+  if (!select_cond || select_cond->val_int())
+  {
+    /*
+      There is no select condition or the attached pushed down
+      condition is true => a match is found.
     */
-    JOIN_TAB *last_inner_tab= join_tab->last_inner;
-    for ( ; join_tab <= last_inner_tab ; join_tab++)
-    { 
-      /* Change the the values of guard predicate variables. */
-      join_tab->found= 1;
-      join_tab->not_null_compl= 0;
-      /* The outer row is complemented by nulls for each inner tables */
-      restore_record(join_tab->table,s->default_values);  // Make empty record
-      mark_as_null_row(join_tab->table);       // For group by without error
-      select_cond= join_tab->select_cond;
-      /* Check all attached conditions for inner table rows. */
-      if (select_cond && !select_cond->val_int())
-        return 0;
-    }    
-    join_tab--;
-    /* 
-       The row complemented by nulls might be the first row
-       of embedding outer joins. 
-       If so, perform the same actions as in the code 
-       for the first regular outer join row above.
-    */
-    for ( ; ; )
+    bool found= 1;
+    while (join_tab->first_unmatched && found)
     {
-      first_unmatched= join_tab->first_unmatched;
+      /*
+        The while condition is always false if join_tab is not
+        the last inner join table of an outer join operation.
+      */
+      JOIN_TAB *first_unmatched= join_tab->first_unmatched;
+      /*
+        Mark that a match for current outer table is found.
+        This activates push down conditional predicates attached
+        to the all inner tables of the outer join.
+      */
+      first_unmatched->found= 1;
+      for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
+      {
+        /* Check all predicates that has just been activated. */
+        /*
+          Actually all predicates non-guarded by first_unmatched->found
+          will be re-evaluated again. It could be fixed, but, probably,
+          it's not worth doing now.
+        */
+        if (tab->select_cond && !tab->select_cond->val_int())
+        {
+          /* The condition attached to table tab is false */
+          if (tab == join_tab)
+            found= 0;
+          else
+          {
+            /*
+              Set a return point if rejected predicate is attached
+              not to the last table of the current nest level.
+            */
+            join->return_tab= tab;
+            return NESTED_LOOP_OK;
+          }
+        }
+      }
+      /*
+        Check whether join_tab is not the last inner table
+        for another embedding outer join.
+      */
       if ((first_unmatched= first_unmatched->first_upper) &&
           first_unmatched->last_inner != join_tab)
         first_unmatched= 0;
       join_tab->first_unmatched= first_unmatched;
-      if (!first_unmatched)
-        break;
-      first_unmatched->found= 1;
-      for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
-      {  
-        if (tab->select_cond && !tab->select_cond->val_int())
-        {
-	  join->return_tab= tab;
-          return 0;
-        }
-      }
     }
+
     /*
-      The row complemented by nulls satisfies all conditions
-      attached to inner tables.
-      Send the row complemented by nulls to be joined with the 
-      remaining tables.
-    */     
-    if ((error=(*join_tab->next_select)(join, join_tab+1 ,0)) < 0)
-      return error;
+      It was not just a return to lower loop level when one
+      of the newly activated predicates is evaluated as false
+      (See above join->return_tab= tab).
+    */
+    join->examined_rows++;
+    join->thd->row_count++;
+
+    if (found)
+    {
+      enum enum_nested_loop_state rc;
+      if (not_exists_optimize)
+        return NESTED_LOOP_NO_MORE_ROWS;
+      /* A match from join_tab is found for the current partial join. */
+      rc= (*join_tab->next_select)(join, join_tab+1, 0);
+      if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+        return rc;
+      if (join->return_tab < join_tab)
+        return NESTED_LOOP_OK;
+      /*
+        Test if this was a SELECT DISTINCT query on a table that
+        was not in the field list;  In this case we can abort if
+        we found a row, as no new rows can be added to the result.
+      */
+      if (not_used_in_distinct && found_records != join->found_records)
+        return NESTED_LOOP_OK;
+    }
+    else
+      join_tab->read_record.file->unlock_row();
   }
-  return 0;
+  else
+  {
+    /*
+      The condition pushed down to the table join_tab rejects all rows
+      with the beginning coinciding with the current partial join.
+    */
+    join->examined_rows++;
+    join->thd->row_count++;
+  }
+  return NESTED_LOOP_OK;
 }
 
 
-static int
+/*
+  DESCRIPTION
+    Construct a NULL complimented partial join record and feed it to the next
+    level of the nested loop. This function is used in case we have
+    an OUTER join and no matching record was found.
+*/
+
+static enum_nested_loop_state
+evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
+{
+  /*
+    The table join_tab is the first inner table of a outer join operation
+    and no matches has been found for the current outer row.
+  */
+  JOIN_TAB *last_inner_tab= join_tab->last_inner;
+  /* Cache variables for faster loop */
+  COND *select_cond;
+  for ( ; join_tab <= last_inner_tab ; join_tab++)
+  {
+    /* Change the the values of guard predicate variables. */
+    join_tab->found= 1;
+    join_tab->not_null_compl= 0;
+    /* The outer row is complemented by nulls for each inner tables */
+    restore_record(join_tab->table,s->default_values);  // Make empty record
+    mark_as_null_row(join_tab->table);       // For group by without error
+    select_cond= join_tab->select_cond;
+    /* Check all attached conditions for inner table rows. */
+    if (select_cond && !select_cond->val_int())
+      return NESTED_LOOP_OK;
+  }
+  join_tab--;
+  /*
+    The row complemented by nulls might be the first row
+    of embedding outer joins.
+    If so, perform the same actions as in the code
+    for the first regular outer join row above.
+  */
+  for ( ; ; )
+  {
+    JOIN_TAB *first_unmatched= join_tab->first_unmatched;
+    if ((first_unmatched= first_unmatched->first_upper) &&
+        first_unmatched->last_inner != join_tab)
+      first_unmatched= 0;
+    join_tab->first_unmatched= first_unmatched;
+    if (!first_unmatched)
+      break;
+    first_unmatched->found= 1;
+    for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
+    {
+      if (tab->select_cond && !tab->select_cond->val_int())
+      {
+        join->return_tab= tab;
+        return NESTED_LOOP_OK;
+      }
+    }
+  }
+  /*
+    The row complemented by nulls satisfies all conditions
+    attached to inner tables.
+    Send the row complemented by nulls to be joined with the
+    remaining tables.
+  */
+  return (*join_tab->next_select)(join, join_tab+1, 0);
+}
+
+
+static enum_nested_loop_state
 flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
 {
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
   int error;
   READ_RECORD *info;
 
   if (!join_tab->cache.records)
-    return 0;				/* Nothing to do */
+    return NESTED_LOOP_OK;                      /* Nothing to do */
   if (skip_last)
     (void) store_record_in_cache(&join_tab->cache); // Must save this for later
   if (join_tab->use_quick == 2)
@@ -9397,7 +9407,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   if ((error=join_init_read_record(join_tab)))
   {
     reset_cache_write(&join_tab->cache);
-    return -error;			/* No records or error */
+    return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
   }
 
   for (JOIN_TAB *tmp=join->join_tab; tmp != join_tab ; tmp++)
@@ -9412,11 +9422,11 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     if (join->thd->killed)
     {
       join->thd->send_kill_message();
-      return -2;				// Aborted by user /* purecov: inspected */
+      return NESTED_LOOP_KILLED; // Aborted by user /* purecov: inspected */
     }
     SQL_SELECT *select=join_tab->select;
-    if (!error && (!join_tab->cache.select ||
-		   !join_tab->cache.select->skip_record()))
+    if (rc == NESTED_LOOP_OK &&
+        (!join_tab->cache.select || !join_tab->cache.select->skip_record()))
     {
       uint i;
       reset_cache_read(&join_tab->cache);
@@ -9424,11 +9434,14 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
       {
 	read_cached_record(join_tab);
 	if (!select || !select->skip_record())
-	  if ((error=(join_tab->next_select)(join,join_tab+1,0)) < 0)
+        {
+          rc= (join_tab->next_select)(join,join_tab+1,0);
+	  if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
           {
             reset_cache_write(&join_tab->cache);
-	    return error; /* purecov: inspected */
+            return rc;
           }
+        }
       }
     }
   } while (!(error=info->read_record(info)));
@@ -9437,10 +9450,10 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     read_cached_record(join_tab);		// Restore current record
   reset_cache_write(&join_tab->cache);
   if (error > 0)				// Fatal error
-    return -1;					/* purecov: inspected */
+    return NESTED_LOOP_ERROR;                   /* purecov: inspected */
   for (JOIN_TAB *tmp2=join->join_tab; tmp2 != join_tab ; tmp2++)
     tmp2->table->status=tmp2->status;
-  return 0;
+  return NESTED_LOOP_OK;
 }
 
 
@@ -9906,13 +9919,32 @@ join_read_next_same_or_null(READ_RECORD *info)
 
 
 /*****************************************************************************
-  The different end of select functions
-  These functions returns < 0 when end is reached, 0 on ok and > 0 if a
-  fatal error (like table corruption) was detected
+  DESCRIPTION
+    Functions that end one nested loop iteration. Different functions
+    are used to support GROUP BY clause and to redirect records
+    to a table (e.g. in case of SELECT into a temporary table) or to the
+    network client.
+
+  RETURN VALUES
+    NESTED_LOOP_OK           - the record has been successfully handled
+    NESTED_LOOP_ERROR        - a fatal error (like table corruption)
+                               was detected
+    NESTED_LOOP_KILLED       - thread shutdown was requested while processing
+                               the record
+    NESTED_LOOP_QUERY_LIMIT  - the record has been successfully handled;
+                               additionally, the nested loop produced the
+                               number of rows specified in the LIMIT clause
+                               for the query
+    NESTED_LOOP_CURSOR_LIMIT - the record has been successfully handled;
+                               additionally, there is a cursor and the nested
+                               loop algorithm produced the number of rows
+                               that is specified for current cursor fetch
+                               operation.
+   All return values except NESTED_LOOP_OK abort the nested loop.
 *****************************************************************************/
 
 /* ARGSUSED */
-static int
+static enum_nested_loop_state
 end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	 bool end_of_records)
 {
@@ -9921,14 +9953,14 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     int error;
     if (join->having && join->having->val_int() == 0)
-      DBUG_RETURN(0);				// Didn't match having
+      DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->procedure)
       error=join->procedure->send_row(*join->fields);
     else if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
-      DBUG_RETURN(-1); /* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (++join->send_records >= join->unit->select_limit_cnt &&
 	join->do_send_rows)
     {
@@ -9962,10 +9994,10 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  join->do_send_rows= 0;
 	  if (join->unit->fake_select_lex)
 	    join->unit->fake_select_lex->select_limit= HA_POS_ERROR;
-	  DBUG_RETURN(0);
+	  DBUG_RETURN(NESTED_LOOP_OK);
 	}
       }
-      DBUG_RETURN(-3);				// Abort nicely
+      DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);      // Abort nicely
     }
     else if (join->send_records >= join->fetch_limit)
     {
@@ -9973,20 +10005,20 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
         There is a server side cursor and all rows for
         this fetch request are sent.
       */
-      DBUG_RETURN(-4);
+      DBUG_RETURN(NESTED_LOOP_CURSOR_LIMIT);
     }
   }
   else
   {
     if (join->procedure && join->procedure->end_of_records())
-      DBUG_RETURN(-1);
+      DBUG_RETURN(NESTED_LOOP_ERROR);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 
 
 	/* ARGSUSED */
-static int
+static enum_nested_loop_state
 end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	       bool end_of_records)
 {
@@ -10038,14 +10070,14 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  }
 	}
 	if (error > 0)
-	  DBUG_RETURN(-1);			/* purecov: inspected */
+          DBUG_RETURN(NESTED_LOOP_ERROR);        /* purecov: inspected */
 	if (end_of_records)
-	  DBUG_RETURN(0);
+	  DBUG_RETURN(NESTED_LOOP_OK);
 	if (join->send_records >= join->unit->select_limit_cnt &&
 	    join->do_send_rows)
 	{
 	  if (!(join->select_options & OPTION_FOUND_ROWS))
-	    DBUG_RETURN(-3);				// Abort nicely
+	    DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT); // Abort nicely
 	  join->do_send_rows=0;
 	  join->unit->select_limit_cnt = HA_POS_ERROR;
         }
@@ -10055,14 +10087,14 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
             There is a server side cursor and all rows
             for this fetch request are sent.
           */
-          DBUG_RETURN(-4);
+          DBUG_RETURN(NESTED_LOOP_CURSOR_LIMIT);
         }
       }
     }
     else
     {
       if (end_of_records)
-	DBUG_RETURN(0);
+	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
       VOID(test_if_group_changed(join->group_fields));
     }
@@ -10070,33 +10102,32 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     {
       copy_fields(&join->tmp_table_param);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
-	DBUG_RETURN(-1);
+	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
 	join->procedure->add();
-      DBUG_RETURN(0);
+      DBUG_RETURN(NESTED_LOOP_OK);
     }
   }
   if (update_sum_func(join->sum_funcs))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(NESTED_LOOP_ERROR);
   if (join->procedure)
     join->procedure->add();
-  DBUG_RETURN(0);
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 
 
 	/* ARGSUSED */
-static int
+static enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  bool end_of_records)
 {
   TABLE *table=join->tmp_table;
-  int error;
   DBUG_ENTER("end_write");
 
   if (join->thd->killed)			// Aborted by user
   {
     join->thd->send_kill_message();
-    DBUG_RETURN(-2);				/* purecov: inspected */
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
   }
   if (!end_of_records)
   {
@@ -10121,6 +10152,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 #endif
     if (!join->having || join->having->val_int())
     {
+      int error;
       join->found_records++;
       if ((error=table->file->write_row(table->record[0])))
       {
@@ -10129,28 +10161,28 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  goto end;
 	if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
 				    error,1))
-	  DBUG_RETURN(-1);			// Not a table_is_full error
+	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
 	table->s->uniques=0;			// To ensure rows are the same
       }
       if (++join->send_records >= join->tmp_table_param.end_write_records &&
 	  join->do_send_rows)
       {
 	if (!(join->select_options & OPTION_FOUND_ROWS))
-	  DBUG_RETURN(-3);
+	  DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
 	join->do_send_rows=0;
 	join->unit->select_limit_cnt = HA_POS_ERROR;
-	DBUG_RETURN(0);
+	DBUG_RETURN(NESTED_LOOP_OK);
       }
     }
   }
 end:
-  DBUG_RETURN(0);
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 
 /* Group by searching after group record and updating it if possible */
 /* ARGSUSED */
 
-static int
+static enum_nested_loop_state
 end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	   bool end_of_records)
 {
@@ -10160,11 +10192,11 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   DBUG_ENTER("end_update");
 
   if (end_of_records)
-    DBUG_RETURN(0);
+    DBUG_RETURN(NESTED_LOOP_OK);
   if (join->thd->killed)			// Aborted by user
   {
     join->thd->send_kill_message();
-    DBUG_RETURN(-2);				/* purecov: inspected */
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
   }
 
   join->found_records++;
@@ -10188,9 +10220,9 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 				       table->record[0])))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
-      DBUG_RETURN(-1);				/* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
-    DBUG_RETURN(0);
+    DBUG_RETURN(NESTED_LOOP_OK);
   }
 
   /*
@@ -10212,19 +10244,19 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
 				error, 0))
-      DBUG_RETURN(-1);				// Not a table_is_full error
+      DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
     table->file->ha_index_init(0);
     join->join_tab[join->tables-1].next_select=end_unique_update;
   }
   join->send_records++;
-  DBUG_RETURN(0);
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 
 
 /* Like end_update, but this is done with unique constraints instead of keys */
 
-static int
+static enum_nested_loop_state
 end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 		  bool end_of_records)
 {
@@ -10233,11 +10265,11 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   DBUG_ENTER("end_unique_update");
 
   if (end_of_records)
-    DBUG_RETURN(0);
+    DBUG_RETURN(NESTED_LOOP_OK);
   if (join->thd->killed)			// Aborted by user
   {
     join->thd->send_kill_message();
-    DBUG_RETURN(-2);				/* purecov: inspected */
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
   }
 
   init_tmptable_sum_functions(join->sum_funcs);
@@ -10251,12 +10283,12 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if ((int) table->file->get_dup_key(error) < 0)
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
-      DBUG_RETURN(-1);				/* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
     if (table->file->rnd_pos(table->record[1],table->file->dupp_ref))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
-      DBUG_RETURN(-1);				/* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
     restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
@@ -10264,27 +10296,26 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 				       table->record[0])))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
-      DBUG_RETURN(-1);				/* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 
 
 	/* ARGSUSED */
-static int
+static enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 		bool end_of_records)
 {
   TABLE *table=join->tmp_table;
-  int	  error;
   int	  idx= -1;
   DBUG_ENTER("end_write_group");
 
   if (join->thd->killed)
   {						// Aborted by user
     join->thd->send_kill_message();
-    DBUG_RETURN(-2);				/* purecov: inspected */
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
   }
   if (!join->first_record || end_of_records ||
       (idx=test_if_group_changed(join->group_fields)) >= 0)
@@ -10303,28 +10334,27 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	}
         copy_sum_funcs(join->sum_funcs,
                        join->sum_funcs_end[send_group_parts]);
-	if (join->having && join->having->val_int() == 0)
-          error= -1;
-        else if ((error= table->file->write_row(table->record[0])))
+	if (!join->having || join->having->val_int())
 	{
-	  if (create_myisam_from_heap(join->thd, table,
-				      &join->tmp_table_param,
-				      error, 0))
-	    DBUG_RETURN(-1);		       
+          int error= table->file->write_row(table->record[0]);
+          if (error && create_myisam_from_heap(join->thd, table,
+                                               &join->tmp_table_param,
+                                               error, 0))
+	    DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         if (join->rollup.state != ROLLUP::STATE_NONE)
 	{
 	  if (join->rollup_write_data((uint) (idx+1), table))
-	    DBUG_RETURN(-1);
+	    DBUG_RETURN(NESTED_LOOP_ERROR);
 	}
 	if (end_of_records)
-	  DBUG_RETURN(0);
+	  DBUG_RETURN(NESTED_LOOP_OK);
       }
     }
     else
     {
       if (end_of_records)
-	DBUG_RETURN(0);
+	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
       VOID(test_if_group_changed(join->group_fields));
     }
@@ -10333,17 +10363,17 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       copy_fields(&join->tmp_table_param);
       copy_funcs(join->tmp_table_param.items_to_copy);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
-	DBUG_RETURN(-1);
+	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
 	join->procedure->add();
-      DBUG_RETURN(0);
+      DBUG_RETURN(NESTED_LOOP_OK);
     }
   }
   if (update_sum_func(join->sum_funcs))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(NESTED_LOOP_ERROR);
   if (join->procedure)
     join->procedure->add();
-  DBUG_RETURN(0);
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 
 
