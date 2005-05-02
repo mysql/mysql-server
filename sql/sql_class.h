@@ -467,19 +467,20 @@ public:
 class i_string: public ilink
 {
 public:
-  char* ptr;
+  const char* ptr;
   i_string():ptr(0) { }
-  i_string(char* s) : ptr(s) {}
+  i_string(const char* s) : ptr(s) {}
 };
 
 /* needed for linked list of two strings for replicate-rewrite-db */
 class i_string_pair: public ilink
 {
 public:
-  char* key;
-  char* val;
+  const char* key;
+  const char* val;
   i_string_pair():key(0),val(0) { }
-  i_string_pair(char* key_arg, char* val_arg) : key(key_arg),val(val_arg) {}
+  i_string_pair(const char* key_arg, const char* val_arg) : 
+    key(key_arg),val(val_arg) {}
 };
 
 

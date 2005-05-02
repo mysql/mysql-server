@@ -904,12 +904,85 @@ void Item_func_signed::print(String *str)
 }
 
 
+longlong Item_func_signed::val_int_from_str(int *error)
+{
+  char buff[MAX_FIELD_WIDTH], *end;
+  String tmp(buff,sizeof(buff), &my_charset_bin), *res;
+  longlong value;
+
+  /*
+    For a string result, we must first get the string and then convert it
+    to a longlong
+  */
+
+  if (!(res= args[0]->val_str(&tmp)))
+  {
+    null_value= 1;
+    *error= 0;
+    return 0;
+  }
+  null_value= 0;
+  end= (char*) res->ptr()+ res->length();
+  value= my_strtoll10(res->ptr(), &end, error);
+  if (*error > 0 || end != res->ptr()+ res->length())
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        res->c_ptr());
+  return value;
+}
+
+
+longlong Item_func_signed::val_int()
+{
+  longlong value;
+  int error;
+
+  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  {
+    value= args[0]->val_int();
+    null_value= args[0]->null_value; 
+    return value;
+  }
+
+  value= val_int_from_str(&error);
+  if (value < 0 && error == 0)
+  {
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                 "Cast to signed converted positive out-of-range integer to "
+                 "it's negative complement");
+  }
+  return value;
+}
+
+
 void Item_func_unsigned::print(String *str)
 {
   str->append("cast(", 5);
   args[0]->print(str);
   str->append(" as unsigned)", 13);
 
+}
+
+
+longlong Item_func_unsigned::val_int()
+{
+  longlong value;
+  int error;
+
+  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  {
+    value= args[0]->val_int();
+    null_value= args[0]->null_value; 
+    return value;
+  }
+
+  value= val_int_from_str(&error);
+  if (error < 0)
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                 "Cast to unsigned converted negative integer to it's "
+                 "positive complement");
+  return value;
 }
 
 
@@ -3271,7 +3344,8 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
     from the argument if the argument is NULL
     and the variable has previously been initialized.
   */
-  if (!entry->collation.collation || !args[0]->null_value)
+  null_item= (args[0]->type() == NULL_ITEM);
+  if (!entry->collation.collation || !null_item)
     entry->collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
   collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
   cached_result_type= args[0]->result_type();
@@ -3315,8 +3389,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
     char *pos= (char*) entry+ ALIGN_SIZE(sizeof(user_var_entry));
     if (entry->value && entry->value != pos)
       my_free(entry->value,MYF(0));
-    entry->value=0;
-    entry->length=0;
+    entry->value= 0;
+    entry->length= 0;
   }
   else
   {
@@ -3355,9 +3429,9 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
     if (type == DECIMAL_RESULT)
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
-    entry->type=type;
     entry->collation.set(cs, dv);
   }
+  entry->type=type;
   return 0;
 }
 
@@ -3366,6 +3440,12 @@ bool
 Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
                                     CHARSET_INFO *cs, Derivation dv)
 {
+  /*
+    If we set a variable explicitely to NULL then keep the old
+    result type of the variable
+  */
+  if ((null_value= args[0]->null_value) && null_item)
+    type= entry->type;                          // Don't change type of item
   if (::update_hash(entry, (null_value= args[0]->null_value),
                     ptr, length, type, cs, dv))
   {

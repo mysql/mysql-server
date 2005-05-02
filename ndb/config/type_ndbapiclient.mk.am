@@ -1,2 +1,0 @@
-
-INCLUDES += -I$(top_srcdir)/ndb/include/ndbapi

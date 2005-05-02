@@ -27,8 +27,8 @@
 #ifndef MASTER
 #include "../srclib/myisam/myisamdef.h"
 #else
-#include "../myisam/myisamdef.h"
-#include "../myisam/rt_index.h"
+#include "../storage/myisam/myisamdef.h"
+#include "../storage/myisam/rt_index.h"
 #endif
 
 ulong myisam_recover_options= HA_RECOVER_NONE;
