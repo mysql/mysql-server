@@ -116,7 +116,6 @@ AC_SUBST(SAVE_LDFLAGS)
 AC_SUBST(SAVE_CXXLDFLAGS)
 AC_SUBST(CXXLDFLAGS)
 
-
 #AC_ARG_PROGRAM			# Automaticly invoked by AM_INIT_AUTOMAKE
 
 AM_SANITY_CHECK
@@ -336,7 +335,7 @@ AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
-
+echo "GXX: $GXX"
 if test "$GXX" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
@@ -344,36 +343,16 @@ then
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
 
-  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
-  # we will gets some problems when linking static programs.
-  # The following code is used to fix this problem.
-
+  #CXX_VERNO=`echo $CXX_VERSION | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
+  echo "CXX: $CXX"
   if echo $CXX | grep gcc > /dev/null 2>&1
   then
-    GCC_VERSION=`gcc -v 2>&1 | grep version | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
-    case $SYSTEM_TYPE in
-      *freebsd*)
-        # The libsupc++ library on freebsd with gcc 3.4.2 is dependent on 
-        # libstdc++, disable it  since other solution works fine
-        GCC_VERSION="NOSUPCPP_$GCC_VERSION"
-      ;;
-      *) 
-      ;;
-    esac
-    echo "Using gcc version '$GCC_VERSION'"
-    case "$GCC_VERSION" in
-      3.4.*|3.5.*)
-        # Statically link the language support function's found in libsupc++.a
-        LIBS="$LIBS -lsupc++"
-	echo "Using -libsupc++ for static linking with gcc"
-      ;;
-      *)
-        # Using -lsupc++ doesn't work in gcc 3.3 on SuSE 9.2
-        # (causes link failures when linking things staticly)
-        CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
-	echo "Using MYSYS_NEW for static linking with gcc"
-      ;;
-    esac
+    echo "Setting CXXFLAGS"
+    # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
+    # we will gets some problems when linking static programs.
+    # The following code is used to fix this problem.
+    CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
+    echo "Using MYSYS_NEW for static linking with gcc"
   fi
 fi
 
@@ -383,15 +362,16 @@ AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
 if expr "$target_os" : "[[Ll]]inux.*" > /dev/null
 then
   MYSQLD_DEFAULT_SWITCHES="--skip-locking"
-  IS_LINUX="true"
-  AC_MSG_RESULT("yes");
+  TARGET_LINUX="true"
+  AC_MSG_RESULT("yes")
+  AC_DEFINE([TARGET_OS_LINUX], [1], [Whether we build for Linux])
 else
   MYSQLD_DEFAULT_SWITCHES=""
-  IS_LINUX="false"
-  AC_MSG_RESULT("no");
+  TARGET_LINUX="false"
+  AC_MSG_RESULT("no")
 fi
 AC_SUBST(MYSQLD_DEFAULT_SWITCHES)
-AC_SUBST(IS_LINUX)
+AC_SUBST(TARGET_LINUX)
 
 dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
@@ -580,7 +560,7 @@ AC_SUBST(NOINST_LDFLAGS)
 # (this is true on the MySQL build machines to avoid NSS problems)
 #
 
-if test "$IS_LINUX" = "true" -a "$static_nss" = ""
+if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
   tmp=`nm /usr/lib/libc.a  | grep _nss_files_getaliasent_r`
   if test -n "$tmp"
@@ -747,7 +727,7 @@ AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
 # For large pages support
-if test "$IS_LINUX" = "true"
+if test "$TARGET_LINUX" = "true"
 then
   # For SHM_HUGETLB on Linux
   AC_CHECK_DECLS(SHM_HUGETLB, 
@@ -805,7 +785,7 @@ struct request_info *req;
 ])
 AC_SUBST(WRAPLIBS)
 
-if test "$IS_LINUX" = "true"; then
+if test "$TARGET_LINUX" = "true"; then
   AC_MSG_CHECKING([for atomic operations])
 
   atom_ops=
@@ -849,7 +829,7 @@ int main()
     [ USE_PSTACK=no ])
   pstack_libs=
   pstack_dirs=
-  if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
+  if test "$USE_PSTACK" = yes -a "$TARGET_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
   then
     have_libiberty= have_libbfd=
     my_save_LIBS="$LIBS"
@@ -1231,61 +1211,93 @@ esac
 # We have to check libc last because else it fails on Solaris 2.6
 
 with_posix_threads="no"
-# Hack for DEC-UNIX (OSF1)
+# Search thread lib on Linux
 if test "$with_named_thread" = "no"
 then
-  # Look for LinuxThreads.
-  AC_MSG_CHECKING("LinuxThreads")
-    res=`grep Linuxthreads /usr/include/pthread.h 2>/dev/null | wc -l`
-    if test "$res" -gt 0
+    AC_MSG_CHECKING("Linux threads")
+    if test "$TARGET_LINUX" = "true"
     then
-      AC_MSG_RESULT("Found")
-      AC_DEFINE([HAVE_LINUXTHREADS], [1],
-                [Whether we are using Xavier Leroy's LinuxThreads])
-      # Linux 2.0 sanity check
-      AC_TRY_COMPILE([#include <sched.h>], [int a = sched_get_priority_min(1);], ,
-      AC_MSG_ERROR([Syntax error in sched.h. Change _P to __P in the /usr/include/sched.h file. See the Installation chapter in the Reference Manual]))
-      # RedHat 5.0 does not work with dynamic linking of this. -static also
-      # gives a speed increase in linux so it does not hurt on other systems.
-      with_named_thread="-lpthread"
-    else
-      AC_MSG_RESULT("Not found")
-      # If this is a linux machine we should barf
-      if test "$IS_LINUX" = "true"
-      then
-	AC_MSG_ERROR([This is a linux system and Linuxthreads was not
-found. On linux Linuxthreads should be used.  Please install Linuxthreads
-(or a new glibc) and try again.  See the Installation chapter in the
-Reference Manual for more information.])
-      else
-	AC_MSG_CHECKING("DEC threads")
-        if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
-	then
-	  with_named_thread="-lpthread -lmach -lexc"
-	  CFLAGS="$CFLAGS -D_REENTRANT"
-	  CXXFLAGS="$CXXFLAGS -D_REENTRANT"
-	  AC_DEFINE(HAVE_DEC_THREADS, [1],
-                    [Whether we are using DEC threads])
-	  AC_MSG_RESULT("yes")
-	else
-	  AC_MSG_RESULT("no")
-	  AC_MSG_CHECKING("DEC 3.2 threads")
-          if test -f /usr/shlib/libpthreads.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
-	  then
-	    with_named_thread="-lpthreads -lmach -lc_r"
-	    AC_DEFINE(HAVE_DEC_THREADS, [1])
-            AC_DEFINE([HAVE_DEC_3_2_THREADS], [1],
-                      [Whether we are using OSF1 DEC threads on 3.2])
-            with_osf32_threads="yes"
-            MYSQLD_DEFAULT_SWITCHES="--skip-thread-priority"
-	    AC_MSG_RESULT("yes")
-	  else
-	    AC_MSG_RESULT("no")
+        AC_MSG_RESULT("starting")
+        # use getconf to check glibc contents
+        AC_MSG_CHECKING("getconf GNU_LIBPTHREAD_VERSION")
+        case `getconf GNU_LIBPTHREAD_VERSION | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ` in
+        NPTL* )
+                AC_MSG_RESULT("NPTL")
+                AC_DEFINE([HAVE_NPTL], [1], [NPTL threads implementation])
+                with_named_thread="-lpthread"
+                ;;
+        LINUXTHREADS* )
+                AC_MSG_RESULT("Linuxthreads")
+                AC_DEFINE([HAVE_LINUXTHREADS], [1], 
+                      [Whether we are using Xavier Leroy's LinuxThreads])
+                with_named_thread="-lpthread"
+                ;;
+        * )
+                AC_MSG_RESULT("unknown")
+                ;;
+        esac
+        if test "$with_named_thread" = "no"
+        then
+          # old method, check headers
+          # Look for LinuxThreads.
+          AC_MSG_CHECKING("LinuxThreads in header file comment")
+          res=`grep Linuxthreads /usr/include/pthread.h 2>/dev/null | wc -l`
+          if test "$res" -gt 0
+          then
+            AC_MSG_RESULT("Found")
+            AC_DEFINE([HAVE_LINUXTHREADS], [1],
+                  [Whether we are using Xavier Leroy's LinuxThreads])
+            # Linux 2.0 sanity check
+            AC_TRY_COMPILE([#include <sched.h>], [int a = sched_get_priority_min(1);], ,
+                  AC_MSG_ERROR([Syntax error in sched.h. Change _P to __P in the /usr/include/sched.h file. See the Installation chapter in the Reference Manual]))
+            # RedHat 5.0 does not work with dynamic linking of this. -static also
+            # gives a speed increase in linux so it does not hurt on other systems.
+            with_named_thread="-lpthread"
+          else
+            AC_MSG_RESULT("Not found")
+            # If this is a linux machine we should barf
+            AC_MSG_ERROR([This is a Linux system without a working getconf, 
+and Linuxthreads was not found. Please install it (or a new glibc) and try again.  
+See the Installation chapter in the Reference Manual for more information.])
           fi
-	fi
-     fi
-   fi
-fi
+        else
+            AC_MSG_RESULT("no need to check headers")
+        fi
+        
+        AC_MSG_CHECKING("for pthread_create in -lpthread");
+        ac_save_LIBS="$LIBS"
+        LIBS="$LIBS -lpthread"
+        AC_TRY_LINK( [#include <pthread.h>],
+              [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
+              AC_MSG_RESULT("yes"),
+              [ AC_MSG_RESULT("no")
+                AC_MSG_ERROR([
+This is a Linux system claiming to support threads, either Linuxthreads or NPTL, but linking a test program failed.  
+Please install one of these (or a new glibc) and try again.  
+See the Installation chapter in the Reference Manual for more information.]) ]
+              )
+        LIBS="$ac_save_LIBS"
+    else
+        AC_MSG_RESULT("no")
+    fi  # "$TARGET_LINUX" 
+fi  # "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+
+
+# Hack for DEC-UNIX (OSF1 -> Tru64)
+if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+then
+    AC_MSG_CHECKING("DEC threads post OSF/1 3.2")
+    if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
+    then
+      with_named_thread="-lpthread -lmach -lexc"
+      CFLAGS="$CFLAGS -D_REENTRANT"
+      CXXFLAGS="$CXXFLAGS -D_REENTRANT"
+      AC_DEFINE(HAVE_DEC_THREADS, [1], [Whether we are using DEC threads])
+      AC_MSG_RESULT("yes")
+    else
+      AC_MSG_RESULT("no")
+    fi  # DEC threads
+fi  # "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
 
 
 dnl This is needed because -lsocket has to come after the thread
@@ -1696,7 +1708,7 @@ fi
 AC_SUBST(COMPILATION_COMMENT)
 
 AC_MSG_CHECKING("need of special linking flags")
-if test "$IS_LINUX" = "true" -a "$ac_cv_prog_gcc" = "yes" -a "$all_is_static" != "yes"
+if test "$TARGET_LINUX" = "true" -a "$ac_cv_prog_gcc" = "yes" -a "$all_is_static" != "yes"
 then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")
@@ -1754,6 +1766,8 @@ AC_C_BIGENDIAN
 MYSQL_TYPE_ACCEPT
 
 #---END:
+# Figure out what type of struct rlimit to use with setrlimit
+MYSQL_TYPE_STRUCT_RLIMIT
 # Find where the stack goes
 MYSQL_STACK_DIRECTION
 # We want to skip alloca on irix unconditionally. It may work on some version..
@@ -1784,6 +1798,9 @@ If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again]);
 fi
 fi
+AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
+AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
+
 MYSQL_PTHREAD_YIELD
 
 ######################################################################
@@ -1914,7 +1931,7 @@ CFLAGS="$ORG_CFLAGS"
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
 AC_CHECK_FUNC(fseeko,
-[if test "$large_file_support" = no -a "$IS_LINUX" = "true";
+[if test "$large_file_support" = no -a "$TARGET_LINUX" = "true";
 then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
 fi]
@@ -2371,17 +2388,24 @@ then
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
+    # Use system readline library
     AC_LANG_SAVE
     AC_LANG_CPLUSPLUS
     MYSQL_CHECK_LIBEDIT_INTERFACE
     MYSQL_CHECK_NEW_RL_INTERFACE
     MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
     AC_LANG_RESTORE
-    if [test "$mysql_cv_new_rl_interface" = "yes"] || [test "$mysql_cv_libedit_interface" = "no"]
+    if [test "$mysql_cv_new_rl_interface" = "yes"]
     then
+        # Use the new readline interface
         readline_link="-lreadline"
-    else
+    elif [test "$mysql_cv_libedit_interface" = "yes"]; then
+        # Use libedit
         readline_link="-ledit"
+    else
+       AC_MSG_ERROR([Could not find system readline or libedit libraries
+          Use --with-readline or --with-libedit to use the bundled
+          versions of libedit or readline])
     fi
 fi
 fi

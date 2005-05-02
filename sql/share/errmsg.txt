@@ -5090,7 +5090,7 @@ ER_SP_LABEL_MISMATCH 42000
 ER_SP_UNINIT_VAR 01000 
 	eng "Referring to uninitialized variable %s"
 ER_SP_BADSELECT 0A000 
-	eng "SELECT in a stored procedure must have INTO"
+	eng "PROCEDURE %s can't return a result set in the given context"
 ER_SP_BADRETURN 42000 
 	eng "RETURN is only allowed in a FUNCTION"
 ER_SP_BADSTATEMENT 0A000 
@@ -5342,3 +5342,7 @@ ER_SP_DUP_HANDLER 42000
 	eng "Duplicate handler declared in the same block"
 ER_SP_NOT_VAR_ARG 42000
 	eng "OUT or INOUT argument %d for routine %s is not a variable"
+ER_SP_NO_RETSET_IN_FUNC 0A000
+	eng "Not allowed to return a result set from a function"
+ER_CANT_CREATE_GEOMETRY_OBJECT 22003 
+	eng "Cannot get geometry object from data you send to the GEOMETRY field"
