@@ -3723,6 +3723,23 @@ delete from t1|
 drop procedure bug9004_1|
 drop procedure bug9004_2|
 
+#
+# BUG#7293: Stored procedure crash with soundex
+#
+--disable_warnings
+drop procedure if exists bug7293|
+--enable_warnings
+insert into t1 values ('secret', 0)| 
+create procedure bug7293(p1 varchar(100))
+begin
+  if exists (select id from t1 where soundex(p1)=soundex(id)) then
+    select 'yes';
+  end if;
+end;| 
+call bug7293('secret')| 
+call bug7293 ('secrete')| 
+drop procedure bug7293|
+delete from t1|
 
 #
 # BUG#NNNN: New bug synopsis
