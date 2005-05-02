@@ -76,6 +76,7 @@ static void usage(my_bool version)
   puts("Prints all arguments that is give to some program using the default files");
   printf("Usage: %s [OPTIONS] groups\n", my_progname);
   my_print_help(my_long_options);
+  my_print_default_files(config_file);
   my_print_variables(my_long_options);
   printf("\nExample usage:\n%s --config-file=my client mysql\n", my_progname);
 }
