@@ -1921,10 +1921,7 @@ int ha_ndbcluster::write_row(byte *record)
 
   statistic_increment(thd->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-  {
     table->timestamp_field->set_time();
-    ha_set_bit_in_write_set(table->timestamp_field->fieldnr);
-  }
   has_auto_increment= (table->next_number_field && record == table->record[0]);
 
   if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)))
@@ -1977,7 +1974,6 @@ int ha_ndbcluster::write_row(byte *record)
   {
     Field *field= table->field[i];
     if (!(field->flags & PRI_KEY_FLAG) &&
-        (ha_get_bit_in_write_set(i+1)) &&
         set_ndb_value(op, field, i, &set_blob_value))
     {
       m_skip_auto_increment= TRUE;

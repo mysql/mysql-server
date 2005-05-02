@@ -212,7 +212,10 @@ int mysql_update(THD *thd,
     if (table->timestamp_field->query_id == thd->query_id)
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
+    {
       table->timestamp_field->query_id=timestamp_query_id;
+      table->file->ha_set_bit_in_write_set(table->timestamp_field->fieldnr);
+    }
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -272,8 +275,7 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
-    table->file->ha_set_all_bits_in_read_set();
-    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+    table->file->ha_retrieve_all_cols();
     if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;

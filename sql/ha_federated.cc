@@ -1113,7 +1113,7 @@ int ha_federated::write_row(byte *buf)
     loop through the field pointer array, add any fields to both the values
     list and the fields list that is part of the write set
   */
-  for (x=0, num_fields= 0, field= table->field; *field; field++, x++)
+  for (num_fields= 0, field= table->field; *field; field++)
   {
     /* if there is a query id and if it's equal to the current query id */
     if (ha_get_bit_in_write_set((*field)->fieldnr))
@@ -1122,15 +1122,16 @@ int ha_federated::write_row(byte *buf)
 
       if ((*field)->is_null())
       {
-        DBUG_PRINT("info", ("column %d field is_null", x));
+        DBUG_PRINT("info", ("column %d field is_null", num_fields-1));
         insert_field_value_string.append("NULL");
       }
       else
       {
-        DBUG_PRINT("info", ("column %d field is not null", x));
+        DBUG_PRINT("info", ("column %d field is not null", num_fields-1));
         (*field)->val_str(&insert_field_value_string);
         /* quote these fields if they require it */
-        (*field)->quote_data(&insert_field_value_string); }
+        (*field)->quote_data(&insert_field_value_string); 
+      }
       /* append the field name */
       insert_string.append((*field)->field_name);
 
