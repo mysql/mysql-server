@@ -22,22 +22,43 @@ class Querycache_stream
   uint headers_len;
 public:
 #ifndef DBUG_OFF
+  Query_cache_block *first_block;
   uint stored_size;
 #endif
   Querycache_stream(Query_cache_block *ini_block, uint ini_headers_len) :
     block(ini_block), headers_len(ini_headers_len)    
   {
-    use_next_block();
+    cur_data= ((byte*)block)+headers_len;
+    data_end= cur_data + (block->used-headers_len);
 #ifndef DBUG_OFF
+    first_block= ini_block;
     stored_size= 0;
 #endif
   }
-  void use_next_block()
+  void use_next_block(bool writing)
   {
+    /*
+      This shouldn't be called if there is only one block, or to loop
+      around to the first block again. That means we're trying to write
+      more data than we allocated space for.
+    */
+    DBUG_ASSERT(block->next != block);
+    DBUG_ASSERT(block->next != first_block);
+
+    block= block->next;
+    /*
+      While writing, update the type of each block as we write to it.
+      While reading, make sure that the block is of the expected type.
+    */
+    if (writing)
+      block->type= Query_cache_block::RES_CONT;
+    else
+      DBUG_ASSERT(block->type == Query_cache_block::RES_CONT);
+
     cur_data= ((byte*)block)+headers_len;
     data_end= cur_data + (block->used-headers_len);
   }
-  
+
   void store_char(char c);
   void store_short(ushort s);
   void store_int(uint i);
