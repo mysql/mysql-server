@@ -74,4 +74,12 @@ select * from t1 c, t2 C;
 select C.a, c.a from t1 c, t2 C;
 drop table t1, t2;
 
+#
+# Bug #9761: CREATE TABLE ... LIKE ... not handled correctly when
+# lower_case_table_names is set
+
+create table t1 (a int);
+create table t2 like T1;
+drop table t1, t2;
+
 show tables;

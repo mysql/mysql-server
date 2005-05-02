@@ -107,19 +107,20 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                         uint *args_used, Process_option_func func,
                         void *func_ctx)
 {
-  const char **dirs, *forced_default_file;
+  const char **dirs, *forced_default_file, *forced_extra_defaults;
   int error= 0;
   DBUG_ENTER("my_search_option_files");
 
   /* Check if we want to force the use a specific default file */
   get_defaults_files(*argc, *argv,
-                     (char **)&forced_default_file, &defaults_extra_file);
+                      (char **)&forced_default_file,
+                      (char **)&forced_extra_defaults);
   if (forced_default_file)
     forced_default_file= strchr(forced_default_file,'=')+1;
-  if (defaults_extra_file)
-    defaults_extra_file= strchr(defaults_extra_file,'=')+1;
+  if (forced_extra_defaults)
+    defaults_extra_file= strchr(forced_extra_defaults,'=')+1;
 
-  (*args_used)+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
+  args_used+= (forced_default_file ? 1 : 0) + (forced_extra_defaults ? 1 : 0);
 
   if (forced_default_file)
   {
