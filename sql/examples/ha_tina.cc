@@ -384,8 +384,15 @@ int ha_tina::find_current_row(byte *buf)
   If frm_error() is called in table.cc this is called to find out what file
   extensions exist for this handler.
 */
+static const char *ha_tina_exts[] = {
+  ".CSV",
+  NullS
+};
+
 const char **ha_tina::bas_ext() const
-{ static const char *ext[]= { ".CSV", NullS }; return ext; }
+{
+  return ha_tina_exts;
+}
 
 
 /* 

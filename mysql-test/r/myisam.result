@@ -1157,6 +1157,15 @@ select length(v) from t1 where v=repeat('a',65530);
 length(v)
 65530
 drop table t1;
+create table t1(a int, b varchar(12), key ba(b, a));
+insert into t1 values (1, 'A'), (20, NULL);
+explain select * from t1 where a=20 and b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	ba	ba	20	const,const	1	Using where; Using index
+select * from t1 where a=20 and b is null;
+a	b
+20	NULL
+drop table t1;
 create table t1 (v varchar(65530), key(v));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1000 bytes

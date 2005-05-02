@@ -91,7 +91,15 @@ enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 
 class JOIN;
 
-typedef int (*Next_select_func)(JOIN *,struct st_join_table *,bool);
+enum enum_nested_loop_state
+{
+  NESTED_LOOP_KILLED= -2, NESTED_LOOP_ERROR= -1,
+  NESTED_LOOP_OK= 0, NESTED_LOOP_NO_MORE_ROWS= 1,
+  NESTED_LOOP_QUERY_LIMIT= 3, NESTED_LOOP_CURSOR_LIMIT= 4
+};
+
+typedef enum_nested_loop_state
+(*Next_select_func)(JOIN *, struct st_join_table *, bool);
 typedef int (*Read_record_func)(struct st_join_table *tab);
 
 
@@ -162,6 +170,11 @@ class JOIN :public Sql_alloc
   uint	   send_group_parts;
   bool	   sort_and_group,first_record,full_join,group, no_field_update;
   bool	   do_send_rows;
+  /*
+    TRUE when we want to resume nested loop iterations when
+    fetching data from a cursor
+  */
+  bool     resume_nested_loop;
   table_map const_table_map,found_const_table_map,outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
   /*
@@ -263,6 +276,7 @@ class JOIN :public Sql_alloc
     sort_and_group= 0;
     first_record= 0;
     do_send_rows= 1;
+    resume_nested_loop= FALSE;
     send_records= 0;
     found_records= 0;
     fetch_limit= HA_POS_ERROR;
@@ -374,7 +388,7 @@ public:
   void reset_thd(THD *thd);
 
   int open(JOIN *join);
-  int fetch(ulong num_rows);
+  void fetch(ulong num_rows);
   void reset() { join= 0; }
   bool is_open() const { return join != 0; }
   void close();

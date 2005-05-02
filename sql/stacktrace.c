@@ -43,7 +43,7 @@ void safe_print_str(const char* name, const char* val, int max_len)
   fputc('\n', stderr);
 }
 
-#ifdef HAVE_LINUXTHREADS
+#ifdef TARGET_OS_LINUX
 #define SIGRETURN_FRAME_COUNT  2
 
 #if defined(__alpha__) && defined(__GNUC__)
@@ -201,7 +201,7 @@ end:
 stack trace is much more helpful in diagnosing the problem, so please do \n\
 resolve it\n");
 }
-#endif /* HAVE_LINUXTHREADS */
+#endif /* TARGET_OS_LINUX */
 #endif /* HAVE_STACKTRACE */
 
 /* Produce a core for the thread */
