@@ -226,3 +226,13 @@ create table t1 (v varchar(65530), key(v(10)));
 insert into t1 values(repeat('a',65530));
 select length(v) from t1 where v=repeat('a',65530);
 drop table t1;
+
+#
+# Bug #9489: problem with hash indexes
+#
+
+create table t1(a int, b varchar(12), key ba(b, a));
+insert into t1 values (1, 'A'), (20, NULL);
+explain select * from t1 where a=20 and b is null;
+select * from t1 where a=20 and b is null;
+drop table t1;

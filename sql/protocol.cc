@@ -820,7 +820,7 @@ bool Protocol_simple::store_long(longlong from)
 #endif
   char buff[20];
   return net_store_data((char*) buff,
-			(uint) (int10_to_str((int) from,buff, -10)-buff));
+			(uint) (int10_to_str((long int)from,buff, (from <0)?-10:10)-buff));
 }
 
 

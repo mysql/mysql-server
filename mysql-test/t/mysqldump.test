@@ -196,3 +196,11 @@ INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 --exec $MYSQL_DUMP --skip-extended-insert --hex-blob test --skip-comments t1
 DROP TABLE t1;
 
+#
+# Bug #9756
+#
+
+CREATE TABLE t1 (a char(10));
+INSERT INTO t1 VALUES ('\'');
+--exec $MYSQL_DUMP --skip-comments test t1
+DROP TABLE t1;

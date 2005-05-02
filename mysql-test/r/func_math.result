@@ -1,3 +1,4 @@
+drop table if exists t1;
 select floor(5.5),floor(-5.5);
 floor(5.5)	floor(-5.5)
 5	-6

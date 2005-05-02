@@ -165,9 +165,9 @@ explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimpl
 
 create table t1 (a geometry not null);
 insert into t1 values (GeomFromText('Point(1 2)'));
--- error 1105
+-- error 1416
 insert into t1 values ('Garbage');
--- error 1105
+-- error 1416
 insert IGNORE into t1 values ('Garbage');
 alter table t1 add spatial index(a);
 
@@ -357,5 +357,17 @@ t1 where object_id=85998;
 
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
+
+drop table t1;
+
+create table t1 (fl geometry);
+--error 1416
+insert into t1 values (1);
+--error 1416
+insert into t1 values (1.11);
+--error 1416
+insert into t1 values ("qwerty");
+--error 1416
+insert into t1 values (pointfromtext('point(1,1)'));
 
 drop table t1;

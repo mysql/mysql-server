@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.9";
+const char *VER= "14.10";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -235,7 +235,7 @@ static COMMANDS commands[] = {
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,
-    "Set query delimiter. " },
+    "Set statement delimiter. NOTE: Takes the rest of the line as new delimiter." },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
@@ -703,8 +703,16 @@ static void usage(int version)
 #ifdef __NETWARE__
 #define printf	consoleprintf
 #endif
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",
-	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+
+#if defined(USE_LIBEDIT_INTERFACE)
+  const char* readline= "";
+#else
+  const char* readline= "readline";
+#endif
+
+  printf("%s  Ver %s Distrib %s, for %s (%s) using %s %s\n",
+	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
+         readline, rl_library_version);
   if (version)
     return;
   printf("\
@@ -1323,7 +1331,7 @@ static void initialize_readline (char *name)
   setlocale(LC_ALL,""); /* so as libedit use isprint */
 #endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
-  rl_completion_entry_function= (CPFunction*)&no_completion;
+  rl_completion_entry_function= (Function*)&no_completion;
 #else
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= (Function*)&no_completion;

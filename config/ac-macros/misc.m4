@@ -34,10 +34,10 @@ undefine([AC_CV_NAME])dnl
 AC_DEFUN([MYSQL_TYPE_ACCEPT],
 [ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([base type of last arg to accept], mysql_cv_btype_last_arg_accept,
-AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
+AC_LANG_PUSH(C++)
 if test "$ac_cv_prog_gxx" = "yes"
 then
+  # Add -Werror, remove -fbranch-probabilities (Bug #268)
   CXXFLAGS=`echo $CXXFLAGS -Werror | sed 's/-fbranch-probabilities//'`
 fi
 mysql_cv_btype_last_arg_accept=none
@@ -64,7 +64,7 @@ fi
 if test "$mysql_cv_btype_last_arg_accept" = "none"; then
 mysql_cv_btype_last_arg_accept=int
 fi)
-AC_LANG_RESTORE
+AC_LANG_POP(C++)
 AC_DEFINE_UNQUOTED([SOCKET_SIZE_TYPE], [$mysql_cv_btype_last_arg_accept],
                    [The base type of the last arg to accept])
 CXXFLAGS="$ac_save_CXXFLAGS"
@@ -89,6 +89,35 @@ then
  AC_DEFINE_UNQUOTED([QSORT_TYPE_IS_VOID], [1], [qsort returns void])
 fi
 ])
+
+#---START: Figure out whether to use 'struct rlimit' or 'struct rlimit64'
+AC_DEFUN([MYSQL_TYPE_STRUCT_RLIMIT],
+[ac_save_CXXFLAGS="$CXXFLAGS"
+AC_CACHE_CHECK([struct type to use with setrlimit], mysql_cv_btype_struct_rlimit,
+AC_LANG_PUSH(C++)
+if test "$ac_cv_prog_gxx" = "yes"
+then
+  # Add -Werror, remove -fbranch-probabilities (Bug #268)
+  CXXFLAGS=`echo $CXXFLAGS -Werror | sed 's/-fbranch-probabilities//'`
+fi
+mysql_cv_btype_struct_rlimit=none
+[AC_TRY_COMPILE([#if defined(inline)
+#undef inline
+#endif
+#include <stdlib.h>
+#include <sys/resource.h>
+],
+[struct rlimit64 rl; setrlimit(RLIMIT_CORE, &rl);],
+mysql_cv_btype_struct_rlimit="struct rlimit64")]
+if test "$mysql_cv_btype_struct_rlimit" = "none"; then
+mysql_cv_btype_struct_rlimit="struct rlimit"
+fi)
+AC_LANG_POP(C++)
+AC_DEFINE_UNQUOTED([STRUCT_RLIMIT], [$mysql_cv_btype_struct_rlimit],
+                   [The struct rlimit type to use with setrlimit])
+CXXFLAGS="$ac_save_CXXFLAGS"
+])
+#---END:
 
 AC_DEFUN([MYSQL_TIMESPEC_TS],
 [AC_CACHE_CHECK([if struct timespec has a ts_sec member], mysql_cv_timespec_ts,
@@ -617,8 +646,8 @@ m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
    'void exit (int);' \
    '#include <stdlib.h>'
 do
-  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <stdlib.h>
-$ac_declaration],
+  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([$ac_declaration
+@%:@include <stdlib.h>],
                                       [exit (42);])],
                      [],
                      [continue])
