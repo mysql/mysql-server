@@ -1528,6 +1528,7 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
       // If in local cache it must be in global
       if (!cachedImpl)
 	abort();
+      cachedImpl->m_status = NdbDictionary::Object::Invalid;
       m_globalHash->drop(cachedImpl);
       m_globalHash->unlock();
     }
@@ -1832,8 +1833,8 @@ NdbDictionaryImpl::dropTable(const char * name)
 
     DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s", internalTableName));
     m_localHash.drop(internalTableName);
-    
     m_globalHash->lock();
+    tab->m_status = NdbDictionary::Object::Invalid;
     m_globalHash->drop(tab);
     m_globalHash->unlock();   
     DBUG_RETURN(dropTable(name));
@@ -1877,10 +1878,11 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   int ret = m_receiver.dropTable(impl);  
   if(ret == 0 || m_error.code == 709){
     const char * internalTableName = impl.m_internalName.c_str();
+
     
     m_localHash.drop(internalTableName);
-    
     m_globalHash->lock();
+    impl.m_status = NdbDictionary::Object::Invalid;
     m_globalHash->drop(&impl);
     m_globalHash->unlock();
 
@@ -1978,6 +1980,7 @@ NdbDictionaryImpl::invalidateObject(NdbTableImpl & impl)
 
   m_localHash.drop(internalTableName);  
   m_globalHash->lock();
+  impl.m_status = NdbDictionary::Object::Invalid;
   m_globalHash->drop(&impl);
   m_globalHash->unlock();
   return 0;
@@ -2244,8 +2247,8 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
       m_ndb.internalizeTableName(indexName); // Index is also a table
     
     m_localHash.drop(internalIndexName);
-    
     m_globalHash->lock();
+    idx->m_table->m_status = NdbDictionary::Object::Invalid;
     m_globalHash->drop(idx->m_table);
     m_globalHash->unlock();   
     return dropIndex(indexName, tableName);
@@ -2279,8 +2282,8 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
     int ret = m_receiver.dropIndex(impl, *timpl);
     if(ret == 0){
       m_localHash.drop(internalIndexName);
-      
       m_globalHash->lock();
+      impl.m_table->m_status = NdbDictionary::Object::Invalid;
       m_globalHash->drop(impl.m_table);
       m_globalHash->unlock();
     }

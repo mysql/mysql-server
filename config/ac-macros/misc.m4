@@ -646,8 +646,8 @@ m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
    'void exit (int);' \
    '#include <stdlib.h>'
 do
-  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <stdlib.h>
-$ac_declaration],
+  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([$ac_declaration
+@%:@include <stdlib.h>],
                                       [exit (42);])],
                      [],
                      [continue])

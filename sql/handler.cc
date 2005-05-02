@@ -185,9 +185,10 @@ enum db_type ha_checktype(enum db_type database_type)
   thd= current_thd;
   return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
           (enum db_type) thd->variables.table_type :
-          (enum db_type) global_system_variables.table_type !=
-          DB_TYPE_UNKNOWN ?
-          (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM);
+          ((enum db_type) global_system_variables.table_type !=
+           DB_TYPE_UNKNOWN ?
+           (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM)
+          );
 } /* ha_checktype */
 
 
@@ -1772,13 +1773,17 @@ int handler::delete_table(const char *name)
 
 int handler::rename_table(const char * from, const char * to)
 {
-  DBUG_ENTER("handler::rename_table");
-  for (const char **ext=bas_ext(); *ext ; ext++)
+  int error= 0;
+  for (const char **ext= bas_ext(); *ext ; ext++)
   {
-    if (rename_file_ext(from,to,*ext))
-      DBUG_RETURN(my_errno);
+    if (rename_file_ext(from, to, *ext))
+    {
+      if ((error=my_errno) != ENOENT)
+	break;
+      error= 0;
+    }
   }
-  DBUG_RETURN(0);
+  return error;
 }
 
 /*

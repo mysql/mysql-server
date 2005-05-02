@@ -97,3 +97,29 @@ Variable_name	Value
 Created_tmp_disk_tables	0
 Created_tmp_tables	2
 drop table t1;
+create temporary table t1 as select 'This is temp. table' A;
+create view t1 as select 'This is view' A;
+select * from t1;
+A
+This is temp. table
+show create table t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `A` varchar(19) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create view t1;
+View	Create View
+t1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`t1` AS select _latin1'This is view' AS `A`
+drop view t1;
+select * from t1;
+A
+This is temp. table
+create view t1 as select 'This is view again' A;
+select * from t1;
+A
+This is temp. table
+drop table t1;
+select * from t1;
+A
+This is view again
+drop view t1;

@@ -177,7 +177,14 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
 				 &tmp_errno)))
   {
     DBUG_PRINT("error",("gethostbyname_r returned %d",tmp_errno));
-    add_wrong_ip(in);
+    /*
+      Don't cache responses when the DSN server is down, as otherwise
+      transient DNS failure may leave any number of clients (those
+      that attempted to connect during the outage) unable to connect
+      indefinitely.
+    */
+    if (tmp_errno == HOST_NOT_FOUND || tmp_error == NO_DATA)
+      add_wrong_ip(in);
     my_gethostbyname_r_free();
     DBUG_RETURN(0);
   }
