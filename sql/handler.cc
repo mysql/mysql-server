@@ -271,10 +271,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   }
   if (file)
   {
-    if (table && file->ha_allocate_read_write_set(table->s->fields))
+    if (file->ha_initialise())
     {
       delete file;
-      file= 0;
+      file=0;
     }
   }
   return file;
@@ -1343,38 +1343,154 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   DBUG_RETURN(error);
 }
 
+int handler::ha_initialise()
+{
+  if (table && table->s->fields &&
+      ha_allocate_read_write_set(table->s->fields))
+  {
+    return TRUE;
+  }
+  return FALSE;
+}
+
 int handler::ha_allocate_read_write_set(ulong no_fields)
 {
   DBUG_ENTER("ha_allocate_read_write_set");
-  uint map_size= ((no_fields + 8)/8)*8;
-  if (rw_set_allocated)
-    ha_deallocate_read_write_set();
-  DBUG_PRINT("info", ("no_fields = %d, map_size = %d", no_fields, map_size));
-  if (bitmap_init(&read_set, NULL, map_size, FALSE))
+  DBUG_PRINT("info", ("no_fields = %d", no_fields));
+  read_set= new bitvector;
+  write_set= new bitvector;
+  if (!read_set || !write_set)
   {
+    ha_deallocate_read_write_set();
     DBUG_RETURN(TRUE);
   }
-  if (bitmap_init(&write_set, NULL, map_size, FALSE))
+  if (read_set->init(no_fields+1) || write_set->init(no_fields+1))
   {
-    bitmap_free(&read_set);
+    ha_deallocate_read_write_set();
     DBUG_RETURN(TRUE);
   }
   ha_clear_all_set();
-  rw_set_allocated= TRUE;
   DBUG_RETURN(FALSE);
 }
 
 void handler::ha_deallocate_read_write_set()
 {
-  if (!rw_set_allocated)
-    return;
-  bitmap_free(&read_set);
-  bitmap_free(&write_set);
+  delete read_set;
+  delete write_set;
+  read_set=write_set=0;
+}
+
+void handler::ha_clear_all_set()
+{
+  DBUG_ENTER("ha_clear_all_set");
+  read_set->clear_all();
+  write_set->clear_all();
+  read_set->set_bit((uint)0);
+  write_set->set_bit((uint)0);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_all_bits_in_read_set()
+{
+  DBUG_ENTER("handler::ha_set_all_bits_in_read_set");
+  read_set->set_all();
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_all_bits_in_write_set()
+{
+  DBUG_ENTER("handler::ha_set_all_bits_in_write_set");
+  write_set->set_all();
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_bit_in_read_set(uint fieldnr)
+{
+  DBUG_ENTER("handler::ha_set_bit_in_read_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  read_set->set_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_clear_bit_in_read_set(uint fieldnr)
+{
+  DBUG_ENTER("handler::ha_clear_bit_in_read_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  read_set->clear_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_bit_in_write_set(uint fieldnr)
+{
+  DBUG_ENTER("handler::ha_set_bit_in_write_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  write_set->set_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_clear_bit_in_write_set(uint fieldnr)
+{
+  DBUG_ENTER("handler::ha_clear_bit_in_write_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  write_set->clear_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
+{
+  if (!write_op)
+    read_set->set_bit((size_t)fieldnr);
+  else
+    write_set->set_bit((size_t)fieldnr);
+}
+
+bool handler::ha_get_bit_in_read_set(uint fieldnr)
+{
+  read_set->get_bit((size_t)fieldnr);
+}
+
+bool handler::ha_get_bit_in_write_set(uint fieldnr)
+{
+  write_set->get_bit((size_t)fieldnr);
+}
+
+bool handler::ha_get_all_bit_in_read_set()
+{
+  return read_set->get_all_bits_set();
+}
+
+bool handler::ha_get_all_bit_in_read_clear()
+{
+  return read_set->get_all_bits_clear();
+}
+
+bool handler::ha_get_all_bit_in_write_set()
+{
+  return write_set->get_all_bits_set();
+}
+
+bool handler::ha_get_all_bit_in_write_clear()
+{
+  return write_set->get_all_bits_clear();
+}
+
+int handler::ha_retrieve_all_cols()
+{
+  read_set->set_all();
+  return 0;
+}
+
+int handler::ha_retrieve_all_pk()
+{
+  ha_set_primary_key_in_read_set();
+  return 0;
 }
 
 void handler::ha_set_primary_key_in_read_set()
 {
   ulong prim_key= table->s->primary_key;
+  DBUG_ENTER("handler::ha_set_primary_key_in_read_set");
+  DBUG_PRINT("info", ("Primary key = %d", prim_key));
   if (prim_key != MAX_KEY)
   {
     KEY_PART_INFO *key_part= table->key_info[prim_key].key_part;
@@ -1383,6 +1499,7 @@ void handler::ha_set_primary_key_in_read_set()
     for (;key_part != key_part_end; ++key_part)
       ha_set_bit_in_read_set(key_part->fieldnr);
   }
+  DBUG_VOID_RETURN;
 }
 /*
   Read first row (only) from a table

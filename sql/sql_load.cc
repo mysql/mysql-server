@@ -163,7 +163,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
     The main thing to fix to remove this restriction is to ensure that the
     table is marked to be 'used for insert' in which case we should never
-    mark this table as as 'const table' (ie, one that has only one row).
+    mark this table as 'const table' (ie, one that has only one row).
   */
   if (unique_table(table_list, table_list->next_global))
   {
@@ -180,7 +180,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     for (field=table->field; *field ; field++)
       fields_vars.push_back(new Item_field(*field));
     /*
-      Since all fields is be set we set all bits in the write set
+      Since all fields are set we set all bits in the write set
     */
     table->file->ha_set_all_bits_in_write_set();
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
@@ -197,8 +197,11 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
     /*
       Indicate that both variables in field list and fields in update_list
-      is to be included in write set of table
+      is to be included in write set of table. We do however set all bits
+      in write set anyways since it is not allowed to specify NULLs in
+      LOAD DATA
     */
+    table->file->ha_set_all_bits_in_write_set();
     if (setup_fields(thd, 0, table_list, fields_vars, 2, 0, 0) ||
         setup_fields(thd, 0, table_list, set_fields, 2, 0, 0) ||
         check_that_all_fields_are_given_values(thd, table))

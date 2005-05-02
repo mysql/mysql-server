@@ -3705,12 +3705,14 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
                 goto err;
               /* Mark field used for table cache */
               t2_field->query_id= thd->query_id;
+              t2->file->ha_set_bit_in_read_set(t2_field->fieldnr);
               t2->used_keys.intersect(t2_field->part_of_key);
             }
             if ((t1_field= iterator->field()))
             {
               /* Mark field used for table cache */
               t1_field->query_id= thd->query_id;
+              t1->file->ha_set_bit_in_read_set(t1_field->fieldnr);
               t1->used_keys.intersect(t1_field->part_of_key);
             }
             Item_func_eq *tmp= new Item_func_eq(iterator->item(thd),
