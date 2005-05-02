@@ -782,6 +782,7 @@ extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
                                   Process_option_func func, void *func_ctx);
 extern void free_defaults(char **argv);
+extern void my_print_default_files(const char *conf_file);
 extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);
 extern my_bool my_uncompress(byte *, ulong *, ulong *);

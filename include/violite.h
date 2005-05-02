@@ -99,6 +99,7 @@ void	vio_timeout(Vio *vio,uint timeout);
 #endif
 
 #define HEADER_DES_LOCL_H dummy_something
+#define YASSL_MYSQL_COMPATIBLE
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 

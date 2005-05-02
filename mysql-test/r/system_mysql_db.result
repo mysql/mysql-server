@@ -63,6 +63,9 @@ host	CREATE TABLE `host` (
   `Lock_tables_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Create_view_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Show_view_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Create_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Alter_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Execute_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Host privileges;  Merged with database privileges'
 show create table user;
