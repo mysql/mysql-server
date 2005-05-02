@@ -86,7 +86,10 @@ public:
   utype		unireg_check;
   uint32	field_length;		// Length of field
   uint16	flags;
-  uint16        fieldnr;                // Field number
+  /* fieldnr is the id of the field (first field = 1) as is also
+     used in key_part.
+  */
+  uint16        fieldnr;
   uchar		null_bit;		// Bit used to test null bit
 
   Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,uchar null_bit_arg,

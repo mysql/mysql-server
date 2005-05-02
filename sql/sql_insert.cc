@@ -231,7 +231,10 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
       clear_timestamp_auto_bits(table->timestamp_field_type,
                                 TIMESTAMP_AUTO_SET_ON_UPDATE);
     else
+    {
       table->timestamp_field->query_id= timestamp_query_id;
+      table->file->ha_set_bit_in_write_set(table->timestamp_field->fieldnr);
+    }
   }
 
   return 0;
@@ -798,10 +801,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
     DBUG_RETURN(TRUE);
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
-  {
-    table->file->ha_set_primary_key_in_read_set();
-    table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
-  }
+    table->file->ha_retrieve_all_pk();
   thd->lex->select_lex.first_execution= 0;
   DBUG_RETURN(FALSE);
 }

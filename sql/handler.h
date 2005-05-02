@@ -23,6 +23,7 @@
 
 #include <ft_global.h>
 #include <keycache.h>
+#include <bitvector.h>
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -483,9 +484,8 @@ public:
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
-  MY_BITMAP read_set;
-  MY_BITMAP write_set;
-  bool rw_set_allocated;
+  bitvector *read_set;
+  bitvector *write_set;
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -495,13 +495,14 @@ public:
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
     raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0),
-    pushed_cond(NULL), rw_set_allocated(0)
+    pushed_cond(NULL), read_set(0), write_set(0)
     {}
   virtual ~handler(void)
   {
-    ha_deallocate_read_write_set(); 
+    ha_deallocate_read_write_set();
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
+  virtual int ha_initialise();
   int ha_open(const char *name, int mode, int test_if_locked);
   void update_auto_increment();
   virtual void print_error(int error, myf errflag);
@@ -578,64 +579,32 @@ public:
     The routines are all part of the general handler and are not possible
     to override by a handler. A handler can however set/reset bits by
     calling these routines.
+
+    The methods ha_retrieve_all_cols and ha_retrieve_all_pk are made
+    virtual to handle InnoDB specifics. If InnoDB doesn't need the
+    extra parameters HA_EXTRA_RETRIEVE_ALL_COLS and
+    HA_EXTRA_RETRIEVE_PRIMARY_KEY anymore then these methods need not be
+    virtual anymore.
   */
-  void ha_set_all_bits_in_read_set()
-  {
-    bitmap_set_all(&read_set);
-  }
-  void ha_set_all_bits_in_write_set()
-  {
-    bitmap_set_all(&write_set);
-  }
-  void ha_set_bit_in_read_set(uint fieldnr)
-  {
-    bitmap_set_bit(&read_set, fieldnr);
-  }
-  void ha_clear_bit_in_read_set(uint fieldnr)
-  {
-    bitmap_clear_bit(&read_set, fieldnr);
-  }
-  void ha_set_bit_in_write_set(uint fieldnr)
-  {
-    bitmap_set_bit(&write_set, fieldnr);
-  }
-  void ha_clear_bit_in_write_set(uint fieldnr)
-  {
-    bitmap_clear_bit(&write_set, fieldnr);
-  }
-  void ha_set_bit_in_rw_set(uint fieldnr, bool write_set)
-  {
-    if (!write_set)
-      ha_set_bit_in_read_set(fieldnr);
-    else
-      ha_set_bit_in_write_set(fieldnr);
-  }
-  my_bool ha_get_bit_in_read_set(uint fieldnr)
-  {
-    return bitmap_is_set(&read_set, fieldnr);
-  }
-  my_bool ha_get_all_bit_in_read_set()
-  {
-    return bitmap_is_set_all(&read_set);
-  }
-  my_bool ha_get_all_bit_in_write_set()
-  {
-    return bitmap_is_set_all(&write_set);
-  }
-  my_bool ha_get_bit_in_write_set(uint fieldnr)
-  {
-    return bitmap_is_set(&write_set, fieldnr);
-  }
-  void ha_clear_all_set()
-  {
-    bitmap_clear_all(&read_set);
-    bitmap_clear_all(&write_set);
-    bitmap_set_bit(&read_set,0);
-    bitmap_set_bit(&write_set,0);
-  }
+  virtual int ha_retrieve_all_cols();
+  virtual int ha_retrieve_all_pk();
+  void ha_set_all_bits_in_read_set();
+  void ha_set_all_bits_in_write_set();
+  void ha_set_bit_in_read_set(uint fieldnr);
+  void ha_clear_bit_in_read_set(uint fieldnr);
+  void ha_set_bit_in_write_set(uint fieldnr);
+  void ha_clear_bit_in_write_set(uint fieldnr);
+  void ha_set_bit_in_rw_set(uint fieldnr, bool write_set);
+  bool ha_get_bit_in_read_set(uint fieldnr);
+  bool ha_get_bit_in_write_set(uint fieldnr);
+  bool ha_get_all_bit_in_read_set();
+  bool ha_get_all_bit_in_read_clear();
+  bool ha_get_all_bit_in_write_set();
+  bool ha_get_all_bit_in_write_clear();
   void ha_set_primary_key_in_read_set();
   int ha_allocate_read_write_set(ulong no_fields);
   void ha_deallocate_read_write_set();
+  void ha_clear_all_set();
 
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;

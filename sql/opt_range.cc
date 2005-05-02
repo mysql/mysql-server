@@ -916,12 +916,11 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
     if (file->extra(HA_EXTRA_KEYREAD) ||
-        file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
+        file->ha_retrieve_all_pk() ||
         init() || reset())
     {
       DBUG_RETURN(1);
     }
-    file->ha_set_primary_key_in_read_set();
     DBUG_RETURN(0);
   }
 
@@ -945,14 +944,13 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     goto failure;
 
   if (file->extra(HA_EXTRA_KEYREAD) ||
-      file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
+      file->ha_retrieve_all_pk() ||
       init() || reset())
   {
     file->external_lock(thd, F_UNLCK);
     file->close();
     goto failure;
   }
-  file->ha_set_primary_key_in_read_set();
   free_file= TRUE;
   last_rowid= file->ref;
   DBUG_RETURN(0);
@@ -5627,9 +5625,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     (This also creates a deficiency - it is possible that we will retrieve
      parts of key that are not used by current query at all.)
   */
-  if (head->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY))
+  if (head->file->ha_retrieve_all_pk())
     DBUG_RETURN(1);
-  head->file->ha_set_primary_key_in_read_set();
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
