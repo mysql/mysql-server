@@ -4,8 +4,8 @@ gmake -k clean || true
 /bin/rm -f */.deps/*.P config.cache
  
 aclocal && autoheader && aclocal && automake && autoconf
-(cd bdb/dist && sh s_all)
-(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+(cd storage/bdb/dist && sh s_all)
+(cd storage/innobase && aclocal && autoheader && aclocal && automake && autoconf)
 if [ -d gemini ]
 then
    (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)

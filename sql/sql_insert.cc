@@ -89,7 +89,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     }
     if (values.elements != table->s->fields)
     {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -112,7 +112,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     int res;
     if (fields.elements != values.elements)
     {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return -1;
     }
 
@@ -1117,27 +1117,42 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 {
   int error;
   delayed_insert *tmp;
+  TABLE *table;
   DBUG_ENTER("delayed_get_table");
 
   if (!table_list->db)
     table_list->db=thd->db;
 
-  /* no match; create a new thread to handle the table */
+  /* Find the thread which handles this table. */
   if (!(tmp=find_handler(thd,table_list)))
   {
-    /* Don't create more than max_insert_delayed_threads */
+    /*
+      No match. Create a new thread to handle the table, but
+      no more than max_insert_delayed_threads.
+    */
     if (delayed_insert_threads >= thd->variables.max_insert_delayed_threads)
       DBUG_RETURN(0);
     thd->proc_info="Creating delayed handler";
     pthread_mutex_lock(&LOCK_delayed_create);
-    if (!(tmp=find_handler(thd,table_list)))	// Was just created
+    /*
+      The first search above was done without LOCK_delayed_create.
+      Another thread might have created the handler in between. Search again.
+    */
+    if (! (tmp= find_handler(thd, table_list)))
     {
+      /*
+        Avoid that a global read lock steps in while we are creating the
+        new thread. It would block trying to open the table. Hence, the
+        DI thread and this thread would wait until after the global
+        readlock is gone. If the read lock exists already, we leave with
+        no table and then switch to non-delayed insert.
+      */
+      if (set_protect_against_global_read_lock())
+        goto err;
       if (!(tmp=new delayed_insert()))
       {
-	thd->fatal_error();
 	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(delayed_insert));
-	pthread_mutex_unlock(&LOCK_delayed_create);
-	DBUG_RETURN(0);
+	goto err1;
       }
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
@@ -1146,10 +1161,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	  !(tmp->thd.query=my_strdup(table_list->table_name,MYF(MY_WME))))
       {
 	delete tmp;
-	thd->fatal_error();
 	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	pthread_mutex_unlock(&LOCK_delayed_create);
-	DBUG_RETURN(0);
+	goto err1;
       }
       tmp->table_list= *table_list;			// Needed to open table
       tmp->table_list.db= tmp->thd.db;
@@ -1165,10 +1178,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_mutex_unlock(&tmp->mutex);
 	tmp->unlock();
 	delete tmp;
-	thd->fatal_error();
-	pthread_mutex_unlock(&LOCK_delayed_create);
 	my_error(ER_CANT_CREATE_THREAD, MYF(0), error);
-	DBUG_RETURN(0);
+	goto err1;
       }
 
       /* Wait until table is open */
@@ -1178,6 +1189,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
+      unset_protect_against_global_read_lock();
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -1189,28 +1201,34 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	  thd->net.last_errno=tmp->thd.net.last_errno;
 	}
 	tmp->unlock();
-	pthread_mutex_unlock(&LOCK_delayed_create);
-	DBUG_RETURN(0);				// Continue with normal insert
+	goto err;
       }
       if (thd->killed)
       {
 	tmp->unlock();
-	pthread_mutex_unlock(&LOCK_delayed_create);
-	DBUG_RETURN(0);
+	goto err;
       }
     }
     pthread_mutex_unlock(&LOCK_delayed_create);
   }
 
   pthread_mutex_lock(&tmp->mutex);
-  TABLE *table=tmp->get_local_table(thd);
+  table= tmp->get_local_table(thd);
   pthread_mutex_unlock(&tmp->mutex);
-  tmp->unlock();
   if (table)
     thd->di=tmp;
   else if (tmp->thd.is_fatal_error)
     thd->fatal_error();
+  /* Unlock the delayed insert object after its last access. */
+  tmp->unlock();
   DBUG_RETURN((table_list->table=table));
+
+ err1:
+  thd->fatal_error();
+  unset_protect_against_global_read_lock();
+ err:
+  pthread_mutex_unlock(&LOCK_delayed_create);
+  DBUG_RETURN(0); // Continue with normal insert
 }
 
 
@@ -1433,6 +1451,14 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   pthread_mutex_unlock(&LOCK_thread_count);
 
+  /*
+    Wait until the client runs into pthread_cond_wait(),
+    where we free it after the table is opened and di linked in the list.
+    If we did not wait here, the client might detect the opened table
+    before it is linked to the list. It would release LOCK_delayed_create
+    and allow another thread to create another handler for the same table,
+    since it does not find one in the list.
+  */
   pthread_mutex_lock(&di->mutex);
 #if !defined( __WIN__) && !defined(OS2)	/* Win32 calls this in pthread_create */
   if (my_thread_init())
@@ -1547,8 +1573,17 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 
     if (di->tables_in_use && ! thd->lock)
     {
-      /* request for new delayed insert */
-      if (!(thd->lock=mysql_lock_tables(thd,&di->table,1)))
+      /*
+        Request for new delayed insert.
+        Lock the table, but avoid to be blocked by a global read lock.
+        If we got here while a global read lock exists, then one or more
+        inserts started before the lock was requested. These are allowed
+        to complete their work before the server returns control to the
+        client which requested the global read lock. The delayed insert
+        handler will close the table and finish when the outstanding
+        inserts are done.
+      */
+      if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1, TRUE)))
       {
 	/* Fatal error */
 	di->dead= 1;

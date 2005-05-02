@@ -1,0 +1,12 @@
+ndbbindir        = "$(libexecdir)"
+ndbtoolsdir      = "$(bindir)"
+ndbtestdir       = "$(bindir)"
+ndblibdir        = "$(pkglibdir)"
+ndbincludedir    = "$(pkgincludedir)/storage/ndb"
+ndbapiincludedir = "$(pkgincludedir)/storage/ndb/ndbapi"
+mgmapiincludedir = "$(pkgincludedir)/storage/ndb/mgmapi"
+
+INCLUDES = $(INCLUDES_LOC)
+LDADD = $(top_srcdir)/storage/ndb/src/common/portlib/gcc.cpp $(LDADD_LOC)
+DEFS = @DEFS@ @NDB_DEFS@ $(DEFS_LOC) $(NDB_EXTRA_FLAGS)
+NDB_CXXFLAGS=@ndb_cxxflags_fix@ $(NDB_CXXFLAGS_LOC) 

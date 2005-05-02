@@ -27,15 +27,14 @@
 
 #include "mysql_priv.h"
 #include "hash_filo.h"
-#ifdef HAVE_REPLICATION
-#include "sql_repl.h" //for tables_ok()
-#endif
 #include <m_ctype.h>
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+#define FIRST_NON_YN_FIELD 26
 
 class acl_entry :public hash_filo_element
 {
@@ -1507,7 +1506,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on)
+  if (thd->slave_thread && rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
@@ -1515,7 +1514,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     */
     tables.updating= 1;
     /* Thanks to bzero, tables.next==0 */
-    if (!tables_ok(0, &tables))
+    if (!rpl_filter->tables_ok(0, &tables))
       DBUG_RETURN(0);
   }
 #endif
@@ -2692,14 +2691,14 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on)
+  if (thd->slave_thread && rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
       account in tests.
     */
     tables[0].updating= tables[1].updating= tables[2].updating= 1;
-    if (!tables_ok(0, tables))
+    if (!rpl_filter->tables_ok(0, tables))
       DBUG_RETURN(FALSE);
   }
 #endif
@@ -2897,14 +2896,14 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on)
+  if (thd->slave_thread && rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
       account in tests.
     */
     tables[0].updating= tables[1].updating= 1;
-    if (!tables_ok(0, tables))
+    if (!rpl_filter->tables_ok(0, tables))
       DBUG_RETURN(FALSE);
   }
 #endif
@@ -3028,14 +3027,14 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on)
+  if (thd->slave_thread && rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
       account in tests.
     */
     tables[0].updating= tables[1].updating= 1;
-    if (!tables_ok(0, tables))
+    if (!rpl_filter->tables_ok(0, tables))
       DBUG_RETURN(FALSE);
   }
 #endif
@@ -4237,7 +4236,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on)
+  if (thd->slave_thread && rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
@@ -4245,7 +4244,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     */
     tables[0].updating=tables[1].updating=tables[2].updating=
       tables[3].updating=tables[4].updating=1;
-    if (!tables_ok(0, tables))
+    if (!rpl_filter->tables_ok(0, tables))
       DBUG_RETURN(1);
     tables[0].updating=tables[1].updating=tables[2].updating=
       tables[3].updating=tables[4].updating=0;;

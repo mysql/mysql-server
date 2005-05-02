@@ -62,7 +62,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc protocol_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
-	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
+	parse_file.cc rpl_filter.cc sql_view.cc sql_trigger.cc my_decimal.cc \
 	ha_blackhole.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources) $(sqlexamplessources)
@@ -73,9 +73,9 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/myisam/libmyisam.a \
-		$(top_builddir)/myisammrg/libmyisammrg.a \
-		$(top_builddir)/heap/libheap.a \
+		$(top_builddir)/storage/myisam/libmyisam.a \
+		$(top_builddir)/storage/myisammrg/libmyisammrg.a \
+		$(top_builddir)/storage/heap/libheap.a \
 		@innodb_libs@ @bdb_libs_with_path@ \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \

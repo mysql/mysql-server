@@ -40,8 +40,8 @@ libtoolize --automake --force
 automake --force --add-missing
 autoconf
 
-(cd bdb/dist && sh s_all)
-(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+(cd storage/bdb/dist && sh s_all)
+(cd storage/innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
 # C options:
 # -apo          - auto-parallize for multiprocessors (implies -mp)

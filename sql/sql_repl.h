@@ -31,7 +31,6 @@ typedef struct st_slave_info
 extern my_bool opt_show_slave_auth_info;
 extern char *master_host, *master_info_file;
 extern bool server_id_supplied;
-extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
 extern int max_binlog_dump_events;
 extern my_bool opt_sporadic_binlog_dump_fail;
