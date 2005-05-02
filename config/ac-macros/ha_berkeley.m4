@@ -187,7 +187,7 @@ AC_DEFUN([MYSQL_SEARCH_FOR_BDB], [
 dnl echo ["MYSQL_SEARCH_FOR_BDB"]
   bdb_dir_ok="no BerkeleyDB found"
 
-  for test_dir in $srcdir/bdb $srcdir/db-*.*.* /usr/local/BerkeleyDB*; do
+  for test_dir in $srcdir/storage/bdb $srcdir/db-*.*.* /usr/local/BerkeleyDB*; do
 dnl    echo "-----------> Looking at ($test_dir; `cd $test_dir && pwd`)"
     MYSQL_CHECK_BDB_DIR([$test_dir])
     if test X"$bdb_dir_ok" = Xsource || test X"$bdb_dir_ok" = Xinstalled; then

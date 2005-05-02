@@ -7267,12 +7267,38 @@ void Field_geom::sql_type(String &res) const
 }
 
 
+int Field_geom::store(double nr)
+{
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  return -1;
+}
+
+
+int Field_geom::store(longlong nr)
+{
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  return -1;
+}
+
+
+int Field_geom::store_decimal(const my_decimal *)
+{
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  return -1;
+}
+
+
 int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   if (!length)
     bzero(ptr, Field_blob::pack_length());
   else
   {
+    if (from == Geometry::bad_geometry_data.ptr())
+      goto err;
     // Check given WKB
     uint32 wkb_type;
     if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
@@ -7280,7 +7306,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     wkb_type= uint4korr(from + WKB_HEADER_SIZE);
     if (wkb_type < (uint32) Geometry::wkb_point ||
 	wkb_type > (uint32) Geometry::wkb_end)
-      return -1;
+      goto err;
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
@@ -7293,6 +7319,8 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
 
 err:
   bzero(ptr, Field_blob::pack_length());  
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
   return -1;
 }
 

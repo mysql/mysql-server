@@ -425,6 +425,8 @@ int	__void__;
 #endif
 
 #if defined(__EMX__) || !defined(HAVE_UINT)
+#undef HAVE_UINT
+#define HAVE_UINT
 typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif

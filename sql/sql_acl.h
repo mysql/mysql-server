@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "slave.h" // for tables_ok(), rpl_filter
+
 #define SELECT_ACL	(1L << 0)
 #define INSERT_ACL	(1L << 1)
 #define UPDATE_ACL	(1L << 2)
@@ -50,7 +52,6 @@
 */
 #define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
-
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
  GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | \

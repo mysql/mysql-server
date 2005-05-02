@@ -118,6 +118,7 @@ public:
   String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
+  virtual Item_result cast_to_int_type () const { return result_type(); }
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
   bool eq(Field *field)
@@ -1189,9 +1190,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
   int  store(const char *to, uint length, CHARSET_INFO *charset);
-  int  store(double nr) { return 1; }
-  int  store(longlong nr) { return 1; }
-  int  store_decimal(const my_decimal *) { return 1; }
+  int  store(double nr);
+  int  store(longlong nr);
+  int  store_decimal(const my_decimal *);
   void get_key_image(char *buff,uint length,imagetype type);
 };
 #endif /*HAVE_SPATIAL*/
@@ -1216,6 +1217,7 @@ public:
   }
   enum_field_types type() const { return FIELD_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Item_result cast_to_int_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);

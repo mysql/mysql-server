@@ -5,8 +5,9 @@ AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
+# The Docs Makefile.am parses this line!
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.0.6-beta)
+AM_INIT_AUTOMAKE(mysql, 5.1.0-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -16,9 +17,8 @@ SHARED_LIB_VERSION=14:0:0
 
 # ndb version
 NDB_VERSION_MAJOR=5
-NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=6
-NDB_VERSION_STATUS="beta"
+NDB_VERSION_MINOR=1
+NDB_VERSION_BUILD=0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -115,8 +115,6 @@ AC_SUBST(SAVE_CXXFLAGS)
 AC_SUBST(SAVE_LDFLAGS)
 AC_SUBST(SAVE_CXXLDFLAGS)
 AC_SUBST(CXXLDFLAGS)
-
-AC_PREREQ(2.58)dnl		Minimum Autoconf version required.
 
 #AC_ARG_PROGRAM			# Automaticly invoked by AM_INIT_AUTOMAKE
 
@@ -1800,6 +1798,9 @@ If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again]);
 fi
 fi
+AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
+AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
+
 MYSQL_PTHREAD_YIELD
 
 ######################################################################
@@ -2484,7 +2485,7 @@ then
     if test X"$have_berkeley_db" != Xyes; then
       # we must build berkeley db from source
       sql_server_dirs="$sql_server_dirs $have_berkeley_db"
-      AC_CONFIG_FILES(bdb/Makefile)
+      AC_CONFIG_FILES(storage/bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
       bdb_conf_flags="--disable-shared"
@@ -2510,8 +2511,10 @@ then
       rel_srcdir=
       case "$srcdir" in
 	/* ) rel_srcdir="$srcdir" ;;
-	* )  rel_srcdir="../../$srcdir" ;;
+	* )  rel_srcdir="../../../$srcdir" ;;
       esac
+      echo $bdb/build_unix
+      echo $rel_srcdir/$bdb/dist/configure
       (cd $bdb/build_unix && \
        sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
         AC_MSG_ERROR([could not configure Berkeley DB])
@@ -2524,12 +2527,12 @@ dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
   else
     if test -d bdb; then :
     else
-      mkdir bdb && mkdir bdb/build_unix
+      mkdir storage/bdb && mkdir storage/bdb/build_unix
     fi
 
-    if test -r bdb/build_unix/db.h; then :
+    if test -r storage/bdb/build_unix/db.h; then :
     else
-      cat <<EOF > bdb/build_unix/db.h
+      cat <<EOF > storage/bdb/build_unix/db.h
 
 This file is a placeholder to fool make.  The way that automake
 and GNU make work together causes some files to depend on this
@@ -2552,8 +2555,8 @@ EOF
   if test X"$have_innodb" = Xyes
   then
     innodb_conf_flags=""
-    sql_server_dirs="$sql_server_dirs innobase"
-    AC_CONFIG_SUBDIRS(innobase)
+    sql_server_dirs="$sql_server_dirs storage/innobase"
+    AC_CONFIG_SUBDIRS(storage/innobase)
   fi
 
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
@@ -2575,12 +2578,12 @@ esac
       echo
       exit 1
     fi
-    sql_server_dirs="$sql_server_dirs ndb"
+    sql_server_dirs="$sql_server_dirs storage/ndb"
   fi
   #
   # END of configuration for optional table handlers
   #
-  sql_server_dirs="$sql_server_dirs myisam myisammrg heap vio sql"
+  sql_server_dirs="$sql_server_dirs storage/myisam storage/myisammrg storage/heap vio sql"
 
 fi
 
@@ -2713,51 +2716,53 @@ AC_SUBST([NDB_SIZEOF_INT])
 AC_SUBST([NDB_SIZEOF_LONG])
 AC_SUBST([NDB_SIZEOF_LONG_LONG])
 
-AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
-   ndb/src/Makefile ndb/src/common/Makefile dnl
-   ndb/docs/Makefile dnl
-   ndb/tools/Makefile dnl
-   ndb/src/common/debugger/Makefile dnl
-   ndb/src/common/debugger/signaldata/Makefile dnl
-   ndb/src/common/portlib/Makefile dnl
-   ndb/src/common/util/Makefile dnl
-   ndb/src/common/logger/Makefile dnl
-   ndb/src/common/transporter/Makefile dnl
-   ndb/src/common/mgmcommon/Makefile dnl
-   ndb/src/kernel/Makefile dnl
-   ndb/src/kernel/error/Makefile dnl
-   ndb/src/kernel/blocks/Makefile dnl
-   ndb/src/kernel/blocks/cmvmi/Makefile dnl
-   ndb/src/kernel/blocks/dbacc/Makefile dnl
-   ndb/src/kernel/blocks/dbdict/Makefile dnl
-   ndb/src/kernel/blocks/dbdih/Makefile dnl
-   ndb/src/kernel/blocks/dblqh/Makefile dnl
-   ndb/src/kernel/blocks/dbtc/Makefile dnl
-   ndb/src/kernel/blocks/dbtup/Makefile dnl
-   ndb/src/kernel/blocks/ndbfs/Makefile dnl
-   ndb/src/kernel/blocks/ndbcntr/Makefile dnl
-   ndb/src/kernel/blocks/qmgr/Makefile dnl
-   ndb/src/kernel/blocks/trix/Makefile dnl
-   ndb/src/kernel/blocks/backup/Makefile dnl
-   ndb/src/kernel/blocks/dbutil/Makefile dnl
-   ndb/src/kernel/blocks/suma/Makefile dnl
-   ndb/src/kernel/blocks/grep/Makefile dnl
-   ndb/src/kernel/blocks/dbtux/Makefile dnl
-   ndb/src/kernel/vm/Makefile dnl
-   ndb/src/mgmapi/Makefile dnl
-   ndb/src/ndbapi/Makefile dnl
-   ndb/src/mgmsrv/Makefile dnl
-   ndb/src/mgmclient/Makefile dnl
-   ndb/src/cw/Makefile dnl
-   ndb/src/cw/cpcd/Makefile dnl
-   ndb/test/Makefile dnl
-   ndb/test/src/Makefile dnl
-   ndb/test/ndbapi/Makefile dnl
-   ndb/test/ndbapi/bank/Makefile dnl
-   ndb/test/tools/Makefile dnl
-   ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
-   ndb/include/ndb_version.h ndb/include/ndb_global.h dnl
-   ndb/include/ndb_types.h dnl
+AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
+   storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
+   storage/ndb/docs/Makefile dnl
+   storage/ndb/tools/Makefile dnl
+   storage/ndb/src/common/debugger/Makefile dnl
+   storage/ndb/src/common/debugger/signaldata/Makefile dnl
+   storage/ndb/src/common/portlib/Makefile dnl
+   storage/ndb/src/common/util/Makefile dnl
+   storage/ndb/src/common/logger/Makefile dnl
+   storage/ndb/src/common/transporter/Makefile dnl
+   storage/ndb/src/common/mgmcommon/Makefile dnl
+   storage/ndb/src/kernel/Makefile dnl
+   storage/ndb/src/kernel/error/Makefile dnl
+   storage/ndb/src/kernel/blocks/Makefile dnl
+   storage/ndb/src/kernel/blocks/cmvmi/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbacc/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbdict/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbdih/Makefile dnl
+   storage/ndb/src/kernel/blocks/dblqh/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtc/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtup/Makefile dnl
+   storage/ndb/src/kernel/blocks/ndbfs/Makefile dnl
+   storage/ndb/src/kernel/blocks/ndbcntr/Makefile dnl
+   storage/ndb/src/kernel/blocks/qmgr/Makefile dnl
+   storage/ndb/src/kernel/blocks/trix/Makefile dnl
+   storage/ndb/src/kernel/blocks/backup/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbutil/Makefile dnl
+   storage/ndb/src/kernel/blocks/suma/Makefile dnl
+   storage/ndb/src/kernel/blocks/grep/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtux/Makefile dnl
+   storage/ndb/src/kernel/vm/Makefile dnl
+   storage/ndb/src/mgmapi/Makefile dnl
+   storage/ndb/src/ndbapi/Makefile dnl
+   storage/ndb/src/mgmsrv/Makefile dnl
+   storage/ndb/src/mgmclient/Makefile dnl
+   storage/ndb/src/cw/Makefile dnl
+   storage/ndb/src/cw/cpcd/Makefile dnl
+   storage/ndb/test/Makefile dnl
+   storage/ndb/test/src/Makefile dnl
+   storage/ndb/test/ndbapi/Makefile dnl
+   storage/ndb/test/ndbapi/bank/Makefile dnl
+   storage/ndb/test/tools/Makefile dnl
+   storage/ndb/test/run-test/Makefile dnl
+   storage/ndb/include/ndb_version.h dnl
+   storage/ndb/include/ndb_global.h dnl
+   storage/ndb/include/ndb_types.h dnl
+   mysql-test/ndb/Makefile dnl
    )
 fi
 
@@ -2765,8 +2770,8 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
- strings/Makefile regex/Makefile heap/Makefile dnl
- myisam/Makefile myisammrg/Makefile dnl
+ strings/Makefile regex/Makefile storage/Makefile storage/heap/Makefile dnl
+ storage/myisam/Makefile storage/myisammrg/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl

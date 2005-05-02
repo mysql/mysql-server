@@ -1,5 +1,5 @@
 -- This script converts any old privilege tables to privilege tables suitable
--- for MySQL 4.0.
+-- for this version of MySQL
 
 -- You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
 -- because these just mean that your tables are already up to date.
@@ -119,7 +119,6 @@ UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv
 
 --  Add fields that can be used to limit number of questions and connections
 --  for some users.
-
 ALTER TABLE user
 ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
 ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
@@ -134,8 +133,8 @@ ALTER TABLE db
 ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 ALTER TABLE host
-ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 
 alter table user change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
 alter table tables_priv add KEY Grantor (Grantor);

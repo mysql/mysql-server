@@ -1126,7 +1126,6 @@ extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
 extern String null_string;
 extern HASH open_cache;
 extern TABLE *unused_tables;
-extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 extern const char* any_db;
 extern struct my_option my_long_options[];
 
@@ -1151,7 +1150,8 @@ extern pthread_t signal_thread;
 extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **table,uint count);
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
+                              bool ignore_global_read_lock= FALSE);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
@@ -1165,6 +1165,8 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
                               bool is_not_commit);
 void start_waiting_global_read_lock(THD *thd);
 bool make_global_read_lock_block_commit(THD *thd);
+bool set_protect_against_global_read_lock(void);
+void unset_protect_against_global_read_lock(void);
 
 /* Lock based on name */
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);

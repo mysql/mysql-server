@@ -343,3 +343,31 @@ execute stmt using @a;
 select * from t1;
 deallocate prepare stmt;
 drop table t1;
+
+#
+# A test case for Bug#5673 "Rounding problem in 4.0.21 inserting decimal
+# value into a char field": this is a regression bug in 4.0 tree caused by
+# a fix for some other decimal conversion issue. The patch never was
+# approved to get into 4.0 (maybe because it was considered too intrusive)
+#
+
+create table t1 (
+  strippedproductid char(15) not null default '',
+  zlevelprice decimal(10,2) default null,
+  primary key (strippedproductid)
+);
+
+create table t2 (
+  productid char(15) not null default '',
+  zlevelprice char(21) default null,
+  primary key (productid)
+);
+
+insert into t1 values ('002trans','49.99');
+insert into t1 values ('003trans','39.98');
+insert into t1 values ('004trans','31.18');
+
+insert INTO t2 SELECT * FROM t1;
+
+select * from t2; 
+drop table t1, t2;
