@@ -22,6 +22,8 @@
 
 /***************************** Gis_class_info *******************************/
 
+String Geometry::bad_geometry_data("Bad object", &my_charset_bin);
+
 Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_end+1]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL

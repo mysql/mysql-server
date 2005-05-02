@@ -25,7 +25,7 @@
 #include "ha_blackhole.h"
 
 
-static const char *ha_black_hole_exts[] = {
+static const char *ha_blackhole_exts[] = {
   NullS
 };
 
