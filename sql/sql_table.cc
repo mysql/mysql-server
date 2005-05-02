@@ -2550,6 +2550,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 	    reg_ext, NullS);
     /* Resolve symlinks (for windows) */
     fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, src_path);
     if (access(src_path, F_OK))
     {
       my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
