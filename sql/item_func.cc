@@ -2422,12 +2422,12 @@ longlong Item_func_find_in_set::val_int()
         }
         str_end= substr_end;
       }
-      else if (str_end - str_begin == 0 && 
-               find_str_len == 0 && 
+      else if (str_end - str_begin == 0 &&
+               find_str_len == 0 &&
                wc == (my_wc_t) separator)
         return (longlong) ++position;
       else
-        return (longlong) 0;
+        return LL(0);
     }
   }
   return 0;

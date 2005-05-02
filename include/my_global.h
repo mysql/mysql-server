@@ -230,17 +230,6 @@ C_MODE_END
 #define __LONG_MAX__ 2147483647
 #endif
 
-/* Fix problem when linking c++ programs with gcc 3.x */
-#ifdef DEFINE_CXA_PURE_VIRTUAL
-#define FIX_GCC_LINKING_PROBLEM \
-C_MODE_START int __cxa_pure_virtual() {\
-  DBUG_ASSERT("Pure virtual method called." == "Aborted");\
-  return 0;\
-} C_MODE_END
-#else
-#define FIX_GCC_LINKING_PROBLEM
-#endif
-
 /* egcs 1.1.2 has a problem with memcpy on Alpha */
 #if defined(__GNUC__) && defined(__alpha__) && ! (__GNUC__ > 2 || (__GNUC__ == 2 &&  __GNUC_MINOR__ >= 95))
 #define BAD_MEMCPY
