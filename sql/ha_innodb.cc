@@ -98,8 +98,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_buffer_pool_awe_mem_mb,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
-     innobase_thread_concurrency, innobase_force_recovery,
-     innobase_open_files;
+     innobase_force_recovery, innobase_open_files;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -279,7 +278,7 @@ innodb_srv_conc_enter_innodb(
 /*=========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (srv_thread_concurrency >= 500) {
+	if (UNIV_LIKELY(srv_thread_concurrency >= 20)) {
 
 		return;
 	}
@@ -296,7 +295,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (srv_thread_concurrency >= 500) {
+	if (UNIV_LIKELY(srv_thread_concurrency >= 20)) {
 
 		return;
 	}
