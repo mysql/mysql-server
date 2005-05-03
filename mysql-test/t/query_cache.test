@@ -685,4 +685,49 @@ repair table t1;
 show status like 'qcache_queries_in_cache';
 drop table t1;
 
+# Bug #9549: Make sure cached queries that span more than one cache block
+# are handled properly in the embedded server.
+
+# We just want a small query cache, so we can fragment it easily
+set GLOBAL query_cache_size=64*1024;
+# This actually gives us a usable cache size of about 48K
+
+# Each table is about 14K
+create table t1 (a text);
+insert into t1 values (repeat('abcdefghijklmnopqrstuvwxyz', 550));
+create table t2 (a text);
+insert into t2 values (repeat('ijklmnopqrstuvwxyzabcdefgh', 550));
+
+# Load a query from each table into the query cache
+--disable_result_log
+select a from t1; # Q1
+select a from t2; # Q2
+--enable_result_log
+show status like 'Qcache_%_blocks';
+
+# Now the cache looks like (14K for Q1)(14K for Q2)(20K free)
+
+# Flush Q1 from the cache by adding an out-of-order chunk to t1
+insert into t1 select reverse(a) from t1;
+show status like 'Qcache_%_blocks';
+
+# Now the cache looks like (14K free)(14K for Q2)(20K free)
+
+# Load our new data into the query cache
+--disable_result_log
+select a from t1;  # Q3
+--enable_result_log
+show status like 'Qcache_%_blocks';
+
+# Now the cache should be like (14K for Q3)(14K for Q2)(14K for Q3)(6K free)
+
+# Note that Q3 is split across two chunks!
+
+# Load Q3 from the cache, and actually pay attention to the results
+select a from t1;
+
+flush query cache;
+
+drop table t1, t2;
+
 set GLOBAL query_cache_size=0;
