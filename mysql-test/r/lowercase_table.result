@@ -78,5 +78,8 @@ ERROR 42000: Not unique table/alias: 'C'
 select C.a, c.a from t1 c, t2 C;
 ERROR 42000: Not unique table/alias: 'C'
 drop table t1, t2;
+create table t1 (a int);
+create table t2 like T1;
+drop table t1, t2;
 show tables;
 Tables_in_test
