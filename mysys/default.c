@@ -144,7 +144,7 @@ int load_defaults(const char *conf_file, const char **groups,
                   int *argc, char ***argv)
 {
   DYNAMIC_ARRAY args;
-  const char **dirs, *forced_default_file;
+  const char **dirs, *forced_default_file, *forced_extra_defaults;
   TYPELIB group;
   my_bool found_print_defaults=0;
   uint args_used=0;
@@ -174,13 +174,14 @@ int load_defaults(const char *conf_file, const char **groups,
   }
 
   get_defaults_files(*argc, *argv,
-                      (char **)&forced_default_file, &defaults_extra_file);
+                      (char **)&forced_default_file,
+                      (char **)&forced_extra_defaults);
   if (forced_default_file)
     forced_default_file= strchr(forced_default_file,'=')+1;
-  if (defaults_extra_file)
-    defaults_extra_file= strchr(defaults_extra_file,'=')+1;
+  if (forced_extra_defaults)
+    defaults_extra_file= strchr(forced_extra_defaults,'=')+1;
 
-  args_used+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
+  args_used+= (forced_default_file ? 1 : 0) + (forced_extra_defaults ? 1 : 0);
 
   group.count=0;
   group.name= "defaults";

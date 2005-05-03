@@ -30,6 +30,7 @@
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
+#define MAX_SERVER_ARGS 64
 
 /* set default options */
 static int   opt_testcase = 0;
@@ -47,6 +48,18 @@ static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int iter_count= 0;
+
+static const char *opt_basedir= "./";
+
+static int embedded_server_arg_count= 0;
+static char *embedded_server_args[MAX_SERVER_ARGS];
+
+static const char *embedded_server_groups[]= {
+  "server",
+  "embedded",
+  "mysql_client_test_SERVER",
+  NullS
+};
 
 static time_t start_time, end_time;
 static double total_time;
@@ -93,6 +106,8 @@ static void client_disconnect();
 
 #define DIE_UNLESS(expr) \
         ((void) ((expr) ? 0 : (die(__FILE__, __LINE__, #expr), 0)))
+#define DIE(expr) \
+        die(__FILE__, __LINE__, #expr)
 
 void die(const char *file, int line, const char *expr)
 {
@@ -11617,7 +11632,7 @@ static void test_bug7990()
 
 static void test_bug8378()
 {
-#ifdef HAVE_CHARSET_gbk
+#if defined(HAVE_CHARSET_gbk) && !defined(EMBEDDED_LIBRARY)
   MYSQL *lmysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
   int len;
@@ -11664,6 +11679,8 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
+  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
+   (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 't', "Number of times test to be executed", (char **) &opt_count,
    (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use", (char **) &opt_db, (char **) &opt_db,
@@ -11679,6 +11696,8 @@ static struct my_option client_test_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection", (char **) &opt_port,
    (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-arg", 'A', "Send embedded server this as a parameter.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
@@ -11899,6 +11918,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       opt_silent++;
     break;
+  case 'A':
+    /*
+      When the embedded server is being tested, the test suite needs to be
+      able to pass command-line arguments to the embedded server so it can
+      locate the language files and data directory. The test suite
+      (mysql-test-run) never uses config files, just command-line options.
+    */
+    if (!embedded_server_arg_count)
+    {
+      embedded_server_arg_count= 1;
+      embedded_server_args[0]= (char*) "";
+    }
+    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
+        !(embedded_server_args[embedded_server_arg_count++]=
+          my_strdup(argument, MYF(MY_FAE))))
+    {
+      DIE("Can't use server argument");
+    }
+    break;
   case 'T':
     {
       struct my_tests_st *fptr;
@@ -11962,10 +12000,15 @@ int main(int argc, char **argv)
 
   DEBUGGER_OFF;
   MY_INIT(argv[0]);
-  
+
   load_defaults("my", client_test_load_default_groups, &argc, &argv);
   defaults_argv= argv;
   get_options(&argc, &argv);
+
+  if (mysql_server_init(embedded_server_arg_count,
+                        embedded_server_args,
+                        (char**) embedded_server_groups))
+    DIE("Can't initialize MySQL server");
 
   client_connect();       /* connect to server */
 
@@ -12019,6 +12062,12 @@ int main(int argc, char **argv)
   client_disconnect();    /* disconnect from server */
   free_defaults(defaults_argv);
   print_test_output();
+
+  while (embedded_server_arg_count > 1)
+    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
+
+  mysql_server_end();
+
   my_end(0);
 
   exit(0);
