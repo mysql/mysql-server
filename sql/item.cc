@@ -200,6 +200,11 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
 
 bool Item::eq(const Item *item, bool binary_cmp) const
 {
+  /*
+    Note, that this is never TRUE if item is a Item_param:
+    for all basic constants we have special checks, and Item_param's
+    type() can be only among basic constant types.
+  */
   return type() == item->type() && name && item->name &&
     !my_strcasecmp(system_charset_info,name,item->name);
 }
@@ -254,7 +259,7 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
 
 bool Item_string::eq(const Item *item, bool binary_cmp) const
 {
-  if (type() == item->type())
+  if (type() == item->type() && item->basic_const_item())
   {
     if (binary_cmp)
       return !stringcmp(&str_value, &item->str_value);
@@ -1356,6 +1361,70 @@ bool Item_param::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+
+bool Item_param::basic_const_item() const
+{
+  if (state == NO_VALUE || state == TIME_VALUE)
+    return FALSE;
+  return TRUE;
+}
+
+Item *
+Item_param::new_item()
+{
+  /* see comments in the header file */
+  switch (state) {
+  case NULL_VALUE:
+    return new Item_null(name);
+  case INT_VALUE:
+    return new Item_int(name, value.integer, max_length);
+  case REAL_VALUE:
+    return new Item_real(name, value.real, decimals, max_length);
+  case STRING_VALUE:
+  case LONG_DATA_VALUE:
+    return new Item_string(name, str_value.c_ptr_quick(), str_value.length(),
+                           str_value.charset());
+  case TIME_VALUE:
+    break;
+  case NO_VALUE:
+  default:
+    DBUG_ASSERT(0);
+  };
+  return 0;
+}
+
+
+bool
+Item_param::eq(const Item *arg, bool binary_cmp) const
+{
+  Item *item;
+  if (!basic_const_item() || !arg->basic_const_item() || arg->type() != type())
+    return FALSE;
+  /*
+    We need to cast off const to call val_int(). This should be OK for
+    a basic constant.
+  */
+  item= (Item*) arg;
+
+  switch (state) {
+  case NULL_VALUE:
+    return TRUE;
+  case INT_VALUE:
+    return value.integer == item->val_int() &&
+           unsigned_flag == item->unsigned_flag;
+  case REAL_VALUE:
+    return value.real == item->val();
+  case STRING_VALUE:
+  case LONG_DATA_VALUE:
+    if (binary_cmp)
+      return !stringcmp(&str_value, &item->str_value);
+    return !sortcmp(&str_value, &item->str_value, collation.collation);
+  default:
+    break;
+  }
+  return FALSE;
+}
+
 /* End of Item_param related */
 
 
@@ -1937,6 +2006,23 @@ int Item_int::save_in_field(Field *field, bool no_conversions)
   return field->store(nr);
 }
 
+
+bool Item_int::eq(const Item *arg, bool binary_cmp) const
+{
+  /* No need to check for null value as basic constant can't be NULL */
+  if (arg->basic_const_item() && arg->type() == type())
+  {
+    /*
+      We need to cast off const to call val_int(). This should be OK for
+      a basic constant.
+    */
+    Item *item= (Item*) arg;
+    return item->val_int() == value && item->unsigned_flag == unsigned_flag;
+  }
+  return FALSE;
+}
+
+
 Item_num *Item_uint::neg()
 {
   return new Item_real(name, - ((double) value), 0, max_length);
@@ -1949,6 +2035,21 @@ int Item_real::save_in_field(Field *field, bool no_conversions)
     return set_field_to_null(field);
   field->set_notnull();
   return field->store(nr);
+}
+
+
+bool Item_real::eq(const Item *arg, bool binary_cmp) const
+{
+  if (arg->basic_const_item() && arg->type() == type())
+  {
+    /*
+      We need to cast off const to call val_int(). This should be OK for
+      a basic constant.
+    */
+    Item *item= (Item*) arg;
+    return item->val() == value;
+  }
+  return FALSE;
 }
 
 /****************************************************************************
@@ -2016,6 +2117,17 @@ int Item_varbinary::save_in_field(Field *field, bool no_conversions)
   return error;
 }
 
+
+bool Item_varbinary::eq(const Item *arg, bool binary_cmp) const
+{
+  if (arg->basic_const_item() && arg->type() == type())
+  {
+    if (binary_cmp)
+      return !stringcmp(&str_value, &arg->str_value);
+    return !sortcmp(&str_value, &arg->str_value, collation.collation);
+  }
+  return FALSE;
+}
 
 /*
   Pack data in buffer for sending
