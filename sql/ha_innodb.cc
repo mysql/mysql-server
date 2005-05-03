@@ -1904,6 +1904,8 @@ innobase_repl_report_sent_binlog(
 
                 pthread_cond_broadcast(&innobase_repl_cond);
         }
+
+	return(0);
 }
 #endif /* HAVE_REPLICATION */
 
