@@ -790,10 +790,12 @@ void Item_func_neg::fix_length_and_dec()
     maximum number of bytes real or integer may require. Note that all 
     constants are non negative so we don't need to account for removed '-'.
     B) argument returns a string.
+    Use val() to get value as arg_type doesn't mean that item is
+    Item_int or Item_real due to existence of Item_param.
   */
   if (arg_result == STRING_RESULT || 
-      (arg_type == REAL_ITEM && ((Item_real*)args[0])->value >= 0) ||
-      (arg_type == INT_ITEM && ((Item_int*)args[0])->value > 0))
+      (arg_type == REAL_ITEM && args[0]->val() >= 0) ||
+      (arg_type == INT_ITEM && args[0]->val_int() > 0))
     max_length++;
 
   if (args[0]->result_type() == INT_RESULT)
@@ -809,8 +811,7 @@ void Item_func_neg::fix_length_and_dec()
       signed integers)
     */
     if (args[0]->type() != INT_ITEM ||
-	((ulonglong) ((Item_uint*) args[0])->value <=
-	 (ulonglong) LONGLONG_MIN))
+	(((ulonglong) args[0]->val_int()) <= (ulonglong) LONGLONG_MIN))
       hybrid_type= INT_RESULT;
   }
 }
