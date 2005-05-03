@@ -281,7 +281,8 @@ protected:
   friend class TRP_ROR_INTERSECT;
   friend
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                               struct st_table_ref *ref);
+                                               struct st_table_ref *ref,
+                                               ha_rows records);
   friend bool get_quick_keys(struct st_qsel_param *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
                              SEL_ARG *key_tree,
@@ -709,5 +710,6 @@ public:
 };
 
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             struct st_table_ref *ref);
+                                             struct st_table_ref *ref,
+                                             ha_rows records);
 #endif
