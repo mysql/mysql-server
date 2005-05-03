@@ -434,7 +434,7 @@ public:
   virtual table_map not_null_tables() const { return used_tables(); }
   /*
     Returns true if this is a simple constant item like an integer, not
-    a constant expression
+    a constant expression. Used in the optimizer to propagate basic constants.
   */
   virtual bool basic_const_item() const { return 0; }
   /* cloning of constant items (0 if it is not const) */
@@ -914,7 +914,6 @@ public:
 
   bool convert_str_value(THD *thd);
 
-  Item *new_item() { return new Item_param(pos_in_query); }
   /*
     If value for parameter was not set we treat it as non-const
     so noone will use parameters value in fix_fields still
@@ -923,11 +922,28 @@ public:
   virtual table_map used_tables() const
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
   void print(String *str);
-  /* parameter never equal to other parameter of other item */
-  bool eq(const Item *item, bool binary_cmp) const { return 0; }
   bool is_null()
   { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
+  bool basic_const_item() const;
+  /*
+    This method is used to make a copy of a basic constant item when
+    propagating constants in the optimizer. The reason to create a new
+    item and not use the existing one is not precisely known (2005/04/16).
+    Probably we are trying to preserve tree structure of items, in other
+    words, avoid pointing at one item from two different nodes of the tree.
+    Return a new basic constant item if parameter value is a basic
+    constant, assert otherwise. This method is called only if
+    basic_const_item returned TRUE.
+  */
+  Item *new_item();
+  /*
+    Implement by-value equality evaluation if parameter value
+    is set and is a basic constant (integer, real or string).
+    Otherwise return FALSE.
+  */
+  bool eq(const Item *item, bool binary_cmp) const;
 };
+
 
 class Item_int :public Item_num
 {
@@ -956,6 +972,7 @@ public:
   void cleanup() {}
   void print(String *str);
   Item_num *neg() { value= -value; return this; }
+  bool eq(const Item *, bool binary_cmp) const;
 };
 
 
@@ -1059,6 +1076,7 @@ public:
   { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
   void print(String *str);
+  bool eq(const Item *, bool binary_cmp) const;
 };
 
 
@@ -1198,6 +1216,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 
