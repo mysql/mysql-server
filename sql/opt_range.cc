@@ -5513,14 +5513,26 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 }
 
 
-/****************************************************************************
-  Create a QUICK RANGE based on a key
-  This allocates things in a new memory root, as this may be called many times
-  during a query.
-****************************************************************************/
+/*
+  Create quick select from ref/ref_or_null scan.
+  SYNOPSIS
+    get_quick_select_for_ref()
+      thd      Thread handle
+      table    Table to access
+      ref      ref[_or_null] scan parameters
+      records  Estimate of number of records (needed only to construct 
+               quick select)
+  NOTES
+    This allocates things in a new memory root, as this may be called many
+    times during a query.
+  
+  RETURN 
+    Quick select that retrieves the same rows as passed ref scan
+    NULL on error.
+*/
 
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             TABLE_REF *ref)
+                                             TABLE_REF *ref, ha_rows records)
 {
   MEM_ROOT *old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
@@ -5537,6 +5549,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     delete quick;
     goto err;
   }
+  quick->records= records;
 
   if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
       !(range= new QUICK_RANGE()))
