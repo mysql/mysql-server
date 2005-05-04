@@ -27,12 +27,20 @@
 
 const char *config_file="my";			/* Default config file */
 uint verbose= 0, opt_defaults_file_used= 0;
+const char *default_dbug_option="d:t:o,/tmp/my_print_defaults.trace";
 
 static struct my_option my_long_options[] =
 {
   {"config-file", 'c', "The config file to be used.",
    (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit",
+   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
+  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
+   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"defaults-file", 'c', "Synonym for --config-file.",
    (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -68,6 +76,7 @@ static void usage(my_bool version)
   puts("Prints all arguments that is give to some program using the default files");
   printf("Usage: %s [OPTIONS] groups\n", my_progname);
   my_print_help(my_long_options);
+  my_print_default_files(config_file);
   my_print_variables(my_long_options);
   printf("\nExample usage:\n%s --config-file=my client mysql\n", my_progname);
 }
@@ -95,6 +104,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     case 'V':
     usage(1);
     exit(0);
+    case '#':
+      DBUG_PUSH(argument ? argument : default_dbug_option);
+      break;
   }
   return 0;
 }
@@ -118,7 +130,7 @@ static int get_options(int *argc,char ***argv)
 int main(int argc, char **argv)
 {
   int count, error;
-  char **load_default_groups, *tmp_arguments[2],
+  char **load_default_groups, *tmp_arguments[3],
        **argument, **arguments;
   char *defaults, *extra_defaults;
   MY_INIT(argv[0]);
