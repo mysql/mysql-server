@@ -1216,7 +1216,7 @@ innobase_commit(
 			&innodb_dummy_stmt_trx_handle: the latter means
 			that the current SQL statement ended */
 {
-	trx_t*	trx;
+	trx_t*		trx;
 
   	DBUG_ENTER("innobase_commit");
   	DBUG_PRINT("trans", ("ending transaction"));
@@ -3939,6 +3939,20 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
+	if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
+	   (create_info->auto_increment_value != 0)) {
+
+		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or 
+		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
+		definition from the dictionary and get the current value
+		of the auto increment field. Set a new value to the
+		auto increment field if the value is greater than the
+		maximum value in the column. */
+
+		auto_inc_value = create_info->auto_increment_value;
+		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
+	}
+
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
@@ -5346,8 +5360,9 @@ ha_innobase::store_lock(
 			/* In case we have innobase_locks_unsafe_for_binlog
 			option set and isolation level of the transaction
 			is not set to serializable and MySQL is doing
-			INSERT INTO...SELECT without FOR UPDATE or IN
-			SHARE MODE we use consistent read for select. */
+			INSERT INTO...SELECT or UPDATE ... = (SELECT ...)
+			without FOR UPDATE or IN SHARE MODE in select, then
+			we use consistent read for select. */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
