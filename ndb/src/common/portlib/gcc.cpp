@@ -2,6 +2,6 @@
 /**
  * GCC linking problem...
  */
-#ifdef DEFINE_CXA_PURE_VIRTUAL
+#if 0
 extern "C" { int __cxa_pure_virtual() { return 0;} }
 #endif
