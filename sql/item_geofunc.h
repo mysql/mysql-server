@@ -19,7 +19,7 @@
 
 #ifdef HAVE_SPATIAL
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 

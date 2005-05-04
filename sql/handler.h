@@ -17,7 +17,7 @@
 
 /* Definitions for parameters to do with handler-routines */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
