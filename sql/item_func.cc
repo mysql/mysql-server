@@ -1395,11 +1395,12 @@ void Item_func_neg::fix_length_and_dec()
   /*
     If this is in integer context keep the context as integer if possible
     (This is how multiplication and other integer functions works)
+    Use val() to get value as arg_type doesn't mean that item is
+    Item_int or Item_real due to existence of Item_param.
   */
   if (hybrid_type == INT_RESULT &&
       args[0]->type() == INT_ITEM &&
-      ((ulonglong) ((Item_uint*) args[0])->value >=
-       (ulonglong) LONGLONG_MIN))
+      ((ulonglong) args[0]->val_int() >= (ulonglong) LONGLONG_MIN))
   {
     /*
       Ensure that result is converted to DECIMAL, as longlong can't hold
