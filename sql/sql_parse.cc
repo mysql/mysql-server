@@ -506,7 +506,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
       uc->user_resources.conn_per_hour <= uc->conn_per_hour)
   {
     net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user,
-                     "max_connections",
+                     "max_connections_per_hour",
                      (long) uc->user_resources.conn_per_hour);
     error=1;
     goto end;

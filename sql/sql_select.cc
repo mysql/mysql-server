@@ -7344,6 +7344,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
         if (conds)
         {
           conds= and_conds(conds, table->on_expr);
+          conds->top_level_item();
           /* conds is always a new item as both cond and on_expr existed */
           DBUG_ASSERT(!conds->fixed);
           conds->fix_fields(join->thd, 0, &conds);
@@ -11001,7 +11002,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
       */
       if (!(select->quick= (tab->type == JT_FT ?
 			    new FT_SELECT(thd, table, tab->ref.key) :
-			    get_quick_select_for_ref(thd, table, &tab->ref))))
+			    get_quick_select_for_ref(thd, table, &tab->ref, 
+                                                     tab->found_records))))
 	goto err;
     }
   }

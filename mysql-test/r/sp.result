@@ -3041,4 +3041,20 @@ Warning	1265	Data truncated for column 'id' at row 2
 delete from t1|
 drop procedure bug9004_1|
 drop procedure bug9004_2|
+drop procedure if exists bug7293|
+insert into t1 values ('secret', 0)|
+create procedure bug7293(p1 varchar(100))
+begin
+if exists (select id from t1 where soundex(p1)=soundex(id)) then
+select 'yes';
+end if;
+end;|
+call bug7293('secret')|
+yes
+yes
+call bug7293 ('secrete')|
+yes
+yes
+drop procedure bug7293|
+delete from t1|
 drop table t1,t2;
