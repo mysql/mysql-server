@@ -116,8 +116,12 @@ BaseString NDBT_ResultRow::c_str() {
 
 NdbOut & 
 operator << (NdbOut& ndbout, const NDBT_ResultRow & res) {
-  for(int i = 0; i<res.cols; i++)
-    ndbout << *(res.data[i]) << "\t";
+  if (res.cols != 0)
+  {
+    ndbout << *(res.data[0]);
+    for(int i = 1; i<res.cols; i++)
+      ndbout << res.ad << *(res.data[i]);
+  }
   return ndbout;
 }
 
