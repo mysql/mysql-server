@@ -121,7 +121,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (forced_extra_defaults)
     defaults_extra_file= strchr(forced_extra_defaults,'=')+1;
 
-  args_used+= (forced_default_file ? 1 : 0) + (forced_extra_defaults ? 1 : 0);
+  (*args_used)+= (forced_default_file ? 1 : 0) +
+                 (forced_extra_defaults ? 1 : 0);
 
   if (forced_default_file)
   {
