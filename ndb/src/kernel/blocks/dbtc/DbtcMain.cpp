@@ -11161,16 +11161,21 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     jam();
     // This is a newly started transaction, clean-up
     releaseAllSeizedIndexOperations(regApiPtr);
+
+    regApiPtr->transid[0] = tcIndxReq->transId1;
+    regApiPtr->transid[1] = tcIndxReq->transId2;
   }//if
-  if (!seizeIndexOperation(regApiPtr, indexOpPtr)) {
+  ndbout_c("here");
+
+  if (ERROR_INSERTED(8036) || !seizeIndexOperation(regApiPtr, indexOpPtr)) {
     jam();
     // Failed to allocate index operation
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
-
+    
     tcIndxRef->connectPtr = tcIndxReq->senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4000;
+    tcIndxRef->errorCode = 288;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcIndxRef::SignalLength, JBB);
     return;
@@ -11307,15 +11312,17 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
   TcIndexOperationPtr indexOpPtr;
   TcIndexOperation* indexOp;
 
-  indexOpPtr.i = regApiPtr->accumulatingIndexOp;
-  indexOp = c_theIndexOperations.getPtr(indexOpPtr.i);
-  if (saveINDXKEYINFO(signal,
-                      indexOp, 
-                      src, 
-                      keyInfoLength)) {
-    jam();
-    // We have received all we need
-    readIndexTable(signal, regApiPtr, indexOp);
+  if((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
+  {
+    indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+    if (saveINDXKEYINFO(signal,
+			indexOp, 
+			src, 
+			keyInfoLength)) {
+      jam();
+      // We have received all we need
+      readIndexTable(signal, regApiPtr, indexOp);
+    }
   }
 }
 
@@ -11338,15 +11345,17 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
   TcIndexOperationPtr indexOpPtr;
   TcIndexOperation* indexOp;
 
-  indexOpPtr.i = regApiPtr->accumulatingIndexOp;
-  indexOp = c_theIndexOperations.getPtr(indexOpPtr.i);
-  if (saveINDXATTRINFO(signal,
-                       indexOp, 
-                       src, 
-                       attrInfoLength)) {
-    jam();
-    // We have received all we need
-    readIndexTable(signal, regApiPtr, indexOp);
+  if((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
+  {
+    indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+    if (saveINDXATTRINFO(signal,
+			 indexOp, 
+			 src, 
+			 attrInfoLength)) {
+      jam();
+      // We have received all we need
+      readIndexTable(signal, regApiPtr, indexOp);
+    }
   }
 }
 
@@ -11371,7 +11380,7 @@ bool Dbtc::saveINDXKEYINFO(Signal* signal,
     releaseIndexOperation(apiConnectptr.p, indexOp);
     terrorCode = 4000;
     abortErrorLab(signal);
-    return true;
+    return false;
   }
   if (receivedAllINDXKEYINFO(indexOp) && receivedAllINDXATTRINFO(indexOp)) {
     jam();
@@ -11404,7 +11413,7 @@ bool Dbtc::saveINDXATTRINFO(Signal* signal,
     releaseIndexOperation(apiConnectptr.p, indexOp);
     terrorCode = 4000;
     abortErrorLab(signal);
-    return true;
+    return false;
   }
   if (receivedAllINDXKEYINFO(indexOp) && receivedAllINDXATTRINFO(indexOp)) {
     jam();
@@ -11464,7 +11473,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
 
   jamEntry();
   indexOpPtr.i = tcKeyConf->apiConnectPtr;
-  TcIndexOperation* indexOp = c_theIndexOperations.getPtr(indexOpPtr.i);
+  TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
   Uint32 confInfo = tcKeyConf->confInfo;
 
   /**
@@ -11553,7 +11562,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
 
   jamEntry();
   indexOpPtr.i = tcKeyRef->connectPtr;
-  TcIndexOperation* indexOp = c_theIndexOperations.getPtr(indexOpPtr.i);
+  TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
   indexOpPtr.p = indexOp;
   if (!indexOp) {
     jam();    
@@ -11654,7 +11663,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   jamEntry();
   TcIndexOperationPtr indexOpPtr;
   indexOpPtr.i = transIdAI->connectPtr;
-  TcIndexOperation* indexOp = c_theIndexOperations.getPtr(indexOpPtr.i);
+  TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
   indexOpPtr.p = indexOp;
   if (!indexOp) {
     jam();
@@ -11762,7 +11771,7 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
   jamEntry();
   TcIndexOperationPtr indexOpPtr;
   indexOpPtr.i = tcRollbackRep->connectPtr;
-  TcIndexOperation* indexOp = c_theIndexOperations.getPtr(indexOpPtr.i);
+  TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
   indexOpPtr.p = indexOp;
   tcRollbackRep =  (TcRollbackRep *)signal->getDataPtrSend();
   tcRollbackRep->connectPtr = indexOp->tcIndxReq.senderData;
@@ -12090,16 +12099,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
 bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
 			       TcIndexOperationPtr& indexOpPtr)
 {
-  bool seizeOk;
-
-  seizeOk = c_theIndexOperations.seize(indexOpPtr);
-  if (seizeOk) {
-    jam();
-    TcSeizedIndexOperationPtr seizedIndexOpPtr;
-    seizeOk &= regApiPtr->theSeizedIndexOperations.seizeId(seizedIndexOpPtr,
-							   indexOpPtr.i);
-  }
-  return seizeOk;
+  return regApiPtr->theSeizedIndexOperations.seize(indexOpPtr);
 }
 
 void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,
@@ -12113,18 +12113,16 @@ void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,
   indexOp->expectedTransIdAI = 0;
   indexOp->transIdAI.release();
   regApiPtr->theSeizedIndexOperations.release(indexOp->indexOpId);
-  c_theIndexOperations.release(indexOp->indexOpId);
 }
 
 void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
 {
-  TcSeizedIndexOperationPtr seizedIndexOpPtr;
+  TcIndexOperationPtr seizedIndexOpPtr;
 
   regApiPtr->theSeizedIndexOperations.first(seizedIndexOpPtr);
   while(seizedIndexOpPtr.i != RNIL) {
     jam();
-    TcIndexOperation* indexOp = 
-      c_theIndexOperations.getPtr(seizedIndexOpPtr.i);
+    TcIndexOperation* indexOp = seizedIndexOpPtr.p;
 
     indexOp->indexOpState = IOS_NOOP;
     indexOp->expectedKeyInfo = 0;
@@ -12133,7 +12131,6 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
     indexOp->attrInfo.release();
     indexOp->expectedTransIdAI = 0;
     indexOp->transIdAI.release();
-    c_theIndexOperations.release(seizedIndexOpPtr.i);  
     regApiPtr->theSeizedIndexOperations.next(seizedIndexOpPtr);    
   }
   regApiPtr->theSeizedIndexOperations.release();
