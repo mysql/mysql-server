@@ -65,7 +65,6 @@ void Dbtc::initData()
   c_theFiredTriggerPool.setSize(c_maxNumberOfFiredTriggers);
   c_theIndexPool.setSize(c_maxNumberOfIndexes);
   c_theIndexOperationPool.setSize(c_maxNumberOfIndexOperations);
-  c_theSeizedIndexOperationPool.setSize(c_maxNumberOfIndexOperations);
   c_theAttributeBufferPool.setSize(c_transactionBufferSpace);
   c_firedTriggerHash.setSize((c_maxNumberOfFiredTriggers+10)/10);
 }//Dbtc::initData()
@@ -85,7 +84,7 @@ void Dbtc::initRecords()
   for(unsigned i = 0; i<capiConnectFilesize; i++) {
     p = &apiConnectRecord[i];
     new (p) ApiConnectRecord(c_theFiredTriggerPool, 
-			     c_theSeizedIndexOperationPool);
+			     c_theIndexOperationPool);
   }
   // Init all fired triggers
   DLFifoList<TcFiredTriggerData> triggers(c_theFiredTriggerPool);
@@ -177,7 +176,6 @@ Dbtc::Dbtc(const class Configuration & conf):
   c_maxNumberOfFiredTriggers(0),
   c_theIndexes(c_theIndexPool),
   c_maxNumberOfIndexes(0),
-  c_theIndexOperations(c_theIndexOperationPool),
   c_maxNumberOfIndexOperations(0),
   m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
