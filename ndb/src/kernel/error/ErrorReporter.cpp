@@ -130,7 +130,7 @@ ErrorReporter::formatMessage(ErrorCategory type,
 	   "Date/Time: %s\nType of error: %s\n"
 	   "Message: %s\nFault ID: %d\nProblem data: %s"
 	   "\nObject of reference: %s\nProgramName: %s\n"
-	   "ProcessID: %d\nTraceFile: %s\n***EOM***\n", 
+	   "ProcessID: %d\nTraceFile: %s\n%s\n***EOM***\n", 
 	   formatTimeStampString() , 
 	   errorType[type], 
 	   lookupErrorMessage(faultID),
@@ -139,7 +139,8 @@ ErrorReporter::formatMessage(ErrorCategory type,
 	   objRef, 
 	   my_progname, 
 	   processId, 
-	   theNameOfTheTraceFile ? theNameOfTheTraceFile : "<no tracefile>");
+	   theNameOfTheTraceFile ? theNameOfTheTraceFile : "<no tracefile>",
+		       NDB_VERSION_STRING);
 
   // Add trailing blanks to get a fixed lenght of the message
   while (strlen(messptr) <= MESSAGE_LENGTH-3){

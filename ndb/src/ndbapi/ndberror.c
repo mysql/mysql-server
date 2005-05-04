@@ -169,7 +169,7 @@ ErrorBundle ErrorCodes[] = {
   { 4021, TR, "Out of Send Buffer space in NDB API" },
   { 4022, TR, "Out of Send Buffer space in NDB API" },
   { 4032, TR, "Out of Send Buffer space in NDB API" },
-
+  {  288, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
   /**
    * InsufficientSpace
    */

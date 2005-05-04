@@ -752,5 +752,5 @@ NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
   Uint32 errorCode = tcIndxRef->errorCode;
   theError.code = errorCode;
   theNdbCon->setOperationErrorCodeAbort(errorCode);
-  return theNdbCon->OpCompleteFailure(theNdbCon->m_abortOption);
+  return theNdbCon->OpCompleteFailure(AbortOnError);
 }//NdbIndexOperation::receiveTCINDXREF()
