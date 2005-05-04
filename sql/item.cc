@@ -1448,6 +1448,24 @@ void Item_decimal::print(String *str)
 }
 
 
+bool Item_decimal::eq(const Item *item, bool binary_cmp) const
+{
+  if (type() == item->type() && item->basic_const_item())
+  {
+    /*
+      We need to cast off const to call val_decimal(). This should
+      be OK for a basic constant. Additionally, we can pass 0 as
+      a true decimal constant will return its internal decimal
+      storage and ignore the argument.
+    */
+    Item *arg= (Item*) item;
+    my_decimal *value= arg->val_decimal(0);
+    return !my_decimal_cmp(&decimal_value, value);
+  }
+  return 0;
+}
+
+
 String *Item_float::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
@@ -2217,7 +2235,7 @@ Item_param::new_item()
   case INT_VALUE:
     return new Item_int(name, value.integer, max_length);
   case REAL_VALUE:
-    return new Item_real(name, value.real, decimals, max_length);
+    return new Item_float(name, value.real, decimals, max_length);
   case STRING_VALUE:
   case LONG_DATA_VALUE:
     return new Item_string(name, str_value.c_ptr_quick(), str_value.length(),
@@ -2251,7 +2269,7 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
     return value.integer == item->val_int() &&
            unsigned_flag == item->unsigned_flag;
   case REAL_VALUE:
-    return value.real == item->val();
+    return value.real == item->val_real();
   case STRING_VALUE:
   case LONG_DATA_VALUE:
     if (binary_cmp)
@@ -3520,7 +3538,7 @@ void Item_float::print(String *str)
   In number context this is a longlong value.
 */
 
-bool Item_real::eq(const Item *arg, bool binary_cmp) const
+bool Item_float::eq(const Item *arg, bool binary_cmp) const
 {
   if (arg->basic_const_item() && arg->type() == type())
   {
@@ -3529,7 +3547,7 @@ bool Item_real::eq(const Item *arg, bool binary_cmp) const
       a basic constant.
     */
     Item *item= (Item*) arg;
-    return item->val() == value;
+    return item->val_real() == value;
   }
   return FALSE;
 }
@@ -3605,7 +3623,7 @@ int Item_hex_string::save_in_field(Field *field, bool no_conversions)
 }
 
 
-bool Item_varbinary::eq(const Item *arg, bool binary_cmp) const
+bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
 {
   if (arg->basic_const_item() && arg->type() == type())
   {

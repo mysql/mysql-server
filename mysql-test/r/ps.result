@@ -570,3 +570,28 @@ id
 deallocate prepare stmt|
 drop procedure p1|
 drop table t1|
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (c1 int(11) not null, c2 int(11) not null,
+primary key  (c1,c2), key c2 (c2), key c1 (c1));
+insert into t1 values (200887, 860);
+insert into t1 values (200887, 200887);
+select * from t1 where (c1=200887 and c2=200887) or c2=860;
+c1	c2
+200887	860
+200887	200887
+prepare stmt from
+"select * from t1 where (c1=200887 and c2=200887) or c2=860";
+execute stmt;
+c1	c2
+200887	860
+200887	200887
+prepare stmt from
+"select * from t1 where (c1=200887 and c2=?) or c2=?";
+set @a=200887, @b=860;
+execute stmt using @a, @b;
+c1	c2
+200887	860
+200887	200887
+deallocate prepare stmt;
