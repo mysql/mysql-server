@@ -587,3 +587,30 @@ deallocate prepare stmt|
 drop procedure p1|
 drop table t1|
 delimiter ;|
+
+#
+# Bug#9096 "select doesn't return all matched records if prepared statements
+# is used"
+# The bug was is bad co-operation of the optimizer's algorithm which determines
+# which keys can be used to execute a query, constants propagation
+# part of the optimizer and parameter markers used by prepared statements.
+
+drop table if exists t1;
+create table t1 (c1 int(11) not null, c2 int(11) not null,
+             primary key  (c1,c2), key c2 (c2), key c1 (c1));
+
+insert into t1 values (200887, 860);
+insert into t1 values (200887, 200887);
+
+select * from t1 where (c1=200887 and c2=200887) or c2=860;
+
+prepare stmt from
+"select * from t1 where (c1=200887 and c2=200887) or c2=860";
+execute stmt;
+prepare stmt from
+"select * from t1 where (c1=200887 and c2=?) or c2=?";
+set @a=200887, @b=860;
+# this query did not return all matching rows
+execute stmt using @a, @b;
+deallocate prepare stmt;
+
