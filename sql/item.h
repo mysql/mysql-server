@@ -1039,7 +1039,9 @@ public:
     unsigned_flag= !decimal_value.sign();
     return this;
   }
+  bool eq(const Item *, bool binary_cmp) const;
 };
+
 
 class Item_float :public Item_num
 {
