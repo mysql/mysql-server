@@ -892,7 +892,10 @@ ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     args.put("initialstart", initial);
     args.put("nostart", nostart);
     const Properties *reply;
+    const int timeout = handle->read_timeout;
+    handle->read_timeout= 5*60*1000; // 5 minutes
     reply = ndb_mgm_call(handle, restart_reply, "restart all", &args);
+    handle->read_timeout= timeout;
     CHECK_REPLY(reply, -1);
 
     BaseString result;
@@ -925,7 +928,10 @@ ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   args.put("nostart", nostart);
 
   const Properties *reply;
+  const int timeout = handle->read_timeout;
+  handle->read_timeout= 5*60*1000; // 5 minutes
   reply = ndb_mgm_call(handle, restart_reply, "restart node", &args);
+  handle->read_timeout= timeout;
   if(reply != NULL) {
     BaseString result;
     reply->get("result", result);

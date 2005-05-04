@@ -80,6 +80,7 @@ public:
   Uint32        getNoOfConnectedNodes() const;
   
 private:
+  Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
@@ -100,6 +101,19 @@ private:
   void execAPI_REGREF    (const Uint32 * theData);
   void execNODE_FAILREP  (const Uint32 * theData);
   void execNF_COMPLETEREP(const Uint32 * theData);
+
+  inline void set_node_alive(Node& node, bool alive){
+    if(node.m_alive && !alive)
+    {
+      assert(noOfAliveNodes);
+      noOfAliveNodes--;
+    }
+    else if(!node.m_alive && alive)
+    {
+      noOfAliveNodes++;
+    }
+    node.m_alive = alive;
+  }
 };
 
 inline
