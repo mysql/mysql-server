@@ -20,7 +20,7 @@
   variables must declare the size_of() member function.
 */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 

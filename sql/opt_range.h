@@ -20,7 +20,7 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 

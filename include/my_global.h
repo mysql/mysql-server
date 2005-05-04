@@ -43,6 +43,11 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
+/* Determine when to use "#pragma interface" */
+#if !defined(__CYGWIN__) && !defined(__ICC) && (__GNUC__ < 3)
+#define USE_PRAGMA_INTERFACE
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
