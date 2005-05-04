@@ -270,7 +270,8 @@ public:
 
   bool get_bit(size_t pos) const
   {
-    (bool)(*(uchar*)(m_data + (pos >> 3))) & (uchar)(1 << (pos & 0x7U));
+    return (bool)(*(uchar*)(m_data + (pos >> 3))) &
+                 (uchar)(1 << (pos & 0x7U));
   };
 
   bool operator==(bitvector const& rhs) const
