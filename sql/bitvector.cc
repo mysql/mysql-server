@@ -29,7 +29,8 @@ void bitvector::create_last_word_mask()
    * bits clear. The bits within each byte is stored in big-endian order.
    */
   unsigned char const mask= (~((1 << used) - 1)) & 255;
-  last_word_ptr= (uint32*)(m_data+((bytes()-1U)>>2));
+  unsigned int byte_no= ((bytes()-1)) & ~3U;
+  last_word_ptr= (uint32*)&m_data[byte_no];
 
   /*
     The first bytes are to be set to zero since they represent real  bits
@@ -65,6 +66,7 @@ void bitvector::create_last_word_mask()
 int bitvector::init(size_t size)
 {
   DBUG_ASSERT(size < MYSQL_NO_BIT_FOUND);
+  DBUG_ASSERT(size > 0);
   m_size= size;
   m_data= (uchar*)my_malloc(byte_size_word_aligned(size), MYF(0));
   if (m_data)
@@ -289,32 +291,56 @@ bool do_test(uint bitsize)
   bv = new bitvector;
   bv->init(bitsize);
   if (test_set_get_clear_bit(bv,bitsize))
-    return TRUE;
+    goto error;
+  bv->clear_all();
   if (test_flip_bit(bv,bitsize))
-    return TRUE;
+    goto error;
+  bv->clear_all();
   if (test_operators(bv,bitsize))
-    return TRUE;
+    goto error;
+  bv->clear_all();
   if (test_get_all_bits(bv, bitsize))
-    return TRUE;
+    goto error;
+  bv->clear_all();
   if (test_compare_operators(bv,bitsize))
-    return TRUE;
+    goto error;
+  bv->clear_all();
   if (test_count_bits_set(bv,bitsize))
-    return TRUE;
+    goto error;
+  bv->clear_all();
   if (test_get_first_bit(bv,bitsize))
-    return TRUE;
+    goto error;
+  bv->clear_all();
   if (test_get_next_bit(bv,bitsize))
-    return TRUE;
-  printf("OK");
+    goto error;
+  delete bv;
   return FALSE;
+error:
+  delete bv;
+  printf("\n");
+  return TRUE;
 }
 
 int main()
 {
   int i;
-  for (i= 0; i < 4096; i++)
+  for (i= 1; i < 4096; i++)
     if (do_test(i))
       return -1;
+  printf("OK\n");
   return 0;
 }
+/*
+Compile by using the below on a compiled clone
 
+g++ -DHAVE_CONFIG_H -I. -I. -I.. -I../include -I../regex -I.  -I../include
+-g -fno-omit-frame-pointer -fno-common -felide-constructors -fno-exceptions
+-fno-rtti   -fno-implicit-templates -fno-exceptions -fno-rtti
+-DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL -DHAVE_DARWIN_THREADS
+-D_P1003_1B_VISIBLE -DTEST_BITVECTOR -DSIGNAL_WITH_VIO_CLOSE
+-DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT  -o bitvector.o
+-c bitvector.cc
+g++ -o bitvector bitvector.o -L../mysys -lmysys -L../dbug -L../strings
+-lmystrings -ldbug
+*/
 #endif
