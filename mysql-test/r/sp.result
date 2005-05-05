@@ -3057,4 +3057,12 @@ yes
 yes
 drop procedure bug7293|
 delete from t1|
+drop procedure if exists bug9841|
+drop view if exists v1|
+create view v1 as select * from t1, t2 where id = s|
+create procedure bug9841 ()
+update v1 set data = 10|
+call bug9841()|
+drop view v1|
+drop procedure bug9841|
 drop table t1,t2;
