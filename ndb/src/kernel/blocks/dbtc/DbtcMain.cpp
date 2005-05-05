@@ -11372,19 +11372,14 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     regApiPtr->transid[0] = tcIndxReq->transId1;
     regApiPtr->transid[1] = tcIndxReq->transId2;
   }//if
-  ndbout_c("here");
 
   if (ERROR_INSERTED(8036) || !seizeIndexOperation(regApiPtr, indexOpPtr)) {
     jam();
     // Failed to allocate index operation
-    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
-    
-    tcIndxRef->connectPtr = tcIndxReq->senderData;
-    tcIndxRef->transId[0] = regApiPtr->transid[0];
-    tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 288;
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcKeyRef::SignalLength, JBB);
+    terrorCode = 288;
+    regApiPtr->m_exec_flag |= TcKeyReq::getExecuteFlag(tcIndxRequestInfo);
+    apiConnectptr = transPtr;
+    abortErrorLab(signal);
     return;
   }
   TcIndexOperation* indexOp = indexOpPtr.p;
