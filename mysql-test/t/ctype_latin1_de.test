@@ -132,3 +132,11 @@ INSERT INTO t1 VALUES ('ß'),('ss'),('ss');
 ALTER TABLE t1 ADD KEY ifword(col1);
 SELECT * FROM t1 WHERE col1='ß' ORDER BY col1, BINARY col1;
 DROP TABLE t1;
+
+#
+# Bug#9509
+#
+create table t1 (s1 char(5) character set latin1 collate latin1_german2_ci);
+insert into t1 values (0xf6) /* this is o-umlaut */;
+select * from t1 where length(s1)=1 and s1='oe';
+drop table t1;
