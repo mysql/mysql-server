@@ -230,6 +230,8 @@ typedef struct charset_info_st
 extern CHARSET_INFO my_charset_bin;
 extern CHARSET_INFO my_charset_big5_chinese_ci;
 extern CHARSET_INFO my_charset_big5_bin;
+extern CHARSET_INFO my_charset_cp932_japanese_ci;
+extern CHARSET_INFO my_charset_cp932_bin;
 extern CHARSET_INFO my_charset_euckr_korean_ci;
 extern CHARSET_INFO my_charset_euckr_bin;
 extern CHARSET_INFO my_charset_gb2312_chinese_ci;
