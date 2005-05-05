@@ -7,8 +7,8 @@ drop table if exists t1,t2;
 
 create table t1
 (
-a int primary key,
-b char(10)
+  a int primary key,
+  b char(10)
 );
 insert into t1 values (1,'one');
 insert into t1 values (2,'two');
@@ -88,7 +88,7 @@ explain prepare stmt6 from 'insert into t1 values (5,"five"); select2';
 
 create table t2
 (
-a int
+  a int
 );
 
 insert into t2 values (0);
@@ -143,15 +143,15 @@ drop table t1;
 #
 create table t1 
 (
-c1  tinyint, c2  smallint, c3  mediumint, c4  int,
-c5  integer, c6  bigint, c7  float, c8  double,
-c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
-c13 date, c14 datetime, c15 timestamp(14), c16 time,
-c17 year, c18 bit, c19 bool, c20 char,
-c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
-c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
-c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
-c32 set('monday', 'tuesday', 'wednesday')
+  c1  tinyint, c2  smallint, c3  mediumint, c4  int,
+  c5  integer, c6  bigint, c7  float, c8  double,
+  c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
+  c13 date, c14 datetime, c15 timestamp(14), c16 time,
+  c17 year, c18 bit, c19 bool, c20 char,
+  c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
+  c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
+  c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
+  c32 set('monday', 'tuesday', 'wednesday')
 ) engine = MYISAM ;
 create table t2 like t1;
 
@@ -181,8 +181,8 @@ drop table t1;
 # eq() for parameters
 #
 create table t1 (id int(10) unsigned NOT NULL default '0',
-               name varchar(64) NOT NULL default '',
-               PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
+                 name varchar(64) NOT NULL default '',
+                 PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
 insert into t1 values (1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(6,'6'),(7,'7');
 prepare stmt1 from 'select name from t1 where id=? or id=?';
 set @id1=1,@id2=6;
@@ -368,13 +368,13 @@ insert into t1 (a) values (1), (2), (3), (4);
 set @precision=10000000000;
 --replace_column 1 - 3 -
 select rand(), 
-     cast(rand(10)*@precision as unsigned integer),
-     cast(rand(a)*@precision as unsigned integer) from t1;
+       cast(rand(10)*@precision as unsigned integer),
+       cast(rand(a)*@precision as unsigned integer) from t1;
 prepare stmt from
 "select rand(), 
-      cast(rand(10)*@precision as unsigned integer),
-      cast(rand(a)*@precision as unsigned integer),
-      cast(rand(?)*@precision as unsigned integer) from t1";
+        cast(rand(10)*@precision as unsigned integer),
+        cast(rand(a)*@precision as unsigned integer),
+        cast(rand(?)*@precision as unsigned integer) from t1";
 set @var=1;
 --replace_column 1 - 3 -
 execute stmt using @var;
@@ -513,13 +513,13 @@ deallocate prepare stmt;
 #
 
 create table t1 (a char(3) not null, b char(3) not null,
-               c char(3) not null, primary key  (a, b, c));
+                 c char(3) not null, primary key  (a, b, c));
 create table t2 like t1;
 
 # reduced query
 prepare stmt from
-"select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
-where t1.a=1";
+  "select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
+  where t1.a=1";
 execute stmt;
 execute stmt;
 execute stmt;
@@ -546,19 +546,19 @@ drop table t1,t2;
 #
 
 eval SET @aux= "SELECT COUNT(*)
-              FROM INFORMATION_SCHEMA.COLUMNS A,
-              INFORMATION_SCHEMA.COLUMNS B
-              WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
-              AND A.TABLE_NAME = B.TABLE_NAME
-              AND A.COLUMN_NAME = B.COLUMN_NAME AND
-              A.TABLE_NAME = 'user'";
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
 
 let $exec_loop_count= 3;
 eval prepare my_stmt from @aux;
 while ($exec_loop_count)
 {
-eval execute my_stmt;
-dec $exec_loop_count;
+  eval execute my_stmt;
+  dec $exec_loop_count;
 }
 deallocate prepare my_stmt;
 
@@ -572,11 +572,11 @@ create table t1 (id int)|
 insert into t1 values(1)|
 create procedure p1(a int, b int)
 begin
-declare c int;
-select max(id)+1 into c from t1;
-insert into t1 select a+b;
-insert into t1 select a-b;
-insert into t1 select a-c;
+  declare c int;
+  select max(id)+1 into c from t1;
+  insert into t1 select a+b;
+  insert into t1 select a-b;
+  insert into t1 select a-c;
 end|
 set @a= 3, @b= 4|
 prepare stmt from "call p1(?, ?)"|
@@ -597,7 +597,7 @@ delimiter ;|
 
 drop table if exists t1;
 create table t1 (c1 int(11) not null, c2 int(11) not null,
-           primary key  (c1,c2), key c2 (c2), key c1 (c1));
+             primary key  (c1,c2), key c2 (c2), key c1 (c1));
 
 insert into t1 values (200887, 860);
 insert into t1 values (200887, 200887);
