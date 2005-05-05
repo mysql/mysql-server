@@ -156,8 +156,8 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                  collation.collation);
     return make_string_field(table);
   case DECIMAL_RESULT:
-    return new Field_new_decimal(max_length - (decimals?1:0),
-                                 maybe_null, name, table, decimals);
+    return new Field_new_decimal(max_length, maybe_null, name, table,
+                                 decimals, unsigned_flag);
   case ROW_RESULT:
   default:
     // This case should never be choosen
@@ -372,13 +372,16 @@ void Item_sum_sum::fix_length_and_dec()
     break;
   case INT_RESULT:
   case DECIMAL_RESULT:
+  {
     /* SUM result can't be longer than length(arg) + length(MAX_ROWS) */
-    max_length= min(args[0]->max_length + DECIMAL_LONGLONG_DIGITS,
-                    DECIMAL_MAX_LENGTH);
+    int precision= args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS;
+    max_length= my_decimal_precision_to_length(precision, decimals,
+                                               unsigned_flag);
     curr_dec_buff= 0;
     hybrid_type= DECIMAL_RESULT;
     my_decimal_set_zero(dec_buffs);
     break;
+  }
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
@@ -725,11 +728,12 @@ void
 Item_sum_avg_distinct::fix_length_and_dec()
 {
   Item_sum_distinct::fix_length_and_dec();
+  prec_increment= current_thd->variables.div_precincrement;
   /*
     AVG() will divide val by count. We need to reserve digits
     after decimal point as the result can be fractional.
   */
-  decimals= min(decimals + 4, NOT_FIXED_DEC);
+  decimals= min(decimals + prec_increment, NOT_FIXED_DEC);
 }
 
 
@@ -790,14 +794,19 @@ void Item_sum_avg::fix_length_and_dec()
 {
   Item_sum_sum::fix_length_and_dec();
   maybe_null=null_value=1;
-  decimals= min(args[0]->decimals + 4, NOT_FIXED_DEC);
+  prec_increment= current_thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT)
   {
-    f_scale= args[0]->decimals;
-    max_length= DECIMAL_MAX_LENGTH + (f_scale ? 1 : 0);
-    f_precision= DECIMAL_MAX_LENGTH;
+    int precision= args[0]->decimal_precision() + prec_increment;
+    decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+    max_length= my_decimal_precision_to_length(precision, decimals,
+                                               unsigned_flag);
+    f_precision= min(precision+DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
+    f_scale=  args[0]->decimals;
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
   }
+  else
+    decimals= min(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
 }
 
 
@@ -822,8 +831,8 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
                             0, name, table, &my_charset_bin);
   }
   if (hybrid_type == DECIMAL_RESULT)
-    return new Field_new_decimal(f_precision,
-                                 maybe_null, name, table, f_scale);
+    return new Field_new_decimal(max_length, maybe_null, name, table,
+                                 decimals, unsigned_flag);
   return new Field_double(max_length, maybe_null, name, table, decimals);
 }
 
@@ -868,7 +877,7 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
   }
   sum_dec= Item_sum_sum::val_decimal(&sum);
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &cnt);
-  my_decimal_div(E_DEC_FATAL_ERROR, val, sum_dec, &cnt, 4);
+  my_decimal_div(E_DEC_FATAL_ERROR, val, sum_dec, &cnt, prec_increment);
   return val;
 }
 
@@ -905,7 +914,8 @@ Item *Item_sum_std::copy_or_same(THD* thd)
 
 Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
   Item_sum_num(thd, item), hybrid_type(item->hybrid_type),
-    cur_dec(item->cur_dec), count(item->count), sample(item->sample)
+    cur_dec(item->cur_dec), count(item->count), sample(item->sample),
+    prec_increment(item->prec_increment)
 {
   if (hybrid_type == DECIMAL_RESULT)
   {
@@ -929,20 +939,21 @@ void Item_sum_variance::fix_length_and_dec()
 {
   DBUG_ENTER("Item_sum_variance::fix_length_and_dec");
   maybe_null= null_value= 1;
-  decimals= min(args[0]->decimals + 4, NOT_FIXED_DEC);
+  prec_increment= current_thd->variables.div_precincrement;
   switch (args[0]->result_type()) {
   case REAL_RESULT:
   case STRING_RESULT:
+    decimals= min(args[0]->decimals + 4, NOT_FIXED_DEC);
     hybrid_type= REAL_RESULT;
     sum= 0.0;
     break;
   case INT_RESULT:
   case DECIMAL_RESULT:
-    /*
-      SUM result can't be longer than length(arg)*2 +
-      digits_after_the_point_to_add
-    */
-    max_length= args[0]->max_length*2 + 4;
+  {
+    int precision= args[0]->decimal_precision()*2 + prec_increment;
+    decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+    max_length= my_decimal_precision_to_length(precision, decimals,
+                                               unsigned_flag);
     cur_dec= 0;
     hybrid_type= DECIMAL_RESULT;
     my_decimal_set_zero(dec_sum);
@@ -954,12 +965,15 @@ void Item_sum_variance::fix_length_and_dec()
       column_value * column_value
     */
     f_scale0= args[0]->decimals;
-    f_precision0= DECIMAL_MAX_LENGTH / 2;
-    f_scale1= min(f_scale0 * 2, NOT_FIXED_DEC - 1);
-    f_precision1= DECIMAL_MAX_LENGTH;
+    f_precision0= min(args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS,
+                      DECIMAL_MAX_PRECISION);
+    f_scale1= min(args[0]->decimals * 2, DECIMAL_MAX_SCALE);
+    f_precision1= min(args[0]->decimal_precision()*2 + DECIMAL_LONGLONG_DIGITS,
+                      DECIMAL_MAX_PRECISION);
     dec_bin_size0= my_decimal_get_binary_size(f_precision0, f_scale0);
     dec_bin_size1= my_decimal_get_binary_size(f_precision1, f_scale1);
     break;
+  }
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
@@ -997,8 +1011,8 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
                             0, name, table, &my_charset_bin);
   }
   if (hybrid_type == DECIMAL_RESULT)
-    return new Field_new_decimal(DECIMAL_MAX_LENGTH,
-                                 maybe_null, name, table, f_scale1 + 4);
+    return new Field_new_decimal(max_length, maybe_null, name, table,
+                                 decimals, unsigned_flag);
   return new Field_double(max_length, maybe_null,name,table,decimals);
 }
 
@@ -1083,9 +1097,11 @@ my_decimal *Item_sum_variance::val_decimal(my_decimal *dec_buf)
   int2my_decimal(E_DEC_FATAL_ERROR, count-sample, 0, &count1_buf);
   my_decimal_mul(E_DEC_FATAL_ERROR, &sum_sqr_buf,
                  dec_sum+cur_dec, dec_sum+cur_dec);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &sum_sqr_buf, &count_buf, 2);
+  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf,
+                 &sum_sqr_buf, &count_buf, prec_increment);
   my_decimal_sub(E_DEC_FATAL_ERROR, &sum_sqr_buf, dec_sqr+cur_dec, dec_buf);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &sum_sqr_buf, &count1_buf, 2);
+  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf,
+                 &sum_sqr_buf, &count1_buf, prec_increment);
   return dec_buf;
 }
 
@@ -1929,10 +1945,12 @@ Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item)
 {
   name=item->name;
   decimals=item->decimals;
-  max_length=item->max_length;
+  max_length= item->max_length;
+  unsigned_flag= item->unsigned_flag;
   field=item->result_field;
   maybe_null=1;
   hybrid_type= res_type;
+  prec_increment= item->prec_increment;
   if (hybrid_type == DECIMAL_RESULT)
   {
     f_scale= item->f_scale;
@@ -1940,7 +1958,6 @@ Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item)
     dec_bin_size= item->dec_bin_size;
   }
 }
-
 
 double Item_avg_field::val_real()
 {
@@ -1982,7 +1999,8 @@ my_decimal *Item_avg_field::val_decimal(my_decimal *dec_buf)
   binary2my_decimal(E_DEC_FATAL_ERROR,
                     field->ptr, &dec_field, f_precision, f_scale);
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &dec_count);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &dec_field, &dec_count, 4);
+  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf,
+                 &dec_field, &dec_count, prec_increment);
   return dec_buf;
 }
 
@@ -2054,9 +2072,11 @@ Item_variance_field::Item_variance_field(Item_sum_variance *item)
   name=item->name;
   decimals=item->decimals;
   max_length=item->max_length;
+  unsigned_flag= item->unsigned_flag;
   field=item->result_field;
   maybe_null=1;
   sample= item->sample;
+  prec_increment= item->prec_increment;
   if ((hybrid_type= item->hybrid_type) == DECIMAL_RESULT)
   {
     f_scale0= item->f_scale0;
@@ -2116,9 +2136,10 @@ my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
   binary2my_decimal(E_DEC_FATAL_ERROR, field->ptr+dec_bin_size0,
                     &dec_sqr, f_precision1, f_scale1);
   my_decimal_mul(E_DEC_FATAL_ERROR, &tmp, &dec_sum, &dec_sum);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &tmp, &dec_count, 2);
+  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &tmp, &dec_count, prec_increment);
   my_decimal_sub(E_DEC_FATAL_ERROR, &dec_sum, &dec_sqr, dec_buf);
-  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &dec_sum, &dec1_count, 2);
+  my_decimal_div(E_DEC_FATAL_ERROR, dec_buf,
+                 &dec_sum, &dec1_count, prec_increment);
   return dec_buf;
 }
 

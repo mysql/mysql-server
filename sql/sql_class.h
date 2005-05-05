@@ -523,6 +523,7 @@ struct system_variables
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
+  ulong div_precincrement;
   ulong sortbuff_size;
   ulong table_type;
   ulong tmp_table_size;
