@@ -5410,9 +5410,14 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     }
     new_field->pack_length=
       my_decimal_get_binary_size(new_field->length, new_field->decimals);
-    if (new_field->length <= DECIMAL_MAX_LENGTH &&
+    if (new_field->length <= DECIMAL_MAX_PRECISION &&
         new_field->length >= new_field->decimals)
+    {
+      new_field->length=
+        my_decimal_precision_to_length(new_field->length, new_field->decimals,
+                                       type_modifier & UNSIGNED_FLAG);
       break;
+    }
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
     DBUG_RETURN(NULL);
   case MYSQL_TYPE_VARCHAR:
