@@ -59,8 +59,8 @@ def	test	t9	t9	c7	c7	4	12	1	Y	32768	31	63
 def	test	t9	t9	c8	c8	5	22	1	Y	32768	31	63
 def	test	t9	t9	c9	c9	5	22	1	Y	32768	31	63
 def	test	t9	t9	c10	c10	5	22	1	Y	32768	31	63
-def	test	t9	t9	c11	c11	246	7	6	Y	0	4	63
-def	test	t9	t9	c12	c12	246	8	6	Y	0	4	63
+def	test	t9	t9	c11	c11	246	9	6	Y	0	4	63
+def	test	t9	t9	c12	c12	246	10	6	Y	0	4	63
 def	test	t9	t9	c13	c13	10	10	10	Y	128	0	63
 def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
 def	test	t9	t9	c15	c15	7	19	19	N	1249	0	63
@@ -1776,8 +1776,8 @@ Table	Create Table
 t5	CREATE TABLE `t5` (
   `const01` bigint(1) NOT NULL default '0',
   `param01` bigint(20) default NULL,
-  `const02` decimal(3,1) NOT NULL default '0.0',
-  `param02` decimal(64,30) default NULL,
+  `const02` decimal(2,1) NOT NULL default '0.0',
+  `param02` decimal(65,30) default NULL,
   `const03` double NOT NULL default '0',
   `param03` double default NULL,
   `const04` varchar(3) NOT NULL default '',
@@ -1798,7 +1798,7 @@ t5	CREATE TABLE `t5` (
   `param11` bigint(20) default NULL,
   `const12` binary(0) default NULL,
   `param12` bigint(20) default NULL,
-  `param13` decimal(64,30) default NULL,
+  `param13` decimal(65,30) default NULL,
   `param14` longtext,
   `param15` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -1806,10 +1806,10 @@ select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t5	t5	const01	const01	8	1	1	N	32769	0	63
 def	test	t5	t5	param01	param01	8	20	1	Y	32768	0	63
-def	test	t5	t5	const02	const02	246	3	3	N	1	1	63
-def	test	t5	t5	param02	param02	246	64	32	Y	0	30	63
+def	test	t5	t5	const02	const02	246	4	3	N	1	1	63
+def	test	t5	t5	param02	param02	246	67	32	Y	0	30	63
 def	test	t5	t5	const03	const03	5	17	1	N	32769	31	63
-def	test	t5	t5	param03	param03	5	20	1	Y	32768	31	63
+def	test	t5	t5	param03	param03	5	23	1	Y	32768	31	63
 def	test	t5	t5	const04	const04	253	3	3	N	1	0	8
 def	test	t5	t5	param04	param04	252	16777215	3	Y	16	0	8
 def	test	t5	t5	const05	const05	253	3	3	N	129	0	63
@@ -1828,7 +1828,7 @@ def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
 def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
-def	test	t5	t5	param13	param13	246	64	0	Y	0	30	63
+def	test	t5	t5	param13	param13	246	67	0	Y	0	30	63
 def	test	t5	t5	param14	param14	252	16777215	0	Y	16	0	8
 def	test	t5	t5	param15	param15	252	16777215	0	Y	144	0	63
 const01	8
@@ -1916,25 +1916,25 @@ from t9 where c1= 1 ;
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	1	Y	128	31	63
-def					@arg03	253	20	1	Y	128	31	63
-def					@arg04	253	20	1	Y	128	31	63
-def					@arg05	253	20	1	Y	128	31	63
-def					@arg06	253	20	1	Y	128	31	63
-def					@arg07	253	20	1	Y	128	31	63
-def					@arg08	253	20	1	Y	128	31	63
-def					@arg09	253	20	1	Y	128	31	63
-def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	64	6	Y	128	30	63
-def					@arg12	253	64	6	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	1	Y	128	0	63
+def					@arg03	253	20	1	Y	128	0	63
+def					@arg04	253	20	1	Y	128	0	63
+def					@arg05	253	20	1	Y	128	0	63
+def					@arg06	253	20	1	Y	128	0	63
+def					@arg07	253	23	1	Y	128	31	63
+def					@arg08	253	23	1	Y	128	31	63
+def					@arg09	253	23	1	Y	128	31	63
+def					@arg10	253	23	1	Y	128	31	63
+def					@arg11	253	67	6	Y	128	30	63
+def					@arg12	253	67	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	31	63
-def					@arg18	253	20	1	Y	128	31	63
-def					@arg19	253	20	1	Y	128	31	63
+def					@arg17	253	20	4	Y	128	0	63
+def					@arg18	253	20	1	Y	128	0	63
+def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
 def					@arg21	253	8192	10	Y	0	31	8
 def					@arg22	253	8192	30	Y	0	31	8
@@ -1963,25 +1963,25 @@ from t9 where c1= 0 ;
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	0	Y	128	31	63
-def					@arg03	253	20	0	Y	128	31	63
-def					@arg04	253	20	0	Y	128	31	63
-def					@arg05	253	20	0	Y	128	31	63
-def					@arg06	253	20	0	Y	128	31	63
-def					@arg07	253	20	0	Y	128	31	63
-def					@arg08	253	20	0	Y	128	31	63
-def					@arg09	253	20	0	Y	128	31	63
-def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	64	0	Y	128	30	63
-def					@arg12	253	64	0	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	0	Y	128	0	63
+def					@arg03	253	20	0	Y	128	0	63
+def					@arg04	253	20	0	Y	128	0	63
+def					@arg05	253	20	0	Y	128	0	63
+def					@arg06	253	20	0	Y	128	0	63
+def					@arg07	253	23	0	Y	128	31	63
+def					@arg08	253	23	0	Y	128	31	63
+def					@arg09	253	23	0	Y	128	31	63
+def					@arg10	253	23	0	Y	128	31	63
+def					@arg11	253	67	0	Y	128	30	63
+def					@arg12	253	67	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	31	63
-def					@arg18	253	20	0	Y	128	31	63
-def					@arg19	253	20	0	Y	128	31	63
+def					@arg17	253	20	0	Y	128	0	63
+def					@arg18	253	20	0	Y	128	0	63
+def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
 def					@arg21	253	8192	0	Y	0	31	8
 def					@arg22	253	8192	0	Y	0	31	8
@@ -2013,25 +2013,25 @@ execute stmt1 using @my_key ;
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	1	Y	128	31	63
-def					@arg03	253	20	1	Y	128	31	63
-def					@arg04	253	20	1	Y	128	31	63
-def					@arg05	253	20	1	Y	128	31	63
-def					@arg06	253	20	1	Y	128	31	63
-def					@arg07	253	20	1	Y	128	31	63
-def					@arg08	253	20	1	Y	128	31	63
-def					@arg09	253	20	1	Y	128	31	63
-def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	64	6	Y	128	30	63
-def					@arg12	253	64	6	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	1	Y	128	0	63
+def					@arg03	253	20	1	Y	128	0	63
+def					@arg04	253	20	1	Y	128	0	63
+def					@arg05	253	20	1	Y	128	0	63
+def					@arg06	253	20	1	Y	128	0	63
+def					@arg07	253	23	1	Y	128	31	63
+def					@arg08	253	23	1	Y	128	31	63
+def					@arg09	253	23	1	Y	128	31	63
+def					@arg10	253	23	1	Y	128	31	63
+def					@arg11	253	67	6	Y	128	30	63
+def					@arg12	253	67	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	31	63
-def					@arg18	253	20	1	Y	128	31	63
-def					@arg19	253	20	1	Y	128	31	63
+def					@arg17	253	20	4	Y	128	0	63
+def					@arg18	253	20	1	Y	128	0	63
+def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
 def					@arg21	253	8192	10	Y	0	31	8
 def					@arg22	253	8192	30	Y	0	31	8
@@ -2053,25 +2053,25 @@ execute stmt1 using @my_key ;
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	0	Y	128	31	63
-def					@arg03	253	20	0	Y	128	31	63
-def					@arg04	253	20	0	Y	128	31	63
-def					@arg05	253	20	0	Y	128	31	63
-def					@arg06	253	20	0	Y	128	31	63
-def					@arg07	253	20	0	Y	128	31	63
-def					@arg08	253	20	0	Y	128	31	63
-def					@arg09	253	20	0	Y	128	31	63
-def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	64	0	Y	128	30	63
-def					@arg12	253	64	0	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	0	Y	128	0	63
+def					@arg03	253	20	0	Y	128	0	63
+def					@arg04	253	20	0	Y	128	0	63
+def					@arg05	253	20	0	Y	128	0	63
+def					@arg06	253	20	0	Y	128	0	63
+def					@arg07	253	23	0	Y	128	31	63
+def					@arg08	253	23	0	Y	128	31	63
+def					@arg09	253	23	0	Y	128	31	63
+def					@arg10	253	23	0	Y	128	31	63
+def					@arg11	253	67	0	Y	128	30	63
+def					@arg12	253	67	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	31	63
-def					@arg18	253	20	0	Y	128	31	63
-def					@arg19	253	20	0	Y	128	31	63
+def					@arg17	253	20	0	Y	128	0	63
+def					@arg18	253	20	0	Y	128	0	63
+def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
 def					@arg21	253	8192	0	Y	0	31	8
 def					@arg22	253	8192	0	Y	0	31	8
@@ -2101,25 +2101,25 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 from t9 where c1= 1 ;
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	1	Y	128	31	63
-def					@arg03	253	20	1	Y	128	31	63
-def					@arg04	253	20	1	Y	128	31	63
-def					@arg05	253	20	1	Y	128	31	63
-def					@arg06	253	20	1	Y	128	31	63
-def					@arg07	253	20	1	Y	128	31	63
-def					@arg08	253	20	1	Y	128	31	63
-def					@arg09	253	20	1	Y	128	31	63
-def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	64	6	Y	128	30	63
-def					@arg12	253	64	6	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	1	Y	128	0	63
+def					@arg03	253	20	1	Y	128	0	63
+def					@arg04	253	20	1	Y	128	0	63
+def					@arg05	253	20	1	Y	128	0	63
+def					@arg06	253	20	1	Y	128	0	63
+def					@arg07	253	23	1	Y	128	31	63
+def					@arg08	253	23	1	Y	128	31	63
+def					@arg09	253	23	1	Y	128	31	63
+def					@arg10	253	23	1	Y	128	31	63
+def					@arg11	253	67	6	Y	128	30	63
+def					@arg12	253	67	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	31	63
-def					@arg18	253	20	1	Y	128	31	63
-def					@arg19	253	20	1	Y	128	31	63
+def					@arg17	253	20	4	Y	128	0	63
+def					@arg18	253	20	1	Y	128	0	63
+def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
 def					@arg21	253	8192	10	Y	0	31	8
 def					@arg22	253	8192	30	Y	0	31	8
@@ -2145,25 +2145,25 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 from t9 where c1= 0 ;
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	0	Y	128	31	63
-def					@arg03	253	20	0	Y	128	31	63
-def					@arg04	253	20	0	Y	128	31	63
-def					@arg05	253	20	0	Y	128	31	63
-def					@arg06	253	20	0	Y	128	31	63
-def					@arg07	253	20	0	Y	128	31	63
-def					@arg08	253	20	0	Y	128	31	63
-def					@arg09	253	20	0	Y	128	31	63
-def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	64	0	Y	128	30	63
-def					@arg12	253	64	0	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	0	Y	128	0	63
+def					@arg03	253	20	0	Y	128	0	63
+def					@arg04	253	20	0	Y	128	0	63
+def					@arg05	253	20	0	Y	128	0	63
+def					@arg06	253	20	0	Y	128	0	63
+def					@arg07	253	23	0	Y	128	31	63
+def					@arg08	253	23	0	Y	128	31	63
+def					@arg09	253	23	0	Y	128	31	63
+def					@arg10	253	23	0	Y	128	31	63
+def					@arg11	253	67	0	Y	128	30	63
+def					@arg12	253	67	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	31	63
-def					@arg18	253	20	0	Y	128	31	63
-def					@arg19	253	20	0	Y	128	31	63
+def					@arg17	253	20	0	Y	128	0	63
+def					@arg18	253	20	0	Y	128	0	63
+def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
 def					@arg21	253	8192	0	Y	0	31	8
 def					@arg22	253	8192	0	Y	0	31	8
@@ -2191,25 +2191,25 @@ set @my_key= 1 ;
 execute stmt1 using @my_key ;
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	1	Y	128	31	63
-def					@arg03	253	20	1	Y	128	31	63
-def					@arg04	253	20	1	Y	128	31	63
-def					@arg05	253	20	1	Y	128	31	63
-def					@arg06	253	20	1	Y	128	31	63
-def					@arg07	253	20	1	Y	128	31	63
-def					@arg08	253	20	1	Y	128	31	63
-def					@arg09	253	20	1	Y	128	31	63
-def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	64	6	Y	128	30	63
-def					@arg12	253	64	6	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	1	Y	128	0	63
+def					@arg03	253	20	1	Y	128	0	63
+def					@arg04	253	20	1	Y	128	0	63
+def					@arg05	253	20	1	Y	128	0	63
+def					@arg06	253	20	1	Y	128	0	63
+def					@arg07	253	23	1	Y	128	31	63
+def					@arg08	253	23	1	Y	128	31	63
+def					@arg09	253	23	1	Y	128	31	63
+def					@arg10	253	23	1	Y	128	31	63
+def					@arg11	253	67	6	Y	128	30	63
+def					@arg12	253	67	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	31	63
-def					@arg18	253	20	1	Y	128	31	63
-def					@arg19	253	20	1	Y	128	31	63
+def					@arg17	253	20	4	Y	128	0	63
+def					@arg18	253	20	1	Y	128	0	63
+def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
 def					@arg21	253	8192	10	Y	0	31	8
 def					@arg22	253	8192	30	Y	0	31	8
@@ -2229,25 +2229,25 @@ set @my_key= 0 ;
 execute stmt1 using @my_key ;
 execute full_info ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@arg01	253	20	1	Y	128	31	63
-def					@arg02	253	20	0	Y	128	31	63
-def					@arg03	253	20	0	Y	128	31	63
-def					@arg04	253	20	0	Y	128	31	63
-def					@arg05	253	20	0	Y	128	31	63
-def					@arg06	253	20	0	Y	128	31	63
-def					@arg07	253	20	0	Y	128	31	63
-def					@arg08	253	20	0	Y	128	31	63
-def					@arg09	253	20	0	Y	128	31	63
-def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	64	0	Y	128	30	63
-def					@arg12	253	64	0	Y	128	30	63
+def					@arg01	253	20	1	Y	128	0	63
+def					@arg02	253	20	0	Y	128	0	63
+def					@arg03	253	20	0	Y	128	0	63
+def					@arg04	253	20	0	Y	128	0	63
+def					@arg05	253	20	0	Y	128	0	63
+def					@arg06	253	20	0	Y	128	0	63
+def					@arg07	253	23	0	Y	128	31	63
+def					@arg08	253	23	0	Y	128	31	63
+def					@arg09	253	23	0	Y	128	31	63
+def					@arg10	253	23	0	Y	128	31	63
+def					@arg11	253	67	0	Y	128	30	63
+def					@arg12	253	67	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	31	63
-def					@arg18	253	20	0	Y	128	31	63
-def					@arg19	253	20	0	Y	128	31	63
+def					@arg17	253	20	0	Y	128	0	63
+def					@arg18	253	20	0	Y	128	0	63
+def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
 def					@arg21	253	8192	0	Y	0	31	8
 def					@arg22	253	8192	0	Y	0	31	8
