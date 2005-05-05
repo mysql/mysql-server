@@ -437,3 +437,24 @@ a+0	b+0
 2303	2
 12345	4
 drop table t1, t2;
+create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1), 
+g bit(1) NOT NULL default 1, h char(1) default 'a');
+insert into t1 set a=1;
+select hex(g), h from t1;
+hex(g)	h
+1	a
+drop table t1;
+create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1),
+g bit(1) NOT NULL default 1);
+insert into t1 set a=1;
+select hex(g) from t1;
+hex(g)
+1
+drop table t1;
+create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1), 
+h char(1) default 'a') engine=myisam;
+insert into t1 set a=1;
+select h from t1;
+h
+a
+drop table t1;
