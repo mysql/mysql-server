@@ -1,0 +1,54 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+c_warnings=""
+cxx_warnings=""
+fast_cflags="-O3"
+base_cxxflags="-fno-handle-exceptions"
+
+# FIXME do we need to link static, not to depend on CodeWarrior libs?
+
+if [ x$MODE = x ] ; then
+  echo "You need to give an argument, 'standard', 'max', 'debug' or 'debug-max'"
+  echo "Like: MODE=standard BUILD/compile-darwin-codewarrior"
+  exit 1
+else
+  case $MODE in
+    standard|pro-gpl)
+      # FIXME pro/pro-gpl different libedit/readline
+      extra_flags="$ppc_cflags $fast_cflags"
+      ;;
+    pro)
+      # FIXME pro/pro-gpl different libedit/readline
+      extra_flags="$ppc_cflags $fast_cflags"
+      extra_configs="--with-libedit"
+      ;;
+    max)
+      extra_flags="$ppc_cflags $fast_cflags"
+      extra_configs="$max_configs"
+      ;;
+    debug)
+      extra_flags="$ppc_cflags $debug_cflags"
+      c_warnings="$c_warnings $debug_extra_warnings"
+      cxx_warnings="$cxx_warnings $debug_extra_warnings"
+      extra_configs="$debug_configs"
+      ;;
+    debug-max)
+      extra_flags="$ppc_cflags $debug_cflags $max_cflags"
+      c_warnings="$c_warnings $debug_extra_warnings"
+      cxx_warnings="$cxx_warnings $debug_extra_warnings"
+      extra_configs="$debug_configs $max_configs"
+      ;;
+    *)
+      echo "You need to give an argument, 'standard', 'max', 'debug' or 'debug-max'"
+      echo "Like: MODE=standard BUILD/compile-darwin-codewarrior"
+      exit 1
+      ;;
+  esac
+fi
+
+extra_configs="$extra_configs --with-darwin-mwcc"
+
+. "$path/FINISH.sh"
