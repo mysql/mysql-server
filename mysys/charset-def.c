@@ -88,6 +88,11 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_cp1250_czech_ci);
 #endif
 
+#ifdef HAVE_CHARSET_cp932
+  add_compiled_collation(&my_charset_cp932_japanese_ci);
+  add_compiled_collation(&my_charset_cp932_bin);
+#endif
+
 #ifdef HAVE_CHARSET_latin2
   add_compiled_collation(&my_charset_latin2_czech_ci);
 #endif
