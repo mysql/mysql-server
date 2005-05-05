@@ -177,8 +177,8 @@ public:
 
   bool get_all_bits_clear()
   {
-    uint32 *data_ptr= (uint32*)&m_data[0];
-    if (*last_word_ptr ^ last_word_mask)
+    uint32 *data_ptr= (uint32*)m_data;
+    if (*last_word_ptr != last_word_mask)
       return FALSE;
     for (; data_ptr < last_word_ptr; data_ptr++)
       if (*data_ptr)
@@ -204,7 +204,8 @@ public:
   /* Set a bit to a value */
   void set_bit(size_t pos)
   {
-    *(uchar*)(m_data + (pos >> 3)) |= (uchar)(1 << (pos & 0x7U));
+    DBUG_ASSERT(pos < m_size);
+    m_data[pos>>3]|= (uchar)(1 << (pos & 0x7U));
   }
 
   /* Reset (clear) all bits in the vector */
@@ -217,18 +218,27 @@ public:
   /* Reset one bit in the vector */
   void clear_bit(size_t pos)
   {
-    *(u_char*)(m_data + (pos >> 3)) &= (u_char)(~(1 << (pos & 0x7U)));
+    DBUG_ASSERT(pos < m_size);
+    m_data[pos>>3]&= ~(uchar)(1 << (pos & 0x7U));
   }
 
   void flip_bit(size_t pos)
   {
-    *(uchar*)(m_data + (pos >> 3)) ^= (uchar)(1 << (pos & 0x7U));
+    DBUG_ASSERT(pos < m_size);
+    m_data[pos>>3]^= (uchar)(1 << (pos & 0x7U));
   }
 
   bool get_bit(size_t pos) const
   {
-    return (bool)(*(uchar*)(m_data + (pos >> 3))) &
-                 (uchar)(1 << (pos & 0x7U));
+    DBUG_ASSERT(pos < m_size);
+    /*
+      !! provides the most effective implementation of conversion to
+      bool
+    */
+    uchar *byte_word= m_data + (pos >> 3);
+    uchar mask= 1 << (pos & 0x7U);
+    bool ret_value= !!(*byte_word & mask);
+    return ret_value;
   };
 
   bool operator==(bitvector const& rhs) const
