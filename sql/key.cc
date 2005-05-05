@@ -197,12 +197,6 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                      (key_part->null_bit == 128),
                      field->bit_ofs, field->bit_len);
       }
-      else
-      {
-        clr_rec_bits(to_record + key_part->null_offset +
-                     (key_part->null_bit == 128),
-                     field->bit_ofs, field->bit_len);
-      }
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
