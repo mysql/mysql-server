@@ -85,49 +85,7 @@ private:
     return ((bits + 31) >> 5) << 2;
   }
 
-  void create_last_word_mask()
-  {
-
-    /* Get the number of used bits (1..8) in the last byte */
-    unsigned int const used= 1U + ((size()-1U) & 0x7U);
-
-    /*
-     * Create a mask with the upper 'unused' bits set and the lower 'used'
-     * bits clear. The bits within each byte is stored in big-endian order.
-     */
-    unsigned char const mask= (~((1 << used) - 1)) & 255;
-    last_word_ptr= (uint32*)(m_data+((bytes()-1U)>>2));
-
-    /*
-      The first bytes are to be set to zero since they represent real  bits
-      in the bitvector. The last bytes are set to 0xFF since they  represent
-      bytes not used by the bitvector. Finally the last byte contains  bits
-      as set by the mask above.
-    */
-
-    unsigned char *ptr= (unsigned char*)&last_word_mask;
-    switch (bytes()&3)
-    {
-    case 1:
-      last_word_mask= ~0U;
-      ptr[0]= mask;
-      return;
-    case 2:
-      last_word_mask= ~0U;
-      ptr[0]= 0;
-      ptr[1]= mask;
-      return;
-    case 3:
-      last_word_mask= 0U;
-      ptr[2]= mask;
-      ptr[3]= 0xFFU;
-      return;
-    case 0:
-      last_word_mask= 0U;
-      ptr[3]= mask;
-      return;
-    }
-  }
+  void create_last_word_mask();
 
   inline void tidy_last_word()
   {
@@ -181,19 +139,18 @@ public:
       my_free((char*)m_data, MYF(0));
   }
 
-  int init(size_t size)
-  {
-    DBUG_ASSERT(size < MYSQL_NO_BIT_FOUND);
-    m_size= size;
-    m_data= (uchar*)my_malloc(byte_size_word_aligned(size), MYF(0));
-    if (m_data)
-    {
-      create_last_word_mask();
-      clear_all();
-      return FALSE;
-    }
-    return TRUE;
-  }
+  /*
+    Allocate memory to the bitvector and create last word mask
+    and clear all bits in the bitvector.
+  */
+  int init(size_t size);
+
+  /* Get number of bits set in the bitvector */
+  uint no_bits_set();
+  /* Get first bit set/clear in bitvector */
+  uint get_first_bit_set();
+  uint get_first_bit_clear();
+  
 
   /* Swap the guts of this instance with another instance. */
   void swap(bitvector& other)
@@ -331,84 +288,6 @@ public:
     tidy_last_word();
     return *this;
   }
-
-  uint no_bits_set()
-  {
-    uint no_bytes= bytes(), res=0, i;
-    uchar *ptr= m_data;
-    *last_word_ptr^=last_word_mask; //Reset last bits to zero
-    for (i=0; i< no_bytes; i++, ptr++)
-      res+=my_count_bits_ushort(*ptr);
-    *last_word_ptr^=last_word_mask; //Set last bits to one again
-    return res;
-  }
-
-  uint get_first_bit_set()
-  {
-    uchar *byte_ptr;
-    uint32 *data_ptr= (uint32*)data(), bit_found,i,j,k;
-    for (i=0; data_ptr <= last_word_ptr; data_ptr++, i++)
-    {
-      if (*data_ptr)
-      {
-        byte_ptr= (uchar*)data_ptr;
-        for (j=0; j < 4; j++, byte_ptr++)
-        {
-          if (*byte_ptr)
-          {
-            for (k=0; k < 8; k++)
-            {
-              if (*byte_ptr & (1 << k))
-              {
-                bit_found= (i << 5) + (j << 3) + k;
-                if (bit_found == m_size)
-                  return MYSQL_NO_BIT_FOUND;
-                else
-                  return bit_found;
-              }
-            }
-            DBUG_ASSERT(1);
-          }
-        }
-        DBUG_ASSERT(1);
-      }
-    }
-    return MYSQL_NO_BIT_FOUND;
-  }
-
-  uint get_first_bit_unset()
-  {
-    uchar *byte_ptr;
-    uint32 *data_ptr= (uint32*)data(), bit_found,i,j,k;
-    for (i=0; data_ptr <= last_word_ptr; data_ptr++, i++)
-    {
-      if (*data_ptr != 0xFFFFFFFF)
-      {
-        byte_ptr= (uchar*)data_ptr;
-        for (j=0; j < 4; j++, byte_ptr++)
-        {
-          if (*byte_ptr != 0xFF)
-          {
-            for (k=0; k < 8; k++)
-            {
-              if (!(*byte_ptr & (1 << k)))
-              {
-                bit_found= (i << 5) + (j << 3) + k;
-                if (bit_found == m_size)
-                  return MYSQL_NO_BIT_FOUND;
-                else
-                  return bit_found;
-              }
-            }
-            DBUG_ASSERT(1);
-          }
-        }
-        DBUG_ASSERT(1);
-      }
-    }
-    return MYSQL_NO_BIT_FOUND;
-  }
-
 
 private:
   size_t m_size;
