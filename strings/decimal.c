@@ -274,20 +274,20 @@ static dec1 *remove_leading_zeroes(decimal_t *from, int *intg_result)
 
 
 /*
-  Remove ending 0 digits from fraction part
+  Count actual length of fraction part (without ending zeroes)
 
   SYNOPSIS
-    decimal_optimize_fraction()
+    decimal_actual_fraction()
     from    number for processing
 */
 
-void decimal_optimize_fraction(decimal_t *from)
+int decimal_actual_fraction(decimal_t *from)
 {
   int frac= from->frac, i;
   dec1 *buf0= from->buf + ROUND_UP(from->intg) + ROUND_UP(frac) - 1;
 
   if (frac == 0)
-    return;
+    return 0;
 
   i= ((frac - 1) % DIG_PER_DEC1 + 1);
   while (frac > 0 && *buf0 == 0)
@@ -302,7 +302,7 @@ void decimal_optimize_fraction(decimal_t *from)
          *buf0 % powers10[i++] == 0;
          frac--);
   }
-  from->frac= frac;
+  return frac;
 }
 
 
@@ -332,23 +332,15 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler)
 {
-  int len, intg, frac=from->frac, i, intg_len, frac_len, fill;
+  int len, intg, frac= from->frac, i, intg_len, frac_len, fill;
   /* number digits before decimal point */
   int fixed_intg= (fixed_precision ?
-                   (fixed_precision -
-                    (from->sign ? 1 : 0) -
-                    (fixed_decimals ? 1 : 0) -
-                    fixed_decimals) :
-                   0);
+                   (fixed_precision - fixed_decimals) : 0);
   int error=E_DEC_OK;
   char *s=to;
   dec1 *buf, *buf0=from->buf, tmp;
 
   DBUG_ASSERT(*to_len >= 2+from->sign);
-  DBUG_ASSERT(fixed_precision == 0 ||
-              (fixed_precision < *to_len &&
-               fixed_precision > ((from->sign ? 1 : 0) +
-                                  (fixed_decimals ? 1 : 0))));
 
   /* removing leading zeroes */
   buf0= remove_leading_zeroes(from, &intg);
@@ -2609,7 +2601,7 @@ void test_fr(const char *s1, const char *orig)
   printf("%-40s =>          ", s);
   end= strend(s1);
   string2decimal(s1, &a, &end);
-  decimal_optimize_fraction(&a);
+  a.frac= decimal_actual_fraction(&a);
   print_decimal(&a, orig, 0, 0);
   printf("\n");
 }
@@ -2947,7 +2939,7 @@ int main()
   test_sh("123456789.987654321", 0, "123456789.987654321", 0);
   a.len= sizeof(buf1)/sizeof(dec1);
 
-  printf("==== decimal_optimize_fraction ====\n");
+  printf("==== decimal_actual_fraction ====\n");
   test_fr("1.123456789000000000", "1.123456789");
   test_fr("1.12345678000000000", "1.12345678");
   test_fr("1.1234567000000000", "1.1234567");
