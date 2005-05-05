@@ -106,7 +106,7 @@ insert into t2 values(3);
 insert into t1 values (5);
 end|
 call foo4();
-ERROR 42000: INSERT command denied to user 'zedjzlcsjhd'@'localhost' for table 't1'
+Got one of the listed errors
 show warnings;
 Level	Code	Message
 Warning	1417	A routine failed and is declared to modify data and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
@@ -114,7 +114,7 @@ call foo3();
 show warnings;
 Level	Code	Message
 call foo4();
-ERROR 42000: INSERT command denied to user 'zedjzlcsjhd'@'localhost' for table 't1'
+Got one of the listed errors
 show warnings;
 Level	Code	Message
 Warning	1417	A routine failed and is declared to modify data and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
