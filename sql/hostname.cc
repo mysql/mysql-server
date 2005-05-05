@@ -183,7 +183,7 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
       that attempted to connect during the outage) unable to connect
       indefinitely.
     */
-    if (tmp_errno == HOST_NOT_FOUND || tmp_error == NO_DATA)
+    if (tmp_errno == HOST_NOT_FOUND || tmp_errno == NO_DATA)
       add_wrong_ip(in);
     my_gethostbyname_r_free();
     DBUG_RETURN(0);
