@@ -4168,16 +4168,13 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
     return p * (u * (xq-xp) % q) + xp;
 }
 
-
-
-} // namespace
-
 #ifdef __GNUC__
-template TaoCrypt::Integer TaoCrypt::StringToInteger<char>(char const*);
-template TaoCrypt::Integer TaoCrypt::StringToInteger<wchar_t>(wchar_t const*);
-template class TaoCrypt::EuclideanDomainOf<TaoCrypt::Integer>;
-template class TaoCrypt::AbstractEuclideanDomain<TaoCrypt::Integer>;
-template unsigned int TaoCrypt::DivideThreeWordsByTwo<unsigned int, TaoCrypt::DWord>(unsigned int*, unsigned int, unsigned int, TaoCrypt::DWord*);
+template Integer StringToInteger<char>(char const*);
+template Integer StringToInteger<wchar_t>(wchar_t const*);
+template class EuclideanDomainOf<Integer>;
+template class AbstractEuclideanDomain<Integer>;
+template unsigned int DivideThreeWordsByTwo<unsigned int, DWord>(unsigned int*, unsigned int, unsigned int, DWord*);
 #endif
 
+} // namespace
 
