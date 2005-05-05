@@ -459,7 +459,8 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
     my_wildcmp_bin,
     my_strcasecmp_bin,
     my_instr_bin,
-    my_hash_sort_bin
+    my_hash_sort_bin,
+    my_propagate_simple
 };
 
 
@@ -474,7 +475,8 @@ static MY_COLLATION_HANDLER my_collation_binary_handler =
     my_wildcmp_bin,
     my_strcasecmp_bin,
     my_instr_bin,
-    my_hash_sort_bin
+    my_hash_sort_bin,
+    my_propagate_simple
 };
 
 
