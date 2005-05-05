@@ -651,6 +651,7 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length);
+  Item_uint(const char *str_arg, longlong i, uint length);
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
     { unsigned_flag= 1; }
   double val()
@@ -1046,11 +1047,7 @@ public:
   {
     return ref->save_in_field(field, no_conversions);
   }
-  Item *new_item()
-  {
-    return (ref->unsigned_flag)? new Item_uint(ref->name, ref->max_length) :
-                                 new Item_int(ref->name, ref->max_length);
-  }
+  Item *new_item();
 };
 
 
