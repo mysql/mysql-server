@@ -1187,6 +1187,7 @@ start_master()
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
 	  --open-files-limit=1024 \
+          --log-bin-trust-routine-creators \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
@@ -1207,6 +1208,7 @@ start_master()
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
+          --log-bin-trust-routine-creators \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
@@ -1339,6 +1341,7 @@ start_slave()
           --report-port=$slave_port \
           --master-retry-count=10 \
           -O slave_net_timeout=10 \
+          --log-bin-trust-routine-creators \
            $SMALL_SERVER \
            $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
   CUR_MYERR=$slave_err
