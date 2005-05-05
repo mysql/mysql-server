@@ -647,7 +647,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 {
   int error;
   Field::utype type;
-  uint firstpos,null_count,null_length;
+  uint null_count;
   uchar *buff,*null_pos;
   TABLE table;
   create_field *field;
@@ -671,15 +671,14 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
   table.s->db_low_byte_first= handler->low_byte_first();
   table.s->blob_ptr_size= portable_sizeof_char_ptr;
 
-  firstpos=reclength;
   null_count=0;
   if (!(table_options & HA_OPTION_PACK_RECORD))
   {
     null_fields++;				// Need one bit for delete mark
     null_count++;
+    *buff|= 1;
   }
-  bfill(buff,(null_length=(null_fields+7)/8),255);
-  null_pos= buff + null_count / 8;
+  null_pos= buff;
 
   List_iterator<create_field> it(create_fields);
   thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong default values
@@ -689,7 +688,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
       regfield don't have to be deleted as it's allocated with sql_alloc()
     */
     Field *regfield=make_field((char*) buff+field->offset,field->length,
-                               null_pos,
+                               null_pos + null_count / 8,
 			       null_count & 7,
 			       field->pack_flag,
 			       field->sql_type,
@@ -703,11 +702,13 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
       goto err;                                 // End of memory
 
     if (!(field->flags & NOT_NULL_FLAG))
+    {
+      *regfield->null_ptr|= regfield->null_bit;
       null_count++;
+    }
 
-    if ((uint) field->offset < firstpos &&
-	regfield->type() != FIELD_TYPE_NULL)
-      firstpos= field->offset;
+    if (field->sql_type == FIELD_TYPE_BIT && !f_bit_as_char(field->pack_flag))
+      null_count+= field->length & 7;
 
     type= (Field::utype) MTYP_TYPENR(field->unireg_check);
 
@@ -737,7 +738,9 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
   }
 
   /* Fill not used startpos */
-  bfill((byte*) buff+null_length,firstpos-null_length,255);
+  if (null_count)
+    *(null_pos + null_count / 8)|= ~(((uchar) 1 << (null_count & 7)) - 1);
+
   error=(int) my_write(file,(byte*) buff,(uint) reclength,MYF_RW);
 
 err:
