@@ -1451,6 +1451,7 @@ void handler::ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
     DBUG_PRINT("info", ("Set bit in write set"));
     write_set->set_bit((size_t)fieldnr);
   }
+  DBUG_VOID_RETURN;
 }
 
 bool handler::ha_get_bit_in_read_set(uint fieldnr)

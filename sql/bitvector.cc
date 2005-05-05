@@ -120,7 +120,7 @@ uint bitvector::get_first_bit_set()
   return MYSQL_NO_BIT_FOUND;
 }
 
-uint bitvector::get_first_bit_unset()
+uint bitvector::get_first_bit_clear()
 {
   uchar *byte_ptr;
   uint32 *data_ptr= (uint32*)data(), bit_found,i,j,k;
@@ -154,41 +154,6 @@ uint bitvector::get_first_bit_unset()
 }
 
 #ifdef TEST_BITVECTOR
-
-int main()
-{
-  int i;
-  for (i= 0; i < 4096; i++)
-    if (do_test(i))
-      return -1;
-  return 0;
-}
-
-bool do_test(uint bitsize)
-{
-  bitvector *bv;
-  bv = new bitvector;
-  bv->init(bitsize);
-  if (test_set_get_clear_bit(bv,bitsize))
-    return TRUE;
-  if (test_flip_bit(bv,bitsize))
-    return TRUE;
-  if (test_operators(bv,bitsize))
-    return TRUE;
-  if (test_get_all_bits(bvbitsize))
-    return TRUE;
-  if (test_compare_operators(bv,bitsize))
-    return TRUE;
-  if (test_count_bits_set(bv,bitsize))
-    return TRUE;
-  if (test_get_first_bit(bv,bitsize))
-    return TRUE;
-  if (test_get_next_bit(bv,bitsize))
-    return TRUE;
-  printf("OK");
-  return FALSE;
-}
-
 uint get_rand_bit(uint bitsize)
 {
   return (rand() % bitsize);
@@ -201,7 +166,7 @@ bool test_set_get_clear_bit(bitvector *bv, uint bitsize)
   for (i=0; i < no_loops; i++)
   {
     test_bit= get_rand_bit(bitsize);
-    bv->set_bit(test_bit)
+    bv->set_bit(test_bit);
     if (!bv->get_bit(test_bit))
       goto error1;
     bv->clear_bit(test_bit);
@@ -219,12 +184,12 @@ error2:
 
 bool test_flip_bit(bitvector *bv, uint bitsize)
 {
-  uint i test_bit;
+  uint i, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
   for (i=0; i < no_loops; i++)
   {
     test_bit= get_rand_bit(bitsize);
-    bv->flip_bit(test_bit)
+    bv->flip_bit(test_bit);
     if (!bv->get_bit(test_bit))
       goto error1;
     bv->flip_bit(test_bit);
@@ -284,7 +249,7 @@ bool test_compare_operators(bitvector *bv, uint bitsize)
 
 bool test_count_bits_set(bitvector *bv, uint bitsize)
 {
-  uint i, bit_count=0;
+  uint i, bit_count=0, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
   for (i=0; i < no_loops; i++)
   {
@@ -296,9 +261,9 @@ bool test_count_bits_set(bitvector *bv, uint bitsize)
     }
   }
   if (bit_count==0 && bitsize > 0)
-    error1;
+    goto error1;
   if (bv->no_bits_set() != bit_count)
-    error2;
+    goto error2;
   return FALSE;
 error1:
   printf("No bits set  bitsize = %u", bitsize);
@@ -317,4 +282,39 @@ bool test_get_next_bit(bitvector *bv, uint bitsize)
 {
   return FALSE;
 }
+
+bool do_test(uint bitsize)
+{
+  bitvector *bv;
+  bv = new bitvector;
+  bv->init(bitsize);
+  if (test_set_get_clear_bit(bv,bitsize))
+    return TRUE;
+  if (test_flip_bit(bv,bitsize))
+    return TRUE;
+  if (test_operators(bv,bitsize))
+    return TRUE;
+  if (test_get_all_bits(bv, bitsize))
+    return TRUE;
+  if (test_compare_operators(bv,bitsize))
+    return TRUE;
+  if (test_count_bits_set(bv,bitsize))
+    return TRUE;
+  if (test_get_first_bit(bv,bitsize))
+    return TRUE;
+  if (test_get_next_bit(bv,bitsize))
+    return TRUE;
+  printf("OK");
+  return FALSE;
+}
+
+int main()
+{
+  int i;
+  for (i= 0; i < 4096; i++)
+    if (do_test(i))
+      return -1;
+  return 0;
+}
+
 #endif
