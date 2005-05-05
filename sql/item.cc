@@ -1341,6 +1341,13 @@ Item_uint::Item_uint(const char *str_arg, uint length):
 }
 
 
+Item_uint::Item_uint(const char *str_arg, longlong i, uint length):
+  Item_int(str_arg, i, length)
+{
+  unsigned_flag= 1;
+}
+
+
 String *Item_uint::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
@@ -2234,7 +2241,9 @@ Item_param::new_item()
   case NULL_VALUE:
     return new Item_null(name);
   case INT_VALUE:
-    return new Item_int(name, value.integer, max_length);
+    return (unsigned_flag ?
+            new Item_uint(name, value.integer, max_length) :
+            new Item_int(name, value.integer, max_length));
   case REAL_VALUE:
     return new Item_float(name, value.real, decimals, max_length);
   case STRING_VALUE:
@@ -3514,6 +3523,19 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
     return item->val_int() == value && item->unsigned_flag == unsigned_flag;
   }
   return FALSE;
+}
+
+
+Item *Item_int_with_ref::new_item()
+{
+  DBUG_ASSERT(ref->basic_const_item());
+  /*
+    We need to evaluate the constant to make sure it works with
+    parameter markers.
+  */
+  return (ref->unsigned_flag ?
+          new Item_uint(ref->name, ref->val_int(), ref->max_length) :
+          new Item_int(ref->name, ref->val_int(), ref->max_length));
 }
 
 
