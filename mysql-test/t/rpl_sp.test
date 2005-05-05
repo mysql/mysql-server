@@ -125,8 +125,9 @@ create procedure foo4()
 
 delimiter ;|
 
---replace_result localhost.localdomain localhost 127.0.0.1 localhost
---error 1142;
+# I add ,0 so that it does not print the error in the test output,
+# because this error is hostname-dependent
+--error 1142,0;
 call foo4(); # invoker has no INSERT grant on table => failure
 show warnings;
 
@@ -135,7 +136,7 @@ call foo3(); # success (definer == root)
 show warnings;
 
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
---error 1142;
+--error 1142,0;
 call foo4(); # definer's rights => failure
 show warnings;
 
