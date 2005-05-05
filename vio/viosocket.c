@@ -318,11 +318,16 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 
 
 void vio_timeout(Vio *vio __attribute__((unused)),
-		 uint timeout __attribute__((unused)))
+		 uint which __attribute__((unused)),
+                 uint timeout __attribute__((unused)))
 {
 #ifdef __WIN__
   ulong wait_timeout= (ulong) timeout * 1000;
-  (void) setsockopt(vio->sd, SOL_SOCKET, SO_RCVTIMEO, (char*) &wait_timeout,
+  if (which == 0)
+    (void) setsockopt(vio->sd, SOL_SOCKET, SO_RCVTIMEO, (char*) &wait_timeout,
+                    sizeof(wait_timeout));
+  else
+    (void) setsockopt(vio->sd, SOL_SOCKET, SO_SNDTIMEO, (char*) &wait_timeout,
 		    sizeof(wait_timeout));
 #endif /* __WIN__ */
 }
