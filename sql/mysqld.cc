@@ -303,7 +303,7 @@ my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 uint    opt_large_page_size= 0;
-my_bool opt_old_style_user_limits= 0;
+my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -4170,6 +4170,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
+  OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM,
   OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -4590,6 +4591,17 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  /*
+    This option starts with "log-bin" to emphasize that it is specific of
+    binary logging. Hopefully in 5.1 nobody will need it anymore, when we have
+    row-level binlog.
+  */
+  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+   "If equal to 0 (the default), then when --log-bin is used, creation of "
+   "a routine is allowed only to users having the SUPER privilege and only"
+   "if this routine may not break binary logging",
+   (gptr*) &trust_routine_creators, (gptr*) &trust_routine_creators, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
