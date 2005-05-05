@@ -295,6 +295,8 @@ sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 sys_var_bool_ptr	sys_readonly("read_only", &opt_readonly);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
+sys_var_thd_ulong	sys_div_precincrement("div_precision_increment",
+                                              &SV::div_precincrement);
 #ifdef HAVE_REPLICATION
 sys_var_bool_ptr	sys_relay_log_purge("relay_log_purge",
                                             &relay_log_purge);
@@ -567,6 +569,7 @@ sys_var *sys_variables[]=
   &sys_connect_timeout,
   &sys_date_format,
   &sys_datetime_format,
+  &sys_div_precincrement,
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -754,6 +757,7 @@ struct show_var_st init_vars[]= {
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {sys_date_format.name,      (char*) &sys_date_format,		    SHOW_SYS},
   {sys_datetime_format.name,  (char*) &sys_datetime_format,	    SHOW_SYS},
+  {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
   {sys_default_week_format.name, (char*) &sys_default_week_format,  SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},

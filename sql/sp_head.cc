@@ -164,7 +164,10 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
           it= new Item_null();
         else
           it= new Item_decimal(val);
-        dbug_print_decimal("info", "DECIMAL_RESULT: %s", val);
+#ifndef DBUG_OFF
+        char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+        DBUG_PRINT("info", ("DECIMAL_RESULT: %s", dbug_decimal_as_string(dbug_buff, val)));
+#endif
         break;
       }
     case STRING_RESULT:

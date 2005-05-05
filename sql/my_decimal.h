@@ -35,27 +35,27 @@ C_MODE_END
 #define DECIMAL_LONG_DIGITS 10
 #define DECIMAL_LONG3_DIGITS 8
 
-/* number of digits on which we increase scale of devision result */
-#define DECIMAL_DIV_SCALE_INCREASE 5
-
 /* maximum length of buffer in our big digits (uint32) */
-#define DECIMAL_BUFF_LENGTH 8
+#define DECIMAL_BUFF_LENGTH 9
 /*
-  maximum guaranteed length of number in decimal digits (number of our
+  maximum guaranteed precision of number in decimal digits (number of our
   digits * number of decimal digits in one our big digit - number of decimal
   digits in one our big digit decreased on 1 (because we always put decimal
   point on the border of our big digits))
 */
-#define DECIMAL_MAX_LENGTH ((8 * 9) - 8)
+#define DECIMAL_MAX_PRECISION ((DECIMAL_BUFF_LENGTH * 9) - 8*2)
+#define DECIMAL_MAX_SCALE 30
+#define DECIMAL_NOT_SPECIFIED 31
+
 /*
   maximum length of string representation (number of maximum decimal
   digits + 1 position for sign + 1 position for decimal point)
 */
-#define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_LENGTH + 2)
+#define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_PRECISION + 2)
 /*
   maximum size of packet length
 */
-#define DECIMAL_MAX_FIELD_SIZE DECIMAL_MAX_LENGTH
+#define DECIMAL_MAX_FIELD_SIZE DECIMAL_MAX_PRECISION
 
 
 inline uint my_decimal_size(uint precision, uint scale)
@@ -65,6 +65,12 @@ inline uint my_decimal_size(uint precision, uint scale)
     where it want
   */
   return decimal_size(precision, scale) + 1;
+}
+
+
+inline int my_decimal_int_part(uint precision, uint decimals)
+{
+  return precision - ((decimals == DECIMAL_NOT_SPECIFIED) ? 0 : decimals);
 }
 
 
@@ -99,15 +105,16 @@ public:
 
   bool sign() const { return decimal_t::sign; }
   void sign(bool s) { decimal_t::sign= s; }
+  uint precision() const { return intg + frac; }
 };
 
 
 #ifndef DBUG_OFF
 void print_decimal(const my_decimal *dec);
 void print_decimal_buff(const my_decimal *dec, const byte* ptr, int length);
-void dbug_print_decimal(const char *tag, const char *format, my_decimal *val);
+const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 #else
-#define dbug_print_decimal(A,B,C)
+#define dbug_decimal_as_string(A) NULL
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -126,6 +133,18 @@ inline int check_result(uint mask, int result)
   return result;
 }
 
+inline uint my_decimal_length_to_precision(uint length, uint scale,
+                                           bool unsigned_flag)
+{
+  return (uint) (length - (scale>0 ? 1:0) - (unsigned_flag ? 0:1));
+}
+
+inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
+                                             bool unsigned_flag)
+{
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
+  return (uint32)(precision + (scale>0 ? 1:0) + (unsigned_flag ? 0:1));
+}
 
 inline
 int my_decimal_string_length(const my_decimal *d)
@@ -209,8 +228,8 @@ int my_decimal_ceiling(uint mask, const my_decimal *from, my_decimal *to)
 
 
 #ifndef MYSQL_CLIENT
-int my_decimal2string(uint mask, const my_decimal *d, int fixed_prec,
-		      int fixed_dec, char filler, String *str);
+int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
+		      uint fixed_dec, char filler, String *str);
 #endif
 
 inline
@@ -326,7 +345,8 @@ int my_decimal_cmp(const my_decimal *a, const my_decimal *b)
 inline
 void max_my_decimal(my_decimal *to, int precision, int frac)
 {
-  DBUG_ASSERT(precision <= DECIMAL_MAX_LENGTH);
+  DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION)&&
+              (frac <= DECIMAL_MAX_SCALE));
   max_decimal(precision, frac, (decimal_t*) to);
 }
 
