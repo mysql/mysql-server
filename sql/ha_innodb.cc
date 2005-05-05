@@ -3766,6 +3766,7 @@ ha_innobase::create(
 	char		name2[FN_REFLEN];
 	char		norm_name[FN_REFLEN];
 	THD		*thd= current_thd;
+	ib_longlong     auto_inc_value;
 
   	DBUG_ENTER("ha_innobase::create");
 
