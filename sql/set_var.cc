@@ -203,6 +203,9 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
+sys_var_bool_ptr       
+sys_trust_routine_creators("log_bin_trust_routine_creators",
+                           &trust_routine_creators);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
@@ -703,6 +706,7 @@ sys_var *sys_variables[]=
   &sys_innodb_thread_sleep_delay,
   &sys_innodb_thread_concurrency,
 #endif  
+  &sys_trust_routine_creators,
   &sys_engine_condition_pushdown,
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
@@ -842,6 +846,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
+  {sys_trust_routine_creators.name,(char*) &sys_trust_routine_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
