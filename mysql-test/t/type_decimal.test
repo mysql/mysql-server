@@ -308,7 +308,7 @@ create table t1 (d decimal);
 show create table t1;
 drop table t1;
 --error 1063
-create table t1 (d decimal(65,0));
+create table t1 (d decimal(66,0));
 
 #
 # Test example from manual
