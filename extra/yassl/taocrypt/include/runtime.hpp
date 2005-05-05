@@ -25,10 +25,11 @@
 
 
 
-#if !defined(yaSSL_NEW_HPP) && defined(USE_MYSYS_NEW)
+#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__)
 
 #define yaSSL_NEW_HPP
 
+#if __GNUC__ > 2
 
 #include <cstdlib>
 
@@ -66,4 +67,6 @@ static int __cxa_pure_virtual()
 
 } // extern "C"
 
-#endif // yaSSL_NEW_HPP
+#endif // __GNUC__ > 2
+#endif // yaSSL_NEW_HPP && __GNUC__
+
