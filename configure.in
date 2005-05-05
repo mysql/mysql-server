@@ -123,8 +123,25 @@ AM_SANITY_CHECK
 # This is needed is SUBDIRS is set
 AC_PROG_MAKE_SET
 
-# This is need before AC_PROG_CC
-#
+##############################################################################
+# The below section needs to be done before AC_PROG_CC
+##############################################################################
+
+# Hack for OS X/Darwin and Metrowerks CodeWarrior
+AC_ARG_WITH(darwin-mwcc,
+[  --with-darwin-mwcc      Use Metrowerks CodeWarrior wrappers on OS X/Darwin],[
+  builddir=`pwd`
+  ccwrapper="$builddir/support-files/MacOSX/mwcc-wrapper"
+  arwrapper="$builddir/support-files/MacOSX/mwar-wrapper"
+  CC="$ccwrapper"
+  CXX="$ccwrapper"
+  LD="$ccwrapper"
+  AR="$arwrapper"
+  RANLIB=:
+  export CC CXX LD AR RANLIB
+  AC_SUBST(AR)
+  AC_SUBST(RANLIB)
+])
 
 if test "x${CFLAGS-}" = x ; then
   cflags_is_set=no
@@ -143,6 +160,8 @@ if test "x${LDFLAGS-}" = x ; then
 else
   ldflags_is_set=yes
 fi
+
+################ End of section to be done before AC_PROG_CC #################
 
 # The following hack should ensure that configure doesn't add optimizing
 # or debugging flags to CFLAGS or CXXFLAGS
