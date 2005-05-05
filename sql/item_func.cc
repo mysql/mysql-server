@@ -4671,8 +4671,23 @@ Item_func_sp::execute(Item **itp)
     DBUG_RETURN(-1);
   }
 #endif
+  /*
+    Like for SPs, we don't binlog the substatements. If the statement which
+    called this function is an update statement, it will be binlogged; but if
+    it's not (e.g. SELECT myfunc()) it won't be binlogged (documented known
+    problem).
+  */
+  tmp_disable_binlog(thd); /* don't binlog the substatements */
 
   res= m_sp->execute_function(thd, args, arg_count, itp);
+
+  reenable_binlog(thd);
+  if (res && mysql_bin_log.is_open() &&
+      (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
+       m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_FAILED_ROUTINE_BREAK_BINLOG,
+		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, m_sp, &save_ctx);
