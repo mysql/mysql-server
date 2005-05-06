@@ -472,6 +472,9 @@ srv_printf_innodb_monitor(
 	ulint*	trx_end);	/* out: file position of the end of
 				the list of active transactions */
 
+/**********************************************************************
+Function to pass InnoDB status variables to MySQL */
+
 void
 srv_export_innodb_status(void);
 /*=====================*/
