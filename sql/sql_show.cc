@@ -1600,6 +1600,8 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING information_schema_name= {(char*)"information_schema", 18};
+
+/* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
 
 typedef struct st_index_field_values
@@ -1693,8 +1695,8 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
     CHARSET_INFO *cs= system_charset_info;
     ST_SCHEMA_TABLE *schema_table= table->schema_table;
     ST_FIELD_INFO *field_info= schema_table->fields_info;
-    const char *field_name1= field_info[schema_table->idx_field1].field_name;
-    const char *field_name2= field_info[schema_table->idx_field2].field_name;
+    const char *field_name1= schema_table->idx_field1 >= 0 ? field_info[schema_table->idx_field1].field_name : "";
+    const char *field_name2= schema_table->idx_field2 >= 0 ? field_info[schema_table->idx_field2].field_name : "";
     if (table->table != item_field->field->table ||
         (cs->coll->strnncollsp(cs, (uchar *) field_name1, strlen(field_name1),
                                (uchar *) item_field->field_name, 
