@@ -2670,8 +2670,8 @@ static int init_server_components()
       Update log is removed since 5.0. But we still accept the option.
       The idea is if the user already uses the binlog and the update log,
       we completely ignore any option/variable related to the update log, like
-      if the update log did not exist. But if the user uses only the update log, 
-      then we translate everything into binlog for him (with warnings).
+      if the update log did not exist. But if the user uses only the update
+      log, then we translate everything into binlog for him (with warnings).
       Implementation of the above :
       - If mysqld is started with --log-update and --log-bin,
       ignore --log-update (print a warning), push a warning when SQL_LOG_UPDATE
@@ -2685,11 +2685,11 @@ static int init_server_components()
 
       Note that we tell the user that --sql-bin-update-same is deprecated and
       does nothing, and we don't take into account if he used this option or
-      not; but internally we give this variable a value to have the behaviour we
-      want (i.e. have SQL_LOG_UPDATE influence SQL_LOG_BIN or not).
+      not; but internally we give this variable a value to have the behaviour
+      we want (i.e. have SQL_LOG_UPDATE influence SQL_LOG_BIN or not).
       As sql-bin-update-same, log-update and log-bin cannot be changed by the
-      user after starting the server (they are not variables), the user will not
-      later interfere with the settings we do here.
+      user after starting the server (they are not variables), the user will
+      not later interfere with the settings we do here.
     */
     if (opt_bin_log)
     {
@@ -2703,7 +2703,7 @@ version 5.0 and above. It is replaced by the binary log.");
       opt_bin_log= 1;
       if (opt_update_logname)
       {
-        // as opt_bin_log==0, no need to free opt_bin_logname
+        /* as opt_bin_log==0, no need to free opt_bin_logname */
         if (!(opt_bin_logname= my_strdup(opt_update_logname, MYF(MY_WME))))
           exit(EXIT_OUT_OF_MEMORY);
         sql_print_error("The update log is no longer supported by MySQL in \
@@ -2718,8 +2718,8 @@ with --log-bin instead.");
   }
   if (opt_log_slave_updates && !opt_bin_log)
   {
-      sql_print_warning("You need to use --log-bin to make "
-                        "--log-slave-updates work.");
+    sql_print_warning("You need to use --log-bin to make "
+                      "--log-slave-updates work.");
       unireg_abort(1);
   }
 
@@ -2781,7 +2781,15 @@ server.");
       my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
       opt_bin_logname=my_strdup(buf, MYF(0));
     }
-    mysql_bin_log.open_index_file(opt_binlog_index_name, ln);
+    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln))
+    {
+      unireg_abort(1);
+    }
+
+    /*
+      Used to specify which type of lock we need to use for queries of type
+      INSERT ... SELECT. This will change when we have row level logging.
+    */
     using_update_log=1;
   }
 
@@ -2790,10 +2798,10 @@ server.");
     sql_print_error("Can't init databases");
     unireg_abort(1);
   }
-  tc_log= total_ha_2pc > 1 ? opt_bin_log  ?
-                 (TC_LOG *)&mysql_bin_log :
-                 (TC_LOG *)&tc_log_mmap   :
-                 (TC_LOG *)&tc_log_dummy;
+  tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
+                               (TC_LOG *) &mysql_bin_log :
+                               (TC_LOG *) &tc_log_mmap) :
+           (TC_LOG *) &tc_log_dummy);
 
   if (tc_log->open(opt_bin_logname))
   {
@@ -2808,7 +2816,7 @@ server.");
 
   if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
                                         WRITE_CACHE, 0, max_binlog_size, 0))
-      unireg_abort(1);
+    unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
@@ -3567,11 +3575,8 @@ inline void kill_broken_server()
       (!opt_disable_networking && ip_sock == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
-#ifdef __NETWARE__
-    kill_server(MYSQL_KILL_SIGNAL); /* never returns */
-#else
-    kill_server((void*)MYSQL_KILL_SIGNAL); /* never returns */
-#endif /* __NETWARE__ */
+    /* The following call will never return */
+    kill_server(IF_NETWARE(MYSQL_KILL_SIGNAL, (void*) MYSQL_KILL_SIGNAL));
   }
 }
 #define MAYBE_BROKEN_SYSCALL kill_broken_server();
@@ -4512,12 +4517,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    ".",
    (gptr*) &innobase_fast_shutdown,
    (gptr*) &innobase_fast_shutdown, 0, GET_ULONG, OPT_ARG, 1, 0,
-#ifndef __NETWARE__
-   2,
-#else
-   1,
-#endif
-   0, 0, 0},
+   IF_NETWARE(1,2), 0, 0, 0},
   {"innodb_file_per_table", OPT_INNODB_FILE_PER_TABLE,
    "Stores each InnoDB table to an .ibd file in the database dir.",
    (gptr*) &innobase_file_per_table,
