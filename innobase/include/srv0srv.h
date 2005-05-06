@@ -466,9 +466,11 @@ Outputs to a file the output of the InnoDB Monitor. */
 void
 srv_printf_innodb_monitor(
 /*======================*/
-	FILE*	file);	/* in: output stream */
-/************************************************************************
-Function to pass InnoDB status variables to MySQL */
+	FILE*	file,		/* in: output stream */
+	ulint*	trx_start,	/* out: file position of the start of
+				the list of active transactions */
+	ulint*	trx_end);	/* out: file position of the end of
+				the list of active transactions */
 
 void
 srv_export_innodb_status(void);
