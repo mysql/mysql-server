@@ -4,9 +4,9 @@ skip_show_database	OFF
 grant select, update, execute on test.* to mysqltest_2@localhost;
 grant select, update on test.* to mysqltest_1@localhost;
 select * from information_schema.SCHEMATA where schema_name > 'm';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
-NULL	mysql	latin1	NULL
-NULL	test	latin1	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
