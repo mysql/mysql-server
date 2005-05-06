@@ -71,8 +71,14 @@ then
 	cd $dst_place
         rm -rf $run_dir/*
         aclocal; autoheader; autoconf; automake
-        (cd innobase; aclocal; autoheader; autoconf; automake)
-        (cd bdb/dist; sh s_all)
+	if [ -d storage ]
+	then
+	    (cd storage/innobase; aclocal; autoheader; autoconf; automake)
+	    (cd storage/bdb/dist; sh s_all)
+	else
+	    (cd innobase; aclocal; autoheader; autoconf; automake)
+	    (cd bdb/dist; sh s_all)
+	fi
 	eval $configure --prefix=$run_dir
 	make
 	make install
@@ -173,6 +179,18 @@ choose(){
         cat $TMP1
         rm -f $TMP1
 }
+
+choose_conf(){
+    host=`uname -n`
+    if [ -f $test_dir/conf-$1-$host.txt ]
+    then
+	echo "$test_dir/conf-$1-$host.txt"
+    elif [ -f $test_dir/conf-$1.txt ]
+    then
+	echo "$test_dir/conf-$1.txt"
+    fi
+}
+
 start(){
 	rm -rf report.txt result* log.txt
 	$atrt -v -v -r -R --log-file=log.txt --testcase-file=$test_dir/$2-tests.txt &
@@ -189,8 +207,7 @@ start(){
 	p2=`pwd`
 	cd ..
 	tar cfz /tmp/res.$$.tgz `basename $p2`/$DATE
-	scp /tmp/res.$$.tgz $result_host:$result_path
-	ssh $result_host "cd $result_path && tar xfz res.$$.tgz && rm -f res.$$.tgz"
+	scp /tmp/res.$$.tgz $result_host:$result_path/tmp/res.$DATE.`uname -n`.$$.tgz
 	rm -f /tmp/res.$$.tgz
 }
 
@@ -202,8 +219,8 @@ do
 	run_dir=$base_dir/run-$dir-mysql-$clone-$target
 	res_dir=$base_dir/result-$dir-mysql-$clone-$target/$DATE
 
-	mkdir -p $res_dir
-	rm -rf $res_dir/*
+	mkdir -p $run_dir $res_dir
+	rm -rf $res_dir/* $run_dir/*
 	
 	count=`grep -c "COMPUTER" $run_dir/1.ndb_mgmd/initconfig.template`
 	avail_hosts=`filter /tmp/filter_hosts.$$ $hosts`
@@ -216,7 +233,9 @@ do
 	fi
 
 	run_hosts=`echo $avail_hosts| awk '{for(i=1;i<='$count';i++)print $i;}'`
-	choose $run_dir/d.template $run_hosts > $run_dir/d.txt
+	conf=`choose_conf $dir`
+	
+	choose $conf $run_hosts > $run_dir/d.txt
 	(cd $run_dir; $mkconfig d.txt )
 	echo $run_hosts >> /tmp/filter_hosts.$$	
 
