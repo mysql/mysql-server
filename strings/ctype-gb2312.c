@@ -5698,6 +5698,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strcasecmp_mb,     /* instr      */
   my_instr_mb,
   my_hash_sort_simple,
+  my_propagate_simple
 };
 
 static MY_CHARSET_HANDLER my_charset_handler=
