@@ -6990,9 +6990,15 @@ static void create_pid_file()
     char buff[21], *end;
     end= int10_to_str((long) getpid(), buff, 10);
     *end++= '\n';
-    (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
+    if (!my_write(file, (byte*) buff, (uint) (end-buff), MYF(MY_WME | MY_NABP)))
+    {
+      (void) my_close(file, MYF(0));
+      return;
+    }
     (void) my_close(file, MYF(0));
   }
+  sql_perror("Can't start server: can't create PID file");
+  exit(1);  
 }
 
 
