@@ -7,6 +7,7 @@ node_id=1
 
 dir_file=/tmp/dirs.$$
 config_file=/tmp/config.$$
+cluster_file=/tmp/cluster.$$
 
 add_procs(){
 	type=$1; shift
@@ -55,6 +56,7 @@ add_proc (){
 }
 
 
+cnf=/dev/null
 cat $1 | while read line
 do
 	case $line in
@@ -65,20 +67,29 @@ do
 	ndb:*) add_procs ndb `echo $line | sed 's/ndb[ ]*:[ ]*//g'`;;
 	mysqld:*) add_procs mysqld `echo $line | sed 's/mysqld[ ]*:[ ]*//g'`;;
 	mysql:*) add_procs mysql `echo $line | sed 's/mysql[ ]*:[ ]*//g'`;;
+	"-- cluster config") 
+		if [ "$cnf" = "/dev/null" ]
+		    then
+		    cnf=$cluster_file
+		else
+		    cnf=/dev/null
+		fi
+		;;
+	*) echo $line >> $cnf
 	esac
 done
 
-cat $dir_file | xargs mkdir
+cat $dir_file | xargs mkdir -p
 
-if [ "$2" ]
-then
-    cat $2 $config_file >> /tmp/config2.$$
+if [ -f $cluster_file ]
+    then
+    cat $cluster_file $config_file >> /tmp/config2.$$
     mv /tmp/config2.$$ $config_file
 fi
 
 for i in `find . -type d -name '*.ndb_mgmd'`
-do
+  do
   cp $config_file $i/config.ini
 done
 
-rm -f $config_file $dir_file
+rm -f $config_file $dir_file $cluster_file
