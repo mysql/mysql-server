@@ -1777,32 +1777,64 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table)
 
 
 /*
-  Add 'information_schema' name to db_names list
+  Create db names list. Information schema name always is first in list
 
   SYNOPSIS
-    schema_db_add()
+    make_db_list()
     thd                   thread handler
     files                 list of db names
     wild                  wild string
+    idx_field_vals        idx_field_vals->db_name contains db name or
+                          wild string
     with_i_schema         returns 1 if we added 'IS' name to list
                           otherwise returns 0
+    is_wild_value         if value is 1 then idx_field_vals->db_name is
+                          wild string otherwise it's db name; 
 
   RETURN
     1	                  error
     0	                  success
 */
 
-int schema_db_add(THD *thd, List<char> *files,
-                  const char *wild, bool *with_i_schema)
+int make_db_list(THD *thd, List<char> *files,
+                 INDEX_FIELD_VALUES *idx_field_vals,
+                 bool *with_i_schema, bool is_wild_value)
 {
+  LEX *lex= thd->lex;
   *with_i_schema= 0;
-  if (!wild || !wild_compare(information_schema_name.str, wild, 0))
+  get_index_field_values(lex, idx_field_vals);
+  if (is_wild_value)
   {
-    *with_i_schema= 1;
-    if (files->push_back(thd->strdup(information_schema_name.str)))
-      return 1;
+    if (!idx_field_vals->db_value ||
+        !wild_case_compare(system_charset_info, 
+                           information_schema_name.str,
+                           idx_field_vals->db_value))
+    {
+      *with_i_schema= 1;
+      if (files->push_back(thd->strdup(information_schema_name.str)))
+        return 1;
+    }
+    return mysql_find_files(thd, files, NullS, mysql_data_home,
+                            idx_field_vals->db_value, 1);
   }
-  return 0;
+
+  if (lex->orig_sql_command != SQLCOM_END)
+  {
+    if (!idx_field_vals->db_value ||
+        !my_strcasecmp(system_charset_info, 
+                       information_schema_name.str,
+                       idx_field_vals->db_value))
+    {
+      *with_i_schema= 1;
+      return files->push_back(thd->strdup(information_schema_name.str));
+    }
+    return files->push_back(thd->strdup(idx_field_vals->db_value));
+  }
+
+  if (files->push_back(thd->strdup(information_schema_name.str)))
+    return 1;
+  *with_i_schema= 1;
+  return mysql_find_files(thd, files, NullS, mysql_data_home, NullS, 1);
 }
 
 
@@ -1880,14 +1912,9 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   if (schema_table_idx == SCH_TABLES)
     lock_type= TL_READ;
-  get_index_field_values(lex, &idx_field_vals);
 
-  /* information schema name always is first in list */
-  if (schema_db_add(thd, &bases, idx_field_vals.db_value, &with_i_schema))
-    goto err;
-
-  if (mysql_find_files(thd, &bases, NullS, mysql_data_home,
-		       idx_field_vals.db_value, 1))
+  if (make_db_list(thd, &bases, &idx_field_vals,
+                   &with_i_schema, 0))
     goto err;
 
   partial_cond= make_cond_for_info_schema(cond, tables);
@@ -2022,13 +2049,10 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   DBUG_ENTER("fill_schema_shemata");
 
-  get_index_field_values(thd->lex, &idx_field_vals);
-  /* information schema name always is first in list */
-  if (schema_db_add(thd, &files, idx_field_vals.db_value, &with_i_schema))
+  if (make_db_list(thd, &files, &idx_field_vals,
+                   &with_i_schema, 1))
     DBUG_RETURN(1);
-  if (mysql_find_files(thd, &files, NullS, mysql_data_home,
-                       idx_field_vals.db_value, 1))
-    DBUG_RETURN(1);
+
   List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {

@@ -1,0 +1,9 @@
+-- source include/testdb_only.inc
+
+use INFORMATION_SCHEMA;
+show tables;
+show tables from INFORMATION_SCHEMA like 'T%';
+create database `inf%`;
+use `inf%`;
+show tables;
+drop database `inf%`;
