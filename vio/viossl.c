@@ -424,7 +424,8 @@ int vio_ssl_blocking(Vio * vio __attribute__((unused)),
 
 
 void vio_ssl_timeout(Vio *vio __attribute__((unused)),
-		     uint timeout __attribute__((unused)))
+		     uint which __attribute__((unused)),
+                     uint timeout __attribute__((unused)))
 {
   /* Not yet implemented (non critical) */
 }
