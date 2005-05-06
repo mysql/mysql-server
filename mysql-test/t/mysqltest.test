@@ -286,3 +286,12 @@ select 3 from t1 ;
 #select 3 from t1 ;
 #
 #select 3 from t1 ;
+
+
+#
+# Bug #10251: Identifiers containing quotes not handled correctly
+#
+select 1 as `a'b`, 2 as `a"b`;
+
+# Test escaping of quotes
+select 'aaa\\','aa''a',"aa""a";
