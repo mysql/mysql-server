@@ -67,12 +67,11 @@ my_bool my_thread_global_init(void)
   /*
     Set mutex type to "fast" a.k.a "adaptive"
 
-    The mutex kind determines what happens if a thread attempts to lock
-    a mutex it already owns with pthread_mutex_lock(3). If the mutex
-    is of the ``fast'' kind, pthread_mutex_lock(3) simply suspends
-    the calling thread forever. If the mutex is of the ``error checking''
-    kind, pthread_mutex_lock(3) returns immediately with the error
-    code EDEADLK.
+    In this case the thread may steal the mutex from some other thread
+    that is waiting for the same mutex.  This will save us some
+    context switches but may cause a thread to 'starve forever' while
+    waiting for the mutex (not likely if the code within the mutex is
+    short).
   */
   pthread_mutexattr_init(&my_fast_mutexattr);
   pthread_mutexattr_settype(&my_fast_mutexattr,

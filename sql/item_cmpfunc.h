@@ -412,6 +412,7 @@ public:
   const char *func_name() const { return "between"; }
   void fix_length_and_dec();
   void print(String *str);
+  bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
 };
