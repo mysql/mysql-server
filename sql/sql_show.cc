@@ -2362,10 +2362,10 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                              strlen((const char*) pos), cs);
       if (field->has_charset())
       {
-        table->field[8]->store((longlong) field->representation_length()/
+        table->field[8]->store((longlong) field->field_length/
                                field->charset()->mbmaxlen);
         table->field[8]->set_notnull();
-        table->field[9]->store((longlong) field->representation_length());
+        table->field[9]->store((longlong) field->field_length);
         table->field[9]->set_notnull();
       }
 
@@ -2373,7 +2373,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         uint dec =field->decimals();
         switch (field->type()) {
         case FIELD_TYPE_NEWDECIMAL:
-          table->field[10]->store((longlong) field->field_length);
+          table->field[10]->store((longlong)
+                                  ((Field_new_decimal*)field)->precision);
           table->field[10]->set_notnull();
           table->field[11]->store((longlong) field->decimals());
           table->field[11]->set_notnull();
