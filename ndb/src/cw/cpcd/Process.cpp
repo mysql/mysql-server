@@ -44,6 +44,8 @@ CPCD::Process::print(FILE * f){
   fprintf(f, "stdout: %s\n", m_stdout.c_str() ? m_stdout.c_str() : "");
   fprintf(f, "stderr: %s\n", m_stderr.c_str() ? m_stderr.c_str() : "");
   fprintf(f, "ulimit: %s\n", m_ulimit.c_str() ? m_ulimit.c_str() : "");
+  fprintf(f, "shutdown: %s\n", m_shutdown_options.c_str() ? 
+	  m_shutdown_options.c_str() : "");
 }
 
 CPCD::Process::Process(const Properties & props, class CPCD *cpcd) {
@@ -64,6 +66,7 @@ CPCD::Process::Process(const Properties & props, class CPCD *cpcd) {
   props.get("stdout", m_stdout);
   props.get("stderr", m_stderr);
   props.get("ulimit", m_ulimit);
+  props.get("shutdown", m_shutdown_options);
   m_status = STOPPED;
 
   if(strcasecmp(m_type.c_str(), "temporary") == 0){
@@ -451,7 +454,11 @@ CPCD::Process::stop() {
   m_status = STOPPING;
   
   errno = 0;
-  int ret = kill(-m_pid, SIGTERM);
+  int signo= SIGTERM;
+  if(m_shutdown_options == "SIGKILL")
+    signo= SIGKILL;
+
+  int ret = kill(-m_pid, signo);
   switch(ret) {
   case 0:
     logger.debug("Sent SIGTERM to pid %d", (int)-m_pid);

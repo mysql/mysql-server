@@ -112,7 +112,7 @@ atrt=$test_dir/atrt
 html=$test_dir/make-html-reports.sh
 mkconfig=$run_dir/mysql-test/ndb/make-config.sh
 
-PATH=$test_dir:$PATH
+PATH=$run_dir/bin:$test_dir:$PATH
 export PATH
 
 filter(){
@@ -211,6 +211,12 @@ start(){
 	rm -f /tmp/res.$$.tgz
 }
 
+count_hosts(){
+    grep "CHOOSE_host" $1 |
+      awk '{for(i=1; i<=NF;i++) if(match($i, "CHOOSE_host") > 0) print $i;}' |
+      wc -l
+}
+
 p=`pwd`
 for dir in $RUN
 do
@@ -222,7 +228,8 @@ do
 	mkdir -p $run_dir $res_dir
 	rm -rf $res_dir/* $run_dir/*
 	
-	count=`grep -c "COMPUTER" $run_dir/1.ndb_mgmd/initconfig.template`
+	conf=`choose_conf $dir`
+	count=`count_hosts $conf`
 	avail_hosts=`filter /tmp/filter_hosts.$$ $hosts`
 	avail=`echo $avail_hosts | wc -w`
 	if  [ $count -gt $avail ]
@@ -233,7 +240,6 @@ do
 	fi
 
 	run_hosts=`echo $avail_hosts| awk '{for(i=1;i<='$count';i++)print $i;}'`
-	conf=`choose_conf $dir`
 	
 	choose $conf $run_hosts > $run_dir/d.txt
 	(cd $run_dir; $mkconfig d.txt )

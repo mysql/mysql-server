@@ -282,6 +282,7 @@ convert(const Properties & src, SimpleCpcClient::Process & dst){
   b &= src.get("stdout", dst.m_stdout);
   b &= src.get("stderr", dst.m_stderr);
   b &= src.get("ulimit", dst.m_ulimit);
+  b &= src.get("shutdown", dst.m_shutdown_options);
 
   return b;
 }
@@ -305,6 +306,7 @@ convert(const SimpleCpcClient::Process & src, Properties & dst ){
   b &= dst.put("stdout", src.m_stdout.c_str());
   b &= dst.put("stderr", src.m_stderr.c_str());
   b &= dst.put("ulimit", src.m_ulimit.c_str());
+  b &= dst.put("shutdown", src.m_shutdown_options.c_str());
   
   return b;
 }
@@ -372,6 +374,7 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
     CPC_ARG("stdout",String, Mandatory, "Redirect stdout"),
     CPC_ARG("stderr",String, Mandatory, "Redirect stderr"),
     CPC_ARG("ulimit",String, Mandatory, "ulimit"),    
+    CPC_ARG("shutdown",String, Mandatory, "shutdown"),    
     
     CPC_END()
   };
