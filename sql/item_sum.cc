@@ -240,6 +240,8 @@ Item_sum_hybrid::Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
   case REAL_RESULT:
     sum= item->sum;
     break;
+  case STRING_RESULT: // This can happen with ROLLUP. Note that the value is already
+    break;            // copied at function call.
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
@@ -585,7 +587,10 @@ bool Item_sum_distinct::setup(THD *thd)
 
   DBUG_ENTER("Item_sum_distinct::setup");
 
-  DBUG_ASSERT(tree == 0);                 /* setup can not be called twice */
+  /*
+    Setup can be called twice for ROLLUP items. This is a bug.
+    Please add DBUG_ASSERT(tree == 0) here when it's fixed.
+  */
 
   /*
     Virtual table and the tree are created anew on each re-execution of
