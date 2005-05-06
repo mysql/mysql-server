@@ -112,7 +112,7 @@ atrt=$test_dir/atrt
 html=$test_dir/make-html-reports.sh
 mkconfig=$run_dir/mysql-test/ndb/make-config.sh
 
-PATH=$test_dir:$PATH
+PATH=$run_dir/bin:$test_dir:$PATH
 export PATH
 
 filter(){
