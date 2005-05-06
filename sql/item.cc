@@ -554,7 +554,7 @@ void Item_field::set_field(Field *field_par)
 {
   field=result_field=field_par;			// for easy coding with fields
   maybe_null=field->maybe_null();
-  max_length=field_par->field_length;
+  max_length=field_par->max_length();
   decimals= field->decimals();
   table_name=field_par->table_name;
   field_name=field_par->field_name;
