@@ -11657,11 +11657,13 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
   enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   for (store_key **copy=ref->key_copy ; *copy ; copy++)
+  {
     if ((*copy)->copy())
     {
       thd->count_cuted_fields= save_count_cuted_fields;
       return 1;					// Something went wrong
     }
+  }
   thd->count_cuted_fields= save_count_cuted_fields;
   return 0;
 }

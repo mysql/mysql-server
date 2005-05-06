@@ -1737,8 +1737,7 @@ my_decimal *Item_func_coalesce::val_decimal(my_decimal *decimal_value)
 void Item_func_coalesce::fix_length_and_dec()
 {
   agg_result_type(&cached_result_type, args, arg_count);
-  switch (cached_result_type)
-  {
+  switch (cached_result_type) {
   case STRING_RESULT:
     count_only_length();
     decimals= NOT_FIXED_DEC;
