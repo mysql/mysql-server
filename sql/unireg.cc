@@ -504,6 +504,7 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
   int2store(forminfo+280,22);			/* Rows needed */
   int2store(forminfo+282,null_fields);
   int2store(forminfo+284,com_length);
+  /* Up to forminfo+288 is free to use for additional information */
   DBUG_RETURN(0);
 } /* pack_header */
 

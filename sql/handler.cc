@@ -366,11 +366,11 @@ int ha_init()
 
   if (opt_bin_log)
   {
-    if (!(*ht= binlog_init()))
+    if (!(*ht= binlog_init()))                  // Always succeed
     {
-      mysql_bin_log.close(LOG_CLOSE_INDEX);
-      opt_bin_log= 0;
-      error= 1;
+      mysql_bin_log.close(LOG_CLOSE_INDEX);     // Never used
+      opt_bin_log= 0;                           // Never used
+      error= 1;                                 // Never used
     }
     else
       ha_was_inited_ok(ht++);
@@ -2417,6 +2417,7 @@ TYPELIB *ha_known_exts(void)
   return &known_extensions;
 }
 
+
 #ifdef HAVE_REPLICATION
 /*
   Reports to table handlers up to which position we have sent the binlog
@@ -2424,19 +2425,16 @@ TYPELIB *ha_known_exts(void)
 
   SYNOPSIS
     ha_repl_report_sent_binlog()
+    thd             thread doing the binlog communication to the slave
+    log_file_name   binlog file name
+    end_offse t     the offset in the binlog file up to which we sent the
+		    contents to the slave
 
   NOTES
     Only works for InnoDB at the moment
 
   RETURN VALUE
     Always 0 (= success)  
-
-  PARAMETERS
-    THD    *thd             in: thread doing the binlog communication to
-                                the slave
-    char   *log_file_name   in: binlog file name
-    my_off_t end_offset     in: the offset in the binlog file up to
-                                which we sent the contents to the slave
 */
 
 int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
@@ -2445,17 +2443,17 @@ int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
 #ifdef HAVE_INNOBASE_DB
   return innobase_repl_report_sent_binlog(thd,log_file_name,end_offset);
 #else
-  /* remove warnings about unused parameters */
-  thd=thd; log_file_name=log_file_name; end_offset=end_offset;
   return 0;
 #endif
 }
+
 
 /*
   Reports to table handlers that we stop replication to a specific slave
 
   SYNOPSIS
     ha_repl_report_replication_stop()
+    thd              thread doing the binlog communication to the slave
 
   NOTES
     Does nothing at the moment
@@ -2464,14 +2462,10 @@ int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
     Always 0 (= success)  
 
   PARAMETERS
-    THD    *thd             in: thread doing the binlog communication to
-                                the slave
 */
 
 int ha_repl_report_replication_stop(THD *thd)
 {
-  thd = thd;
-
   return 0;
 }
 #endif /* HAVE_REPLICATION */

@@ -1051,7 +1051,7 @@ pthread_handler_decl(handle_one_connection,arg)
   /* now that we've called my_thread_init(), it is safe to call DBUG_* */
 
 #if defined(__WIN__)
-  init_signals();				// IRENA; testing ?
+  init_signals();
 #elif !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use

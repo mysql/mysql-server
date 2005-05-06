@@ -2012,9 +2012,7 @@ THR_LOCK_DATA **ha_berkeley::store_lock(THD *thd, THR_LOCK_DATA **to,
 	 lock_type <= TL_WRITE) &&
 	!thd->in_lock_tables)
       lock_type = TL_WRITE_ALLOW_WRITE;
-    lock.type=lock_type;
-    lock_on_read= ((table->reginfo.lock_type > TL_WRITE_ALLOW_READ) ? DB_RMW :
-		   0);
+    lock.type= lock_type;
   }
   *to++= &lock;
   return to;
