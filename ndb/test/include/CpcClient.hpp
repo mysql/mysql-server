@@ -56,6 +56,7 @@ public:
     BaseString m_stdout;
     BaseString m_stderr;
     BaseString m_ulimit;
+    BaseString m_shutdown_options;
   };
 
 private:
