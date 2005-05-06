@@ -2000,11 +2000,12 @@ err:
 
 
 bool store_schema_shemata(THD* thd, TABLE *table, const char *db_name,
-                          const char* cs_name)
+                          CHARSET_INFO *cs)
 {
   restore_record(table, s->default_values);
   table->field[1]->store(db_name, strlen(db_name), system_charset_info);
-  table->field[2]->store(cs_name, strlen(cs_name), system_charset_info);
+  table->field[2]->store(cs->csname, strlen(cs->csname), system_charset_info);
+  table->field[3]->store(cs->name, strlen(cs->name), system_charset_info);
   return schema_table_store_record(thd, table);
 }
 
@@ -2035,7 +2036,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
     if (with_i_schema)       // information schema name is always first in list
     {
       if (store_schema_shemata(thd, table, file_name,
-                               system_charset_info->csname))
+                               system_charset_info))
         DBUG_RETURN(1);
       with_i_schema= 0;
       continue;
@@ -2060,7 +2061,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
       strmov(path+length, MY_DB_OPT_FILE);
       load_db_opt(thd, path, &create);
       if (store_schema_shemata(thd, table, file_name, 
-                               create.default_table_charset->csname))
+                               create.default_table_charset))
         DBUG_RETURN(1);
     }
   }
@@ -3482,6 +3483,7 @@ ST_FIELD_INFO schema_fields_info[]=
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SCHEMA_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
   {"DEFAULT_CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DEFAULT_COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
