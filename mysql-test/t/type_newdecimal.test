@@ -869,3 +869,10 @@ drop table Sow6_2f;
 # bug#9501
 #
 select 10.3330000000000/12.34500000;
+
+#
+# Bug #10404
+#
+
+set sql_mode='';
+select 0/0;
