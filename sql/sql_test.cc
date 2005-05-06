@@ -183,7 +183,7 @@ TEST_join(JOIN *join)
       else if (tab->select->quick)
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->select->quick->dbug_dump(18, false);
+        tab->select->quick->dbug_dump(18, FALSE);
       }
       else
 	VOID(fputs("                  select used\n",DBUG_FILE));
