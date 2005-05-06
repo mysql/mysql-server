@@ -1951,7 +1951,7 @@ char* X509_NAME::GetName()
 X509::X509(const char* i, size_t iSz, const char* s, size_t sSz)
     : issuer_(i, iSz), subject_(s, sSz)
 {}
-   
+
 
 X509_NAME* X509::GetIssuer()
 {
@@ -1967,7 +1967,9 @@ X509_NAME* X509::GetSubject()
 } // namespace
 
 #ifdef __GNUC__
+namespace mySTL {
 template yaSSL::yassl_int_cpp_local1::SumData mySTL::for_each<mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData>(mySTL::list<yaSSL::input_buffer*>::iterator, mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData);
 template yaSSL::yassl_int_cpp_local1::SumBuffer mySTL::for_each<mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer>(mySTL::list<yaSSL::output_buffer*>::iterator, mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer);
 template mySTL::list<yaSSL::SSL_SESSION*>::iterator mySTL::find_if<mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match>(mySTL::list<yaSSL::SSL_SESSION*>::iterator, mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match);
+}
 #endif

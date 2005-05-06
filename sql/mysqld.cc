@@ -304,7 +304,7 @@ my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 uint    opt_large_page_size= 0;
-my_bool opt_old_style_user_limits= 0;
+my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -4172,6 +4172,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
+  OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM,
   OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -4220,7 +4221,8 @@ enum options_mysqld
   OPT_PRELOAD_BUFFER_SIZE,
   OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_MIN_RES_UNIT, OPT_QUERY_CACHE_SIZE,
   OPT_QUERY_CACHE_TYPE, OPT_QUERY_CACHE_WLOCK_INVALIDATE, OPT_RECORD_BUFFER,
-  OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT, OPT_RELAY_LOG_PURGE,
+  OPT_RECORD_RND_BUFFER, OPT_DIV_PRECINCREMENT, OPT_RELAY_LOG_SPACE_LIMIT,
+  OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_DEBUGGING,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
@@ -4592,6 +4594,17 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  /*
+    This option starts with "log-bin" to emphasize that it is specific of
+    binary logging. Hopefully in 5.1 nobody will need it anymore, when we have
+    row-level binlog.
+  */
+  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+   "If equal to 0 (the default), then when --log-bin is used, creation of "
+   "a routine is allowed only to users having the SUPER privilege and only"
+   "if this routine may not break binary logging",
+   (gptr*) &trust_routine_creators, (gptr*) &trust_routine_creators, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -5441,6 +5454,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
    ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+  {"div_precision_increment", OPT_DIV_PRECINCREMENT,
+   "Precision of the result of '/' operator will be increased on that value.",
+   (gptr*) &global_system_variables.div_precincrement,
+   (gptr*) &max_system_variables.div_precincrement, 0, GET_ULONG,
+   REQUIRED_ARG, 4, 0, DECIMAL_MAX_SCALE, 0, 0, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (gptr*) &global_system_variables.read_buff_size,
@@ -6948,9 +6966,15 @@ static void create_pid_file()
     char buff[21], *end;
     end= int10_to_str((long) getpid(), buff, 10);
     *end++= '\n';
-    (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
+    if (!my_write(file, (byte*) buff, (uint) (end-buff), MYF(MY_WME | MY_NABP)))
+    {
+      (void) my_close(file, MYF(0));
+      return;
+    }
     (void) my_close(file, MYF(0));
   }
+  sql_perror("Can't start server: can't create PID file");
+  exit(1);  
 }
 
 

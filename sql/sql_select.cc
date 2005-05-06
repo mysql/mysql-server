@@ -6435,10 +6435,13 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
       {
         bool copyfl;
 
-        if (field_item->result_type() == STRING_RESULT &&
-              ((Field_str *) field_item->field)->charset() !=
-               ((Item_cond *) item)->compare_collation())
-          return FALSE;
+        if (field_item->result_type() == STRING_RESULT)
+        {
+          CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+          if ((cs != ((Item_cond *) item)->compare_collation()) ||
+              !cs->coll->propagate(cs, 0, 0))
+            return FALSE;
+        }
 
         Item_equal *item_equal = find_item_equal(cond_equal,
                                                  field_item->field, &copyfl);
@@ -7781,9 +7784,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
       new_field= item->make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    new_field= new Field_new_decimal(item->max_length - (item->decimals?1:0),
-                                     maybe_null,
-                                     item->name, table, item->decimals);
+    new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
+                                     table, item->decimals, item->unsigned_flag);
     break;
   case ROW_RESULT:
   default:

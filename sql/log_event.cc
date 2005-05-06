@@ -956,6 +956,18 @@ void Query_log_event::pack_info(Protocol *protocol)
 
 #ifndef MYSQL_CLIENT
 
+/* Utility function for the next method */
+static void write_str_with_code_and_len(char **dst, const char *src,
+                                        int len, uint code)
+{
+  DBUG_ASSERT(src);
+  *((*dst)++)= code;
+  *((*dst)++)= (uchar) len;
+  bmove(*dst, src, len);
+  (*dst)+= len;
+}
+
+
 /*
   Query_log_event::write()
 
@@ -1040,12 +1052,10 @@ bool Query_log_event::write(IO_CACHE* file)
     int8store(start, (ulonglong)sql_mode);
     start+= 8;
   }
-  if (catalog_len) // i.e. "catalog inited" (false for 4.0 events)
+  if (catalog_len) // i.e. this var is inited (false for 4.0 events)
   {
-    *start++= Q_CATALOG_NZ_CODE;
-    *start++= (uchar) catalog_len;
-    bmove(start, catalog, catalog_len);
-    start+= catalog_len;
+    write_str_with_code_and_len((char **)(&start),
+                                catalog, catalog_len, Q_CATALOG_NZ_CODE);
     /*
       In 5.0.x where x<4 masters we used to store the end zero here. This was
       a waste of one byte so we don't do it in x>=4 masters. We change code to
@@ -1177,6 +1187,25 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 #endif /* MYSQL_CLIENT */
 
 
+/* 2 utility functions for the next method */
+
+static void get_str_len_and_pointer(const char **dst, const char **src, uint *len)
+{
+  if ((*len= **src))
+    *dst= *src + 1;                          // Will be copied later
+  (*src)+= *len+1;
+}
+
+
+static void copy_str_and_move(char **dst, const char **src, uint len)
+{
+  memcpy(*dst, *src, len);
+  *src= *dst;
+  (*dst)+= len;
+  *(*dst)++= 0;
+}
+
+
 /*
   Query_log_event::Query_log_event()
   This is used by the SQL slave thread to prepare the event before execution.
@@ -1265,9 +1294,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     }
     case Q_CATALOG_NZ_CODE:
-      if ((catalog_len= *pos))
-        catalog= (char*) pos+1;                 // Will be copied later
-      pos+= catalog_len+1;
+      get_str_len_and_pointer(&catalog, (const char **)(&pos), &catalog_len);
       break;
     case Q_AUTO_INCREMENT:
       auto_increment_increment= uint2korr(pos);
@@ -1283,9 +1310,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_TIME_ZONE_CODE:
     {
-      if ((time_zone_len= *pos))
-        time_zone_str= (char *)(pos+1);
-      pos+= time_zone_len+1;
+      get_str_len_and_pointer(&time_zone_str, (const char **)(&pos), &time_zone_len);
       break;
     }
     case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
@@ -1309,12 +1334,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (catalog_len)                                  // If catalog is given
   {
     if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
-    {
-      memcpy(start, catalog, catalog_len);
-      catalog= start;
-      start+= catalog_len;
-      *start++= 0;
-    }
+      copy_str_and_move(&start, &catalog, catalog_len);
     else
     {
       memcpy(start, catalog, catalog_len+1); // copy end 0
@@ -1323,12 +1343,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
   }
   if (time_zone_len)
-  {
-    memcpy(start, time_zone_str, time_zone_len);
-    time_zone_str= start;
-    start+= time_zone_len;
-    *start++= 0;
-  }
+    copy_str_and_move(&start, &time_zone_str, time_zone_len);
+
   /* A 2nd variable part; this is common to all versions */ 
   memcpy((char*) start, end, data_len);          // Copy db and query
   start[data_len]= '\0';              // End query with \0 (For safetly)

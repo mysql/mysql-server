@@ -203,6 +203,9 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
+sys_var_bool_ptr       
+sys_trust_routine_creators("log_bin_trust_routine_creators",
+                           &trust_routine_creators);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
@@ -295,6 +298,8 @@ sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 sys_var_bool_ptr	sys_readonly("read_only", &opt_readonly);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
+sys_var_thd_ulong	sys_div_precincrement("div_precision_increment",
+                                              &SV::div_precincrement);
 #ifdef HAVE_REPLICATION
 sys_var_bool_ptr	sys_relay_log_purge("relay_log_purge",
                                             &relay_log_purge);
@@ -567,6 +572,7 @@ sys_var *sys_variables[]=
   &sys_connect_timeout,
   &sys_date_format,
   &sys_datetime_format,
+  &sys_div_precincrement,
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -703,6 +709,7 @@ sys_var *sys_variables[]=
   &sys_innodb_thread_sleep_delay,
   &sys_innodb_thread_concurrency,
 #endif  
+  &sys_trust_routine_creators,
   &sys_engine_condition_pushdown,
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
@@ -754,6 +761,7 @@ struct show_var_st init_vars[]= {
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {sys_date_format.name,      (char*) &sys_date_format,		    SHOW_SYS},
   {sys_datetime_format.name,  (char*) &sys_datetime_format,	    SHOW_SYS},
+  {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
   {sys_default_week_format.name, (char*) &sys_default_week_format,  SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
@@ -842,6 +850,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
+  {sys_trust_routine_creators.name,(char*) &sys_trust_routine_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
