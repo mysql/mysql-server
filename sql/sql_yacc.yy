@@ -1409,8 +1409,7 @@ create_function_tail:
 
 	    sp->m_returns_cs= new_field->charset;
 
-            if (new_field->sql_type == FIELD_TYPE_SET ||
-                new_field->sql_type == FIELD_TYPE_ENUM)
+            if (new_field->interval_list.elements)
             {
 	      new_field->interval= 
                 sp->create_typelib(&new_field->interval_list);

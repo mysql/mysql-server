@@ -498,10 +498,10 @@ bool Item_field::collect_item_field_processor(byte *arg)
   while ((curr_item= item_list_it++))
   {
     if (curr_item->eq(this, 1))
-      DBUG_RETURN(false); /* Already in the set. */
+      DBUG_RETURN(FALSE); /* Already in the set. */
   }
   item_list->push_back(this);
-  DBUG_RETURN(false);
+  DBUG_RETURN(FALSE);
 }
 
 

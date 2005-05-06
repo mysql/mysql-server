@@ -1,4 +1,4 @@
- /* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1227,7 +1227,7 @@ static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
       if (ptr[1] == 0) {
         buf[0]= ptr[0];
       } else {
-        DBUG_ASSERT(false);
+        DBUG_ASSERT(FALSE);
         buf[0]= 255;
       }
       memmove(buf + 1, ptr + 2, pack_len - 1);
@@ -1773,7 +1773,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
         if (p.bound_type == -1)
         {
           DBUG_PRINT("error", ("key %d unknown flag %d", j, p.key->flag));
-          DBUG_ASSERT(false);
+          DBUG_ASSERT(FALSE);
           // Stop setting bounds but continue with what we have
           op->end_of_bound(range_no);
           DBUG_RETURN(0);
@@ -1850,7 +1850,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   
   if (m_active_cursor == 0)
   {
-    restart= false;
+    restart= FALSE;
     NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
     if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
@@ -1860,7 +1860,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       ERR_RETURN(trans->getNdbError());
     m_active_cursor= op;
   } else {
-    restart= true;
+    restart= TRUE;
     op= (NdbIndexScanOperation*)m_active_cursor;
     
     DBUG_ASSERT(op->getSorted() == sorted);
@@ -2741,7 +2741,7 @@ int ha_ndbcluster::close_scan()
     m_ops_pending= 0;
   }
   
-  cursor->close(m_force_send, true);
+  cursor->close(m_force_send, TRUE);
   m_active_cursor= m_multi_cursor= NULL;
   DBUG_RETURN(0);
 }
@@ -5554,7 +5554,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     /**
      * blobs can't be batched currently
      */
-    m_disable_multi_read= true;
+    m_disable_multi_read= TRUE;
     DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
                                                 ranges, 
                                                 range_count,
@@ -5562,7 +5562,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                                 buffer));
   }
 
-  m_disable_multi_read= false;
+  m_disable_multi_read= FALSE;
 
   /**
    * Copy arguments into member variables
@@ -5610,7 +5610,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           !op->readTuple(lm) && 
           !set_primary_key(op, multi_range_curr->start_key.key) &&
           !define_read_attrs(curr, op) &&
-          (op->setAbortOption(AO_IgnoreError), true))
+          (op->setAbortOption(AO_IgnoreError), TRUE))
         curr += reclength;
       else
         ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
@@ -5625,7 +5625,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           !op->readTuple(lm) && 
           !set_index_key(op, key_info, multi_range_curr->start_key.key) &&
           !define_read_attrs(curr, op) &&
-          (op->setAbortOption(AO_IgnoreError), true))
+          (op->setAbortOption(AO_IgnoreError), TRUE))
         curr += reclength;
       else
         ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
@@ -5660,7 +5660,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           end_of_buffer -= reclength;
         }
         else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
-                 &&!scanOp->readTuples(lm, 0, parallelism, sorted, false, true)
+                 &&!scanOp->readTuples(lm, 0, parallelism, sorted, FALSE, TRUE)
                  &&!generate_scan_filter(m_cond_stack, scanOp)
                  &&!define_read_attrs(end_of_buffer-reclength, scanOp))
         {
@@ -5807,11 +5807,11 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
       continue;
     }
     
-    DBUG_ASSERT(false); // Should only get here via goto's
+    DBUG_ASSERT(FALSE); // Should only get here via goto's
 close_scan:
     if (res == 1)
     {
-      m_multi_cursor->close(false, true);
+      m_multi_cursor->close(FALSE, TRUE);
       m_active_cursor= m_multi_cursor= 0;
       DBUG_MULTI_RANGE(8);
       continue;
@@ -6997,7 +6997,7 @@ int
 ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
 {
   uint level=0;
-  bool negated= false;
+  bool negated= FALSE;
 
   DBUG_ENTER("build_scan_filter_group");
   do
@@ -7013,7 +7013,7 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         if ((negated) ? filter->begin(NdbScanFilter::NAND)
             : filter->begin(NdbScanFilter::AND) == -1)
           DBUG_RETURN(1);
-        negated= false;
+        negated= FALSE;
         cond= cond->next;
         break;
       }
@@ -7024,19 +7024,19 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         if ((negated) ? filter->begin(NdbScanFilter::NOR)
             : filter->begin(NdbScanFilter::OR) == -1)
           DBUG_RETURN(1);
-        negated= false;
+        negated= FALSE;
         cond= cond->next;
         break;
       }
       case(Item_func::NOT_FUNC): {
         cond= cond->next;
-        negated= true;
+        negated= TRUE;
         break;
       }
       default:
         if (build_scan_filter_predicate(cond, filter, negated))
           DBUG_RETURN(1);
-        negated= false;
+        negated= FALSE;
         break;
       }
       break;
