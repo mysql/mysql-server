@@ -237,6 +237,7 @@ private:
   Item_sum_avg_distinct(THD *thd, Item_sum_avg_distinct *original)
     :Item_sum_distinct(thd, original) {}
 public:
+  uint prec_increment;
   Item_sum_avg_distinct(Item *item_arg) : Item_sum_distinct(item_arg) {}
 
   void fix_length_and_dec();
@@ -343,8 +344,8 @@ class Item_avg_field :public Item_result_field
 public:
   Field *field;
   Item_result hybrid_type;
-  uint f_precision, f_scale;
-  uint dec_bin_size;
+  uint f_precision, f_scale, dec_bin_size;
+  uint prec_increment;
   Item_avg_field(Item_result res_type, Item_sum_avg *item);
   enum Type type() const { return FIELD_AVG_ITEM; }
   double val_real();
@@ -366,12 +367,14 @@ class Item_sum_avg :public Item_sum_sum
 {
 public:
   ulonglong count;
-  uint f_precision, f_scale;
-  uint dec_bin_size;
+  uint prec_increment;
+  uint f_precision, f_scale, dec_bin_size;
 
   Item_sum_avg(Item *item_par) :Item_sum_sum(item_par), count(0) {}
   Item_sum_avg(THD *thd, Item_sum_avg *item)
-    :Item_sum_sum(thd, item), count(item->count) {}
+    :Item_sum_sum(thd, item), count(item->count),
+    prec_increment(item->prec_increment) {}
+
   void fix_length_and_dec();
   enum Sumfunctype sum_func () const {return AVG_FUNC;}
   void clear();
@@ -402,6 +405,7 @@ public:
   uint f_precision1, f_scale1;
   uint dec_bin_size0, dec_bin_size1;
   uint sample;
+  uint prec_increment;
   Item_variance_field(Item_sum_variance *item);
   enum Type type() const {return FIELD_VARIANCE_ITEM; }
   double val_real();
@@ -446,6 +450,7 @@ public:
   uint f_precision1, f_scale1;
   uint dec_bin_size0, dec_bin_size1;
   uint sample;
+  uint prec_increment;
 
   Item_sum_variance(Item *item_par, uint sample_arg) :Item_sum_num(item_par),
     hybrid_type(REAL_RESULT), cur_dec(0), count(0), sample(sample_arg)

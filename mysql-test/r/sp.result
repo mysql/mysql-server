@@ -2913,10 +2913,10 @@ select @sptmp|
 10
 call bug9674_2()|
 v/10
-10.00000
+10.0000
 call bug9674_2()|
 v/10
-10.00000
+10.0000
 drop procedure bug9674_1|
 drop procedure bug9674_2|
 drop procedure if exists bug9598_1|
