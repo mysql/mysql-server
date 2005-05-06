@@ -346,7 +346,7 @@ get_term_capabilities (bp)
   register unsigned int i;
 
   for (i = 0; i < NUM_TC_STRINGS; i++)
-#  ifdef __LCC__
+#  if defined(__LCC__) || defined(__MWERKS__)
     *(tc_strings[i].tc_value) = tgetstr ((char *)tc_strings[i].tc_var, bp);
 #  else
     *(tc_strings[i].tc_value) = tgetstr (tc_strings[i].tc_var, bp);
