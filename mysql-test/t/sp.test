@@ -3741,6 +3741,25 @@ call bug7293 ('secrete')|
 drop procedure bug7293|
 delete from t1|
 
+
+#
+# BUG#9841: Unexpected read lock when trying to update a view in a
+#           stored procedure
+#
+--disable_warnings
+drop procedure if exists bug9841|
+drop view if exists v1|
+--enable_warnings
+
+create view v1 as select * from t1, t2 where id = s|
+create procedure bug9841 ()
+  update v1 set data = 10| 
+call bug9841()|
+
+drop view v1|
+drop procedure bug9841|
+
+
 #
 # BUG#NNNN: New bug synopsis
 #

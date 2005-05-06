@@ -1,0 +1,234 @@
+# Test of replication of stored procedures (WL#2146 for MySQL 5.0)
+
+source include/master-slave.inc;
+
+# First let's test replication of current_user() (that's a related thing)
+# we need a db != test, where we don't have automatic grants
+create database if not exists mysqltest1;
+use mysqltest1;
+create table t1 (a varchar(100));
+sync_slave_with_master;
+use mysqltest1;
+
+# ********************** PART 1 : STORED PROCEDURES ***************
+
+# Does the same proc as on master get inserted into mysql.proc ?
+# (same definer, same properties...)
+
+connection master;
+# cleanup
+--disable_warnings
+drop procedure if exists foo;
+drop procedure if exists foo2;
+drop procedure if exists foo3;
+drop procedure if exists foo4;
+drop procedure if exists bar;
+drop function if exists fn1;
+--enable_warnings
+
+delimiter |;
+--error 1418; # not deterministic
+create procedure foo()
+begin
+  declare b int;
+  set b = 8;
+  insert into t1 values (b);
+  insert into t1 values (unix_timestamp());
+end|
+
+--replace_column 2 # 5 #
+show binlog events from 98| # check that not there
+
+create procedure foo() deterministic
+begin
+  declare b int;
+  set b = 8;
+  insert into t1 values (b);
+  insert into t1 values (unix_timestamp());
+end|
+delimiter ;|
+
+# we replace columns having times
+# (even with fixed timestamp displayed time may changed based on TZ)
+--replace_result localhost.localdomain localhost 127.0.0.1 localhost
+--replace_column 13 # 14 #
+select * from mysql.proc where name='foo' and db='mysqltest1';
+sync_slave_with_master;
+--replace_result localhost.localdomain localhost 127.0.0.1 localhost
+--replace_column 13 # 14 #
+select * from mysql.proc where name='foo' and db='mysqltest1';
+
+# Now when we call it, does the CALL() get into binlog,
+# or the substatements?
+connection master;
+# see if timestamp used in SP on slave is same as on master
+set timestamp=1000000000;
+call foo();
+--replace_column 2 # 5 #
+show binlog events from 308;
+select * from t1;
+sync_slave_with_master;
+select * from t1;
+
+# Now a SP which is supposed to not update tables (CALL should not be
+# binlogged) as it's "read sql data", so should not give error even if
+# non-deterministic.
+
+connection master;
+delete from t1;
+create procedure foo2()
+  not deterministic
+  reads sql data
+  select * from mysqltest1.t1;
+call foo2();
+# verify CALL is not in binlog
+--replace_column 2 # 5 #
+show binlog events from 605;
+
+--error 1418;
+alter procedure foo2 contains sql;
+
+# SP with definer's right
+
+drop table t1;
+create table t1 (a int);
+create table t2 like t1;
+
+create procedure foo3()
+  deterministic
+  insert into t1 values (15);
+
+# let's create a non-privileged user
+grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1;
+grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1;
+grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
+
+connect (con1,127.0.0.1,zedjzlcsjhd,,mysqltest1,$MASTER_MYPORT,);
+connection con1;
+
+--error 1419; # only full-global-privs user can create a routine
+create procedure foo4()
+  deterministic
+  insert into t1 values (10);
+
+connection master;
+set global log_bin_trust_routine_creators=1;
+connection con1;
+
+delimiter |;
+create procedure foo4()
+  deterministic
+  begin
+  insert into t2 values(3);
+  insert into t1 values (5);
+  end|
+
+delimiter ;|
+
+# I add ,0 so that it does not print the error in the test output,
+# because this error is hostname-dependent
+--error 1142,0;
+call foo4(); # invoker has no INSERT grant on table => failure
+show warnings;
+
+connection master;
+call foo3(); # success (definer == root)
+show warnings;
+
+--replace_result localhost.localdomain localhost 127.0.0.1 localhost
+--error 1142,0;
+call foo4(); # definer's rights => failure
+show warnings;
+
+# we test replication of ALTER PROCEDURE
+alter procedure foo4 sql security invoker;
+call foo4(); # invoker's rights => success
+show warnings;
+
+# Check that only successful CALLs are in binlog
+--replace_column 2 # 5 #
+show binlog events from 841;
+
+# Note that half-failed CALLs are not in binlog, which is a known
+# bug. If we compare t2 on master and slave we see they differ:
+
+select * from t1;
+select * from t2;
+sync_slave_with_master;
+select * from t1;
+select * from t2;
+select if(compte<>3,"this is broken but documented","this unexpectedly works?") from (select count(*) as compte from t2) as aggreg;
+
+# Test of DROP PROCEDURE
+
+--replace_result localhost.localdomain localhost 127.0.0.1 localhost
+--replace_column 13 # 14 #
+select * from mysql.proc where name="foo4" and db='mysqltest1';
+connection master;
+drop procedure foo4;
+select * from mysql.proc where name="foo4" and db='mysqltest1';
+sync_slave_with_master;
+select * from mysql.proc where name="foo4" and db='mysqltest1';
+
+# ********************** PART 2 : FUNCTIONS ***************
+
+connection master;
+drop procedure foo;
+drop procedure foo2;
+drop procedure foo3;
+
+delimiter |;
+create function fn1(x int)
+       returns int
+       deterministic
+begin
+       insert into t1 values (x);
+       return x+2;
+end|
+
+delimiter ;|
+delete t1,t2 from t1,t2;
+select fn1(20);
+insert into t2 values(fn1(21));
+select * from t1;
+select * from t2;
+sync_slave_with_master;
+select * from t1;
+select if(compte<>1,"this is broken but documented","this unexpectedly works?") from (select count(*) as compte from t1 where a=20) as aggreg;
+select * from t2;
+
+connection master;
+delimiter |;
+
+drop function fn1;
+
+create function fn1()
+       returns int
+       deterministic
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+delete from t1;
+set timestamp=1000000000;
+insert into t1 values(fn1()); 
+
+--replace_result localhost.localdomain localhost 127.0.0.1 localhost
+--replace_column 13 # 14 #
+select * from mysql.proc where db='mysqltest1';
+select * from t1;
+
+sync_slave_with_master;
+use mysqltest1;
+select * from t1;
+--replace_result localhost.localdomain localhost 127.0.0.1 localhost
+--replace_column 13 # 14 #
+select * from mysql.proc where db='mysqltest1';
+
+
+# Clean up
+connection master;
+drop function fn1;
+drop database mysqltest1;
+drop user "zedjzlcsjhd"@127.0.0.1;
+sync_slave_with_master;

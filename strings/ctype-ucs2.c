@@ -1527,7 +1527,8 @@ static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
     my_wildcmp_ucs2_ci,
     my_strcasecmp_ucs2,
     my_instr_mb,
-    my_hash_sort_ucs2
+    my_hash_sort_ucs2,
+    my_propagate_simple
 };
 
 
@@ -1542,7 +1543,8 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
     my_wildcmp_ucs2_bin,
     my_strcasecmp_ucs2_bin,
     my_instr_mb,
-    my_hash_sort_ucs2_bin
+    my_hash_sort_ucs2_bin,
+    my_propagate_simple
 };
 
 

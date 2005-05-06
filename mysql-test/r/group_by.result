@@ -440,12 +440,12 @@ create table t2 (user_id integer not null, date date);
 insert into t2 values (1, '2002-06-09'),(2, '2002-06-09'),(1, '2002-06-09'),(3, '2002-06-09'),(4, '2002-06-09'),(4, '2002-06-09');
 select u.gender as gender, count(distinct  u.id) as dist_count, (count(distinct u.id)/5*100) as percentage from t1 u, t2 l where l.user_id = u.id group by u.gender;
 gender	dist_count	percentage
-F	3	60.00000
-M	1	20.00000
+F	3	60.0000
+M	1	20.0000
 select u.gender as  gender, count(distinct  u.id) as dist_count, (count(distinct u.id)/5*100) as percentage from t1 u, t2 l where l.user_id = u.id group by u.gender  order by percentage;
 gender	dist_count	percentage
-M	1	20.00000
-F	3	60.00000
+M	1	20.0000
+F	3	60.0000
 drop table t1,t2;
 CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
 ));
