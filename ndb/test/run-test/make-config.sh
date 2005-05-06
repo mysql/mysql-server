@@ -33,7 +33,7 @@ add_proc (){
 		node_id=`expr $node_id + 1`
 		;;
 	ndb)
-		dir="ndb"
+		dir="ndbd"
 		conf="[ndbd]\nId: $node_id\nHostName: $2\n"
 		node_id=`expr $node_id + 1`
 		;;
