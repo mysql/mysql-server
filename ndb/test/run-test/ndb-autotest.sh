@@ -1,7 +1,7 @@
 #!/bin/sh
 
 save_args=$*
-VERSION="ndb-autotest.sh version 1.0"
+VERSION="ndb-autotest.sh version 1.01"
 
 DATE=`date '+%Y-%m-%d'`
 export DATE
@@ -76,6 +76,7 @@ then
 	eval $configure --prefix=$run_dir
 	make
 	make install
+	(cd $run_dir; ./bin/mysql_install_db)
 fi
 
 ###
@@ -103,6 +104,8 @@ fi
 test_dir=$run_dir/mysql-test/ndb
 atrt=$test_dir/atrt
 html=$test_dir/make-html-reports.sh
+mkconfig=$run_dir/mysql-test/ndb/make-config.sh
+
 PATH=$test_dir:$PATH
 export PATH
 
@@ -214,7 +217,7 @@ do
 
 	run_hosts=`echo $avail_hosts| awk '{for(i=1;i<='$count';i++)print $i;}'`
 	choose $run_dir/d.template $run_hosts > $run_dir/d.txt
-	choose $run_dir/1.ndb_mgmd/initconfig.template $run_hosts > $run_dir/1.ndb_mgmd/config.ini
+	(cd $run_dir; $mkconfig d.txt )
 	echo $run_hosts >> /tmp/filter_hosts.$$	
 
 	cd $run_dir
