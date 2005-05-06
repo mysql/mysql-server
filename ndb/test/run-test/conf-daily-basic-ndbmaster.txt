@@ -2,7 +2,7 @@ baseport: 16000
 basedir: /space/autotest
 mgm: CHOOSE_host1
 ndb: CHOOSE_host2 CHOOSE_host3 CHOOSE_host2 CHOOSE_host3
-api: CHOOSE_host1 CHOOSE_host1 CHOOSE_hosts1
+api: CHOOSE_host1 CHOOSE_host1 CHOOSE_host1
 -- cluster config
 [DB DEFAULT]
 NoOfReplicas: 2
