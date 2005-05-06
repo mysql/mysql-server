@@ -1945,6 +1945,18 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   sanity(to);
 
   /* removing all the leading zeroes */
+  i= ((prec2 - 1) % DIG_PER_DEC1) + 1;
+  while (prec2 > 0 && *buf2 == 0)
+  {
+    prec2-= i;
+    i= DIG_PER_DEC1;
+    buf2++;
+  }
+  if (prec2 <= 0) /* short-circuit everything: from2 == 0 */
+    return E_DEC_DIV_ZERO;
+  for (i= (prec2 - 1) % DIG_PER_DEC1; *buf2 < powers10[i--]; prec2--) ;
+  DBUG_ASSERT(prec2 > 0);
+
   i=((prec1-1) % DIG_PER_DEC1)+1;
   while (prec1 > 0 && *buf1 == 0)
   {
@@ -1959,19 +1971,6 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   }
   for (i=(prec1-1) % DIG_PER_DEC1; *buf1 < powers10[i--]; prec1--) ;
   DBUG_ASSERT(prec1 > 0);
-
-  i=((prec2-1) % DIG_PER_DEC1)+1;
-  while (prec2 > 0 && *buf2 == 0)
-  {
-    prec2-=i;
-    i=DIG_PER_DEC1;
-    buf2++;
-  }
-  if (prec2 <= 0) /* short-circuit everything: from2 == 0 */
-    return E_DEC_DIV_ZERO;
-
-  for (i=(prec2-1) % DIG_PER_DEC1; *buf2 < powers10[i--]; prec2--) ;
-  DBUG_ASSERT(prec2 > 0);
 
   /* let's fix scale_incr, taking into account frac1,frac2 increase */
   if ((scale_incr-= frac1 - from1->frac + frac2 - from2->frac) < 0)
@@ -2723,6 +2722,7 @@ int main()
   test_dv("123", "0.01","12300.000000000", 0);
   test_dv("120", "100000000000.00000","0.000000001200000000", 0);
   test_dv("123", "0","", 4);
+  test_dv("0", "0", "", 4);
   test_dv("-12193185.1853376", "98765.4321","-123.456000000000000000", 0);
   test_dv("121931851853376", "987654321","123456.000000000", 0);
   test_dv("0", "987","0", 0);
