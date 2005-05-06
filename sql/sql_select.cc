@@ -6435,10 +6435,13 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
       {
         bool copyfl;
 
-        if (field_item->result_type() == STRING_RESULT &&
-              ((Field_str *) field_item->field)->charset() !=
-               ((Item_cond *) item)->compare_collation())
-          return FALSE;
+        if (field_item->result_type() == STRING_RESULT)
+        {
+          CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+          if ((cs != ((Item_cond *) item)->compare_collation()) ||
+              !cs->coll->propagate(cs, 0, 0))
+            return FALSE;
+        }
 
         Item_equal *item_equal = find_item_equal(cond_equal,
                                                  field_item->field, &copyfl);
