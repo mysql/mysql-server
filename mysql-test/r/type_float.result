@@ -92,7 +92,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` double default NULL,
-  `col2` double(22,5) default NULL,
+  `col2` double(53,5) default NULL,
   `col3` double default NULL,
   `col4` double default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
