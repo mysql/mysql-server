@@ -385,32 +385,33 @@ sp_head::create_typelib(List<String> *src)
       return 0;
     result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
-    String conv, *tmp;
-    uint32 dummy;
-    for (uint i=0; i<result->count; i++)
+    String conv;
+    for (uint i=0; i < result->count; i++)
     {
-      tmp = it++;
+      uint32 dummy;
+      uint length;
+      String *tmp= it++;
+
       if (String::needs_conversion(tmp->length(), tmp->charset(),
       				   cs, &dummy))
       {
         uint cnv_errs;
         conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
-        char *buf= (char*) alloc_root(mem_root,conv.length()+1);
-        memcpy(buf, conv.ptr(), conv.length());
-        buf[conv.length()]= '\0';
-        result->type_names[i]= buf;
-        result->type_lengths[i]= conv.length();
+
+        length= conv.length();
+        result->type_names[i]= (char*) strmake_root(mem_root, conv.ptr(),
+                                                    length);
       }
-      else {
-        result->type_names[i]= strdup_root(mem_root, tmp->c_ptr());
-        result->type_lengths[i]= tmp->length();
+      else
+      {
+        length= tmp->length();
+        result->type_names[i]= strmake_root(mem_root, tmp->ptr(), length);
       }
 
       // Strip trailing spaces.
-      uint lengthsp= cs->cset->lengthsp(cs, result->type_names[i],
-                                        result->type_lengths[i]);
-      result->type_lengths[i]= lengthsp;
-      ((uchar *)result->type_names[i])[lengthsp]= '\0';
+      length= cs->cset->lengthsp(cs, result->type_names[i], length);
+      result->type_lengths[i]= length;
+      ((uchar *)result->type_names[i])[length]= '\0';
     }
     result->type_names[result->count]= 0;
     result->type_lengths[result->count]= 0;

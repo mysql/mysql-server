@@ -4664,28 +4664,39 @@ Item_func_sp::func_name() const
 Field *
 Item_func_sp::sp_result_field(void) const
 {
-  Field *field= 0;
-  THD *thd= current_thd;
+  Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
-  if (m_sp)
+
+  if (!m_sp)
   {
-    if (dummy_table->s == NULL)
+    if (!(m_sp= sp_find_function(current_thd, m_name, TRUE)))
     {
-      char *empty_name= (char *) "";
-      TABLE_SHARE *share;
-      dummy_table->s= share= &dummy_table->share_not_to_be_used;      
-      dummy_table->alias = empty_name;
-      dummy_table->maybe_null = maybe_null;
-      dummy_table->in_use= current_thd;
-      share->table_cache_key = empty_name;
-      share->table_name = empty_name;
-      share->table_name = empty_name;
+      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+      DBUG_RETURN(0);
     }
-    field= m_sp->make_field(max_length, name, dummy_table);
   }
-  DBUG_RETURN(field);
+  if (!dummy_table->s)
+  {
+    char *empty_name= (char *) "";
+    TABLE_SHARE *share;
+    dummy_table->s= share= &dummy_table->share_not_to_be_used;      
+    dummy_table->alias = empty_name;
+    dummy_table->maybe_null = maybe_null;
+    dummy_table->in_use= current_thd;
+    share->table_cache_key = empty_name;
+    share->table_name = empty_name;
+  }
+  DBUG_RETURN(m_sp->make_field(max_length, name, dummy_table));
 }
 
+
+/*
+  Execute function & store value in field
+
+  RETURN
+   0  value <> NULL
+   1  value =  NULL  or error
+*/
 
 int
 Item_func_sp::execute(Field **flp)
@@ -4706,7 +4717,7 @@ Item_func_sp::execute(Field **flp)
     f->null_bit= 1;
   }
   it->save_in_field(f, 1);
-  return f->is_null();
+  return null_value= f->is_null();
 }
 
 
@@ -4722,11 +4733,12 @@ Item_func_sp::execute(Item **itp)
 #endif
 
   if (! m_sp)
-    m_sp= sp_find_function(thd, m_name, TRUE); // cache only
-  if (! m_sp)
   {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-    DBUG_RETURN(-1);
+    if (!(m_sp= sp_find_function(thd, m_name, TRUE)))
+    {
+      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+      DBUG_RETURN(-1);
+    }
   }
 
   old_client_capabilites= thd->client_capabilities;
@@ -4788,15 +4800,12 @@ Item_func_sp::make_field(Send_field *tmp_field)
 {
   Field *field;
   DBUG_ENTER("Item_func_sp::make_field");
-  if (! m_sp)
-    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if ((field= sp_result_field()))
   {
     field->make_field(tmp_field);
     delete field;
     DBUG_VOID_RETURN;
   }
-  my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
   init_make_field(tmp_field, MYSQL_TYPE_VARCHAR);  
   DBUG_VOID_RETURN;
 }
@@ -4805,20 +4814,17 @@ Item_func_sp::make_field(Send_field *tmp_field)
 enum enum_field_types
 Item_func_sp::field_type() const
 {
-  Field *field= 0;
+  Field *field;
   DBUG_ENTER("Item_func_sp::field_type");
 
   if (result_field)
     DBUG_RETURN(result_field->type());
-  if (! m_sp)
-    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if ((field= sp_result_field()))
   {
     enum_field_types result= field->type();
     delete field;
     DBUG_RETURN(result);
   }
-  my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
   DBUG_RETURN(MYSQL_TYPE_VARCHAR);
 }
 
@@ -4826,28 +4832,25 @@ Item_func_sp::field_type() const
 Item_result
 Item_func_sp::result_type() const
 {
-  Field *field= 0;
+  Field *field;
   DBUG_ENTER("Item_func_sp::result_type");
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
 
   if (result_field)
     DBUG_RETURN(result_field->result_type());
-  if (! m_sp)
-    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if ((field= sp_result_field()))
   {
     Item_result result= field->result_type();
     delete field;
     DBUG_RETURN(result);
   }
-  my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
   DBUG_RETURN(STRING_RESULT);
 }
 
 void
 Item_func_sp::fix_length_and_dec()
 {
-  Field *field= result_field;
+  Field *field;
   DBUG_ENTER("Item_func_sp::fix_length_and_dec");
 
   if (result_field)
@@ -4857,20 +4860,12 @@ Item_func_sp::fix_length_and_dec()
     DBUG_VOID_RETURN;
   }
 
-  if (! m_sp)
-    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
-  if (! m_sp)
-  {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-  }
-  else
-  {
-    field= sp_result_field();
-    decimals= field->decimals();
-    max_length= field->field_length;
-    maybe_null= 1;
-  }
-  delete field;    
+  if (!(field= sp_result_field()))
+    DBUG_VOID_RETURN;
+  decimals= field->decimals();
+  max_length= field->field_length;
+  maybe_null= 1;
+  delete field;
   DBUG_VOID_RETURN;
 }
 
@@ -4878,10 +4873,9 @@ Item_func_sp::fix_length_and_dec()
 longlong Item_func_found_rows::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  THD *thd= current_thd;
-
-  return thd->found_rows();
+  return current_thd->found_rows();
 }
+
 
 Field *
 Item_func_sp::tmp_table_field(TABLE *t_arg)

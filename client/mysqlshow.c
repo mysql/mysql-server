@@ -28,7 +28,7 @@
 #include <sslopt-vars.h>
 
 static my_string host=0,opt_password=0,user=0;
-static my_bool opt_show_keys= 0, opt_compress= 0, opt_status= 0, 
+static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0, 
   tty_password= 0, opt_table_type= 0;
 static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
@@ -71,8 +71,7 @@ int main(int argc, char **argv)
     char *pos= argv[argc-1], *to;
     for (to= pos ; *pos ; pos++, to++)
     {
-      switch (*pos)
-      {
+      switch (*pos) {
       case '*':
 	*pos= '%';
 	first_argument_uses_wildcards= 1;
@@ -163,6 +162,10 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", OPT_COUNT,
+   "Show number of rows per table (may be slow for not MyISAM tables)",
+   (gptr*) &opt_count, (gptr*) &opt_count, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -308,6 +311,14 @@ get_options(int *argc,char ***argv)
   
   if (tty_password)
     opt_password=get_tty_password(NullS);
+  if (opt_count)
+  {
+    /*
+      We need to set verbose to 2 as we need to change the output to include
+      the number-of-rows column
+    */
+    opt_verbose= 2;
+  }
   return;
 }
 
@@ -322,7 +333,7 @@ list_dbs(MYSQL *mysql,const char *wild)
   char query[255];
   MYSQL_FIELD *field;
   MYSQL_RES *result;
-  MYSQL_ROW row, trow, rrow;
+  MYSQL_ROW row, rrow;
 
   if (!(result=mysql_list_dbs(mysql,wild)))
   {
@@ -352,11 +363,6 @@ list_dbs(MYSQL *mysql,const char *wild)
 
     if (opt_verbose)
     {
-      /*
-       *  Original code by MG16373;  Slightly modified by Monty.
-       *  Print now the count of tables and rows for each database.
-       */
-
       if (!(mysql_select_db(mysql,row[0])))
       {
 	MYSQL_RES *tresult = mysql_list_tables(mysql,(char*)NULL);
@@ -366,6 +372,8 @@ list_dbs(MYSQL *mysql,const char *wild)
 	  rowcount = 0;
 	  if (opt_verbose > 1)
 	  {
+            /* Print the count of tables and rows for each database */
+            MYSQL_ROW trow;
 	    while ((trow = mysql_fetch_row(tresult)))
 	    {
 	      sprintf(query,"SELECT COUNT(*) FROM `%s`",trow[0]);
@@ -487,10 +495,6 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 
   while ((row = mysql_fetch_row(result)))
   {
-    /*
-     *   Modified by MG16373
-     *   Print now the count of rows for each table.
-     */
     counter++;
     if (opt_verbose > 0)
     {
@@ -510,6 +514,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 
 	  if (opt_verbose > 1)
 	  {
+            /* Print the count of rows for each table */
 	    sprintf(query,"SELECT COUNT(*) FROM `%s`",row[0]);
 	    if (!(mysql_query(mysql,query)))
 	    {
@@ -574,7 +579,7 @@ list_table_status(MYSQL *mysql,const char *db,const char *wild)
   MYSQL_RES *result;
   MYSQL_ROW row;
 
-  end=strxmov(query,"show table status from ",db,NullS);
+  end=strxmov(query,"show table status from `",db,"`",NullS);
   if (wild && wild[0])
     strxmov(end," like '",wild,"'",NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
@@ -600,8 +605,8 @@ list_table_status(MYSQL *mysql,const char *db,const char *wild)
 }
 
 /*
-** list fields uses field interface as an example of how to parse
-** a MYSQL FIELD
+  list fields uses field interface as an example of how to parse
+  a MYSQL FIELD
 */
 
 static int
@@ -612,6 +617,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   MYSQL_RES *result;
   MYSQL_ROW row;
   ulong rows;
+  LINT_INIT(rows);
 
   if (mysql_select_db(mysql,db))
   {
@@ -619,16 +625,20 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    mysql_error(mysql));
     return 1;
   }
-  sprintf(query,"select count(*) from `%s`", table);
-  if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
+
+  if (opt_count)
   {
-    fprintf(stderr,"%s: Cannot get record count for db: %s, table: %s: %s\n",
-	    my_progname,db,table,mysql_error(mysql));
-    return 1;
+    sprintf(query,"select count(*) from `%s`", table);
+    if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
+    {
+      fprintf(stderr,"%s: Cannot get record count for db: %s, table: %s: %s\n",
+              my_progname,db,table,mysql_error(mysql));
+      return 1;
+    }
+    row= mysql_fetch_row(result);
+    rows= (ulong) strtoull(row[0], (char**) 0, 10);
+    mysql_free_result(result);
   }
-  row = mysql_fetch_row(result);
-  rows = (ulong) strtoull(row[0], (char**) 0, 10);
-  mysql_free_result(result);
 
   end=strmov(strmov(strmov(query,"show /*!32332 FULL */ columns from `"),table),"`");
   if (wild && wild[0])
@@ -640,8 +650,9 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
     return 1;
   }
 
-  printf("Database: %s  Table: %s Rows: %lu", db, table, rows);
-
+  printf("Database: %s  Table: %s", db, table);
+  if (opt_count)
+    printf("  Rows: %lu", rows);
   if (wild && wild[0])
     printf("  Wildcard: %s",wild);
   putchar('\n');
@@ -675,7 +686,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 
 
 /*****************************************************************************
-** General functions to print a nice ascii-table from data
+ General functions to print a nice ascii-table from data
 *****************************************************************************/
 
 static void
