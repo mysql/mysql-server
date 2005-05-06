@@ -18,11 +18,16 @@ autoconf
 # Default to gcc for CC and CXX
 if test -z "$CXX" ; then
   export CXX=gcc
+  # Set some required compile options
+  if test -z "$CXXFLAGS" ; then
+    export CXXFLAGS=""-felide-constructors -fno-exceptions -fno-rtti""
+  fi
 fi
 
 if test -z "$CC" ; then
   export CC=gcc
 fi
+
 
 # Use ccache, if available
 if ccache -V > /dev/null 2>&1
