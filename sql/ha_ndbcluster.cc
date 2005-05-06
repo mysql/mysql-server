@@ -3621,7 +3621,7 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_NEWDECIMAL:    
     {
       Field_new_decimal *f= (Field_new_decimal*)field;
-      uint precision= f->field_length;
+      uint precision= f->precision;
       uint scale= f->decimals();
       if (field->flags & UNSIGNED_FLAG)
       {

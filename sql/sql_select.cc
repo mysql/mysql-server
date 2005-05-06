@@ -7781,9 +7781,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
       new_field= item->make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    new_field= new Field_new_decimal(item->max_length - (item->decimals?1:0),
-                                     maybe_null,
-                                     item->name, table, item->decimals);
+    new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
+                                     table, item->decimals, item->unsigned_flag);
     break;
   case ROW_RESULT:
   default:
