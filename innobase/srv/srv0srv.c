@@ -1602,7 +1602,11 @@ Outputs to a file the output of the InnoDB Monitor. */
 void
 srv_printf_innodb_monitor(
 /*======================*/
-	FILE*	file)	/* in: output stream */
+	FILE*	file,		/* in: output stream */
+	ulint*	trx_start,	/* out: file position of the start of
+				the list of active transactions */
+	ulint*	trx_end)	/* out: file position of the end of
+				the list of active transactions */
 {
 	double	time_elapsed;
 	time_t	current_time;
@@ -1651,7 +1655,24 @@ srv_printf_innodb_monitor(
 
 	mutex_exit(&dict_foreign_err_mutex);
 
-	lock_print_info(file);
+	lock_print_info_summary(file);
+	if (trx_start) {
+		long	t = ftell(file);
+		if (t < 0) {
+			*trx_start = ULINT_UNDEFINED;
+		} else {
+			*trx_start = (ulint) t;
+		}
+	}
+	lock_print_info_all_transactions(file);
+	if (trx_end) {
+		long	t = ftell(file);
+		if (t < 0) {
+			*trx_end = ULINT_UNDEFINED;
+		} else {
+			*trx_end = (ulint) t;
+		}
+	}
 	fputs("--------\n"
 		"FILE I/O\n"
 		"--------\n", file);
@@ -1865,13 +1886,13 @@ loop:
 	    last_monitor_time = time(NULL);
 
 	    if (srv_print_innodb_monitor) {
-		srv_printf_innodb_monitor(stderr);
+		srv_printf_innodb_monitor(stderr, NULL, NULL);
 	    }
 
 	    if (srv_innodb_status) {
 		mutex_enter(&srv_monitor_file_mutex);
 		rewind(srv_monitor_file);
-		srv_printf_innodb_monitor(srv_monitor_file);
+		srv_printf_innodb_monitor(srv_monitor_file, NULL, NULL);
 		os_file_set_eof(srv_monitor_file);
 		mutex_exit(&srv_monitor_file_mutex);
 	    }
