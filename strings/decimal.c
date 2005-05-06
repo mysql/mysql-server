@@ -1703,19 +1703,23 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     carry=1;
   else if (intg2 == intg1)
   {
-    while (unlikely(stop1[frac1-1] == 0))
-      frac1--;
-    while (unlikely(stop2[frac2-1] == 0))
-      frac2--;
-    while (buf1 < stop1+frac1 && buf2 < stop2+frac2 && *buf1 == *buf2)
+    dec1 *end1= stop1 + (frac1 - 1);
+    dec1 *end2= stop2 + (frac2 - 1);
+    while (unlikely((buf1 <= end1) && (*end1 == 0)))
+      end1--;
+    while (unlikely((buf2 <= end2) && (*end2 == 0)))
+      end2--;
+    frac1= (end1 - stop1) + 1;
+    frac2= (end2 - stop2) + 1;
+    while (buf1 <=end1 && buf2 <= end2 && *buf1 == *buf2)
       buf1++, buf2++;
-    if (buf1 < stop1+frac1)
-      if (buf2 < stop2+frac2)
+    if (buf1 <= end1)
+      if (buf2 <= end2)
         carry= *buf2 > *buf1;
       else
         carry= 0;
     else
-      if (buf2 < stop2+frac2)
+      if (buf2 <= end2)
         carry=1;
       else /* short-circuit everything: from1 == from2 */
       {
