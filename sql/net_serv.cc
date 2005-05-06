@@ -495,7 +495,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff);
 #else
   alarmed=0;
-  vio_timeout(net->vio, net->write_timeout);
+  vio_timeout(net->vio, 1, net->write_timeout);
 #endif /* NO_ALARM */
 
   pos=(char*) packet; end=pos+len;
@@ -688,7 +688,7 @@ my_real_read(NET *net, ulong *complen)
   if (net_blocking)
     thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
 #else
-  vio_timeout(net->vio, net->read_timeout);
+  vio_timeout(net->vio, 0, net->read_timeout);
 #endif /* NO_ALARM */
 
     pos = net->buff + net->where_b;		/* net->packet -4 */
