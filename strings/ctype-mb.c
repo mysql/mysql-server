@@ -920,7 +920,8 @@ MY_COLLATION_HANDLER my_collation_mb_bin_handler =
     my_wildcmp_mb_bin,
     my_strcasecmp_mb_bin,
     my_instr_mb,
-    my_hash_sort_mb_bin
+    my_hash_sort_mb_bin,
+    my_propagate_simple
 };
 
 

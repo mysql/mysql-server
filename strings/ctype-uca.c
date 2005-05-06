@@ -8029,7 +8029,8 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
     my_wildcmp_uca,
     NULL,
     my_instr_mb,
-    my_hash_sort_ucs2_uca
+    my_hash_sort_ucs2_uca,
+    my_propagate_complex
 };
 
 CHARSET_INFO my_charset_ucs2_general_uca=
@@ -8510,7 +8511,8 @@ MY_COLLATION_HANDLER my_collation_any_uca_handler =
     my_wildcmp_uca,
     NULL,
     my_instr_mb,
-    my_hash_sort_any_uca
+    my_hash_sort_any_uca,
+    my_propagate_complex
 };
 
 /* 

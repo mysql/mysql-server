@@ -140,3 +140,25 @@ drop table t1;
 create table t1 select * from t2;
 select a+0, b+0 from t1;
 drop table t1, t2;
+
+#
+# Bug #10179: problem with NULLs and default values
+#
+
+create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1), 
+  g bit(1) NOT NULL default 1, h char(1) default 'a');
+insert into t1 set a=1;
+select hex(g), h from t1;
+drop table t1;
+
+create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1),
+  g bit(1) NOT NULL default 1);
+insert into t1 set a=1;
+select hex(g) from t1;
+drop table t1;
+
+create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1), 
+  h char(1) default 'a') engine=myisam;
+insert into t1 set a=1;
+select h from t1;
+drop table t1;

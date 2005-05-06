@@ -6,6 +6,9 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+set @sav_dpi= @@div_precision_increment;
+set div_precision_increment= 5;
+show variables like 'div_precision_increment';
 create table t1 (grp int, a bigint unsigned, c char(10) not null);
 insert into t1 values (1,1,"a");
 insert into t1 values (2,2,"b");
@@ -623,4 +626,5 @@ SELECT b/c as v, SUM(a) FROM t1 GROUP BY v;
 SELECT SUM(a) FROM t1 GROUP BY b/c;
 
 DROP TABLE t1;
+set div_precision_increment= @sav_dpi;
 

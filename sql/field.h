@@ -300,8 +300,6 @@ public:
   int warn_if_overflow(int op_result);
   /* maximum possible display length */
   virtual uint32 max_length()= 0;
-  /* length of field value symbolic representation (in bytes) */
-  virtual uint32 representation_length() { return field_length; }
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
@@ -438,7 +436,13 @@ public:
 /* New decimal/numeric field which use fixed point arithmetic */
 class Field_new_decimal :public Field_num {
 public:
+  /* The maximum number of decimal digits can be stored */
+  uint precision;
   uint bin_size;
+  /* Constructors take max_length of the field as a parameter - not the */
+  /* precision as the number of decimal digits allowed                  */
+  /* So for example we need to count length from precision handling     */
+  /* CREATE TABLE ( DECIMAL(x,y))                                       */
   Field_new_decimal(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                     uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg,
@@ -446,7 +450,8 @@ public:
                     uint8 dec_arg, bool zero_arg, bool unsigned_arg);
   Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                     const char *field_name_arg,
-                    struct st_table *table_arg, uint8 dec_arg);
+                    struct st_table *table_arg, uint8 dec_arg,
+                    bool unsigned_arg);
   enum_field_types type() const { return FIELD_TYPE_NEWDECIMAL;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   Item_result result_type () const { return DECIMAL_RESULT; }
@@ -465,10 +470,7 @@ public:
   void sort_string(char *buff, uint length);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
-  uint32 max_length()
-  { return field_length + 1 + (dec ? 1 : 0) + (field_length == dec ? 1 : 0); }
-  uint32 representation_length()
-  { return field_length + 1 + (dec ? 1 : 0) + (field_length == dec ? 1 : 0); };
+  uint32 max_length() { return field_length; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
 };
