@@ -1612,13 +1612,19 @@ static int do_add(decimal_t *from1, decimal_t *from2, decimal_t *to)
   x=intg1 > intg2 ? from1->buf[0] :
     intg2 > intg1 ? from2->buf[0] :
     from1->buf[0] + from2->buf[0] ;
-  if (unlikely(x > DIG_MASK*9)) /* yes, there is */
+  if (unlikely(x > DIG_MAX-1)) /* yes, there is */
   {
     intg0++;
     to->buf[0]=0; /* safety */
   }
 
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
+  if (unlikely(error == E_DEC_OVERFLOW))
+  {
+    max_decimal(to->len * DIG_PER_DEC1, 0, to);
+    return error;
+  }
+
   buf0=to->buf+intg0+frac0;
 
   to->sign=from1->sign;
