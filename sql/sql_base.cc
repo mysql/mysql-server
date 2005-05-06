@@ -1265,6 +1265,7 @@ bool wait_for_tables(THD *thd)
   {
     /* Now we can open all tables without any interference */
     thd->proc_info="Reopen tables";
+    thd->version= refresh_version;
     result=reopen_tables(thd,0,0);
   }
   pthread_mutex_unlock(&LOCK_open);
