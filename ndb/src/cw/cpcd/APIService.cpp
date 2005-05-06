@@ -122,6 +122,7 @@ ParserRow<CPCDAPISession> commands[] =
     CPCD_ARG("stderr", String, Optional,  "Redirection of stderr"),
     CPCD_ARG("stdin",  String, Optional,  "Redirection of stderr"),
     CPCD_ARG("ulimit", String, Optional,  "ulimit"),
+    CPCD_ARG("shutdown", String, Optional,  "shutdown options"),  
 
   CPCD_CMD("undefine process", &CPCDAPISession::undefineProcess, ""),
     CPCD_CMD_ALIAS("undef", "undefine process", 0),

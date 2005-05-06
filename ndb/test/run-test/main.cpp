@@ -448,6 +448,7 @@ setup_config(atrt_config& config){
       proc.m_proc.m_runas = proc.m_host->m_user;
       proc.m_proc.m_ulimit = "c:unlimited";
       proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", dir.c_str());
+      proc.m_proc.m_shutdown_options = "";
       proc.m_hostname = proc.m_host->m_hostname;
       proc.m_ndb_mgm_port = g_default_base_port;
       if(split1[0] == "mgm"){
@@ -470,6 +471,7 @@ setup_config(atrt_config& config){
 	proc.m_proc.m_path.assign(dir).append("/libexec/mysqld");
 	proc.m_proc.m_args = "--core-file --ndbcluster";
 	proc.m_proc.m_cwd.appfmt("%d.mysqld", index);
+	proc.m_proc.m_shutdown_options = "SIGKILL"; // not nice
       } else if(split1[0] == "api"){
 	proc.m_type = atrt_process::NDB_API;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_api");
