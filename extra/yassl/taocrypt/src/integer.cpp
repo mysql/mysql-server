@@ -2844,23 +2844,24 @@ unsigned int Integer::Encode(byte* output, unsigned int outputLen,
 }
 
 
+const Integer Integer::zero(1,2);
+
 const Integer &Integer::Zero()
 {
-    static const Integer zero;
     return zero;
 }
 
+const Integer Integer::one(1,2);
 
 const Integer &Integer::One()
 {
-    static const Integer one(1,2);
     return one;
 }
 
+const Integer Integer::two(1,2);
 
 const Integer &Integer::Two()
 {
-    static const Integer two(2,2);
     return two;
 }
 
