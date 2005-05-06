@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="94">
+<charsets max-id="96">
 
 <copyright>
  Copyright (C) 2003 MySQL AB
@@ -549,6 +549,26 @@ To make maintaining easier please:
   <description>Binary pseudo charset</description>
   <collation name="binary"	id="63"	order="Binary">
     <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+</charset>
+
+<charset name="cp932">
+  <family>Japanese</family>
+  <description>SJIS for Windows Japanese</description>
+  <alias>windows-31j</alias>
+  <alias>cswindows31j</alias>
+  <alias>sjisms</alias>
+  <alias>windows-95j</alias>
+  <alias>x-sjis-cp932</alias>
+  <alias>ms932</alias>
+  <alias>sjisms</alias>
+  <collation name="cp932_japanese_ci"    id="95" order="Japanese">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="cp932_bin"    id="96" order="Binary">
+    <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
 </charset>
