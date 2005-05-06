@@ -20,7 +20,7 @@ if test -z "$CXX" ; then
   export CXX=gcc
   # Set some required compile options
   if test -z "$CXXFLAGS" ; then
-    export CXXFLAGS=""-felide-constructors -fno-exceptions -fno-rtti""
+    export CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti"
   fi
 fi
 
