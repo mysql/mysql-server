@@ -565,8 +565,15 @@ lock_rec_print(
 Prints info of locks for all transactions. */
 
 void
-lock_print_info(
-/*============*/
+lock_print_info_summary(
+/*====================*/
+	FILE*	file);	/* in: file where to print */
+/*************************************************************************
+Prints info of locks for each transaction. */
+
+void
+lock_print_info_all_transactions(
+/*=============================*/
 	FILE*	file);	/* in: file where to print */
 /*************************************************************************
 Validates the lock queue on a table. */
