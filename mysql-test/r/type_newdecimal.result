@@ -857,3 +857,6 @@ NULL
 Warnings:
 Error	1292	Truncated incorrect DECIMAL value: ''
 Error	1292	Truncated incorrect DECIMAL value: ''
+select 0.190287977636363637 + 0.040372670 * 0 -  0;
+0.190287977636363637 + 0.040372670 * 0 -  0
+0.190287977636363637
