@@ -186,6 +186,7 @@ mysqldev@build.mysql2.com
 mysqldev@melody.local
 mysqldev@mysql.com
 mysqldev@o2k.irixworld.net
+ndbdev@dl145b.mysql.com
 ndbdev@eel.hemma.oreland.se
 ndbdev@ndbmaster.mysql.com
 ndbdev@shark.
@@ -268,6 +269,7 @@ tonu@x153.internalnet
 tonu@x3.internalnet
 tsmith@build.mysql.com
 tulin@build.mysql.com
+tulin@dl145b.mysql.com
 tulin@mysql.com
 ulli@morbus.(none)
 venu@hundin.mysql.fi
