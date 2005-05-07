@@ -188,7 +188,11 @@ int mysql_update(THD *thd,
   {
     bool res;
     select_lex->no_wrap_view_item= 1;
-    res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
+    /*
+      Indicate that the set of fields is to be updated by passing 2 for
+      set_query_id.
+    */
+    res= setup_fields(thd, 0, table_list, fields, 2, 0, 0);
     select_lex->no_wrap_view_item= 0;
     if (res)
       DBUG_RETURN(1);			/* purecov: inspected */
@@ -208,7 +212,10 @@ int mysql_update(THD *thd,
     if (table->timestamp_field->query_id == thd->query_id)
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
+    {
       table->timestamp_field->query_id=timestamp_query_id;
+      table->file->ha_set_bit_in_write_set(table->timestamp_field->fieldnr);
+    }
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -268,7 +275,7 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
-    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+    table->file->ha_retrieve_all_cols();
     if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
@@ -645,7 +652,7 @@ bool mysql_multi_update_prepare(THD *thd)
   leaves= lex->select_lex.leaf_tables;
 
   if ((lex->select_lex.no_wrap_view_item= 1,
-       res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
+       res= setup_fields(thd, 0, table_list, *fields, 2, 0, 0),
        lex->select_lex.no_wrap_view_item= 0,
        res))
     DBUG_RETURN(TRUE);
@@ -762,7 +769,7 @@ bool mysql_multi_update_prepare(THD *thd)
     if (setup_tables(thd, table_list, &lex->select_lex.where,
                      &lex->select_lex.leaf_tables, FALSE, FALSE) ||
         (lex->select_lex.no_wrap_view_item= 1,
-         res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
+         res= setup_fields(thd, 0, table_list, *fields, 2, 0, 0),
          lex->select_lex.no_wrap_view_item= 0,
          res))
       DBUG_RETURN(TRUE);

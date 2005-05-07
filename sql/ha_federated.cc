@@ -1075,11 +1075,8 @@ inline uint field_in_record_is_null(TABLE *table,
 
 int ha_federated::write_row(byte *buf)
 {
-  uint x= 0, num_fields= 0;
+  uint x, num_fields;
   Field **field;
-  ulong current_query_id= 1;
-  ulong tmp_query_id= 1;
-  uint all_fields_have_same_query_id= 1;
 
   char insert_buffer[IO_SIZE];
   char values_buffer[IO_SIZE], insert_field_value_buffer[IO_SIZE];
@@ -1104,14 +1101,6 @@ int ha_federated::write_row(byte *buf)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
 
-  /*
-    get the current query id - the fields that we add to the insert
-    statement to send to the foreign will not be appended unless they match
-    this query id
-  */
-  current_query_id= table->in_use->query_id;
-  DBUG_PRINT("info", ("current query id %d", current_query_id));
-
   /* start off our string */
   insert_string.append("INSERT INTO `");
   insert_string.append(share->table_base_name);
@@ -1119,47 +1108,29 @@ int ha_federated::write_row(byte *buf)
   /* start both our field and field values strings */
   insert_string.append(" (");
   values_string.append(" VALUES (");
-
-  /*
-    Even if one field is different, all_fields_same_query_id can't remain
-    0 if it remains 0, then that means no fields were specified in the query
-    such as in the case of INSERT INTO table VALUES (val1, val2, valN)
-  */
-  for (field= table->field; *field; field++, x++)
-  {
-    if (x > 0 && tmp_query_id != (*field)->query_id)
-      all_fields_have_same_query_id= 0;
-
-    tmp_query_id= (*field)->query_id;
-  }
   /*
     loop through the field pointer array, add any fields to both the values
-    list and the fields list that match the current query id
+    list and the fields list that is part of the write set
   */
-  x=0;
-  for (field= table->field; *field; field++, x++)
+  for (num_fields= 0, field= table->field; *field; field++)
   {
     /* if there is a query id and if it's equal to the current query id */
-    if (((*field)->query_id && (*field)->query_id == current_query_id)
-        || all_fields_have_same_query_id)
+    if (ha_get_bit_in_write_set((*field)->fieldnr))
     {
       num_fields++;
 
       if ((*field)->is_null())
       {
-        DBUG_PRINT("info",
-                   ("column %d current query id %d field is_null query id %d",
-                    x, current_query_id, (*field)->query_id));
+        DBUG_PRINT("info", ("column %d field is_null", num_fields-1));
         insert_field_value_string.append("NULL");
       }
       else
       {
-        DBUG_PRINT("info",
-                   ("column %d current query id %d field is not null query ID %d",
-                    x, current_query_id, (*field)->query_id));
+        DBUG_PRINT("info", ("column %d field is not null", num_fields-1));
         (*field)->val_str(&insert_field_value_string);
         /* quote these fields if they require it */
-        (*field)->quote_data(&insert_field_value_string); }
+        (*field)->quote_data(&insert_field_value_string); 
+      }
       /* append the field name */
       insert_string.append((*field)->field_name);
 

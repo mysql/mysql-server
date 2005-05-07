@@ -560,7 +560,7 @@ private:
   ulonglong get_auto_increment();
   void invalidate_dictionary_cache(bool global);
   int ndb_err(NdbTransaction*);
-  bool uses_blob_value(bool all_fields);
+  bool uses_blob_value();
 
   char *update_table_comment(const char * comment);
 
@@ -611,8 +611,7 @@ private:
   bool m_use_write;
   bool m_ignore_dup_key;
   bool m_primary_key_update;
-  bool m_retrieve_all_fields;
-  bool m_retrieve_primary_key;
+  bool m_write_op;
   ha_rows m_rows_to_insert;
   ha_rows m_rows_inserted;
   ha_rows m_bulk_insert_rows;
