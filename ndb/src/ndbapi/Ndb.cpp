@@ -730,7 +730,7 @@ Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl *table= info->m_table_impl;
   Uint64 tupleId = getTupleIdFromNdb(table->m_tableId, cacheSize);
-  DBUG_PRINT("info", ("value %u", tupleId));
+  DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
 
@@ -742,7 +742,7 @@ Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable, Uint32 cacheSize
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
   Uint64 tupleId = getTupleIdFromNdb(table->m_tableId, cacheSize);
-  DBUG_PRINT("info", ("value %u", tupleId));
+  DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
 
@@ -762,7 +762,8 @@ Ndb::getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize)
   if ( theFirstTupleId[aTableId] != theLastTupleId[aTableId] )
   {
     theFirstTupleId[aTableId]++;
-    DBUG_PRINT("info", ("next cached value %u", theFirstTupleId[aTableId]));
+    DBUG_PRINT("info", ("next cached value %ul", 
+                        (ulong) theFirstTupleId[aTableId]));
     DBUG_RETURN(theFirstTupleId[aTableId]);
   }
   else // theFirstTupleId == theLastTupleId
@@ -783,7 +784,7 @@ Ndb::readAutoIncrementValue(const char* aTableName)
     DBUG_RETURN(~(Uint64)0);
   }
   Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
-  DBUG_PRINT("info", ("value %u", tupleId));
+  DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
 
@@ -795,7 +796,7 @@ Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
   Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
-  DBUG_PRINT("info", ("value %u", tupleId));
+  DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
 
