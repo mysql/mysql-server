@@ -473,3 +473,16 @@ SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME= 't1';
 drop table t1;
+
+#
+# Bug#10261  INFORMATION_SCHEMA.COLUMNS, incomplete result for non root user
+#
+
+create user mysqltest_4@localhost;
+connect (user4,localhost,mysqltest_4,,);
+connection user4;
+SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
+where COLUMN_NAME='TABLE_NAME';
+connection default;
+delete from mysql.user where user='mysqltest_4';
+flush privileges;
