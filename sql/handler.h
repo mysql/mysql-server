@@ -443,6 +443,8 @@ class handler :public Sql_alloc
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
 
+private:
+  virtual int reset() { return extra(HA_EXTRA_RESET); }
 public:
   byte *ref;				/* Pointer to current row */
   byte *dupp_ref;			/* Pointer to dupp row */
@@ -562,6 +564,13 @@ public:
     inited=NONE;
     DBUG_RETURN(rnd_end());
   }
+  int ha_reset()
+  {
+    DBUG_ENTER("ha_reset");
+    ha_clear_all_set();
+    DBUG_RETURN(reset());
+  }
+    
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
@@ -664,7 +673,6 @@ public:
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
-  virtual int reset() { return extra(HA_EXTRA_RESET); }
   virtual int external_lock(THD *thd, int lock_type) { return 0; }
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd) {return 0;}

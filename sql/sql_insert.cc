@@ -1959,7 +1959,7 @@ select_insert::~select_insert()
   if (table)
   {
     table->next_number_field=0;
-    table->file->reset();
+    table->file->ha_reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   thd->abort_on_warning= 0;

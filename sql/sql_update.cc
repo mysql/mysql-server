@@ -652,7 +652,7 @@ bool mysql_multi_update_prepare(THD *thd)
   leaves= lex->select_lex.leaf_tables;
 
   if ((lex->select_lex.no_wrap_view_item= 1,
-       res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
+       res= setup_fields(thd, 0, table_list, *fields, 2, 0, 0),
        lex->select_lex.no_wrap_view_item= 0,
        res))
     DBUG_RETURN(TRUE);
@@ -769,7 +769,7 @@ bool mysql_multi_update_prepare(THD *thd)
     if (setup_tables(thd, table_list, &lex->select_lex.where,
                      &lex->select_lex.leaf_tables, FALSE, FALSE) ||
         (lex->select_lex.no_wrap_view_item= 1,
-         res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
+         res= setup_fields(thd, 0, table_list, *fields, 2, 0, 0),
          lex->select_lex.no_wrap_view_item= 0,
          res))
       DBUG_RETURN(TRUE);

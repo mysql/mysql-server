@@ -70,7 +70,7 @@ namespace
 
 /* Number returned when no bit found */
 #define MYSQL_NO_BIT_FOUND 1 << 20
-class bitvector
+class bitvector :public Sql_alloc
 {
 private:
   /* Compute the number of bytes required to store 'bits' bits in an array. */
@@ -100,7 +100,7 @@ public:
 
   explicit bitvector(size_t size, bool value= false) 
     : m_size(size),
-      m_data((uchar*)my_malloc(byte_size_word_aligned(size), MYF(0)))
+      m_data((uchar*)sql_alloc(byte_size_word_aligned(size)))
   {
     DBUG_ASSERT(size < MYSQL_NO_BIT_FOUND);
     create_last_word_mask();
@@ -115,7 +115,7 @@ public:
    */
   explicit bitvector(byte const* data, size_t size)
     : m_size(size),
-      m_data((uchar*)my_malloc(byte_size_word_aligned(size), MYF(0)))
+      m_data((uchar*)sql_alloc(byte_size_word_aligned(size)))
   {
     DBUG_ASSERT(size < MYSQL_NO_BIT_FOUND);
     create_last_word_mask();
@@ -125,7 +125,7 @@ public:
 
   bitvector(bitvector const& other) 
     : m_size(other.size()),
-      m_data((uchar*)my_malloc(other.bytes(), MYF(0)))
+      m_data((uchar*)sql_alloc(other.bytes()))
   {
     DBUG_ASSERT(m_size < MYSQL_NO_BIT_FOUND);
     create_last_word_mask();
@@ -133,11 +133,7 @@ public:
     tidy_last_word();
   }
 
-  ~bitvector() 
-  {
-    if (m_data)
-      my_free((char*)m_data, MYF(0));
-  }
+  ~bitvector() {}
 
   /*
     Allocate memory to the bitvector and create last word mask

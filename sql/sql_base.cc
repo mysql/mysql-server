@@ -563,7 +563,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     else
     {
       // Free memory and reset for next loop
-      table->file->reset();
+      table->file->ha_reset();
     }
     table->in_use=0;
     if (unused_tables)
@@ -1954,7 +1954,6 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
     DBUG_RETURN(1);
   }
-  table->file->ha_clear_all_set();
   if ((error=table->file->start_stmt(thd)))
   {
     table->file->print_error(error,MYF(0));

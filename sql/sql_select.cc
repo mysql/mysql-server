@@ -8870,8 +8870,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   (void) new_table.file->close();
  err1:
   new_table.file->delete_table(new_table.s->table_name);
-  delete new_table.file;
  err2:
+  delete new_table.file;
   thd->proc_info=save_proc_info;
   DBUG_RETURN(1);
 }
