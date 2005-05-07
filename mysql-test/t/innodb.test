@@ -920,3 +920,4 @@ drop table t1;
 CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
 --error 1214;
 SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
+DROP TABLE t1;
