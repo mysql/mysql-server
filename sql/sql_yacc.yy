@@ -2959,8 +2959,6 @@ simple_expr:
 		{ $$= new Item_func_export_set($3, $5, $7, $9); }
 	| EXPORT_SET '(' expr ',' expr ',' expr ',' expr ',' expr ')'
 		{ $$= new Item_func_export_set($3, $5, $7, $9, $11); }
-	| FALSE_SYM
-	  { $$= new Item_int((char*) "FALSE",0,1); }
 	| FORMAT_SYM '(' expr ',' NUM ')'
 	  { $$= new Item_func_format($3,atoi($5.str)); }
 	| FROM_UNIXTIME '(' expr ')'
@@ -3108,8 +3106,6 @@ simple_expr:
 	  { $$= new Item_func_trim($5,$3); }
 	| TRUNCATE_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_round($3,$5,1); }
-	| TRUE_SYM
-	  { $$= new Item_int((char*) "TRUE",1,1); }
 	| UDA_CHAR_SUM '(' udf_expr_list ')'
 	  {
 	    if ($3 != NULL)
@@ -4892,6 +4888,8 @@ literal:
 	| NUM_literal	{ $$ = $1; }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
+	| FALSE_SYM	{ $$= new Item_int((char*) "FALSE",0,1); }
+	| TRUE_SYM	{ $$= new Item_int((char*) "TRUE",1,1); }
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| UNDERSCORE_CHARSET HEX_NUM
 	  {
