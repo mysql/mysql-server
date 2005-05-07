@@ -962,7 +962,8 @@ static int read_lines(bool execute_commands)
     }
     else
     {
-      char *prompt= (char*) (glob_buffer.is_empty() ? construct_prompt() :
+      char *prompt= (char*) (ml_comment ? "   /*> " :
+                             glob_buffer.is_empty() ?  construct_prompt() :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
 			     "    '> " : (in_string == '`' ?

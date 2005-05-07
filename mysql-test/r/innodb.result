@@ -2391,3 +2391,9 @@ drop table t1;
 set storage_engine=MyISAM;
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+concat(a, b)
+11113333
+drop table t1;
