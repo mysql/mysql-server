@@ -449,3 +449,14 @@ INSERT INTO t2 VALUES ('5000000001', 'proc01', '20031029090650', '2003-10-29 13:
 CREATE TABLE t3  SELECT t1.dsc,COUNT(DISTINCT t2.id) AS countOfRuns  FROM t1 LEFT JOIN t2 ON (t1.id=t2.id) GROUP BY t1.id;
 SELECT * FROM t3;
 drop table t1, t2, t3;
+
+#
+# Bug#9666: Can't use 'DEFAULT FALSE' for column of type bool
+#
+create table t1 (b bool not null default false);
+create table t2 (b bool not null default true);
+insert into t1 values ();
+insert into t2 values ();
+select * from t1;
+select * from t2;
+drop table t1,t2;
