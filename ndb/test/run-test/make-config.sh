@@ -5,6 +5,7 @@ basedir=""
 proc_no=1
 node_id=1
 
+d_file=/tmp/d.$$
 dir_file=/tmp/dirs.$$
 config_file=/tmp/config.$$
 cluster_file=/tmp/cluster.$$
@@ -74,9 +75,13 @@ do
 		else
 		    cnf=/dev/null
 		fi
-		;;
-	*) echo $line >> $cnf
+		line="";;
+	    *) echo $line >> $cnf; line="";;
 	esac
+	if [ "$line" ]
+	then
+	    echo $line >> $d_file
+	fi
 done
 
 cat $dir_file | xargs mkdir -p
@@ -92,4 +97,5 @@ for i in `find . -type d -name '*.ndb_mgmd'`
   cp $config_file $i/config.ini
 done
 
+mv $d_file d.txt
 rm -f $config_file $dir_file $cluster_file

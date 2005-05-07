@@ -1,7 +1,7 @@
 #!/bin/sh
 
 save_args=$*
-VERSION="ndb-autotest.sh version 1.02"
+VERSION="ndb-autotest.sh version 1.03"
 
 DATE=`date '+%Y-%m-%d'`
 export DATE
@@ -136,7 +136,7 @@ if [ "$deploy" ]
 then
     for i in $hosts
       do
-      rsync -v -a --delete --force --ignore-errors $run_dir/ $i:$run_dir
+      rsync -a --delete --force --ignore-errors $run_dir/ $i:$run_dir
       ok=$?
       if [ $ok -ne 0 ]
 	  then
@@ -177,7 +177,7 @@ choose(){
 }
 
 choose_conf(){
-    host=`uname -n`
+    host=`hostname -s`
     if [ -f $test_dir/conf-$1-$host.txt ]
     then
 	echo "$test_dir/conf-$1-$host.txt"
@@ -203,14 +203,14 @@ start(){
 	p2=`pwd`
 	cd ..
 	tar cfz /tmp/res.$$.tgz `basename $p2`/$DATE
-	scp /tmp/res.$$.tgz $result_host:$result_path/tmp/res.$DATE.`uname -n`.$$.tgz
+	scp /tmp/res.$$.tgz $result_host:$result_path/res.$DATE.`hostname -s`.$$.tgz
 	rm -f /tmp/res.$$.tgz
 }
 
 count_hosts(){
     grep "CHOOSE_host" $1 |
-      awk '{for(i=1; i<=NF;i++) if(match($i, "CHOOSE_host") > 0) print $i;}' |
-      wc -l
+    awk '{for(i=1; i<=NF;i++) if(match($i, "CHOOSE_host") > 0) print $i;}' |
+    | sort | uniq | wc -l
 }
 
 p=`pwd`
@@ -235,13 +235,12 @@ do
 		break;
 	fi
 
-	run_hosts=`echo $avail_hosts| awk '{for(i=1;i<='$count';i++)print $i;}'`
-	
-	choose $conf $run_hosts > $run_dir/d.txt
-	(cd $run_dir; $mkconfig d.txt )
+	run_hosts=`echo $avail_hosts|awk '{for(i=1;i<='$count';i++)print $i;}'`
 	echo $run_hosts >> /tmp/filter_hosts.$$	
-
+	
 	cd $run_dir
+	choose $conf $run_hosts > d.tmp
+	$mkconfig d.tmp
 	start $dir-mysql-$clone-$target $dir $res_dir &
 done
 cd $p

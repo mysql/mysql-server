@@ -1,5 +1,5 @@
 baseport: 16000
-basedir: /space/autotest
+basedir: /home/ndbdev/autotest/run
 mgm: CHOOSE_host1
 ndb: CHOOSE_host2 CHOOSE_host3 
 api: CHOOSE_host1 CHOOSE_host1 CHOOSE_host1
@@ -11,7 +11,7 @@ DataMemory: 300M
 BackupMemory: 64M
 MaxNoOfConcurrentScans: 100
 DataDir: .
-FileSystemPath: /space/autotest/run
+FileSystemPath: /home/ndbdev/autotest/run
 
 [MGM DEFAULT]
 PortNumber: 14000
