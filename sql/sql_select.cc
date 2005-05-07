@@ -7955,20 +7955,20 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(filename, "%s_%lx_%i", tmp_file_prefix,
-            current_pid, temp_pool_slot);
+    sprintf(path, "%s_%lx_%i", tmp_file_prefix,
+	    current_pid, temp_pool_slot);
   else
   {
     /* if we run out of slots or we are not using tempool */
-    sprintf(filename,"%s%lx_%lx_%x",tmp_file_prefix,current_pid,
+    sprintf(path,"%s%lx_%lx_%x", tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
   }
 
   /*
-    No need for change table name to lower case as we are only creating
+    No need to change table name to lower case as we are only creating
     MyISAM or HEAP tables here
   */
-  sprintf(path, "%s%s", mysql_tmpdir, filename);
+  fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   if (group)
   {
