@@ -1,7 +1,7 @@
 #!/bin/sh
 
 save_args=$*
-VERSION="ndb-autotest.sh version 1.01"
+VERSION="ndb-autotest.sh version 1.02"
 
 DATE=`date '+%Y-%m-%d'`
 export DATE
@@ -134,20 +134,16 @@ hosts=`cat /tmp/hosts.$DATE`
 
 if [ "$deploy" ]
 then
-	(cd / && tar cfz /tmp/build.$DATE.tgz $run_dir )
-	for i in $hosts
-	do
-		ok=0
-		scp /tmp/build.$DATE.tgz $i:/tmp/build.$DATE.$$.tgz && \
-		ssh $i "rm -rf /space/autotest/*" && \
-		ssh $i "cd / && tar xfz /tmp/build.$DATE.$$.tgz" && \
-		ssh $i "rm /tmp/build.$DATE.$$.tgz" && ok=1
-		if [ $ok -eq 0 ]
-		then
-			echo "$i failed during scp/ssh, excluding"
-			echo $i >> /tmp/failed.$DATE
-		fi
-	done
+    for i in $hosts
+      do
+      rsync -v -a --delete --force --ignore-errors $run_dir/ $i:$run_dir
+      ok=$?
+      if [ $ok -ne 0 ]
+	  then
+	  echo "$i failed during rsync, excluding"
+	  echo $i >> /tmp/failed.$DATE
+      fi
+    done
 fi
 rm -f /tmp/build.$DATE.tgz
 
