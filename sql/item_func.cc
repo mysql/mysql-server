@@ -2257,6 +2257,11 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     key=NO_SUCH_KEY;
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
+  if (!(table->file->table_flags() & HA_CAN_FULLTEXT))
+  {
+    my_error(ER_TABLE_CANT_HANDLE_FULLTEXT, MYF(0));
+    return 1;
+  }
   table->fulltext_searched=1;
   record=table->record[0];
   if (key == NO_SUCH_KEY && mode != FT_BOOL)
