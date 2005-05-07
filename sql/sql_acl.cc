@@ -63,8 +63,7 @@ static bool allow_all_hosts=1;
 static HASH acl_check_hosts, column_priv_hash, proc_priv_hash;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
-static uint grant_version=0;
-static uint priv_version=0; /* Version of priv tables. incremented by acl_init */
+static uint grant_version=0; /* Version of priv tables. incremented by acl_init */
 static ulong get_access(TABLE *form,uint fieldnr, uint *next_field=0);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
@@ -153,7 +152,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     DBUG_RETURN(0); /* purecov: tested */
   }
 
-  priv_version++; /* Privileges updated */
+  grant_version++; /* Privileges updated */
   mysql_proc_table_exists= 1;			// Assume mysql.proc exists
 
   /*
@@ -2721,6 +2720,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   rw_wrlock(&LOCK_grant);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
+  grant_version++;
 
   while ((Str = str_list++))
   {
@@ -3689,9 +3689,9 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
     grant_column= column_hash_search(grant_table, field_name,
                                      (uint) strlen(field_name));
     if (!grant_column)
-      priv= grant->privilege;
+      priv= (grant->privilege | grant_table->privs);
     else
-      priv= grant->privilege | grant_column->rights;
+      priv= (grant->privilege | grant_table->privs | grant_column->rights);
   }
   rw_unlock(&LOCK_grant);
   return priv;
