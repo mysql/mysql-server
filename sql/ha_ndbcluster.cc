@@ -6101,24 +6101,26 @@ const
 COND* 
 ha_ndbcluster::cond_push(const COND *cond) 
 { 
-  Ndb_cond_stack *ndb_cond = new Ndb_cond_stack();
   DBUG_ENTER("cond_push");
-  DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname););
-  if (m_cond_stack)
+  if (cond)
+  {
+    Ndb_cond_stack *ndb_cond = new Ndb_cond_stack();
+    DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname););
+    if (m_cond_stack)
     ndb_cond->next= m_cond_stack;
-  else
-    ndb_cond->next= NULL;
-  m_cond_stack= ndb_cond;
-  
-  if (serialize_cond(cond, ndb_cond))
-  {
+    else
+      ndb_cond->next= NULL;
+    m_cond_stack= ndb_cond;
+    
+    if (serialize_cond(cond, ndb_cond))
+    {
     DBUG_RETURN(NULL);
+    }
+    else
+    {
+      cond_pop();
+    }
   }
-  else
-  {
-    cond_pop();
-  }
-
   DBUG_RETURN(cond); 
 }
 
