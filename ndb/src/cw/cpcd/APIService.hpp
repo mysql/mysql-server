@@ -49,6 +49,7 @@ public:
   void stopProcess(Parser_t::Context & ctx, const class Properties & args);
   void showProcess(Parser_t::Context & ctx, const class Properties & args);
   void listProcesses(Parser_t::Context & ctx, const class Properties & args);
+  void showVersion(Parser_t::Context & ctx, const class Properties & args);
 };
 
 class CPCDAPIService : public SocketServer::Service {

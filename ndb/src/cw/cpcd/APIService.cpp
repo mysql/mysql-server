@@ -136,6 +136,8 @@ ParserRow<CPCDAPISession> commands[] =
     CPCD_ARG("id", Int, Mandatory, "Id of process"),
   
   CPCD_CMD("list processes", &CPCDAPISession::listProcesses, ""),
+
+  CPCD_CMD("show version", &CPCDAPISession::showVersion, ""),
   
   CPCD_END()
 };
@@ -359,6 +361,7 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
     m_output->println("stdout: %s", p->m_stdout.c_str());
     m_output->println("stderr: %s", p->m_stderr.c_str());    
     m_output->println("ulimit: %s", p->m_ulimit.c_str());    
+    m_output->println("shutdown: %s", p->m_shutdown_options.c_str());    
     switch(p->m_status){
     case STOPPED:
       m_output->println("status: stopped");
@@ -382,6 +385,18 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
   m_output->println("");
 
   m_cpcd.m_processes.unlock();
+}
+
+void
+CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
+                            const class Properties & args){
+  Uint32 id;
+  CPCD::RequestStatus rs;
+
+  m_output->println("show version");
+  m_output->println("compile time: %s %s", __DATE__, __TIME__);
+
+  m_output->println("");
 }
 
 template class Vector<ParserRow<CPCDAPISession> const*>;
