@@ -3003,8 +3003,10 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   
   m_rows_inserted= (ha_rows) 0;
   if (rows == (ha_rows) 0)
+  {
     /* We don't know how many will be inserted, guess */
     m_rows_to_insert= m_autoincrement_prefetch;
+  }
   else
     m_rows_to_insert= rows; 
 
@@ -4021,8 +4023,10 @@ longlong ha_ndbcluster::get_auto_increment()
   Ndb *ndb= get_ndb();
   
   if (m_rows_inserted > m_rows_to_insert)
+  {
     /* We guessed too low */
     m_rows_to_insert+= m_autoincrement_prefetch;
+  }
   int cache_size= 
     (int)
     (m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
