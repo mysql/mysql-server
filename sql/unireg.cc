@@ -719,6 +719,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
       {
         my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
         error= 1;
+        delete regfield; //To avoid memory leak
         goto err;
       }
     }
