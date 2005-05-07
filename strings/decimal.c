@@ -1924,6 +1924,17 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
     for (; carry; buf0--)
       ADD(*buf0, *buf0, 0, carry);
   }
+
+  /* Now we have to check for -0.000 case */
+  if (to->sign)
+  {
+    dec1 *buf= to->buf;
+    dec1 *end= to->buf + intg0 + frac0;
+    for (; (buf<end) && !*buf; buf++);
+    if (buf == end)
+      /* So we got decimal zero */
+      decimal_make_zero(to);
+  }
   return error;
 }
 
