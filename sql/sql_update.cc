@@ -117,10 +117,10 @@ int mysql_update(THD *thd,
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
-  bool		used_key_is_modified, transactional_table;
+  bool		used_key_is_modified, transactional_table, will_batch;
   int           res;
-  int		error=0;
-  uint		used_index;
+  int		error=0, loc_error;
+  uint		used_index, dup_key_found;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -262,7 +262,8 @@ int mysql_update(THD *thd,
   else
     used_key_is_modified=0;
 
-  if (used_key_is_modified || order)
+  if ((used_key_is_modified &&
+       !(table->file->table_flags() & HA_CAN_SCAN_UPDATED_INDEX)) || order)
   {
     /*
       We can't update table directly;  We must first search after all
@@ -392,7 +393,7 @@ int mysql_update(THD *thd,
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
-
+  will_batch= table->file->start_bulk_update();
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
@@ -404,7 +405,8 @@ int mysql_update(THD *thd,
       found++;
 
       if (table->triggers)
-        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                          TRG_ACTION_BEFORE);
 
       if (compare_record(table, query_id))
       {
@@ -420,8 +422,47 @@ int mysql_update(THD *thd,
             break;
           }
         }
-	if (!(error=table->file->update_row((byte*) table->record[1],
-					    (byte*) table->record[0])))
+        if (will_batch)
+        {
+          /*
+            Typically a batched handler can execute the batched jobs when:
+            1) When specifically told to do so
+            2) When it is not a good idea to batch anymore
+            3) When it is necessary to send batch for other reasons
+               (One such reason is when READ's must be performed)
+
+            1) is covered by exec_bulk_update calls.
+            2) and 3) is handled by the bulk_update_row method.
+            
+            bulk_update_row can execute the updates including the one
+            defined in the bulk_update_row or not including the row
+            in the call. This is up to the handler implementation and can
+            vary from call to call.
+
+            The dup_key_found reports the number of duplicate keys found
+            in those updates actually executed. It only reports those if
+            the extra call with HA_EXTRA_IGNORE_DUP_KEY have been issued.
+            If this hasn't been issued it returns an error code and can
+            ignore this number. Thus any handler that implements batching
+            for UPDATE IGNORE must also handle this extra call properly.
+
+            If a duplicate key is found on the record included in this
+            call then it should be included in the count of dup_key_found
+            and error should be set to 0 (only if these errors are ignored).
+          */
+          error=table->file->bulk_update_row(table->record[0],
+                                             table->record[1],
+                                             &dup_key_found);
+          limit+= dup_key_found;
+          updated-=dup_key_found;
+        }
+        else
+        {
+          /* Non-batched update */
+	  error=table->file->update_row((byte*) table->record[1],
+	                                (byte*) table->record[0]);
+        }
+        if (!error)
 	{
 	  updated++;
           thd->no_trans_update= !transactional_table;
@@ -434,22 +475,76 @@ int mysql_update(THD *thd,
 	  break;
 	}
       }
-
       if (table->triggers)
-        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                          TRG_ACTION_AFTER);
 
       if (!--limit && using_limit)
       {
-	error= -1;				// Simulate end of file
-	break;
+        /*
+          We have reached end-of-file in most common situations where no
+          batching has occurred and if batching was supposed to occur but
+          no updates were made and finally when the batch execution was
+          performed without error and without finding any duplicate keys.
+          If the batched updates were performed with errors we need to
+          check and if no error but duplicate key's found we need to
+          continue since those are not counted for in limit.
+        */
+        if (will_batch &&
+            ((error= table->file->exec_bulk_update(&dup_key_found)) ||
+            !dup_key_found))
+        {
+ 	  if (error)
+          {
+            /*
+              The handler should not report error of duplicate keys if they
+              are ignored. This is a requirement on batching handlers.
+            */
+            table->file->print_error(error,MYF(0));
+            error=1;
+            break;
+          }
+          /*
+            Either an error was found and we are ignoring errors or there
+            were duplicate keys found. In both cases we need to correct
+            the counters and continue the loop.
+          */
+          limit=dup_key_found; //limit is 0 when we get here so need to +
+          updated-=dup_key_found;
+        }
+        else
+        {
+	  error= -1;				// Simulate end of file
+	  break;
+        }
       }
     }
     else
       table->file->unlock_row();
     thd->row_count++;
   }
+  dup_key_found=0;
   if (thd->killed && !error)
     error= 1;					// Aborted
+  else if (will_batch &&
+           (loc_error= table->file->exec_bulk_update(&dup_key_found)))
+    /*
+      An error has occurred when a batched update was performed and returned
+      an error indication. It cannot be an allowed duplicate key error since
+      we require the batching handler to treat this as a normal behavior.
+
+      Otherwise we simply remove the number of duplicate keys records found
+      in the batched update.
+    */
+  {
+    thd->fatal_error();
+    table->file->print_error(loc_error,MYF(0));
+    error=1;
+  }
+  else
+    updated-=dup_key_found;
+  if (will_batch)
+    table->file->end_bulk_update();
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
   delete select;
