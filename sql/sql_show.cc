@@ -2317,9 +2317,6 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
           end=strmov(end,grant_types.type_names[bitnr]);
         }
       }
-#else
-      *end= 0;
-#endif
       if (tables->schema_table)      // any user has 'select' privilege on all 
                                      // I_S table columns
         table->field[17]->store(grant_types.type_names[0],
@@ -2327,6 +2324,9 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       else
         table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
 
+#else
+      *end= 0;
+#endif
       table->field[1]->store(base_name, strlen(base_name), cs);
       table->field[2]->store(file_name, strlen(file_name), cs);
       table->field[3]->store(field->field_name, strlen(field->field_name),
