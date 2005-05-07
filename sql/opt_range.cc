@@ -778,9 +778,10 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
       {
         DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
                             free_file));
-        file->reset();
+        file->ha_reset();
         file->external_lock(current_thd, F_UNLCK);
         file->close();
+        delete file;
       }
     }
     delete_dynamic(&ranges); /* ranges are allocated in alloc */
@@ -916,7 +917,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
     if (file->extra(HA_EXTRA_KEYREAD) ||
-        file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
+        file->ha_retrieve_all_pk() ||
         init() || reset())
     {
       DBUG_RETURN(1);
@@ -944,7 +945,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     goto failure;
 
   if (file->extra(HA_EXTRA_KEYREAD) ||
-      file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
+      file->ha_retrieve_all_pk() ||
       init() || reset())
   {
     file->external_lock(thd, F_UNLCK);
@@ -956,6 +957,8 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   DBUG_RETURN(0);
 
 failure:
+  if (file)
+    delete file;
   file= save_file;
   DBUG_RETURN(1);
 }
@@ -5643,7 +5646,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     (This also creates a deficiency - it is possible that we will retrieve
      parts of key that are not used by current query at all.)
   */
-  if (head->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY))
+  if (head->file->ha_retrieve_all_pk())
     DBUG_RETURN(1);
 
   cur_quick_it.rewind();

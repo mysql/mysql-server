@@ -194,54 +194,67 @@ enum db_type ha_checktype(enum db_type database_type)
 
 handler *get_new_handler(TABLE *table, enum db_type db_type)
 {
+  handler *file;
   switch (db_type) {
 #ifndef NO_HASH
   case DB_TYPE_HASH:
-    return new ha_hash(table);
+    file= new ha_hash(table);
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_MRG_ISAM:
-    return new ha_isammrg(table);
+    file= new ha_isammrg(table);
+    break;
   case DB_TYPE_ISAM:
-    return new ha_isam(table);
+    file= new ha_isam(table);
+    break;
 #else
   case DB_TYPE_MRG_ISAM:
-    return new ha_myisammrg(table);
+    file= new ha_myisammrg(table);
+    break;
 #endif
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    return new ha_berkeley(table);
+    file= new ha_berkeley(table);
+    break;
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    return new ha_innobase(table);
+    file= new ha_innobase(table);
+    break;
 #endif
 #ifdef HAVE_EXAMPLE_DB
   case DB_TYPE_EXAMPLE_DB:
-    return new ha_example(table);
+    file= new ha_example(table);
+    break;
 #endif
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
-    return new ha_archive(table);
+    file= new ha_archive(table);
+    break;
 #endif
 #ifdef HAVE_BLACKHOLE_DB
   case DB_TYPE_BLACKHOLE_DB:
-    return new ha_blackhole(table);
+    file= new ha_blackhole(table);
+    break;
 #endif
 #ifdef HAVE_FEDERATED_DB
   case DB_TYPE_FEDERATED_DB:
-    return new ha_federated(table);
+    file= new ha_federated(table);
+    break;
 #endif
 #ifdef HAVE_CSV_DB
   case DB_TYPE_CSV_DB:
-    return new ha_tina(table);
+    file= new ha_tina(table);
+    break;
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:
-    return new ha_ndbcluster(table);
+    file= new ha_ndbcluster(table);
+    break;
 #endif
   case DB_TYPE_HEAP:
-    return new ha_heap(table);
+    file= new ha_heap(table);
+    break;
   default:					// should never happen
   {
     enum db_type def=(enum db_type) current_thd->variables.table_type;
@@ -251,10 +264,21 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   }
   /* Fall back to MyISAM */
   case DB_TYPE_MYISAM:
-    return new ha_myisam(table);
+    file= new ha_myisam(table);
+    break;
   case DB_TYPE_MRG_MYISAM:
-    return new ha_myisammrg(table);
+    file= new ha_myisammrg(table);
+    break;
   }
+  if (file)
+  {
+    if (file->ha_initialise())
+    {
+      delete file;
+      file=0;
+    }
+  }
+  return file;
 }
 
 /*
@@ -1320,6 +1344,195 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   DBUG_RETURN(error);
 }
 
+int handler::ha_initialise()
+{
+  DBUG_ENTER("ha_initialise");
+  if (table && table->s->fields &&
+      ha_allocate_read_write_set(table->s->fields))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+int handler::ha_allocate_read_write_set(ulong no_fields)
+{
+  DBUG_ENTER("ha_allocate_read_write_set");
+  DBUG_PRINT("info", ("no_fields = %d", no_fields));
+  read_set= new bitvector;
+  write_set= new bitvector;
+  if (!read_set || !write_set)
+  {
+    ha_deallocate_read_write_set();
+    DBUG_RETURN(TRUE);
+  }
+  if (read_set->init(no_fields+1) || write_set->init(no_fields+1))
+  {
+    ha_deallocate_read_write_set();
+    DBUG_RETURN(TRUE);
+  }
+  ha_clear_all_set();
+  DBUG_RETURN(FALSE);
+}
+
+void handler::ha_deallocate_read_write_set()
+{
+  DBUG_ENTER("ha_deallocate_read_write_set");
+  delete read_set;
+  delete write_set;
+  read_set=write_set=0;
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_clear_all_set()
+{
+  DBUG_ENTER("ha_clear_all_set");
+  read_set->clear_all();
+  write_set->clear_all();
+  read_set->set_bit((uint)0);
+  write_set->set_bit((uint)0);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_all_bits_in_read_set()
+{
+  DBUG_ENTER("ha_set_all_bits_in_read_set");
+  read_set->set_all();
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_all_bits_in_write_set()
+{
+  DBUG_ENTER("ha_set_all_bits_in_write_set");
+  write_set->set_all();
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_bit_in_read_set(uint fieldnr)
+{
+  DBUG_ENTER("ha_set_bit_in_read_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  read_set->set_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_clear_bit_in_read_set(uint fieldnr)
+{
+  DBUG_ENTER("ha_clear_bit_in_read_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  read_set->clear_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_bit_in_write_set(uint fieldnr)
+{
+  DBUG_ENTER("ha_set_bit_in_write_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  write_set->set_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_clear_bit_in_write_set(uint fieldnr)
+{
+  DBUG_ENTER("ha_clear_bit_in_write_set");
+  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+  write_set->clear_bit((size_t)fieldnr);
+  DBUG_VOID_RETURN;
+}
+
+void handler::ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
+{
+  DBUG_ENTER("ha_set_bit_in_rw_set");
+  if (!write_op) {
+    DBUG_PRINT("info", ("Set bit %u in read set", fieldnr));
+    read_set->set_bit((size_t)fieldnr);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Set bit %u in read and write set", fieldnr));
+    read_set->set_bit((size_t)fieldnr);
+    write_set->set_bit((size_t)fieldnr);
+  }
+  DBUG_VOID_RETURN;
+}
+
+bool handler::ha_get_bit_in_read_set(uint fieldnr)
+{
+  bool bit_set=read_set->get_bit((size_t)fieldnr);
+  DBUG_ENTER("ha_get_bit_in_read_set");
+  DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
+  DBUG_RETURN(bit_set);
+}
+
+bool handler::ha_get_bit_in_write_set(uint fieldnr)
+{
+  bool bit_set=write_set->get_bit((size_t)fieldnr);
+  DBUG_ENTER("ha_get_bit_in_write_set");
+  DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
+  DBUG_RETURN(bit_set);
+}
+
+bool handler::ha_get_all_bit_in_read_set()
+{
+  bool bit_set=read_set->get_all_bits_set();
+  DBUG_ENTER("ha_get_all_bit_in_read_set");
+  DBUG_PRINT("info", ("all bits set = %u", bit_set));
+  DBUG_RETURN(bit_set);
+}
+
+bool handler::ha_get_all_bit_in_read_clear()
+{
+  bool bit_set=read_set->get_all_bits_clear();
+  DBUG_ENTER("ha_get_all_bit_in_read_clear");
+  DBUG_PRINT("info", ("all bits clear = %u", bit_set));
+  DBUG_RETURN(bit_set);
+}
+
+bool handler::ha_get_all_bit_in_write_set()
+{
+  bool bit_set=write_set->get_all_bits_set();
+  DBUG_ENTER("ha_get_all_bit_in_write_set");
+  DBUG_PRINT("info", ("all bits set = %u", bit_set));
+  DBUG_RETURN(bit_set);
+}
+
+bool handler::ha_get_all_bit_in_write_clear()
+{
+  bool bit_set=write_set->get_all_bits_clear();
+  DBUG_ENTER("ha_get_all_bit_in_write_clear");
+  DBUG_PRINT("info", ("all bits clear = %u", bit_set));
+  DBUG_RETURN(bit_set);
+}
+
+int handler::ha_retrieve_all_cols()
+{
+  DBUG_ENTER("handler::ha_retrieve_all_cols");
+  read_set->set_all();
+  DBUG_RETURN(0);
+}
+
+int handler::ha_retrieve_all_pk()
+{
+  DBUG_ENTER("ha_retrieve_all_pk");
+  ha_set_primary_key_in_read_set();
+  DBUG_RETURN(0);
+}
+
+void handler::ha_set_primary_key_in_read_set()
+{
+  ulong prim_key= table->s->primary_key;
+  DBUG_ENTER("handler::ha_set_primary_key_in_read_set");
+  DBUG_PRINT("info", ("Primary key = %d", prim_key));
+  if (prim_key != MAX_KEY)
+  {
+    KEY_PART_INFO *key_part= table->key_info[prim_key].key_part;
+    KEY_PART_INFO *key_part_end= key_part +
+              table->key_info[prim_key].key_parts;
+    for (;key_part != key_part_end; ++key_part)
+      ha_set_bit_in_read_set(key_part->fieldnr);
+  }
+  DBUG_VOID_RETURN;
+}
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types

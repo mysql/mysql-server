@@ -563,7 +563,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     else
     {
       // Free memory and reset for next loop
-      table->file->reset();
+      table->file->ha_reset();
     }
     table->in_use=0;
     if (unused_tables)
@@ -2588,6 +2588,8 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
 
   if (thd->set_query_id)
   {
+    table->file->ha_set_bit_in_rw_set(field->fieldnr,
+                                      (bool)(thd->set_query_id-1));
     if (field->query_id != thd->query_id)
     {
       field->query_id=thd->query_id;
@@ -3109,7 +3111,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ****************************************************************************/
 
 bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
-                  List<Item> &fields, bool set_query_id,
+                  List<Item> &fields, ulong set_query_id,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
@@ -3558,7 +3560,10 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	fields marked in setup_tables during fix_fields of view columns
       */
       if (table)
+      {
 	table->used_fields= table->s->fields;
+        table->file->ha_set_all_bits_in_read_set();
+      }
     }
   }
   if (found)
@@ -3710,12 +3715,14 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
                 goto err;
               /* Mark field used for table cache */
               t2_field->query_id= thd->query_id;
+              t2->file->ha_set_bit_in_read_set(t2_field->fieldnr);
               t2->used_keys.intersect(t2_field->part_of_key);
             }
             if ((t1_field= iterator->field()))
             {
               /* Mark field used for table cache */
               t1_field->query_id= thd->query_id;
+              t1->file->ha_set_bit_in_read_set(t1_field->fieldnr);
               t1->used_keys.intersect(t1_field->part_of_key);
             }
             Item_func_eq *tmp= new Item_func_eq(iterator->item(thd),

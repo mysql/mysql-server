@@ -936,23 +936,19 @@ JOIN::optimize()
 
   }
   /*
-    Need to tell Innobase that to play it safe, it should fetch all
-    columns of the tables: this is because MySQL may build row
-    pointers for the rows, and for all columns of the primary key the
-    field->query_id has not necessarily been set to thd->query_id by
-    MySQL.
+    Need to tell handlers that to play it safe, it should fetch all
+    columns of the primary key of the tables: this is because MySQL may
+    build row pointers for the rows, and for all columns of the primary key
+    the read set has not necessarily been set by the server code.
   */
-
-#ifdef HAVE_INNOBASE_DB
   if (need_tmp || select_distinct || group_list || order)
   {
     for (uint i_h = const_tables; i_h < tables; i_h++)
     {
       TABLE* table_h = join_tab[i_h].table;
-      table_h->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+      table_h->file->ha_retrieve_all_pk();
     }
   }
-#endif
 
   DBUG_EXECUTE("info",TEST_join(this););
   /*
@@ -7927,7 +7923,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   uint  hidden_null_count, hidden_null_pack_length, hidden_field_count;
   uint  blob_count,group_null_items, string_count;
   uint  temp_pool_slot=MY_BIT_NONE;
-  ulong reclength, string_total_length;
+  ulong reclength, string_total_length, fieldnr= 0;
   bool  using_unique_constraint= 0;
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
@@ -8038,6 +8034,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->s->tmp_table= TMP_TABLE;
   table->s->db_low_byte_first=1;                // True for HEAP and MyISAM
   table->s->table_charset= param->table_charset;
+  table->s->primary_key= MAX_KEY; //Indicate no primary key
   table->s->keys_for_keyread.init();
   table->s->keys_in_use.init();
   /* For easier error reporting */
@@ -8111,6 +8108,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
             (*argp)->maybe_null=1;
           }
           new_field->query_id= thd->query_id;
+          new_field->fieldnr= ++fieldnr;
 	}
       }
     }
@@ -8158,6 +8156,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	new_field->flags|= GROUP_FLAG;
       }
       new_field->query_id= thd->query_id;
+      new_field->fieldnr= ++fieldnr;
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
@@ -8166,6 +8165,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
   *blob_field= 0;				// End marker
+  table->s->fields= field_count;
 
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
@@ -8182,7 +8182,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     table->file=get_new_handler(table,table->s->db_type= DB_TYPE_HEAP);
   }
-
+  if (table->s->fields)
+  {
+    table->file->ha_set_all_bits_in_read_set();
+    table->file->ha_set_all_bits_in_write_set();
+  }
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
 
@@ -8208,7 +8212,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
        string_total_length / string_count >= AVG_STRING_LENGTH_TO_PACK_ROWS))
     use_packed_rows= 1;
 
-  table->s->fields= field_count;
   table->s->reclength= reclength;
   {
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
@@ -8816,8 +8819,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   (void) new_table.file->close();
  err1:
   new_table.file->delete_table(new_table.s->table_name);
-  delete new_table.file;
  err2:
+  delete new_table.file;
   thd->proc_info=save_proc_info;
   DBUG_RETURN(1);
 }
