@@ -632,7 +632,11 @@ int write_record(TABLE *table,COPY_INFO *info)
         if (fill_record(*info->update_fields, *info->update_values, 0))
           goto err;
         if ((error=table->file->update_row(table->record[1],table->record[0])))
+	{
+	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+	    break;
           goto err;
+	}
         info->updated++;
         break;
       }
