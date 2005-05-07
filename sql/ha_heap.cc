@@ -424,7 +424,8 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
 int ha_heap::delete_table(const char *name)
 {
   char buff[FN_REFLEN];
-  int error= heap_delete_table(fn_format(buff,name,"","",4+2));
+  int error= heap_delete_table(fn_format(buff,name,"","",
+                                         MY_REPLACE_EXT|MY_UNPACK_FILENAME));
   return error == ENOENT ? 0 : error;
 }
 
@@ -555,7 +556,8 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   hp_create_info.max_table_size=current_thd->variables.max_heap_table_size;
   hp_create_info.with_auto_increment= found_real_auto_increment;
   max_rows = (ha_rows) (hp_create_info.max_table_size / mem_per_row);
-  error= heap_create(fn_format(buff,name,"","",4+2),
+  error= heap_create(fn_format(buff,name,"","",
+                               MY_REPLACE_EXT|MY_UNPACK_FILENAME),
 		     keys, keydef, share->reclength,
 		     (ulong) ((share->max_rows < max_rows &&
 			       share->max_rows) ? 
