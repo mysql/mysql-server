@@ -2,3 +2,11 @@ source include/master-slave.inc;
 
 set global slave_net_timeout=100;
 set global sql_slave_skip_counter=100;
+
+# BUG #7800: Add various-slave related variables to SHOW VARIABLES
+show variables like 'slave_compressed_protocol';
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+show variables like 'slave_load_tmpdir';
+# We just set some arbitrary values in variables-master.opt so we can test
+# that a list of values works correctly
+show variables like 'slave_skip_errors';
