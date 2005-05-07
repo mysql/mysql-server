@@ -256,3 +256,4 @@
 "Recibió fatal error %d: '%-.128s' del master cuando leyendo datos del binary log",
 "Slave SQL thread ignorado el query debido a las reglas de replicación-*-tabla"
 "Variable '%-.64s' is a %s variable"
+
