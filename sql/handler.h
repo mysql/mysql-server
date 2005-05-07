@@ -87,6 +87,7 @@
 #define HA_NO_VARCHAR	       (1 << 27)
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 #define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
+#define HA_CAN_SCAN_UPDATED_INDEX (1 << 31)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -567,6 +568,25 @@ public:
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int delete_row(const byte * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  virtual bool start_bulk_update() { return FALSE; }
+  virtual bool start_bulk_delete() { return FALSE; }
+  virtual int bulk_update_row(const byte *old_data, byte *new_data,
+                              uint *dup_key_found)
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  virtual int exec_bulk_update(uint *dup_key_found)
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  virtual void end_bulk_update() { return; }
+  virtual int end_bulk_delete()
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
   virtual int index_read(byte * buf, const byte * key,
 			 uint key_len, enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }

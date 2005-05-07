@@ -32,7 +32,8 @@
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                   SQL_LIST *order, ha_rows limit, ulong options)
 {
-  int		error;
+  bool          will_batch;
+  int		error, loc_error;
   TABLE		*table;
   SQL_SELECT	*select=0;
   READ_RECORD	info;
@@ -171,6 +172,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   deleted=0L;
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
+  will_batch= table->file->start_bulk_delete();
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 !thd->net.report_error)
   {
@@ -215,6 +217,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   }
   if (thd->killed && !error)
     error= 1;					// Aborted
+  if (will_batch && (loc_error= table->file->end_bulk_delete()))
+  {
+    if (error != 1)
+      table->file->print_error(loc_error,MYF(0));
+    error=1;
+  }
   thd->proc_info="end";
   end_read_record(&info);
   free_io_cache(table);				// Will not do any harm
@@ -579,7 +587,8 @@ void multi_delete::send_error(uint errcode,const char *err)
 
 int multi_delete::do_deletes(bool from_send_error)
 {
-  int local_error= 0, counter= 0;
+  int local_error= 0, counter= 0, error;
+  bool will_batch;
   DBUG_ENTER("do_deletes");
 
   if (from_send_error)
@@ -614,6 +623,7 @@ int multi_delete::do_deletes(bool from_send_error)
       been deleted by foreign key handling
     */
     info.ignore_not_found_rows= 1;
+    will_batch= table->file->start_bulk_delete();
     while (!(local_error=info.read_record(&info)) && !thd->killed)
     {
       if ((local_error=table->file->delete_row(table->record[0])))
@@ -622,6 +632,14 @@ int multi_delete::do_deletes(bool from_send_error)
 	break;
       }
       deleted++;
+    }
+    if (will_batch && (error=table->file->end_bulk_delete()))
+    {
+      if (!local_error)
+      {
+        local_error= error;
+        table->file->print_error(local_error,MYF(0));
+      }
     }
     end_read_record(&info);
     if (thd->killed && !local_error)
