@@ -1,4 +1,4 @@
-baseport: 16000
+baseport: 14000
 basedir: /space/autotest
 mgm: CHOOSE_host1
 ndb: CHOOSE_host2 CHOOSE_host3 CHOOSE_host2 CHOOSE_host3
