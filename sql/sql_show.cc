@@ -2303,8 +2303,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       uint col_access;
       check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
                    &tables->grant.privilege, 0, 0);
-      col_access= get_column_grant(thd, &tables->grant, tables->db,
-                                   tables->table_name,
+      col_access= get_column_grant(thd, &tables->grant, 
+                                   base_name, file_name,
                                    field->field_name) & COL_ACLS;
       if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && !col_access)
         continue;
