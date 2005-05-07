@@ -253,3 +253,4 @@
 "Fick fatalt fel %d: '%-.128s' från master vid läsning av binärloggen"
 "Slave SQL thread ignored the query because of replicate-*-table rules"
 "Variable '%-.64s' is a %s variable"
+
