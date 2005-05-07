@@ -911,3 +911,12 @@ delete from t1 where id=15;
 delete from t1 where id=0;
 
 drop table t1;
+
+#
+# BUG#7709 test case - Boolean fulltext query against unsupported 
+#                      engines does not fail
+#
+
+CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
+--error 1214;
+SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
