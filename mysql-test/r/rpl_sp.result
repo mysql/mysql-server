@@ -158,9 +158,6 @@ a
 select * from t2;
 a
 3
-select if(compte<>3,"this is broken but documented","this unexpectedly works?") from (select count(*) as compte from t2) as aggreg;
-if(compte<>3,"this is broken but documented","this unexpectedly works?")
-this is broken but documented
 select * from mysql.proc where name="foo4" and db='mysqltest1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
 mysqltest1	foo4	PROCEDURE	foo4	SQL	CONTAINS_SQL	YES	INVOKER			begin
@@ -197,9 +194,6 @@ a
 select * from t1;
 a
 21
-select if(compte<>1,"this is broken but documented","this unexpectedly works?") from (select count(*) as compte from t1 where a=20) as aggreg;
-if(compte<>1,"this is broken but documented","this unexpectedly works?")
-this is broken but documented
 select * from t2;
 a
 23
@@ -230,6 +224,35 @@ db	name	type	specific_name	language	sql_data_access	is_deterministic	security_ty
 mysqltest1	fn1	FUNCTION	fn1	SQL	CONTAINS_SQL	YES	DEFINER		int(11)	begin
 return unix_timestamp();
 end	@	#	#		
+create trigger trg before insert on t1 for each row set new.a= 10;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+flush logs;
+delete from t1;
+create trigger trg before insert on t1 for each row set new.a= 10;
+insert into t1 values (1);
+select * from t1;
+a
+10
+select * from t1;
+a
+10
+delete from t1;
+drop trigger t1.trg;
+insert into t1 values (1);
+select * from t1;
+a
+1
+show binlog events in 'master-bin.000002' from 98;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000002	#	Query	1	#	use `mysqltest1`; create trigger trg before insert on t1 for each row set new.a= 10
+master-bin.000002	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
+master-bin.000002	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000002	#	Query	1	#	use `mysqltest1`; drop trigger t1.trg
+master-bin.000002	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
+select * from t1;
+a
+1
 drop function fn1;
 drop database mysqltest1;
 drop user "zedjzlcsjhd"@127.0.0.1;

@@ -157,7 +157,6 @@ select * from t2;
 sync_slave_with_master;
 select * from t1;
 select * from t2;
-select if(compte<>3,"this is broken but documented","this unexpectedly works?") from (select count(*) as compte from t2) as aggreg;
 
 # Test of DROP PROCEDURE
 
@@ -194,7 +193,6 @@ select * from t1;
 select * from t2;
 sync_slave_with_master;
 select * from t1;
-select if(compte<>1,"this is broken but documented","this unexpectedly works?") from (select count(*) as compte from t1 where a=20) as aggreg;
 select * from t2;
 
 connection master;
@@ -224,6 +222,40 @@ select * from t1;
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
 --replace_column 13 # 14 #
 select * from mysql.proc where db='mysqltest1';
+
+# And now triggers
+
+connection con1;
+--error 1227;
+create trigger trg before insert on t1 for each row set new.a= 10;
+
+connection master;
+# fn1() above uses timestamps, so in !ps-protocol, the timezone will be
+# binlogged, but in --ps-protocol it will not be (BUG#9359) so
+# the binlog offsets get shifted which spoils SHOW BINLOG EVENTS.
+# To be immune, we take a new binlog.
+flush logs;
+delete from t1;
+# TODO: when triggers can contain an update, test that this update
+# does not go into binlog.
+# I'm not setting user vars in the trigger, because replication of user vars
+# would take care of propagating the user var's value to slave, so even if
+# the trigger was not executed on slave it would not be discovered.
+create trigger trg before insert on t1 for each row set new.a= 10;
+insert into t1 values (1);
+select * from t1;
+sync_slave_with_master;
+select * from t1;
+
+connection master;
+delete from t1;
+drop trigger t1.trg;
+insert into t1 values (1);
+select * from t1;
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000002' from 98;
+sync_slave_with_master;
+select * from t1;
 
 
 # Clean up
