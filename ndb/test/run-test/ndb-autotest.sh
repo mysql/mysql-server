@@ -1,7 +1,7 @@
 #!/bin/sh
 
 save_args=$*
-VERSION="ndb-autotest.sh version 1.03"
+VERSION="ndb-autotest.sh version 1.04"
 
 DATE=`date '+%Y-%m-%d'`
 export DATE
@@ -208,9 +208,10 @@ start(){
 }
 
 count_hosts(){
-    grep "CHOOSE_host" $1 |
-    awk '{for(i=1; i<=NF;i++) if(match($i, "CHOOSE_host") > 0) print $i;}' |
-    | sort | uniq | wc -l
+    cnt=`grep "CHOOSE_host" $1 |
+      awk '{for(i=1; i<=NF;i++) if(match($i, "CHOOSE_host") > 0) print $i;}' |
+      sort | uniq | wc -l`
+    echo $cnt
 }
 
 p=`pwd`
