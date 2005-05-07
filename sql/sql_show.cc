@@ -2306,7 +2306,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       col_access= get_column_grant(thd, &tables->grant, 
                                    base_name, file_name,
                                    field->field_name) & COL_ACLS;
-      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && !col_access)
+      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && 
+          !tables->schema_table && !col_access)
         continue;
       for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
       {
@@ -2319,7 +2320,12 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 #else
       *end= 0;
 #endif
-      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+      if (tables->schema_table)      // any user has 'select' privilege on all 
+                                     // I_S table columns
+        table->field[17]->store(grant_types.type_names[0],
+                                strlen(grant_types.type_names[0]), cs);
+      else
+        table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
 
       table->field[1]->store(base_name, strlen(base_name), cs);
       table->field[2]->store(file_name, strlen(file_name), cs);
