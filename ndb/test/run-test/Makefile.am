@@ -6,7 +6,6 @@ include $(top_srcdir)/ndb/config/type_util.mk.am
 include $(top_srcdir)/ndb/config/type_mgmapiclient.mk.am
 
 test_PROGRAMS = atrt
-test_DATA=daily-basic-tests.txt daily-devel-tests.txt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-daily-basic-ndbmaster.txt \
           conf-daily-basic-shark.txt \
