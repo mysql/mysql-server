@@ -22,3 +22,15 @@ connection con1;
 reap;
 drop table t1;
 
+#
+# Bug #9897  Views: 'Check Table' crashes MySQL, with a view and a table 
+# in the statement
+#
+
+connection default;
+Create table t1(f1 int);
+Create table t2(f1 int);
+Create view v1 as Select * from t1;
+Check Table v1,t2;
+drop view v1;
+drop table t1, t2;

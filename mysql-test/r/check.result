@@ -5,3 +5,12 @@ insert into t1 values (200000);
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+Create table t1(f1 int);
+Create table t2(f1 int);
+Create view v1 as Select * from t1;
+Check Table v1,t2;
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+test.t2	check	status	OK
+drop view v1;
+drop table t1, t2;
