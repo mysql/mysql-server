@@ -1100,6 +1100,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   uchar inchar;
   char buff[80], *pos, *out;
   COMMANDS *com;
+  bool need_space= 0;
 
   if (!line[0] && buffer.is_empty())
     return 0;
@@ -1208,6 +1209,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
     {
       pos++;
       *ml_comment= 0;
+      need_space= 1;
     }      
     else
     {						// Add found char to buffer
@@ -1217,7 +1219,14 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	       (inchar == '\'' || inchar == '"' || inchar == '`'))
 	*in_string= (char) inchar;
       if (!*ml_comment)
+      {
+        if (need_space && !my_isspace(charset_info, (char)inchar))
+        {
+          *out++= ' ';
+          need_space= 0;
+        }
 	*out++= (char) inchar;
+      }
     }
   }
   if (out != line || !buffer.is_empty())
