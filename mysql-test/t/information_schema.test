@@ -7,6 +7,9 @@
 show variables where variable_name like "skip_show_database";
 grant select, update, execute on test.* to mysqltest_2@localhost;
 grant select, update on test.* to mysqltest_1@localhost;
+create user mysqltest_3@localhost;
+create user mysqltest_3;
+
 
 select * from information_schema.SCHEMATA where schema_name > 'm';
 select schema_name from information_schema.schemata;
@@ -53,15 +56,21 @@ select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 show columns from mysqltest.t1 where field like "%a%";
 
+create view mysqltest.v1 (c) as select a from mysqltest.t1;
 grant select (a) on mysqltest.t1 to mysqltest_2@localhost;
+grant select on mysqltest.v1 to mysqltest_3;
 connect (user3,localhost,mysqltest_2,,);
 connection user3;
 select table_name, column_name, privileges from information_schema.columns 
 where table_schema = 'mysqltest' and table_name = 't1';
 show columns from mysqltest.t1;
+connect (user4,localhost,mysqltest_3,,mysqltest);
+connection user4;
+select table_name, column_name, privileges from information_schema.columns
+where table_schema = 'mysqltest' and table_name = 'v1';
 connection default;
 
-drop view v1;
+drop view v1, mysqltest.v1;
 drop tables mysqltest.t4, mysqltest.t1, t2, t3;
 drop database mysqltest;
 
@@ -176,10 +185,10 @@ select * from information_schema.USER_PRIVILEGES where grantee like '%mysqltest_
 select * from information_schema.SCHEMA_PRIVILEGES where grantee like '%mysqltest_1%';
 select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 select * from information_schema.COLUMN_PRIVILEGES where grantee like '%mysqltest_1%';
-delete from mysql.user where user='mysqltest_1' or user='mysqltest_2';
-delete from mysql.db where user='mysqltest_1' or user='mysqltest_2';
-delete from mysql.tables_priv where user='mysqltest_1' or user='mysqltest_2';
-delete from mysql.columns_priv where user='mysqltest_1' or user='mysqltest_2';
+delete from mysql.user where user like 'mysqltest%';
+delete from mysql.db where user like 'mysqltest%';
+delete from mysql.tables_priv where user like 'mysqltest%';
+delete from mysql.columns_priv where user like 'mysqltest%';
 flush privileges;
 drop table t1;
 
