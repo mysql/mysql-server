@@ -1443,12 +1443,13 @@ void handler::ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
 {
   DBUG_ENTER("ha_set_bit_in_rw_set");
   if (!write_op) {
-    DBUG_PRINT("info", ("Set bit in read set"));
+    DBUG_PRINT("info", ("Set bit %u in read set", fieldnr));
     read_set->set_bit((size_t)fieldnr);
   }
   else
   {
-    DBUG_PRINT("info", ("Set bit in write set"));
+    DBUG_PRINT("info", ("Set bit %u in read and write set", fieldnr));
+    read_set->set_bit((size_t)fieldnr);
     write_set->set_bit((size_t)fieldnr);
   }
   DBUG_VOID_RETURN;
