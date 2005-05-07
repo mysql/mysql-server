@@ -2342,6 +2342,13 @@ send_result_message:
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
+    /*
+      thd->lex->derived_tables may be set to non zero value if we open 
+      a view. It is necessary to clear thd->lex->derived_tables flag 
+      to prevent processing of derived tables during next open_and_lock_tables
+      if next table is a real table.
+    */
+    thd->lex->derived_tables= 0;
     if (protocol->write())
       goto err;
   }
