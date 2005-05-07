@@ -552,3 +552,14 @@ NULL	1
 Test	0
 NULL	1
 drop table t1, t2, t3;
+create table t1 (b bool not null default false);
+create table t2 (b bool not null default true);
+insert into t1 values ();
+insert into t2 values ();
+select * from t1;
+b
+0
+select * from t2;
+b
+1
+drop table t1,t2;
