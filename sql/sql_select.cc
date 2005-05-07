@@ -5028,11 +5028,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix,
+    sprintf(path, "%s_%lx_%i", tmp_file_prefix,
 	    current_pid, temp_pool_slot);
   else // if we run out of slots or we are not using tempool
-    sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
+    sprintf(path,"%s%lx_%lx_%x", tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
+
+  fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, path);
