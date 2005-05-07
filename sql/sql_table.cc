@@ -1633,6 +1633,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
   start_waiting_global_read_lock(thd);
+  delete file;
   thd->proc_info="After create";
   DBUG_RETURN(error);
 }

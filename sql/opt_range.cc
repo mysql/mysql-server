@@ -778,9 +778,10 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
       {
         DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
                             free_file));
-        file->reset();
+        file->ha_reset();
         file->external_lock(current_thd, F_UNLCK);
         file->close();
+        delete file;
       }
     }
     delete_dynamic(&ranges); /* ranges are allocated in alloc */
@@ -956,6 +957,8 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   DBUG_RETURN(0);
 
 failure:
+  if (file)
+    delete file;
   file= save_file;
   DBUG_RETURN(1);
 }

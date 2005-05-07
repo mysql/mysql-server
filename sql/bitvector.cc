@@ -16,6 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "mysql_priv.h"
 #include <bitvector.h>
 
 void bitvector::create_last_word_mask()
@@ -68,7 +69,7 @@ int bitvector::init(size_t size)
   DBUG_ASSERT(size < MYSQL_NO_BIT_FOUND);
   DBUG_ASSERT(size > 0);
   m_size= size;
-  m_data= (uchar*)my_malloc(byte_size_word_aligned(size), MYF(0));
+  m_data= (uchar*)sql_alloc(byte_size_word_aligned(size));
   if (m_data)
   {
     create_last_word_mask();

@@ -179,7 +179,6 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
 	((*tables)->reginfo.lock_type >= TL_READ &&
 	 (*tables)->reginfo.lock_type <= TL_READ_NO_INSERT))
       lock_type=F_RDLCK;
-    (*tables)->file->ha_clear_all_set();
     if ((error=(*tables)->file->external_lock(thd,lock_type)))
     {
       print_lock_error(error, (*tables)->file->table_type());
