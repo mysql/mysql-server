@@ -1,0 +1,3 @@
+load_file(concat(@tmpdir,"/outfile.test"))
+Outfile OK
+
