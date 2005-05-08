@@ -5403,10 +5403,15 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond=sel->cond=tmp;
 	  if (thd->variables.engine_condition_pushdown)
           {
+            COND *push_cond= 
+              make_cond_for_table(cond,current_map,current_map);
             tab->table->file->pushed_cond= NULL;
-	    /* Push condition to handler */
-            if (!tab->table->file->cond_push(tmp))
-              tab->table->file->pushed_cond= tmp;
+            if (push_cond)
+            {
+              /* Push condition to handler */
+              if (!tab->table->file->cond_push(push_cond))
+                tab->table->file->pushed_cond= push_cond;
+            }
           }
         }
         else
@@ -5530,13 +5535,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 		thd->memdup((gptr) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
-	      if (thd->variables.engine_condition_pushdown &&
-		  (!tab->table->file->pushed_cond))
-              {
-		/* Push condition to handler */
-		if (!tab->table->file->cond_push(tmp))
-                  tab->table->file->pushed_cond= tmp;
-              }
 	    }
 	  }
 	}
