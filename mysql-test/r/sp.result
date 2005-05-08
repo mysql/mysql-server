@@ -3057,4 +3057,29 @@ yes
 yes
 drop procedure bug7293|
 delete from t1|
+drop procedure if exists bug5963|
+create procedure bug5963_1 () begin declare v int; set v = (select s1 from t3); select v; end;|
+create table t3 (s1 int)|
+insert into t3 values (5)|
+call bug5963_1()|
+v
+5
+call bug5963_1()|
+v
+5
+drop procedure bug5963_1|
+drop table t3|
+create procedure bug5963_2 (cfk_value int) 
+begin 
+if cfk_value in (select cpk from t3) then 
+set @x = 5; 
+end if; 
+end; 
+|
+create table t3 (cpk int)|
+insert into t3 values (1)|
+call bug5963_2(1)|
+call bug5963_2(1)|
+drop procedure bug5963_2|
+drop table t3|
 drop table t1,t2;
