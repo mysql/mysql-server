@@ -1,23 +1,47 @@
+disable_query_log;
+-- source include/test_outfile.inc
+eval set @tmpdir="$MYSQL_TEST_DIR/var/tmp";
+enable_query_log;
+-- source include/have_outfile.inc
 #
 # test of into outfile|dumpfile
 #
 
-# We need to check that we have 'file' privilege.
+drop table if exists t1;
+create table t1 (`a` blob);
+insert into t1 values("hello world"),("Hello mars"),(NULL);
+disable_query_log;
+eval select * into outfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.1" from t1;
+enable_query_log;
+select load_file(concat(@tmpdir,"/outfile-test.1"));
+disable_query_log;
+eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.2" from t1 limit 1;
+enable_query_log;
+select load_file(concat(@tmpdir,"/outfile-test.2"));
+disable_query_log;
+eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.3" from t1 where a is null;
+enable_query_log;
+select load_file(concat(@tmpdir,"/outfile-test.3"));
 
-#drop table if exists t1;
-#create table t1 (`a` blob);
-#insert into t1 values("hello world"),("Hello mars"),(NULL);
-#select * into outfile "/tmp/select-test.1" from t1;
-#select load_file("/tmp/select-test.1");
-#select * into dumpfile "/tmp/select-test.2" from t1 limit 1;
-#select load_file("/tmp/select-test.2");
-#select * into dumpfile "/tmp/select-test.3" from t1 where a is null;
-#select load_file("/tmp/select-test.3");
-#
-## the following should give errors
-#
-#select * into outfile "/tmp/select-test.1" from t1;
-#select * into dumpfile "/tmp/select-test.1" from t1;
-#select * into dumpfile "/tmp/select-test.99" from t1;
-#select load_file("/tmp/select-test.not-exist");
-#drop table t1;
+# the following should give errors
+
+disable_query_log;
+--error 1086
+eval select * into outfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.1" from t1;
+--error 1086
+eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.2" from t1;
+--error 1086
+eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.3" from t1;
+enable_query_log;
+select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
+--exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.1
+--exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.2
+--exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.3
+drop table t1;
+
+# Bug#8191
+disable_query_log;
+eval select 1 into outfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.4";
+enable_query_log;
+select load_file(concat(@tmpdir,"/outfile-test.4"));
+--exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.4
