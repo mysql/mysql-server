@@ -203,7 +203,7 @@ start(){
 	p2=`pwd`
 	cd ..
 	tar cfz /tmp/res.$$.tgz `basename $p2`/$DATE
-	scp /tmp/res.$$.tgz $result_host:$result_path/res.$DATE.`hostname -s`.$$.tgz
+	scp /tmp/res.$$.tgz $result_host:$result_path/res.$DATE.`hostname -s`.$2.$$.tgz
 	rm -f /tmp/res.$$.tgz
 }
 
