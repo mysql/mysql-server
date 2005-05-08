@@ -5406,9 +5406,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             COND *push_cond= 
               make_cond_for_table(cond,current_map,current_map);
             tab->table->file->pushed_cond= NULL;
-	    /* Push condition to handler */
-            if (!tab->table->file->cond_push(push_cond))
-              tab->table->file->pushed_cond= push_cond;
+            if (push_cond)
+            {
+              /* Push condition to handler */
+              if (!tab->table->file->cond_push(push_cond))
+                tab->table->file->pushed_cond= push_cond;
+            }
           }
         }
         else
