@@ -74,13 +74,21 @@ class sp_rcontext : public Sql_alloc
 
   /* Returns 0 on success, -1 on (eval) failure */
   int
-  set_item_eval(uint idx, Item *i, enum_field_types type);
+  set_item_eval(uint idx, Item **i, enum_field_types type);
 
   inline Item *
   get_item(uint idx)
   {
     return m_frame[idx];
   }
+
+
+  inline Item **
+  get_item_addr(uint idx)
+  {
+    return m_frame + idx;
+  }
+
 
   inline void
   set_result(Item *it)
