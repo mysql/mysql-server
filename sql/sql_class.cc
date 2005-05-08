@@ -1719,10 +1719,9 @@ bool select_dumpvar::send_data(List<Item> &items)
   List_iterator_fast<Item_func_set_user_var> li(vars);
   List_iterator_fast<Item_splocal> var_li(local_vars);
   List_iterator_fast<my_var> my_li(var_list);
-  List_iterator_fast<Item> it(items);
+  List_iterator<Item> it(items);
   Item_func_set_user_var *xx;
   Item_splocal *yy;
-  Item *item;
   my_var *zz;
   DBUG_ENTER("send_data");
   if (unit->offset_limit_cnt)
@@ -1741,13 +1740,13 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     DBUG_RETURN(1);
   }
-  while ((zz=my_li++) && (item=it++))
+  while ((zz=my_li++) && (it++))
   {
     if (zz->local)
     {
       if ((yy=var_li++)) 
       {
-	if (thd->spcont->set_item_eval(yy->get_offset(), item, zz->type))
+	if (thd->spcont->set_item_eval(yy->get_offset(), it.ref(), zz->type))
 	  DBUG_RETURN(1);
       }
     }
