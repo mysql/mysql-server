@@ -204,3 +204,14 @@ CREATE TABLE t1 (a char(10));
 INSERT INTO t1 VALUES ('\'');
 --exec $MYSQL_DUMP --skip-comments test t1
 DROP TABLE t1;
+
+#
+# Test for --insert-ignore
+#
+
+CREATE TABLE t1 (a decimal(240, 20));
+INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
+("0987654321098765432109876543210987654321");
+--exec $MYSQL_DUMP --insert-ignore test t1
+--exec $MYSQL_DUMP --insert-ignore --delayed-insert test t1
+DROP TABLE t1;
