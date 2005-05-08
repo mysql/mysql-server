@@ -1537,9 +1537,10 @@ select_part2:
 
 select_into:
 	limit_clause {}
+	| into
 	| select_from
-	| opt_into select_from
-	| select_from opt_into;
+	| into select_from
+	| select_from into;
 
 select_from:
 	FROM join_table_list where_clause group_clause having_clause opt_order_clause limit_clause procedure_clause;
@@ -2507,7 +2508,7 @@ procedure_item:
 	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1));
 	  };
 
-opt_into:
+into:
 	INTO OUTFILE TEXT_STRING
 	{
 	  THD *thd= current_thd;
