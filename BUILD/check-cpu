@@ -19,6 +19,18 @@ if test -r /proc/cpuinfo ; then
   if test -z "$model_name" ; then
     model_name=`uname -m`
   fi
+else
+  # Fallback when there is no /proc/cpuinfo
+  case "`uname -s`" in
+    FreeBSD)
+      cpu_family=`uname -m`;
+      model_name=`sysctl -b hw.model`
+      ;;
+    *)
+      cpu_family=`uname -m`;
+      model_name="unknown";
+      ;;
+  esac
 fi
 
 case "$cpu_family--$model_name" in
