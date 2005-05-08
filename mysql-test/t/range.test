@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+
 #
 # Problem with range optimizer
 #
