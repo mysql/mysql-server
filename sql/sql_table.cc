@@ -1795,6 +1795,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
 
     KEY_PART_INFO *key_part= key_info->key_part;
+    enum Key::Keytype key_type= key_info->flags & HA_NOSAME ?
+				 (!my_strcasecmp(key_name, "PRIMARY") ?
+				  Key::PRIMARY  : Key::UNIQUE) :
+                                 (key_info->flags & HA_FULLTEXT ?
+                                 Key::FULLTEXT : Key::MULTIPLE);
     key_parts.empty();
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
@@ -1824,16 +1829,22 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	     cfield->pack_length <= key_part_length))
 	  key_part_length=0;			// Use whole field
       }
+      if (!(cfield->flags & NOT_NULL_FLAG))
+      {
+	if (key_type == Key::PRIMARY)
+	{
+	  /* Implicitly set primary key fields to NOT NULL for ISO conf. */
+	  cfield->flags|= NOT_NULL_FLAG;
+	  cfield->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
+	}
+        else
+          key_info->flags|= HA_NULL_PART_KEY;
+      }
       key_parts.push_back(new key_part_spec(cfield->field_name,
 					    key_part_length));
     }
     if (key_parts.elements)
-      key_list.push_back(new Key(key_info->flags & HA_NOSAME ?
-				 (!my_strcasecmp(key_name, "PRIMARY") ?
-				  Key::PRIMARY  : Key::UNIQUE) :
-                                 (key_info->flags & HA_FULLTEXT ?
-                                 Key::FULLTEXT : Key::MULTIPLE),
-				 key_name,key_parts));
+      key_list.push_back(new Key(key_type,key_name,key_parts));
   }
   key_it.rewind();
   {

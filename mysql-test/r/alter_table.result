@@ -386,3 +386,23 @@ Incorrect table name 't1\\'
 rename table t1 to `t1\\`;
 Incorrect table name 't1\\'
 drop table t1;
+drop table if exists t1, t2;
+create table t1 ( a varchar(10) not null primary key ) engine=myisam;
+create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
+flush tables;
+alter table t1 modify a varchar(10);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) TYPE=MRG_MyISAM UNION=(t1)
+flush tables;
+alter table t1 modify a varchar(10) not null;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) TYPE=MRG_MyISAM UNION=(t1)
+drop table if exists t1, t2;
