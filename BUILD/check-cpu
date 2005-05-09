@@ -34,7 +34,7 @@ else
 fi
 
 cpu_flag=""
-cpu_flag_obs=""
+cpu_flag_old=""
 
 case "$cpu_family--$model_name" in
   Alpha*EV6*)
@@ -57,7 +57,7 @@ case "$cpu_family--$model_name" in
   ;;
   *Athlon*64*)
     cpu_flag="athlon64";
-    cpu_flag_obs="athlon";
+    cpu_flag_old="athlon";
     ;;
   *Athlon*)
     cpu_flag="athlon";
@@ -98,8 +98,9 @@ case "$cc_ver--$cc_verno" in
     ;;
   *GCC*)
     # Fix for older compiler versions
-    if test -z "$cpu_flag_obs"; then
-      cpu_flag=$cpu_flag_obs;
+    if test -n "$cpu_flag_old"; then
+      cpu_flag="$cpu_flag_old"
+    fi
     check_cpu_cflags="-mcpu=$cpu_flag -march=$cpu_flag"
     ;;
   *)
