@@ -1044,6 +1044,8 @@ explain
 select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
+explain
+select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
 
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4;
