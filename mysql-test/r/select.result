@@ -2455,3 +2455,24 @@ a
 select x.a, y.a, z.a from ( (t1 x inner join t2 y on x.a=y.a) inner join t2 z on y.a=z.a) WHERE x.a=1;
 a	a	a
 drop table t1,t2;
+create table t1 (s1 varchar(5));
+insert into t1 values ('Wall');
+select min(s1) from t1 group by s1 with rollup;
+min(s1)
+Wall
+Wall
+drop table t1;
+create table t1 (s1 int) engine=myisam;
+insert into t1 values (0);
+select avg(distinct s1) from t1 group by s1 with rollup;
+avg(distinct s1)
+0.0000
+0.0000
+drop table t1;
+create table t1 (s1 int);
+insert into t1 values (null),(1);
+select distinct avg(s1) as x from t1 group by s1 with rollup;
+x
+NULL
+1.0000
+drop table t1;

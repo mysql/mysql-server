@@ -43,9 +43,9 @@ int decimal_operation_results(int result)
     break;
   case E_DEC_OVERFLOW:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_WARN_DATA_OUT_OF_RANGE,
-			ER(ER_WARN_DATA_OUT_OF_RANGE),
-			"", (long)-1);
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE),
+			"DECIMAL", "");
     break;
   case E_DEC_DIV_ZERO:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,

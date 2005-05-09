@@ -510,10 +510,10 @@ bool Item_field::collect_item_field_processor(byte *arg)
   while ((curr_item= item_list_it++))
   {
     if (curr_item->eq(this, 1))
-      DBUG_RETURN(false); /* Already in the set. */
+      DBUG_RETURN(FALSE); /* Already in the set. */
   }
   item_list->push_back(this);
-  DBUG_RETURN(false);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -1035,7 +1035,7 @@ void Item_field::set_field(Field *field_par)
   field=result_field=field_par;			// for easy coding with fields
   maybe_null=field->maybe_null();
   decimals= field->decimals();
-  max_length= field_par->field_length;
+  max_length= field_par->max_length();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
   db_name= field_par->table->s->db;
