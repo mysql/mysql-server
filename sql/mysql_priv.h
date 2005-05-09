@@ -211,6 +211,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
    key checks in some cases */
 #define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
 #define SELECT_NO_UNLOCK                (1L << 28)
+/* Thr following is used to detect a conflict with DISTINCT
+   in the user query has requested */
+#define SELECT_ALL			(1L << 29)
 
 /* If set to 0, then the thread will ignore all warnings with level notes.
    Set by executing SET SQL_NOTES=1 */
