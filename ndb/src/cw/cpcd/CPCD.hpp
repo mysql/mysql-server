@@ -243,6 +243,12 @@ public:
      * @desc Format c:unlimited d:0 ...
      */
     BaseString m_ulimit;
+
+    /**
+     * @brief shutdown options
+     */
+    BaseString m_shutdown_options;
+
   private:
     class CPCD *m_cpcd;
     void do_exec();

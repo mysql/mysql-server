@@ -2056,3 +2056,19 @@ create table t1 (s1 int);
 insert into t1 values (null),(1);
 select distinct avg(s1) as x from t1 group by s1 with rollup;
 drop table t1;
+
+
+#
+# Bug#8733 server accepts malformed query (multiply mentioned distinct)
+#
+create table t1 (a int(11));
+select all all * from t1;
+select distinct distinct * from t1;
+--error 1064
+select all distinct * from t1;
+--error 1064
+select distinct all * from t1;
+drop table t1;
+
+
+#

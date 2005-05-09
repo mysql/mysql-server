@@ -66,6 +66,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
 {
   ndbSetOwnVersion();
   clusterMgrThreadMutex = NdbMutex_Create();
+  noOfAliveNodes= 0;
   noOfConnectedNodes= 0;
   theClusterMgrThread= 0;
 }
@@ -336,9 +337,9 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   node.m_state = apiRegConf->nodeState;
   if (node.compatible && (node.m_state.startLevel == NodeState::SL_STARTED  ||
 			  node.m_state.startLevel == NodeState::SL_SINGLEUSER)){
-    node.m_alive = true;
+    set_node_alive(node, true);
   } else {
-    node.m_alive = false;
+    set_node_alive(node, false);
   }//if
   node.hbSent = 0;
   node.hbCounter = 0;
@@ -361,7 +362,7 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
   assert(node.defined == true);
 
   node.compatible = false;
-  node.m_alive = false;
+  set_node_alive(node, false);
   node.m_state = NodeState::SL_NOTHING;
   node.m_info.m_version = ref->version;
 
@@ -446,7 +447,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
 
   Node & theNode = theNodes[nodeId];
  
-  theNode.m_alive = false;
+  set_node_alive(theNode, false);
   theNode.m_info.m_connectCount ++;
   
   if(theNode.connected)
@@ -462,8 +463,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
   }
   
   theNode.nfCompleteRep = false;
-  
-  if(noOfConnectedNodes == 0){
+  if(noOfAliveNodes == 0){
     NFCompleteRep rep;
     for(Uint32 i = 1; i<MAX_NODES; i++){
       if(theNodes[i].defined && theNodes[i].nfCompleteRep == false){
