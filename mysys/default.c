@@ -121,7 +121,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (forced_extra_defaults)
     defaults_extra_file= strchr(forced_extra_defaults,'=')+1;
 
-  args_used+= (forced_default_file ? 1 : 0) + (forced_extra_defaults ? 1 : 0);
+  (*args_used)+= (forced_default_file ? 1 : 0) +
+                 (forced_extra_defaults ? 1 : 0);
 
   if (forced_default_file)
   {
@@ -151,10 +152,15 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       }
       else if (defaults_extra_file)
       {
-	if (search_default_file(func, func_ctx, NullS,
-                                defaults_extra_file) < 0)
+        if (search_default_file_with_ext(func, func_ctx, "", "",
+                                         defaults_extra_file, 0) < 0)
 	  goto err;				/* Fatal error */
-
+        if (error > 0)
+        {
+          fprintf(stderr, "Could not open required defaults file: %s\n",
+                  defaults_extra_file);
+          goto err;
+        }
       }
     }
   }
@@ -525,7 +531,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   }
 #endif
   if (!(fp= my_fopen(name, O_RDONLY, MYF(0))))
-    return 0;					/* Ignore wrong files */
+    return 1;					/* Ignore wrong files */
 
   while (fgets(buff, sizeof(buff) - 1, fp))
   {

@@ -211,24 +211,28 @@ word32 SSL_Decrypt(const RSA_PublicKey& key, const byte* sig, byte* plain)
                                   lengths.PaddedBlockBitLength(), plain);
 }
 
+#ifdef __GNUC__
+template AllocatorWithCleanup<unsigned char>::pointer StdReallocate<unsigned char, AllocatorWithCleanup<unsigned char> >(AllocatorWithCleanup<unsigned char>&, unsigned char*, AllocatorWithCleanup<unsigned char>::size_type, AllocatorWithCleanup<unsigned char>::size_type, bool);
+template AllocatorWithCleanup<unsigned int>::pointer StdReallocate<unsigned int, AllocatorWithCleanup<unsigned int> >(AllocatorWithCleanup<unsigned int>&, unsigned int*, AllocatorWithCleanup<unsigned int>::size_type, AllocatorWithCleanup<unsigned int>::size_type, bool);
+template class AbstractGroup<Integer>;
+template class AbstractRing<Integer>;
+template class RSA_Decryptor<RSA_BlockType2>;
+template class RSA_Encryptor<RSA_BlockType1>;
+template class RSA_Encryptor<RSA_BlockType2>;
+#endif
 
 } // namespace
 
 #ifdef __GNUC__
-template TaoCrypt::AllocatorWithCleanup<unsigned char>::pointer TaoCrypt::StdReallocate<unsigned char, TaoCrypt::AllocatorWithCleanup<unsigned char> >(TaoCrypt::AllocatorWithCleanup<unsigned char>&, unsigned char*, TaoCrypt::AllocatorWithCleanup<unsigned char>::size_type, TaoCrypt::AllocatorWithCleanup<unsigned char>::size_type, bool);
-template TaoCrypt::AllocatorWithCleanup<unsigned int>::pointer TaoCrypt::StdReallocate<unsigned int, TaoCrypt::AllocatorWithCleanup<unsigned int> >(TaoCrypt::AllocatorWithCleanup<unsigned int>&, unsigned int*, TaoCrypt::AllocatorWithCleanup<unsigned int>::size_type, TaoCrypt::AllocatorWithCleanup<unsigned int>::size_type, bool);
-template TaoCrypt::Integer* mySTL::uninit_copy<TaoCrypt::Integer*, TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*, TaoCrypt::Integer*);
-template TaoCrypt::Integer* mySTL::uninit_fill_n<TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer>(TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer const&);
-template TaoCrypt::WindowSlider* mySTL::uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
-template class TaoCrypt::AbstractGroup<TaoCrypt::Integer>;
-template class TaoCrypt::AbstractRing<TaoCrypt::Integer>;
-template class TaoCrypt::RSA_Decryptor<TaoCrypt::RSA_BlockType2>;
-template class TaoCrypt::RSA_Encryptor<TaoCrypt::RSA_BlockType1>;
-template class TaoCrypt::RSA_Encryptor<TaoCrypt::RSA_BlockType2>;
-template mySTL::vector<TaoCrypt::Integer>* mySTL::uninit_fill_n<mySTL::vector<TaoCrypt::Integer>*, unsigned int, mySTL::vector<TaoCrypt::Integer> >(mySTL::vector<TaoCrypt::Integer>*, unsigned int, mySTL::vector<TaoCrypt::Integer> const&);
-template void mySTL::destroy<TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*);
-template void mySTL::destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
-template void mySTL::destroy<mySTL::vector<TaoCrypt::Integer>*>(mySTL::vector<TaoCrypt::Integer>*, mySTL::vector<TaoCrypt::Integer>*);
+namespace mySTL {
+template TaoCrypt::Integer* uninit_copy<TaoCrypt::Integer*, TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*, TaoCrypt::Integer*);
+template TaoCrypt::Integer* uninit_fill_n<TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer>(TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer const&);
+template TaoCrypt::WindowSlider* uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
+template vector<TaoCrypt::Integer>* uninit_fill_n<vector<TaoCrypt::Integer>*, unsigned int, vector<TaoCrypt::Integer> >(vector<TaoCrypt::Integer>*, unsigned int, vector<TaoCrypt::Integer> const&);
+template void destroy<TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*);
+template void destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
+template void destroy<vector<TaoCrypt::Integer>*>(vector<TaoCrypt::Integer>*, vector<TaoCrypt::Integer>*);
+}
 #endif
 
 

@@ -897,7 +897,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto err;
 
         if ((error=table->file->update_row(table->record[1],table->record[0])))
+	{
+	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+	    break;
           goto err;
+	}
         info->updated++;
         break;
       }
