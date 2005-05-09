@@ -4212,7 +4212,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_table_info(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
                 HA_NULL_IN_KEY |
-                HA_CAN_SCAN_UPDATED_INDEX |
                 HA_AUTO_PART_KEY |
                 HA_NO_PREFIX_CHAR_KEYS |
                 HA_NEED_READ_RANGE_BUFFER |

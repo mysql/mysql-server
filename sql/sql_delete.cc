@@ -172,7 +172,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   deleted=0L;
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
-  will_batch= table->file->start_bulk_delete();
+  will_batch= !table->file->start_bulk_delete();
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 !thd->net.report_error)
   {
@@ -184,7 +184,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
         table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                           TRG_ACTION_BEFORE);
 
-      if (!(error=table->file->delete_row(table->record[0])))
+      if (!(error= table->file->delete_row(table->record[0])))
       {
 	deleted++;
 	if (!--limit && using_limit)
@@ -223,7 +223,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->file->print_error(loc_error,MYF(0));
     error=1;
   }
-  thd->proc_info="end";
+  thd->proc_info= "end";
   end_read_record(&info);
   free_io_cache(table);				// Will not do any harm
   if (options & OPTION_QUICK)
@@ -623,17 +623,17 @@ int multi_delete::do_deletes(bool from_send_error)
       been deleted by foreign key handling
     */
     info.ignore_not_found_rows= 1;
-    will_batch= table->file->start_bulk_delete();
+    will_batch= !table->file->start_bulk_delete();
     while (!(local_error=info.read_record(&info)) && !thd->killed)
     {
-      if ((local_error=table->file->delete_row(table->record[0])))
+      if ((local_error= table->file->delete_row(table->record[0])))
       {
 	table->file->print_error(local_error,MYF(0));
 	break;
       }
       deleted++;
     }
-    if (will_batch && (error=table->file->end_bulk_delete()))
+    if (will_batch && (error= table->file->end_bulk_delete()))
     {
       if (!local_error)
       {
