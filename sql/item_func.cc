@@ -1692,6 +1692,13 @@ longlong Item_func_bit_count::val_int()
 
 udf_handler::~udf_handler()
 {
+  /* Everything should be properly cleaned up by this moment. */
+  DBUG_ASSERT(not_original || !(initialized || buffers));
+}
+
+
+void udf_handler::cleanup()
+{
   if (!not_original)
   {
     if (initialized)
@@ -1703,9 +1710,11 @@ udf_handler::~udf_handler()
         (*deinit)(&initid);
       }
       free_udf(u_d);
+      initialized= FALSE;
     }
     if (buffers)				// Because of bug in ecc
       delete [] buffers;
+    buffers= 0;
   }
 }
 
@@ -1944,6 +1953,12 @@ String *udf_handler::val_str(String *str,String *save_str)
   return save_str;
 }
 
+
+void Item_udf_func::cleanup()
+{
+  udf.cleanup();
+  Item_func::cleanup();
+}
 
 
 double Item_func_udf_float::val()
