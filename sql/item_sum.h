@@ -667,6 +667,7 @@ public:
   bool add();
   void reset_field() {};
   void update_field() {};
+  void cleanup();
 };
 
 
