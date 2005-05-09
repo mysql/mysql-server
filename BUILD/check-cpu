@@ -33,6 +33,9 @@ else
   esac
 fi
 
+cpu_flag=""
+cpu_flag_old=""
+
 case "$cpu_family--$model_name" in
   Alpha*EV6*)
     cpu_flag="ev6";
@@ -40,11 +43,21 @@ case "$cpu_family--$model_name" in
   *Xeon*)
     cpu_flag="nocona";
     ;;
+  *Pentium*4*Mobile*CPU*)
+    cpu_flag="pentium4m";
+  ;;
   *Pentium*4*CPU*)
     cpu_flag="pentium4";
     ;;
+  *Pentium*III*Mobile*CPU*)
+    cpu_flag="pentium3m";
+  ;;
+  *Pentium*III*CPU*)
+    cpu_flag="pentium3";
+  ;;
   *Athlon*64*)
     cpu_flag="athlon64";
+    cpu_flag_old="athlon";
     ;;
   *Athlon*)
     cpu_flag="athlon";
@@ -84,6 +97,10 @@ case "$cc_ver--$cc_verno" in
     check_cpu_cflags="-mtune=$cpu_flag -march=$cpu_flag"
     ;;
   *GCC*)
+    # Fix for older compiler versions
+    if test -n "$cpu_flag_old"; then
+      cpu_flag="$cpu_flag_old"
+    fi
     check_cpu_cflags="-mcpu=$cpu_flag -march=$cpu_flag"
     ;;
   *)

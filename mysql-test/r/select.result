@@ -2476,3 +2476,13 @@ x
 NULL
 1.0000
 drop table t1;
+create table t1 (a int(11));
+select all all * from t1;
+a
+select distinct distinct * from t1;
+a
+select all distinct * from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'distinct * from t1' at line 1
+select distinct all * from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'all * from t1' at line 1
+drop table t1;
