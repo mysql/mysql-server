@@ -783,6 +783,7 @@ public:
     fixed= 1;
     return res;
   }
+  void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
 };
