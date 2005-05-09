@@ -567,6 +567,85 @@ public:
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int delete_row(const byte * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /*
+    SYNOPSIS
+      start_bulk_update()
+    RETURN
+      0   Bulk update used by handler
+      1   Bulk update not used, normal operation used
+  */
+  virtual bool start_bulk_update() { return 1; }
+  /*
+    SYNOPSIS
+      start_bulk_delete()
+    RETURN
+      0   Bulk delete used by handler
+      1   Bulk delete not used, normal operation used
+  */
+  virtual bool start_bulk_delete() { return 1; }
+  /*
+    SYNOPSIS
+    This method is similar to update_row, however the handler doesn't need
+    to execute the updates at this point in time. The handler can be certain
+    that another call to bulk_update_row will occur OR a call to
+    exec_bulk_update before the set of updates in this query is concluded.
+
+      bulk_update_row()
+        old_data       Old record
+        new_data       New record
+        dup_key_found  Number of duplicate keys found
+    RETURN
+      0   Bulk delete used by handler
+      1   Bulk delete not used, normal operation used
+  */
+  virtual int bulk_update_row(const byte *old_data, byte *new_data,
+                              uint *dup_key_found)
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  /*
+    SYNOPSIS
+    After this call all outstanding updates must be performed. The number
+    of duplicate key errors are reported in the duplicate key parameter.
+    It is allowed to continue to the batched update after this call, the
+    handler has to wait until end_bulk_update with changing state.
+
+      exec_bulk_update()
+        dup_key_found       Number of duplicate keys found
+    RETURN
+      0           Success
+      >0          Error code
+  */
+  virtual int exec_bulk_update(uint *dup_key_found)
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  /*
+    SYNOPSIS
+    Perform any needed clean-up, no outstanding updates are there at the
+    moment.
+
+      end_bulk_update()
+    RETURN
+      Nothing
+  */
+  virtual void end_bulk_update() { return; }
+  /*
+    SYNOPSIS
+    Execute all outstanding deletes and close down the bulk delete.
+
+      end_bulk_delete()
+    RETURN
+    0             Success
+    >0            Error code
+  */
+  virtual int end_bulk_delete()
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
   virtual int index_read(byte * buf, const byte * key,
 			 uint key_len, enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
