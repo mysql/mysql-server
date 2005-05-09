@@ -2533,6 +2533,28 @@ longlong Item_func_bit_count::val_int()
 
 #ifdef HAVE_DLOPEN
 
+void udf_handler::cleanup()
+{
+  if (!not_original)
+  {
+    if (initialized)
+    {
+      if (u_d->func_deinit != NULL)
+      {
+        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
+        u_d->func_deinit;
+        (*deinit)(&initid);
+      }
+      free_udf(u_d);
+      initialized= FALSE;
+    }
+    if (buffers)				// Because of bug in ecc
+      delete [] buffers;
+    buffers= 0;
+  }
+}
+
+
 bool
 udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 			uint arg_count, Item **arguments)
@@ -2805,6 +2827,13 @@ my_decimal *udf_handler::val_decimal(my_bool *null_value, my_decimal *dec_buf)
 }
 
 
+void Item_udf_func::cleanup()
+{
+  udf.cleanup();
+  Item_func::cleanup();
+}
+
+
 double Item_func_udf_float::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -2930,21 +2959,8 @@ String *Item_func_udf_str::val_str(String *str)
 
 udf_handler::~udf_handler()
 {
-  if (!not_original)
-  {
-    if (initialized)
-    {
-      if (u_d->func_deinit != NULL)
-      {
-        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-        u_d->func_deinit;
-        (*deinit)(&initid);
-      }
-      free_udf(u_d);
-    }
-    if (buffers)				// Because of bug in ecc
-      delete [] buffers;
-  }
+  /* Everything should be properly cleaned up by this moment. */
+  DBUG_ASSERT(not_original || !(initialized || buffers));
 }
 
 #else
