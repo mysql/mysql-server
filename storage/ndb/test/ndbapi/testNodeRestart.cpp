@@ -359,7 +359,7 @@ int runLateCommit(NDBT_Context* ctx, NDBT_Step* step){
     if(hugoOps.startTransaction(pNdb) != 0)
       return NDBT_FAILED;
       
-    if(hugoOps.pkUpdateRecord(pNdb, 1) != 0)
+    if(hugoOps.pkUpdateRecord(pNdb, 1, 128) != 0)
       return NDBT_FAILED;
 
     if(hugoOps.execute_NoCommit(pNdb) != 0)

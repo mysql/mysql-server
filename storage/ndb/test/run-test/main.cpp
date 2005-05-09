@@ -116,10 +116,7 @@ main(int argc, const char ** argv){
      */
     if(restart){
       g_logger.info("(Re)starting ndb processes");
-      if(!stop_processes(g_config, atrt_process::NDB_MGM))
-	goto end;
-
-      if(!stop_processes(g_config, atrt_process::NDB_DB))
+      if(!stop_processes(g_config, ~0))
 	goto end;
 
       if(!start_processes(g_config, atrt_process::NDB_MGM))
@@ -142,6 +139,9 @@ main(int argc, const char ** argv){
       goto end;
       
     started:
+      if(!start_processes(g_config, p_servers))
+        goto end;
+
       g_logger.info("Ndb start completed");
     }
     
@@ -156,9 +156,6 @@ main(int argc, const char ** argv){
     
     // Assign processes to programs
     if(!setup_test_case(g_config, test_case))
-      goto end;
-    
-    if(!start_processes(g_config, p_servers))
       goto end;
     
     if(!start_processes(g_config, p_clients))
@@ -201,9 +198,6 @@ main(int argc, const char ** argv){
     if(!stop_processes(g_config, p_clients))
       goto end;
     
-    if(!stop_processes(g_config, p_servers))
-      goto end;
-
     if(!gather_result(g_config, &result))
       goto end;
     
@@ -454,6 +448,7 @@ setup_config(atrt_config& config){
       proc.m_proc.m_runas = proc.m_host->m_user;
       proc.m_proc.m_ulimit = "c:unlimited";
       proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", dir.c_str());
+      proc.m_proc.m_shutdown_options = "";
       proc.m_hostname = proc.m_host->m_hostname;
       proc.m_ndb_mgm_port = g_default_base_port;
       if(split1[0] == "mgm"){
@@ -476,21 +471,19 @@ setup_config(atrt_config& config){
 	proc.m_proc.m_path.assign(dir).append("/libexec/mysqld");
 	proc.m_proc.m_args = "--core-file --ndbcluster";
 	proc.m_proc.m_cwd.appfmt("%d.mysqld", index);
-	if(mysql_port_offset > 0 || g_mysqld_use_base){
-	  // setup mysql specific stuff
-	  const char * basedir = proc.m_proc.m_cwd.c_str();
-	  proc.m_proc.m_args.appfmt("--datadir=%s", basedir);
-	  proc.m_proc.m_args.appfmt("--pid-file=%s/mysql.pid", basedir);
-	  proc.m_proc.m_args.appfmt("--socket=%s/mysql.sock", basedir);
-	  proc.m_proc.m_args.appfmt("--port=%d", 
-				    g_default_base_port-(++mysql_port_offset));
-	}
+	proc.m_proc.m_shutdown_options = "SIGKILL"; // not nice
       } else if(split1[0] == "api"){
 	proc.m_type = atrt_process::NDB_API;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_api");
 	proc.m_proc.m_path = "";
 	proc.m_proc.m_args = "";
 	proc.m_proc.m_cwd.appfmt("%d.ndb_api", index);
+      } else if(split1[0] == "mysql"){
+        proc.m_type = atrt_process::MYSQL_CLIENT;
+        proc.m_proc.m_name.assfmt("%d-%s", index, "mysql");
+        proc.m_proc.m_path = "";
+        proc.m_proc.m_args = "";
+        proc.m_proc.m_cwd.appfmt("%d.mysql", index);
       } else {
 	g_logger.critical("%s:%d: Unhandled process type: %s",
 			  g_process_config_filename, lineno,
@@ -913,6 +906,11 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
     tc.m_report= true;
   else
     tc.m_report= false;
+
+  if(p.get("run-all", &mt) && strcmp(mt, "yes") == 0)
+    tc.m_run_all= true;
+  else
+    tc.m_run_all= false;
   
   return true;
 }
@@ -928,16 +926,17 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
   size_t i = 0;
   for(; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i]; 
-    if(proc.m_type == atrt_process::NDB_API){
+    if(proc.m_type == atrt_process::NDB_API || proc.m_type == atrt_process::MYSQL_CLIENT){
       proc.m_proc.m_path.assfmt("%s/bin/%s", proc.m_host->m_base_dir.c_str(),
 				tc.m_command.c_str());
       proc.m_proc.m_args.assign(tc.m_args);
-      break;
+      if(!tc.m_run_all)
+        break;
     }
   }
   for(i++; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i]; 
-    if(proc.m_type == atrt_process::NDB_API){
+    if(proc.m_type == atrt_process::NDB_API || proc.m_type == atrt_process::MYSQL_CLIENT){
       proc.m_proc.m_path.assign("");
       proc.m_proc.m_args.assign("");
     }
