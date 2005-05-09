@@ -1514,7 +1514,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     */
     tables.updating= 1;
     /* Thanks to bzero, tables.next==0 */
-    if (!rpl_filter->tables_ok(0, &tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, &tables)))
       DBUG_RETURN(0);
   }
 #endif
@@ -2699,7 +2699,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       account in tests.
     */
     tables[0].updating= tables[1].updating= tables[2].updating= 1;
-    if (!rpl_filter->tables_ok(0, tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(FALSE);
   }
 #endif
@@ -2904,7 +2904,7 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
       account in tests.
     */
     tables[0].updating= tables[1].updating= 1;
-    if (!rpl_filter->tables_ok(0, tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(FALSE);
   }
 #endif
@@ -3035,7 +3035,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       account in tests.
     */
     tables[0].updating= tables[1].updating= 1;
-    if (!rpl_filter->tables_ok(0, tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(FALSE);
   }
 #endif
@@ -4245,7 +4245,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     */
     tables[0].updating=tables[1].updating=tables[2].updating=
       tables[3].updating=tables[4].updating=1;
-    if (!rpl_filter->tables_ok(0, tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
     tables[0].updating=tables[1].updating=tables[2].updating=
       tables[3].updating=tables[4].updating=0;;
