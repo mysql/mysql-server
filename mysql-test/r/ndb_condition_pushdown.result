@@ -1139,5 +1139,10 @@ explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using filesort
+explain
+select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	6	Using where
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4;

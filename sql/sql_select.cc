@@ -5401,10 +5401,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
           tab->select_cond=sel->cond=tmp;
+          /* Push condition to storage engine if this is enabled
+             and the condition is not guarded */
 	  if (thd->variables.engine_condition_pushdown)
           {
             COND *push_cond= 
-              make_cond_for_table(cond,current_map,current_map);
+              make_cond_for_table(tmp,current_map,current_map);
             tab->table->file->pushed_cond= NULL;
             if (push_cond)
             {
