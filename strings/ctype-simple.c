@@ -1340,6 +1340,60 @@ longlong my_strtoll10_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+/*
+  Check if a constant can be propagated
+
+  SYNOPSIS:
+    my_propagate_simple()
+    cs		Character set information
+    str		String to convert to double
+    length	Optional length for string.
+    
+  NOTES:
+   Takes the string in the given charset and check
+   if it can be safely propagated in the optimizer.
+   
+   create table t1 (
+     s char(5) character set latin1 collate latin1_german2_ci);
+   insert into t1 values (0xf6); -- o-umlaut
+   select * from t1 where length(s)=1 and s='oe';
+
+   The above query should return one row.
+   We cannot convert this query into:
+   select * from t1 where length('oe')=1 and s='oe';
+   
+   Currently we don't check the constant itself,
+   and decide not to propagate a constant
+   just if the collation itself allows tricky things
+   like expansions and contractions. In the future
+   we can write a more sophisticated functions to
+   check the constants. For example, 'oa' can always
+   be safety propagated in German2 because unlike 
+   'oe' it does not have any special meaning.
+
+  RETURN
+    1 if constant can be safely propagated
+    0 if it is not safe to propagate the constant
+*/
+
+
+
+my_bool my_propagate_simple(CHARSET_INFO *cs __attribute__((unused)),
+                            const uchar *str __attribute__((unused)),
+                            uint length __attribute__((unused)))
+{
+  return 1;
+}
+
+
+my_bool my_propagate_complex(CHARSET_INFO *cs __attribute__((unused)),
+                             const uchar *str __attribute__((unused)),
+                             uint length __attribute__((unused)))
+{
+  return 0;
+}
+
+
 MY_CHARSET_HANDLER my_charset_8bit_handler=
 {
     my_cset_init_8bit,
@@ -1380,5 +1434,6 @@ MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler =
     my_wildcmp_8bit,
     my_strcasecmp_8bit,
     my_instr_simple,
-    my_hash_sort_simple
+    my_hash_sort_simple,
+    my_propagate_simple
 };

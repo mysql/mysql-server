@@ -28,7 +28,7 @@ static File_option triggers_file_parameters[]=
     mysql_create_or_drop_trigger()
       thd    - current thread context (including trigger definition in LEX)
       tables - table list containing one table for which trigger is created.
-      create - whenever we create (true) or drop (false) trigger
+      create - whenever we create (TRUE) or drop (FALSE) trigger
 
   NOTE
     This function is mainly responsible for opening and locking of table and

@@ -95,6 +95,7 @@ public:
   Item_bool_func(THD *thd, Item_bool_func *item) :Item_int_func(thd, item) {}
   bool is_bool_func() { return 1; }
   void fix_length_and_dec() { decimals=0; max_length=1; }
+  uint decimal_precision() const { return 1; }
 };
 
 class Item_cache;
@@ -208,6 +209,7 @@ public:
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
+  uint decimal_precision() const { return 1; }
 
   friend class  Arg_comparator;
 };
@@ -410,7 +412,9 @@ public:
   const char *func_name() const { return "between"; }
   void fix_length_and_dec();
   void print(String *str);
+  bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  uint decimal_precision() const { return 1; }
 };
 
 
@@ -445,6 +449,7 @@ public:
   longlong val_int();
   void fix_length_and_dec();
   const char *func_name() const { return "interval"; }
+  uint decimal_precision() const { return 2; }
 };
 
 
@@ -485,6 +490,7 @@ public:
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
+  uint decimal_precision() const;
 };
 
 
@@ -507,6 +513,7 @@ public:
     return Item_func::fix_fields(thd, tlist, ref);
   }
   void fix_length_and_dec();
+  uint decimal_precision() const;
   const char *func_name() const { return "if"; }
   table_map not_null_tables() const { return 0; }
 };
@@ -525,6 +532,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
+  uint decimal_precision() const { return args[0]->decimal_precision(); }
   const char *func_name() const { return "nullif"; }
   void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
@@ -563,6 +571,7 @@ public:
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec();
+  uint decimal_precision() const;
   table_map not_null_tables() const { return 0; }
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "case"; }
@@ -825,6 +834,7 @@ class Item_func_in :public Item_int_func
   }
   longlong val_int();
   void fix_length_and_dec();
+  uint decimal_precision() const { return 1; }
   void cleanup()
   {
     DBUG_ENTER("Item_func_in::cleanup");

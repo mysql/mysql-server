@@ -1300,3 +1300,12 @@ eval set storage_engine=$default;
 # InnoDB specific varchar tests
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
+
+#
+# Bug #4082: integer truncation
+#
+
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+drop table t1;

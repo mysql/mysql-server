@@ -338,3 +338,9 @@ ss
 ss
 ß
 DROP TABLE t1;
+create table t1 (s1 char(5) character set latin1 collate latin1_german2_ci);
+insert into t1 values (0xf6) /* this is o-umlaut */;
+select * from t1 where length(s1)=1 and s1='oe';
+s1
+ö
+drop table t1;

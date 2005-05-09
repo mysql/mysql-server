@@ -4226,21 +4226,10 @@ lock_get_n_rec_locks(void)
 Prints info of locks for all transactions. */
 
 void
-lock_print_info(
-/*============*/
+lock_print_info_summary(
+/*====================*/
 	FILE*	file)	/* in: file where to print */
 {
-	lock_t*	lock;
-	trx_t*	trx;
-	ulint	space;
-	ulint	page_no;
-	page_t*	page;
-	ibool	load_page_first = TRUE;
-	ulint	nth_trx		= 0;
-	ulint	nth_lock	= 0;
-	ulint	i;
-	mtr_t	mtr;
-
 	/* We must protect the MySQL thd->query field with a MySQL mutex, and
 	because the MySQL mutex must be reserved before the kernel_mutex of
 	InnoDB, we call innobase_mysql_prepare_print_arbitrary_thd() here. */
@@ -4279,6 +4268,26 @@ lock_print_info(
 	fprintf(file,
 		"Total number of lock structs in row lock hash table %lu\n",
 					 (ulong) lock_get_n_rec_locks());
+}
+
+/*************************************************************************
+Prints info of locks for each transaction. */
+
+void
+lock_print_info_all_transactions(
+/*=============================*/
+	FILE*	file)	/* in: file where to print */
+{
+	lock_t*	lock;
+	ulint	space;
+	ulint	page_no;
+	page_t*	page;
+	ibool	load_page_first = TRUE;
+	ulint	nth_trx		= 0;
+	ulint	nth_lock	= 0;
+	ulint	i;
+	mtr_t	mtr;
+	trx_t*	trx;
 
 	fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 

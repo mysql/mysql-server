@@ -258,7 +258,7 @@ public:
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
-  uint8 marker,decimals;
+  uint8 marker, decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
@@ -442,6 +442,9 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
+  virtual uint decimal_precision() const;
+  inline int decimal_int_part() const
+  { return my_decimal_int_part(decimal_precision(), decimals); }
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
@@ -953,7 +956,7 @@ public:
     { max_length=length; fixed= 1; }
 #ifdef HAVE_LONG_LONG
   Item_int(longlong i,uint length=21) :value(i)
-    { max_length=length; fixed= 1;}
+    { max_length=length; fixed= 1; }
 #endif
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
     { max_length=length; name=(char*) str_arg; fixed= 1; }
@@ -972,6 +975,7 @@ public:
   void cleanup() {}
   void print(String *str);
   Item_num *neg() { value= -value; return this; }
+  uint decimal_precision() const { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
 };
 
@@ -991,6 +995,7 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length);
+  Item_uint(const char *str_arg, longlong i, uint length);
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
     { unsigned_flag= 1; }
   double val_real()
@@ -1000,6 +1005,7 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
+  uint decimal_precision() const { return max_length; }
 };
 
 
@@ -1039,6 +1045,7 @@ public:
     unsigned_flag= !decimal_value.sign();
     return this;
   }
+  uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
 };
 
@@ -1397,11 +1404,7 @@ public:
   {
     return ref->save_in_field(field, no_conversions);
   }
-  Item *new_item()
-  {
-    return (ref->unsigned_flag)? new Item_uint(ref->name, ref->max_length) :
-                                 new Item_int(ref->name, ref->max_length);
-  }
+  Item *new_item();
 };
 
 
@@ -1805,6 +1808,9 @@ protected:
   enum_field_types fld_type;
 
   void get_full_info(Item *item);
+
+  /* It is used to count decimal precision in join_types */
+  int prev_decimal_int_part;
 public:
   Item_type_holder(THD*, Item*);
 
