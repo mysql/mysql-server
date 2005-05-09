@@ -83,7 +83,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_autocommit=0,opt_disable_keys=1,opt_xml=0,
 		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
-		opt_hex_blob=0, opt_order_by_primary=0;
+		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
@@ -257,6 +257,9 @@ static struct my_option my_long_options[] =
    "use the directive multiple times, once for each table.  Each table must "
    "be specified with both database and table names, e.g. --ignore-table=database.table",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
+   (gptr*) &opt_ignore, (gptr*) &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
    (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1100,13 +1103,15 @@ static uint get_table_structure(char *table, char *db)
   my_bool    init=0;
   uint       numFields;
   char	     *strpos, *result_table, *opt_quoted_table;
-  const char *delayed;
+  const char *insert_option;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
   char	     table_buff2[NAME_LEN*2+3];
   FILE       *sql_file = md_result_file;
   DBUG_ENTER("get_table_structure");
 
-  delayed= opt_delayed ? " DELAYED " : "";
+  insert_option= (opt_delayed && opt_ignore) ? " DELAYED IGNORE " : 
+    opt_delayed ? " DELAYED " :
+    opt_ignore ? " IGNORE " : "";
 
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
@@ -1190,11 +1195,11 @@ static uint get_table_structure(char *table, char *db)
 
     if (cFlag)
       my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s (", 
-		  delayed, opt_quoted_table);
+		  insert_option, opt_quoted_table);
     else
     {
       my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s VALUES ", 
-		  delayed, opt_quoted_table);
+		  insert_option, opt_quoted_table);
       if (!extended_insert)
         strcat(insert_pat,"(");
     }
@@ -1258,11 +1263,11 @@ static uint get_table_structure(char *table, char *db)
     }
     if (cFlag)
       my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s (", 
-		  delayed, result_table);
+		  insert_option, result_table);
     else
     {
       my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s VALUES ",
-		  delayed, result_table);
+		  insert_option, result_table);
       if (!extended_insert)
         strcat(insert_pat,"(");
     }

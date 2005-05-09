@@ -1,4 +1,9 @@
 drop table if exists t1,t2;
+set @sav_dpi= @@div_precision_increment;
+set div_precision_increment= 5;
+show variables like 'div_precision_increment';
+Variable_name	Value
+div_precision_increment	5
 create table t1 (grp int, a bigint unsigned, c char(10) not null);
 insert into t1 values (1,1,"a");
 insert into t1 values (2,2,"b");
@@ -44,13 +49,13 @@ count(distinct a)	count(distinct grp)
 6	3
 select sum(all a),count(all a),avg(all a),std(all a),variance(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
 sum(all a)	count(all a)	avg(all a)	std(all a)	variance(all a)	bit_or(all a)	bit_and(all a)	min(all a)	max(all a)	min(all c)	max(all c)
-21	6	3.5000	1.7078	2.9167	7	0	1	6		E
+21	6	3.50000	1.70783	2.91667	7	0	1	6		E
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 grp	sum(a)	count(a)	avg(a)	std(a)	variance(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
 NULL	NULL	0	NULL	NULL	NULL	0	18446744073709551615	NULL	NULL		
-1	1	1	1.0000	0.0000	0.0000	1	1	1	1	a	a
-2	5	2	2.5000	0.5000	0.2500	3	2	2	3	b	c
-3	15	3	5.0000	0.8165	0.6667	7	4	4	6	C	E
+1	1	1	1.00000	0.00000	0.00000	1	1	1	1	a	a
+2	5	2	2.50000	0.50000	0.25000	3	2	2	3	b	c
+3	15	3	5.00000	0.81650	0.66667	7	4	4	6	C	E
 select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 grp	sum
 NULL	NULL
@@ -74,12 +79,12 @@ CREATE TABLE t2 (id int(11),name char(20));
 INSERT INTO t2 VALUES (1,'Set One'),(2,'Set Two');
 select id, avg(value1), std(value1), variance(value1) from t1 group by id;
 id	avg(value1)	std(value1)	variance(value1)
-1	1.000000	0.816497	0.666667
-2	11.000000	0.816497	0.666667
+1	1.0000000	0.816497	0.666667
+2	11.0000000	0.816497	0.666667
 select name, avg(value1), std(value1), variance(value1) from t1, t2 where t1.id = t2.id group by t1.id;
 name	avg(value1)	std(value1)	variance(value1)
-Set One	1.000000	0.816497	0.666667
-Set Two	11.000000	0.816497	0.666667
+Set One	1.0000000	0.816497	0.666667
+Set Two	11.0000000	0.816497	0.666667
 drop table t1,t2;
 create table t1 (id int not null);
 create table t2 (id int not null,rating int null);
@@ -87,19 +92,19 @@ insert into t1 values(1),(2),(3);
 insert into t2 values(1, 3),(2, NULL),(2, NULL),(3, 2),(3, NULL);
 select t1.id, avg(rating) from t1 left join t2 on ( t1.id = t2.id ) group by t1.id;
 id	avg(rating)
-1	3.0000
+1	3.00000
 2	NULL
-3	2.0000
+3	2.00000
 select sql_small_result t2.id, avg(rating) from t2 group by t2.id;
 id	avg(rating)
-1	3.0000
+1	3.00000
 2	NULL
-3	2.0000
+3	2.00000
 select sql_big_result t2.id, avg(rating) from t2 group by t2.id;
 id	avg(rating)
-1	3.0000
+1	3.00000
 2	NULL
-3	2.0000
+3	2.00000
 select sql_small_result t2.id, avg(rating+0.0e0) from t2 group by t2.id;
 id	avg(rating+0.0e0)
 1	3
@@ -265,22 +270,22 @@ insert into t1 values (2,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
-2	1	1	1.0000	0.0000	1	1	1	1
+2	1	1	1.00000	0.00000	1	1	1	1
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
-2	1	1	1.0000	0.0000	1	1	1	1
+2	1	1	1.00000	0.00000	1	1	1	1
 insert into t1 values (3,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
-2	1	1	1.0000	0.0000	1	1	1	1
-3	1	1	1.0000	0.0000	1	1	1	1
+2	1	1	1.00000	0.00000	1	1	1	1
+3	1	1	1.00000	0.00000	1	1	1	1
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)	bit_xor(b)
 1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0	0
-2	1	1	1.0000	0.0000	1	1	1	1	1
-3	1	1	1.0000	0.0000	1	1	1	1	1
+2	1	1	1.00000	0.00000	1	1	1	1	1
+3	1	1	1.00000	0.00000	1	1	1	1	1
 explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using filesort
@@ -837,10 +842,10 @@ INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.000
 insert into t1 select * from t1;
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 col1	count(col1)	sum(col1)	avg(col1)
--5.000000000030	2	-10.000000000060	-5.0000000000300000
--5.000000000020	4	-20.000000000080	-5.0000000000200000
--5.000000000010	4	-20.000000000040	-5.0000000000100000
--5.000000000000	2	-10.000000000000	-5.0000000000000000
+-5.000000000030	2	-10.000000000060	-5.00000000003000000
+-5.000000000020	4	-20.000000000080	-5.00000000002000000
+-5.000000000010	4	-20.000000000040	-5.00000000001000000
+-5.000000000000	2	-10.000000000000	-5.00000000000000000
 DROP TABLE t1;
 create table t1 (col1 decimal(16,12));
 insert into t1 values (-5.00000000001);
@@ -947,3 +952,4 @@ SUM(a)
 6
 6
 DROP TABLE t1;
+set div_precision_increment= @sav_dpi;

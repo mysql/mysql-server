@@ -23,7 +23,7 @@
 #include <m_string.h>
 #include <violite.h>
 
-void	vio_ignore_timeout(Vio *vio, uint timeout);
+void	vio_ignore_timeout(Vio *vio, uint which, uint timeout);
 
 #ifdef HAVE_OPENSSL
 #include "my_net.h"			/* needed because of struct in_addr */
@@ -31,7 +31,7 @@ void	vio_ignore_timeout(Vio *vio, uint timeout);
 void	vio_ssl_delete(Vio* vio);
 int	vio_ssl_read(Vio *vio,gptr buf,	int size);
 int	vio_ssl_write(Vio *vio,const gptr buf,int size);
-void	vio_ssl_timeout(Vio *vio, uint timeout);
+void	vio_ssl_timeout(Vio *vio, uint which, uint timeout);
 
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible. */
 int vio_ssl_fastsend(Vio *vio);
