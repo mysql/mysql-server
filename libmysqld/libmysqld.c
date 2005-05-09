@@ -199,6 +199,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   unix_socket=0;
   db_name = db ? my_strdup(db,MYF(MY_WME)) : NULL;
 
+  /* Send client information for access check */
+  client_flag|=CLIENT_CAPABILITIES;
+  if (client_flag & CLIENT_MULTI_STATEMENTS)
+    client_flag|= CLIENT_MULTI_RESULTS;
+  client_flag&= ~CLIENT_COMPRESS;
+  if (db)
+    client_flag|=CLIENT_CONNECT_WITH_DB;
+
   mysql->thd= create_embedded_thd(client_flag, db_name);
 
   init_embedded_mysql(mysql, client_flag, db_name);
@@ -209,11 +217,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (mysql_init_charset(mysql))
     goto error;
 
-  /* Send client information for access check */
-  client_flag|=CLIENT_CAPABILITIES;
-  client_flag&= ~CLIENT_COMPRESS;
-  if (db)
-    client_flag|=CLIENT_CONNECT_WITH_DB;
   mysql->server_status= SERVER_STATUS_AUTOCOMMIT;
 
   if (mysql->options.init_commands)
