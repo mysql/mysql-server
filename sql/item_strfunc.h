@@ -17,7 +17,8 @@
 
 /* This file defines all string functions */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
+#error PRAGMA
 #pragma interface			/* gcc class implementation */
 #endif
 
