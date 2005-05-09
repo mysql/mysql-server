@@ -740,6 +740,13 @@ Item_splocal::this_item()
   return thd->spcont->get_item(m_offset);
 }
 
+
+Item **
+Item_splocal::this_item_addr(THD *thd, Item **addr)
+{
+  return thd->spcont->get_item_addr(m_offset);
+}
+
 Item *
 Item_splocal::this_const_item() const
 {
