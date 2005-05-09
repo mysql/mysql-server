@@ -17,7 +17,7 @@
 
 /* This file defines structures needed by udf functions */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface
 #endif
 
@@ -67,6 +67,7 @@ class udf_handler :public Sql_alloc
   bool get_arguments();
   bool fix_fields(THD *thd,struct st_table_list *tlist,Item_result_field *item,
 		  uint arg_count,Item **args);
+  void cleanup();
   double val(my_bool *null_value)
   {
     if (get_arguments())

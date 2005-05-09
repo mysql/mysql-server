@@ -610,3 +610,14 @@ create table t1 (
 --enable_warnings
 select distinct a from t1;
 drop table t1;
+
+#
+# Bug #9798: group by with rollup
+#
+
+--disable_warnings
+create table t1(a int, key(a)) engine=innodb;
+--enable_warnings
+insert into t1 values(1);
+select a, count(a) from t1 group by a with rollup;
+drop table t1;

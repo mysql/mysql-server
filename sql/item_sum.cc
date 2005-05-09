@@ -2456,6 +2456,17 @@ bool Item_udf_sum::add()
   DBUG_RETURN(0);
 }
 
+void Item_udf_sum::cleanup()
+{
+  /*
+    udf_handler::cleanup() nicely handles case when we have not
+    original item but one created by copy_or_same() method.
+  */
+  udf.cleanup();
+  Item_sum::cleanup();
+}
+
+
 Item *Item_sum_udf_float::copy_or_same(THD* thd)
 {
   return new (thd->mem_root) Item_sum_udf_float(thd, this);
