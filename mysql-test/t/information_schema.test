@@ -1,4 +1,4 @@
-# This test uses grants, which can't get tested for embedded server
+# This test  uses grants, which can't get tested for embedded server
 -- source include/not_embedded.inc
 
 # Test for information_schema.schemata &
@@ -473,3 +473,9 @@ SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME= 't1';
 drop table t1;
+
+#
+# Bug #9404  information_schema: Weird error messages 
+# with SELECT SUM() ... GROUP BY queries
+#
+SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
