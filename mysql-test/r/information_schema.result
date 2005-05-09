@@ -748,3 +748,8 @@ TABLE_CONSTRAINTS	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 flush privileges;
+SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
+table_schema    count(*)
+information_schema      15
+mysql   17
+
