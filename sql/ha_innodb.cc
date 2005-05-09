@@ -2452,18 +2452,6 @@ set_field_in_record_to_null(
 	record[null_offset] = record[null_offset] | field->null_bit;
 }
 
-/******************************************************************
-Resets SQL NULL bits in a record to zero. */
-inline
-void
-reset_null_bits(
-/*============*/
-	TABLE*	table,	/* in: MySQL table object */
-	char*	record)	/* in: a row in MySQL format */
-{
-	bzero(record, table->s->null_bytes);
-}
-
 extern "C" {
 /*****************************************************************
 InnoDB uses this function to compare two data fields for which the data type

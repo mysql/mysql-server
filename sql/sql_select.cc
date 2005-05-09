@@ -5403,10 +5403,15 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond=sel->cond=tmp;
 	  if (thd->variables.engine_condition_pushdown)
           {
+            COND *push_cond= 
+              make_cond_for_table(cond,current_map,current_map);
             tab->table->file->pushed_cond= NULL;
-	    /* Push condition to handler */
-            if (!tab->table->file->cond_push(tmp))
-              tab->table->file->pushed_cond= tmp;
+            if (push_cond)
+            {
+              /* Push condition to handler */
+              if (!tab->table->file->cond_push(push_cond))
+                tab->table->file->pushed_cond= push_cond;
+            }
           }
         }
         else
@@ -5530,13 +5535,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 		thd->memdup((gptr) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
-	      if (thd->variables.engine_condition_pushdown &&
-		  (!tab->table->file->pushed_cond))
-              {
-		/* Push condition to handler */
-		if (!tab->table->file->cond_push(tmp))
-                  tab->table->file->pushed_cond= tmp;
-              }
 	    }
 	  }
 	}
@@ -7955,20 +7953,20 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(filename, "%s_%lx_%i", tmp_file_prefix,
-            current_pid, temp_pool_slot);
+    sprintf(path, "%s_%lx_%i", tmp_file_prefix,
+	    current_pid, temp_pool_slot);
   else
   {
     /* if we run out of slots or we are not using tempool */
-    sprintf(filename,"%s%lx_%lx_%x",tmp_file_prefix,current_pid,
+    sprintf(path,"%s%lx_%lx_%x", tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
   }
 
   /*
-    No need for change table name to lower case as we are only creating
+    No need to change table name to lower case as we are only creating
     MyISAM or HEAP tables here
   */
-  sprintf(path, "%s%s", mysql_tmpdir, filename);
+  fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   if (group)
   {
@@ -11657,11 +11655,13 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
   enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   for (store_key **copy=ref->key_copy ; *copy ; copy++)
+  {
     if ((*copy)->copy())
     {
       thd->count_cuted_fields= save_count_cuted_fields;
       return 1;					// Something went wrong
     }
+  }
   thd->count_cuted_fields= save_count_cuted_fields;
   return 0;
 }

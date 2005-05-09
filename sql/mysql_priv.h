@@ -183,6 +183,11 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #else
 #define IF_INNOBASE_DB(A, B) (B)
 #endif
+#ifdef __NETWARE__
+#define IF_NETWARE(A,B) (A)
+#else
+#define IF_NETWARE(A,B) (B)
+#endif
 
 #if defined(__WIN__) || defined(OS2)
 #define IF_WIN(A,B) (A)

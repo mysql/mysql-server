@@ -235,18 +235,6 @@ C_MODE_END
 #define BAD_MEMCPY
 #endif
 
-/* In Linux-alpha we have atomic.h if we are using gcc */
-#if defined(TARGET_OS_LINUX) && defined(__GNUC__) && defined(__alpha__) && (__GNUC__ > 2 || ( __GNUC__ == 2 &&  __GNUC_MINOR__ >= 95)) && !defined(HAVE_ATOMIC_ADD)
-#define HAVE_ATOMIC_ADD
-#define HAVE_ATOMIC_SUB
-#endif
-
-/* In Linux-ia64 including atomic.h will give us an error */
-#if (defined(TARGET_OS_LINUX) && defined(__GNUC__) && (defined(__ia64__)||defined(__powerpc64__))) || !defined(THREAD)
-#undef HAVE_ATOMIC_ADD
-#undef HAVE_ATOMIC_SUB
-#endif
-
 #if defined(_lint) && !defined(lint)
 #define lint
 #endif

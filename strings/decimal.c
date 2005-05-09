@@ -1612,13 +1612,19 @@ static int do_add(decimal_t *from1, decimal_t *from2, decimal_t *to)
   x=intg1 > intg2 ? from1->buf[0] :
     intg2 > intg1 ? from2->buf[0] :
     from1->buf[0] + from2->buf[0] ;
-  if (unlikely(x > DIG_MASK*9)) /* yes, there is */
+  if (unlikely(x > DIG_MAX-1)) /* yes, there is */
   {
     intg0++;
     to->buf[0]=0; /* safety */
   }
 
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
+  if (unlikely(error == E_DEC_OVERFLOW))
+  {
+    max_decimal(to->len * DIG_PER_DEC1, 0, to);
+    return error;
+  }
+
   buf0=to->buf+intg0+frac0;
 
   to->sign=from1->sign;
@@ -1703,19 +1709,23 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     carry=1;
   else if (intg2 == intg1)
   {
-    while (unlikely(stop1[frac1-1] == 0))
-      frac1--;
-    while (unlikely(stop2[frac2-1] == 0))
-      frac2--;
-    while (buf1 < stop1+frac1 && buf2 < stop2+frac2 && *buf1 == *buf2)
+    dec1 *end1= stop1 + (frac1 - 1);
+    dec1 *end2= stop2 + (frac2 - 1);
+    while (unlikely((buf1 <= end1) && (*end1 == 0)))
+      end1--;
+    while (unlikely((buf2 <= end2) && (*end2 == 0)))
+      end2--;
+    frac1= (end1 - stop1) + 1;
+    frac2= (end2 - stop2) + 1;
+    while (buf1 <=end1 && buf2 <= end2 && *buf1 == *buf2)
       buf1++, buf2++;
-    if (buf1 < stop1+frac1)
-      if (buf2 < stop2+frac2)
+    if (buf1 <= end1)
+      if (buf2 <= end2)
         carry= *buf2 > *buf1;
       else
         carry= 0;
     else
-      if (buf2 < stop2+frac2)
+      if (buf2 <= end2)
         carry=1;
       else /* short-circuit everything: from1 == from2 */
       {
@@ -1913,6 +1923,17 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
     }
     for (; carry; buf0--)
       ADD(*buf0, *buf0, 0, carry);
+  }
+
+  /* Now we have to check for -0.000 case */
+  if (to->sign)
+  {
+    dec1 *buf= to->buf;
+    dec1 *end= to->buf + intg0 + frac0;
+    for (; (buf<end) && !*buf; buf++);
+    if (buf == end)
+      /* So we got decimal zero */
+      decimal_make_zero(to);
   }
   return error;
 }
