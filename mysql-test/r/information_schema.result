@@ -3,10 +3,12 @@ Variable_name	Value
 skip_show_database	OFF
 grant select, update, execute on test.* to mysqltest_2@localhost;
 grant select, update on test.* to mysqltest_1@localhost;
+create user mysqltest_3@localhost;
+create user mysqltest_3;
 select * from information_schema.SCHEMATA where schema_name > 'm';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
-NULL	mysql	latin1	NULL
-NULL	test	latin1	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
@@ -154,7 +156,9 @@ NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	11	0	NULL	NULL	int(11)			select,ins
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
+create view mysqltest.v1 (c) as select a from mysqltest.t1;
 grant select (a) on mysqltest.t1 to mysqltest_2@localhost;
+grant select on mysqltest.v1 to mysqltest_3;
 select table_name, column_name, privileges from information_schema.columns 
 where table_schema = 'mysqltest' and table_name = 't1';
 table_name	column_name	privileges
@@ -163,7 +167,11 @@ show columns from mysqltest.t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	varchar(30)	YES	MUL	NULL	
-drop view v1;
+select table_name, column_name, privileges from information_schema.columns
+where table_schema = 'mysqltest' and table_name = 'v1';
+table_name	column_name	privileges
+v1	c	select
+drop view v1, mysqltest.v1;
 drop tables mysqltest.t4, mysqltest.t1, t2, t3;
 drop database mysqltest;
 select * from information_schema.CHARACTER_SETS
@@ -376,10 +384,10 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRAN
 'mysqltest_1'@'localhost'	NULL	test	t1	a	INSERT	NO
 'mysqltest_1'@'localhost'	NULL	test	t1	a	UPDATE	NO
 'mysqltest_1'@'localhost'	NULL	test	t1	a	REFERENCES	NO
-delete from mysql.user where user='mysqltest_1' or user='mysqltest_2';
-delete from mysql.db where user='mysqltest_1' or user='mysqltest_2';
-delete from mysql.tables_priv where user='mysqltest_1' or user='mysqltest_2';
-delete from mysql.columns_priv where user='mysqltest_1' or user='mysqltest_2';
+delete from mysql.user where user like 'mysqltest%';
+delete from mysql.db where user like 'mysqltest%';
+delete from mysql.tables_priv where user like 'mysqltest%';
+delete from mysql.columns_priv where user like 'mysqltest%';
 flush privileges;
 drop table t1;
 create table t1 (a int null, primary key(a));
@@ -726,3 +734,17 @@ x_real	NULL	NULL
 x_float	NULL	NULL
 x_double_precision	NULL	NULL
 drop table t1;
+create user mysqltest_4@localhost;
+SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
+where COLUMN_NAME='TABLE_NAME';
+TABLE_NAME	COLUMN_NAME	PRIVILEGES
+TABLES	TABLE_NAME	select
+COLUMNS	TABLE_NAME	select
+STATISTICS	TABLE_NAME	select
+VIEWS	TABLE_NAME	select
+TABLE_PRIVILEGES	TABLE_NAME	select
+COLUMN_PRIVILEGES	TABLE_NAME	select
+TABLE_CONSTRAINTS	TABLE_NAME	select
+KEY_COLUMN_USAGE	TABLE_NAME	select
+delete from mysql.user where user='mysqltest_4';
+flush privileges;

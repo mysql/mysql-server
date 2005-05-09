@@ -62,8 +62,7 @@ static bool allow_all_hosts=1;
 static HASH acl_check_hosts, column_priv_hash, proc_priv_hash;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
-static uint grant_version=0;
-static uint priv_version=0; /* Version of priv tables. incremented by acl_init */
+static uint grant_version=0; /* Version of priv tables. incremented by acl_init */
 static ulong get_access(TABLE *form,uint fieldnr, uint *next_field=0);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
@@ -152,7 +151,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     DBUG_RETURN(0); /* purecov: tested */
   }
 
-  priv_version++; /* Privileges updated */
+  grant_version++; /* Privileges updated */
   mysql_proc_table_exists= 1;			// Assume mysql.proc exists
 
   /*
@@ -2172,10 +2171,14 @@ static int replace_column_table(GRANT_TABLE *g_t,
   KEY_PART_INFO *key_part= table->key_info->key_part;
   DBUG_ENTER("replace_column_table");
 
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
+  table->field[0]->store(combo.host.str,combo.host.length,
+                         system_charset_info);
+  table->field[1]->store(db,(uint) strlen(db),
+                         system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length,
+                         system_charset_info);
+  table->field[3]->store(table_name,(uint) strlen(table_name),
+                         system_charset_info);
 
   /* Get length of 3 first key parts */
   key_prefix_length= (key_part[0].store_length + key_part[1].store_length +
@@ -2187,17 +2190,17 @@ static int replace_column_table(GRANT_TABLE *g_t,
   /* first fix privileges for all columns in column list */
 
   List_iterator <LEX_COLUMN> iter(columns);
-  class LEX_COLUMN *xx;
+  class LEX_COLUMN *column;
   table->file->ha_index_init(0);
-  while ((xx=iter++))
+  while ((column= iter++))
   {
-    ulong privileges = xx->rights;
+    ulong privileges= column->rights;
     bool old_row_exists=0;
     byte user_key[MAX_KEY_LENGTH];
 
     key_restore(table->record[0],key,table->key_info,
                 key_prefix_length);
-    table->field[4]->store(xx->column.ptr(),xx->column.length(),
+    table->field[4]->store(column->column.ptr(), column->column.length(),
                            system_charset_info);
     /* Get key for the first 4 columns */
     key_copy(user_key, table->record[0], table->key_info,
@@ -2212,15 +2215,15 @@ static int replace_column_table(GRANT_TABLE *g_t,
       {
 	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
                  combo.user.str, combo.host.str,
-                 table_name); /* purecov: inspected */
-	result= -1; /* purecov: inspected */
-	continue; /* purecov: inspected */
+                 table_name);                   /* purecov: inspected */
+	result= -1;                             /* purecov: inspected */
+	continue;                               /* purecov: inspected */
       }
       old_row_exists = 0;
       restore_record(table, s->default_values);		// Get empty record
       key_restore(table->record[0],key,table->key_info,
                   key_prefix_length);
-      table->field[4]->store(xx->column.ptr(),xx->column.length(),
+      table->field[4]->store(column->column.ptr(),column->column.length(),
                              system_charset_info);
     }
     else
@@ -2240,6 +2243,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
     if (old_row_exists)
     {
+      GRANT_COLUMN *grant_column;
       if (privileges)
 	error=table->file->update_row(table->record[1],table->record[0]);
       else
@@ -2250,21 +2254,21 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	result= -1;				/* purecov: inspected */
 	goto end;				/* purecov: inspected */
       }
-      GRANT_COLUMN *grant_column = column_hash_search(g_t,
-						      xx->column.ptr(),
-						      xx->column.length());
+      grant_column= column_hash_search(g_t, column->column.ptr(),
+                                       column->column.length());
       if (grant_column)				// Should always be true
-	grant_column->rights = privileges;	// Update hash
+	grant_column->rights= privileges;	// Update hash
     }
     else					// new grant
     {
+      GRANT_COLUMN *grant_column;
       if ((error=table->file->write_row(table->record[0])))
       {
 	table->file->print_error(error,MYF(0)); /* purecov: inspected */
 	result= -1;				/* purecov: inspected */
 	goto end;				/* purecov: inspected */
       }
-      GRANT_COLUMN *grant_column = new GRANT_COLUMN(xx->column,privileges);
+      grant_column= new GRANT_COLUMN(column->column,privileges);
       my_hash_insert(&g_t->hash_columns,(byte*) grant_column);
     }
   }
@@ -2716,6 +2720,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   rw_wrlock(&LOCK_grant);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
+  grant_version++;
 
   while ((Str = str_list++))
   {
@@ -3684,9 +3689,9 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
     grant_column= column_hash_search(grant_table, field_name,
                                      (uint) strlen(field_name));
     if (!grant_column)
-      priv= grant->privilege;
+      priv= (grant->privilege | grant_table->privs);
     else
-      priv= grant->privilege | grant_column->rights;
+      priv= (grant->privilege | grant_table->privs | grant_column->rights);
   }
   rw_unlock(&LOCK_grant);
   return priv;

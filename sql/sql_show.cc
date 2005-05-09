@@ -1600,6 +1600,8 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING information_schema_name= {(char*)"information_schema", 18};
+
+/* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
 
 typedef struct st_index_field_values
@@ -1693,8 +1695,8 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
     CHARSET_INFO *cs= system_charset_info;
     ST_SCHEMA_TABLE *schema_table= table->schema_table;
     ST_FIELD_INFO *field_info= schema_table->fields_info;
-    const char *field_name1= field_info[schema_table->idx_field1].field_name;
-    const char *field_name2= field_info[schema_table->idx_field2].field_name;
+    const char *field_name1= schema_table->idx_field1 >= 0 ? field_info[schema_table->idx_field1].field_name : "";
+    const char *field_name2= schema_table->idx_field2 >= 0 ? field_info[schema_table->idx_field2].field_name : "";
     if (table->table != item_field->field->table ||
         (cs->coll->strnncollsp(cs, (uchar *) field_name1, strlen(field_name1),
                                (uchar *) item_field->field_name, 
@@ -2000,11 +2002,12 @@ err:
 
 
 bool store_schema_shemata(THD* thd, TABLE *table, const char *db_name,
-                          const char* cs_name)
+                          CHARSET_INFO *cs)
 {
   restore_record(table, s->default_values);
   table->field[1]->store(db_name, strlen(db_name), system_charset_info);
-  table->field[2]->store(cs_name, strlen(cs_name), system_charset_info);
+  table->field[2]->store(cs->csname, strlen(cs->csname), system_charset_info);
+  table->field[3]->store(cs->name, strlen(cs->name), system_charset_info);
   return schema_table_store_record(thd, table);
 }
 
@@ -2035,7 +2038,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
     if (with_i_schema)       // information schema name is always first in list
     {
       if (store_schema_shemata(thd, table, file_name,
-                               system_charset_info->csname))
+                               system_charset_info))
         DBUG_RETURN(1);
       with_i_schema= 0;
       continue;
@@ -2060,7 +2063,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
       strmov(path+length, MY_DB_OPT_FILE);
       load_db_opt(thd, path, &create);
       if (store_schema_shemata(thd, table, file_name, 
-                               create.default_table_charset->csname))
+                               create.default_table_charset))
         DBUG_RETURN(1);
     }
   }
@@ -2300,10 +2303,11 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       uint col_access;
       check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
                    &tables->grant.privilege, 0, 0);
-      col_access= get_column_grant(thd, &tables->grant, tables->db,
-                                   tables->table_name,
+      col_access= get_column_grant(thd, &tables->grant, 
+                                   base_name, file_name,
                                    field->field_name) & COL_ACLS;
-      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && !col_access)
+      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && 
+          !tables->schema_table && !col_access)
         continue;
       for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
       {
@@ -2313,11 +2317,16 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
           end=strmov(end,grant_types.type_names[bitnr]);
         }
       }
+      if (tables->schema_table)      // any user has 'select' privilege on all 
+                                     // I_S table columns
+        table->field[17]->store(grant_types.type_names[0],
+                                strlen(grant_types.type_names[0]), cs);
+      else
+        table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+
 #else
       *end= 0;
 #endif
-      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
-
       table->field[1]->store(base_name, strlen(base_name), cs);
       table->field[2]->store(file_name, strlen(file_name), cs);
       table->field[3]->store(field->field_name, strlen(field->field_name),
@@ -3482,6 +3491,7 @@ ST_FIELD_INFO schema_fields_info[]=
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SCHEMA_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
   {"DEFAULT_CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DEFAULT_COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };

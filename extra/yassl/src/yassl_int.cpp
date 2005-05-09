@@ -1346,17 +1346,18 @@ SSL_SESSION::~SSL_SESSION()
 }
 
 
+Sessions Sessions::instance; // simple singleton
+
 Sessions& GetSessions()
 {
-    static Sessions instance; // simple singleton
-    return instance;
+    return Sessions::instance;
 }
 
+sslFactory sslFactory::instance;
 
 sslFactory& GetSSL_Factory()
 {   
-    static sslFactory instance; // simple singleton
-    return instance;
+    return sslFactory::instance;
 }
 
 
