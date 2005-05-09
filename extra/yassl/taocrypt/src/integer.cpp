@@ -2844,23 +2844,24 @@ unsigned int Integer::Encode(byte* output, unsigned int outputLen,
 }
 
 
+const Integer Integer::zero(1,2);
+
 const Integer &Integer::Zero()
 {
-    static const Integer zero;
     return zero;
 }
 
+const Integer Integer::one(1,2);
 
 const Integer &Integer::One()
 {
-    static const Integer one(1,2);
     return one;
 }
 
+const Integer Integer::two(1,2);
 
 const Integer &Integer::Two()
 {
-    static const Integer two(2,2);
     return two;
 }
 
@@ -4168,16 +4169,13 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
     return p * (u * (xq-xp) % q) + xp;
 }
 
-
-
-} // namespace
-
 #ifdef __GNUC__
-template TaoCrypt::Integer TaoCrypt::StringToInteger<char>(char const*);
-template TaoCrypt::Integer TaoCrypt::StringToInteger<wchar_t>(wchar_t const*);
-template class TaoCrypt::EuclideanDomainOf<TaoCrypt::Integer>;
-template class TaoCrypt::AbstractEuclideanDomain<TaoCrypt::Integer>;
-template unsigned int TaoCrypt::DivideThreeWordsByTwo<unsigned int, TaoCrypt::DWord>(unsigned int*, unsigned int, unsigned int, TaoCrypt::DWord*);
+template Integer StringToInteger<char>(char const*);
+template Integer StringToInteger<wchar_t>(wchar_t const*);
+template class EuclideanDomainOf<Integer>;
+template class AbstractEuclideanDomain<Integer>;
+template unsigned int DivideThreeWordsByTwo<unsigned int, DWord>(unsigned int*, unsigned int, unsigned int, DWord*);
 #endif
 
+} // namespace
 

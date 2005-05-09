@@ -258,6 +258,10 @@ private:
 
     Integer(word value, unsigned int length);
 
+    static const Integer zero;
+    static const Integer one;
+    static const Integer two;
+
     int PositiveCompare(const Integer& t) const;
     friend void PositiveAdd(Integer& sum, const Integer& a, const Integer& b);
     friend void PositiveSubtract(Integer& diff, const Integer& a,

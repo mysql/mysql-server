@@ -2,6 +2,10 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+set @sav_dpi= @@div_precision_increment;
+set div_precision_increment= 5;
+show variables like 'div_precision_increment';
+
 create table t1 (product varchar(32), country_id int not null, year int, profit int);
 insert into t1  values ( 'Computer', 2,2000, 1200),
 ( 'TV', 1, 1999, 150),
@@ -191,3 +195,4 @@ SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP;
 SELECT * FROM ( SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP ) t2;
 
 DROP TABLE t1;
+set div_precision_increment= @sav_dpi;

@@ -595,3 +595,41 @@ c1	c2
 200887	860
 200887	200887
 deallocate prepare stmt;
+drop table t1;
+create table t1 (
+id bigint(20) not null auto_increment,
+code varchar(20) character set utf8 collate utf8_bin not null default '',
+company_name varchar(250) character set utf8 collate utf8_bin default null,
+setup_mode tinyint(4) default null,
+start_date datetime default null,
+primary key  (id), unique key code (code)
+);
+create table t2 (
+id bigint(20) not null auto_increment,
+email varchar(250) character set utf8 collate utf8_bin default null,
+name varchar(250) character set utf8 collate utf8_bin default null,
+t1_id bigint(20) default null,
+password varchar(250) character set utf8 collate utf8_bin default null,
+primary_contact tinyint(4) not null default '0',
+email_opt_in tinyint(4) not null default '1',
+primary key  (id), unique key email (email), key t1_id (t1_id),
+constraint t2_fk1 foreign key (t1_id) references t1 (id)
+);
+insert into t1 values
+(1, 'demo', 'demo s', 0, current_date()),
+(2, 'code2', 'name 2', 0, current_date()),
+(3, 'code3', 'name 3', 0, current_date());
+insert into t2 values
+(2, 'email1', 'name1', 3, 'password1', 0, 0),
+(3, 'email2', 'name1', 1, 'password2', 1, 0),
+(5, 'email3', 'name3', 2, 'password3', 0, 0);
+prepare stmt from 'select t2.id from t2, t1 where (t1.id=? and t2.t1_id=t1.id)';
+set @a=1;
+execute stmt using @a;
+id
+3
+select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
+id
+3
+deallocate prepare stmt;
+drop table t1, t2;

@@ -179,6 +179,10 @@ extern void my_large_free(gptr ptr, myf my_flags);
 #if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
 #endif /* _AIX */
+#if defined(__MWERKS__)
+#undef alloca
+#define alloca __alloca
+#endif /* __MWERKS__ */
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */

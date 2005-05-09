@@ -4218,12 +4218,14 @@ calcLHbits(Uint32 * lhPageBits, Uint32 * lhDistrBits,
     tmp <<= 1;
     distrBits++;
   }//while
+#ifdef ndb_classical_lhdistrbits
   if (tmp != totalFragments) {
     tmp >>= 1;
     if ((fid >= (totalFragments - tmp)) && (fid < (tmp - 1))) {
       distrBits--;
     }//if
   }//if
+#endif
   * lhPageBits = pageBits;
   * lhDistrBits = distrBits;
 
