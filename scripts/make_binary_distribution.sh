@@ -15,6 +15,7 @@ MV="mv"
 STRIP=1
 DEBUG=0
 SILENT=0
+MACHINE=
 TMP=/tmp
 SUFFIX=""
 NDBCLUSTER=
@@ -26,6 +27,7 @@ parse_arguments() {
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
+      --machine)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
       --silent)   SILENT=1 ;;
       --with-ndbcluster) NDBCLUSTER=1 ;;
       *)
@@ -37,6 +39,8 @@ parse_arguments() {
 }
 
 parse_arguments "$@"
+
+
 
 #make
 
@@ -294,8 +298,33 @@ if [ x$NDBCLUSTER = x1 ]; then
   rm -rf $BASE/ndb-stage
 fi
 
+# Remove vendor from $system
+system=`echo $system | sed -e 's/[a-z]*-\(.*\)/\1/g'`
+
+# Map OS names to "our" OS names (eg. darwin6.8 -> osx10.2)
+system=`echo $system | sed -e 's/darwin6.*/osx10.2/g'`
+system=`echo $system | sed -e 's/darwin7.*/osx10.3/g'`
+system=`echo $system | sed -e 's/darwin8.*/osx10.4/g'`
+system=`echo $system | sed -e 's/\(aix4.3\).*/\1/g'`
+system=`echo $system | sed -e 's/\(aix5.1\).*/\1/g'`
+system=`echo $system | sed -e 's/\(aix5.2\).*/\1/g'`
+system=`echo $system | sed -e 's/\(aix5.3\).*/\1/g'`
+system=`echo $system | sed -e 's/osf5.1b/tru64/g'`
+system=`echo $system | sed -e 's/linux-gnu/linux/g'`
+system=`echo $system | sed -e 's/solaris2.\([0-9]*\)/solaris\1/g'`
+system=`echo $system | sed -e 's/sco3.2v\(.*\)/openserver\1/g'`
+
+# Use the override --machine if present
+if [ $MACHINE != "" ] ; then
+  machine= $MACHINE
+fi
+
 # Change the distribution to a long descriptive name
 NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version-$system-$machine$SUFFIX
+
+# Print the platform name for build logs
+echo "PLATFORM NAME: $system-$machine"
+
 BASE2=$TMP/$NEW_NAME
 rm -r -f $BASE2
 mv $BASE $BASE2

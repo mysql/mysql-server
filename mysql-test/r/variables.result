@@ -504,7 +504,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bigint(20) default NULL,
-  `c2` decimal(64,30) default NULL,
+  `c2` decimal(65,30) default NULL,
   `c3` longtext,
   `c4` double default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
