@@ -1023,7 +1023,7 @@ String *Item_func_substr::val_str(String *str)
   if ((null_value=(args[0]->null_value || args[1]->null_value ||
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
-  start= (int32)((start < 0) ? res->length() + start : start -1);
+  start= (int32)((start < 0) ? res->numchars() + start : start -1);
   start=res->charpos(start);
   length=res->charpos(length,start);
   if (start < 0 || (uint) start+1 > res->length() || length <= 0)
