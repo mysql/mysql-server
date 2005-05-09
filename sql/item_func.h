@@ -267,6 +267,8 @@ public:
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
   void print(String *str);
+  uint decimal_precision() const { return args[0]->decimal_precision(); }
+
 };
 
 
@@ -296,7 +298,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DECIMAL; }
+  enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
   void fix_length_and_dec() {};
 };
 
@@ -346,6 +348,7 @@ public:
 class Item_func_div :public Item_num_op
 {
 public:
+  uint prec_increment;
   Item_func_div(Item *a,Item *b) :Item_num_op(a,b) {}
   longlong int_op() { DBUG_ASSERT(0); return 0; }
   double real_op();
@@ -390,6 +393,7 @@ public:
   const char *func_name() const { return "-"; }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
+  uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
 
 
@@ -593,7 +597,7 @@ public:
   double real_op();
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
-  void fix_num_length_and_dec();
+  void fix_length_and_dec();
 };
 
 

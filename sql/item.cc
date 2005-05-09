@@ -80,7 +80,7 @@ Hybrid_type_traits_decimal::fix_length_and_dec(Item *item, Item *arg) const
 {
   item->decimals= arg->decimals;
   item->max_length= min(arg->max_length + DECIMAL_LONGLONG_DIGITS,
-                        DECIMAL_MAX_LENGTH);
+                        DECIMAL_MAX_STR_LENGTH);
 }
 
 
@@ -348,6 +348,17 @@ Item::Item(THD *thd, Item *item):
 }
 
 
+uint Item::decimal_precision() const
+{
+  Item_result restype= result_type();
+
+  if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
+    return min(my_decimal_length_to_precision(max_length, decimals, unsigned_flag),
+               DECIMAL_MAX_PRECISION);
+  return min(max_length, DECIMAL_MAX_PRECISION);
+}
+
+
 void Item::print_item_w_name(String *str)
 {
   print(str);
@@ -499,10 +510,10 @@ bool Item_field::collect_item_field_processor(byte *arg)
   while ((curr_item= item_list_it++))
   {
     if (curr_item->eq(this, 1))
-      DBUG_RETURN(false); /* Already in the set. */
+      DBUG_RETURN(FALSE); /* Already in the set. */
   }
   item_list->push_back(this);
-  DBUG_RETURN(false);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -943,10 +954,8 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
 	return 1;
       }
       if (collation->state & MY_CS_BINSORT)
-      {
         return 0;
-      }
-      else if (dt.collation->state & MY_CS_BINSORT)
+      if (dt.collation->state & MY_CS_BINSORT)
       {
         set(dt);
         return 0;
@@ -1026,7 +1035,7 @@ void Item_field::set_field(Field *field_par)
   field=result_field=field_par;			// for easy coding with fields
   maybe_null=field->maybe_null();
   decimals= field->decimals();
-  max_length= field_par->representation_length();
+  max_length= field_par->max_length();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
   db_name= field_par->table->s->db;
@@ -1341,6 +1350,13 @@ Item_uint::Item_uint(const char *str_arg, uint length):
 }
 
 
+Item_uint::Item_uint(const char *str_arg, longlong i, uint length):
+  Item_int(str_arg, i, length)
+{
+  unsigned_flag= 1;
+}
+
+
 String *Item_uint::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
@@ -1364,18 +1380,18 @@ Item_decimal::Item_decimal(const char *str_arg, uint length,
   str2my_decimal(E_DEC_FATAL_ERROR, str_arg, length, charset, &decimal_value);
   name= (char*) str_arg;
   decimals= (uint8) decimal_value.frac;
-  max_length= my_decimal_max_length(&decimal_value);
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
+  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
+                                             decimals, unsigned_flag);
 }
 
 Item_decimal::Item_decimal(longlong val, bool unsig)
 {
   int2my_decimal(E_DEC_FATAL_ERROR, val, unsig, &decimal_value);
   decimals= (uint8) decimal_value.frac;
-  max_length= my_decimal_max_length(&decimal_value);
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
+  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
+                                             decimals, unsigned_flag);
 }
 
 
@@ -1383,9 +1399,9 @@ Item_decimal::Item_decimal(double val, int precision, int scale)
 {
   double2my_decimal(E_DEC_FATAL_ERROR, val, &decimal_value);
   decimals= (uint8) decimal_value.frac;
-  max_length= my_decimal_max_length(&decimal_value);
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
+  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
+                                             decimals, unsigned_flag);
 }
 
 
@@ -1397,7 +1413,6 @@ Item_decimal::Item_decimal(const char *str, const my_decimal *val_arg,
   decimals= (uint8) decimal_par;
   max_length= length;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
 }
 
 
@@ -1405,19 +1420,20 @@ Item_decimal::Item_decimal(my_decimal *value_par)
 {
   my_decimal2decimal(value_par, &decimal_value);
   decimals= (uint8) decimal_value.frac;
-  max_length= my_decimal_max_length(value_par);
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
+  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
+                                             decimals, !decimal_value.sign());
 }
 
 
 Item_decimal::Item_decimal(const char *bin, int precision, int scale)
 {
-  binary2my_decimal(E_DEC_FATAL_ERROR, bin, &decimal_value, precision, scale);
+  binary2my_decimal(E_DEC_FATAL_ERROR, bin,
+                    &decimal_value, precision, scale);
   decimals= (uint8) decimal_value.frac;
-  max_length= my_decimal_max_length(&decimal_value);
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
+  max_length= my_decimal_precision_to_length(precision, decimals,
+                                             !decimal_value.sign());
 }
 
 
@@ -1695,7 +1711,8 @@ void Item_param::set_decimal(const char *str, ulong length)
   str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value, &end);
   state= DECIMAL_VALUE;
   decimals= decimal_value.frac;
-  max_length= decimal_value.intg + decimals + 2;
+  max_length= my_decimal_precision_to_length(decimal_value.precision(),
+                                             decimals, unsigned_flag);
   maybe_null= 0;
   DBUG_VOID_RETURN;
 }
@@ -1846,7 +1863,8 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       my_decimal2decimal(ent_value, &decimal_value);
       state= DECIMAL_VALUE;
       decimals= ent_value->frac;
-      max_length= ent_value->intg + decimals + 2;
+      max_length= my_decimal_precision_to_length(ent_value->precision(),
+                                                 decimals, unsigned_flag);
       break;
     }
     default:
@@ -2234,7 +2252,9 @@ Item_param::new_item()
   case NULL_VALUE:
     return new Item_null(name);
   case INT_VALUE:
-    return new Item_int(name, value.integer, max_length);
+    return (unsigned_flag ?
+            new Item_uint(name, value.integer, max_length) :
+            new Item_int(name, value.integer, max_length));
   case REAL_VALUE:
     return new Item_float(name, value.real, decimals, max_length);
   case STRING_VALUE:
@@ -3262,11 +3282,8 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
 
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
-    return new Field_decimal((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			     name, table, decimals, 0, unsigned_flag);
   case MYSQL_TYPE_NEWDECIMAL:
-    return new Field_new_decimal((char*) 0, max_length - (decimals?1:0),
-                                 null_ptr, 0,
+    return new Field_new_decimal((char*) 0, max_length, null_ptr, 0,
                                  Field::NONE, name, table, decimals, 0,
                                  unsigned_flag);
   case MYSQL_TYPE_TINY:
@@ -3514,6 +3531,19 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
     return item->val_int() == value && item->unsigned_flag == unsigned_flag;
   }
   return FALSE;
+}
+
+
+Item *Item_int_with_ref::new_item()
+{
+  DBUG_ASSERT(ref->basic_const_item());
+  /*
+    We need to evaluate the constant to make sure it works with
+    parameter markers.
+  */
+  return (ref->unsigned_flag ?
+          new Item_uint(ref->name, ref->val_int(), ref->max_length) :
+          new Item_int(ref->name, ref->val_int(), ref->max_length));
 }
 
 
@@ -5009,6 +5039,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   /* fix variable decimals which always is NOT_FIXED_DEC */
   if (Field::result_merge_type(fld_type) == INT_RESULT)
     decimals= 0;
+  prev_decimal_int_part= item->decimal_int_part();
 }
 
 
@@ -5131,18 +5162,12 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
-    int item_length= display_length(item);
-    int intp1= item_length - min(item->decimals, NOT_FIXED_DEC - 1);
-    int intp2= max_length - min(decimals, NOT_FIXED_DEC - 1);
-    /* can't be overflow because it work only for decimals (no strings) */
-    int dec_length= max(intp1, intp2) + decimals;
-    max_length= max(max_length, (uint) max(item_length, dec_length));
-    /*
-      we can't allow decimals to be NOT_FIXED_DEC, to prevent creation
-      decimal with max precision (see Field_new_decimal constcuctor)
-    */
-    if (decimals >= NOT_FIXED_DEC)
-      decimals= NOT_FIXED_DEC - 1;
+    decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
+    int precision= min(max(prev_decimal_int_part, item->decimal_int_part())
+                       + decimals, DECIMAL_MAX_PRECISION);
+    unsigned_flag&= item->unsigned_flag;
+    max_length= my_decimal_precision_to_length(precision, decimals,
+                                               unsigned_flag);
   }
   else
     max_length= max(max_length, display_length(item));
@@ -5163,6 +5188,9 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   maybe_null|= item->maybe_null;
   get_full_info(item);
+
+  /* Remember decimal integer part to be used in DECIMAL_RESULT handleng */
+  prev_decimal_int_part= decimal_int_part();
   DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u",
                       (int) fld_type, max_length, (uint) decimals));
   DBUG_RETURN(FALSE);

@@ -2316,7 +2316,8 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_wildcmp_utf8,
     my_strcasecmp_utf8,
     my_instr_mb,
-    my_hash_sort_utf8
+    my_hash_sort_utf8,
+    my_propagate_complex
 };
 
 MY_CHARSET_HANDLER my_charset_utf8_handler=
@@ -2540,7 +2541,8 @@ static MY_COLLATION_HANDLER my_collation_cs_handler =
     my_wildcmp_mb,
     my_strcasecmp_utf8,
     my_instr_mb,
-    my_hash_sort_utf8
+    my_hash_sort_utf8,
+    my_propagate_simple
 };
 
 CHARSET_INFO my_charset_utf8_general_cs=
