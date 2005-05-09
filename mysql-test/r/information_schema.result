@@ -734,3 +734,7 @@ x_real	NULL	NULL
 x_float	NULL	NULL
 x_double_precision	NULL	NULL
 drop table t1;
+SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
+table_schema	count(*)
+information_schema	15
+mysql	17
