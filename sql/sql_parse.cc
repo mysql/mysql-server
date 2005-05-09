@@ -168,11 +168,12 @@ static bool begin_trans(THD *thd)
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
   return (rpl_filter->is_on() && tables && 
-	  !rpl_filter->tables_ok(thd->db, tables) &&
+	  !(thd->spcont || rpl_filter->tables_ok(thd->db, tables)) &&
           ((thd->lex->sql_command != SQLCOM_DELETE_MULTI) ||
-           !rpl_filter->tables_ok(thd->db,
-				  (TABLE_LIST *)
-				  thd->lex->auxilliary_table_list.first)));
+           !(thd->spcont || 
+	     rpl_filter->tables_ok(thd->db, 
+				   (TABLE_LIST *)
+				   thd->lex->auxilliary_table_list.first))));
 }
 #endif
 
