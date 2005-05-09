@@ -817,6 +817,9 @@ drop table t1;
 select 'c' like '\_' as want0;
 want0
 0
+SELECT SUBSTR('вася',-2);
+SUBSTR('вася',-2)
+ся
 create table t1 (id integer, a varchar(100) character set utf8 collate utf8_unicode_ci);
 insert into t1 values (1, 'Test');
 select * from t1 where soundex(a) = soundex('Test');

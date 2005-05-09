@@ -308,9 +308,15 @@ C_MODE_END
 #ifndef CONFIG_SMP
 #define CONFIG_SMP
 #endif
+#if defined(__ia64__)
+#define new my_arg_new
+#endif
 C_MODE_START
 #include <asm/atomic.h>
 C_MODE_END
+#if defined(__ia64__)
+#undef new
+#endif
 #endif
 #include <errno.h>				/* Recommended by debian */
 /* We need the following to go around a problem with openssl on solaris */
