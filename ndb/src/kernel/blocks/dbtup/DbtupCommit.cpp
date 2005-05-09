@@ -443,6 +443,7 @@ Dbtup::commitRecord(Signal* signal,
     saveAttributeMask.bitOR(befOpPtr.p->changeMask);
     befOpPtr.p->changeMask.clear();
     befOpPtr.p->changeMask.bitOR(attributeMask);
+    befOpPtr.p->gci = regOperPtr->gci;
     
     operPtr.p = befOpPtr.p;
     checkDetachedTriggers(signal,
@@ -480,6 +481,7 @@ Dbtup::commitRecord(Signal* signal,
     befOpPtr.p->pageOffset = befOpPtr.p->pageOffsetC;
     befOpPtr.p->fragPageId = befOpPtr.p->fragPageIdC;
     befOpPtr.p->pageIndex  = befOpPtr.p->pageIndexC;
+    befOpPtr.p->gci = regOperPtr->gci;
 
     operPtr.p = befOpPtr.p;
     checkDetachedTriggers(signal,
