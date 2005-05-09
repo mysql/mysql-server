@@ -238,6 +238,11 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
     // Create a new file, and skip the first 69 bytes, 
     // which are info about the current offset
     stream = fopen(theErrorFileName, "w");
+    if(stream == NULL)
+    {
+      fprintf(stderr,"Unable to open error log file: %s\n", theErrorFileName);
+      return -1;
+    }
     fprintf(stream, "%s%u%s", "Current byte-offset of file-pointer is: ", 69,
 	    "                        \n\n\n");   
     
