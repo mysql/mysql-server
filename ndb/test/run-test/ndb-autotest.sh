@@ -1,7 +1,7 @@
 #!/bin/sh
 
 save_args=$*
-VERSION="ndb-autotest.sh version 1.0"
+VERSION="ndb-autotest.sh version 1.04"
 
 DATE=`date '+%Y-%m-%d'`
 export DATE
@@ -71,11 +71,18 @@ then
 	cd $dst_place
         rm -rf $run_dir/*
         aclocal; autoheader; autoconf; automake
-        (cd innobase; aclocal; autoheader; autoconf; automake)
-        (cd bdb/dist; sh s_all)
+	if [ -d storage ]
+	then
+	    (cd storage/innobase; aclocal; autoheader; autoconf; automake)
+	    (cd storage/bdb/dist; sh s_all)
+	else
+	    (cd innobase; aclocal; autoheader; autoconf; automake)
+	    (cd bdb/dist; sh s_all)
+	fi
 	eval $configure --prefix=$run_dir
 	make
 	make install
+	(cd $run_dir; ./bin/mysql_install_db)
 fi
 
 ###
@@ -103,7 +110,9 @@ fi
 test_dir=$run_dir/mysql-test/ndb
 atrt=$test_dir/atrt
 html=$test_dir/make-html-reports.sh
-PATH=$test_dir:$PATH
+mkconfig=$run_dir/mysql-test/ndb/make-config.sh
+
+PATH=$run_dir/bin:$test_dir:$PATH
 export PATH
 
 filter(){
@@ -125,20 +134,16 @@ hosts=`cat /tmp/hosts.$DATE`
 
 if [ "$deploy" ]
 then
-	(cd / && tar cfz /tmp/build.$DATE.tgz $run_dir )
-	for i in $hosts
-	do
-		ok=0
-		scp /tmp/build.$DATE.tgz $i:/tmp/build.$DATE.$$.tgz && \
-		ssh $i "rm -rf /space/autotest/*" && \
-		ssh $i "cd / && tar xfz /tmp/build.$DATE.$$.tgz" && \
-		ssh $i "rm /tmp/build.$DATE.$$.tgz" && ok=1
-		if [ $ok -eq 0 ]
-		then
-			echo "$i failed during scp/ssh, excluding"
-			echo $i >> /tmp/failed.$DATE
-		fi
-	done
+    for i in $hosts
+      do
+      rsync -a --delete --force --ignore-errors $run_dir/ $i:$run_dir
+      ok=$?
+      if [ $ok -ne 0 ]
+	  then
+	  echo "$i failed during rsync, excluding"
+	  echo $i >> /tmp/failed.$DATE
+      fi
+    done
 fi
 rm -f /tmp/build.$DATE.tgz
 
@@ -170,6 +175,18 @@ choose(){
         cat $TMP1
         rm -f $TMP1
 }
+
+choose_conf(){
+    host=`hostname -s`
+    if [ -f $test_dir/conf-$1-$host.txt ]
+    then
+	echo "$test_dir/conf-$1-$host.txt"
+    elif [ -f $test_dir/conf-$1.txt ]
+    then
+	echo "$test_dir/conf-$1.txt"
+    fi
+}
+
 start(){
 	rm -rf report.txt result* log.txt
 	$atrt -v -v -r -R --log-file=log.txt --testcase-file=$test_dir/$2-tests.txt &
@@ -186,9 +203,15 @@ start(){
 	p2=`pwd`
 	cd ..
 	tar cfz /tmp/res.$$.tgz `basename $p2`/$DATE
-	scp /tmp/res.$$.tgz $result_host:$result_path
-	ssh $result_host "cd $result_path && tar xfz res.$$.tgz && rm -f res.$$.tgz"
+	scp /tmp/res.$$.tgz $result_host:$result_path/res.$DATE.`hostname -s`.$2.$$.tgz
 	rm -f /tmp/res.$$.tgz
+}
+
+count_hosts(){
+    cnt=`grep "CHOOSE_host" $1 |
+      awk '{for(i=1; i<=NF;i++) if(match($i, "CHOOSE_host") > 0) print $i;}' |
+      sort | uniq | wc -l`
+    echo $cnt
 }
 
 p=`pwd`
@@ -199,10 +222,11 @@ do
 	run_dir=$base_dir/run-$dir-mysql-$clone-$target
 	res_dir=$base_dir/result-$dir-mysql-$clone-$target/$DATE
 
-	mkdir -p $res_dir
-	rm -rf $res_dir/*
+	mkdir -p $run_dir $res_dir
+	rm -rf $res_dir/* $run_dir/*
 	
-	count=`grep -c "COMPUTER" $run_dir/1.ndb_mgmd/initconfig.template`
+	conf=`choose_conf $dir`
+	count=`count_hosts $conf`
 	avail_hosts=`filter /tmp/filter_hosts.$$ $hosts`
 	avail=`echo $avail_hosts | wc -w`
 	if  [ $count -gt $avail ]
@@ -212,12 +236,12 @@ do
 		break;
 	fi
 
-	run_hosts=`echo $avail_hosts| awk '{for(i=1;i<='$count';i++)print $i;}'`
-	choose $run_dir/d.template $run_hosts > $run_dir/d.txt
-	choose $run_dir/1.ndb_mgmd/initconfig.template $run_hosts > $run_dir/1.ndb_mgmd/config.ini
+	run_hosts=`echo $avail_hosts|awk '{for(i=1;i<='$count';i++)print $i;}'`
 	echo $run_hosts >> /tmp/filter_hosts.$$	
-
+	
 	cd $run_dir
+	choose $conf $run_hosts > d.tmp
+	$mkconfig d.tmp
 	start $dir-mysql-$clone-$target $dir $res_dir &
 done
 cd $p

@@ -59,6 +59,7 @@ static byte* get_field_name(Field **buff,uint *length,
    3    Wrong data in .frm file
    4    Error (see frm_error)
    5    Error (see frm_error: charset unavailable)
+   6    Unknown .frm version
 */
 
 int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
@@ -135,10 +136,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   *fn_ext(share->table_name)='\0';		// Remove extension
   *fn_ext(share->path)='\0';                    // Remove extension
 
-  if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
-       ! (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4)))
+  if (head[0] != (uchar) 254 || head[1] != 1)
     goto err;                                   /* purecov: inspected */
+  if (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
+       ! (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+  {
+    error= 6;
+    goto err;                                   /* purecov: inspected */
+  }
   new_field_pack_flag=head[27];
   new_frm_ver= (head[2] - FRM_VER);
   field_pack_length= new_frm_ver < 2 ? 11 : 17;
@@ -1084,6 +1089,12 @@ static void frm_error(int error, TABLE *form, const char *name,
                     MYF(0), csname, real_name);
     break;
   }
+  case 6:
+    my_printf_error(ER_NOT_FORM_FILE,
+                    "Table '%-.64s' was created with a different version "
+                    "of MySQL and cannot be read",
+                    MYF(0), name);
+    break;
   default:				/* Better wrong error than none */
   case 4:
     my_error(ER_NOT_FORM_FILE, errortype,
