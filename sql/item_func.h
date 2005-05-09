@@ -17,7 +17,7 @@
 
 /* Function items used by mysql */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
@@ -879,6 +879,7 @@ public:
     fixed= 1;
     return res;
   }
+  void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
 };
