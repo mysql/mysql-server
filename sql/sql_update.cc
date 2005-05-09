@@ -262,8 +262,7 @@ int mysql_update(THD *thd,
   else
     used_key_is_modified=0;
 
-  if ((used_key_is_modified &&
-       !(table->file->table_flags() & HA_CAN_SCAN_UPDATED_INDEX)) || order)
+  if (used_key_is_modified || order)
   {
     /*
       We can't update table directly;  We must first search after all
@@ -393,7 +392,7 @@ int mysql_update(THD *thd,
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
-  will_batch= table->file->start_bulk_update();
+  will_batch= !table->file->start_bulk_update();
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
@@ -450,17 +449,17 @@ int mysql_update(THD *thd,
             call then it should be included in the count of dup_key_found
             and error should be set to 0 (only if these errors are ignored).
           */
-          error=table->file->bulk_update_row(table->record[0],
-                                             table->record[1],
-                                             &dup_key_found);
+          error= table->file->bulk_update_row(table->record[0],
+                                              table->record[1],
+                                              &dup_key_found);
           limit+= dup_key_found;
-          updated-=dup_key_found;
+          updated-= dup_key_found;
         }
         else
         {
           /* Non-batched update */
-	  error=table->file->update_row((byte*) table->record[1],
-	                                (byte*) table->record[0]);
+	  error= table->file->update_row((byte*) table->record[1],
+	                                 (byte*) table->record[0]);
         }
         if (!error)
 	{
@@ -501,7 +500,7 @@ int mysql_update(THD *thd,
               are ignored. This is a requirement on batching handlers.
             */
             table->file->print_error(error,MYF(0));
-            error=1;
+            error= 1;
             break;
           }
           /*
@@ -509,8 +508,8 @@ int mysql_update(THD *thd,
             were duplicate keys found. In both cases we need to correct
             the counters and continue the loop.
           */
-          limit=dup_key_found; //limit is 0 when we get here so need to +
-          updated-=dup_key_found;
+          limit= dup_key_found; //limit is 0 when we get here so need to +
+          updated-= dup_key_found;
         }
         else
         {
@@ -523,7 +522,7 @@ int mysql_update(THD *thd,
       table->file->unlock_row();
     thd->row_count++;
   }
-  dup_key_found=0;
+  dup_key_found= 0;
   if (thd->killed && !error)
     error= 1;					// Aborted
   else if (will_batch &&
@@ -539,16 +538,16 @@ int mysql_update(THD *thd,
   {
     thd->fatal_error();
     table->file->print_error(loc_error,MYF(0));
-    error=1;
+    error= 1;
   }
   else
-    updated-=dup_key_found;
+    updated-= dup_key_found;
   if (will_batch)
     table->file->end_bulk_update();
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
   delete select;
-  thd->proc_info="end";
+  thd->proc_info= "end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
 
   /*
