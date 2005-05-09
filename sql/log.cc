@@ -957,9 +957,9 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   my_delete(index_file_name, MYF(MY_WME));	// Reset (open will update)
   if (!thd->slave_thread)
     need_start_event=1;
-  open_index_file(index_file_name, 0);
-  open(save_name, save_log_type, 0,
-       io_cache_type, no_auto_events, max_size, 0);
+  if (!open_index_file(index_file_name, 0))
+    open(save_name, save_log_type, 0,
+         io_cache_type, no_auto_events, max_size, 0);
   my_free((gptr) save_name, MYF(0));
 
 err:
@@ -1591,7 +1591,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
      present event could be about a non-transactional table, but still we need
      to write to the binlog cache in that case to handle updates to mixed
      trans/non-trans table types the best possible in binlogging)
-      - or if the event asks for it (cache_stmt == true).
+      - or if the event asks for it (cache_stmt == TRUE).
     */
     if (opt_using_transactions && thd)
     {

@@ -2092,6 +2092,7 @@ void InitClientKeyFactory(ClientKeyFactory& ckf)
 } // namespace
 
 #ifdef __GNUC__
+namespace mySTL {
 template class mySTL::list<unsigned char*>;
 template yaSSL::del_ptr_zero mySTL::for_each(mySTL::list<unsigned char*>::iterator, mySTL::list<unsigned char*>::iterator, yaSSL::del_ptr_zero);
 template mySTL::pair<int, yaSSL::Message* (*)()>* mySTL::uninit_copy<mySTL::pair<int, yaSSL::Message* (*)()>*, mySTL::pair<int, yaSSL::Message* (*)()>*>(mySTL::pair<int, yaSSL::Message* (*)()>*, mySTL::pair<int, yaSSL::Message* (*)()>*, mySTL::pair<int, yaSSL::Message* (*)()>*);
@@ -2112,5 +2113,6 @@ template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::SSL_SESSION*>::i
 template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::input_buffer*>::iterator, mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::output_buffer*>::iterator, mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::x509*>::iterator, mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero);
+}
 #endif
 

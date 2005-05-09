@@ -1134,6 +1134,14 @@ Item_func_ifnull::fix_length_and_dec()
     cached_field_type= Item_func::field_type();
 }
 
+
+uint Item_func_ifnull::decimal_precision() const
+{
+  int max_int_part=max(args[0]->decimal_int_part(),args[1]->decimal_int_part());
+  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+}
+
+
 enum_field_types Item_func_ifnull::field_type() const 
 {
   return cached_field_type;
@@ -1251,6 +1259,14 @@ Item_func_if::fix_length_and_dec()
 }
 
 
+uint Item_func_if::decimal_precision() const
+{
+  int precision=(max(args[1]->decimal_int_part(),args[2]->decimal_int_part())+
+                 decimals);
+  return min(precision, DECIMAL_MAX_PRECISION);
+}
+
+
 double
 Item_func_if::val_real()
 {
@@ -1304,7 +1320,8 @@ Item_func_nullif::fix_length_and_dec()
   {
     max_length=args[0]->max_length;
     decimals=args[0]->decimals;
-    agg_result_type(&cached_result_type, args, 2);
+    unsigned_flag= args[0]->unsigned_flag;
+    cached_result_type= args[0]->result_type();
     if (cached_result_type == STRING_RESULT &&
         agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV))
       return;
@@ -1616,6 +1633,18 @@ void Item_func_case::fix_length_and_dec()
 }
 
 
+uint Item_func_case::decimal_precision() const
+{
+  int max_int_part=0;
+  for (uint i=0 ; i < ncases ; i+=2)
+    set_if_bigger(max_int_part, args[i+1]->decimal_int_part());
+
+  if (else_expr_num != -1) 
+    set_if_bigger(max_int_part, args[else_expr_num]->decimal_int_part());
+  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+}
+
+
 /* TODO:  Fix this so that it prints the whole CASE expression */
 
 void Item_func_case::print(String *str)
@@ -1708,8 +1737,7 @@ my_decimal *Item_func_coalesce::val_decimal(my_decimal *decimal_value)
 void Item_func_coalesce::fix_length_and_dec()
 {
   agg_result_type(&cached_result_type, args, arg_count);
-  switch (cached_result_type)
-  {
+  switch (cached_result_type) {
   case STRING_RESULT:
     count_only_length();
     decimals= NOT_FIXED_DEC;

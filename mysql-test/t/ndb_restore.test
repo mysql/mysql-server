@@ -209,3 +209,9 @@ select count(*)
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 --enable_warnings
+
+#
+# Test BUG#10287
+#
+
+--exec $NDB_TOOLS_DIR/ndb_select_all -d sys -D , SYSTAB_0 | grep 520093696

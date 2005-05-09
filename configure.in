@@ -123,8 +123,25 @@ AM_SANITY_CHECK
 # This is needed is SUBDIRS is set
 AC_PROG_MAKE_SET
 
-# This is need before AC_PROG_CC
-#
+##############################################################################
+# The below section needs to be done before AC_PROG_CC
+##############################################################################
+
+# Hack for OS X/Darwin and Metrowerks CodeWarrior
+AC_ARG_WITH(darwin-mwcc,
+[  --with-darwin-mwcc      Use Metrowerks CodeWarrior wrappers on OS X/Darwin],[
+  builddir=`pwd`
+  ccwrapper="$builddir/support-files/MacOSX/mwcc-wrapper"
+  arwrapper="$builddir/support-files/MacOSX/mwar-wrapper"
+  CC="$ccwrapper"
+  CXX="$ccwrapper"
+  LD="$ccwrapper"
+  AR="$arwrapper"
+  RANLIB=:
+  export CC CXX LD AR RANLIB
+  AC_SUBST(AR)
+  AC_SUBST(RANLIB)
+])
 
 if test "x${CFLAGS-}" = x ; then
   cflags_is_set=no
@@ -143,6 +160,8 @@ if test "x${LDFLAGS-}" = x ; then
 else
   ldflags_is_set=yes
 fi
+
+################ End of section to be done before AC_PROG_CC #################
 
 # The following hack should ensure that configure doesn't add optimizing
 # or debugging flags to CFLAGS or CXXFLAGS
@@ -336,32 +355,6 @@ AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
-if test "$GXX" = "yes"
-then
-  # mysqld requires -fno-implicit-templates.
-  # Disable exceptions as they seams to create problems with gcc and threads.
-  # mysqld doesn't use run-time-type-checking, so we disable it.
-  CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
-
-  CXX_VERNO=`echo $CXX_VERSION | sed -e 's/[[^0-9. ]]//g; s/^ *//g; s/ .*//g'`
-  case "$CXX_VERNO" in
-    3.*)
-      USE_MYSYS_NEW="-DUSE_MYSYS_NEW" # yassl needs it
-      if echo $CXX | grep gcc > /dev/null 2>&1
-      then
-        # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
-        # we will gets some problems when linking static programs.
-        # The following code is used to fix this problem.
-        CXXFLAGS="$CXXFLAGS $USE_MYSYS_NEW"
-        AC_MSG_WARN([Using MYSYS_NEW for static linking with gcc])
-      fi
-    ;;
-    *)
-      USE_MYSYS_NEW=""
-    ;;
-  esac
-  AC_SUBST(USE_MYSYS_NEW)
-fi
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
@@ -1730,6 +1723,7 @@ AC_TYPE_OFF_T
 AC_STRUCT_ST_RDEV
 AC_HEADER_TIME
 AC_STRUCT_TM
+MYSQL_NEEDS_MYSYS_NEW
 # AC_CHECK_SIZEOF return 0 when it does not find the size of a
 # type. We want a error instead.
 AC_CHECK_SIZEOF(char, 1)

@@ -1,4 +1,9 @@
 drop table if exists t1,t2;
+set @sav_dpi= @@div_precision_increment;
+set div_precision_increment= 5;
+show variables like 'div_precision_increment';
+Variable_name	Value
+div_precision_increment	5
 create table t1 (product varchar(32), country_id int not null, year int, profit int);
 insert into t1  values ( 'Computer', 2,2000, 1200),
 ( 'TV', 1, 1999, 150),
@@ -40,11 +45,11 @@ TV	600
 NULL	7785
 select product, sum(profit),avg(profit) from t1 group by product with rollup;
 product	sum(profit)	avg(profit)
-Calculator	275	68.7500
-Computer	6900	1380.0000
-Phone	10	10.0000
-TV	600	120.0000
-NULL	7785	519.0000
+Calculator	275	68.75000
+Computer	6900	1380.00000
+Phone	10	10.00000
+TV	600	120.00000
+NULL	7785	519.00000
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year;
 product	country_id	year	sum(profit)
 Calculator	1	1999	50
@@ -244,11 +249,11 @@ select product, country_id , year, sum(profit) from t1 group by product, country
 product	country_id	year	sum(profit)
 select concat(':',product,':'), sum(profit),avg(profit) from t1 group by product with rollup;
 concat(':',product,':')	sum(profit)	avg(profit)
-:Calculator:	275	68.7500
-:Computer:	6900	1380.0000
-:Phone:	10	10.0000
-:TV:	600	120.0000
-:TV:	7785	519.0000
+:Calculator:	275	68.75000
+:Computer:	6900	1380.00000
+:Phone:	10	10.00000
+:TV:	600	120.00000
+:TV:	7785	519.00000
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
 ERROR 42000: This version of MySQL doesn't yet support 'CUBE'
 explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
@@ -450,3 +455,4 @@ a	m
 2	2
 NULL	3
 DROP TABLE t1;
+set div_precision_increment= @sav_dpi;
