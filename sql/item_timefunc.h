@@ -17,7 +17,7 @@
 
 /* Function items used by mysql */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 

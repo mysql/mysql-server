@@ -89,7 +89,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
