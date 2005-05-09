@@ -15,6 +15,7 @@ MV="mv"
 STRIP=1
 DEBUG=0
 SILENT=0
+MACHINE=
 TMP=/tmp
 SUFFIX=""
 NDBCLUSTER=
@@ -26,6 +27,7 @@ parse_arguments() {
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
+      --machine)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
       --silent)   SILENT=1 ;;
       --with-ndbcluster) NDBCLUSTER=1 ;;
       *)
@@ -37,6 +39,8 @@ parse_arguments() {
 }
 
 parse_arguments "$@"
+
+
 
 #make
 
@@ -309,6 +313,11 @@ system=`echo $system | sed -e 's/osf5.1b/tru64/g'`
 system=`echo $system | sed -e 's/linux-gnu/linux/g'`
 system=`echo $system | sed -e 's/solaris2.\([0-9]*\)/solaris\1/g'`
 system=`echo $system | sed -e 's/sco3.2v\(.*\)/openserver\1/g'`
+
+# Use the override --machine if present
+if [ $MACHINE != "" ] ; then
+  machine= $MACHINE
+fi
 
 # Change the distribution to a long descriptive name
 NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version-$system-$machine$SUFFIX
