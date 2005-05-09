@@ -1,4 +1,4 @@
-# This test uses grants, which can't get tested for embedded server
+# This test  uses grants, which can't get tested for embedded server
 -- source include/not_embedded.inc
 
 # Test for information_schema.schemata &
@@ -486,3 +486,10 @@ where COLUMN_NAME='TABLE_NAME';
 connection default;
 delete from mysql.user where user='mysqltest_4';
 flush privileges;
+
+#
+# Bug #9404  information_schema: Weird error messages
+# with SELECT SUM() ... GROUP BY queries
+#
+SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
+
