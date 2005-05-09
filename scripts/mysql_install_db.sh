@@ -11,7 +11,6 @@ in_rpm=0
 windows=0
 defaults=""
 user=""
-tmp_file=/tmp/mysql_install_db.$$
 
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
@@ -223,10 +222,8 @@ then
     then
       echo "Fill help tables"
     fi
-    echo "use mysql;" > $tmp_file
-    cat $tmp_file $fill_help_tables | eval "$mysqld_install_cmd_line"
+    (echo "use mysql;"; cat $fill_help_tables) | eval "$mysqld_install_cmd_line"
     res=$?
-    rm $tmp_file
     if test $res != 0
     then
       echo ""
