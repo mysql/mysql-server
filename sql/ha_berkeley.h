@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
@@ -57,7 +57,6 @@ class ha_berkeley: public handler
   ulong alloced_rec_buff_length;
   ulong changed_rows;
   uint primary_key,last_dup_key, hidden_primary_key, version;
-  u_int32_t lock_on_read;
   bool key_read, using_ignore;
   bool fix_rec_buff_for_blob(ulong length);
   byte current_ident[BDB_HIDDEN_PRIMARY_KEY_LENGTH];

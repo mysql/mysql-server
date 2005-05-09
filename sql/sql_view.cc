@@ -717,6 +717,16 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     }
 
     /*
+      Let us set proper lock type for tables of the view's main select
+      since we may want to perform update or insert on view. This won't
+      work for view containing union. But this is ok since we don't
+      allow insert and update on such views anyway.
+    */
+    if (!lex->select_lex.next_select())
+      for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
+        tbl->lock_type= table->lock_type;
+
+    /*
       If we are opening this view as part of implicit LOCK TABLES, then
       this view serves as simple placeholder and we should not continue
       further processing.
@@ -756,22 +766,13 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->ancestor= view_tables;
 
       /*
-        Process upper level tables of view. As far as we do noy suport union
-        here we can go through local tables of view most upper SELECT
+        Tables of the main select of the view should be marked as belonging
+        to the same select as original view (again we can use LEX::select_lex
+        for this purprose because we don't support MERGE algorithm for views
+        with unions).
       */
-      for(tbl= view_tables;
-          tbl;
-          tbl= tbl->next_local)
-      {
-        /* next table should include SELECT_LEX under this table SELECT_LEX */
+      for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
         tbl->select_lex= table->select_lex;
-
-        /*
-          move lock type (TODO: should we issue error in case of TMPTABLE
-          algorithm and non-read locking)?
-        */
-        tbl->lock_type= table->lock_type;
-      }
 
       /* multi table view */
       if (view_tables->next_local)

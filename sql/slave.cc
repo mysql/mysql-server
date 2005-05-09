@@ -852,7 +852,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 
   SYNOPSIS
     tables_ok()
-    thd             thread (SQL slave thread normally)
+    thd             thread (SQL slave thread normally). Mustn't be null.
     tables          list of tables to check
 
   NOTES
@@ -884,6 +884,23 @@ bool tables_ok(THD* thd, TABLE_LIST* tables)
 {
   bool some_tables_updating= 0;
   DBUG_ENTER("tables_ok");
+
+  /*
+    In routine, can't reliably pick and choose substatements, so always
+    replicate.
+    We can't reliably know if one substatement should be executed or not:
+    consider the case of this substatement: a SELECT on a non-replicated
+    constant table; if we don't execute it maybe it was going to fill a
+    variable which was going to be used by the next substatement to update
+    a replicated table? If we execute it maybe the constant non-replicated
+    table does not exist (and so we'll fail) while there was no need to
+    execute this as this SELECT does not influence replicated tables in the
+    rest of the routine? In other words: users are used to replicate-*-table
+    specifying how to handle updates to tables, these options don't say
+    anything about reads to tables; we can't guess.
+  */
+  if (thd->spcont)
+    DBUG_RETURN(1);
 
   for (; tables; tables= tables->next_global)
   {
@@ -2791,12 +2808,17 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   DBUG_ENTER("init_slave_thread");
   thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
+  /*
+    The two next lines are needed for replication of SP (CREATE PROCEDURE
+    needs a valid user to store in mysql.proc).
+  */
+  thd->priv_user= (char *) "";
+  thd->priv_host[0]= '\0';
   thd->host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->master_access= ~0;
-  thd->priv_user = 0;
   thd->slave_thread = 1;
   set_slave_thread_options(thd);
   /* 

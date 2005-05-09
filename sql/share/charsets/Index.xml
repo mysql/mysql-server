@@ -367,6 +367,9 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
+  <collation name="cp1250_croatian_ci"	id="44">
+    <order>Croatian</order>
+  </collation>
   <collation name="cp1250_czech_cs"	id="34"	order="Czech">
     <flag>compiled</flag>
   </collation>
