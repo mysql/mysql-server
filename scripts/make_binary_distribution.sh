@@ -312,6 +312,10 @@ system=`echo $system | sed -e 's/sco3.2v\(.*\)/openserver\1/g'`
 
 # Change the distribution to a long descriptive name
 NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version-$system-$machine$SUFFIX
+
+# Print the platform name for build logs
+echo "PLATFORM NAME: $system-$machine"
+
 BASE2=$TMP/$NEW_NAME
 rm -r -f $BASE2
 mv $BASE $BASE2
