@@ -17,7 +17,7 @@
 
 /* This file defines structures needed by udf functions */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface
 #endif
 
