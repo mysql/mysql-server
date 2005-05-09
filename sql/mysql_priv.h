@@ -268,6 +268,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_SCHEMA_TABLE             (1L << 29)
 /* Flag set if setup_tables already done */
 #define OPTION_SETUP_TABLES_DONE        (1L << 30)
+/* Thr following is used to detect a conflict with DISTINCT
+   in the user query has requested */
+#define SELECT_ALL			(ULL(1) << 32)
 
 /* 
   Maximum length of time zone name that we support 
