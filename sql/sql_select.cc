@@ -7351,7 +7351,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       */
       if (table->on_expr)
       {
-        Item *expr;
+        Item *expr= table->prep_on_expr ? table->prep_on_expr : table->on_expr;
         /* 
            If an on expression E is attached to the table, 
            check all null rejected predicates in this expression.
@@ -7361,7 +7361,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
            the corresponding on expression is added to E. 
 	*/ 
         expr= simplify_joins(join, &nested_join->join_list,
-                             table->on_expr, FALSE);
+                             expr, FALSE);
         table->prep_on_expr= table->on_expr= expr;
       }
       nested_join->used_tables= (table_map) 0;

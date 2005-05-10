@@ -51,7 +51,7 @@ explain extended select c from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`v1`
+Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 View	Create View
@@ -85,7 +85,7 @@ explain extended select c from v3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select ((`test`.`t1`.`b` + 1) + 1) AS `c` from `test`.`v3`
+Note	1003	select ((`test`.`t1`.`b` + 1) + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v4 (c) as select c+1 from v2;
 select c from v4;
 c
@@ -114,7 +114,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v5`
+Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v2`
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
 c
@@ -204,21 +204,6 @@ create table t1 (a int);
 insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
-select * from t1 natural left join v1;
-a	a
-1	NULL
-2	2
-3	3
-select * from v2 natural left join t1;
-a	a
-0	NULL
-1	1
-2	2
-select * from v2 natural left join v1;
-a	a
-0	NULL
-1	NULL
-2	2
 drop view v1, v2;
 drop table t1;
 create table t1 (a int);
@@ -378,7 +363,7 @@ explain extended select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`b` AS `c` from `test`.`v1` where (`test`.`t1`.`a` < 3)
+Note	1003	select `test`.`t1`.`b` AS `c` from `test`.`t1` where (`test`.`t1`.`a` < 3)
 update v1 set c=c+1;
 select * from t1;
 a	b
@@ -1393,7 +1378,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`v1` left join `test`.`v2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
 execute stmt1;
 a	a	b
@@ -1693,4 +1678,20 @@ col1	col2	col2	col3
 1	trudy	2	y
 5	david	NULL	NULL
 DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (4), (2);
+CREATE VIEW v1 AS SELECT * FROM t1,t2 WHERE t1.a=t2.b;
+SELECT * FROM v1;
+a	b
+2	2
+4	4
+CREATE VIEW v2 AS SELECT * FROM v1;
+SELECT * FROM v2;
+a	b
+2	2
+4	4
+DROP VIEW v2,v1;
 DROP TABLE t1,t2;
