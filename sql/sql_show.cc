@@ -1805,6 +1805,11 @@ int make_db_list(THD *thd, List<char> *files,
   get_index_field_values(lex, idx_field_vals);
   if (is_wild_value)
   {
+    /*
+      This part of code is only for SHOW DATABASES command.
+      idx_field_vals->db_value can be 0 when we don't use
+      LIKE clause (see also get_index_field_values() function)
+    */
     if (!idx_field_vals->db_value ||
         !wild_case_compare(system_charset_info, 
                            information_schema_name.str,
@@ -1818,11 +1823,15 @@ int make_db_list(THD *thd, List<char> *files,
                             idx_field_vals->db_value, 1);
   }
 
+  /*
+    This part of code is for SHOW TABLES, SHOW TABLE STATUS commands.
+    idx_field_vals->db_value can't be 0 (see get_index_field_values()
+    function). lex->orig_sql_command can be not equal to SQLCOM_END
+    only in case of executing of SHOW commands.
+  */
   if (lex->orig_sql_command != SQLCOM_END)
   {
-    if (!idx_field_vals->db_value ||
-        !my_strcasecmp(system_charset_info, 
-                       information_schema_name.str,
+    if (!my_strcasecmp(system_charset_info, information_schema_name.str,
                        idx_field_vals->db_value))
     {
       *with_i_schema= 1;
@@ -1831,6 +1840,10 @@ int make_db_list(THD *thd, List<char> *files,
     return files->push_back(thd->strdup(idx_field_vals->db_value));
   }
 
+  /*
+    Create list of existing databases. It is used in case
+    of select from information schema table
+  */
   if (files->push_back(thd->strdup(information_schema_name.str)))
     return 1;
   *with_i_schema= 1;
