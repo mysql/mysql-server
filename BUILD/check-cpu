@@ -57,6 +57,7 @@ case "$cpu_family--$model_name" in
   ;;
   *Pentium*M*pro*)
     cpu_flag="pentium-m";
+    cpu_flag_old="pentium";
   ;;
   *Athlon*64*)
     cpu_flag="athlon64";
