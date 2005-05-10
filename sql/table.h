@@ -432,6 +432,10 @@ typedef struct st_table_list
   bool		skip_temporary;		/* this table shouldn't be temporary */
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
+#if 0
+#else
+  bool          multitable_view;        /* TRUE iff this is multitable view */
+#endif
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
@@ -450,7 +454,8 @@ typedef struct st_table_list
   void print(THD *thd, String *str);
   void save_and_clear_want_privilege();
   void restore_want_privilege();
-  bool check_single_table(st_table_list **table, table_map map);
+  bool check_single_table(st_table_list **table, table_map map,
+                          st_table_list *view);
   bool set_insert_values(MEM_ROOT *mem_root);
   st_table_list *find_underlying_table(TABLE *table);
 } TABLE_LIST;
