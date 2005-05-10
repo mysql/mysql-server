@@ -53,10 +53,10 @@ public:
         should be invoked with creator rights).
       */
       /*
-	Guilhem puts code to disable binlogging, as in SP/functions, even
-        though currently triggers can't do updates. When triggers can do
-        updates, someone should add such a trigger to rpl_sp.test to verify
-        that the update does NOT go into binlog.
+	We disable binlogging, as in SP/functions, even though currently
+        triggers can't do updates. When triggers can do updates, someone
+        should add such a trigger to rpl_sp.test to verify that the update
+        does NOT go into binlog.
       */
       tmp_disable_binlog(thd);
       res= bodies[event][time_type]->execute_function(thd, 0, 0, 0);
