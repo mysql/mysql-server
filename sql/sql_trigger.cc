@@ -98,6 +98,21 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (wait_if_global_read_lock(thd, 0, 0))
     DBUG_RETURN(TRUE);
 
+  /*
+    There is no DETERMINISTIC clause for triggers, so can't check it.
+    But a trigger can in theory be used to do nasty things (if it supported
+    DROP for example) so we do the check for privileges. For now there is
+    already a stronger test above (see start of the function); but when this
+    stronger test will be removed, the test below will hold.
+  */
+  if (!trust_routine_creators && mysql_bin_log.is_open() &&
+      !(thd->master_access & SUPER_ACL))
+  {
+    my_message(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,
+	       ER(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER), MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   VOID(pthread_mutex_lock(&LOCK_open));
   result= (create ?
            table->triggers->create_trigger(thd, tables):
@@ -109,7 +124,16 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   start_waiting_global_read_lock(thd);
 
   if (!result)
-    send_ok(thd);
+    {
+      if (mysql_bin_log.is_open())
+      {
+	thd->clear_error();
+	/* Such a statement can always go directly to binlog, no trans cache */
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
 
   DBUG_RETURN(result);
 }
