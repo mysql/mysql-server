@@ -46,8 +46,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(TRUE);
   if (!(table= table_list->table))
   {
-    DBUG_ASSERT(table_list->view &&
-		table_list->ancestor && table_list->ancestor->next_local);
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
 	     table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(-1);
