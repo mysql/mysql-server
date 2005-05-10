@@ -667,6 +667,12 @@ drop table t1;
 select 'c' like '\_' as want0; 
 
 #
+# SUBSTR with negative offset didn't work with multi-byte strings
+#
+SELECT SUBSTR('вася',-2);
+
+
+#
 # Bug #7730 Server crash using soundex on an utf8 table
 #
 create table t1 (id integer, a varchar(100) character set utf8 collate utf8_unicode_ci);

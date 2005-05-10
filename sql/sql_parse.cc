@@ -1433,9 +1433,6 @@ bool do_command(THD *thd)
   }
   else
   {
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-      thd->killed= THD::NOT_KILLED;
-
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
     if (command >= COM_END)
@@ -1481,6 +1478,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
+
+  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+    thd->killed= THD::NOT_KILLED;
 
   thd->command=command;
   /*
