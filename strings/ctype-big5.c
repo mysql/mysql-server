@@ -6285,7 +6285,7 @@ uint my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
   const char *emb= e - 1; /* Last possible end of an MB character */
 
   *error= 0;
-  while (pos && b < e)
+  while (pos-- && b < e)
   {
     if ((uchar) b[0] < 128)
     {
