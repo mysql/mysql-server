@@ -4000,7 +4000,15 @@ select_option:
 	      YYABORT;
 	    Lex->lock_option= TL_READ_HIGH_PRIORITY;
 	  }
-	| DISTINCT	{ Select->options|= SELECT_DISTINCT; }
+	| DISTINCT
+	  {
+            if (Select->options & SELECT_ALL)
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+            Select->options|= SELECT_DISTINCT; 
+	  }
 	| SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
 	| SQL_BUFFER_RESULT
@@ -4020,7 +4028,15 @@ select_option:
 	  {
 	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 	  }
-	| ALL		{}
+	| ALL
+	  {
+            if (Select->options & SELECT_DISTINCT)
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+            Select->options|= SELECT_ALL; 
+	  }
 	;
 
 select_lock_type:
