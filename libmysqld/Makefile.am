@@ -83,6 +83,9 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 # generate a total libmysqld.a from all library files,
 
 libmysqld.a:	libmysqld_int.a $(INC_LIB)
+if DARWIN_MWCC
+	mwld -lib -o $@ libmysqld_int.a `ls -1 $(INC_LIB) | sort -u`
+else
 		if test "$(host_os)" = "netware" ; \
 		then \
 		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \
@@ -104,7 +107,7 @@ libmysqld.a:	libmysqld_int.a $(INC_LIB)
 		  rm -f tmp/* ; \
 		  $(RANLIB) libmysqld.a	; \
 		fi
-
+endif
 
 ## XXX: any time the client interface changes, we'll need to bump
 ## the version info for libmysqld; however, it's possible for the
