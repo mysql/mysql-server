@@ -374,6 +374,16 @@ SET NAMES latin1;
 SET collation_connection='ucs2_bin';
 -- source include/ctype_filesort.inc
 
+#
+# Bug#10344 Some string functions fail for UCS2
+#
+select hex(substr(_ucs2 0x00e400e50068,1));
+select hex(substr(_ucs2 0x00e400e50068,2));
+select hex(substr(_ucs2 0x00e400e50068,3));
+select hex(substr(_ucs2 0x00e400e50068,-1));
+select hex(substr(_ucs2 0x00e400e50068,-2));
+select hex(substr(_ucs2 0x00e400e50068,-3));
+
 SET NAMES latin1;
 #
 # Bug#8235
