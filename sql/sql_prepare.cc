@@ -1006,7 +1006,7 @@ static int mysql_test_update(Prepared_statement *stmt,
 
   if (!open_tables(thd, &table_list, &table_count))
   {
-    if (table_list->ancestor && table_list->ancestor->next_local)
+    if (table_list->multitable_view)
     {
       DBUG_ASSERT(table_list->view != 0);
       DBUG_PRINT("info", ("Switch to multi-update"));
@@ -1095,8 +1095,6 @@ static int mysql_test_delete(Prepared_statement *stmt,
     bool res;
     if (!table_list->table)
     {
-      DBUG_ASSERT(table_list->view &&
-                  table_list->ancestor && table_list->ancestor->next_local);
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                table_list->view_db.str, table_list->view_name.str);
       DBUG_RETURN(-1);
@@ -1458,8 +1456,6 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
     return res;
   if (!tables->table)
   {
-    DBUG_ASSERT(tables->view &&
-		tables->ancestor && tables->ancestor->next_local);
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
 	     tables->view_db.str, tables->view_name.str);
     return -1;

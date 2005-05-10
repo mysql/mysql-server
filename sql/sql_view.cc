@@ -773,9 +773,9 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         tbl->lock_type= table->lock_type;
       }
 
-      /* multi table view */
-      if (view_tables->next_local)
       {
+        if (view_tables->next_local)
+          table->multitable_view= TRUE;
         /* make nested join structure for view tables */
         NESTED_JOIN *nested_join;
         if (!(nested_join= table->nested_join=

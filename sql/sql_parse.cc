@@ -1764,7 +1764,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->lex->
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
-    thd->lex->query_tables= &table_list;
+    thd->lex->add_to_query_tables(&table_list);
 
     /* switch on VIEW optimisation: do not fill temporary tables */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
