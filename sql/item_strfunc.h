@@ -18,7 +18,6 @@
 /* This file defines all string functions */
 
 #ifdef USE_PRAGMA_INTERFACE
-#error PRAGMA
 #pragma interface			/* gcc class implementation */
 #endif
 
