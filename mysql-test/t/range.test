@@ -450,6 +450,7 @@ explain select * from t1 where a='aaa' collate latin1_german1_ci;
 drop table t1;
 
 # Test for BUG#9348 "result for WHERE A AND (B OR C) differs from WHERE a AND (C OR B)"
+--disable_warnings
 CREATE TABLE t1 (
   `CLIENT` char(3) character set latin1 collate latin1_bin NOT NULL default '000',
   `ARG1` char(3) character set latin1 collate latin1_bin NOT NULL default '',
@@ -458,6 +459,7 @@ CREATE TABLE t1 (
   `FUNCTINT` int(11) NOT NULL default '0',
   KEY `VERI_CLNT~2` (`ARG1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
 
 INSERT INTO t1 VALUES ('000',' 0',' 0','Text 001',0), ('000',' 0',' 1','Text 002',0),
   ('000',' 1',' 2','Text 003',0), ('000',' 2',' 3','Text 004',0),
