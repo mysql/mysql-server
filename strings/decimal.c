@@ -1162,6 +1162,8 @@ int decimal2bin(decimal_t *from, char *to, int precision, int frac)
       isize0=intg0*sizeof(dec1)+dig2bytes[intg0x],
       fsize0=frac0*sizeof(dec1)+dig2bytes[frac0x],
       fsize1=frac1*sizeof(dec1)+dig2bytes[frac1x];
+  const int orig_isize0= isize0;
+  const int orig_fsize0= fsize0;
   char *orig_to= to;
 
   buf1= remove_leading_zeroes(from, &from_intg);
@@ -1252,10 +1254,15 @@ int decimal2bin(decimal_t *from, char *to, int precision, int frac)
   }
   if (fsize0 > fsize1)
   {
-    while (fsize0-- > fsize1)
+    char *to_end= orig_to + orig_fsize0 + orig_isize0;
+
+    while (fsize0-- > fsize1 && to < to_end)
       *to++=(uchar)mask;
   }
   orig_to[0]^= 0x80;
+
+  /* Check that we have written the whole decimal and nothing more */
+  DBUG_ASSERT(to == orig_to + orig_fsize0 + orig_isize0);
   return error;
 }
 
