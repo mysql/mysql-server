@@ -69,6 +69,7 @@ struct atrt_config {
 
 struct atrt_testcase {
   bool m_report;
+  bool m_run_all;
   time_t m_max_time;
   BaseString m_command;
   BaseString m_args;

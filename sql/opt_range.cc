@@ -6670,6 +6670,8 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
         - NGA = QA - (GA union C) = {NG_1, ..., NG_m} - the ones not in
           GROUP BY and not referenced by MIN/MAX functions.
         with the following properties specified below.
+    B3. If Q has a GROUP BY WITH ROLLUP clause the access method is not 
+        applicable.
 
     SA1. There is at most one attribute in SA referenced by any number of
          MIN and/or MAX functions which, which if present, is denoted as C.
@@ -6754,6 +6756,8 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     other field as in: "select min(a) from t1 group by a" ?
   - We assume that the general correctness of the GROUP-BY query was checked
     before this point. Is this correct, or do we have to check it completely?
+  - Lift the limitation in condition (B3), that is, make this access method 
+    applicable to ROLLUP queries.
 
   RETURN
     If mem_root != NULL
@@ -6793,7 +6797,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     DBUG_RETURN(NULL);        /* This is not a select statement. */
   if ((join->tables != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
-       (!join->select_distinct)))
+       (!join->select_distinct)) ||
+      (thd->lex->select_lex.olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
