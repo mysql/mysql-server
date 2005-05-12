@@ -774,9 +774,9 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
         tbl->select_lex= table->select_lex;
 
-      /* multi table view */
-      if (view_tables->next_local)
       {
+        if (view_tables->next_local)
+          table->multitable_view= TRUE;
         /* make nested join structure for view tables */
         NESTED_JOIN *nested_join;
         if (!(nested_join= table->nested_join=
