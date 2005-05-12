@@ -141,7 +141,10 @@ AC_ARG_WITH(darwin-mwcc,
   export CC CXX LD AR RANLIB
   AC_SUBST(AR)
   AC_SUBST(RANLIB)
+  with_darwin_mwcc=yes
 ])
+
+AM_CONDITIONAL(DARWIN_MWCC, test x$with_darwin_mwcc = xyes)
 
 if test "x${CFLAGS-}" = x ; then
   cflags_is_set=no
