@@ -588,7 +588,6 @@ fi
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysql_find_rows
-%attr(755, root, root) %{_bindir}/mysql_tableinfo
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
 %attr(755, root, root) %{_bindir}/mysqladmin
@@ -686,6 +685,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu May 12 2005 Guilhem Bichot <guilhem@mysql.com>
+
+- Removed the mysql_tableinfo script made obsolete by the information schema
+
 * Wed Apr 20 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Enabled the "blackhole" storage engine for the Max RPM
