@@ -23,6 +23,7 @@
 
 #include <ft_global.h>
 #include <keycache.h>
+#include <bitvector.h>
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -442,6 +443,8 @@ class handler :public Sql_alloc
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
 
+private:
+  virtual int reset() { return extra(HA_EXTRA_RESET); }
 public:
   byte *ref;				/* Pointer to current row */
   byte *dupp_ref;			/* Pointer to dupp row */
@@ -483,6 +486,8 @@ public:
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
+  MY_BITMAP *read_set;
+  MY_BITMAP *write_set;
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -494,7 +499,12 @@ public:
     raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0),
     pushed_cond(NULL)
     {}
-  virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
+  virtual ~handler(void)
+  {
+    ha_deallocate_read_write_set();
+    /* TODO: DBUG_ASSERT(inited == NONE); */
+  }
+  virtual int ha_initialise();
   int ha_open(const char *name, int mode, int test_if_locked);
   void update_auto_increment();
   virtual void print_error(int error, myf errflag);
@@ -554,11 +564,140 @@ public:
     inited=NONE;
     DBUG_RETURN(rnd_end());
   }
+  int ha_reset()
+  {
+    DBUG_ENTER("ha_reset");
+    ha_clear_all_set();
+    DBUG_RETURN(reset());
+  }
+    
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
   }
+  /*
+    These are a set of routines used to enable handlers to only read/write
+    partial lists of the fields in the table. The bit vector is maintained
+    by the server part and is used by the handler at calls to read/write
+    data in the table.
+    It replaces the use of query id's for this purpose. The benefit is that
+    the handler can also set bits in the read/write set if it has special
+    needs and it is also easy for other parts of the server to interact
+    with the handler (e.g. the replication part for row-level logging).
+    The routines are all part of the general handler and are not possible
+    to override by a handler. A handler can however set/reset bits by
+    calling these routines.
+
+    The methods ha_retrieve_all_cols and ha_retrieve_all_pk are made
+    virtual to handle InnoDB specifics. If InnoDB doesn't need the
+    extra parameters HA_EXTRA_RETRIEVE_ALL_COLS and
+    HA_EXTRA_RETRIEVE_PRIMARY_KEY anymore then these methods need not be
+    virtual anymore.
+  */
+  virtual int ha_retrieve_all_cols();
+  virtual int ha_retrieve_all_pk();
+  void ha_set_all_bits_in_read_set()
+  {
+    DBUG_ENTER("ha_set_all_bits_in_read_set");
+    bitmap_set_all(read_set);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_all_bits_in_write_set()
+  {
+    DBUG_ENTER("ha_set_all_bits_in_write_set");
+    bitmap_set_all(write_set);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_bit_in_read_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_set_bit_in_read_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_set_bit(read_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_clear_bit_in_read_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_clear_bit_in_read_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_clear_bit(read_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_bit_in_write_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_set_bit_in_write_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_set_bit(write_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_clear_bit_in_write_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_clear_bit_in_write_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_clear_bit(write_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
+  {
+    DBUG_ENTER("ha_set_bit_in_rw_set");
+    DBUG_PRINT("info", ("Set bit %u in read set", fieldnr));
+    bitmap_set_bit(read_set, fieldnr);
+    if (!write_op) {
+      DBUG_VOID_RETURN;
+    }
+    else
+    {
+      DBUG_PRINT("info", ("Set bit %u in read and write set", fieldnr));
+      bitmap_set_bit(write_set, fieldnr);
+    }
+    DBUG_VOID_RETURN;
+  }
+  bool ha_get_bit_in_read_set(uint fieldnr)
+  {
+    bool bit_set=bitmap_is_set(read_set,fieldnr);
+    DBUG_ENTER("ha_get_bit_in_read_set");
+    DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
+    DBUG_RETURN(bit_set);
+  }
+  bool ha_get_bit_in_write_set(uint fieldnr)
+  {
+    bool bit_set=bitmap_is_set(write_set,fieldnr);
+    DBUG_ENTER("ha_get_bit_in_write_set");
+    DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
+    DBUG_RETURN(bit_set);
+  }
+  bool ha_get_all_bit_in_read_set()
+  {
+    bool all_bits_set= bitmap_is_set_all(read_set);
+    DBUG_ENTER("ha_get_all_bit_in_read_set");
+    DBUG_PRINT("info", ("all bits set = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
+  bool ha_get_all_bit_in_read_clear()
+  {
+    bool all_bits_set= bitmap_is_clear_all(read_set);
+    DBUG_ENTER("ha_get_all_bit_in_read_clear");
+    DBUG_PRINT("info", ("all bits clear = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
+  bool ha_get_all_bit_in_write_set()
+  {
+    bool all_bits_set= bitmap_is_set_all(write_set);
+    DBUG_ENTER("ha_get_all_bit_in_write_set");
+    DBUG_PRINT("info", ("all bits set = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
+  bool ha_get_all_bit_in_write_clear()
+  {
+    bool all_bits_set= bitmap_is_clear_all(write_set);
+    DBUG_ENTER("ha_get_all_bit_in_write_clear");
+    DBUG_PRINT("info", ("all bits clear = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
+  void ha_set_primary_key_in_read_set();
+  int ha_allocate_read_write_set(ulong no_fields);
+  void ha_deallocate_read_write_set();
+  void ha_clear_all_set();
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
@@ -696,7 +835,6 @@ public:
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
-  virtual int reset() { return extra(HA_EXTRA_RESET); }
   virtual int external_lock(THD *thd, int lock_type) { return 0; }
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd) {return 0;}

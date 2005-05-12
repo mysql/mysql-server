@@ -165,6 +165,16 @@ class ha_innobase: public handler
 	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd);
 
+        int ha_retrieve_all_cols()
+        {
+          ha_set_all_bits_in_read_set();
+          return extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+        }
+        int ha_retrieve_all_pk()
+        {
+          ha_set_primary_key_in_read_set();
+          return extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+        }
   	void position(byte *record);
   	ha_rows records_in_range(uint inx, key_range *min_key, key_range
 								*max_key);
