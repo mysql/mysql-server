@@ -4002,7 +4002,7 @@ select_option:
 	  }
 	| DISTINCT
 	  {
-            if (Select->options & SELECT_ALL)
+            if (Select->options2 & SELECT_ALL)
             {
               yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
@@ -4035,7 +4035,7 @@ select_option:
               yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-            Select->options|= SELECT_ALL; 
+            Select->options2|= SELECT_ALL; 
 	  }
 	;
 
