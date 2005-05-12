@@ -59,6 +59,7 @@ static byte* get_field_name(Field **buff,uint *length,
    3    Wrong data in .frm file
    4    Error (see frm_error)
    5    Error (see frm_error: charset unavailable)
+   6    Unknown .frm version
 */
 
 int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
@@ -135,10 +136,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   *fn_ext(share->table_name)='\0';		// Remove extension
   *fn_ext(share->path)='\0';                    // Remove extension
 
-  if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
-       ! (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4)))
+  if (head[0] != (uchar) 254 || head[1] != 1)
     goto err;                                   /* purecov: inspected */
+  if (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
+       ! (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+  {
+    error= 6;
+    goto err;                                   /* purecov: inspected */
+  }
   new_field_pack_flag=head[27];
   new_frm_ver= (head[2] - FRM_VER);
   field_pack_length= new_frm_ver < 2 ? 11 : 17;
@@ -1084,6 +1089,12 @@ static void frm_error(int error, TABLE *form, const char *name,
                     MYF(0), csname, real_name);
     break;
   }
+  case 6:
+    my_printf_error(ER_NOT_FORM_FILE,
+                    "Table '%-.64s' was created with a different version "
+                    "of MySQL and cannot be read",
+                    MYF(0), name);
+    break;
   default:				/* Better wrong error than none */
   case 4:
     my_error(ER_NOT_FORM_FILE, errortype,
@@ -1644,11 +1655,13 @@ void st_table_list::set_ancestor()
         */
         tbl->ancestor->set_ancestor();
       }
-      tbl->table->grant= grant;
+      if (tbl->multitable_view)
+        multitable_view= TRUE;
+      if (tbl->table)
+        tbl->table->grant= grant;
     } while ((tbl= tbl->next_local));
 
-    /* if view contain only one table, substitute TABLE of it */
-    if (!ancestor->next_local)
+    if (!multitable_view)
     {
       table= ancestor->table;
       schema_table= ancestor->schema_table;
@@ -1675,8 +1688,6 @@ void st_table_list::save_and_clear_want_privilege()
     }
     else
     {
-      DBUG_ASSERT(tbl->view && tbl->ancestor &&
-		  tbl->ancestor->next_local);
       tbl->save_and_clear_want_privilege();
     }
   }
@@ -1698,8 +1709,6 @@ void st_table_list::restore_want_privilege()
       tbl->table->grant.want_privilege= privilege_backup;
     else
     {
-      DBUG_ASSERT(tbl->view && tbl->ancestor &&
-		  tbl->ancestor->next_local);
       tbl->restore_want_privilege();
     }
   }
@@ -2053,16 +2062,17 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 {
   if (check_option && check_option->val_int() == 0)
   {
+    TABLE_LIST *view= (belong_to_view ? belong_to_view : this);
     if (ignore_failure)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                           ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
-                          view_db.str, view_name.str);
+                          view->view_db.str, view->view_name.str);
       return(VIEW_CHECK_SKIP);
     }
     else
     {
-      my_error(ER_VIEW_CHECK_FAILED, MYF(0), view_db.str, view_name.str);
+      my_error(ER_VIEW_CHECK_FAILED, MYF(0), view->view_db.str, view->view_name.str);
       return(VIEW_CHECK_ERROR);
     }
   }
@@ -2080,13 +2090,15 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 		(should be 0 on call, to find table, or point to table for
 		unique test)
     map         bit mask of tables
+    view        view for which we are looking table
 
   RETURN
     FALSE table not found or found only one
     TRUE  found several tables
 */
 
-bool st_table_list::check_single_table(st_table_list **table, table_map map)
+bool st_table_list::check_single_table(st_table_list **table, table_map map,
+                                       st_table_list *view)
 {
   for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
   {
@@ -2097,11 +2109,14 @@ bool st_table_list::check_single_table(st_table_list **table, table_map map)
 	if (*table)
 	  return TRUE;
 	else
+        {
 	  *table= tbl;
+          tbl->check_option= view->check_option;
+        }
       }
     }
     else
-      if (tbl->check_single_table(table, map))
+      if (tbl->check_single_table(table, map, view))
 	return TRUE;
   }
   return FALSE;
@@ -2131,7 +2146,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   }
   else
   {
-    DBUG_ASSERT(view && ancestor && ancestor->next_local);
+    DBUG_ASSERT(view && ancestor);
     for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
       if (tbl->set_insert_values(mem_root))
         return TRUE;
