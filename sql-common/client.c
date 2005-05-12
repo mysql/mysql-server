@@ -864,6 +864,8 @@ mysql_free_result(MYSQL_RES *result)
       {
         (*mysql->methods->flush_use_result)(mysql);
         mysql->status=MYSQL_STATUS_READY;
+        if (mysql->unbuffered_fetch_owner)
+          *mysql->unbuffered_fetch_owner= TRUE;
       }
     }
     free_rows(result->data);
