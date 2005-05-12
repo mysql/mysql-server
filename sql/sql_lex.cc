@@ -134,6 +134,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->select_lex.options= 0;
+  lex->select_lex.options2= 0;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
   lex->describe= 0;

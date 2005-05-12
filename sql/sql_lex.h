@@ -297,6 +297,7 @@ protected:
 public:
 
   ulong options;
+  ulong options2;
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
