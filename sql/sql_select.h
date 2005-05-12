@@ -364,6 +364,10 @@ class JOIN :public Sql_alloc
 /*
   Server-side cursor (now stands only for basic read-only cursor)
   See class implementation in sql_select.cc
+  A cursor has its own runtime state - list of used items and memory root of
+  used memory - which is different from Prepared statement runtime: it must
+  be different at least for the purpose of reusing the same prepared
+  statement for many cursors.
 */
 
 class Cursor: public Sql_alloc, public Item_arena
