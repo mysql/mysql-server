@@ -598,6 +598,24 @@ ucs2_bin	00610009
 ucs2_bin	0061
 ucs2_bin	00610020
 drop table t1;
+select hex(substr(_ucs2 0x00e400e50068,1));
+hex(substr(_ucs2 0x00e400e50068,1))
+00E400E50068
+select hex(substr(_ucs2 0x00e400e50068,2));
+hex(substr(_ucs2 0x00e400e50068,2))
+00E50068
+select hex(substr(_ucs2 0x00e400e50068,3));
+hex(substr(_ucs2 0x00e400e50068,3))
+0068
+select hex(substr(_ucs2 0x00e400e50068,-1));
+hex(substr(_ucs2 0x00e400e50068,-1))
+0068
+select hex(substr(_ucs2 0x00e400e50068,-2));
+hex(substr(_ucs2 0x00e400e50068,-2))
+00E50068
+select hex(substr(_ucs2 0x00e400e50068,-3));
+hex(substr(_ucs2 0x00e400e50068,-3))
+00E400E50068
 SET NAMES latin1;
 SET collation_connection='ucs2_swedish_ci';
 CREATE TABLE t1 (Field1 int(10) default '0');
