@@ -1357,16 +1357,17 @@ int handler::ha_initialise()
 
 int handler::ha_allocate_read_write_set(ulong no_fields)
 {
+  uint bitmap_size= 4*(((no_fields+1)+31)/32);
+  uchar *read_buf, *write_buf;
   DBUG_ENTER("ha_allocate_read_write_set");
   DBUG_PRINT("info", ("no_fields = %d", no_fields));
-  read_set= new bitvector;
-  write_set= new bitvector;
-  if (!read_set || !write_set)
-  {
-    ha_deallocate_read_write_set();
-    DBUG_RETURN(TRUE);
-  }
-  if (read_set->init(no_fields+1) || write_set->init(no_fields+1))
+  read_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
+  write_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
+  read_buf= (uchar*)sql_alloc(bitmap_size);
+  write_buf= (uchar*)sql_alloc(bitmap_size);
+  DBUG_ASSERT(!bitmap_init(read_set, read_buf, (no_fields+1), FALSE));
+  DBUG_ASSERT(!bitmap_init(write_set, write_buf, (no_fields+1), FALSE));
+  if (!read_set || !write_set || !read_buf || !write_buf)
   {
     ha_deallocate_read_write_set();
     DBUG_RETURN(TRUE);
@@ -1378,8 +1379,6 @@ int handler::ha_allocate_read_write_set(ulong no_fields)
 void handler::ha_deallocate_read_write_set()
 {
   DBUG_ENTER("ha_deallocate_read_write_set");
-  delete read_set;
-  delete write_set;
   read_set=write_set=0;
   DBUG_VOID_RETURN;
 }
@@ -1387,127 +1386,17 @@ void handler::ha_deallocate_read_write_set()
 void handler::ha_clear_all_set()
 {
   DBUG_ENTER("ha_clear_all_set");
-  read_set->clear_all();
-  write_set->clear_all();
-  read_set->set_bit((uint)0);
-  write_set->set_bit((uint)0);
+  bitmap_clear_all(read_set);
+  bitmap_clear_all(write_set);
+  bitmap_set_bit(read_set, 0);
+  bitmap_set_bit(write_set, 0);
   DBUG_VOID_RETURN;
-}
-
-void handler::ha_set_all_bits_in_read_set()
-{
-  DBUG_ENTER("ha_set_all_bits_in_read_set");
-  read_set->set_all();
-  DBUG_VOID_RETURN;
-}
-
-void handler::ha_set_all_bits_in_write_set()
-{
-  DBUG_ENTER("ha_set_all_bits_in_write_set");
-  write_set->set_all();
-  DBUG_VOID_RETURN;
-}
-
-void handler::ha_set_bit_in_read_set(uint fieldnr)
-{
-  DBUG_ENTER("ha_set_bit_in_read_set");
-  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-  read_set->set_bit((size_t)fieldnr);
-  DBUG_VOID_RETURN;
-}
-
-void handler::ha_clear_bit_in_read_set(uint fieldnr)
-{
-  DBUG_ENTER("ha_clear_bit_in_read_set");
-  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-  read_set->clear_bit((size_t)fieldnr);
-  DBUG_VOID_RETURN;
-}
-
-void handler::ha_set_bit_in_write_set(uint fieldnr)
-{
-  DBUG_ENTER("ha_set_bit_in_write_set");
-  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-  write_set->set_bit((size_t)fieldnr);
-  DBUG_VOID_RETURN;
-}
-
-void handler::ha_clear_bit_in_write_set(uint fieldnr)
-{
-  DBUG_ENTER("ha_clear_bit_in_write_set");
-  DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-  write_set->clear_bit((size_t)fieldnr);
-  DBUG_VOID_RETURN;
-}
-
-void handler::ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
-{
-  DBUG_ENTER("ha_set_bit_in_rw_set");
-  if (!write_op) {
-    DBUG_PRINT("info", ("Set bit %u in read set", fieldnr));
-    read_set->set_bit((size_t)fieldnr);
-  }
-  else
-  {
-    DBUG_PRINT("info", ("Set bit %u in read and write set", fieldnr));
-    read_set->set_bit((size_t)fieldnr);
-    write_set->set_bit((size_t)fieldnr);
-  }
-  DBUG_VOID_RETURN;
-}
-
-bool handler::ha_get_bit_in_read_set(uint fieldnr)
-{
-  bool bit_set=read_set->get_bit((size_t)fieldnr);
-  DBUG_ENTER("ha_get_bit_in_read_set");
-  DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
-  DBUG_RETURN(bit_set);
-}
-
-bool handler::ha_get_bit_in_write_set(uint fieldnr)
-{
-  bool bit_set=write_set->get_bit((size_t)fieldnr);
-  DBUG_ENTER("ha_get_bit_in_write_set");
-  DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
-  DBUG_RETURN(bit_set);
-}
-
-bool handler::ha_get_all_bit_in_read_set()
-{
-  bool bit_set=read_set->get_all_bits_set();
-  DBUG_ENTER("ha_get_all_bit_in_read_set");
-  DBUG_PRINT("info", ("all bits set = %u", bit_set));
-  DBUG_RETURN(bit_set);
-}
-
-bool handler::ha_get_all_bit_in_read_clear()
-{
-  bool bit_set=read_set->get_all_bits_clear();
-  DBUG_ENTER("ha_get_all_bit_in_read_clear");
-  DBUG_PRINT("info", ("all bits clear = %u", bit_set));
-  DBUG_RETURN(bit_set);
-}
-
-bool handler::ha_get_all_bit_in_write_set()
-{
-  bool bit_set=write_set->get_all_bits_set();
-  DBUG_ENTER("ha_get_all_bit_in_write_set");
-  DBUG_PRINT("info", ("all bits set = %u", bit_set));
-  DBUG_RETURN(bit_set);
-}
-
-bool handler::ha_get_all_bit_in_write_clear()
-{
-  bool bit_set=write_set->get_all_bits_clear();
-  DBUG_ENTER("ha_get_all_bit_in_write_clear");
-  DBUG_PRINT("info", ("all bits clear = %u", bit_set));
-  DBUG_RETURN(bit_set);
 }
 
 int handler::ha_retrieve_all_cols()
 {
   DBUG_ENTER("handler::ha_retrieve_all_cols");
-  read_set->set_all();
+  bitmap_set_all(read_set);
   DBUG_RETURN(0);
 }
 

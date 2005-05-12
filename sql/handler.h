@@ -486,8 +486,8 @@ public:
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
-  bitvector *read_set;
-  bitvector *write_set;
+  MY_BITMAP *read_set;
+  MY_BITMAP *write_set;
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -497,7 +497,7 @@ public:
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
     raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0),
-    pushed_cond(NULL), read_set(0), write_set(0)
+    pushed_cond(NULL)
     {}
   virtual ~handler(void)
   {
@@ -597,24 +597,107 @@ public:
   */
   virtual int ha_retrieve_all_cols();
   virtual int ha_retrieve_all_pk();
-  void ha_set_all_bits_in_read_set();
-  void ha_set_all_bits_in_write_set();
-  void ha_set_bit_in_read_set(uint fieldnr);
-  void ha_clear_bit_in_read_set(uint fieldnr);
-  void ha_set_bit_in_write_set(uint fieldnr);
-  void ha_clear_bit_in_write_set(uint fieldnr);
-  void ha_set_bit_in_rw_set(uint fieldnr, bool write_set);
-  bool ha_get_bit_in_read_set(uint fieldnr);
-  bool ha_get_bit_in_write_set(uint fieldnr);
-  bool ha_get_all_bit_in_read_set();
-  bool ha_get_all_bit_in_read_clear();
-  bool ha_get_all_bit_in_write_set();
-  bool ha_get_all_bit_in_write_clear();
+  void ha_set_all_bits_in_read_set()
+  {
+    DBUG_ENTER("ha_set_all_bits_in_read_set");
+    bitmap_set_all(read_set);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_all_bits_in_write_set()
+  {
+    DBUG_ENTER("ha_set_all_bits_in_write_set");
+    bitmap_set_all(write_set);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_bit_in_read_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_set_bit_in_read_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_set_bit(read_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_clear_bit_in_read_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_clear_bit_in_read_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_clear_bit(read_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_bit_in_write_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_set_bit_in_write_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_set_bit(write_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_clear_bit_in_write_set(uint fieldnr)
+  {
+    DBUG_ENTER("ha_clear_bit_in_write_set");
+    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
+    bitmap_clear_bit(write_set, fieldnr);
+    DBUG_VOID_RETURN;
+  }
+  void ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
+  {
+    DBUG_ENTER("ha_set_bit_in_rw_set");
+    DBUG_PRINT("info", ("Set bit %u in read set", fieldnr));
+    bitmap_set_bit(read_set, fieldnr);
+    if (!write_op) {
+      DBUG_VOID_RETURN;
+    }
+    else
+    {
+      DBUG_PRINT("info", ("Set bit %u in read and write set", fieldnr));
+      bitmap_set_bit(write_set, fieldnr);
+    }
+    DBUG_VOID_RETURN;
+  }
+  bool ha_get_bit_in_read_set(uint fieldnr)
+  {
+    bool bit_set=bitmap_is_set(read_set,fieldnr);
+    DBUG_ENTER("ha_get_bit_in_read_set");
+    DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
+    DBUG_RETURN(bit_set);
+  }
+  bool ha_get_bit_in_write_set(uint fieldnr)
+  {
+    bool bit_set=bitmap_is_set(write_set,fieldnr);
+    DBUG_ENTER("ha_get_bit_in_write_set");
+    DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
+    DBUG_RETURN(bit_set);
+  }
+  bool ha_get_all_bit_in_read_set()
+  {
+    bool all_bits_set= bitmap_is_set_all(read_set);
+    DBUG_ENTER("ha_get_all_bit_in_read_set");
+    DBUG_PRINT("info", ("all bits set = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
+  bool ha_get_all_bit_in_read_clear()
+  {
+    bool all_bits_set= bitmap_is_clear_all(read_set);
+    DBUG_ENTER("ha_get_all_bit_in_read_clear");
+    DBUG_PRINT("info", ("all bits clear = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
+  bool ha_get_all_bit_in_write_set()
+  {
+    bool all_bits_set= bitmap_is_set_all(write_set);
+    DBUG_ENTER("ha_get_all_bit_in_write_set");
+    DBUG_PRINT("info", ("all bits set = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
+  bool ha_get_all_bit_in_write_clear()
+  {
+    bool all_bits_set= bitmap_is_clear_all(write_set);
+    DBUG_ENTER("ha_get_all_bit_in_write_clear");
+    DBUG_PRINT("info", ("all bits clear = %u", all_bits_set));
+    DBUG_RETURN(all_bits_set);
+  }
   void ha_set_primary_key_in_read_set();
   int ha_allocate_read_write_set(ulong no_fields);
   void ha_deallocate_read_write_set();
   void ha_clear_all_set();
-
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;

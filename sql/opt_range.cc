@@ -1566,7 +1566,8 @@ static int fill_used_fields_bitmap(PARAM *param)
   param->fields_bitmap_size= (table->s->fields/8 + 1);
   uchar *tmp;
   uint pk;
-  if (!(tmp= (uchar*)alloc_root(param->mem_root,param->fields_bitmap_size)) ||
+  if (!(tmp= (uchar*)alloc_root(param->mem_root,
+    bytes_word_aligned(param->fields_bitmap_size))) ||
       bitmap_init(&param->needed_fields, tmp, param->fields_bitmap_size*8,
                   FALSE))
     return 1;
@@ -2321,7 +2322,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   ror_scan->records= param->table->quick_rows[keynr];
 
   if (!(bitmap_buf= (uchar*)alloc_root(param->mem_root,
-                                      param->fields_bitmap_size)))
+                            bytes_word_aligned(param->fields_bitmap_size))))
     DBUG_RETURN(NULL);
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf,
@@ -2441,7 +2442,8 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
                                               sizeof(ROR_INTERSECT_INFO))))
     return NULL;
   info->param= param;
-  if (!(buf= (uchar*)alloc_root(param->mem_root, param->fields_bitmap_size)))
+  if (!(buf= (uchar*)alloc_root(param->mem_root,
+                             bytes_word_aligned(param->fields_bitmap_size))))
     return NULL;
   if (bitmap_init(&info->covered_fields, buf, param->fields_bitmap_size*8,
                   FALSE))
@@ -2998,7 +3000,8 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   /*I=set of all covering indexes */
   ror_scan_mark= tree->ror_scans;
 
-  uchar buf[MAX_KEY/8+1];
+  uint32 int_buf[MAX_KEY/32+1];
+  uchar *buf= (uchar*)&int_buf;
   MY_BITMAP covered_fields;
   if (bitmap_init(&covered_fields, buf, nbits, FALSE))
     DBUG_RETURN(0);
