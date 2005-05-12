@@ -2950,7 +2950,8 @@ build_template(
 		     (!(fetch_all_in_key && index_contains_field) &&
 		      !(fetch_primary_key_cols &&
 			dict_table_col_in_clustered_key(index->table, i)) &&
-		      thd->query_id != field->query_id))) {
+                      (!(table->file->ha_get_bit_in_read_set(i+1) ||
+                        table->file->ha_get_bit_in_write_set(i+1)))))) {
 
 			/* This field is not needed in the query, skip it */
 

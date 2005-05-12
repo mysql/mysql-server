@@ -3000,13 +3000,18 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 
     set_field(from_field);
   }
-  else if (thd->set_query_id && field->query_id != thd->query_id)
+  else if (thd->set_query_id)
   {
-    /* We only come here in unions */
-    TABLE *table=field->table;
-    field->query_id=thd->query_id;
-    table->used_fields++;
-    table->used_keys.intersect(field->part_of_key);
+    TABLE *table= field->table;
+    table->file->ha_set_bit_in_rw_set(field->fieldnr,
+                                      (bool)(thd->set_query_id-1));
+    if (field->query_id != thd->query_id)
+    {
+      /* We only come here in unions */
+      field->query_id=thd->query_id;
+      table->used_fields++;
+      table->used_keys.intersect(field->part_of_key);
+    }
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (any_privileges)
