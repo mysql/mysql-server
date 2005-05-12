@@ -1345,7 +1345,8 @@ static bool prepare_blob_field(THD *thd, create_field *sql_field)
     /* Convert long VARCHAR columns to TEXT or BLOB */
     char warn_buff[MYSQL_ERRMSG_SIZE];
 
-    if (sql_field->def)
+    if (sql_field->def || (thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                                      MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
@@ -1354,7 +1355,7 @@ static bool prepare_blob_field(THD *thd, create_field *sql_field)
     sql_field->sql_type= FIELD_TYPE_BLOB;
     sql_field->flags|= BLOB_FLAG;
     sprintf(warn_buff, ER(ER_AUTO_CONVERT), sql_field->field_name,
-            "VARCHAR",
+            (sql_field->charset == &my_charset_bin) ? "VARBINARY" : "VARCHAR",
             (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
