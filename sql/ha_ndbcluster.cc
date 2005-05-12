@@ -860,12 +860,10 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 /*
   Check if any set or get of blob value in current query.
 */
-bool ha_ndbcluster::uses_blob_value(bool all_fields)
+bool ha_ndbcluster::uses_blob_value()
 {
   if (table->s->blob_fields == 0)
     return FALSE;
-  if (all_fields)
-    return TRUE;
   {
     uint no_fields= table->s->fields;
     int i;
@@ -874,7 +872,8 @@ bool ha_ndbcluster::uses_blob_value(bool all_fields)
     for (i= no_fields - 1; i >= 0; i--)
     {
       Field *field= table->field[i];
-      if (thd->query_id == field->query_id)
+      if ((m_write_op && ha_get_bit_in_write_set(i+1)) ||
+          (!m_write_op && ha_get_bit_in_read_set(i+1)))
       {
         return TRUE;
       }
@@ -1150,7 +1149,7 @@ int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
 {
   if (type >= TL_WRITE_ALLOW_WRITE)
     return NdbOperation::LM_Exclusive;
-  else if (uses_blob_value(m_retrieve_all_fields))
+  else if (uses_blob_value())
     return NdbOperation::LM_Read;
   else
     return NdbOperation::LM_CommittedRead;
@@ -1328,9 +1327,8 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
-    if ((thd->query_id == field->query_id) ||
-        ((field->flags & PRI_KEY_FLAG)) || 
-        m_retrieve_all_fields)
+    if (ha_get_bit_in_read_set(i+1) ||
+        ((field->flags & PRI_KEY_FLAG)))
     {      
       if (get_ndb_value(op, field, i, buf))
         ERR_RETURN(op->getNdbError());
@@ -1371,6 +1369,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   DBUG_ENTER("pk_read");
   DBUG_PRINT("enter", ("key_len: %u", key_len));
   DBUG_DUMP("key", (char*)key, key_len);
+  m_write_op= FALSE;
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -1422,10 +1421,13 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   NdbOperation *op;
   THD *thd= current_thd;
   DBUG_ENTER("complemented_pk_read");
+  m_write_op= FALSE;
 
-  if (m_retrieve_all_fields)
+  if (ha_get_all_bit_in_read_set())
+  {
     // We have allready retrieved all fields, nothing to complement
     DBUG_RETURN(0);
+  }
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -1442,7 +1444,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   {
     Field *field= table->field[i];
     if (!((field->flags & PRI_KEY_FLAG) ||
-          (thd->query_id == field->query_id)))
+          (ha_get_bit_in_read_set(i+1))))
     {
       if (get_ndb_value(op, field, i, new_data))
         ERR_RETURN(trans->getNdbError());
@@ -1466,7 +1468,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   {
     Field *field= table->field[i];
     if (!((field->flags & PRI_KEY_FLAG) ||
-          (thd->query_id == field->query_id)))
+          (ha_get_bit_in_read_set(i+1))))
     {
       m_value[i].ptr= NULL;
     }
@@ -1844,6 +1846,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_PRINT("enter", ("index: %u, sorted: %d, descending: %d",
              active_index, sorted, descending));  
   DBUG_PRINT("enter", ("Starting new ordered scan on %s", m_tabname));
+  m_write_op= FALSE;
 
   // Check that sorted seems to be initialised
   DBUG_ASSERT(sorted == 0 || sorted == 1);
@@ -1903,6 +1906,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 
   DBUG_ENTER("full_table_scan");  
   DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
+  m_write_op= FALSE;
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -1932,6 +1936,7 @@ int ha_ndbcluster::write_row(byte *record)
   NdbOperation *op;
   int res;
   THD *thd= current_thd;
+  m_write_op= TRUE;
 
   DBUG_ENTER("write_row");
 
@@ -2120,13 +2125,13 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   NdbOperation *op;
   uint i;
   DBUG_ENTER("update_row");
+  m_write_op= TRUE;
   
   statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
   {
     table->timestamp_field->set_time();
-    // Set query_id so that field is really updated
-    table->timestamp_field->query_id= thd->query_id;
+    ha_set_bit_in_write_set(table->timestamp_field->fieldnr);
   }
 
   /* Check for update of primary key for special handling */  
@@ -2186,7 +2191,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     if (!(op= cursor->updateCurrentTuple()))
       ERR_RETURN(trans->getNdbError());
     m_ops_pending++;
-    if (uses_blob_value(FALSE))
+    if (uses_blob_value())
       m_blobs_pending= TRUE;
   }
   else
@@ -2224,7 +2229,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
-    if (((thd->query_id == field->query_id) || m_retrieve_all_fields) &&
+    if (ha_get_bit_in_write_set(i+1) &&
         (!(field->flags & PRI_KEY_FLAG)) &&
         set_ndb_value(op, field, i))
       ERR_RETURN(op->getNdbError());
@@ -2251,6 +2256,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   DBUG_ENTER("delete_row");
+  m_write_op= TRUE;
 
   statistic_increment(thd->status_var.ha_delete_count,&LOCK_status);
   m_rows_changed++;
@@ -2515,6 +2521,7 @@ int ha_ndbcluster::index_read(byte *buf,
   int error;
   ndb_index_type type= get_index_type(active_index);
   const KEY* key_info= table->key_info+active_index;
+  m_write_op= FALSE;
   switch (type){
   case PRIMARY_KEY_ORDERED_INDEX:
   case PRIMARY_KEY_INDEX:
@@ -2681,6 +2688,7 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
 {
   byte* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
+  m_write_op= FALSE;
   
   DBUG_RETURN(read_range_first_to_buf(start_key,
                                       end_key,
@@ -2902,82 +2910,10 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 {
   DBUG_ENTER("extra");
   switch (operation) {
-  case HA_EXTRA_NORMAL:              /* Optimize for space (def) */
-    DBUG_PRINT("info", ("HA_EXTRA_NORMAL"));
-    break;
-  case HA_EXTRA_QUICK:                 /* Optimize for speed */
-    DBUG_PRINT("info", ("HA_EXTRA_QUICK"));
-    break;
   case HA_EXTRA_RESET:                 /* Reset database to after open */
     DBUG_PRINT("info", ("HA_EXTRA_RESET"));
     DBUG_PRINT("info", ("Clearing condition stack"));
     cond_clear();
-    break;
-  case HA_EXTRA_CACHE:                 /* Cash record in HA_rrnd() */
-    DBUG_PRINT("info", ("HA_EXTRA_CACHE"));
-    break;
-  case HA_EXTRA_NO_CACHE:              /* End cacheing of records (def) */
-    DBUG_PRINT("info", ("HA_EXTRA_NO_CACHE"));
-    break;
-  case HA_EXTRA_NO_READCHECK:          /* No readcheck on update */
-    DBUG_PRINT("info", ("HA_EXTRA_NO_READCHECK"));
-    break;
-  case HA_EXTRA_READCHECK:             /* Use readcheck (def) */
-    DBUG_PRINT("info", ("HA_EXTRA_READCHECK"));
-    break;
-  case HA_EXTRA_KEYREAD:               /* Read only key to database */
-    DBUG_PRINT("info", ("HA_EXTRA_KEYREAD"));
-    break;
-  case HA_EXTRA_NO_KEYREAD:            /* Normal read of records (def) */
-    DBUG_PRINT("info", ("HA_EXTRA_NO_KEYREAD"));
-    break;
-  case HA_EXTRA_NO_USER_CHANGE:        /* No user is allowed to write */
-    DBUG_PRINT("info", ("HA_EXTRA_NO_USER_CHANGE"));
-    break;
-  case HA_EXTRA_KEY_CACHE:
-    DBUG_PRINT("info", ("HA_EXTRA_KEY_CACHE"));
-    break;
-  case HA_EXTRA_NO_KEY_CACHE:
-    DBUG_PRINT("info", ("HA_EXTRA_NO_KEY_CACHE"));
-    break;
-  case HA_EXTRA_WAIT_LOCK:            /* Wait until file is avalably (def) */
-    DBUG_PRINT("info", ("HA_EXTRA_WAIT_LOCK"));
-    break;
-  case HA_EXTRA_NO_WAIT_LOCK:         /* If file is locked, return quickly */
-    DBUG_PRINT("info", ("HA_EXTRA_NO_WAIT_LOCK"));
-    break;
-  case HA_EXTRA_WRITE_CACHE:           /* Use write cache in ha_write() */
-    DBUG_PRINT("info", ("HA_EXTRA_WRITE_CACHE"));
-    break;
-  case HA_EXTRA_FLUSH_CACHE:           /* flush write_record_cache */
-    DBUG_PRINT("info", ("HA_EXTRA_FLUSH_CACHE"));
-    break;
-  case HA_EXTRA_NO_KEYS:               /* Remove all update of keys */
-    DBUG_PRINT("info", ("HA_EXTRA_NO_KEYS"));
-    break;
-  case HA_EXTRA_KEYREAD_CHANGE_POS:         /* Keyread, but change pos */
-    DBUG_PRINT("info", ("HA_EXTRA_KEYREAD_CHANGE_POS")); /* xxxxchk -r must be used */
-    break;                                  
-  case HA_EXTRA_REMEMBER_POS:          /* Remember pos for next/prev */
-    DBUG_PRINT("info", ("HA_EXTRA_REMEMBER_POS"));
-    break;
-  case HA_EXTRA_RESTORE_POS:
-    DBUG_PRINT("info", ("HA_EXTRA_RESTORE_POS"));
-    break;
-  case HA_EXTRA_REINIT_CACHE:          /* init cache from current record */
-    DBUG_PRINT("info", ("HA_EXTRA_REINIT_CACHE"));
-    break;
-  case HA_EXTRA_FORCE_REOPEN:          /* Datafile have changed on disk */
-    DBUG_PRINT("info", ("HA_EXTRA_FORCE_REOPEN"));
-    break;
-  case HA_EXTRA_FLUSH:                 /* Flush tables to disk */
-    DBUG_PRINT("info", ("HA_EXTRA_FLUSH"));
-    break;
-  case HA_EXTRA_NO_ROWS:               /* Don't write rows */
-    DBUG_PRINT("info", ("HA_EXTRA_NO_ROWS"));
-    break;
-  case HA_EXTRA_RESET_STATE:           /* Reset positions */
-    DBUG_PRINT("info", ("HA_EXTRA_RESET_STATE"));
     break;
   case HA_EXTRA_IGNORE_DUP_KEY:       /* Dup keys don't rollback everything*/
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));
@@ -2997,34 +2933,6 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     m_use_write= FALSE;
     m_ignore_dup_key= FALSE;
     break;
-  case HA_EXTRA_RETRIEVE_ALL_COLS:    /* Retrieve all columns, not just those
-                                         where field->query_id is the same as
-                                         the current query id */
-    DBUG_PRINT("info", ("HA_EXTRA_RETRIEVE_ALL_COLS"));
-    m_retrieve_all_fields= TRUE;
-    break;
-  case HA_EXTRA_PREPARE_FOR_DELETE:
-    DBUG_PRINT("info", ("HA_EXTRA_PREPARE_FOR_DELETE"));
-    break;
-  case HA_EXTRA_PREPARE_FOR_UPDATE:     /* Remove read cache if problems */
-    DBUG_PRINT("info", ("HA_EXTRA_PREPARE_FOR_UPDATE"));
-    break;
-  case HA_EXTRA_PRELOAD_BUFFER_SIZE: 
-    DBUG_PRINT("info", ("HA_EXTRA_PRELOAD_BUFFER_SIZE"));
-    break;
-  case HA_EXTRA_RETRIEVE_PRIMARY_KEY: 
-    DBUG_PRINT("info", ("HA_EXTRA_RETRIEVE_PRIMARY_KEY"));
-    m_retrieve_primary_key= TRUE;
-    break;
-  case HA_EXTRA_CHANGE_KEY_TO_UNIQUE: 
-    DBUG_PRINT("info", ("HA_EXTRA_CHANGE_KEY_TO_UNIQUE"));
-    break;
-  case HA_EXTRA_CHANGE_KEY_TO_DUP: 
-    DBUG_PRINT("info", ("HA_EXTRA_CHANGE_KEY_TO_DUP"));
-  case HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
-    DBUG_PRINT("info", ("HA_EXTRA_KEYREAD_PRESERVE_FIELDS"));
-    break;
-
   }
   
   DBUG_RETURN(0);
@@ -3296,8 +3204,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     DBUG_ASSERT(m_active_trans);
     // Start of transaction
     m_rows_changed= 0;
-    m_retrieve_all_fields= FALSE;
-    m_retrieve_primary_key= FALSE;
     m_ops_pending= 0;
     {
       NDBDICT *dict= ndb->getDictionary();
@@ -3433,8 +3339,6 @@ int ha_ndbcluster::start_stmt(THD *thd)
   m_active_trans= trans;
 
   // Start of statement
-  m_retrieve_all_fields= FALSE;
-  m_retrieve_primary_key= FALSE;
   m_ops_pending= 0;    
   
   DBUG_RETURN(error);
@@ -4224,8 +4128,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
   m_primary_key_update(FALSE),
-  m_retrieve_all_fields(FALSE),
-  m_retrieve_primary_key(FALSE),
   m_rows_to_insert((ha_rows) 1),
   m_rows_inserted((ha_rows) 0),
   m_bulk_insert_rows((ha_rows) 1024),
@@ -5546,6 +5448,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       HANDLER_BUFFER *buffer)
 {
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
+  m_write_op= FALSE;
   
   int res;
   KEY* key_info= table->key_info + active_index;
@@ -5553,7 +5456,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   ulong reclength= table->s->reclength;
   NdbOperation* op;
 
-  if (uses_blob_value(m_retrieve_all_fields))
+  if (uses_blob_value())
   {
     /**
      * blobs can't be batched currently

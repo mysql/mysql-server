@@ -572,6 +572,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       error= 4;
       goto err;			/* purecov: inspected */
     }
+    reg_field->fieldnr= i+1; //Set field number
     reg_field->comment=comment;
     if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
@@ -801,6 +802,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	(*save++)= i;
     }
   }
+  if (outparam->file->ha_allocate_read_write_set(share->fields))
+    goto err;
 
   /* The table struct is now initialized;  Open the table */
   error=2;

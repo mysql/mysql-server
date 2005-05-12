@@ -21,10 +21,13 @@
 
 #define MY_BIT_NONE (~(uint) 0)
 
+
 typedef struct st_bitmap
 {
   uchar *bitmap;
-  uint bitmap_size; /* number of bytes occupied by the above */
+  uint bitmap_size; /* number of bits occupied by the above */
+  uint32 last_word_mask;
+  uint32 *last_word_ptr;
   /*
      mutex will be acquired for the duration of each bitmap operation if
      thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not
@@ -38,30 +41,60 @@ typedef struct st_bitmap
 #ifdef	__cplusplus
 extern "C" {
 #endif
-extern my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size, my_bool thread_safe);
 extern my_bool bitmap_is_clear_all(const MY_BITMAP *map);
 extern my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
-extern my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_is_set_all(const MY_BITMAP *map);
 extern my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
+extern uint bitmap_get_first_set(const MY_BITMAP *map);
 extern uint bitmap_bits_set(const MY_BITMAP *map);
-extern void bitmap_clear_all(MY_BITMAP *map);
-extern void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit);
 extern void bitmap_free(MY_BITMAP *map);
-extern void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2);
-extern void bitmap_set_all(MY_BITMAP *map);
-extern void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
+extern void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
 
+extern uint bitmap_lock_set_next(MY_BITMAP *map);
+extern void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit);
+#ifdef NOT_USED
+extern uint bitmap_lock_bits_set(const MY_BITMAP *map);
+extern my_bool bitmap_lock_is_set_all(const MY_BITMAP *map);
+extern uint bitmap_lock_get_first(const MY_BITMAP *map);
+extern uint bitmap_lock_get_first_set(const MY_BITMAP *map);
+extern my_bool bitmap_lock_is_subset(const MY_BITMAP *map1,
+                                     const MY_BITMAP *map2);
+extern my_bool bitmap_lock_is_prefix(const MY_BITMAP *map, uint prefix_size);
+extern my_bool bitmap_lock_is_set(const MY_BITMAP *map, uint bitmap_bit);
+extern my_bool bitmap_lock_is_clear_all(const MY_BITMAP *map);
+extern my_bool bitmap_lock_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2);
+extern void bitmap_lock_set_all(MY_BITMAP *map);
+extern void bitmap_lock_clear_all(MY_BITMAP *map);
+extern void bitmap_lock_set_bit(MY_BITMAP *map, uint bitmap_bit);
+extern void bitmap_lock_flip_bit(MY_BITMAP *map, uint bitmap_bit);
+extern void bitmap_lock_set_prefix(MY_BITMAP *map, uint prefix_size);
+extern void bitmap_lock_intersect(MY_BITMAP *map, const MY_BITMAP *map2);
+extern void bitmap_lock_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
+extern void bitmap_lock_union(MY_BITMAP *map, const MY_BITMAP *map2);
+extern void bitmap_lock_xor(MY_BITMAP *map, const MY_BITMAP *map2);
+extern void bitmap_lock_invert(MY_BITMAP *map);
+#endif
 /* Fast, not thread safe, bitmap functions */
-#define bitmap_fast_set_bit(MAP, BIT) (MAP)->bitmap[(BIT) / 8] |= (1 << ((BIT) & 7))
-#define bitmap_fast_clear_bit(MAP, BIT) (MAP)->bitmap[(BIT) / 8] &= ~ (1 << ((BIT) & 7))
-#define bitmap_fast_is_set(MAP, BIT) (MAP)->bitmap[(BIT) / 8] & (1 << ((BIT) & 7))
+#define no_bytes_in_map(map) ((map->bitmap_size + 7)/8)
+#define no_words_in_map(map) ((map->bitmap_size + 31)/32)
+#define bytes_word_aligned(bytes) (4*((bytes + 3)/4))
+#define bitmap_set_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] |= (1 << ((BIT) & 7)))
+#define bitmap_flip_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] ^= (1 << ((BIT) & 7)))
+#define bitmap_clear_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] &= ~ (1 << ((BIT) & 7)))
+#define bitmap_is_set(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] & (1 << ((BIT) & 7)))
+#define bitmap_cmp(MAP1, MAP2) \
+  (memcmp((MAP1)->bitmap, (MAP2)->bitmap, 4*no_words_in_map((MAP1)))==0)
+#define bitmap_clear_all(MAP) \
+  memset((MAP)->bitmap, 0, 4*no_words_in_map((MAP))); \
+  *(MAP)->last_word_ptr|= (MAP)->last_word_mask
+#define bitmap_set_all(MAP) \
+  (memset((MAP)->bitmap, 0xFF, 4*no_words_in_map((MAP))))
 
 #ifdef	__cplusplus
 }
