@@ -8060,7 +8060,12 @@ void create_field::create_length_to_internal_length(void)
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:
-    key_length= pack_length= my_decimal_get_binary_size(length, decimals);
+    key_length= pack_length=
+      my_decimal_get_binary_size(my_decimal_length_to_precision(length,
+								decimals,
+								flags &
+								UNSIGNED_FLAG),
+				 decimals);
     break;
   default:
     key_length= pack_length= calc_pack_length(sql_type, length);
