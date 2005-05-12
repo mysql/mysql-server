@@ -152,8 +152,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       }
       else if (defaults_extra_file)
       {
-        if (search_default_file_with_ext(func, func_ctx, "", "",
-                                         defaults_extra_file, 0) < 0)
+        if ((error= search_default_file_with_ext(func, func_ctx, "", "",
+                                                defaults_extra_file, 0)) < 0)
 	  goto err;				/* Fatal error */
         if (error > 0)
         {
