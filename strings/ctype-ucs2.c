@@ -1261,7 +1261,7 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 		     const char *e  __attribute__((unused)),
 		     uint pos)
 {
-  return pos*2;
+  return pos > e - b ? e - b + 2 : pos * 2;
 }
 
 
