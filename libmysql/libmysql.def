@@ -146,4 +146,5 @@ EXPORTS
 	mysql_rpl_query_type
 	mysql_slave_query
 	mysql_embedded
+	mysql_set_character_set
 	get_defaults_files
