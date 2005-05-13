@@ -478,7 +478,7 @@ row_ins_cascade_calc_update_vec(
 		
 			if (parent_ufield->field_no == parent_field_no) {
 
-				ulint	fixed_size;
+				ulint	min_size;
 
 				/* A field in the parent index record is
 				updated. Let us make the update vector
@@ -508,10 +508,13 @@ row_ins_cascade_calc_update_vec(
 				column, do not allow the update */
 
 				if (ufield->new_val.len != UNIV_SQL_NULL
-				    && ufield->new_val.len
-				       > dtype_get_len(type)) {
+				    && dtype_get_at_most_n_mbchars(
+						type, dtype_get_len(type),
+						ufield->new_val.len,
+						ufield->new_val.data)
+				    < ufield->new_val.len) {
 
-				        return(ULINT_UNDEFINED);
+					return(ULINT_UNDEFINED);
 				}
 
 				/* If the parent column type has a different
@@ -519,29 +522,46 @@ row_ins_cascade_calc_update_vec(
 				need to pad with spaces the new value of the
 				child column */
 
-				fixed_size = dtype_get_fixed_size(type);
+				min_size = dtype_get_min_size(type);
 
-				/* TODO: pad in UCS-2 with 0x0020.
-				TODO: How does the special truncation of
-				UTF-8 CHAR cols affect this? */
-
-				if (fixed_size
+				if (min_size
 				    && ufield->new_val.len != UNIV_SQL_NULL
-				    && ufield->new_val.len < fixed_size) {
+				    && ufield->new_val.len < min_size) {
 
+					char*		pad_start;
+					const char*	pad_end;
 				        ufield->new_val.data =
 						mem_heap_alloc(heap,
-								fixed_size);
-					ufield->new_val.len = fixed_size;
-					ut_a(dtype_get_pad_char(type)
-					     != ULINT_UNDEFINED);
-
-					memset(ufield->new_val.data,
-					       (byte)dtype_get_pad_char(type),
-					       fixed_size);
+								min_size);
+					pad_start = ufield->new_val.data
+						+ ufield->new_val.len;
+					pad_end = ufield->new_val.data
+						+ min_size;
+					ufield->new_val.len = min_size;
 					ut_memcpy(ufield->new_val.data,
 						parent_ufield->new_val.data,
 						parent_ufield->new_val.len);
+
+					switch (UNIV_EXPECT(
+						dtype_get_mbminlen(type), 1)) {
+					default:
+						ut_error;
+					case 1:
+						/* space=0x20 */
+						memset(pad_start, 0x20,
+							pad_end - pad_start);
+						break;
+					case 2:
+						/* space=0x0020 */
+						ut_a(!(ufield->new_val.len
+									% 2));
+						ut_a(!(min_size % 2));
+						do {
+							*pad_start++ = 0x00;
+							*pad_start++ = 0x20;
+						} while (pad_start < pad_end);
+						break;
+					}
 				}
 
 				ufield->extern_storage = FALSE;
