@@ -17,11 +17,11 @@ Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
 explain select * from t0 where key1 < 3 or key1 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	55	Using where
+1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using where
 explain 
 select * from t0 where key1 < 3 or key2 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	31	Using sort_union(i1,i2); Using where
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	45	Using sort_union(i1,i2); Using where
 select * from t0 where key1 < 3 or key2 > 1020;
 key1	key2	key3	key4	key5	key6	key7	key8
 1	1	1	1	1	1	1	1023
@@ -36,7 +36,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain
 select * from t0 where (key1 > 30 and key1<35) or (key2 >32 and key2 < 40);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	9	Using sort_union(i1,i2); Using where
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	11	Using sort_union(i1,i2); Using where
 select * from t0 where (key1 > 30 and key1<35) or (key2 >32 and key2 < 40);
 key1	key2	key3	key4	key5	key6	key7	key8
 31	31	31	31	31	31	31	993
@@ -90,7 +90,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select key1 from t0 where (key1 <=> null) or (key1 < 5) or 
 (key3=10) or (key4 <=> null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	index_merge	i1,i3,i4	i1,i3	4,4	NULL	5	Using sort_union(i1,i3); Using where
+1	SIMPLE	t0	index_merge	i1,i3,i4	i1,i3	4,4	NULL	6	Using sort_union(i1,i3); Using where
 explain select * from t0 where 
 (key1 < 3 or key2 < 3) and (key3 < 4 or key4 < 4) and (key5 < 5 or key6 < 5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -113,7 +113,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0 where 
 (key1 < 3 or key2 < 3) and (key3 < 100);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	96	Using where
+1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using where
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 1000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -152,7 +152,7 @@ explain select * from t0 where
 or
 ((key7 <7 or key8 < 4) and (key5 < 5 or key6 < 6));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	index_merge	i1,i2,i3,i5,i6,i7,i8	i3,i5,i7,i8	4,4,4,4	NULL	21	Using sort_union(i3,i5,i7,i8); Using where
+1	SIMPLE	t0	index_merge	i1,i2,i3,i5,i6,i7,i8	i3,i5,i7,i8	4,4,4,4	NULL	20	Using sort_union(i3,i5,i7,i8); Using where
 explain select * from t0 where
 ((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
 or
@@ -257,7 +257,7 @@ explain
 select * from t0,t1 where (t0.key1=t1.key1) and 
 (t0.key1=3 or t0.key2=4) and t1.key1<200;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2	i1	4	NULL	179	Using where
+1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
 1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	
 explain 
 select * from t0,t1 where (t0.key1=t1.key1) and 
@@ -345,8 +345,8 @@ from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 < 500000 or A.key2 < 3)
 and   (B.key1 < 500000 or B.key2 < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1016	Using sort_union(i1,i2); Using where
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1016	Using sort_union(i1,i2); Using where
+1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2) 
 where (A.key1 < 500000 or A.key2 < 3)
@@ -371,11 +371,11 @@ alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(20
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
 explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
 from t0 as A, t0 as B 
-where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7or16 = 1 or A.key8=1)
-and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7or16 = 1 or B.key8=1);
+where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key# = 1 or A.key8=1)
+and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key# = 1 or B.key8=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	7or16	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
-1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	7or16	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
+1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
+1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
 from t0 as A, t0 as B 
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
