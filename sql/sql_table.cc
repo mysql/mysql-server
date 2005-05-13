@@ -363,7 +363,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   create_field	*sql_field,*dup_field;
   int		error= -1;
   uint		db_options,field,null_fields,blob_columns;
-  ulong		pos;
+  ulong		record_offset;
   KEY	*key_info,*key_info_buffer;
   KEY_PART_INFO *key_part_info;
   int		auto_increment=0;
@@ -418,10 +418,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     it2.rewind();
   }
-  /* If fixed row records, we need one bit to check for deleted rows */
-  if (!(db_options & HA_OPTION_PACK_RECORD))
-    null_fields++;
-  pos=(null_fields+7)/8;
+
+  /* record_offset will be increased with 'length-of-null-bits' later */
+  record_offset= 0;
 
   it.rewind();
   while ((sql_field=it++))
@@ -478,10 +477,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       sql_field->pack_flag|=FIELDFLAG_MAYBE_NULL;
-    sql_field->offset= pos;
+    sql_field->offset= record_offset;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    pos+=sql_field->pack_length;
+    record_offset+= sql_field->pack_length;
   }
   if (auto_increment > 1)
   {
@@ -578,11 +577,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
-      /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
-         ft code anyway, and 0 (set to column width later) for char's.
-         it has to be correct col width for char's, as char data are not
-         prefixed with length (unlike blobs, where ft code takes data length
-         from a data prefix, ignoring column->length).
+      /*
+        for fulltext keys keyseg length is 1 for blobs (it's ignored in
+        ft code anyway, and 0 (set to column width later) for char's.
+        it has to be correct col width for char's, as char data are not
+        prefixed with length (unlike blobs, where ft code takes data length
+        from a data prefix, ignoring column->length).
       */
       if (key->type == Key::FULLTEXT)
         column->length=test(f_is_blob(sql_field->pack_flag));
@@ -609,6 +609,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  /* Implicitly set primary key fields to NOT NULL for ISO conf. */
 	  sql_field->flags|= NOT_NULL_FLAG;
 	  sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
+          null_fields--;
 	}
         else
           key_info->flags|= HA_NULL_PART_KEY;
@@ -765,6 +766,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (thd->sql_mode & MODE_NO_DIR_IN_CREATE)
     create_info->data_file_name= create_info->index_file_name= 0;
   create_info->table_options=db_options;
+  create_info->null_bits= null_fields;
 
   if (rea_create_table(path, create_info, fields, key_count,
 		       key_info_buffer))
@@ -1828,17 +1830,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	     cfield->length != cfield->pack_length ||
 	     cfield->pack_length <= key_part_length))
 	  key_part_length=0;			// Use whole field
-      }
-      if (!(cfield->flags & NOT_NULL_FLAG))
-      {
-	if (key_type == Key::PRIMARY)
-	{
-	  /* Implicitly set primary key fields to NOT NULL for ISO conf. */
-	  cfield->flags|= NOT_NULL_FLAG;
-	  cfield->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
-	}
-        else
-          key_info->flags|= HA_NULL_PART_KEY;
       }
       key_parts.push_back(new key_part_spec(cfield->field_name,
 					    key_part_length));
