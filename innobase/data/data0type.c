@@ -63,9 +63,10 @@ dtype_get_at_most_n_mbchars(
 {
 #ifndef UNIV_HOTBACKUP
 	ut_a(data_len != UNIV_SQL_NULL);
-	ut_a(!(prefix_len % dtype->mbmaxlen));
+	ut_ad(!dtype->mbmaxlen || !(prefix_len % dtype->mbmaxlen));
 
 	if (dtype->mbminlen != dtype->mbmaxlen) {
+		ut_a(!(prefix_len % dtype->mbmaxlen));
 		return(innobase_get_at_most_n_mbchars(
 				dtype_get_charset_coll(dtype->prtype),
 				prefix_len, data_len, str));
