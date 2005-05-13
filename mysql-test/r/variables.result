@@ -117,27 +117,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select sql_no_cache 345 AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,345 AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
-set global concurrent_insert=ON;
+set global concurrent_insert=2;
 show variables like 'concurrent_insert';
 Variable_name	Value
-concurrent_insert	ON
+concurrent_insert	2
 set global concurrent_insert=1;
 show variables like 'concurrent_insert';
 Variable_name	Value
-concurrent_insert	ON
+concurrent_insert	1
 set global concurrent_insert=0;
 show variables like 'concurrent_insert';
 Variable_name	Value
-concurrent_insert	OFF
-set global concurrent_insert=OFF;
-show variables like 'concurrent_insert';
-Variable_name	Value
-concurrent_insert	OFF
+concurrent_insert	0
 set global concurrent_insert=DEFAULT;
-show variables like 'concurrent_insert';
-Variable_name	Value
-concurrent_insert	ON
-set global timed_mutexes=1;
+select @@concurrent_insert;
+@@concurrent_insert
+1
+set global timed_mutexes=ON;
 show variables like 'timed_mutexes';
 Variable_name	Value
 timed_mutexes	ON
@@ -281,8 +277,6 @@ select @@global.sql_auto_is_null;
 ERROR HY000: Variable 'sql_auto_is_null' is a SESSION variable
 set myisam_max_sort_file_size=100;
 ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
-set myisam_max_extra_sort_file_size=100;
-ERROR HY000: Variable 'myisam_max_extra_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
 set @@SQL_WARNINGS=NULL;
 ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'NULL'
 set autocommit=1;
@@ -338,11 +332,6 @@ select @@max_user_connections;
 @@max_user_connections
 100
 set global max_write_lock_count=100;
-set global myisam_max_extra_sort_file_size=100;
-select @@myisam_max_extra_sort_file_size;
-@@myisam_max_extra_sort_file_size
-100
-set global myisam_max_sort_file_size=100;
 set myisam_sort_buffer_size=100;
 set net_buffer_length=100;
 set net_read_timeout=100;
