@@ -23,7 +23,8 @@ int _mi_write_static_record(MI_INFO *info, const byte *record)
 {
   uchar temp[8];				/* max pointer length */
 
-  if (info->s->state.dellink != HA_OFFSET_ERROR)
+  if (info->s->state.dellink != HA_OFFSET_ERROR &&
+      !info->append_insert_at_end)
   {
     my_off_t filepos=info->s->state.dellink;
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
