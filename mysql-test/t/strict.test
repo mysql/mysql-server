@@ -740,7 +740,7 @@ INSERT INTO t1 VALUES ('-101.55');
 INSERT INTO t1 VALUES ('-1010.55');
 --error 1264
 INSERT INTO t1 VALUES ('-100E+1');
---error 1264
+--error 1366
 INSERT INTO t1 VALUES ('-100E');
 --error 1264
 UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
@@ -754,7 +754,7 @@ INSERT INTO t1 (col1) VALUES ('');
 #--error 1265
 --error 1366
 INSERT INTO t1 (col1) VALUES ('a59b');
-#--error 1265
+--error 1366
 INSERT INTO t1 (col1) VALUES ('1a');
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
 INSERT IGNORE INTO t1 values (1/0);
