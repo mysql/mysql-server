@@ -4389,9 +4389,9 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &max_system_variables.completion_type, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 2, 0, 1, 0},
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
-   "Use concurrent insert with MyISAM. Disable with --skip-concurrent-insert.",
+   "Use concurrent insert with MyISAM. Disable with --concurrent-insert=0",
    (gptr*) &myisam_concurrent_insert, (gptr*) &myisam_concurrent_insert,
-   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   0, GET_LONG, OPT_ARG, 1, 0, 2, 0, 0, 0},
   {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
    (gptr*) &opt_console, (gptr*) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -5332,9 +5332,9 @@ The minimum value for this variable is 4096.",
    "Default pointer size to be used for MyISAM tables.",
    (gptr*) &myisam_data_pointer_size,
    (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
-   4, 2, 8, 0, 1, 0},
+   6, 2, 8, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
-   "Used to help MySQL to decide when to use the slow but safe key cache index create method.",
+   "Depricated option",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_extra_sort_file_size,
    0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
@@ -5870,7 +5870,8 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
-  opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
+  opt_log= opt_update_log= opt_slow_log= 0;
+  opt_bin_log= 1;                               // Enable binlog by default
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
@@ -6170,7 +6171,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_update_log=1;
     break;
   case (int) OPT_BIN_LOG:
-    opt_bin_log=1;
+    opt_bin_log= test(argument != disabled_my_option);
     break;
   case (int) OPT_ERROR_LOG_FILE:
     opt_error_log= 1;
@@ -6570,6 +6571,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
   }
+  case OPT_CONCURRENT_INSERT:
+    /* The following code is mainly here to emulate old behavior */
+    if (!argument)                      /* --concurrent-insert */
+      myisam_concurrent_insert= 1;
+    else if (argument == disabled_my_option)
+      myisam_concurrent_insert= 0;      /* --skip-concurrent-insert */
+    break;
   case OPT_TC_HEURISTIC_RECOVER:
   {
     if ((tc_heuristic_recover=find_type(argument,
@@ -6747,8 +6755,6 @@ static void get_options(int argc,char **argv)
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
     (my_off_t) global_system_variables.myisam_max_sort_file_size;
-  myisam_max_extra_temp_length=
-    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
