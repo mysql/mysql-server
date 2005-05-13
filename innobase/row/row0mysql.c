@@ -1606,10 +1606,18 @@ row_create_table_for_mysql(
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
 		if (err == DB_OUT_OF_FILE_SPACE) {
-			fputs("InnoDB: Warning: cannot create table ", stderr);
+	    		ut_print_timestamp(stderr);
+
+			fputs("  InnoDB: Warning: cannot create table ", 
+								stderr);
 			ut_print_name(stderr, trx, table->name);
 			fputs(" because tablespace full\n", stderr);
-		     	row_drop_table_for_mysql(table->name, trx, FALSE);
+
+			if (dict_table_get_low(table->name)) {
+
+		     		row_drop_table_for_mysql(table->name, trx,
+								FALSE);
+			}
 
 		} else if (err == DB_DUPLICATE_KEY) {
 	    		ut_print_timestamp(stderr);
