@@ -5423,12 +5423,9 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   new_field->comment=*comment;
   /*
     Set flag if this field doesn't have a default value
-    Enum values has always the first value as a default (set in
-    make_empty_rec().
   */
   if (!default_value && !(type_modifier & AUTO_INCREMENT_FLAG) &&
-      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP &&
-      type != FIELD_TYPE_ENUM)
+      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP)
     new_field->flags|= NO_DEFAULT_VALUE_FLAG;
 
   if (length && !(new_field->length= (uint) atoi(length)))
