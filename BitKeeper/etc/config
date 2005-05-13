@@ -69,6 +69,7 @@ pager:
 hours: 
 [serg:]checkout:get
 [arjen:]checkout:get
+[kostja:]checkout:get
 [nick:]checkout:get
 checkout:edit
 eoln:unix
