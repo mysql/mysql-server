@@ -67,7 +67,8 @@ int mi_write(MI_INFO *info, byte *record)
 			       MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
     goto err;
 #endif
-  filepos= ((share->state.dellink != HA_OFFSET_ERROR) ?
+  filepos= ((share->state.dellink != HA_OFFSET_ERROR &&
+             !info->append_insert_at_end) ?
 	    share->state.dellink :
 	    info->state->data_file_length);
 
