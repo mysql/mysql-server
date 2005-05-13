@@ -39,7 +39,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	range	a	a	4	NULL	18	Using where
 explain select * from t3 where a > 10 and a < 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	a	a	4	NULL	16	Using where
+1	SIMPLE	t3	range	a	a	4	NULL	17	Using where
 select * from t3 where a = 10;
 a	b
 10	Testing

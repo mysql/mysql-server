@@ -833,7 +833,7 @@ execute stmt1 ;
 --disable_metadata
 --horizontal_results
 
-drop table t5 ;
+drop table t5, t9;
 
 ##### RULES OF THUMB TO PRESERVE THE SYSTEMATICS OF THE PS TEST CASES #####
 #
