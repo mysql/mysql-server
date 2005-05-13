@@ -171,7 +171,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->arg = 0;
   info->alloced_buffer = 0;
   info->buffer=0;
-  info->seek_not_done= test(file >= 0);
+  info->seek_not_done= test(file >= 0 && seek_offset != my_tell(file, MYF(0)));
   info->disk_writes= 0;
 #ifdef THREAD
   info->share=0;
