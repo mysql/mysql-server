@@ -3243,6 +3243,9 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
     cmp=ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
 		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
 		   &diff_pos);
+    ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
+               (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
+               &diff_pos);
     sort_param->unique[diff_pos-1]++;
   }
   else
@@ -3955,7 +3958,38 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
   return;
 }
 
-    /* calculate unique keys for each part key */
+
+/*
+  Update statistics for each part of an index
+  
+  SYNOPSIS
+    update_key_parts()
+      keyinfo               Index information (only key->keysegs used)
+      rec_per_key_part  OUT Store statistics here
+      unique            IN  Array of #distinct values collected over index
+                            run.
+      records               Number of records in the table
+      
+  NOTES
+    Unique is an array:
+    unique[0]= (#different values of {keypart1}) - 1
+    unique[1]= (#different values of {keypart2,keypart1} tuple) - unique[0] - 1
+    ...
+    Here we assume that NULL != NULL (see SEARCH_NULL_ARE_NOT_EQUAL). The
+    'unique' array is collected in one sequential scan through the entire
+    index. This is done in two places: in chk_index() and in sort_key_write().
+
+    Output is an array:
+    rec_per_key_part[k] = 
+     = E(#records in the table such that keypart_1=c_1 AND ... AND 
+         keypart_k=c_k for arbitrary constants c_1 ... c_k) 
+     
+     = {assuming that values have uniform distribution and index contains all
+        tuples from the domain (or that {c_1, ..., c_k} tuple is choosen from
+        index tuples}
+     
+     = #tuples-in-the-index / #distinct-tuples-in-the-index.
+*/
 
 void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
 			     ulonglong *unique, ulonglong records)
