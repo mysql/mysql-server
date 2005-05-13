@@ -526,3 +526,7 @@ show warnings;
 Level	Code	Message
 Warning	1329	No data to FETCH
 drop table t1;
+set @@warning_count=1;
+ERROR HY000: Variable 'warning_count' is a read only variable
+set @@global.error_count=1;
+ERROR HY000: Variable 'error_count' is a read only variable
