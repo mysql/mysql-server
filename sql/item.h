@@ -525,8 +525,17 @@ public:
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
   virtual Item *replace_equal_field(byte * arg) { return this; }
-  
-  virtual Item *this_item() { return this; } /* For SPs mostly. */
+
+  /*
+    For SP local variable returns pointer to Item representing its
+    current value and pointer to current Item otherwise.
+  */
+  virtual Item *this_item() { return this; }
+  /*
+    For SP local variable returns address of pointer to Item representing its
+    current value and pointer passed via parameter otherwise.
+  */
+  virtual Item **this_item_addr(THD *thd, Item **addr) { return addr; }
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
 
   // Row emulation
@@ -573,6 +582,7 @@ public:
   bool is_splocal() { return 1; } /* Needed for error checking */
 
   Item *this_item();
+  Item **this_item_addr(THD *thd, Item **);
   Item *this_const_item() const;
 
   bool fix_fields(THD *, struct st_table_list *, Item **);
