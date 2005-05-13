@@ -1643,3 +1643,7 @@ select distinct concat(a, b) from t1;
 concat(a, b)
 11113333
 drop table t1;
+CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
+SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
+The used table type doesn't support FULLTEXT indexes
+DROP TABLE t1;

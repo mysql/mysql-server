@@ -489,3 +489,39 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 drop table t1;
+drop table if exists t1, t2;
+create table t1 ( a varchar(10) not null primary key ) engine=myisam;
+create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
+flush tables;
+alter table t1 modify a varchar(10);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) TYPE=MRG_MyISAM UNION=(t1)
+flush tables;
+alter table t1 modify a varchar(10) not null;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) TYPE=MRG_MyISAM UNION=(t1)
+drop table if exists t1, t2;
+create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+show table status like 't1';
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Create_options	Comment
+t1	MyISAM	Fixed	1	37	37	X	X	X	X	X	X	X	X	
+alter table t1 modify a int;
+show table status like 't1';
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Create_options	Comment
+t1	MyISAM	Fixed	1	37	37	X	X	X	X	X	X	X	X	
+drop table t1;
+create table t1 (a int not null, b int not null, c int not null, d int not null, e int not null, f int not null, g int not null, h int not null,i int not null, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+show table status like 't1';
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Create_options	Comment
+t1	MyISAM	Fixed	1	37	37	X	X	X	X	X	X	X	X	
+drop table t1;

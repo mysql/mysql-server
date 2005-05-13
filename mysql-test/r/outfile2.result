@@ -1,0 +1,10 @@
+drop table if exists t1;
+CREATE TABLE t1 (a INT);
+EXPLAIN 
+SELECT *
+INTO OUTFILE '/tmp/t1.txt'
+  FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LINES TERMINATED BY '\r\n'
+  FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+DROP TABLE t1;

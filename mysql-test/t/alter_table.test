@@ -278,6 +278,45 @@ SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 #
+# BUG#4717 - check for valid table names
+#
+create table t1 (a int);
+--error 1103
+alter table t1 rename to `t1\\`;
+--error 1103
+rename table t1 to `t1\\`;
+drop table t1;
+
+#
+# BUG#6236 - ALTER TABLE MODIFY should set implicit NOT NULL on PK columns
+#
+drop table if exists t1, t2;
+create table t1 ( a varchar(10) not null primary key ) engine=myisam;
+create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
+flush tables;
+alter table t1 modify a varchar(10);
+show create table t2;
+flush tables;
+alter table t1 modify a varchar(10) not null;
+show create table t2;
+drop table if exists t1, t2;
+
+# The following is also part of bug #6236 (CREATE TABLE didn't properly count
+# not null columns for primary keys)
+
+create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+--replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+show table status like 't1';
+alter table t1 modify a int;
+--replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+show table status like 't1';
+drop table t1;
+create table t1 (a int not null, b int not null, c int not null, d int not null, e int not null, f int not null, g int not null, h int not null,i int not null, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+--replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+show table status like 't1';
+drop table t1;
 # Bug 2361 (Don't drop UNIQUE with DROP PRIMARY KEY)
 #
 
@@ -294,16 +333,6 @@ insert into t1 values (1,1), (2,2);
 --error 1091
 alter table t1 drop key no_such_key;
 alter table t1 drop key a;
-drop table t1;
-
-#
-# BUG#4717 - check for valid table names
-#
-create table t1 (a int);
---error 1103
-alter table t1 rename to `t1\\`;
---error 1103
-rename table t1 to `t1\\`;
 drop table t1;
 
 #
