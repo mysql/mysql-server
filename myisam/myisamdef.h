@@ -271,6 +271,7 @@ struct st_myisam_info {
   uint  preload_buff_size;              /* When preloading indexes */
   myf lock_wait;			/* is 0 or MY_DONT_WAIT */
   my_bool was_locked;			/* Was locked in panic */
+  my_bool append_insert_at_end;		/* Set if concurrent insert */
   my_bool quick_mode;
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
@@ -702,7 +703,7 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 			   const byte *record, my_off_t pos);
 int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
 		   my_bool null_are_equal);
-void mi_get_status(void* param);
+void mi_get_status(void* param, int concurrent_insert);
 void mi_update_status(void* param);
 void mi_copy_status(void* to,void *from);
 my_bool mi_check_status(void* param);

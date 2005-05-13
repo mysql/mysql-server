@@ -108,7 +108,6 @@ static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
-static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
@@ -158,8 +157,8 @@ sys_var_thd_ulong	sys_completion_type("completion_type",
 sys_var_collation_connection sys_collation_connection("collation_connection");
 sys_var_collation_database sys_collation_database("collation_database");
 sys_var_collation_server sys_collation_server("collation_server");
-sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
-					      &myisam_concurrent_insert);
+sys_var_long_ptr	sys_concurrent_insert("concurrent_insert",
+                                              &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
 					    &connect_timeout);
 sys_var_enum		sys_delay_key_write("delay_key_write",
@@ -270,7 +269,6 @@ sys_var_thd_ulong       sys_multi_range_count("multi_range_count",
                                               &SV::multi_range_count);
 sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
                                                     &myisam_data_pointer_size);
-sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);
 sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
 sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
 sys_var_thd_ulong	sys_myisam_sort_buffer_size("myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
@@ -623,7 +621,6 @@ sys_var *sys_variables[]=
   &sys_max_write_lock_count,
   &sys_multi_range_count,
   &sys_myisam_data_pointer_size,
-  &sys_myisam_max_extra_sort_file_size,
   &sys_myisam_max_sort_file_size,
   &sys_myisam_repair_threads,
   &sys_myisam_sort_buffer_size,
@@ -882,9 +879,6 @@ struct show_var_st init_vars[]= {
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
   {sys_multi_range_count.name,  (char*) &sys_multi_range_count,     SHOW_SYS},
   {sys_myisam_data_pointer_size.name, (char*) &sys_myisam_data_pointer_size, SHOW_SYS},
-  {sys_myisam_max_extra_sort_file_size.name,
-   (char*) &sys_myisam_max_extra_sort_file_size,
-   SHOW_SYS},
   {sys_myisam_max_sort_file_size.name, (char*) &sys_myisam_max_sort_file_size,
    SHOW_SYS},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
@@ -1137,14 +1131,6 @@ static void fix_low_priority_updates(THD *thd, enum_var_type type)
   if (type != OPT_GLOBAL)
     thd->update_lock_default= (thd->variables.low_priority_updates ?
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
-}
-
-
-static void
-fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type)
-{
-  myisam_max_extra_temp_length=
-    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
 }
 
 
