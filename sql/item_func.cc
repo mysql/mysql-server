@@ -1255,8 +1255,8 @@ void Item_func_div::result_precision()
 void Item_func_div::fix_length_and_dec()
 {
   DBUG_ENTER("Item_func_div::fix_length_and_dec");
-  Item_num_op::fix_length_and_dec();
   prec_increment= current_thd->variables.div_precincrement;
+  Item_num_op::fix_length_and_dec();
   switch(hybrid_type) {
   case REAL_RESULT:
   {
