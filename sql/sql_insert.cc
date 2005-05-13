@@ -969,7 +969,8 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry)
   for (Field **field=entry->field ; *field ; field++)
   {
     if ((*field)->query_id != thd->query_id &&
-        ((*field)->flags & NO_DEFAULT_VALUE_FLAG))
+        ((*field)->flags & NO_DEFAULT_VALUE_FLAG) &&
+        ((*field)->real_type() != FIELD_TYPE_ENUM))
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                            ER_NO_DEFAULT_FOR_FIELD,
