@@ -238,13 +238,24 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   The following functions are called by thr_lock() in threaded applications
 ****************************************************************************/
 
-void mi_get_status(void* param)
+/*
+  Create a copy of the current status for the table
+
+  SYNOPSIS
+    mi_get_status()
+    param		Pointer to Myisam handler
+    concurrent_insert	Set to 1 if we are going to do concurrent inserts
+			(THR_WRITE_CONCURRENT_INSERT was used)
+*/
+
+void mi_get_status(void* param, int concurrent_insert)
 {
   MI_INFO *info=(MI_INFO*) param;
   DBUG_ENTER("mi_get_status");
-  DBUG_PRINT("info",("key_file: %ld  data_file: %ld",
+  DBUG_PRINT("info",("key_file: %ld  data_file: %ld  concurrent_insert: %d",
 		     (long) info->s->state.state.key_file_length,
-		     (long) info->s->state.state.data_file_length));
+		     (long) info->s->state.state.data_file_length,
+                     concurrent_insert));
 #ifndef DBUG_OFF
   if (info->state->key_file_length > info->s->state.state.key_file_length ||
       info->state->data_file_length > info->s->state.state.data_file_length)
@@ -254,8 +265,10 @@ void mi_get_status(void* param)
 #endif
   info->save_state=info->s->state.state;
   info->state= &info->save_state;
+  info->append_insert_at_end= concurrent_insert;
   DBUG_VOID_RETURN;
 }
+
 
 void mi_update_status(void* param)
 {
@@ -281,6 +294,7 @@ void mi_update_status(void* param)
     info->s->state.state= *info->state;
     info->state= &info->s->state.state;
   }
+  info->append_insert_at_end= 0;
 
   /*
     We have to flush the write cache here as other threads may start
@@ -307,20 +321,37 @@ void mi_copy_status(void* to,void *from)
   Check if should allow concurrent inserts
 
   IMPLEMENTATION
-    Don't allow concurrent inserts if we have a hole in the table.
+    Allow concurrent inserts if we don't have a hole in the table or
+    if there is no active write lock and there is active read locks and 
+    myisam_concurrent_insert == 2. In this last case the new
+    row('s) are inserted at end of file instead of filling up the hole.
+
+    The last case is to allow one to inserts into a heavily read-used table
+    even if there is holes.
 
   NOTES
-    Rtree indexes are disabled in mi_open()
+    If there is a an rtree indexes in the table, concurrent inserts are
+    disabled in mi_open()
 
   RETURN
     0  ok to use concurrent inserts
     1  not ok
 */
 
-my_bool mi_check_status(void* param)
+my_bool mi_check_status(void *param)
 {
   MI_INFO *info=(MI_INFO*) param;
-  return (my_bool) (info->s->state.dellink != HA_OFFSET_ERROR);
+  /*
+    The test for w_locks == 1 is here because this thread has already done an
+    external lock (in other words: w_locks == 1 means no other threads has
+    a write lock)
+  */
+  DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
+                     (long) info->s->state.dellink, (uint) info->s->r_locks,
+                     (uint) info->s->w_locks));
+  return (my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
+                     (myisam_concurrent_insert == 2 && info->s->r_locks &&
+                      info->s->w_locks == 1));
 }
 
 
