@@ -301,8 +301,25 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 } /* _mi_pack_key */
 
 
-	/* Put a key in record */
-	/* Used when only-keyread is wanted */
+
+/*
+  Store found key in record
+
+  SYNOPSIS
+    _mi_put_key_in_record()
+    info		MyISAM handler
+    keynr		Key number that was used
+    record 		Store key here
+
+    Last read key is in info->lastkey
+
+ NOTES
+   Used when only-keyread is wanted
+
+ RETURN
+   0   ok
+   1   error
+*/
 
 static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
 				 byte *record)
@@ -313,14 +330,8 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
   byte *blob_ptr;
   DBUG_ENTER("_mi_put_key_in_record");
 
-  if (info->s->base.blobs && info->s->keyinfo[keynr].flag & HA_VAR_LENGTH_KEY)
-  {
-    if (!(blob_ptr=
-	  mi_alloc_rec_buff(info, info->s->keyinfo[keynr].keylength,
-			    &info->rec_buff)))
-      goto err;
-  }
-  key=(byte*) info->lastkey;
+  blob_ptr= info->lastkey2;                     /* Place to put blob parts */
+  key=(byte*) info->lastkey;                    /* KEy that was read */
   key_end=key+info->lastkey_length;
   for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type ;keyseg++)
   {
