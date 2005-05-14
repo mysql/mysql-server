@@ -27,6 +27,7 @@
 #define USES_TYPES
 #include "mysql_priv.h"
 #include <m_ctype.h>
+#include <assert.h>
 
 #define FCOMP			11		/* Byte per packat f{lt */
 
