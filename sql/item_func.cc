@@ -3176,7 +3176,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   table=((Item_field *)item)->field->table;
   if (!(table->file->table_flags() & HA_CAN_FULLTEXT))
   {
-    my_error(ER_TABLE_CANT_HANDLE_FULLTEXT, MYF(0));
+    my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;
   }
   table->fulltext_searched=1;
