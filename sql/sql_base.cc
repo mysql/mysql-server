@@ -1488,6 +1488,7 @@ bool wait_for_tables(THD *thd)
   {
     /* Now we can open all tables without any interference */
     thd->proc_info="Reopen tables";
+    thd->version= refresh_version;
     result=reopen_tables(thd,0,0);
   }
   pthread_mutex_unlock(&LOCK_open);
@@ -2689,6 +2690,17 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (found == WRONG_GRANT)
 	return (Field*) 0;
+      {
+        SELECT_LEX *current_sel= thd->lex->current_select;
+        SELECT_LEX *last_select= item->cached_table->select_lex;
+        /*
+          If the field was an outer referencee, mark all selects using this
+          sub query as dependent of the outer query
+        */
+        if (current_sel != last_select)
+          mark_select_range_as_dependent(thd, last_select, current_sel,
+                                         found, *ref, item);
+      }
       return found;
     }
   }
@@ -3157,10 +3169,8 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 {
   for (TABLE_LIST *table= tables; table; table= table->next_local)
   {
-    if (table->view && !table->table)
+    if (table->view && table->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
-      /* it is for multi table views only, check it */
-      DBUG_ASSERT(table->ancestor->next_local != 0);
       list= make_leaves_list(list, table->ancestor);
     }
     else
@@ -3858,11 +3868,8 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     TABLE *table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if ((value->save_in_field(field, 0) < 0) && !ignore_errors)
-    {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+    if (value->save_in_field(field, 0) == -1)
       DBUG_RETURN(TRUE);
-    }
   }
   DBUG_RETURN(thd->net.report_error);
 }

@@ -585,33 +585,7 @@ public:
    */
   ArrayPool<TcIndexOperation> c_theIndexOperationPool;
 
-  /**
-   * The list of index operations
-   */  
-  ArrayList<TcIndexOperation> c_theIndexOperations;
-
   UintR c_maxNumberOfIndexOperations;   
-
-  struct TcSeizedIndexOperation {
-    /**
-     * Next ptr (used in pool/list)
-     */
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    /**
-     * Prev pointer (used in list)
-     */
-    Uint32 prevList;
-  };
-
-  /**
-   * Pool of seized index operations
-   */
-  ArrayPool<TcSeizedIndexOperation> c_theSeizedIndexOperationPool;
-
-  typedef Ptr<TcSeizedIndexOperation> TcSeizedIndexOperationPtr;
 
   /************************** API CONNECT RECORD ***********************
    * The API connect record contains the connection record to which the
@@ -650,7 +624,7 @@ public:
 
   struct ApiConnectRecord {
     ApiConnectRecord(ArrayPool<TcFiredTriggerData> & firedTriggerPool,
-		     ArrayPool<TcSeizedIndexOperation> & seizedIndexOpPool):
+		     ArrayPool<TcIndexOperation> & seizedIndexOpPool):
       theFiredTriggers(firedTriggerPool),
       isIndexOp(false),
       theSeizedIndexOperations(seizedIndexOpPool) 
@@ -763,7 +737,7 @@ public:
     UintR accumulatingIndexOp;
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
-    ArrayList<TcSeizedIndexOperation> theSeizedIndexOperations;
+    ArrayList<TcIndexOperation> theSeizedIndexOperations;
   };
   
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;

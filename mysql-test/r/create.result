@@ -115,9 +115,9 @@ Field	Type	Null	Key	Default	Extra
 a	datetime	NO		0000-00-00 00:00:00	
 b	time	NO		00:00:00	
 c	date	NO		0000-00-00	
-d	int(2)	NO		0	
-e	decimal(6,1)	NO		0.0	
-f	bigint(18)	NO		0	
+d	int(3)	NO		0	
+e	decimal(3,1)	NO		0.0	
+f	bigint(19)	NO		0	
 drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
@@ -429,7 +429,7 @@ explain t2;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	bigint(11)	NO		0	
-c	bigint(10)	NO		0	
+c	bigint(11)	NO		0	
 d	date	YES		NULL	
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
@@ -448,12 +448,12 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `ifnull(a,a)` tinyint(4) default NULL,
   `ifnull(b,b)` smallint(6) default NULL,
-  `ifnull(c,c)` mediumint(9) default NULL,
+  `ifnull(c,c)` mediumint(8) default NULL,
   `ifnull(d,d)` int(11) default NULL,
   `ifnull(e,e)` bigint(20) default NULL,
-  `ifnull(f,f)` float(3,2) default NULL,
-  `ifnull(g,g)` double(4,3) default NULL,
-  `ifnull(h,h)` decimal(6,4) default NULL,
+  `ifnull(f,f)` float(24,2) default NULL,
+  `ifnull(g,g)` double(53,3) default NULL,
+  `ifnull(h,h)` decimal(5,4) default NULL,
   `ifnull(i,i)` year(4) default NULL,
   `ifnull(j,j)` date default NULL,
   `ifnull(k,k)` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -568,3 +568,14 @@ NULL	1
 Test	0
 NULL	1
 drop table t1, t2, t3;
+create table t1 (b bool not null default false);
+create table t2 (b bool not null default true);
+insert into t1 values ();
+insert into t2 values ();
+select * from t1;
+b
+0
+select * from t2;
+b
+1
+drop table t1,t2;

@@ -274,20 +274,20 @@ static dec1 *remove_leading_zeroes(decimal_t *from, int *intg_result)
 
 
 /*
-  Remove ending 0 digits from fraction part
+  Count actual length of fraction part (without ending zeroes)
 
   SYNOPSIS
-    decimal_optimize_fraction()
+    decimal_actual_fraction()
     from    number for processing
 */
 
-void decimal_optimize_fraction(decimal_t *from)
+int decimal_actual_fraction(decimal_t *from)
 {
   int frac= from->frac, i;
   dec1 *buf0= from->buf + ROUND_UP(from->intg) + ROUND_UP(frac) - 1;
 
   if (frac == 0)
-    return;
+    return 0;
 
   i= ((frac - 1) % DIG_PER_DEC1 + 1);
   while (frac > 0 && *buf0 == 0)
@@ -302,7 +302,7 @@ void decimal_optimize_fraction(decimal_t *from)
          *buf0 % powers10[i++] == 0;
          frac--);
   }
-  from->frac= frac;
+  return frac;
 }
 
 
@@ -332,23 +332,15 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler)
 {
-  int len, intg, frac=from->frac, i, intg_len, frac_len, fill;
+  int len, intg, frac= from->frac, i, intg_len, frac_len, fill;
   /* number digits before decimal point */
   int fixed_intg= (fixed_precision ?
-                   (fixed_precision -
-                    (from->sign ? 1 : 0) -
-                    (fixed_decimals ? 1 : 0) -
-                    fixed_decimals) :
-                   0);
+                   (fixed_precision - fixed_decimals) : 0);
   int error=E_DEC_OK;
   char *s=to;
   dec1 *buf, *buf0=from->buf, tmp;
 
   DBUG_ASSERT(*to_len >= 2+from->sign);
-  DBUG_ASSERT(fixed_precision == 0 ||
-              (fixed_precision < *to_len &&
-               fixed_precision > ((from->sign ? 1 : 0) +
-                                  (fixed_decimals ? 1 : 0))));
 
   /* removing leading zeroes */
   buf0= remove_leading_zeroes(from, &intg);
@@ -1170,6 +1162,8 @@ int decimal2bin(decimal_t *from, char *to, int precision, int frac)
       isize0=intg0*sizeof(dec1)+dig2bytes[intg0x],
       fsize0=frac0*sizeof(dec1)+dig2bytes[frac0x],
       fsize1=frac1*sizeof(dec1)+dig2bytes[frac1x];
+  const int orig_isize0= isize0;
+  const int orig_fsize0= fsize0;
   char *orig_to= to;
 
   buf1= remove_leading_zeroes(from, &from_intg);
@@ -1260,10 +1254,15 @@ int decimal2bin(decimal_t *from, char *to, int precision, int frac)
   }
   if (fsize0 > fsize1)
   {
-    while (fsize0-- > fsize1)
+    char *to_end= orig_to + orig_fsize0 + orig_isize0;
+
+    while (fsize0-- > fsize1 && to < to_end)
       *to++=(uchar)mask;
   }
   orig_to[0]^= 0x80;
+
+  /* Check that we have written the whole decimal and nothing more */
+  DBUG_ASSERT(to == orig_to + orig_fsize0 + orig_isize0);
   return error;
 }
 
@@ -1620,13 +1619,19 @@ static int do_add(decimal_t *from1, decimal_t *from2, decimal_t *to)
   x=intg1 > intg2 ? from1->buf[0] :
     intg2 > intg1 ? from2->buf[0] :
     from1->buf[0] + from2->buf[0] ;
-  if (unlikely(x > DIG_MASK*9)) /* yes, there is */
+  if (unlikely(x > DIG_MAX-1)) /* yes, there is */
   {
     intg0++;
     to->buf[0]=0; /* safety */
   }
 
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
+  if (unlikely(error == E_DEC_OVERFLOW))
+  {
+    max_decimal(to->len * DIG_PER_DEC1, 0, to);
+    return error;
+  }
+
   buf0=to->buf+intg0+frac0;
 
   to->sign=from1->sign;
@@ -1711,19 +1716,23 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     carry=1;
   else if (intg2 == intg1)
   {
-    while (unlikely(stop1[frac1-1] == 0))
-      frac1--;
-    while (unlikely(stop2[frac2-1] == 0))
-      frac2--;
-    while (buf1 < stop1+frac1 && buf2 < stop2+frac2 && *buf1 == *buf2)
+    dec1 *end1= stop1 + (frac1 - 1);
+    dec1 *end2= stop2 + (frac2 - 1);
+    while (unlikely((buf1 <= end1) && (*end1 == 0)))
+      end1--;
+    while (unlikely((buf2 <= end2) && (*end2 == 0)))
+      end2--;
+    frac1= (end1 - stop1) + 1;
+    frac2= (end2 - stop2) + 1;
+    while (buf1 <=end1 && buf2 <= end2 && *buf1 == *buf2)
       buf1++, buf2++;
-    if (buf1 < stop1+frac1)
-      if (buf2 < stop2+frac2)
+    if (buf1 <= end1)
+      if (buf2 <= end2)
         carry= *buf2 > *buf1;
       else
         carry= 0;
     else
-      if (buf2 < stop2+frac2)
+      if (buf2 <= end2)
         carry=1;
       else /* short-circuit everything: from1 == from2 */
       {
@@ -1922,6 +1931,17 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
     for (; carry; buf0--)
       ADD(*buf0, *buf0, 0, carry);
   }
+
+  /* Now we have to check for -0.000 case */
+  if (to->sign)
+  {
+    dec1 *buf= to->buf;
+    dec1 *end= to->buf + intg0 + frac0;
+    for (; (buf<end) && !*buf; buf++);
+    if (buf == end)
+      /* So we got decimal zero */
+      decimal_make_zero(to);
+  }
   return error;
 }
 
@@ -1953,6 +1973,18 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   sanity(to);
 
   /* removing all the leading zeroes */
+  i= ((prec2 - 1) % DIG_PER_DEC1) + 1;
+  while (prec2 > 0 && *buf2 == 0)
+  {
+    prec2-= i;
+    i= DIG_PER_DEC1;
+    buf2++;
+  }
+  if (prec2 <= 0) /* short-circuit everything: from2 == 0 */
+    return E_DEC_DIV_ZERO;
+  for (i= (prec2 - 1) % DIG_PER_DEC1; *buf2 < powers10[i--]; prec2--) ;
+  DBUG_ASSERT(prec2 > 0);
+
   i=((prec1-1) % DIG_PER_DEC1)+1;
   while (prec1 > 0 && *buf1 == 0)
   {
@@ -1967,19 +1999,6 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   }
   for (i=(prec1-1) % DIG_PER_DEC1; *buf1 < powers10[i--]; prec1--) ;
   DBUG_ASSERT(prec1 > 0);
-
-  i=((prec2-1) % DIG_PER_DEC1)+1;
-  while (prec2 > 0 && *buf2 == 0)
-  {
-    prec2-=i;
-    i=DIG_PER_DEC1;
-    buf2++;
-  }
-  if (prec2 <= 0) /* short-circuit everything: from2 == 0 */
-    return E_DEC_DIV_ZERO;
-
-  for (i=(prec2-1) % DIG_PER_DEC1; *buf2 < powers10[i--]; prec2--) ;
-  DBUG_ASSERT(prec2 > 0);
 
   /* let's fix scale_incr, taking into account frac1,frac2 increase */
   if ((scale_incr-= frac1 - from1->frac + frac2 - from2->frac) < 0)
@@ -2609,7 +2628,7 @@ void test_fr(const char *s1, const char *orig)
   printf("%-40s =>          ", s);
   end= strend(s1);
   string2decimal(s1, &a, &end);
-  decimal_optimize_fraction(&a);
+  a.frac= decimal_actual_fraction(&a);
   print_decimal(&a, orig, 0, 0);
   printf("\n");
 }
@@ -2731,6 +2750,7 @@ int main()
   test_dv("123", "0.01","12300.000000000", 0);
   test_dv("120", "100000000000.00000","0.000000001200000000", 0);
   test_dv("123", "0","", 4);
+  test_dv("0", "0", "", 4);
   test_dv("-12193185.1853376", "98765.4321","-123.456000000000000000", 0);
   test_dv("121931851853376", "987654321","123456.000000000", 0);
   test_dv("0", "987","0", 0);
@@ -2947,7 +2967,7 @@ int main()
   test_sh("123456789.987654321", 0, "123456789.987654321", 0);
   a.len= sizeof(buf1)/sizeof(dec1);
 
-  printf("==== decimal_optimize_fraction ====\n");
+  printf("==== decimal_actual_fraction ====\n");
   test_fr("1.123456789000000000", "1.123456789");
   test_fr("1.12345678000000000", "1.12345678");
   test_fr("1.1234567000000000", "1.1234567");

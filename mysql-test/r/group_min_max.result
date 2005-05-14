@@ -1961,3 +1961,10 @@ a varchar(30), b varchar(30), primary key(a), key(b)
 select distinct a from t1;
 a
 drop table t1;
+create table t1(a int, key(a)) engine=innodb;
+insert into t1 values(1);
+select a, count(a) from t1 group by a with rollup;
+a	count(a)
+1	1
+NULL	1
+drop table t1;

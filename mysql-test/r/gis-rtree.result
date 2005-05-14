@@ -801,5 +801,5 @@ CREATE TABLE t1 (st varchar(100));
 INSERT INTO t1 VALUES ("Fake string");
 CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
-ERROR HY000: Unknown error
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1, t2;

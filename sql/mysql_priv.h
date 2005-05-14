@@ -183,6 +183,11 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #else
 #define IF_INNOBASE_DB(A, B) (B)
 #endif
+#ifdef __NETWARE__
+#define IF_NETWARE(A,B) (A)
+#else
+#define IF_NETWARE(A,B) (B)
+#endif
 
 #if defined(__WIN__) || defined(OS2)
 #define IF_WIN(A,B) (A)
@@ -263,6 +268,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_SCHEMA_TABLE             (1L << 29)
 /* Flag set if setup_tables already done */
 #define OPTION_SETUP_TABLES_DONE        (1L << 30)
+/* Thr following is used to detect a conflict with DISTINCT
+   in the user query has requested */
+#define SELECT_ALL			(ULL(1) << 32)
 
 /* 
   Maximum length of time zone name that we support 
@@ -1088,7 +1096,7 @@ extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern my_bool sp_automatic_privileges;
-extern my_bool opt_old_style_user_limits;
+extern my_bool opt_old_style_user_limits, trust_routine_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;

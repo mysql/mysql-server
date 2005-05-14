@@ -179,6 +179,10 @@ extern void my_large_free(gptr ptr, myf my_flags);
 #if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
 #endif /* _AIX */
+#if defined(__MWERKS__)
+#undef alloca
+#define alloca __alloca
+#endif /* __MWERKS__ */
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */
@@ -638,6 +642,7 @@ extern uint dirname_part(my_string to,const char *name);
 extern uint dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
 extern int test_if_hard_path(const char *dir_name);
+extern my_bool has_path(const char *name);
 extern char *convert_dirname(char *to, const char *from, const char *from_end);
 extern void to_unix_path(my_string name);
 extern my_string fn_ext(const char *name);
@@ -781,6 +786,7 @@ extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
                                   Process_option_func func, void *func_ctx);
 extern void free_defaults(char **argv);
+extern void my_print_default_files(const char *conf_file);
 extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);
 extern my_bool my_uncompress(byte *, ulong *, ulong *);

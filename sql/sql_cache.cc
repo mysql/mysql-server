@@ -1950,6 +1950,11 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
       type = Query_cache_block::RES_CONT;
     } while (block != *result_block);
 #else
+    /*
+      Set type of first block, emb_store_querycache_result() will handle
+      the others.
+    */
+    (*result_block)->type= type;
     Querycache_stream qs(*result_block, headers_len);
     emb_store_querycache_result(&qs, (THD*)data);
 #endif /*!EMBEDDED_LIBRARY*/

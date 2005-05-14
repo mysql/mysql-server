@@ -2029,3 +2029,46 @@ select t1.a from (t1 inner join t2 on t1.a=t2.a) where t2.a=1;
 select t1.a from ((t1 inner join t2 on t1.a=t2.a)) where t2.a=1;
 select x.a, y.a, z.a from ( (t1 x inner join t2 y on x.a=y.a) inner join t2 z on y.a=z.a) WHERE x.a=1;
 drop table t1,t2;
+
+#
+# Bug#9820
+#
+
+create table t1 (s1 varchar(5));
+insert into t1 values ('Wall');
+select min(s1) from t1 group by s1 with rollup;
+drop table t1;
+
+#
+# Bug#9799
+#
+
+create table t1 (s1 int) engine=myisam;
+insert into t1 values (0);
+select avg(distinct s1) from t1 group by s1 with rollup;
+drop table t1;
+
+#
+# Bug#9800
+#
+
+create table t1 (s1 int);
+insert into t1 values (null),(1);
+select distinct avg(s1) as x from t1 group by s1 with rollup;
+drop table t1;
+
+
+#
+# Bug#8733 server accepts malformed query (multiply mentioned distinct)
+#
+create table t1 (a int(11));
+select all all * from t1;
+select distinct distinct * from t1;
+--error 1064
+select all distinct * from t1;
+--error 1064
+select distinct all * from t1;
+drop table t1;
+
+
+#

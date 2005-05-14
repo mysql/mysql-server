@@ -1296,6 +1296,8 @@ select fld1,fld3 from t2 where fld1 like "25050_";
 create table t3 engine=archive select * from t2;
 select * from t3 where fld3='bonfire';
 select count(*) from t3;
+# Clean up path in error message
+--replace_result $MYSQL_TEST_DIR . /var/master-data/ /
 rename table t3 to t4;
 select * from t4 where fld3='bonfire';
 select count(*) from t4;

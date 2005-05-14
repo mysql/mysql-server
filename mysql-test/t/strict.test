@@ -1083,3 +1083,13 @@ INSERT INTO t1 SET j = 1, i = DEFAULT;
 INSERT INTO t1 SET j = 1, i = DEFAULT(i);
 INSERT INTO t1 VALUES (DEFAULT,1);
 DROP TABLE t1;
+
+#
+# Bugs #8295 and #8296: varchar and varbinary conversion
+#
+
+set @@sql_mode='traditional';
+--error 1074
+create table t1(a varchar(65537));
+--error 1074
+create table t1(a varbinary(65537));

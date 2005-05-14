@@ -17,7 +17,7 @@
 
 /* Function items used by mysql */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
@@ -262,15 +262,13 @@ public:
     null_value= args[0]->null_value;
     return tmp;
   }
-  longlong val_int()
-  {
-    longlong tmp= args[0]->val_int();
-    null_value= args[0]->null_value; 
-    return tmp;
-  }
+  longlong val_int();
+  longlong val_int_from_str(int *error);
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
   void print(String *str);
+  uint decimal_precision() const { return args[0]->decimal_precision(); }
+
 };
 
 
@@ -281,6 +279,7 @@ public:
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
+  longlong val_int();
   void print(String *str);
 };
 
@@ -299,7 +298,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DECIMAL; }
+  enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
   void fix_length_and_dec() {};
 };
 
@@ -349,6 +348,7 @@ public:
 class Item_func_div :public Item_num_op
 {
 public:
+  uint prec_increment;
   Item_func_div(Item *a,Item *b) :Item_num_op(a,b) {}
   longlong int_op() { DBUG_ASSERT(0); return 0; }
   double real_op();
@@ -393,6 +393,7 @@ public:
   const char *func_name() const { return "-"; }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
+  uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
 
 
@@ -596,7 +597,7 @@ public:
   double real_op();
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
-  void fix_num_length_and_dec();
+  void fix_length_and_dec();
 };
 
 
@@ -878,6 +879,7 @@ public:
     fixed= 1;
     return res;
   }
+  void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
 };
@@ -1071,6 +1073,7 @@ class Item_func_set_user_var :public Item_func
   char buffer[MAX_FIELD_WIDTH];
   String value;
   my_decimal decimal_buff;
+  bool null_item;
   union
   {
     longlong vint;

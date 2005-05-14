@@ -58,6 +58,9 @@ enum
 
 bool mysql_proc_table_exists= 1;
 
+/* Tells what SP_DEFAULT_ACCESS should be mapped to */
+#define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
+
 /* *opened=true means we opened ourselves */
 static int
 db_find_routine_aux(THD *thd, int type, sp_name *name,
@@ -189,7 +192,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     chistics.daccess= SP_MODIFIES_SQL_DATA;
     break;
   default:
-    chistics.daccess= SP_CONTAINS_SQL;
+    chistics.daccess= SP_DEFAULT_ACCESS_MAPPING;
   }
 
   if ((ptr= get_field(thd->mem_root,
@@ -425,9 +428,46 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 	store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
 	      system_charset_info);
 
+    if (!trust_routine_creators && mysql_bin_log.is_open())
+    {
+      if (!sp->m_chistics->detistic)
+      {
+	/*
+	  Note that for a _function_ this test is not enough; one could use
+	  a non-deterministic read-only function in an update statement.
+	*/
+	enum enum_sp_data_access access=
+	  (sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
+	  SP_DEFAULT_ACCESS_MAPPING : sp->m_chistics->daccess;
+	if (access == SP_CONTAINS_SQL ||
+	    access == SP_MODIFIES_SQL_DATA)
+	{
+	  my_message(ER_BINLOG_UNSAFE_ROUTINE,
+		     ER(ER_BINLOG_UNSAFE_ROUTINE), MYF(0));
+	  ret= SP_INTERNAL_ERROR;
+	  goto done;
+	}
+      }
+      if (!(thd->master_access & SUPER_ACL))
+      {
+	my_message(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,
+		   ER(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER), MYF(0));
+	ret= SP_INTERNAL_ERROR;
+	goto done;
+      }
+    }
+
     ret= SP_OK;
     if (table->file->write_row(table->record[0]))
       ret= SP_WRITE_ROW_FAILED;
+    else if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      /* Such a statement can always go directly to binlog, no trans cache */
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+
   }
 
 done:

@@ -43,9 +43,9 @@ int decimal_operation_results(int result)
     break;
   case E_DEC_OVERFLOW:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_WARN_DATA_OUT_OF_RANGE,
-			ER(ER_WARN_DATA_OUT_OF_RANGE),
-			"", (long)-1);
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE),
+			"DECIMAL", "");
     break;
   case E_DEC_DIV_ZERO:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -81,7 +81,7 @@ int decimal_operation_results(int result)
 */
 
 int my_decimal2string(uint mask, const my_decimal *d,
-                      int fixed_prec, int fixed_dec,
+                      uint fixed_prec, uint fixed_dec,
                       char filler, String *str)
 {
   int length= (fixed_prec ? (fixed_prec + 1) : my_decimal_string_length(d));
@@ -89,7 +89,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
   if (str->alloc(length))
     return check_result(mask, E_DEC_OOM);
   result= decimal2string((decimal_t*) d, (char*) str->ptr(),
-                         &length, fixed_prec, fixed_dec,
+                         &length, (int)fixed_prec, fixed_dec,
                          filler);
   str->length(length);
   return check_result(mask, result);
@@ -123,7 +123,7 @@ int my_decimal2binary(uint mask, const my_decimal *d, char *bin, int prec,
   int err1= E_DEC_OK, err2;
   my_decimal rounded;
   my_decimal2decimal(d, &rounded);
-  decimal_optimize_fraction(&rounded);
+  rounded.frac= decimal_actual_fraction(&rounded);
   if (scale < rounded.frac)
   {
     err1= E_DEC_TRUNCATED;
@@ -220,18 +220,16 @@ print_decimal_buff(const my_decimal *dec, const byte* ptr, int length)
 }
 
 
-void dbug_print_decimal(const char *tag, const char *format, my_decimal *val)
+const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
 {
-  char buff[DECIMAL_MAX_STR_LENGTH];
-  String str(buff, sizeof(buff), &my_charset_bin);
+  int length= DECIMAL_MAX_STR_LENGTH;
   if (!val)
-    str.set("NULL", 4, &my_charset_bin);
-  else
-    my_decimal2string(0, val, 0, 0, 0, &str);
-  DBUG_PRINT(tag, (format, (char*) str.ptr()));
+    return "NULL";
+  (void)decimal2string((decimal_t*) val, buff, &length, 0,0,0);
+  return buff;
 }
 
-#endif
+#endif /*DBUG_OFF*/
 
 
 #endif /*MYSQL_CLIENT*/

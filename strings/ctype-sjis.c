@@ -4591,7 +4591,7 @@ uint my_well_formed_len_sjis(CHARSET_INFO *cs __attribute__((unused)),
 {
   const char *b0= b;
   *error= 0;
-  while (pos && b < e)
+  while (pos-- && b < e)
   {
     if ((uchar) b[0] < 128)
     {
@@ -4631,6 +4631,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strcasecmp_8bit,
   my_instr_mb,
   my_hash_sort_simple,
+  my_propagate_simple
 };
 
 

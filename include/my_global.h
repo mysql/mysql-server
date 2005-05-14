@@ -43,6 +43,11 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
+/* Determine when to use "#pragma interface" */
+#if !defined(__CYGWIN__) && !defined(__ICC) && defined(__GNUC__) && (__GNUC__ < 3)
+#define USE_PRAGMA_INTERFACE
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
@@ -230,32 +235,9 @@ C_MODE_END
 #define __LONG_MAX__ 2147483647
 #endif
 
-/* Fix problem when linking c++ programs with gcc 3.x */
-#ifdef DEFINE_CXA_PURE_VIRTUAL
-#define FIX_GCC_LINKING_PROBLEM \
-C_MODE_START int __cxa_pure_virtual() {\
-  DBUG_ASSERT("Pure virtual method called." == "Aborted");\
-  return 0;\
-} C_MODE_END
-#else
-#define FIX_GCC_LINKING_PROBLEM
-#endif
-
 /* egcs 1.1.2 has a problem with memcpy on Alpha */
 #if defined(__GNUC__) && defined(__alpha__) && ! (__GNUC__ > 2 || (__GNUC__ == 2 &&  __GNUC_MINOR__ >= 95))
 #define BAD_MEMCPY
-#endif
-
-/* In Linux-alpha we have atomic.h if we are using gcc */
-#if defined(TARGET_OS_LINUX) && defined(__GNUC__) && defined(__alpha__) && (__GNUC__ > 2 || ( __GNUC__ == 2 &&  __GNUC_MINOR__ >= 95)) && !defined(HAVE_ATOMIC_ADD)
-#define HAVE_ATOMIC_ADD
-#define HAVE_ATOMIC_SUB
-#endif
-
-/* In Linux-ia64 including atomic.h will give us an error */
-#if (defined(TARGET_OS_LINUX) && defined(__GNUC__) && (defined(__ia64__)||defined(__powerpc64__))) || !defined(THREAD)
-#undef HAVE_ATOMIC_ADD
-#undef HAVE_ATOMIC_SUB
 #endif
 
 #if defined(_lint) && !defined(lint)
@@ -326,9 +308,15 @@ C_MODE_START int __cxa_pure_virtual() {\
 #ifndef CONFIG_SMP
 #define CONFIG_SMP
 #endif
+#if defined(__ia64__)
+#define new my_arg_new
+#endif
 C_MODE_START
 #include <asm/atomic.h>
 C_MODE_END
+#if defined(__ia64__)
+#undef new
+#endif
 #endif
 #include <errno.h>				/* Recommended by debian */
 /* We need the following to go around a problem with openssl on solaris */
@@ -425,6 +413,8 @@ int	__void__;
 #endif
 
 #if defined(__EMX__) || !defined(HAVE_UINT)
+#undef HAVE_UINT
+#define HAVE_UINT
 typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif

@@ -2229,12 +2229,6 @@ void Field_decimal::sql_type(String &res) const
 ** Field_new_decimal
 ****************************************************************************/
 
-/*
-  Constructors of new decimal field. In case of using NOT_FIXED_DEC it try
-  to use maximally allowed length (DECIMAL_MAX_LENGTH) and number of digits
-  after decimal point maximally close to half of this range
-  (min(DECIMAL_MAX_LENGTH/2, NOT_FIXED_DEC-1))
-*/
 Field_new_decimal::Field_new_decimal(char *ptr_arg,
                                      uint32 len_arg, uchar *null_ptr_arg,
                                      uchar null_bit_arg,
@@ -2243,17 +2237,15 @@ Field_new_decimal::Field_new_decimal(char *ptr_arg,
                                      struct st_table *table_arg,
                                      uint8 dec_arg,bool zero_arg,
                                      bool unsigned_arg)
-  :Field_num(ptr_arg,
-             (dec_arg == NOT_FIXED_DEC || len_arg > DECIMAL_MAX_LENGTH ?
-              DECIMAL_MAX_LENGTH : len_arg),
+  :Field_num(ptr_arg, len_arg,
              null_ptr_arg, null_bit_arg,
              unireg_check_arg, field_name_arg, table_arg,
-             (dec_arg == NOT_FIXED_DEC ?
-              min(DECIMAL_MAX_LENGTH / 2, NOT_FIXED_DEC - 1) :
-              dec_arg),
-             zero_arg, unsigned_arg)
+             dec_arg, zero_arg, unsigned_arg)
 {
-  bin_size= my_decimal_get_binary_size(field_length, dec);
+  precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
+              (dec <= DECIMAL_MAX_SCALE));
+  bin_size= my_decimal_get_binary_size(precision, dec);
 }
 
 
@@ -2261,18 +2253,18 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
                                      bool maybe_null,
                                      const char *name,
                                      struct st_table *t_arg,
-                                     uint8 dec_arg)
-  :Field_num((char*) 0,
-             (dec_arg == NOT_FIXED_DEC|| len_arg > DECIMAL_MAX_LENGTH ?
-              DECIMAL_MAX_LENGTH : len_arg),
+                                     uint8 dec_arg,
+                                     bool unsigned_arg)
+  :Field_num((char*) 0, len_arg,
              maybe_null ? (uchar*) "": 0, 0,
              NONE, name, t_arg,
-             (dec_arg == NOT_FIXED_DEC ?
-              min(DECIMAL_MAX_LENGTH / 2, NOT_FIXED_DEC - 1) :
-              dec_arg),
-             0, 0)
+             dec_arg,
+             0, unsigned_arg)
 {
-  bin_size= my_decimal_get_binary_size(field_length, dec);
+  precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
+              (dec <= DECIMAL_MAX_SCALE));
+  bin_size= my_decimal_get_binary_size(precision, dec);
 }
 
 
@@ -2295,7 +2287,7 @@ void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
                                               bool sign)
 {
   DBUG_ENTER("Field_new_decimal::set_value_on_overflow");
-  max_my_decimal(decimal_value, field_length, decimals());
+  max_my_decimal(decimal_value, precision, decimals());
   if (sign)
   {
     if (unsigned_flag)
@@ -2326,10 +2318,14 @@ void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
 
 bool Field_new_decimal::store_value(const my_decimal *decimal_value)
 {
-  my_decimal *dec= (my_decimal*)decimal_value;
   int error= 0;
   DBUG_ENTER("Field_new_decimal::store_value");
-  dbug_print_decimal("enter", "value: %s", dec);
+#ifndef DBUG_OFF
+  {
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    DBUG_PRINT("enter", ("value: %s", dbug_decimal_as_string(dbug_buff, decimal_value)));
+  }
+#endif
 
   /* check that we do not try to write negative value in unsigned field */
   if (unsigned_flag && decimal_value->sign())
@@ -2337,25 +2333,27 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
     DBUG_PRINT("info", ("unsigned overflow"));
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error= 1;
-    dec= &decimal_zero;
+    decimal_value= &decimal_zero;
   }
-  DBUG_PRINT("info", ("saving with precision %d, scale: %d",
-                      (int)field_length, (int)decimals()));
-  dbug_print_decimal("info", "value: %s", dec);
+#ifndef DBUG_OFF
+  {
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    DBUG_PRINT("info", ("saving with precision %d, scale: %d, value %s",
+                        (int)precision, (int)dec,
+                        dbug_decimal_as_string(dbug_buff, decimal_value)));
+  }
+#endif
 
-  if (warn_if_overflow(my_decimal2binary(E_DEC_FATAL_ERROR &
-                                         ~E_DEC_OVERFLOW,
-                                         dec, ptr,
-                                         field_length,
-                                         decimals())))
+  if (warn_if_overflow(my_decimal2binary(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                         decimal_value, ptr, precision, dec)))
   {
     my_decimal buff;
     DBUG_PRINT("info", ("overflow"));
-    set_value_on_overflow(&buff, dec->sign());
-    my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, field_length, decimals());
+    set_value_on_overflow(&buff, decimal_value->sign());
+    my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, precision, dec);
     error= 1;
   }
-  DBUG_EXECUTE("info", print_decimal_buff(dec, (byte *) ptr, bin_size););
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (byte *) ptr, bin_size););
   DBUG_RETURN(error);
 }
 
@@ -2387,7 +2385,11 @@ int Field_new_decimal::store(const char *from, uint length,
     break;
   }
 
-  dbug_print_decimal("enter", "value: %s", &decimal_value);
+#ifndef DBUG_OFF
+  char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+  DBUG_PRINT("enter", ("value: %s",
+                       dbug_decimal_as_string(dbug_buff, &decimal_value)));
+#endif
   store_value(&decimal_value);
   DBUG_RETURN(err);
 }
@@ -2477,8 +2479,7 @@ my_decimal* Field_new_decimal::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ENTER("Field_new_decimal::val_decimal");
   binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value,
-                    field_length,
-                    decimals());
+                    precision, dec);
   DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (byte *) ptr,
                                           bin_size););
   DBUG_RETURN(decimal_value);
@@ -2489,12 +2490,9 @@ String *Field_new_decimal::val_str(String *val_buffer,
                                    String *val_ptr __attribute__((unused)))
 {
   my_decimal decimal_value;
-  int fixed_precision= (zerofill ?
-                        (field_length + (decimals() ? 1 : 0)) :
-                        0);
+  uint fixed_precision= zerofill ? precision : 0;
   my_decimal2string(E_DEC_FATAL_ERROR, val_decimal(&decimal_value),
-                    fixed_precision, decimals(), '0',
-                    val_buffer);
+                    fixed_precision, dec, '0', val_buffer);
   return val_buffer;
 }
 
@@ -2516,7 +2514,7 @@ void Field_new_decimal::sql_type(String &str) const
 {
   CHARSET_INFO *cs= str.charset();
   str.length(cs->cset->snprintf(cs, (char*) str.ptr(), str.alloced_length(),
-                                "decimal(%d,%d)", field_length, (int)dec));
+                                "decimal(%d,%d)", precision, (int)dec));
   add_zerofill_and_unsigned(str);
 }
 
@@ -7267,12 +7265,38 @@ void Field_geom::sql_type(String &res) const
 }
 
 
+int Field_geom::store(double nr)
+{
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  return -1;
+}
+
+
+int Field_geom::store(longlong nr)
+{
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  return -1;
+}
+
+
+int Field_geom::store_decimal(const my_decimal *)
+{
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  return -1;
+}
+
+
 int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   if (!length)
     bzero(ptr, Field_blob::pack_length());
   else
   {
+    if (from == Geometry::bad_geometry_data.ptr())
+      goto err;
     // Check given WKB
     uint32 wkb_type;
     if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
@@ -7280,7 +7304,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     wkb_type= uint4korr(from + WKB_HEADER_SIZE);
     if (wkb_type < (uint32) Geometry::wkb_point ||
 	wkb_type > (uint32) Geometry::wkb_end)
-      return -1;
+      goto err;
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
@@ -7293,6 +7317,8 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
 
 err:
   bzero(ptr, Field_blob::pack_length());  
+  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
   return -1;
 }
 
@@ -8034,7 +8060,12 @@ void create_field::create_length_to_internal_length(void)
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:
-    key_length= pack_length= my_decimal_get_binary_size(length, decimals);
+    key_length= pack_length=
+      my_decimal_get_binary_size(my_decimal_length_to_precision(length,
+								decimals,
+								flags &
+								UNSIGNED_FLAG),
+				 decimals);
     break;
   default:
     key_length= pack_length= calc_pack_length(sql_type, length);
