@@ -1251,7 +1251,7 @@ static
 uint my_numchars_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *b, const char *e)
 {
-  return (e-b)/2;
+  return (uint) (e-b)/2;
 }
 
 
@@ -1261,7 +1261,8 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 		     const char *e  __attribute__((unused)),
 		     uint pos)
 {
-  return pos > e - b ? e - b + 2 : pos * 2;
+  uint string_length= (uint) (e - b);
+  return pos > string_length ? string_length + 2 : pos * 2;
 }
 
 
@@ -1270,7 +1271,8 @@ uint my_well_formed_len_ucs2(CHARSET_INFO *cs __attribute__((unused)),
                              const char *b, const char *e,
                              uint nchars, int *error)
 {
-  uint nbytes= (e-b) & ~ (uint)1;
+  /* Ensure string length is dividable with 2 */
+  uint nbytes= ((uint) (e-b)) & ~(uint) 1;
   *error= 0;
   nchars*= 2;
   return min(nbytes, nchars);

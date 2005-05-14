@@ -2467,7 +2467,14 @@ select_from:
 
 select_options:
 	/* empty*/
-	| select_option_list;
+	| select_option_list
+	  {
+	    if (test_all_bits(Select->options, SELECT_ALL | SELECT_DISTINCT))
+	    {
+	      net_printf(Lex->thd, ER_WRONG_USAGE, "ALL", "DISTINCT");
+              YYABORT;
+	    }
+          }
 
 select_option_list:
 	select_option_list select_option
@@ -2481,15 +2488,7 @@ select_option:
 	      YYABORT;
 	    Lex->lock_option= TL_READ_HIGH_PRIORITY;
 	  }
-	| DISTINCT
-	  {
-            if (Select->options & SELECT_ALL)
-            {
-              yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-            Select->options|= SELECT_DISTINCT; 
-	  }
+	| DISTINCT         { Select->options|= SELECT_DISTINCT; }
 	| SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
 	| SQL_BUFFER_RESULT
@@ -2509,15 +2508,7 @@ select_option:
 	  {
 	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 	  }
-	| ALL
-	  {
-            if (Select->options & SELECT_DISTINCT)
-            {
-              yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-            Select->options|= SELECT_ALL; 
-	  }
+	| ALL		    { Select->options|= SELECT_ALL; }
 	;
 
 select_lock_type:

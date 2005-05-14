@@ -1987,9 +1987,9 @@ drop table t1;
 create table t1 (a int(11));
 select all all * from t1;
 select distinct distinct * from t1;
---error 1064
+--error 1221
 select all distinct * from t1;
---error 1064
+--error 1221
 select distinct all * from t1;
 drop table t1;
 
