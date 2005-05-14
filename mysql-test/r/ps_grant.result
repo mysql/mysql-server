@@ -75,10 +75,6 @@ commit ;
 show grants for second_user@localhost ;
 ERROR 42000: There is no such grant defined for user 'second_user' on host 'localhost'
 drop database mysqltest;
-prepare stmt4 from ' show full processlist ';
-execute stmt4;
-Id	User	Host	db	Command	Time	State	Info
-number	root	localhost	test	Query	time	NULL	show full processlist
 prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
 identified by ''looser'' ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
@@ -91,3 +87,8 @@ revoke all privileges on test.t1 from drop_user@localhost ;
 prepare stmt3 from ' drop user drop_user@localhost ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 drop user drop_user@localhost;
+prepare stmt4 from ' show full processlist ';
+execute stmt4;
+Id	User	Host	db	Command	Time	State	Info
+number	root	localhost	test	Query	time	NULL	show full processlist
+deallocate prepare stmt4;
