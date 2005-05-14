@@ -247,3 +247,4 @@ count(*)
 3
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+520093696,1

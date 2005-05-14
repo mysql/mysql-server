@@ -41,10 +41,10 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
 }
 
 int
-sp_rcontext::set_item_eval(uint idx, Item *i, enum_field_types type)
+sp_rcontext::set_item_eval(uint idx, Item **item_addr, enum_field_types type)
 {
-  extern Item *sp_eval_func_item(THD *thd, Item *it, enum_field_types type);
-  Item *it= sp_eval_func_item(current_thd, i, type);
+  extern Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type);
+  Item *it= sp_eval_func_item(current_thd, item_addr, type);
 
   if (! it)
     return -1;

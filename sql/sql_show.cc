@@ -1600,6 +1600,8 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING information_schema_name= {(char*)"information_schema", 18};
+
+/* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
 
 typedef struct st_index_field_values
@@ -1693,8 +1695,8 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
     CHARSET_INFO *cs= system_charset_info;
     ST_SCHEMA_TABLE *schema_table= table->schema_table;
     ST_FIELD_INFO *field_info= schema_table->fields_info;
-    const char *field_name1= field_info[schema_table->idx_field1].field_name;
-    const char *field_name2= field_info[schema_table->idx_field2].field_name;
+    const char *field_name1= schema_table->idx_field1 >= 0 ? field_info[schema_table->idx_field1].field_name : "";
+    const char *field_name2= schema_table->idx_field2 >= 0 ? field_info[schema_table->idx_field2].field_name : "";
     if (table->table != item_field->field->table ||
         (cs->coll->strnncollsp(cs, (uchar *) field_name1, strlen(field_name1),
                                (uchar *) item_field->field_name, 
@@ -1777,32 +1779,77 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table)
 
 
 /*
-  Add 'information_schema' name to db_names list
+  Create db names list. Information schema name always is first in list
 
   SYNOPSIS
-    schema_db_add()
+    make_db_list()
     thd                   thread handler
     files                 list of db names
     wild                  wild string
+    idx_field_vals        idx_field_vals->db_name contains db name or
+                          wild string
     with_i_schema         returns 1 if we added 'IS' name to list
                           otherwise returns 0
+    is_wild_value         if value is 1 then idx_field_vals->db_name is
+                          wild string otherwise it's db name; 
 
   RETURN
     1	                  error
     0	                  success
 */
 
-int schema_db_add(THD *thd, List<char> *files,
-                  const char *wild, bool *with_i_schema)
+int make_db_list(THD *thd, List<char> *files,
+                 INDEX_FIELD_VALUES *idx_field_vals,
+                 bool *with_i_schema, bool is_wild_value)
 {
+  LEX *lex= thd->lex;
   *with_i_schema= 0;
-  if (!wild || !wild_compare(information_schema_name.str, wild, 0))
+  get_index_field_values(lex, idx_field_vals);
+  if (is_wild_value)
   {
-    *with_i_schema= 1;
-    if (files->push_back(thd->strdup(information_schema_name.str)))
-      return 1;
+    /*
+      This part of code is only for SHOW DATABASES command.
+      idx_field_vals->db_value can be 0 when we don't use
+      LIKE clause (see also get_index_field_values() function)
+    */
+    if (!idx_field_vals->db_value ||
+        !wild_case_compare(system_charset_info, 
+                           information_schema_name.str,
+                           idx_field_vals->db_value))
+    {
+      *with_i_schema= 1;
+      if (files->push_back(thd->strdup(information_schema_name.str)))
+        return 1;
+    }
+    return mysql_find_files(thd, files, NullS, mysql_data_home,
+                            idx_field_vals->db_value, 1);
   }
-  return 0;
+
+  /*
+    This part of code is for SHOW TABLES, SHOW TABLE STATUS commands.
+    idx_field_vals->db_value can't be 0 (see get_index_field_values()
+    function). lex->orig_sql_command can be not equal to SQLCOM_END
+    only in case of executing of SHOW commands.
+  */
+  if (lex->orig_sql_command != SQLCOM_END)
+  {
+    if (!my_strcasecmp(system_charset_info, information_schema_name.str,
+                       idx_field_vals->db_value))
+    {
+      *with_i_schema= 1;
+      return files->push_back(thd->strdup(information_schema_name.str));
+    }
+    return files->push_back(thd->strdup(idx_field_vals->db_value));
+  }
+
+  /*
+    Create list of existing databases. It is used in case
+    of select from information schema table
+  */
+  if (files->push_back(thd->strdup(information_schema_name.str)))
+    return 1;
+  *with_i_schema= 1;
+  return mysql_find_files(thd, files, NullS, mysql_data_home, NullS, 1);
 }
 
 
@@ -1880,14 +1927,9 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   if (schema_table_idx == SCH_TABLES)
     lock_type= TL_READ;
-  get_index_field_values(lex, &idx_field_vals);
 
-  /* information schema name always is first in list */
-  if (schema_db_add(thd, &bases, idx_field_vals.db_value, &with_i_schema))
-    goto err;
-
-  if (mysql_find_files(thd, &bases, NullS, mysql_data_home,
-		       idx_field_vals.db_value, 1))
+  if (make_db_list(thd, &bases, &idx_field_vals,
+                   &with_i_schema, 0))
     goto err;
 
   partial_cond= make_cond_for_info_schema(cond, tables);
@@ -2000,11 +2042,12 @@ err:
 
 
 bool store_schema_shemata(THD* thd, TABLE *table, const char *db_name,
-                          const char* cs_name)
+                          CHARSET_INFO *cs)
 {
   restore_record(table, s->default_values);
   table->field[1]->store(db_name, strlen(db_name), system_charset_info);
-  table->field[2]->store(cs_name, strlen(cs_name), system_charset_info);
+  table->field[2]->store(cs->csname, strlen(cs->csname), system_charset_info);
+  table->field[3]->store(cs->name, strlen(cs->name), system_charset_info);
   return schema_table_store_record(thd, table);
 }
 
@@ -2022,20 +2065,17 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   DBUG_ENTER("fill_schema_shemata");
 
-  get_index_field_values(thd->lex, &idx_field_vals);
-  /* information schema name always is first in list */
-  if (schema_db_add(thd, &files, idx_field_vals.db_value, &with_i_schema))
+  if (make_db_list(thd, &files, &idx_field_vals,
+                   &with_i_schema, 1))
     DBUG_RETURN(1);
-  if (mysql_find_files(thd, &files, NullS, mysql_data_home,
-                       idx_field_vals.db_value, 1))
-    DBUG_RETURN(1);
+
   List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
     if (with_i_schema)       // information schema name is always first in list
     {
       if (store_schema_shemata(thd, table, file_name,
-                               system_charset_info->csname))
+                               system_charset_info))
         DBUG_RETURN(1);
       with_i_schema= 0;
       continue;
@@ -2060,7 +2100,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
       strmov(path+length, MY_DB_OPT_FILE);
       load_db_opt(thd, path, &create);
       if (store_schema_shemata(thd, table, file_name, 
-                               create.default_table_charset->csname))
+                               create.default_table_charset))
         DBUG_RETURN(1);
     }
   }
@@ -2300,10 +2340,11 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       uint col_access;
       check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
                    &tables->grant.privilege, 0, 0);
-      col_access= get_column_grant(thd, &tables->grant, tables->db,
-                                   tables->table_name,
+      col_access= get_column_grant(thd, &tables->grant, 
+                                   base_name, file_name,
                                    field->field_name) & COL_ACLS;
-      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && !col_access)
+      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && 
+          !tables->schema_table && !col_access)
         continue;
       for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
       {
@@ -2313,11 +2354,16 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
           end=strmov(end,grant_types.type_names[bitnr]);
         }
       }
+      if (tables->schema_table)      // any user has 'select' privilege on all 
+                                     // I_S table columns
+        table->field[17]->store(grant_types.type_names[0],
+                                strlen(grant_types.type_names[0]), cs);
+      else
+        table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+
 #else
       *end= 0;
 #endif
-      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
-
       table->field[1]->store(base_name, strlen(base_name), cs);
       table->field[2]->store(file_name, strlen(file_name), cs);
       table->field[3]->store(field->field_name, strlen(field->field_name),
@@ -2362,10 +2408,10 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                              strlen((const char*) pos), cs);
       if (field->has_charset())
       {
-        table->field[8]->store((longlong) field->representation_length()/
+        table->field[8]->store((longlong) field->field_length/
                                field->charset()->mbmaxlen);
         table->field[8]->set_notnull();
-        table->field[9]->store((longlong) field->representation_length());
+        table->field[9]->store((longlong) field->field_length);
         table->field[9]->set_notnull();
       }
 
@@ -2373,7 +2419,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         uint dec =field->decimals();
         switch (field->type()) {
         case FIELD_TYPE_NEWDECIMAL:
-          table->field[10]->store((longlong) field->field_length);
+          table->field[10]->store((longlong)
+                                  ((Field_new_decimal*)field)->precision);
           table->field[10]->set_notnull();
           table->field[11]->store((longlong) field->decimals());
           table->field[11]->set_notnull();
@@ -3481,6 +3528,7 @@ ST_FIELD_INFO schema_fields_info[]=
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SCHEMA_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
   {"DEFAULT_CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DEFAULT_COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };

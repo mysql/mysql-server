@@ -20,7 +20,7 @@ AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE README COPYING EXCEPTIONS-CLIENT
-SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
+SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
 			@sql_union_dirs@ scripts man tests \
@@ -101,6 +101,11 @@ tags:
 
 test:
 	cd mysql-test; ./mysql-test-run && ./mysql-test-run --ps-protocol
+
+test-force:
+	cd mysql-test; \
+	mysql-test-run --force ;\
+	mysql-test-run --ps-protocol --force
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -45,5 +45,14 @@ void operator delete[] (void *ptr) throw ()
     free(ptr);
 }
 
+C_MODE_START
+
+int __cxa_pure_virtual() {
+  assert("Pure virtual method called." == "Aborted");
+  return 0;
+}
+
+C_MODE_END
+
 #endif /* USE_MYSYS_NEW */
 

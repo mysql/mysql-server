@@ -1634,8 +1634,6 @@ drop table if exists fib|
 --enable_warnings
 create table fib ( f bigint unsigned not null )|
 
-insert into fib values (1), (1)|
-
 # We deliberately do it the awkward way, fetching the last two
 # values from the table, in order to exercise various statements
 # and table accesses at each turn.
@@ -1644,7 +1642,7 @@ drop procedure if exists fib|
 --enable_warnings
 create procedure fib(n int unsigned)
 begin
-  if n > 0 then
+  if n > 1 then
     begin
       declare x, y bigint unsigned;
       declare c cursor for select f from fib order by f desc limit 2;
@@ -1658,6 +1656,20 @@ begin
     end;
   end if;
 end|
+
+# Minimum test: recursion of 3 levels
+
+insert into fib values (0), (1)|
+
+call fib(3)|
+
+select * from fib order by f asc|
+
+delete from fib|
+
+# Original test: 20 levels (may run into memory limits!)
+
+insert into fib values (0), (1)|
 
 call fib(20)|
 
@@ -3723,6 +3735,71 @@ delete from t1|
 drop procedure bug9004_1|
 drop procedure bug9004_2|
 
+#
+# BUG#7293: Stored procedure crash with soundex
+#
+--disable_warnings
+drop procedure if exists bug7293|
+--enable_warnings
+insert into t1 values ('secret', 0)| 
+create procedure bug7293(p1 varchar(100))
+begin
+  if exists (select id from t1 where soundex(p1)=soundex(id)) then
+    select 'yes';
+  end if;
+end;| 
+call bug7293('secret')| 
+call bug7293 ('secrete')| 
+drop procedure bug7293|
+delete from t1|
+
+
+#
+# BUG#9841: Unexpected read lock when trying to update a view in a
+#           stored procedure
+#
+--disable_warnings
+drop procedure if exists bug9841|
+drop view if exists v1|
+--enable_warnings
+
+create view v1 as select * from t1, t2 where id = s|
+create procedure bug9841 ()
+  update v1 set data = 10| 
+call bug9841()|
+
+drop view v1|
+drop procedure bug9841|
+
+
+#
+# BUG#5963 subqueries in SET/IF
+#
+--disable_warnings
+drop procedure if exists bug5963|
+--enable_warnings
+
+create procedure bug5963_1 () begin declare v int; set v = (select s1 from t3); select v; end;|
+create table t3 (s1 int)|
+insert into t3 values (5)|
+call bug5963_1()|
+call bug5963_1()|
+drop procedure bug5963_1|
+drop table t3|
+
+create procedure bug5963_2 (cfk_value int) 
+begin 
+  if cfk_value in (select cpk from t3) then 
+    set @x = 5; 
+  end if; 
+  end; 
+| 
+create table t3 (cpk int)| 
+insert into t3 values (1)| 
+call bug5963_2(1)|
+call bug5963_2(1)|
+drop procedure bug5963_2|
+drop table t3|
 
 #
 # BUG#NNNN: New bug synopsis

@@ -72,10 +72,11 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 
 #define set_rec_bits(bits, bit_ptr, bit_ofs, bit_len) \
 { \
-  (bit_ptr)[0]= ((bit_ptr)[0] & ((1 << (bit_ofs)) - 1)) | \
+  (bit_ptr)[0]= ((bit_ptr)[0] & ~(((1 << (bit_len)) - 1) << (bit_ofs))) | \
                 ((bits) << (bit_ofs)); \
   if ((bit_ofs) + (bit_len) > 8) \
-    (bit_ptr)[1]= ((bits) & ((1 << (bit_len)) - 1)) >> (8 - (bit_ofs)); \
+    (bit_ptr)[1]= ((bit_ptr)[1] & ~((1 << ((bit_len) - 8 + (bit_ofs))) - 1)) | \
+                  ((bits) >> (8 - (bit_ofs))); \
 }
 
 #define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \

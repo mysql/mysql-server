@@ -1672,7 +1672,7 @@ fld1	count(*)
 158402	4181
 select sum(Period)/count(*) from t1;
 sum(Period)/count(*)
-9410.00000
+9410.0000
 select companynr,count(price) as "count",sum(price) as "sum" ,abs(sum(price)/count(price)-avg(price)) as "diff",(0+count(price))*companynr as func from t3 group by companynr;
 companynr	count	sum	diff	func
 37	12543	309394878010	0.0000	464091
@@ -1684,7 +1684,7 @@ companynr	count	sum	diff	func
 512	4181	3288532102	0.0000	2140672
 select companynr,sum(price)/count(price) as avg from t3 group by companynr having avg > 70000000 order by avg;
 companynr	avg
-154	983543950.00
+154	983543950.0000
 select companynr,count(*) from t2 group by companynr order by 2 desc;
 companynr	count(*)
 37	588
@@ -2455,3 +2455,34 @@ a
 select x.a, y.a, z.a from ( (t1 x inner join t2 y on x.a=y.a) inner join t2 z on y.a=z.a) WHERE x.a=1;
 a	a	a
 drop table t1,t2;
+create table t1 (s1 varchar(5));
+insert into t1 values ('Wall');
+select min(s1) from t1 group by s1 with rollup;
+min(s1)
+Wall
+Wall
+drop table t1;
+create table t1 (s1 int) engine=myisam;
+insert into t1 values (0);
+select avg(distinct s1) from t1 group by s1 with rollup;
+avg(distinct s1)
+0.0000
+0.0000
+drop table t1;
+create table t1 (s1 int);
+insert into t1 values (null),(1);
+select distinct avg(s1) as x from t1 group by s1 with rollup;
+x
+NULL
+1.0000
+drop table t1;
+create table t1 (a int(11));
+select all all * from t1;
+a
+select distinct distinct * from t1;
+a
+select all distinct * from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'distinct * from t1' at line 1
+select distinct all * from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'all * from t1' at line 1
+drop table t1;

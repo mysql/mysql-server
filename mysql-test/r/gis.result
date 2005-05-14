@@ -461,9 +461,9 @@ Note	1003	select issimple(multipoint(point(3,6),point(4,10))) AS `issimple(Multi
 create table t1 (a geometry not null);
 insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
-ERROR HY000: Unknown error
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert IGNORE into t1 values ('Garbage');
-ERROR HY000: Unknown error
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 alter table t1 add spatial index(a);
 drop table t1;
 create table t1(a geometry not null, spatial index(a));
@@ -654,4 +654,14 @@ select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
 85984	MULTIPOLYGON	0	POINT(-114.87787186923 36.33101763469)
+drop table t1;
+create table t1 (fl geometry);
+insert into t1 values (1);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+insert into t1 values (1.11);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+insert into t1 values ("qwerty");
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+insert into t1 values (pointfromtext('point(1,1)'));
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;

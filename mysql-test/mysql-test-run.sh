@@ -703,6 +703,12 @@ then
 fi
 
 MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT --silent $EXTRA_MYSQL_CLIENT_TEST_OPT"
+# Need to pass additional arguments to MYSQL_CLIENT_TEST for embedded server
+# -A marks each argument for passing to the function which initializes the
+# embedded library
+if [ "x$USE_EMBEDDED_SERVER" = "x1" ]; then
+  MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST -A --language=$LANGUAGE -A --datadir=$SLAVE_MYDDIR -A --character-sets-dir=$CHARSETSDIR"
+fi
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
@@ -1181,6 +1187,7 @@ start_master()
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
 	  --open-files-limit=1024 \
+          --log-bin-trust-routine-creators \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
@@ -1201,6 +1208,7 @@ start_master()
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
+          --log-bin-trust-routine-creators \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
@@ -1333,6 +1341,7 @@ start_slave()
           --report-port=$slave_port \
           --master-retry-count=10 \
           -O slave_net_timeout=10 \
+          --log-bin-trust-routine-creators \
            $SMALL_SERVER \
            $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
   CUR_MYERR=$slave_err

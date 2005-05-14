@@ -10,7 +10,7 @@
 # started and shut down when the systems goes down.
 
 # Comments to support chkconfig on RedHat Linux
-# chkconfig: 2345 90 20
+# chkconfig: 2345 64 36
 # description: A very fast and reliable SQL database engine.
 
 # Comments to support LSB init script conventions

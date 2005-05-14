@@ -720,9 +720,15 @@ static void usage(int version)
   const char* readline= "readline";
 #endif
 
+#ifdef HAVE_READLINE
   printf("%s  Ver %s Distrib %s, for %s (%s) using %s %s\n",
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
          readline, rl_library_version);
+#else
+  printf("%s  Ver %s Distrib %s, for %s (%s)", my_progname, VER,
+	MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+#endif
+
   if (version)
     return;
   printf("\
@@ -966,7 +972,8 @@ static int read_lines(bool execute_commands)
     }
     else
     {
-      char *prompt= (char*) (glob_buffer.is_empty() ? construct_prompt() :
+      char *prompt= (char*) (ml_comment ? "   /*> " :
+                             glob_buffer.is_empty() ?  construct_prompt() :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
 			     "    '> " : (in_string == '`' ?
@@ -1103,6 +1110,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   uchar inchar;
   char buff[80], *pos, *out;
   COMMANDS *com;
+  bool need_space= 0;
 
   if (!line[0] && buffer.is_empty())
     return 0;
@@ -1211,6 +1219,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
     {
       pos++;
       *ml_comment= 0;
+      need_space= 1;
     }      
     else
     {						// Add found char to buffer
@@ -1220,7 +1229,14 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	       (inchar == '\'' || inchar == '"' || inchar == '`'))
 	*in_string= (char) inchar;
       if (!*ml_comment)
+      {
+        if (need_space && !my_isspace(charset_info, (char)inchar))
+        {
+          *out++= ' ';
+          need_space= 0;
+        }
 	*out++= (char) inchar;
+      }
     }
   }
   if (out != line || !buffer.is_empty())

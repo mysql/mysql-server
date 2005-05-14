@@ -853,7 +853,7 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
                                                        bool retrieve_full_rows,
                                                        MEM_ROOT *parent_alloc)
   : cpk_quick(NULL), thd(thd_param), need_to_fetch_row(retrieve_full_rows),
-    scans_inited(false)
+    scans_inited(FALSE)
 {
   index= MAX_KEY;
   head= table;
@@ -1022,7 +1022,7 @@ int QUICK_ROR_INTERSECT_SELECT::reset()
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::reset");
   if (!scans_inited && init_ror_merged_scan(TRUE))
     DBUG_RETURN(1);
-  scans_inited= true;
+  scans_inited= TRUE;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   QUICK_RANGE_SELECT *quick;
   while ((quick= it++))
@@ -1066,7 +1066,7 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                                                TABLE *table)
-  : thd(thd_param), scans_inited(false)
+  : thd(thd_param), scans_inited(FALSE)
 {
   index= MAX_KEY;
   head= table;
@@ -1148,7 +1148,7 @@ int QUICK_ROR_UNION_SELECT::reset()
       if (quick->init_ror_merged_scan(FALSE))
         DBUG_RETURN(1);
     }
-    scans_inited= true;
+    scans_inited= TRUE;
   }
   queue_remove_all(&queue);
   /*
@@ -2677,7 +2677,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   {
     /* Don't add this scan if it doesn't improve selectivity. */
     DBUG_PRINT("info", ("The scan doesn't improve selectivity."));
-    DBUG_RETURN(false);
+    DBUG_RETURN(FALSE);
   }
   
   info->out_rows *= selectivity_mult;
@@ -2865,7 +2865,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   while (cur_ror_scan != tree->ror_scans_end && !intersect->is_covering)
   {
     /* S= S + first(R);  R= R - first(R); */
-    if (!ror_intersect_add(intersect, *cur_ror_scan, false))
+    if (!ror_intersect_add(intersect, *cur_ror_scan, FALSE))
     {
       cur_ror_scan++;
       continue;
@@ -5513,14 +5513,26 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 }
 
 
-/****************************************************************************
-  Create a QUICK RANGE based on a key
-  This allocates things in a new memory root, as this may be called many times
-  during a query.
-****************************************************************************/
+/*
+  Create quick select from ref/ref_or_null scan.
+  SYNOPSIS
+    get_quick_select_for_ref()
+      thd      Thread handle
+      table    Table to access
+      ref      ref[_or_null] scan parameters
+      records  Estimate of number of records (needed only to construct 
+               quick select)
+  NOTES
+    This allocates things in a new memory root, as this may be called many
+    times during a query.
+  
+  RETURN 
+    Quick select that retrieves the same rows as passed ref scan
+    NULL on error.
+*/
 
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             TABLE_REF *ref)
+                                             TABLE_REF *ref, ha_rows records)
 {
   MEM_ROOT *old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
@@ -5537,6 +5549,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     delete quick;
     goto err;
   }
+  quick->records= records;
 
   if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
       !(range= new QUICK_RANGE()))
@@ -6657,6 +6670,8 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
         - NGA = QA - (GA union C) = {NG_1, ..., NG_m} - the ones not in
           GROUP BY and not referenced by MIN/MAX functions.
         with the following properties specified below.
+    B3. If Q has a GROUP BY WITH ROLLUP clause the access method is not 
+        applicable.
 
     SA1. There is at most one attribute in SA referenced by any number of
          MIN and/or MAX functions which, which if present, is denoted as C.
@@ -6741,6 +6756,8 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     other field as in: "select min(a) from t1 group by a" ?
   - We assume that the general correctness of the GROUP-BY query was checked
     before this point. Is this correct, or do we have to check it completely?
+  - Lift the limitation in condition (B3), that is, make this access method 
+    applicable to ROLLUP queries.
 
   RETURN
     If mem_root != NULL
@@ -6780,7 +6797,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     DBUG_RETURN(NULL);        /* This is not a select statement. */
   if ((join->tables != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
-       (!join->select_distinct)))
+       (!join->select_distinct)) ||
+      (thd->lex->select_lex.olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
@@ -8067,7 +8085,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
   }
   else
   {
-    /* Apply the constant equality conditions to the non-group select fields. */
+    /* Apply the constant equality conditions to the non-group select fields */
     if (key_infix_len > 0)
     {
       if ((result= file->index_read(record, group_prefix, real_prefix_len,
@@ -8101,9 +8119,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
       */
       if (!result)
       {
-        if(key_cmp(index_info->key_part, group_prefix, real_prefix_len))
+        if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
           key_restore(record, tmp_record, index_info, 0);
-      } else if (result == HA_ERR_KEY_NOT_FOUND) 
+      }
+      else if (result == HA_ERR_KEY_NOT_FOUND) 
         result= 0; /* There is a result in any case. */
     }
   }

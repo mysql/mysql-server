@@ -192,3 +192,25 @@ int test_if_hard_path(register const char *dir_name)
   return FALSE;
 #endif
 } /* test_if_hard_path */
+
+
+/*
+  Test if a name contains an (absolute or relative) path.
+
+  SYNOPSIS
+    has_path()
+    name                The name to test.
+
+  RETURN
+    TRUE        name contains a path.
+    FALSE       name does not contain a path.
+*/
+
+my_bool has_path(const char *name)
+{
+  return test(strchr(name, FN_LIBCHAR))
+#ifdef FN_DEVCHAR
+    || test(strchr(name, FN_DEVCHAR))
+#endif
+    ;
+}

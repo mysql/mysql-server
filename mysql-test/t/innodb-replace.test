@@ -2,6 +2,10 @@
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 #
 # Bug #1078
 #

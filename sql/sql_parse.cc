@@ -506,7 +506,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
       uc->user_resources.conn_per_hour <= uc->conn_per_hour)
   {
     net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user,
-                     "max_connections",
+                     "max_connections_per_hour",
                      (long) uc->user_resources.conn_per_hour);
     error=1;
     goto end;
@@ -1051,7 +1051,7 @@ pthread_handler_decl(handle_one_connection,arg)
   /* now that we've called my_thread_init(), it is safe to call DBUG_* */
 
 #if defined(__WIN__)
-  init_signals();				// IRENA; testing ?
+  init_signals();
 #elif !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
@@ -1433,9 +1433,6 @@ bool do_command(THD *thd)
   }
   else
   {
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-      thd->killed= THD::NOT_KILLED;
-
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
     if (command >= COM_END)
@@ -1481,6 +1478,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
+
+  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+    thd->killed= THD::NOT_KILLED;
 
   thd->command=command;
   /*
@@ -1764,7 +1764,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->lex->
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
-    thd->lex->query_tables= &table_list;
+    thd->lex->add_to_query_tables(&table_list);
 
     /* switch on VIEW optimisation: do not fill temporary tables */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -4097,7 +4097,43 @@ unsent_create_error:
 	thd->variables.select_limit= HA_POS_ERROR;
 
 	thd->row_count_func= 0;
+        tmp_disable_binlog(thd); /* don't binlog the substatements */
 	res= sp->execute_procedure(thd, &lex->value_list);
+        reenable_binlog(thd);
+
+        /*
+          We write CALL to binlog; on the opposite we didn't write the
+          substatements. That choice is necessary because the substatements
+          may use local vars.
+          Binlogging should happen when all tables are locked. They are locked
+          just above, and unlocked by close_thread_tables(). All tables which
+          are to be updated are locked like with a table-level write lock, and
+          this also applies to InnoDB (I tested - note that it reduces
+          InnoDB's concurrency as we don't use row-level locks). So binlogging
+          below is safe.
+          Note the limitation: if the SP returned an error, but still did some
+          updates, we do NOT binlog it. This is because otherwise "permission
+          denied", "table does not exist" etc would stop the slave quite
+          often. There is no easy way to know if the SP updated something
+          (even no_trans_update is not suitable, as it may be a transactional
+          autocommit update which happened, and no_trans_update covers only
+          INSERT/UPDATE/LOAD).
+        */
+        if (mysql_bin_log.is_open() &&
+            (sp->m_chistics->daccess == SP_CONTAINS_SQL ||
+             sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
+        {
+          if (res)
+            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                         ER_FAILED_ROUTINE_BREAK_BINLOG,
+			 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
+          else
+          {
+            thd->clear_error();
+            Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+            mysql_bin_log.write(&qinfo);
+          }
+        }
 
 	/*
           If warnings have been cleared, we have to clear total_warn_count
@@ -4153,14 +4189,32 @@ unsent_create_error:
 				  sp->m_name.str, 0))
 	  goto error;
 	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
-	if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	  result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
-	else
-	  result= sp_update_function(thd, lex->spname, &lex->sp_chistics);
+        if (!trust_routine_creators &&  mysql_bin_log.is_open() &&
+            !sp->m_chistics->detistic &&
+            (chistics.daccess == SP_CONTAINS_SQL ||
+             chistics.daccess == SP_MODIFIES_SQL_DATA))
+        {
+          my_message(ER_BINLOG_UNSAFE_ROUTINE,
+		     ER(ER_BINLOG_UNSAFE_ROUTINE), MYF(0));
+          result= SP_INTERNAL_ERROR;
+        }
+        else
+        {
+          if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
+            result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
+          else
+            result= sp_update_function(thd, lex->spname, &lex->sp_chistics);
+        }
       }
       switch (result)
       {
       case SP_OK:
+        if (mysql_bin_log.is_open())
+        {
+          thd->clear_error();
+          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+          mysql_bin_log.write(&qinfo);
+        }
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
@@ -4237,6 +4291,12 @@ unsent_create_error:
       switch (result)
       {
       case SP_OK:
+        if (mysql_bin_log.is_open())
+        {
+          thd->clear_error();
+          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+          mysql_bin_log.write(&qinfo);
+        }
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
@@ -4495,6 +4555,7 @@ unsent_create_error:
     break;
   }
   thd->proc_info="query end";
+  /* Two binlog-related cleanups: */
   if (thd->one_shot_set)
   {
     /*
@@ -5410,9 +5471,14 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     }
     new_field->pack_length=
       my_decimal_get_binary_size(new_field->length, new_field->decimals);
-    if (new_field->length <= DECIMAL_MAX_LENGTH &&
+    if (new_field->length <= DECIMAL_MAX_PRECISION &&
         new_field->length >= new_field->decimals)
+    {
+      new_field->length=
+        my_decimal_precision_to_length(new_field->length, new_field->decimals,
+                                       type_modifier & UNSIGNED_FLAG);
       break;
+    }
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
     DBUG_RETURN(NULL);
   case MYSQL_TYPE_VARCHAR:

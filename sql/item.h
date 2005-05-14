@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
@@ -258,7 +258,7 @@ public:
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
-  uint8 marker,decimals;
+  uint8 marker, decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
@@ -302,7 +302,8 @@ public:
   { return save_in_field(field, 1); }
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
-  virtual Item_result result_type () const { return REAL_RESULT; }
+  virtual Item_result result_type() const { return REAL_RESULT; }
+  virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
@@ -433,7 +434,7 @@ public:
   virtual table_map not_null_tables() const { return used_tables(); }
   /*
     Returns true if this is a simple constant item like an integer, not
-    a constant expression
+    a constant expression. Used in the optimizer to propagate basic constants.
   */
   virtual bool basic_const_item() const { return 0; }
   /* cloning of constant items (0 if it is not const) */
@@ -441,6 +442,9 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
+  virtual uint decimal_precision() const;
+  inline int decimal_int_part() const
+  { return my_decimal_int_part(decimal_precision(), decimals); }
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
@@ -521,8 +525,17 @@ public:
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
   virtual Item *replace_equal_field(byte * arg) { return this; }
-  
-  virtual Item *this_item() { return this; } /* For SPs mostly. */
+
+  /*
+    For SP local variable returns pointer to Item representing its
+    current value and pointer to current Item otherwise.
+  */
+  virtual Item *this_item() { return this; }
+  /*
+    For SP local variable returns address of pointer to Item representing its
+    current value and pointer passed via parameter otherwise.
+  */
+  virtual Item **this_item_addr(THD *thd, Item **addr) { return addr; }
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
 
   // Row emulation
@@ -569,6 +582,7 @@ public:
   bool is_splocal() { return 1; } /* Needed for error checking */
 
   Item *this_item();
+  Item **this_item_addr(THD *thd, Item **);
   Item *this_const_item() const;
 
   bool fix_fields(THD *, struct st_table_list *, Item **);
@@ -737,6 +751,10 @@ public:
   enum Item_result result_type () const
   {
     return field->result_type();
+  }
+  Item_result cast_to_int_type() const
+  {
+    return field->cast_to_int_type();
   }
   enum_field_types field_type() const
   {
@@ -909,7 +927,6 @@ public:
 
   bool convert_str_value(THD *thd);
 
-  Item *new_item() { return new Item_param(pos_in_query); }
   /*
     If value for parameter was not set we treat it as non-const
     so noone will use parameters value in fix_fields still
@@ -918,11 +935,28 @@ public:
   virtual table_map used_tables() const
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
   void print(String *str);
-  /* parameter never equal to other parameter of other item */
-  bool eq(const Item *item, bool binary_cmp) const { return 0; }
   bool is_null()
   { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
+  bool basic_const_item() const;
+  /*
+    This method is used to make a copy of a basic constant item when
+    propagating constants in the optimizer. The reason to create a new
+    item and not use the existing one is not precisely known (2005/04/16).
+    Probably we are trying to preserve tree structure of items, in other
+    words, avoid pointing at one item from two different nodes of the tree.
+    Return a new basic constant item if parameter value is a basic
+    constant, assert otherwise. This method is called only if
+    basic_const_item returned TRUE.
+  */
+  Item *new_item();
+  /*
+    Implement by-value equality evaluation if parameter value
+    is set and is a basic constant (integer, real or string).
+    Otherwise return FALSE.
+  */
+  bool eq(const Item *item, bool binary_cmp) const;
 };
+
 
 class Item_int :public Item_num
 {
@@ -932,7 +966,7 @@ public:
     { max_length=length; fixed= 1; }
 #ifdef HAVE_LONG_LONG
   Item_int(longlong i,uint length=21) :value(i)
-    { max_length=length; fixed= 1;}
+    { max_length=length; fixed= 1; }
 #endif
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
     { max_length=length; name=(char*) str_arg; fixed= 1; }
@@ -951,6 +985,8 @@ public:
   void cleanup() {}
   void print(String *str);
   Item_num *neg() { value= -value; return this; }
+  uint decimal_precision() const { return (uint)(max_length - test(value < 0)); }
+  bool eq(const Item *, bool binary_cmp) const;
 };
 
 
@@ -969,6 +1005,7 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length);
+  Item_uint(const char *str_arg, longlong i, uint length);
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
     { unsigned_flag= 1; }
   double val_real()
@@ -978,6 +1015,7 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
+  uint decimal_precision() const { return max_length; }
 };
 
 
@@ -1017,7 +1055,10 @@ public:
     unsigned_flag= !decimal_value.sign();
     return this;
   }
+  uint decimal_precision() const { return decimal_value.precision(); }
+  bool eq(const Item *, bool binary_cmp) const;
 };
+
 
 class Item_float :public Item_num
 {
@@ -1054,6 +1095,7 @@ public:
   { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
   void print(String *str);
+  bool eq(const Item *, bool binary_cmp) const;
 };
 
 
@@ -1193,6 +1235,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 
@@ -1371,11 +1414,7 @@ public:
   {
     return ref->save_in_field(field, no_conversions);
   }
-  Item *new_item()
-  {
-    return (ref->unsigned_flag)? new Item_uint(ref->name, ref->max_length) :
-                                 new Item_int(ref->name, ref->max_length);
-  }
+  Item *new_item();
 };
 
 
@@ -1779,6 +1818,9 @@ protected:
   enum_field_types fld_type;
 
   void get_full_info(Item *item);
+
+  /* It is used to count decimal precision in join_types */
+  int prev_decimal_int_part;
 public:
   Item_type_holder(THD*, Item*);
 
@@ -1795,6 +1837,12 @@ public:
   static enum_field_types get_real_type(Item *);
 };
 
+class st_select_lex;
+void mark_select_range_as_dependent(THD *thd,
+                                    st_select_lex *last_select,
+                                    st_select_lex *current_sel,
+                                    Field *found_field, Item *found_item,
+                                    Item_ident *resolved_item);
 
 extern Item_buff *new_Item_buff(Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
