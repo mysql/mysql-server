@@ -3947,9 +3947,12 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   /*
     We only need to check that stmt->field_count - if it is not null
     stmt->bind was initialized in mysql_stmt_prepare
-   */
+    stmt->bind overlaps with bind if mysql_stmt_bind_param
+    is called from mysql_stmt_store_result.
+  */
 
-  memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
+  if (stmt->bind != bind)
+    memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
 
   for (param= stmt->bind, end= param + bind_count, field= stmt->fields ;
        param < end ;
