@@ -1495,6 +1495,36 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql)
   return mysql->charset->csname;
 }
 
+int STDCALL mysql_set_character_set(MYSQL *mysql, char *cs_name)
+{
+  struct charset_info_st *cs;
+  const char *save_csdir = charsets_dir;
+
+  if (mysql->options.charset_dir)
+    charsets_dir = mysql->options.charset_dir; 
+
+  if ( (cs = get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0))) )
+  {
+    char buff[MY_CS_NAME_SIZE + 10];
+    charsets_dir = save_csdir;
+    sprintf(buff, "SET NAMES %s", cs_name);
+    if (!mysql_query(mysql, buff)) {
+      mysql->charset = cs;
+    } 
+  } else {
+    char cs_dir_name[FN_REFLEN];
+    get_charsets_dir(cs_dir_name);
+    mysql->net.last_errno=CR_CANT_READ_CHARSET;
+    strmov(mysql->net.sqlstate, unknown_sqlstate);
+    my_snprintf(mysql->net.last_error, sizeof(mysql->net.last_error)-1,
+                ER(mysql->net.last_errno),
+                cs_name,
+                cs_dir_name);
+
+  }
+  charsets_dir = save_csdir;
+  return mysql->net.last_errno;
+}
 
 uint STDCALL mysql_thread_safe(void)
 {
@@ -4375,9 +4405,12 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   /*
     We only need to check that stmt->field_count - if it is not null
     stmt->bind was initialized in mysql_stmt_prepare
-   */
+    stmt->bind overlaps with bind if mysql_stmt_bind_param
+    is called from mysql_stmt_store_result.
+  */
 
-  memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
+  if (stmt->bind != bind)
+    memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
 
   for (param= stmt->bind, end= param + bind_count, field= stmt->fields ;
        param < end ;
