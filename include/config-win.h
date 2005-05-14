@@ -106,20 +106,33 @@ functions */
 
 /* Type information */
 
+#if defined(__EMX__) || !defined(HAVE_UINT)
+#undef HAVE_UINT
+#define HAVE_UINT
 typedef unsigned short	ushort;
 typedef unsigned int	uint;
+#endif /* defined(__EMX__) || !defined(HAVE_UINT) */
+
 typedef unsigned __int64 ulonglong;	/* Microsofts 64 bit types */
 typedef __int64 longlong;
+#ifndef HAVE_SIGSET_T
 typedef int sigset_t;
+#endif
 #define longlong_defined
-/* off_t should not be __int64 because of conflicts in header files;
-   Use my_off_t or os_off_t instead */
+/*
+  off_t should not be __int64 because of conflicts in header files;
+  Use my_off_t or os_off_t instead
+*/
+#ifndef HAVE_OFF_T
 typedef long off_t;
+#endif
 typedef __int64 os_off_t;
 #ifdef _WIN64
 typedef UINT_PTR rf_SetTimer;
 #else
+#ifndef HAVE_SIZE_T
 typedef unsigned int size_t;
+#endif
 typedef uint rf_SetTimer;
 #endif
 

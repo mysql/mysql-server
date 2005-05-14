@@ -2,12 +2,6 @@ cflags="$c_warnings $extra_flags"
 cxxflags="$cxx_warnings $base_cxxflags $extra_flags"
 extra_configs="$extra_configs $local_infile_configs"
 configure="./configure $base_configs $extra_configs"
-for arg
-do
-  # Escape special characters so they don't confuse eval
-  configure="$configure "`echo "$arg" | \
-  		sed -e 's,\([^a-zA-Z0-9_.=-]\),\\\\\1,g'`
-done
 
 commands="\
 $make -k distclean || true 

@@ -37,6 +37,7 @@
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 #define MAX_KEY 64
+#define MAX_SERVER_ARGS 64
 
 /* set default options */
 static int   opt_testcase = 0;
@@ -54,6 +55,18 @@ static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int iter_count= 0;
+
+static const char *opt_basedir= "./";
+
+static int embedded_server_arg_count= 0;
+static char *embedded_server_args[MAX_SERVER_ARGS];
+
+static const char *embedded_server_groups[]= {
+  "server",
+  "embedded",
+  "mysql_client_test_SERVER",
+  NullS
+};
 
 static time_t start_time, end_time;
 static double total_time;
@@ -100,6 +113,8 @@ static void client_disconnect();
 
 #define DIE_UNLESS(expr) \
         ((void) ((expr) ? 0 : (die(__FILE__, __LINE__, #expr), 0)))
+#define DIE(expr) \
+        die(__FILE__, __LINE__, #expr)
 
 void die(const char *file, int line, const char *expr)
 {
@@ -2254,7 +2269,7 @@ static void test_ps_conj_select()
   check_execute(stmt, rc);
 
   int_data= 1;
-  strcpy(str_data, "hh");
+  strmov(str_data, "hh");
   str_length= strlen(str_data);
 
   rc= mysql_stmt_execute(stmt);
@@ -7046,6 +7061,7 @@ static void test_set_option()
   bug #89 (reported by mark@mysql.com)
 */
 
+#ifndef EMBEDDED_LIBRARY
 static void test_prepare_grant()
 {
   int rc;
@@ -7138,7 +7154,7 @@ static void test_prepare_grant()
 
   }
 }
-
+#endif
 
 /*
   Test a crash when invalid/corrupted .frm is used in the
@@ -7272,7 +7288,7 @@ static void test_decimal_bug()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  strcpy(data, "8.0");
+  strmov(data, "8.0");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -7290,7 +7306,7 @@ static void test_decimal_bug()
   rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
-  strcpy(data, "5.61");
+  strmov(data, "5.61");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -7315,7 +7331,7 @@ static void test_decimal_bug()
   rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
-  strcpy(data, "10.22"); is_null= 0;
+  strmov(data, "10.22"); is_null= 0;
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -8494,13 +8510,13 @@ static void test_sqlmode()
   myquery(rc);
 
   /* PIPES_AS_CONCAT */
-  strcpy(query, "SET SQL_MODE= \"PIPES_AS_CONCAT\"");
+  strmov(query, "SET SQL_MODE= \"PIPES_AS_CONCAT\"");
   if (!opt_silent)
     fprintf(stdout, "\n With %s", query);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  strcpy(query, "INSERT INTO test_piping VALUES(?||?)");
+  strmov(query, "INSERT INTO test_piping VALUES(?||?)");
   if (!opt_silent)
     fprintf(stdout, "\n  query: %s", query);
   stmt= mysql_simple_prepare(mysql, query);
@@ -8526,7 +8542,7 @@ static void test_sqlmode()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  strcpy(c1, "My"); strcpy(c2, "SQL");
+  strmov(c1, "My"); strmov(c2, "SQL");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -8536,20 +8552,20 @@ static void test_sqlmode()
   rc= mysql_query(mysql, "DELETE FROM test_piping");
   myquery(rc);
 
-  strcpy(query, "SELECT connection_id    ()");
+  strmov(query, "SELECT connection_id    ()");
   if (!opt_silent)
     fprintf(stdout, "\n  query: %s", query);
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt_r(stmt);
 
   /* ANSI */
-  strcpy(query, "SET SQL_MODE= \"ANSI\"");
+  strmov(query, "SET SQL_MODE= \"ANSI\"");
   if (!opt_silent)
     fprintf(stdout, "\n With %s", query);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  strcpy(query, "INSERT INTO test_piping VALUES(?||?)");
+  strmov(query, "INSERT INTO test_piping VALUES(?||?)");
   if (!opt_silent)
     fprintf(stdout, "\n  query: %s", query);
   stmt= mysql_simple_prepare(mysql, query);
@@ -8560,7 +8576,7 @@ static void test_sqlmode()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  strcpy(c1, "My"); strcpy(c2, "SQL");
+  strmov(c1, "My"); strmov(c2, "SQL");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -8568,7 +8584,7 @@ static void test_sqlmode()
   verify_col_data("test_piping", "name", "MySQL");
 
   /* ANSI mode spaces ... */
-  strcpy(query, "SELECT connection_id    ()");
+  strmov(query, "SELECT connection_id    ()");
   if (!opt_silent)
     fprintf(stdout, "\n  query: %s", query);
   stmt= mysql_simple_prepare(mysql, query);
@@ -8588,13 +8604,13 @@ static void test_sqlmode()
   mysql_stmt_close(stmt);
 
   /* IGNORE SPACE MODE */
-  strcpy(query, "SET SQL_MODE= \"IGNORE_SPACE\"");
+  strmov(query, "SET SQL_MODE= \"IGNORE_SPACE\"");
   if (!opt_silent)
     fprintf(stdout, "\n With %s", query);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  strcpy(query, "SELECT connection_id    ()");
+  strmov(query, "SELECT connection_id    ()");
   if (!opt_silent)
     fprintf(stdout, "\n  query: %s", query);
   stmt= mysql_simple_prepare(mysql, query);
@@ -9099,7 +9115,7 @@ static void test_bug2248()
 
   /* This too should not hang but should return proper error */
   rc= mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == MYSQL_NO_DATA);
+  DIE_UNLESS(rc == 1);
 
   /* This too should not hang but should not bark */
   rc= mysql_stmt_store_result(stmt);
@@ -9108,7 +9124,7 @@ static void test_bug2248()
   /* This should return proper error */
   rc= mysql_stmt_fetch(stmt);
   check_execute_r(stmt, rc);
-  DIE_UNLESS(rc == MYSQL_NO_DATA);
+  DIE_UNLESS(rc == 1);
 
   mysql_stmt_close(stmt);
 
@@ -10250,7 +10266,7 @@ static void test_union_param()
   my_bool         my_null= FALSE;
   myheader("test_union_param");
 
-  strcpy(my_val, "abc");
+  strmov(my_val, "abc");
 
   query= (char*)"select ? as my_col union distinct select ?";
   stmt= mysql_simple_prepare(mysql, query);
@@ -10532,14 +10548,14 @@ static void test_bug3796()
   if (!opt_silent)
     printf("Concat result: '%s'\n", out_buff);
   check_execute(stmt, rc);
-  strcpy(canonical_buff, concat_arg0);
+  strmov(canonical_buff, concat_arg0);
   strcat(canonical_buff, "ONE");
   DIE_UNLESS(strlen(canonical_buff) == out_length &&
          strncmp(out_buff, canonical_buff, out_length) == 0);
 
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
-  strcpy(canonical_buff + strlen(concat_arg0), "TWO");
+  strmov(canonical_buff + strlen(concat_arg0), "TWO");
   DIE_UNLESS(strlen(canonical_buff) == out_length &&
          strncmp(out_buff, canonical_buff, out_length) == 0);
   if (!opt_silent)
@@ -10836,7 +10852,8 @@ static void test_view()
   rc= mysql_stmt_prepare(stmt, query, strlen(query));
   check_execute(stmt, rc);
 
-  strcpy(str_data, "TEST");
+  strmov(str_data, "TEST");
+  bzero(bind, sizeof(bind));
   bind[0].buffer_type= FIELD_TYPE_STRING;
   bind[0].buffer= (char *)&str_data;
   bind[0].buffer_length= 50;
@@ -10955,8 +10972,9 @@ static void test_view_2where()
                   " AENAME,T0001.DEPENDVARS AS DEPENDVARS,T0001.INACTIVE AS "
                   " INACTIVE from LTDX T0001 where (T0001.SRTF2 = 0)");
   myquery(rc);
+  bzero(bind, sizeof(bind));
   for (i=0; i < 8; i++) {
-    strcpy(parms[i], "1");
+    strmov(parms[i], "1");
     bind[i].buffer_type = MYSQL_TYPE_VAR_STRING;
     bind[i].buffer = (char *)&parms[i];
     bind[i].buffer_length = 100;
@@ -11003,6 +11021,7 @@ static void test_view_star()
   myquery(rc);
   rc= mysql_query(mysql, "CREATE VIEW vt1 AS SELECT a FROM t1");
   myquery(rc);
+  bzero(bind, sizeof(bind));
   for (i= 0; i < 2; i++) {
     sprintf((char *)&parms[i], "%d", i);
     bind[i].buffer_type = MYSQL_TYPE_VAR_STRING;
@@ -11068,6 +11087,7 @@ static void test_view_insert()
   rc= mysql_stmt_prepare(select_stmt, query, strlen(query));
   check_execute(select_stmt, rc);
 
+  bzero(bind, sizeof(bind));
   bind[0].buffer_type = FIELD_TYPE_LONG;
   bind[0].buffer = (char *)&my_val;
   bind[0].length = &my_length;
@@ -11171,6 +11191,7 @@ static void test_view_insert_fields()
                   " F7F8 AS F7F8, F6N4 AS F6N4, F5C8 AS F5C8, F9D8 AS F9D8"
                   " from t1 T0001");
 
+  bzero(bind, sizeof(bind));
   for (i= 0; i < 11; i++)
   {
     l[i]= 20;
@@ -11178,7 +11199,7 @@ static void test_view_insert_fields()
     bind[i].is_null= 0;
     bind[i].buffer= (char *)&parm[i];
 
-    strcpy(parm[i], "1");
+    strmov(parm[i], "1");
     bind[i].buffer_length= 2;
     bind[i].length= &l[i];
   }
@@ -12597,7 +12618,7 @@ static void test_bug8330()
   const char *stmt_text;
   MYSQL_STMT *stmt[2];
   int i, rc;
-  char *query= "select a,b from t1 where a=?";
+  const char *query= "select a,b from t1 where a=?";
   MYSQL_BIND bind[2];
   long lval[2];
 
@@ -12691,6 +12712,7 @@ from t2);");
   rc= mysql_query(mysql, "DROP VIEW v1");
   myquery(rc);
   rc= mysql_query(mysql, "DROP TABLE t1, t2");
+  mysql_free_result(res);
   myquery(rc);
 
 }
@@ -12708,7 +12730,7 @@ from t2);");
 
 static void test_bug8378()
 {
-#ifdef HAVE_CHARSET_gbk
+#if defined(HAVE_CHARSET_gbk) && !defined(EMBEDDED_LIBRARY)
   MYSQL *lmysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
   int len;
@@ -12788,7 +12810,7 @@ static void test_bug8722()
 }
 
 
-MYSQL_STMT *open_cursor(char *query)
+MYSQL_STMT *open_cursor(const char *query)
 {
   int rc;
   const ulong type= (ulong)CURSOR_TYPE_READ_ONLY;
@@ -12854,6 +12876,205 @@ static void test_bug9159()
   myquery(rc);
 }
 
+
+/* Crash when opening a cursor to a query with DISTICNT and no key */
+
+static void test_bug9520()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  char a[6];
+  ulong a_len;
+  int rc, row_count= 0;
+
+  myheader("test_bug9520");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (a char(5), b char(5), c char(5),"
+                     " primary key (a, b, c))");
+  rc= mysql_query(mysql, "insert into t1 values ('x', 'y', 'z'), "
+                  " ('a', 'b', 'c'), ('k', 'l', 'm')");
+  myquery(rc);
+
+  stmt= open_cursor("select distinct b from t1");
+
+  /*
+    Not crashes with:
+    stmt= open_cursor("select distinct a from t1");
+  */
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char*) a;
+  bind[0].buffer_length= sizeof(a);
+  bind[0].length= &a_len;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    row_count++;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  printf("Fetched %d rows\n", row_count);
+  DBUG_ASSERT(row_count == 3);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
+/*
+  We can't have more than one cursor open for a prepared statement.
+  Test re-executions of a PS with cursor; mysql_stmt_reset must close
+  the cursor attached to the statement, if there is one.
+*/
+
+static void test_bug9478()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  char a[6];
+  ulong a_len;
+  int rc, i;
+
+  myheader("test_bug9478");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (id integer not null primary key, "
+                     " name varchar(20) not null)");
+  rc= mysql_query(mysql, "insert into t1 (id, name) values "
+                         " (1, 'aaa'), (2, 'bbb'), (3, 'ccc')");
+  myquery(rc);
+
+  stmt= open_cursor("select name from t1 where id=2");
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char*) a;
+  bind[0].buffer_length= sizeof(a);
+  bind[0].length= &a_len;
+  mysql_stmt_bind_result(stmt, bind);
+
+  for (i= 0; i < 5; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    rc= mysql_stmt_fetch(stmt);
+    check_execute(stmt, rc);
+    if (!opt_silent && i == 0)
+      printf("Fetched row: %s\n", a);
+
+    /*
+      The query above is a one-row result set. Therefore, there is no
+      cursor associated with it, as the server won't bother with opening
+      a cursor for a one-row result set. The first row was read from the
+      server in the fetch above. But there is eof packet pending in the
+      network. mysql_stmt_execute will flush the packet and successfully
+      execute the statement.
+    */
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_fetch(stmt);
+    check_execute(stmt, rc);
+    if (!opt_silent && i == 0)
+      printf("Fetched row: %s\n", a);
+    rc= mysql_stmt_fetch(stmt);
+    DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_fetch(stmt);
+    check_execute(stmt, rc);
+    if (!opt_silent && i == 0)
+      printf("Fetched row: %s\n", a);
+
+    rc= mysql_stmt_reset(stmt);
+    check_execute(stmt, rc);
+    rc= mysql_stmt_fetch(stmt);
+    DIE_UNLESS(rc && mysql_stmt_errno(stmt));
+    if (!opt_silent && i == 0)
+      printf("Got error (as expected): %s\n", mysql_stmt_error(stmt));
+  }
+  rc= mysql_stmt_close(stmt);
+  DIE_UNLESS(rc == 0);
+
+  /* Test the case with a server side cursor */
+  stmt= open_cursor("select name from t1");
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  for (i= 0; i < 5; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    rc= mysql_stmt_fetch(stmt);
+    check_execute(stmt, rc);
+    if (!opt_silent && i == 0)
+      printf("Fetched row: %s\n", a);
+    /*
+      Although protocol-wise an attempt to execute a statement which
+      already has an open cursor associated with it will yield an error,
+      the client library behavior tested here is consistent with
+      the non-cursor execution scenario: mysql_stmt_execute will
+      silently close the cursor if necessary.
+    */
+    {
+      char buff[9];
+      bzero(buff, sizeof(buff));
+      /* Fill in the execute packet */
+      int4store(buff, stmt->stmt_id);
+      int4store(buff+5, 1);
+      rc= ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff,
+                                               sizeof(buff), 0,0,1) ||
+           (*mysql->methods->read_query_result)(mysql));
+      DIE_UNLESS(rc);
+      if (!opt_silent && i == 0)
+        printf("Got error (as expected): %s\n", mysql_error(mysql));
+    }
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    while (! (rc= mysql_stmt_fetch(stmt)))
+    {
+      if (!opt_silent && i == 0)
+        printf("Fetched row: %s\n", a);
+    }
+    DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_fetch(stmt);
+    check_execute(stmt, rc);
+    if (!opt_silent && i == 0)
+      printf("Fetched row: %s\n", a);
+
+    rc= mysql_stmt_reset(stmt);
+    check_execute(stmt, rc);
+    rc= mysql_stmt_fetch(stmt);
+    DIE_UNLESS(rc && mysql_stmt_errno(stmt));
+    if (!opt_silent && i == 0)
+      printf("Got error (as expected): %s\n", mysql_stmt_error(stmt));
+  }
+
+  rc= mysql_stmt_close(stmt);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -12863,6 +13084,8 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
+  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
+   (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 't', "Number of times test to be executed", (char **) &opt_count,
    (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use", (char **) &opt_db, (char **) &opt_db,
@@ -12878,6 +13101,8 @@ static struct my_option client_test_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection", (char **) &opt_port,
    (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-arg", 'A', "Send embedded server this as a parameter.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
@@ -13079,6 +13304,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug8722", test_bug8722 },
   { "test_bug8880", test_bug8880 },
   { "test_bug9159", test_bug9159 },
+  { "test_bug9520", test_bug9520 },
+  { "test_bug9478", test_bug9478 },
   { 0, 0 }
 };
 
@@ -13112,6 +13339,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_silent= 0;
     else
       opt_silent++;
+    break;
+  case 'A':
+    /*
+      When the embedded server is being tested, the test suite needs to be
+      able to pass command-line arguments to the embedded server so it can
+      locate the language files and data directory. The test suite
+      (mysql-test-run) never uses config files, just command-line options.
+    */
+    if (!embedded_server_arg_count)
+    {
+      embedded_server_arg_count= 1;
+      embedded_server_args[0]= (char*) "";
+    }
+    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
+        !(embedded_server_args[embedded_server_arg_count++]=
+          my_strdup(argument, MYF(MY_FAE))))
+    {
+      DIE("Can't use server argument");
+    }
     break;
   case 'T':
     {
@@ -13176,10 +13422,15 @@ int main(int argc, char **argv)
 
   DEBUGGER_OFF;
   MY_INIT(argv[0]);
-  
+
   load_defaults("my", client_test_load_default_groups, &argc, &argv);
   defaults_argv= argv;
   get_options(&argc, &argv);
+
+  if (mysql_server_init(embedded_server_arg_count,
+                        embedded_server_args,
+                        (char**) embedded_server_groups))
+    DIE("Can't initialize MySQL server");
 
   client_connect();       /* connect to server */
 
@@ -13227,6 +13478,12 @@ int main(int argc, char **argv)
   client_disconnect();    /* disconnect from server */
   free_defaults(defaults_argv);
   print_test_output();
+
+  while (embedded_server_arg_count > 1)
+    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
+
+  mysql_server_end();
+
   my_end(0);
 
   exit(0);

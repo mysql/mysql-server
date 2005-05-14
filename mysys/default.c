@@ -45,11 +45,12 @@ char *defaults_extra_file=0;
 
 /* Which directories are searched for options (and in which order) */
 
-#define MAX_DEFAULT_DIRS 4
+#define MAX_DEFAULT_DIRS 5
 const char *default_directories[MAX_DEFAULT_DIRS + 1];
 
 #ifdef __WIN__
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
+static char system_dir[FN_REFLEN], shared_system_dir[FN_REFLEN];
 #else
 static const char *f_extensions[]= { ".cnf", 0 };
 #endif
@@ -107,19 +108,21 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                         uint *args_used, Process_option_func func,
                         void *func_ctx)
 {
-  const char **dirs, *forced_default_file;
+  const char **dirs, *forced_default_file, *forced_extra_defaults;
   int error= 0;
   DBUG_ENTER("my_search_option_files");
 
   /* Check if we want to force the use a specific default file */
   get_defaults_files(*argc, *argv,
-                     (char **)&forced_default_file, &defaults_extra_file);
+                      (char **)&forced_default_file,
+                      (char **)&forced_extra_defaults);
   if (forced_default_file)
     forced_default_file= strchr(forced_default_file,'=')+1;
-  if (defaults_extra_file)
-    defaults_extra_file= strchr(defaults_extra_file,'=')+1;
+  if (forced_extra_defaults)
+    defaults_extra_file= strchr(forced_extra_defaults,'=')+1;
 
-  (*args_used)+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
+  (*args_used)+= (forced_default_file ? 1 : 0) +
+                 (forced_extra_defaults ? 1 : 0);
 
   if (forced_default_file)
   {
@@ -140,20 +143,6 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   }
   else
   {
-#ifdef __WIN__
-    char system_dir[FN_REFLEN];
-    GetWindowsDirectory(system_dir,sizeof(system_dir));
-    if ((search_default_file(func, func_ctx, system_dir, conf_file)))
-      goto err;
-#endif
-#if defined(__EMX__) || defined(OS2)
-    {
-      const char *etc; 
-      if ((etc= getenv("ETC")) &&
-          (search_default_file(func, func_ctx, etc, conf_file)) < 0)
-      goto err;
-    }
-#endif
     for (dirs= default_directories ; *dirs; dirs++)
     {
       if (**dirs)
@@ -163,10 +152,15 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       }
       else if (defaults_extra_file)
       {
-	if (search_default_file(func, func_ctx, NullS,
-                                defaults_extra_file) < 0)
+        if ((error= search_default_file_with_ext(func, func_ctx, "", "",
+                                                defaults_extra_file, 0)) < 0)
 	  goto err;				/* Fatal error */
-
+        if (error > 0)
+        {
+          fprintf(stderr, "Could not open required defaults file: %s\n",
+                  defaults_extra_file);
+          goto err;
+        }
       }
     }
   }
@@ -396,8 +390,11 @@ static int search_default_file(Process_option_func opt_handler,
 			       const char *config_file)
 {
   char **ext;
+  const char *empty_list[]= { "", 0 };
+  my_bool have_ext= fn_ext(config_file)[0] != 0;
+  const char **exts_to_use= have_ext ? empty_list : f_extensions;
 
-  for (ext= (char**) f_extensions; *ext; *ext++)
+  for (ext= (char**) exts_to_use; *ext; *ext++)
   {
     int error;
     if ((error= search_default_file_with_ext(opt_handler, handler_ctx,
@@ -406,6 +403,56 @@ static int search_default_file(Process_option_func opt_handler,
       return error;
   }
   return 0;
+}
+
+
+/*
+  Skip over keyword and get argument after keyword
+
+  SYNOPSIS
+   get_argument()
+   keyword		Include directive keyword
+   kwlen		Length of keyword
+   ptr			Pointer to the keword in the line under process
+   line			line number
+
+  RETURN
+   0	error
+   #	Returns pointer to the argument after the keyword.
+*/
+
+static char *get_argument(const char *keyword, uint kwlen,
+                          char *ptr, char *name, uint line)
+{
+  char *end;
+
+  /* Skip over "include / includedir keyword" and following whitespace */
+
+  for (ptr+= kwlen - 1;
+       my_isspace(&my_charset_latin1, ptr[0]);
+       ptr++)
+  {}
+
+  /*
+    Trim trailing whitespace from directory name
+    The -1 below is for the newline added by fgets()
+    Note that my_isspace() is true for \r and \n
+  */
+  for (end= ptr + strlen(ptr) - 1;
+       my_isspace(&my_charset_latin1, *(end - 1));
+       end--)
+  {}
+  end[0]= 0;                                    /* Cut off end space */
+
+  /* Print error msg if there is nothing after !include* directive */
+  if (end <= ptr)
+  {
+    fprintf(stderr,
+	    "error: Wrong '!%s' directive in config file: %s at line %d\n",
+	    keyword, name, line);
+    return 0;
+  }
+  return ptr;
 }
 
 
@@ -484,7 +531,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   }
 #endif
   if (!(fp= my_fopen(name, O_RDONLY, MYF(0))))
-    return 0;					/* Ignore wrong files */
+    return 1;					/* Ignore wrong files */
 
   while (fgets(buff, sizeof(buff) - 1, fp))
   {
@@ -497,40 +544,34 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       continue;
 
     /* Configuration File Directives */
-    if ((*ptr == '!') && (recursion_level < max_recursion_level))
+    if ((*ptr == '!'))
     {
+      if (recursion_level >= max_recursion_level)
+      {
+        for (end= ptr + strlen(ptr) - 1; 
+             my_isspace(&my_charset_latin1, *(end - 1));
+             end--)
+        {}
+        end[0]= 0;
+        fprintf(stderr,
+                "Warning: skipping '%s' directive as maximum include"
+                "recursion level was reached in file %s at line %d\n",
+                ptr, name, line);
+        continue;
+      }
+
       /* skip over `!' and following whitespace */
       for (++ptr; my_isspace(&my_charset_latin1, ptr[0]); ptr++)
       {}
 
-      if ((!strncmp(ptr, includedir_keyword, sizeof(includedir_keyword) - 1))
-         && my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
+      if ((!strncmp(ptr, includedir_keyword,
+                    sizeof(includedir_keyword) - 1)) &&
+          my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
       {
-        /* skip over "includedir" and following whitespace */
-        for (ptr+= sizeof(includedir_keyword) - 1;
-            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
-        {}
-
-        /* trim trailing whitespace from directory name */
-        end= ptr + strlen(ptr) - 1;
-        /* fgets() stores the newline character in the buffer */
-        if ((end[0] == '\n') || (end[0] == '\r') ||
-            my_isspace(&my_charset_latin1, end[0]))
-        {
-          for (; my_isspace(&my_charset_latin1, *(end - 1)); end--)
-          {}
-          end[0]= 0;
-        }
-
-        /* print error msg if there is nothing after !includedir directive */
-        if (end == ptr)
-        {
-          fprintf(stderr,
-                  "error: Wrong !includedir directive in config "
-                  "file: %s at line %d\n",
-                  name,line);
-          goto err;
-        }
+	if (!(ptr= get_argument(includedir_keyword,
+                                sizeof(includedir_keyword),
+                                ptr, name, line)))
+	  goto err;
 
         if (!(search_dir= my_dir(ptr, MYF(MY_WME))))
           goto err;
@@ -559,28 +600,13 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
         my_dirend(search_dir);
       }
-      else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1))
-          && my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword) - 1]))
+      else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1)) &&
+               my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword)-1]))
       {
-        /* skip over `include' and following whitespace */
-        for (ptr+= sizeof(include_keyword) - 1;
-            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
-        {}
-
-        /* trim trailing whitespace from filename */
-        end= ptr + strlen(ptr) - 1;
-        for (; my_isspace(&my_charset_latin1, *(end - 1)) ; end--)
-        {}
-        end[0]= 0;
-
-        if (end == ptr)
-        {
-          fprintf(stderr,
-                  "error: Wrong !include directive in config "
-                  "file: %s at line %d\n",
-                  name,line);
-          goto err;
-        }
+	if (!(ptr= get_argument(include_keyword,
+                                sizeof(include_keyword), ptr,
+                                name, line)))
+	  goto err;
 
         search_default_file_with_ext(opt_handler, handler_ctx, "", "", ptr,
                                      recursion_level + 1);
@@ -588,14 +614,6 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
       continue;
     }
-    else
-      if (recursion_level >= max_recursion_level)
-      {
-        fprintf(stderr,
-                "warning: skipping !include directive as maximum include"
-                "recursion level was reached in file %s at line %d\n",
-                name, line);
-      }
 
     if (*ptr == '[')				/* Group name */
     {
@@ -734,11 +752,11 @@ static char *remove_end_comment(char *ptr)
 
 #include <help_start.h>
 
-void print_defaults(const char *conf_file, const char **groups)
+void my_print_default_files(const char *conf_file)
 {
-#ifdef __WIN__
+  const char *empty_list[]= { "", 0 };
   my_bool have_ext= fn_ext(conf_file)[0] != 0;
-#endif
+  const char **exts_to_use= have_ext ? empty_list : f_extensions;
   char name[FN_REFLEN], **ext;
   const char **dirs;
 
@@ -749,30 +767,9 @@ void print_defaults(const char *conf_file, const char **groups)
     fputs(conf_file,stdout);
   else
   {
-#ifdef __WIN__
-    GetWindowsDirectory(name,sizeof(name));
-    if (!have_ext)
-    {
-      for (ext= (char**) f_extensions; *ext; *ext++)
-        printf("%s\\%s%s ", name, conf_file, *ext);
-    }
-    else
-        printf("%s\\%s ", name, conf_file);
-#endif
-#if defined(__EMX__) || defined(OS2)
-    {
-      const char *etc;
-
-      if ((etc= getenv("ETC")))
-      {
-	for (ext= (char**) f_extensions; *ext; *ext++)
-	  printf("%s\\%s%s ", etc, conf_file, *ext);
-      }
-    }
-#endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
-      for (ext= (char**) f_extensions; *ext; *ext++)
+      for (ext= (char**) exts_to_use; *ext; *ext++)
       {
 	const char *pos;
 	char *end;
@@ -791,6 +788,12 @@ void print_defaults(const char *conf_file, const char **groups)
     }
     puts("");
   }
+}
+
+void print_defaults(const char *conf_file, const char **groups)
+{
+  my_print_default_files(conf_file);
+
   fputs("The following groups are read:",stdout);
   for ( ; *groups ; groups++)
   {
@@ -806,15 +809,58 @@ void print_defaults(const char *conf_file, const char **groups)
 
 #include <help_end.h>
 
+
+/*
+  Create the list of default directories.
+
+  On Microsoft Windows, this is:
+    1. C:/
+    2. GetWindowsDirectory()
+    3. GetSystemWindowsDirectory()
+    4. getenv(DEFAULT_HOME_ENV)
+    5. ""
+
+  On Novell NetWare, this is:
+    1. sys:/etc/
+    2. getenv(DEFAULT_HOME_ENV)
+    3. ""
+
+  On OS/2, this is:
+    1. getenv(ETC)
+    2. /etc/
+    3. getenv(DEFAULT_HOME_ENV)
+    4. ""
+    5. "~/"
+
+  Everywhere else, this is:
+    1. /etc/
+    2. getenv(DEFAULT_HOME_ENV)
+    3. ""
+    4. "~/"
+
+ */
+
 static void init_default_directories()
 {
   const char *env, **ptr= default_directories;
 
 #ifdef __WIN__
   *ptr++= "C:/";
+
+  if (GetWindowsDirectory(system_dir,sizeof(system_dir)))
+    *ptr++= &system_dir;
+  /* Only add shared system directory if different from default. */
+  if (GetSystemWindowsDirectory(shared_system_dir,sizeof(shared_system_dir)) &&
+      strcmp(system_dir, shared_system_dir))
+    *ptr++= &shared_system_dir;
+
 #elif defined(__NETWARE__)
   *ptr++= "sys:/etc/";
 #else
+#if defined(__EMX__) || defined(OS2)
+  if ((env= getenv("ETC")))
+    *ptr++= env;
+#endif
   *ptr++= "/etc/";
 #endif
   if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))

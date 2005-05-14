@@ -313,7 +313,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
     removed_tables is != 0 if we have used MIN() or MAX().
   */
   if (removed_tables && used_tables != removed_tables)
-    const_result= 0;                                // We didn't remove all tables
+    const_result= 0;                            // We didn't remove all tables
   return const_result;
 }
 
@@ -323,12 +323,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 
   SYNOPSIS
     simple_pred()
-    func_item   in:  Predicate item
+    func_item        Predicate item
     args        out: Here we store the field followed by constants
-    inv_order   out: Is set to 1 if the predicate is of the form 'const op field' 
+    inv_order   out: Is set to 1 if the predicate is of the form
+	             'const op field' 
 
   RETURN
-    0        func_item is a simple predicate: a field is compared with constants
+    0        func_item is a simple predicate: a field is compared with
+             constants
     1        Otherwise
 */
 

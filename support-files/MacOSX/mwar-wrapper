@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# This script can only create a library, not take it apart
+# again to AR files
+
+case $1 in
+    -d*|-m*|-t*|-p*|-r*|-x*|x)
+    echo "$0: can't handle arguments $*"
+    exit 1;
+    ;;
+    -c|c|cr|cru|cu)
+    shift;
+    ;;
+esac
+
+exec mwld -lib -o $*

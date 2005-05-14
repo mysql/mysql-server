@@ -104,3 +104,13 @@ t2.value64=t1.value64;
 
 drop table t1, t2;
 
+#
+# Test of CREATE ... SELECT and unsigned integers
+#
+create table t1 select 1 as 'a';
+show create table t1;
+drop table t1;
+create table t1 select 9223372036854775809 as 'a';
+show create table t1;
+select * from t1;
+drop table t1;

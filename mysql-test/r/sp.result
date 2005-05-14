@@ -1404,11 +1404,10 @@ show procedure status like '%p%'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 drop table if exists fib|
 create table fib ( f bigint unsigned not null )|
-insert into fib values (1), (1)|
 drop procedure if exists fib|
 create procedure fib(n int unsigned)
 begin
-if n > 0 then
+if n > 1 then
 begin
 declare x, y bigint unsigned;
 declare c cursor for select f from fib order by f desc limit 2;
@@ -1421,9 +1420,20 @@ call fib(n-1);
 end;
 end if;
 end|
+insert into fib values (0), (1)|
+call fib(3)|
+select * from fib order by f asc|
+f
+0
+1
+1
+2
+delete from fib|
+insert into fib values (0), (1)|
 call fib(20)|
 select * from fib order by f asc|
 f
+0
 1
 1
 2
@@ -1444,8 +1454,6 @@ f
 2584
 4181
 6765
-10946
-17711
 drop table fib|
 drop procedure fib|
 drop procedure if exists bar|
@@ -2913,10 +2921,10 @@ select @sptmp|
 10
 call bug9674_2()|
 v/10
-10.00000
+10.0000
 call bug9674_2()|
 v/10
-10.00000
+10.0000
 drop procedure bug9674_1|
 drop procedure bug9674_2|
 drop procedure if exists bug9598_1|
@@ -3041,4 +3049,53 @@ Warning	1265	Data truncated for column 'id' at row 2
 delete from t1|
 drop procedure bug9004_1|
 drop procedure bug9004_2|
+drop procedure if exists bug7293|
+insert into t1 values ('secret', 0)|
+create procedure bug7293(p1 varchar(100))
+begin
+if exists (select id from t1 where soundex(p1)=soundex(id)) then
+select 'yes';
+end if;
+end;|
+call bug7293('secret')|
+yes
+yes
+call bug7293 ('secrete')|
+yes
+yes
+drop procedure bug7293|
+delete from t1|
+drop procedure if exists bug9841|
+drop view if exists v1|
+create view v1 as select * from t1, t2 where id = s|
+create procedure bug9841 ()
+update v1 set data = 10|
+call bug9841()|
+drop view v1|
+drop procedure bug9841|
+drop procedure if exists bug5963|
+create procedure bug5963_1 () begin declare v int; set v = (select s1 from t3); select v; end;|
+create table t3 (s1 int)|
+insert into t3 values (5)|
+call bug5963_1()|
+v
+5
+call bug5963_1()|
+v
+5
+drop procedure bug5963_1|
+drop table t3|
+create procedure bug5963_2 (cfk_value int) 
+begin 
+if cfk_value in (select cpk from t3) then 
+set @x = 5; 
+end if; 
+end; 
+|
+create table t3 (cpk int)|
+insert into t3 values (1)|
+call bug5963_2(1)|
+call bug5963_2(1)|
+drop procedure bug5963_2|
+drop table t3|
 drop table t1,t2;

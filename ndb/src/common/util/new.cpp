@@ -6,7 +6,7 @@ extern "C" {
   void (* ndb_new_handler)() = 0;
 }
 
-#ifdef USE_MYSYS_NEW
+#if 0
 
 void *operator new (size_t sz)
 {

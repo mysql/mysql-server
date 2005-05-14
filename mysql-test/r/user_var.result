@@ -182,3 +182,44 @@ coercibility(@v1)	coercibility(@v2)	coercibility(@v3)	coercibility(@v4)
 set session @honk=99;
 set one_shot @honk=99;
 ERROR HY000: The 'SET ONE_SHOT' syntax is reserved for purposes internal to the MySQL server
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` longblob
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var= cast(NULL as signed integer);
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` bigint(20) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` bigint(20) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var= concat(NULL);
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` longblob
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var=1;
+set @first_var= cast(NULL as CHAR);
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` longtext
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;

@@ -646,8 +646,8 @@ m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
    'void exit (int);' \
    '#include <stdlib.h>'
 do
-  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <stdlib.h>
-$ac_declaration],
+  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([$ac_declaration
+@%:@include <stdlib.h>],
                                       [exit (42);])],
                      [],
                      [continue])
@@ -692,4 +692,21 @@ AC_DEFUN([MYSQL_CHECK_BIG_TABLES], [
 dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_BIG_TABLES SECTION
 dnl ---------------------------------------------------------------------------
+
+dnl MYSQL_NEEDS_MYSYS_NEW
+AC_DEFUN([MYSQL_NEEDS_MYSYS_NEW],
+[AC_CACHE_CHECK([needs mysys_new helpers], mysql_use_mysys_new,
+[
+AC_LANG_PUSH(C++)
+AC_TRY_LINK([], [
+class A { public: int b; }; A *a=new A; a->b=10; delete a;
+], mysql_use_mysys_new=no, mysql_use_mysys_new=yes)
+AC_LANG_POP(C++)
+])
+if test "$mysql_use_mysys_new" = "yes"
+then
+  AC_DEFINE([USE_MYSYS_NEW], [1], [Needs to use mysys_new helpers])
+fi
+])
+
 

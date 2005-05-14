@@ -119,3 +119,29 @@ select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
 set session @honk=99;
 --error 1382
 set one_shot @honk=99;
+
+#
+# Bug #6598: problem with cast(NULL as signed integer);
+#
+
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var= cast(NULL as signed integer);
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var= concat(NULL);
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var=1;
+set @first_var= cast(NULL as CHAR);
+create table t1 select @first_var;
+show create table t1;
+drop table t1;

@@ -42,11 +42,11 @@ i
 select * from t1;
 i
 connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
-ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections' resource (current value: 2)
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections_per_hour' resource (current value: 2)
 select * from t1;
 i
 connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
-ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections' resource (current value: 2)
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections_per_hour' resource (current value: 2)
 drop user mysqltest_1@localhost;
 flush privileges;
 grant usage on *.* to mysqltest_1@localhost with max_user_connections 2;

@@ -20,7 +20,7 @@
   variables must declare the size_of() member function.
 */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
@@ -118,6 +118,7 @@ public:
   String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
+  virtual Item_result cast_to_int_type () const { return result_type(); }
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
   bool eq(Field *field)
@@ -197,7 +198,7 @@ public:
   virtual Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                                char *new_ptr, uchar *new_null_ptr,
                                uint new_null_bit);
-  virtual void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
+  inline void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
   {
     ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
   }
@@ -299,8 +300,6 @@ public:
   int warn_if_overflow(int op_result);
   /* maximum possible display length */
   virtual uint32 max_length()= 0;
-  /* length of field value symbolic representation (in bytes) */
-  virtual uint32 representation_length() { return field_length; }
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
@@ -437,7 +436,13 @@ public:
 /* New decimal/numeric field which use fixed point arithmetic */
 class Field_new_decimal :public Field_num {
 public:
+  /* The maximum number of decimal digits can be stored */
+  uint precision;
   uint bin_size;
+  /* Constructors take max_length of the field as a parameter - not the */
+  /* precision as the number of decimal digits allowed                  */
+  /* So for example we need to count length from precision handling     */
+  /* CREATE TABLE ( DECIMAL(x,y))                                       */
   Field_new_decimal(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                     uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg,
@@ -445,7 +450,8 @@ public:
                     uint8 dec_arg, bool zero_arg, bool unsigned_arg);
   Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                     const char *field_name_arg,
-                    struct st_table *table_arg, uint8 dec_arg);
+                    struct st_table *table_arg, uint8 dec_arg,
+                    bool unsigned_arg);
   enum_field_types type() const { return FIELD_TYPE_NEWDECIMAL;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   Item_result result_type () const { return DECIMAL_RESULT; }
@@ -464,10 +470,7 @@ public:
   void sort_string(char *buff, uint length);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
-  uint32 max_length()
-  { return field_length + 1 + (dec ? 1 : 0) + (field_length == dec ? 1 : 0); }
-  uint32 representation_length()
-  { return field_length + 1 + (dec ? 1 : 0) + (field_length == dec ? 1 : 0); };
+  uint32 max_length() { return field_length; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
 };
@@ -1189,9 +1192,9 @@ public:
   enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
   int  store(const char *to, uint length, CHARSET_INFO *charset);
-  int  store(double nr) { return 1; }
-  int  store(longlong nr) { return 1; }
-  int  store_decimal(const my_decimal *) { return 1; }
+  int  store(double nr);
+  int  store(longlong nr);
+  int  store_decimal(const my_decimal *);
   void get_key_image(char *buff,uint length,imagetype type);
 };
 #endif /*HAVE_SPATIAL*/
@@ -1216,6 +1219,7 @@ public:
   }
   enum_field_types type() const { return FIELD_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Item_result cast_to_int_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);

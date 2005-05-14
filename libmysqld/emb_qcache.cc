@@ -22,7 +22,7 @@
 void Querycache_stream::store_char(char c)
 {
   if (data_end == cur_data)
-    use_next_block();
+    use_next_block(TRUE);
   *(cur_data++)= c;
 #ifndef DBUG_OFF
   stored_size++;
@@ -42,13 +42,13 @@ void Querycache_stream::store_short(ushort s)
   }
   if (data_end == cur_data)
   {
-    use_next_block();
+    use_next_block(TRUE);
     int2store(cur_data, s);
     cur_data+= 2;
     return;
   }
   *cur_data= ((byte *)(&s))[0];
-  use_next_block();
+  use_next_block(TRUE);
   *(cur_data++)= ((byte *)(&s))[1];
 }
 
@@ -66,7 +66,7 @@ void Querycache_stream::store_int(uint i)
   }
   if (!rest_len)
   {
-    use_next_block();
+    use_next_block(TRUE);
     int4store(cur_data, i);
     cur_data+= 4;
     return;
@@ -74,7 +74,7 @@ void Querycache_stream::store_int(uint i)
   char buf[4];
   int4store(buf, i);
   memcpy(cur_data, buf, rest_len);
-  use_next_block();
+  use_next_block(TRUE);
   memcpy(cur_data, buf+rest_len, 4-rest_len);
   cur_data+= 4-rest_len;
 }
@@ -93,13 +93,13 @@ void Querycache_stream::store_ll(ulonglong ll)
   }
   if (!rest_len)
   {
-    use_next_block();
+    use_next_block(TRUE);
     int8store(cur_data, ll);
     cur_data+= 8;
     return;
   }
   memcpy(cur_data, &ll, rest_len);
-  use_next_block();
+  use_next_block(TRUE);
   memcpy(cur_data, ((byte*)&ll)+rest_len, 8-rest_len);
   cur_data+= 8-rest_len;
 }
@@ -112,14 +112,14 @@ void Querycache_stream::store_str_only(const char *str, uint str_len)
   do
   {
     size_t rest_len= data_end - cur_data;
-    if (rest_len > str_len)
+    if (rest_len >= str_len)
     {
       memcpy(cur_data, str, str_len);
       cur_data+= str_len;
       return;
     }
     memcpy(cur_data, str, rest_len);
-    use_next_block();
+    use_next_block(TRUE);
     str_len-= rest_len;
     str+= rest_len;
   } while(str_len);
@@ -145,7 +145,7 @@ void Querycache_stream::store_safe_str(const char *str, uint str_len)
 char Querycache_stream::load_char()
 {
   if (cur_data == data_end)
-    use_next_block();
+    use_next_block(FALSE);
   return *(cur_data++);
 }
 
@@ -160,13 +160,13 @@ ushort Querycache_stream::load_short()
   }
   if (data_end == cur_data)
   {
-    use_next_block();
+    use_next_block(FALSE);
     result= uint2korr(cur_data);
     cur_data+= 2;
     return result;
   }
   ((byte*)&result)[0]= *cur_data;
-  use_next_block();
+  use_next_block(FALSE);
   ((byte*)&result)[1]= *(cur_data++);
   return result;
 }
@@ -183,14 +183,14 @@ uint Querycache_stream::load_int()
   }
   if (!rest_len)
   {
-    use_next_block();
+    use_next_block(FALSE);
     result= uint4korr(cur_data);
     cur_data+= 4;
     return result;
   }
   char buf[4];
   memcpy(buf, cur_data, rest_len);
-  use_next_block();
+  use_next_block(FALSE);
   memcpy(buf+rest_len, cur_data, 4-rest_len);
   cur_data+= 4-rest_len;
   result= uint4korr(buf);
@@ -209,13 +209,13 @@ ulonglong Querycache_stream::load_ll()
   }
   if (!rest_len)
   {
-    use_next_block();
+    use_next_block(FALSE);
     result= uint8korr(cur_data);
     cur_data+= 8;
     return result;
   }
   memcpy(&result, cur_data, rest_len);
-  use_next_block();
+  use_next_block(FALSE);
   memcpy(((byte*)&result)+rest_len, cur_data, 8-rest_len);
   cur_data+= 8-rest_len;
   return result;
@@ -226,7 +226,7 @@ void Querycache_stream::load_str_only(char *buffer, uint str_len)
   do
   {
     size_t rest_len= data_end - cur_data;
-    if (rest_len > str_len)
+    if (rest_len >= str_len)
     {
       memcpy(buffer, cur_data, str_len);
       cur_data+= str_len;
@@ -234,7 +234,7 @@ void Querycache_stream::load_str_only(char *buffer, uint str_len)
       break;
     }
     memcpy(buffer, cur_data, rest_len);
-    use_next_block();
+    use_next_block(FALSE);
     str_len-= rest_len;
     buffer+= rest_len;
   } while(str_len);

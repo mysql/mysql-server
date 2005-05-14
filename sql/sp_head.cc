@@ -97,19 +97,48 @@ sp_multi_results_command(enum enum_sql_command cmd)
   }
 }
 
+
+/*
+  Prepare Item for execution (call of fix_fields)
+
+  SYNOPSIS
+    sp_prepare_func_item()
+    thd       thread handler
+    it_addr   pointer on item refernce
+
+  RETURN
+    NULL  error
+    prepared item
+*/
+
+static Item *
+sp_prepare_func_item(THD* thd, Item **it_addr)
+{
+  Item *it= *it_addr;
+  DBUG_ENTER("sp_prepare_func_item");
+  it_addr= it->this_item_addr(thd, it_addr);
+
+  if (!it->fixed && (*it_addr)->fix_fields(thd, 0, it_addr))
+  {
+    DBUG_PRINT("info", ("fix_fields() failed"));
+    DBUG_RETURN(NULL);
+  }
+  DBUG_RETURN(*it_addr);
+}
+
+
 /* Evaluate a (presumed) func item. Always returns an item, the parameter
 ** if nothing else.
 */
 Item *
-sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
+sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 {
   DBUG_ENTER("sp_eval_func_item");
-  it= it->this_item();
+  Item *it= sp_prepare_func_item(thd, it_addr);
   DBUG_PRINT("info", ("type: %d", type));
 
-  if (!it->fixed && it->fix_fields(thd, 0, &it))
+  if (!it)
   {
-    DBUG_PRINT("info", ("fix_fields() failed"));
     DBUG_RETURN(NULL);
   }
 
@@ -164,7 +193,10 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
           it= new Item_null();
         else
           it= new Item_decimal(val);
-        dbug_print_decimal("info", "DECIMAL_RESULT: %s", val);
+#ifndef DBUG_OFF
+        char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+        DBUG_PRINT("info", ("DECIMAL_RESULT: %s", dbug_decimal_as_string(dbug_buff, val)));
+#endif
         break;
       }
     case STRING_RESULT:
@@ -382,32 +414,33 @@ sp_head::create_typelib(List<String> *src)
       return 0;
     result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
-    String conv, *tmp;
-    uint32 dummy;
-    for (uint i=0; i<result->count; i++)
+    String conv;
+    for (uint i=0; i < result->count; i++)
     {
-      tmp = it++;
+      uint32 dummy;
+      uint length;
+      String *tmp= it++;
+
       if (String::needs_conversion(tmp->length(), tmp->charset(),
       				   cs, &dummy))
       {
         uint cnv_errs;
         conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
-        char *buf= (char*) alloc_root(mem_root,conv.length()+1);
-        memcpy(buf, conv.ptr(), conv.length());
-        buf[conv.length()]= '\0';
-        result->type_names[i]= buf;
-        result->type_lengths[i]= conv.length();
+
+        length= conv.length();
+        result->type_names[i]= (char*) strmake_root(mem_root, conv.ptr(),
+                                                    length);
       }
-      else {
-        result->type_names[i]= strdup_root(mem_root, tmp->c_ptr());
-        result->type_lengths[i]= tmp->length();
+      else
+      {
+        length= tmp->length();
+        result->type_names[i]= strmake_root(mem_root, tmp->ptr(), length);
       }
 
       // Strip trailing spaces.
-      uint lengthsp= cs->cset->lengthsp(cs, result->type_names[i],
-                                        result->type_lengths[i]);
-      result->type_lengths[i]= lengthsp;
-      ((uchar *)result->type_names[i])[lengthsp]= '\0';
+      length= cs->cset->lengthsp(cs, result->type_names[i], length);
+      result->type_lengths[i]= length;
+      ((uchar *)result->type_names[i])[length]= '\0';
     }
     result->type_names[result->count]= 0;
     result->type_lengths[result->count]= 0;
@@ -675,7 +708,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
-    Item *it= sp_eval_func_item(thd, *argp++, pvar->type);
+    Item *it= sp_eval_func_item(thd, argp++, pvar->type);
 
     if (it)
       nctx->push_item(it);
@@ -757,7 +790,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   {
     Item_null *nit= NULL;	// Re-use this, and only create if needed
     uint i;
-    List_iterator_fast<Item> li(*args);
+    List_iterator<Item> li(*args);
     Item *it;
 
     nctx= new sp_rcontext(csize, hmax, cmax);
@@ -790,7 +823,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	}
 	else
 	{
-	  Item *it2= sp_eval_func_item(thd, it, pvar->type);
+	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type);
 
 	  if (it2)
 	    nctx->push_item(it2); // IN or INOUT
@@ -1435,7 +1468,7 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_value, m_type);
+  it= sp_eval_func_item(thd, &m_value, m_type);
   if (! it)
     res= -1;
   else
@@ -1565,13 +1598,13 @@ sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  it= sp_prepare_func_item(thd, &m_expr);
   if (!it)
     res= -1;
   else
   {
     res= 0;
-    if (it->val_int())
+    if (it->val_bool())
       *nextp = m_dest;
     else
       *nextp = m_ip+1;
@@ -1623,13 +1656,13 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  it= sp_prepare_func_item(thd, &m_expr);
   if (! it)
     res= -1;
   else
   {
     res= 0;
-    if (! it->val_int())
+    if (! it->val_bool())
       *nextp = m_dest;
     else
       *nextp = m_ip+1;
@@ -1681,7 +1714,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_value, m_type);
+  it= sp_eval_func_item(thd, &m_value, m_type);
   if (! it)
     res= -1;
   else

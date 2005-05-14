@@ -168,6 +168,6 @@ drop table t1;
 CREATE TABLE t1 (st varchar(100));
 INSERT INTO t1 VALUES ("Fake string");
 CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
---error 1105
+--error 1416
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 drop table t1, t2;

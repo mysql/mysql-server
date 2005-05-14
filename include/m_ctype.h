@@ -132,6 +132,7 @@ typedef struct my_collation_handler_st
   /* Hash calculation */
   void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len,
 		    ulong *nr1, ulong *nr2); 
+  my_bool (*propagate)(struct charset_info_st *cs, const uchar *str, uint len);
 } MY_COLLATION_HANDLER;
 
 extern MY_COLLATION_HANDLER my_collation_mb_bin_handler;
@@ -384,6 +385,10 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
 
 extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));
+
+my_bool my_propagate_simple(CHARSET_INFO *cs, const uchar *str, uint len);
+my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, uint len);
+
 
 #define	_MY_U	01	/* Upper case */
 #define	_MY_L	02	/* Lower case */

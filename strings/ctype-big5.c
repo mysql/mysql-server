@@ -6335,7 +6335,8 @@ static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
   my_wildcmp_mb,
   my_strcasecmp_mb,
   my_instr_mb,
-  my_hash_sort_simple
+  my_hash_sort_simple,
+  my_propagate_simple
 };
 
 static MY_CHARSET_HANDLER my_charset_big5_handler=

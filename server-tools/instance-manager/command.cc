@@ -28,6 +28,3 @@ Command::Command(Instance_map *instance_map_arg)
 Command::~Command()
 {}
 
-#ifdef __GNUC__
-FIX_GCC_LINKING_PROBLEM
-#endif
