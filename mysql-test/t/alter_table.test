@@ -166,56 +166,6 @@ ALTER TABLE t1 ENABLE KEYS;
 drop table t1;
 
 #
-# Test that data get converted when character set is changed
-# Test that data doesn't get converted when src or dst is BINARY/BLOB
-#
-set names koi8r;
-create table t1 (a char(10) character set koi8r);
-insert into t1 values ('тест');
-select a,hex(a) from t1;
-alter table t1 change a a char(10) character set cp1251;
-select a,hex(a) from t1;
-alter table t1 change a a binary(10);
-select a,hex(a) from t1;
-alter table t1 change a a char(10) character set cp1251;
-select a,hex(a) from t1;
-alter table t1 change a a char(10) character set koi8r;
-select a,hex(a) from t1;
-alter table t1 change a a varchar(10) character set cp1251;
-select a,hex(a) from t1;
-alter table t1 change a a char(10) character set koi8r;
-select a,hex(a) from t1;
-alter table t1 change a a text character set cp1251;
-select a,hex(a) from t1;
-alter table t1 change a a char(10) character set koi8r;
-select a,hex(a) from t1;
-delete from t1;
-
-#
-# Test ALTER TABLE .. CHARACTER SET ..
-#
-show create table t1;
-alter table t1 DEFAULT CHARACTER SET latin1;
-show create table t1;
-alter table t1 CONVERT TO CHARACTER SET latin1;
-show create table t1;
-alter table t1 DEFAULT CHARACTER SET cp1251;
-show create table t1;
-
-drop table t1;
-
-#
-# Bug#2821
-# Test that table CHARACTER SET does not affect blobs
-#
-create table t1 (myblob longblob,mytext longtext) 
-default charset latin1 collate latin1_general_cs;
-show create table t1;
-alter table t1 character set latin2;
-show create table t1;
-drop table t1;
-
-#
 # Test ALTER TABLE ENABLE/DISABLE keys when things are locked
 #
 
@@ -317,6 +267,58 @@ insert into t1 (a) values(1);
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1';
 drop table t1;
+
+#
+# Test that data get converted when character set is changed
+# Test that data doesn't get converted when src or dst is BINARY/BLOB
+#
+set names koi8r;
+create table t1 (a char(10) character set koi8r);
+insert into t1 values ('тест');
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a binary(10);
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+alter table t1 change a a varchar(10) character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+alter table t1 change a a text character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+delete from t1;
+
+#
+# Test ALTER TABLE .. CHARACTER SET ..
+#
+show create table t1;
+alter table t1 DEFAULT CHARACTER SET latin1;
+show create table t1;
+alter table t1 CONVERT TO CHARACTER SET latin1;
+show create table t1;
+alter table t1 DEFAULT CHARACTER SET cp1251;
+show create table t1;
+
+drop table t1;
+
+#
+# Bug#2821
+# Test that table CHARACTER SET does not affect blobs
+#
+create table t1 (myblob longblob,mytext longtext) 
+default charset latin1 collate latin1_general_cs;
+show create table t1;
+alter table t1 character set latin2;
+show create table t1;
+drop table t1;
+
+#
 # Bug 2361 (Don't drop UNIQUE with DROP PRIMARY KEY)
 #
 

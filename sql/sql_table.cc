@@ -1205,6 +1205,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   /* Sort keys in optimized order */
   qsort((gptr) key_info_buffer, *key_count, sizeof(KEY),
 	(qsort_cmp) sort_keys);
+  create_info->null_bits= null_fields;
 
   DBUG_RETURN(0);
 }
@@ -1392,7 +1393,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
     create_info->data_file_name= create_info->index_file_name= 0;
   create_info->table_options=db_options;
-  create_info->null_bits= null_fields;
 
   if (rea_create_table(thd, path, create_info, fields, key_count,
 		       key_info_buffer))

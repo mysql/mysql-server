@@ -38,6 +38,7 @@ select load_file(concat(@tmpdir,"/outfile-test.3"));
 #--error 1086
 #eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.3" from t1;
 #enable_query_log;
+--error 13,2
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
 --exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.1
 --exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.2
