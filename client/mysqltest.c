@@ -572,7 +572,7 @@ static void abort_not_supported_test()
     printf("skipped\n");
   free_used_memory();
   my_end(MY_CHECK_ERROR);
-  exit(2);
+  exit(62);
 }
 
 static void verbose_msg(const char* fmt, ...)
