@@ -3522,6 +3522,12 @@ int main(int argc, char **argv)
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
+	if (save_file[0])
+	{
+	  strmov(q->record_file,save_file);
+	  q->require_file=require_file;
+	  save_file[0]=0;
+	}
 	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
 	break;

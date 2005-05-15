@@ -1019,6 +1019,11 @@ sub kill_and_cleanup () {
 
   mtr_report("Removing Stale Files");
 
+  if ( -l $opt_vardir and ! unlink($opt_vardir) )
+  {
+    mtr_error("Can't remove soft link \"$opt_vardir\"");
+  }
+
   rmtree("$opt_vardir/log");
   rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
   rmtree("$opt_vardir/run");
@@ -1027,10 +1032,7 @@ sub kill_and_cleanup () {
   mkpath("$opt_vardir/log");
   mkpath("$opt_vardir/run");
   mkpath("$opt_vardir/tmp");
-  if ( $opt_tmpdir ne "$opt_vardir/tmp" )
-  {
-    mkpath($opt_tmpdir);
-  }
+  mkpath($opt_tmpdir) if $opt_tmpdir ne "$opt_vardir/tmp";
 
   # FIXME do we really need to create these all, or are they
   # created for us when tables are created?
