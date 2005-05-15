@@ -344,7 +344,7 @@ sub mtr_kill_leftovers () {
   # We scan the "var/run/" directory for other process id's to kill
 
   # FIXME $path_run_dir or something
-  my $rundir= "$::glob_mysql_test_dir/var/run";
+  my $rundir= "$::opt_vardir/run";
 
   if ( -d $rundir )
   {
