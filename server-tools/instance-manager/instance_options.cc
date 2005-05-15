@@ -21,7 +21,6 @@
 #include "instance_options.h"
 
 #include "parse_output.h"
-#include "parse.h"
 #include "buffer.h"
 
 #include <my_sys.h>
@@ -36,7 +35,7 @@
     get_default_option()
     result            buffer to put found value
     result_len        buffer size
-    oprion_name       the name of the option, prefixed with "--"
+    option_name       the name of the option, prefixed with "--"
 
   DESCRIPTION
 
@@ -46,6 +45,7 @@
     0 - ok
     1 - error occured
 */
+
 
 int Instance_options::get_default_option(char *result, size_t result_len,
                                          const char *option_name)
@@ -76,16 +76,30 @@ err:
 }
 
 
+/*
+  Get compiled-in value of default_option
+
+  SYNOPSYS
+    get_default_option()
+    result            buffer to put found value
+    result_len        buffer size
+    option_name       the name of the option, prefixed with "--"
+
+  DESCRIPTION
+
+   Get compile-in value of requested option from server
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
+
 int Instance_options::fill_log_options()
 {
-  /* array for the log option for mysqld */
-  enum { MAX_LOG_OPTIONS= 8 };
-  enum { MAX_LOG_OPTION_LENGTH= 256 };
-  /* the last option must be '\0', so we reserve space for it */
-  char log_options[MAX_LOG_OPTIONS + 1][MAX_LOG_OPTION_LENGTH];
   Buffer buff;
   uint position= 0;
   char **tmp_argv= argv;
+  enum { MAX_LOG_OPTION_LENGTH= 256 };
   char datadir[MAX_LOG_OPTION_LENGTH];
   char hostname[MAX_LOG_OPTION_LENGTH];
   uint hostname_length;
@@ -93,43 +107,17 @@ int Instance_options::fill_log_options()
   {
     const char *name;
     uint length;
-    const char **value;
+    char **value;
     const char *default_suffix;
-  } logs[]=
+  } logs_st[]=
   {
-    {"--log-error", 11, &error_log, ".err"},
-    {"--log", 5, &query_log, ".log"},
-    {"--log-slow-queries", 18, &slow_log, "-slow.log"},
+    {"--log-error", 11, &(logs[LOG_ERROR]), ".err"},
+    {"--log", 5, &(logs[LOG_GENERAL]), ".log"},
+    {"--log-slow-queries", 18, &(logs[LOG_SLOW]), "-slow.log"},
     {NULL, 0, NULL, NULL}
   };
   struct log_files_st *log_files;
 
-  /* clean the buffer before usage */
-  bzero(log_options, sizeof(log_options));
-
-  /* create a "mysqld <argv_options>" command in the buffer */
-  buff.append(position, mysqld_path, strlen(mysqld_path));
-  position=  strlen(mysqld_path);
-
-  /* skip the first option */
-  tmp_argv++;
-
-  while (*tmp_argv != 0)
-  {
-    buff.append(position, " ", 1);
-    position++;
-    buff.append(position, *tmp_argv, strlen(*tmp_argv));
-    position+= strlen(*tmp_argv);
-    tmp_argv++;
-  }
-
-  buff.append(position, "\0", 1);
-  position++;
-
-  /* get options and parse them */
-  if (parse_arguments(buff.buffer, "--log", (char *) log_options,
-                      MAX_LOG_OPTIONS + 1, MAX_LOG_OPTION_LENGTH))
-    goto err;
   /* compute hostname and datadir for the instance */
   if (mysqld_datadir == NULL)
   {
@@ -148,11 +136,11 @@ int Instance_options::fill_log_options()
   hostname_length= strlen(hostname);
 
 
-  for (log_files= logs; log_files->name; log_files++)
+  for (log_files= logs_st; log_files->name; log_files++)
   {
-    for (int i=0; (i < MAX_LOG_OPTIONS) && (log_options[i][0] != '\0'); i++)
+    for (int i=0; (argv[i] != 0); i++)
     {
-      if (!strncmp(log_options[i], log_files->name, log_files->length))
+      if (!strncmp(argv[i], log_files->name, log_files->length))
       {
         /*
           This is really log_files->name option if and only if it is followed
@@ -160,8 +148,8 @@ int Instance_options::fill_log_options()
           options as '--log' and '--log-bin'. This is checked in the following
           two statements.
         */
-        if (log_options[i][log_files->length] == '\0' ||
-            my_isspace(default_charset_info, log_options[i][log_files->length]))
+        if (argv[i][log_files->length] == '\0' ||
+            my_isspace(default_charset_info, argv[i][log_files->length]))
         {
           char full_name[MAX_LOG_OPTION_LENGTH];
 
@@ -178,21 +166,25 @@ int Instance_options::fill_log_options()
           else
             goto err;
 
-          *(log_files->value)= strdup_root(&alloc, datadir);
+          /*
+            If there were specified two identical logfiles options,
+            we would loose some memory in MEM_ROOT here. However
+            this situation is not typical.
+          */
+          *(log_files->value)= strdup_root(&alloc, full_name);
         }
 
-        if (log_options[i][log_files->length] == '=')
+        if (argv[i][log_files->length] == '=')
         {
           char full_name[MAX_LOG_OPTION_LENGTH];
 
-          fn_format(full_name, log_options[i] +log_files->length + 1,
+          fn_format(full_name, argv[i] +log_files->length + 1,
                     datadir, "", MY_UNPACK_FILENAME | MY_SAFE_PATH);
 
           if (!(*(log_files->value)=
                 strdup_root(&alloc, full_name)))
             goto err;
         }
-
       }
     }
   }
@@ -204,6 +196,25 @@ err:
 
 }
 
+
+/*
+  Get the full pid file name with path
+
+  SYNOPSYS
+    get_pid_filaname()
+    result            buffer to sotre the pidfile value
+
+  IMPLEMENTATION
+    Get the data directory, then get the pid filename
+    (which is always set for an instance), then load the
+    full path with my_load_path(). It takes into account
+    whether it is already an absolute path or it should be
+    prefixed with the datadir and so on.
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
 
 int Instance_options::get_pid_filename(char *result)
 {
@@ -405,7 +416,7 @@ int Instance_options::add_to_argv(const char* option)
   DBUG_ASSERT(filled_default_options < MAX_NUMBER_OF_DEFAULT_OPTIONS);
 
   if ((option))
-    argv[filled_default_options++]= (char *) option;
+    argv[filled_default_options++]= (char*) option;
   return 0;
 }
 
@@ -433,10 +444,10 @@ int Instance_options::init(const char *instance_name_arg)
 
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 
-  if (my_init_dynamic_array(&options_array, sizeof(char *), 0, 32))
+  if (my_init_dynamic_array(&options_array, sizeof(char*), 0, 32))
       goto err;
 
-  if (!(instance_name= strmake_root(&alloc, (char *) instance_name_arg,
+  if (!(instance_name= strmake_root(&alloc, (char*) instance_name_arg,
                                   instance_name_len)))
     goto err;
 

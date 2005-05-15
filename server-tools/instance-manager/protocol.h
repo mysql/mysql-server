@@ -25,6 +25,9 @@ typedef struct field {
   uint length;
 } NAME_WITH_LENGTH;
 
+/* default field length to be used in various field-realted functions */
+enum { DEFAULT_FIELD_LENGTH= 20 };
+
 struct st_net;
 
 int net_send_ok(struct st_net *net, unsigned long connection_id,
