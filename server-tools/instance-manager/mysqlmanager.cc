@@ -136,7 +136,8 @@ static struct passwd *check_user(const char *user)
   {
     /* Allow a numeric uid to be used */
     const char *pos;
-    for (pos= user; my_isdigit(default_charset_info, *pos); pos++) ;
+    for (pos= user; my_isdigit(default_charset_info, *pos); pos++)
+    {}
     if (*pos)                                   /* Not numeric id */
       goto err;
     if (!(user_info= getpwuid(atoi(user))))
