@@ -1497,15 +1497,15 @@ sub run_testcase ($) {
     {
       mtr_report_test_passed($tinfo);
     }
-    elsif ( $res == 2 )
+    elsif ( $res == 62 )
     {
       # Testcase itself tell us to skip this one
       mtr_report_test_skipped($tinfo);
     }
     else
     {
-      # Test case failed
-      if ( $res > 2 )
+      # Test case failed, if in control mysqltest returns 1
+      if ( $res != 1 )
       {
         mtr_tofile($path_timefile,
                    "mysqltest returned unexpected code $res, " .
@@ -2129,7 +2129,7 @@ sub run_mysqltest ($$) {
     mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
   }
 
-  return mtr_run_test($exe_mysqltest,$args,$tinfo->{'path'},"",$path_timefile,"");
+  return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
 
 ##############################################################################
