@@ -18,6 +18,7 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include "parse.h"
 
 #ifdef __GNUC__
 #pragma interface
@@ -40,8 +41,7 @@ public:
     mysqld_socket(0), mysqld_datadir(0),
     mysqld_bind_address(0), mysqld_pid_file(0), mysqld_port(0),
     mysqld_port_val(0), mysqld_path(0), nonguarded(0), shutdown_delay(0),
-    shutdown_delay_val(0), error_log(0), query_log(0), slow_log(0),
-    filled_default_options(0)
+    shutdown_delay_val(0), filled_default_options(0)
   {}
   ~Instance_options();
   /* fills in argv */
@@ -77,9 +77,8 @@ public:
   const char *nonguarded;
   const char *shutdown_delay;
   uint shutdown_delay_val;
-  const char *error_log;
-  const char *query_log;
-  const char *slow_log;
+  /* log enums are defined in parse.h */
+  char *logs[3];
 
   /* this value is computed and cashed here */
   DYNAMIC_ARRAY options_array;

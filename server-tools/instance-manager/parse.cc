@@ -198,9 +198,7 @@ Command *parse_command(Command_factory *factory, const char *text)
     /* should be empty */
     get_word(&text, &word_len);
     if (word_len)
-    {
       goto syntax_error;
-    }
 
     if (skip)
       command= factory->new_Unset_option(instance_name, instance_name_len,
@@ -330,44 +328,3 @@ syntax_error:
   }
   return command;
 }
-
-/* additional parse function, needed to parse  */
-
-/* create an array of strings from the output, starting from "word" */
-int parse_arguments(const char *command, const char *word, char *result,
-                    int max_result_cardinality, size_t option_len)
-{
-  int wordlen;
-  int i= 0;              /* result array index */
-  /* should be enough to store the string from the output */
-  enum { MAX_LINE_LEN= 4096 };
-  char linebuf[MAX_LINE_LEN];
-
-  wordlen= strlen(word);
-
-  uint lineword_len= 0;
-  const char *linep= command;
-  get_word((const char **) &linep, &lineword_len, NONSPACE);
-  while ((*linep != '\0') && (i < max_result_cardinality))
-  {
-    if (!strncmp(word, linep, wordlen))
-    {
-      strncpy(result + i*option_len, linep, lineword_len);
-      *(result + i*option_len + lineword_len)= '\0';
-      linep+= lineword_len;
-      i++;
-    }
-    else
-      linep+= lineword_len;
-    get_word((const char **) &linep, &lineword_len, NONSPACE);
-
-    /* stop if we've filled the array */
-    if (i >= max_result_cardinality)
-      break;
-  }
-
-
-  return 0;
-}
-
-

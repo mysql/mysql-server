@@ -304,12 +304,11 @@ void Instance::kill_instance(int signum)
     */
     if (!kill(pid, signum))
       options.unlink_pidfile();
-    else
-      if (signum == SIGKILL)      /* really killed instance with SIGKILL */
-        log_error("The instance %s is being stopped forsibly. Normally \
-                  it should not happed. Probably the instance has been \
-                  hanging. You should also check your IM setup",
-                  options.instance_name);
+    else if (signum == SIGKILL)      /* really killed instance with SIGKILL */
+      log_error("The instance %s is being stopped forsibly. Normally \
+                it should not happed. Probably the instance has been \
+                hanging. You should also check your IM setup",
+                options.instance_name);
   }
   return;
 }
