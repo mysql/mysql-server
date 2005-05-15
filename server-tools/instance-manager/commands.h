@@ -31,7 +31,6 @@ public:
   Show_instances(Instance_map *instance_map_arg): Command(instance_map_arg)
   {}
 
-  int do_command(struct st_net *net);
   int execute(struct st_net *net, ulong connection_id);
 };
 
@@ -60,8 +59,8 @@ class Show_instance_status : public Command
 {
 public:
 
-  Show_instance_status(Instance_map *instance_map_arg, const char *name, uint len);
-  int do_command(struct st_net *net, const char *instance_name);
+  Show_instance_status(Instance_map *instance_map_arg,
+                       const char *name, uint len);
   int execute(struct st_net *net, ulong connection_id);
   const char *instance_name;
 };
@@ -76,10 +75,10 @@ class Show_instance_options : public Command
 {
 public:
 
-  Show_instance_options(Instance_map *instance_map_arg, const char *name, uint len);
+  Show_instance_options(Instance_map *instance_map_arg,
+                        const char *name, uint len);
 
   int execute(struct st_net *net, ulong connection_id);
-  int do_command(struct st_net *net, const char *instance_name);
   const char *instance_name;
 };
 
@@ -129,7 +128,6 @@ public:
   Show_instance_log(Instance_map *instance_map_arg, const char *name,
                     uint len, Log_type log_type_arg, const char *size_arg,
                     const char *offset_arg);
-  int do_command(struct st_net *net, const char *instance_name);
   int execute(struct st_net *net, ulong connection_id);
   Log_type log_type;
   const char *instance_name;
@@ -147,8 +145,8 @@ class Show_instance_log_files : public Command
 {
 public:
 
-  Show_instance_log_files(Instance_map *instance_map_arg, const char *name, uint len);
-  int do_command(struct st_net *net, const char *instance_name);
+  Show_instance_log_files(Instance_map *instance_map_arg,
+                          const char *name, uint len);
   int execute(struct st_net *net, ulong connection_id);
   const char *instance_name;
   const char *option;
@@ -156,10 +154,10 @@ public:
 
 
 /*
-  Syntax error command. This command is issued if parser reported a syntax error.
-  We need it to distinguish the parse error and the situation when parser internal
-  error occured. E.g. parsing failed because we hadn't had enought memory. In the
-  latter case parse_command() should return an error.
+  Syntax error command. This command is issued if parser reported a syntax
+  error. We need it to distinguish the parse error and the situation when
+  parser internal error occured. E.g. parsing failed because we hadn't had
+  enought memory. In the latter case parse_command() should return an error.
 */
 
 class Syntax_error : public Command
@@ -185,7 +183,7 @@ public:
   virtual int do_command(struct st_net *net);
   int execute(struct st_net *net, ulong connection_id);
 protected:
-  int correct_file(bool skip);
+  int correct_file(int skip);
 public:
   const char *instance_name;
   uint instance_name_len;

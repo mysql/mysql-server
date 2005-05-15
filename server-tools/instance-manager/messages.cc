@@ -55,8 +55,12 @@ static const char *mysqld_error_message(unsigned sql_errno)
   case ER_CANNOT_START_INSTANCE:
     return "Cannot start instance. Possible reasons are wrong instance options"
            " or resources shortage";
+  case ER_OFFSET_ERROR:
+    return "Cannot read negative number of bytes";
   case ER_STOP_INSTANCE:
     return "Cannot stop instance";
+  case ER_READ_FILE:
+    return "Cannot read requested part of the logfile";
   case ER_NO_SUCH_LOG:
     return "The instance has no such log enabled";
   case ER_OPEN_LOGFILE:

@@ -25,11 +25,32 @@
 
 #include <m_string.h>
 #include <mysql.h>
+#include <my_dir.h>
 
 
-/* some useful functions */
+/*
+  Add a string to a buffer
 
-static int put_to_buff(Buffer *buff, const char *str, uint *position)
+  SYNOPSYS
+    put_to_buff()
+    buff              buffer to add the string
+    str               string to add
+    uint              offset in the buff to add a string
+
+  DESCRIPTION
+
+  Function to add a string to the buffer. It is different from
+  store_to_string, which is used in the protocol.cc. The last
+  one also stores the length of the string in a special way.
+  This is required for MySQL client/server protocol support only.
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
+
+
+static inline int put_to_buff(Buffer *buff, const char *str, uint *position)
 {
   uint len= strlen(str);
   if (buff->append(*position, str, len))
@@ -47,15 +68,16 @@ static int put_to_buff(Buffer *buff, const char *str, uint *position)
   The method sends a list of instances in the instance map to the client.
 
   SYNOPSYS
-    Show_instances::do_command()
-    net               The network connection to the client.
+    Show_instances::execute()
+    net                    The network connection to the client.
+    connection_id          Client connection ID
 
   RETURN
     0 - ok
     1 - error occured
 */
 
-int Show_instances::do_command(struct st_net *net)
+int Show_instances::execute(struct st_net *net, ulong connection_id)
 {
   Buffer send_buff;  /* buffer for packets */
   LIST name, status;
@@ -63,11 +85,11 @@ int Show_instances::do_command(struct st_net *net)
   LIST *field_list;
   uint position=0;
 
-  name_field.name= (char *) "instance_name";
-  name_field.length= 20;
+  name_field.name= (char*) "instance_name";
+  name_field.length= DEFAULT_FIELD_LENGTH;
   name.data= &name_field;
-  status_field.name= (char *) "status";
-  status_field.length= 20;
+  status_field.name= (char*) "status";
+  status_field.length= DEFAULT_FIELD_LENGTH;
   status.data= &status_field;
   field_list= list_add(NULL, &status);
   field_list= list_add(field_list, &name);
@@ -84,9 +106,9 @@ int Show_instances::do_command(struct st_net *net)
       position= 0;
       store_to_string(&send_buff, instance->options.instance_name, &position);
       if (instance->is_running())
-        store_to_string(&send_buff, (char *) "online", &position);
+        store_to_string(&send_buff, (char*) "online", &position);
       else
-        store_to_string(&send_buff, (char *) "offline", &position);
+        store_to_string(&send_buff, (char*) "offline", &position);
       if (my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
@@ -99,16 +121,7 @@ int Show_instances::do_command(struct st_net *net)
 
   return 0;
 err:
-  return 1;
-}
-
-
-int Show_instances::execute(struct st_net *net, ulong connection_id)
-{
-  if (do_command(net))
-    return ER_OUT_OF_RESOURCES;
-
-  return 0;
+  return ER_OUT_OF_RESOURCES;
 }
 
 
@@ -116,10 +129,10 @@ int Show_instances::execute(struct st_net *net, ulong connection_id)
 
 int Flush_instances::execute(struct st_net *net, ulong connection_id)
 {
-  if (instance_map->flush_instances())
+  if (instance_map->flush_instances() ||
+      net_send_ok(net, connection_id, NULL))
     return ER_OUT_OF_RESOURCES;
 
-  net_send_ok(net, connection_id, NULL);
   return 0;
 }
 
@@ -134,9 +147,7 @@ Show_instance_status::Show_instance_status(Instance_map *instance_map_arg,
 
   /* we make a search here, since we don't want to store the name */
   if ((instance= instance_map->find(name, len)))
-  {
     instance_name= instance->options.instance_name;
-  }
   else
     instance_name= NULL;
 }
@@ -156,8 +167,8 @@ Show_instance_status::Show_instance_status(Instance_map *instance_map_arg,
 */
 
 
-int Show_instance_status::do_command(struct st_net *net,
-                                     const char *instance_name)
+int Show_instance_status::execute(struct st_net *net,
+                                  ulong connection_id)
 {
   enum { MAX_VERSION_LENGTH= 40 };
   Buffer send_buff;  /* buffer for packets */
@@ -166,14 +177,17 @@ int Show_instance_status::do_command(struct st_net *net,
   NAME_WITH_LENGTH name_field, status_field, version_field;
   uint position=0;
 
+  if (!instance_name)
+    return ER_BAD_INSTANCE_NAME;
+
   /* create list of the fileds to be passed to send_fields */
-  name_field.name= (char *) "instance_name";
-  name_field.length= 20;
+  name_field.name= (char*) "instance_name";
+  name_field.length= DEFAULT_FIELD_LENGTH;
   name.data= &name_field;
-  status_field.name= (char *) "status";
-  status_field.length= 20;
+  status_field.name= (char*) "status";
+  status_field.length= DEFAULT_FIELD_LENGTH;
   status.data= &status_field;
-  version_field.name= (char *) "version";
+  version_field.name= (char*) "version";
   version_field.length= MAX_VERSION_LENGTH;
   version.data= &version_field;
   field_list= list_add(NULL, &version);
@@ -185,18 +199,18 @@ int Show_instance_status::do_command(struct st_net *net,
   {
     Instance *instance;
 
-    store_to_string(&send_buff, (char *) instance_name, &position);
+    store_to_string(&send_buff, (char*) instance_name, &position);
     if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     if (instance->is_running())
     {
-      store_to_string(&send_buff, (char *) "online", &position);
+      store_to_string(&send_buff, (char*) "online", &position);
       store_to_string(&send_buff, "unknown", &position);
     }
     else
     {
-      store_to_string(&send_buff, (char *) "offline", &position);
-      store_to_string(&send_buff, (char *) "unknown", &position);
+      store_to_string(&send_buff, (char*) "offline", &position);
+      store_to_string(&send_buff, (char*) "unknown", &position);
     }
 
 
@@ -205,28 +219,13 @@ int Show_instance_status::do_command(struct st_net *net,
       goto err;
   }
 
-  send_eof(net);
-  net_flush(net);
+  if (send_eof(net) || net_flush(net))
+    goto err;
 
   return 0;
 
 err:
-  return 1;
-}
-
-
-int Show_instance_status::execute(struct st_net *net, ulong connection_id)
-{
-  if ((instance_name))
-  {
-    if (do_command(net, instance_name))
-      return ER_OUT_OF_RESOURCES;
-    return 0;
-  }
-  else
-  {
-    return ER_BAD_INSTANCE_NAME;
-  }
+  return ER_OUT_OF_RESOURCES;
 }
 
 
@@ -240,30 +239,29 @@ Show_instance_options::Show_instance_options(Instance_map *instance_map_arg,
 
   /* we make a search here, since we don't want to store the name */
   if ((instance= instance_map->find(name, len)))
-  {
     instance_name= instance->options.instance_name;
-  }
   else
     instance_name= NULL;
 }
 
 
-int Show_instance_options::do_command(struct st_net *net,
-                                      const char *instance_name)
+int Show_instance_options::execute(struct st_net *net, ulong connection_id)
 {
-  enum { MAX_VERSION_LENGTH= 40 };
   Buffer send_buff;  /* buffer for packets */
   LIST name, option;
   LIST *field_list;
   NAME_WITH_LENGTH name_field, option_field;
   uint position=0;
 
+  if (!instance_name)
+    return ER_BAD_INSTANCE_NAME;
+
   /* create list of the fileds to be passed to send_fields */
-  name_field.name= (char *) "option_name";
-  name_field.length= 20;
+  name_field.name= (char*) "option_name";
+  name_field.length= DEFAULT_FIELD_LENGTH;
   name.data= &name_field;
-  option_field.name= (char *) "value";
-  option_field.length= 20;
+  option_field.name= (char*) "value";
+  option_field.length= DEFAULT_FIELD_LENGTH;
   option.data= &option_field;
   field_list= list_add(NULL, &option);
   field_list= list_add(field_list, &name);
@@ -275,16 +273,16 @@ int Show_instance_options::do_command(struct st_net *net,
 
     if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
-    store_to_string(&send_buff, (char *) "instance_name", &position);
-    store_to_string(&send_buff, (char *) instance_name, &position);
+    store_to_string(&send_buff, (char*) "instance_name", &position);
+    store_to_string(&send_buff, (char*) instance_name, &position);
     if (my_net_write(net, send_buff.buffer, (uint) position))
       goto err;
     if ((instance->options.mysqld_path))
     {
       position= 0;
-      store_to_string(&send_buff, (char *) "mysqld-path", &position);
+      store_to_string(&send_buff, (char*) "mysqld-path", &position);
       store_to_string(&send_buff,
-                     (char *) instance->options.mysqld_path,
+                     (char*) instance->options.mysqld_path,
                      &position);
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
@@ -294,7 +292,7 @@ int Show_instance_options::do_command(struct st_net *net,
     if ((instance->options.nonguarded))
     {
       position= 0;
-      store_to_string(&send_buff, (char *) "nonguarded", &position);
+      store_to_string(&send_buff, (char*) "nonguarded", &position);
       store_to_string(&send_buff, "", &position);
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
@@ -318,7 +316,8 @@ int Show_instance_options::do_command(struct st_net *net,
         /* join name and the value into the same option again */
         *option_value= '=';
       }
-      else store_to_string(&send_buff, tmp_option + 2, &position);
+      else
+        store_to_string(&send_buff, tmp_option + 2, &position);
 
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
@@ -326,28 +325,13 @@ int Show_instance_options::do_command(struct st_net *net,
     }
   }
 
-  send_eof(net);
-  net_flush(net);
+  if (send_eof(net) || net_flush(net))
+    goto err;
 
   return 0;
 
 err:
-  return 1;
-}
-
-
-int Show_instance_options::execute(struct st_net *net, ulong connection_id)
-{
-  if ((instance_name))
-  {
-    if (do_command(net, instance_name))
-      return ER_OUT_OF_RESOURCES;
-    return 0;
-  }
-  else
-  {
-    return ER_BAD_INSTANCE_NAME;
-  }
+  return ER_OUT_OF_RESOURCES;
 }
 
 
@@ -367,9 +351,7 @@ int Start_instance::execute(struct st_net *net, ulong connection_id)
 {
   uint err_code;
   if (instance == 0)
-  {
     return ER_BAD_INSTANCE_NAME; /* haven't found an instance */
-  }
   else
   {
     if ((err_code= instance->start()))
@@ -404,33 +386,59 @@ Show_instance_log::Show_instance_log(Instance_map *instance_map_arg,
 
   /* we make a search here, since we don't want to store the name */
   if ((instance= instance_map->find(name, len)))
-  {
     instance_name= instance->options.instance_name;
-  }
   else
     instance_name= NULL;
 }
 
 
-int Show_instance_log::do_command(struct st_net *net,
-                                  const char *instance_name)
+
+/*
+  Open the logfile, read requested part of the log and send the info
+  to the client.
+
+  SYNOPSYS
+    Show_instance_log::execute()
+    net                 The network connection to the client.
+    connection_id       Client connection ID
+
+  DESCRIPTION
+
+    Send a table with the content of the log requested. The function also
+    deals with errro handling, to be verbose.
+
+  RETURN
+   ER_OFFSET_ERROR      We were requested to read negative number of bytes
+                        from the log
+   ER_NO_SUCH_LOG       The kind log being read is not enabled in the instance
+   ER_GUESS_LOGFILE     IM wasn't able to figure out the log placement, while
+                        it is enabled. Probably user should specify the path
+                        to the logfile explicitly.
+   ER_OPEN_LOGFILE      Cannot open the logfile
+   ER_READ_FILE         Cannot read the logfile
+   ER_OUT_OF_RESOURCES  We weren't able to allocate some resources
+*/
+
+int Show_instance_log::execute(struct st_net *net, ulong connection_id)
 {
-  enum { MAX_VERSION_LENGTH= 40 };
   Buffer send_buff;  /* buffer for packets */
   LIST name;
   LIST *field_list;
   NAME_WITH_LENGTH name_field;
-  uint position=0;
+  uint position= 0;
 
   /* create list of the fileds to be passed to send_fields */
-  name_field.name= (char *) "Log";
-  name_field.length= 20;
+  name_field.name= (char*) "Log";
+  name_field.length= DEFAULT_FIELD_LENGTH;
   name.data= &name_field;
   field_list= list_add(NULL, &name);
 
+  if (!instance_name)
+    return ER_BAD_INSTANCE_NAME;
+
   /* cannot read negative number of bytes */
   if (offset > size)
-    return ER_SYNTAX_ERROR;
+    return ER_OFFSET_ERROR;
 
   send_fields(net, field_list);
 
@@ -439,43 +447,28 @@ int Show_instance_log::do_command(struct st_net *net,
     const char *logpath;
     File fd;
 
-    if ((instance= instance_map->find(instance_name, strlen(instance_name))) == NULL)
+    if ((instance= instance_map->find(instance_name,
+                                      strlen(instance_name))) == NULL)
       goto err;
 
-    switch (log_type)
-    {
-    case LOG_ERROR:
-      logpath= instance->options.error_log;
-      break;
-    case LOG_GENERAL:
-      logpath= instance->options.query_log;
-      break;
-    case LOG_SLOW:
-      logpath= instance->options.slow_log;
-      break;
-    default:
-      logpath= NULL;
-    }
+    logpath= instance->options.logs[log_type];
 
     /* Instance has no such log */
     if (logpath == NULL)
-    {
       return ER_NO_SUCH_LOG;
-    }
     else if (*logpath == '\0')
-    {
       return ER_GUESS_LOGFILE;
-    }
 
 
-    if ((fd= open(logpath, O_RDONLY)))
+    if ((fd= my_open(logpath, O_RDONLY | O_BINARY,  MYF(MY_WME))) >= 0)
     {
       size_t buff_size;
       int read_len;
       /* calculate buffer size */
       struct stat file_stat;
 
-      if(fstat(fd, &file_stat))
+      /* my_fstat doesn't use the flag parameter */
+      if (my_fstat(fd, &file_stat, MYF(0)))
         goto err;
 
       buff_size= (size - offset);
@@ -483,42 +476,27 @@ int Show_instance_log::do_command(struct st_net *net,
       /* read in one chunk */
       read_len= my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
 
-      char *bf= (char *) malloc(sizeof(char)*buff_size);
-      read_len= my_read(fd, bf, buff_size, MYF(0));
-      store_to_string(&send_buff, (char *) bf, &position, read_len);
+      char *bf= (char*) malloc(sizeof(char)*buff_size);
+      if ((read_len= my_read(fd, bf, buff_size, MYF(0))) < 0)
+        return ER_READ_FILE;
+      store_to_string(&send_buff, (char*) bf, &position, read_len);
       close(fd);
     }
     else
-    {
       return ER_OPEN_LOGFILE;
-    }
 
     if (my_net_write(net, send_buff.buffer, (uint) position))
       goto err;
   }
 
-  send_eof(net);
-  net_flush(net);
+  if (send_eof(net) ||  net_flush(net))
+    goto err;
 
   return 0;
 
 err:
   return ER_OUT_OF_RESOURCES;
 }
-
-
-int Show_instance_log::execute(struct st_net *net, ulong connection_id)
-{
-  if (instance_name != NULL)
-  {
-    return do_command(net, instance_name);
-  }
-  else
-  {
-    return ER_BAD_INSTANCE_NAME;
-  }
-}
-
 
 
 /* implementation for Show_instance_log_files: */
@@ -531,48 +509,47 @@ Show_instance_log_files::Show_instance_log_files
 
   /* we make a search here, since we don't want to store the name */
   if ((instance= instance_map->find(name, len)))
-  {
     instance_name= instance->options.instance_name;
-  }
   else
     instance_name= NULL;
 }
 
 
 /*
-  The method sends a table with a the list of the log files
+  The method sends a table with a list of log files
   used by the instance.
 
   SYNOPSYS
-    Show_instance_log_files::do_command()
+    Show_instance_log_files::execute()
     net               The network connection to the client.
-    instance_name     The name of the instance.
+    connection_id     The ID of the client connection
 
   RETURN
+    ER_BAD_INSTANCE_NAME  The instance name specified is not valid
+    ER_OUT_OF_RESOURCES   some error occured
     0 - ok
-    1 - error occured
 */
 
-
-int Show_instance_log_files::do_command(struct st_net *net,
-                                        const char *instance_name)
+int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
 {
-  enum { MAX_VERSION_LENGTH= 40 };
   Buffer send_buff;  /* buffer for packets */
   LIST name, path, size;
   LIST *field_list;
   NAME_WITH_LENGTH name_field, path_field, size_field;
-  uint position=0;
+  uint position= 0;
+
+  if (!instance_name)
+    return ER_BAD_INSTANCE_NAME;
 
   /* create list of the fileds to be passed to send_fields */
-  name_field.name= (char *) "Logfile";
-  name_field.length= 20;
+  name_field.name= (char*) "Logfile";
+  name_field.length= DEFAULT_FIELD_LENGTH;
   name.data= &name_field;
-  path_field.name= (char *) "Path";
-  path_field.length= 20;
+  path_field.name= (char*) "Path";
+  path_field.length= DEFAULT_FIELD_LENGTH;
   path.data= &path_field;
-  size_field.name= (char *) "Filesize";
-  size_field.length= 20;
+  size_field.name= (char*) "Filesize";
+  size_field.length= DEFAULT_FIELD_LENGTH;
   size.data= &size_field;
   field_list= list_add(NULL, &size);
   field_list= list_add(field_list, &path);
@@ -588,7 +565,7 @@ int Show_instance_log_files::do_command(struct st_net *net,
   {
     /*
       We have alike structure in instance_options.cc. We use such to be able
-      to loop througt the options, which we need to handle in some common way.
+      to loop through the options, which we need to handle in some common way.
     */
     struct log_files_st
     {
@@ -596,72 +573,59 @@ int Show_instance_log_files::do_command(struct st_net *net,
       const char *value;
     } logs[]=
     {
-      {"ERROR LOG", instance->options.error_log},
-      {"GENERAL LOG", instance->options.query_log},
-      {"SLOW LOG", instance->options.slow_log},
+      {"ERROR LOG", instance->options.logs[LOG_ERROR]},
+      {"GENERAL LOG", instance->options.logs[LOG_GENERAL]},
+      {"SLOW LOG", instance->options.logs[LOG_SLOW]},
       {NULL, NULL}
     };
     struct log_files_st *log_files;
 
-
-    instance->options.print_argv();
     for (log_files= logs; log_files->name; log_files++)
     {
       if (log_files->value != NULL)
       {
         struct stat file_stat;
-        char buff[20];
+        /*
+          Save some more space for the log file names. In fact all
+          we need is srtlen("GENERAL_LOG") + 1
+        */
+        enum { LOG_NAME_BUFFER_SIZE= 20 };
+        char buff[LOG_NAME_BUFFER_SIZE];
 
         position= 0;
         /* store the type of the log in the send buffer */
         store_to_string(&send_buff, log_files->name, &position);
-        switch (stat(log_files->value, &file_stat)) {
-        case 0:
-          if (S_ISREG(file_stat.st_mode))
-          {
-            store_to_string(&send_buff,
-                            (char *) log_files->value,
-                            &position);
-            int10_to_str(file_stat.st_size, buff, 10);
-            store_to_string(&send_buff, (char *) buff, &position);
-            break;
-          }
-        default:
-          store_to_string(&send_buff,
-                          "",
-                          &position);
-          store_to_string(&send_buff, (char *) "0", &position);
+        if (stat(log_files->value, &file_stat))
+        {
+          store_to_string(&send_buff, "", &position);
+          store_to_string(&send_buff, (char*) "0", &position);
         }
+        else if (S_ISREG(file_stat.st_mode))
+        {
+          store_to_string(&send_buff,
+                          (char*) log_files->value,
+                          &position);
+          int10_to_str(file_stat.st_size, buff, 10);
+          store_to_string(&send_buff, (char*) buff, &position);
+        }
+
         if (my_net_write(net, send_buff.buffer, (uint) position))
           goto err;
       }
     }
   }
 
-  send_eof(net);
-  net_flush(net);
+  if (send_eof(net) || net_flush(net))
+    goto err;
 
   return 0;
 
 err:
-  return 1;
-}
-int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
-{
-  if (instance_name != NULL)
-  {
-    if (do_command(net, instance_name))
-      return ER_OUT_OF_RESOURCES;
-    return 0;
-  }
-  else
-  {
-    return ER_BAD_INSTANCE_NAME;
-  }
+  return ER_OUT_OF_RESOURCES;
 }
 
 
-/* implementation for SET nstance_name.option=option_value: */
+/* implementation for SET instance_name.option=option_value: */
 
 Set_option::Set_option(Instance_map *instance_map_arg,
                        const char *name, uint len,
@@ -679,10 +643,12 @@ Set_option::Set_option(Instance_map *instance_map_arg,
     if ((option_len_arg < MAX_OPTION_LEN - 1) ||
         (option_value_len_arg < MAX_OPTION_LEN - 1))
     {
-      strncpy(option, option_arg, option_len_arg);
+      strmake(option, option_arg, option_len_arg);
+      strmake(option_value, option_value_arg, option_value_len_arg);
+/*    strncpy(option, option_arg, option_len_arg);
       option[option_len_arg]= 0;
       strncpy(option_value, option_value_arg, option_value_len_arg);
-      option_value[option_value_len_arg]= 0;
+      option_value[option_value_len_arg]= 0; */
     }
     else
     {
@@ -700,89 +666,38 @@ Set_option::Set_option(Instance_map *instance_map_arg,
 
 
 /*
-  Correct the file. skip option could be used in future if we don't want to
-  let user change the options file (E.g. he lacks permissions to do that)
+  The method sends a table with a list of log files
+  used by the instance.
+
+  SYNOPSYS
+    Set_option::correct_file()
+    skip     Skip the option, being searched while writing the result file.
+             That is, to delete it.
+
+  DESCRIPTION
+
+  Correct the option file. The "skip" option is used to remove the found
+  option.
+
+  RETURN
+    ER_BAD_INSTANCE_NAME    The instance name specified is not valid
+    ER_ACCESS_OPTION_FILE   Cannot access the option file
+    0 - ok
 */
-int Set_option::correct_file(bool skip)
+
+int Set_option::correct_file(int skip)
 {
-  FILE *cnf_file;
-  const char *default_location="/etc/my.cnf";
-  char linebuff[4096], *ptr;
-  uint optlen;
-  Buffer file_buffer;
-  uint position= 0;
-  bool isfound= false;
+  int error;
 
-  optlen= strlen(option);
+  error= my_correct_defaults_file("/etc/my.cnf", option,
+                                  option_value, instance_name, skip);
+  if (error > 0)
+    return ER_OUT_OF_RESOURCES;
+  else if (error < 0)
+    return ER_ACCESS_OPTION_FILE;
 
-  if (!(cnf_file= my_fopen(default_location, O_RDONLY, MYF(0))))
-    goto err_fopen;
-
-  while (fgets(linebuff, sizeof(linebuff), cnf_file))
-  {
-    /* if the section is found traverse it */
-    if (isfound)
-    {
-        /* skip the old value of the option we are changing */
-      if (strncmp(linebuff, option, optlen))
-      {
-        /* copy all other lines line */
-        put_to_buff(&file_buffer, linebuff, &position);
-      }
-    }
-    else
-      put_to_buff(&file_buffer, linebuff, &position);
-
-    /* looking for appropriate instance section */
-    for (ptr= linebuff ; my_isspace(&my_charset_latin1,*ptr) ; ptr++);
-    if (*ptr == '[')
-    {
-      /* copy the line to the buffer */
-      if (!strncmp(++ptr, instance_name, instance_name_len))
-      {
-        isfound= true;
-        /* add option */
-        if (!skip)
-        {
-          put_to_buff(&file_buffer, option, &position);
-          if (option_value[0] != 0)
-          {
-           put_to_buff(&file_buffer, "=", &position);
-           put_to_buff(&file_buffer, option_value, &position);
-          }
-          /* add a newline */
-          put_to_buff(&file_buffer, "\n", &position);
-        }
-      }
-      else
-        isfound= false; /* mark that this section is of no interest to us */
-    }
-
-  }
-
-  if (my_fclose(cnf_file, MYF(0)))
-    goto err;
-
-  /* we must hold an instance_map mutex while changing config file */
-  instance_map->lock();
-
-  if (!(cnf_file= my_fopen(default_location, O_WRONLY|O_TRUNC, MYF(0))))
-    goto err;
-  if (my_fwrite(cnf_file, file_buffer.buffer, position, MYF(MY_NABP)))
-    goto err;
-
-  if (my_fclose(cnf_file, MYF(0)))
-    goto err;
-
-  instance_map->unlock();
-
+  /* everything was fine */
   return 0;
-
-err:
-  my_fclose(cnf_file, MYF(0));
-  return ER_OUT_OF_RESOURCES;
-err_fopen:
-  return ER_ACCESS_OPTION_FILE;
 }
 
 
@@ -801,7 +716,14 @@ err_fopen:
 
 int Set_option::do_command(struct st_net *net)
 {
-  return correct_file(false);
+  int error= 0;
+
+  /* we must hold the instance_map mutex while changing config file */
+  instance_map->lock();
+  error= correct_file(FALSE);
+  instance_map->unlock();
+
+  return error;
 }
 
 
@@ -821,9 +743,7 @@ int Set_option::execute(struct st_net *net, ulong connection_id)
     return val;
   }
   else
-  {
     return ER_BAD_INSTANCE_NAME;
-  }
 }
 
 
@@ -831,7 +751,7 @@ int Set_option::execute(struct st_net *net, ulong connection_id)
 
 int Unset_option::do_command(struct st_net *net)
 {
-  return correct_file(true);
+  return correct_file(TRUE);
 }
 
 
@@ -852,9 +772,7 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
   uint err_code;
 
   if (instance == 0)
-  {
     return ER_BAD_INSTANCE_NAME; /* haven't found an instance */
-  }
   else
   {
     if (!(instance->options.nonguarded))

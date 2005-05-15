@@ -122,6 +122,7 @@ int store_to_string(Buffer *buf, const char *string, uint *position,
 {
   uint currpos;
 
+  /* reserve max amount of bytes needed to store length */
   if (buf->reserve(*position, 9))
     goto err;
   currpos= (net_store_length(buf->buffer + *position,
@@ -175,10 +176,10 @@ int send_fields(struct st_net *net, LIST *fields)
     position= 0;
     field= (NAME_WITH_LENGTH *) tmp->data;
 
-    store_to_string(&send_buff, (char *) "", &position); /* catalog name */
-    store_to_string(&send_buff, (char *) "", &position); /* db name */
-    store_to_string(&send_buff, (char *) "", &position); /* table name */
-    store_to_string(&send_buff, (char *) "", &position); /* table name alias */
+    store_to_string(&send_buff, (char*) "", &position); /* catalog name */
+    store_to_string(&send_buff, (char*) "", &position); /* db name */
+    store_to_string(&send_buff, (char*) "", &position); /* table name */
+    store_to_string(&send_buff, (char*) "", &position); /* table name alias */
     store_to_string(&send_buff, field->name, &position); /* column name */
     store_to_string(&send_buff, field->name, &position); /* column name alias */
     send_buff.reserve(position, 12);

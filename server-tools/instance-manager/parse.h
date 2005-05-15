@@ -31,9 +31,6 @@ enum Log_type
 
 Command *parse_command(Command_factory *factory, const char  *text);
 
-int parse_arguments(const char *command, const char *word, char *result,
-                    int max_result_cardinality, size_t option_len);
-
 /* define kinds of the word seek method */
 enum { ALPHANUM= 1, NONSPACE };
 

@@ -773,6 +773,11 @@ extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
+extern int my_correct_defaults_file(const char *file_location,
+                                   const char *option,
+                                   const char *option_value,
+                                   const char *section_name,
+                                   int remove_option);
 extern void get_defaults_files(int argc, char **argv,
                                char **defaults, char **extra_defaults);
 extern int load_defaults(const char *conf_file, const char **groups,
