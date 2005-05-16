@@ -1934,12 +1934,12 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
 }
 
 
-/* 
-    Clears parameters from data left from previous execution or long data
+/*
+  Clears parameters from data left from previous execution or long data
     
   SYNOPSIS
     reset_stmt_params()
-      stmt - prepared statement for which parameters should be reset
+    stmt	prepared statement for which parameters should be reset
 */
 
 static void reset_stmt_params(Prepared_statement *stmt)
@@ -1955,6 +1955,7 @@ static void reset_stmt_params(Prepared_statement *stmt)
   Executes previously prepared query.
   If there is any parameters, then replace markers with the data supplied
   from client, and then execute the query.
+
   SYNOPSIS
     mysql_stmt_execute()
       thd            Current thread
@@ -2208,7 +2209,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 {
   /* assume there is always place for 8-16 bytes */
   ulong stmt_id= uint4korr(packet);
-  ulong num_rows= uint4korr(packet+=4);
+  ulong num_rows= uint4korr(packet+4);
   Statement *stmt;
   DBUG_ENTER("mysql_stmt_fetch");
 
@@ -2266,7 +2267,6 @@ void mysql_stmt_reset(THD *thd, char *packet)
   /* There is always space for 4 bytes in buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
-  
   DBUG_ENTER("mysql_stmt_reset");
 
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
