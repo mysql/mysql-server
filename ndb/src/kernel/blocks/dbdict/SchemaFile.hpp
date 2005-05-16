@@ -35,7 +35,7 @@
 #define NDB_SF_MAX_PAGES                160
 
 // versions where format changed
-#define NDB_SF_VERSION_5_0_5            MAKE_VERSION(5, 0, 5)
+#define NDB_SF_VERSION_5_0_6            MAKE_VERSION(5, 0, 6)
 
 // One page in schema file.
 struct SchemaFile {
@@ -71,7 +71,7 @@ struct SchemaFile {
     }
   };
 
-  // pre-5.0.5
+  // pre-5.0.6
   struct TableEntry_old {
     Uint32 m_tableState;
     Uint32 m_tableVersion;
