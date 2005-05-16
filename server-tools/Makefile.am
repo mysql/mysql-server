@@ -1,1 +1,2 @@
-SUBDIRS= instance-manager
+SUBDIRS = . instance-manager
+DIST_SUBDIRS = . instance-manager
