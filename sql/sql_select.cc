@@ -1834,12 +1834,13 @@ Cursor::fetch(ulong num_rows)
   THD *thd= join->thd;
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
+  DBUG_ENTER("Cursor::fetch");
+  DBUG_PRINT("enter",("rows: %lu", num_rows));
 
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
 
   join->fetch_limit+= num_rows;
-
 
   error= sub_select(join, join_tab, 0);
   if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
@@ -1873,6 +1874,7 @@ Cursor::fetch(ulong num_rows)
     else if (error != NESTED_LOOP_KILLED)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
   }
+  DBUG_VOID_RETURN;
 }
 
 
