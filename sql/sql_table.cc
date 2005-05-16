@@ -640,7 +640,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 {
   const char	*key_name;
   create_field	*sql_field,*dup_field;
-  uint		field,null_fields,blob_columns;
+  uint		field,null_fields,blob_columns,max_key_length;
   ulong		record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
@@ -654,6 +654,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   select_field_pos= fields->elements - select_field_count;
   null_fields=blob_columns=0;
   create_info->varchar= 0;
+  max_key_length= file->max_key_length();
 
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
@@ -1190,10 +1191,10 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	if (f_is_blob(sql_field->pack_flag))
 	{
-	  if ((length=column->length) > file->max_key_length() ||
+	  if ((length=column->length) > max_key_length ||
 	      length > file->max_key_part_length())
 	  {
-	    length=min(file->max_key_length(), file->max_key_part_length());
+	    length=min(max_key_length, file->max_key_part_length());
 	    if (key->type == Key::MULTIPLE)
 	    {
 	      /* not a critical problem */

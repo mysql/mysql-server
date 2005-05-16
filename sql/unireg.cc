@@ -45,8 +45,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
 static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
-			   uint reclength, uint null_fields,
-                           ulong data_offset);
+			   uint reclength, ulong data_offset);
 
 /*
   Create a frm (table definition) file
@@ -72,7 +71,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 		      uint keys, KEY *key_info,
 		      handler *db_file)
 {
-  uint reclength,info_length,screens,key_info_length,maxlength,null_fields;
+  uint reclength,info_length,screens,key_info_length,maxlength;
   File file;
   ulong filepos, data_offset;
   uchar fileinfo[64],forminfo[288],*keybuff;
@@ -111,7 +110,6 @@ bool mysql_create_frm(THD *thd, my_string file_name,
     }
   }
   reclength=uint2korr(forminfo+266);
-  null_fields=uint2korr(forminfo+282);
 
   if ((file=create_frm(file_name, reclength, fileinfo,
 		       create_info, keys)) < 0)
@@ -145,7 +143,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 	       (ulong) uint2korr(fileinfo+6)+ (ulong) key_buff_length,
 	       MY_SEEK_SET,MYF(0)));
   if (make_empty_rec(thd,file,create_info->db_type,create_info->table_options,
-		     create_fields,reclength, null_fields, data_offset))
+		     create_fields,reclength, data_offset))
     goto err;
 
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
@@ -661,7 +659,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
 static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
-			   uint reclength, uint null_fields,
+			   uint reclength,
                            ulong data_offset)
 {
   int error;
@@ -696,7 +694,6 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
     null_count++;			// Need one bit for delete mark
     *buff|= 1;
   }
-  DBUG_ASSERT(data_offset == ((null_fields + null_count + 7) / 8));
   null_pos= buff;
 
   List_iterator<create_field> it(create_fields);
@@ -756,6 +753,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
     else
       regfield->reset();
   }
+  DBUG_ASSERT(data_offset == ((null_count + 7) / 8));
 
   /* Fill not used startpos */
   if (null_count)

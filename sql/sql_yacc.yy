@@ -3990,7 +3990,7 @@ select_options:
 	  {
 	    if (test_all_bits(Select->options, SELECT_ALL | SELECT_DISTINCT))
 	    {
-	      net_printf(Lex->thd, ER_WRONG_USAGE, "ALL", "DISTINCT");
+	      my_error(ER_WRONG_USAGE, MYF(0), "ALL", "DISTINCT");
               YYABORT;
 	    }
           }
