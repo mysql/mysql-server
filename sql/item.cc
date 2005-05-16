@@ -2034,7 +2034,7 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
 
 Item *Item_int_with_ref::new_item()
 {
-  DBUG_ASSERT(ref->basic_const_item());
+  DBUG_ASSERT(ref->const_item());
   /*
     We need to evaluate the constant to make sure it works with
     parameter markers.
