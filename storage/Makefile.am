@@ -21,7 +21,7 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		
 SUBDIRS =	
-DIST_SUBDIRS =
+DIST_SUBDIRS = . bdb heap innobase myisam myisammrg ndb
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
