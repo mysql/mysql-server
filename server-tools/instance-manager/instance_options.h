@@ -18,6 +18,7 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include "parse.h"
 
 #ifdef __GNUC__
 #pragma interface
@@ -76,9 +77,13 @@ public:
   const char *nonguarded;
   const char *shutdown_delay;
   uint shutdown_delay_val;
+  /* log enums are defined in parse.h */
+  char *logs[3];
+
   /* this value is computed and cashed here */
   DYNAMIC_ARRAY options_array;
 private:
+  int fill_log_options();
   int add_to_argv(const char *option);
   int get_default_option(char *result, size_t result_len,
                          const char *option_name);
