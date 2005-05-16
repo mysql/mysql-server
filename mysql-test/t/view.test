@@ -1,5 +1,5 @@
 --disable_warnings
-drop table if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 --enable_warnings
@@ -148,9 +148,10 @@ insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
 
-select * from t1 natural left join v1;
-select * from v2 natural left join t1;
-select * from v2 natural left join v1;
+# WL #2486 should enable these tests
+#select * from t1 natural left join v1;
+#select * from v2 natural left join t1;
+#select * from v2 natural left join v1;
 
 drop view v1, v2;
 drop table t1;
@@ -1533,3 +1534,18 @@ select * from v2 A, v2 B where A.a = B.b;
 drop view v1, v2;
 drop table t1, t2, t3;
 
+#
+# Test case for bug #8528: select from view over multi-table view
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (4), (2);
+
+CREATE VIEW v1 AS SELECT * FROM t1,t2 WHERE t1.a=t2.b;
+SELECT * FROM v1;
+CREATE VIEW v2 AS SELECT * FROM v1;
+SELECT * FROM v2;
+
+DROP VIEW v2,v1;

@@ -1232,3 +1232,8 @@ INSERT INTO t1 VALUES (DEFAULT,1);
 Warnings:
 Warning	1364	Field 'i' doesn't have a default value
 DROP TABLE t1;
+set @@sql_mode='traditional';
+create table t1(a varchar(65537));
+ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
+create table t1(a varbinary(65537));
+ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead

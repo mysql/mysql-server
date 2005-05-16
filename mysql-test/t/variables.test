@@ -72,22 +72,19 @@ explain extended select @@IDENTITY,last_insert_id(), @@identity;
 
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 
-set global concurrent_insert=ON;
+set global concurrent_insert=2;
 show variables like 'concurrent_insert';
 set global concurrent_insert=1;
 show variables like 'concurrent_insert';
 set global concurrent_insert=0;
 show variables like 'concurrent_insert';
-set global concurrent_insert=OFF;
-show variables like 'concurrent_insert';
 set global concurrent_insert=DEFAULT;
-show variables like 'concurrent_insert';
+select @@concurrent_insert;
 
-set global timed_mutexes=1;
+set global timed_mutexes=ON;
 show variables like 'timed_mutexes';
 set global timed_mutexes=0;
 show variables like 'timed_mutexes';
-
 
 set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
 show local variables like 'storage_engine';
@@ -174,8 +171,6 @@ set @@global.sql_auto_is_null=1;
 select @@global.sql_auto_is_null;
 --error 1229
 set myisam_max_sort_file_size=100;
---error 1229
-set myisam_max_extra_sort_file_size=100;
 --error 1231
 set @@SQL_WARNINGS=NULL;
 
@@ -222,9 +217,6 @@ set max_tmp_tables=100;
 set global max_user_connections=100;
 select @@max_user_connections;
 set global max_write_lock_count=100;
-set global myisam_max_extra_sort_file_size=100;
-select @@myisam_max_extra_sort_file_size;
-set global myisam_max_sort_file_size=100;
 set myisam_sort_buffer_size=100;
 set net_buffer_length=100;
 set net_read_timeout=100;
