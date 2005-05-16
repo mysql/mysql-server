@@ -15,22 +15,32 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "parse.h"
+#include "factory.h"
 
 #include <string.h>
 
+
 enum Token
 {
-  TOK_FLUSH = 0,
+  TOK_ERROR= 0, /* Encodes the "ERROR" word, it doesn't indicate error. */
+  TOK_FILES,
+  TOK_FLUSH,
+  TOK_GENERAL,
   TOK_INSTANCE,
   TOK_INSTANCES,
+  TOK_LOG,
   TOK_OPTIONS,
+  TOK_SET,
+  TOK_SLOW,
   TOK_START,
   TOK_STATUS,
   TOK_STOP,
   TOK_SHOW,
+  TOK_UNSET,
   TOK_NOT_FOUND, // must be after all tokens
   TOK_END
 };
+
 
 struct tokens_st
 {
@@ -38,15 +48,23 @@ struct tokens_st
   const char *tok_name;
 };
 
+
 static struct tokens_st tokens[]= {
+  {5, "ERROR"},
+  {5, "FILES"},
   {5, "FLUSH"},
+  {7, "GENERAL"},
   {8, "INSTANCE"},
   {9, "INSTANCES"},
+  {3, "LOG"},
   {7, "OPTIONS"},
+  {3, "SET"},
+  {4, "SLOW"},
   {5, "START"},
   {6, "STATUS"},
   {4, "STOP"},
-  {4, "SHOW"}
+  {4, "SHOW"},
+  {5, "UNSET"}
 };
 
 
@@ -86,13 +104,6 @@ Token shift_token(const char **text, uint *word_len)
 }
 
 
-void print_token(const char *token, uint tok_len)
-{
-  for (uint i= 0; i < tok_len; ++i)
-    printf("%c", token[i]);
-}
-
-
 int get_text_id(const char **text, uint *word_len, const char **id)
 {
   get_word(text, word_len);
@@ -108,7 +119,15 @@ Command *parse_command(Command_factory *factory, const char *text)
   uint word_len;
   const char *instance_name;
   uint instance_name_len;
+  const char *option;
+  uint option_len;
+  const char *option_value;
+  uint option_value_len;
+  const char *log_size;
   Command *command;
+  const char *saved_text= text;
+  bool skip= false;
+  const char *tmp;
 
   Token tok1= shift_token(&text, &word_len);
 
@@ -143,6 +162,53 @@ Command *parse_command(Command_factory *factory, const char *text)
 
     command= factory->new_Flush_instances();
     break;
+  case TOK_UNSET:
+    skip= true;
+  case TOK_SET:
+
+    get_text_id(&text, &instance_name_len, &instance_name);
+    text+= instance_name_len;
+
+   /* the next token should be a dot */
+    get_word(&text, &word_len);
+    if (*text != '.')
+      goto syntax_error;
+    text++;
+
+    get_word(&text, &option_len, NONSPACE);
+    option= text;
+    if ((tmp= strchr(text, '=')) != NULL)
+      option_len= tmp - text;
+    text+= option_len;
+
+    get_word(&text, &word_len);
+    if (*text == '=')
+    {
+      text++;                                   /* skip '=' */
+      get_word(&text, &option_value_len, NONSPACE);
+      option_value= text;
+      text+= option_value_len;
+    }
+    else
+    {
+      option_value= "";
+      option_value_len= 0;
+    }
+
+    /* should be empty */
+    get_word(&text, &word_len);
+    if (word_len)
+      goto syntax_error;
+
+    if (skip)
+      command= factory->new_Unset_option(instance_name, instance_name_len,
+                                         option, option_len, option_value,
+                                         option_value_len);
+    else
+      command= factory->new_Set_option(instance_name, instance_name_len,
+                                       option, option_len, option_value,
+                                       option_value_len);
+    break;
   case TOK_SHOW:
     switch (shift_token(&text, &word_len)) {
     case TOK_INSTANCES:
@@ -157,6 +223,7 @@ Command *parse_command(Command_factory *factory, const char *text)
       case TOK_STATUS:
         get_text_id(&text, &instance_name_len, &instance_name);
         text+= instance_name_len;
+        /* check that this is the end of the command */
         get_word(&text, &word_len);
         if (word_len)
           goto syntax_error;
@@ -172,7 +239,87 @@ Command *parse_command(Command_factory *factory, const char *text)
       }
       break;
     default:
-      goto syntax_error;
+      instance_name= text - word_len;
+      instance_name_len= word_len;
+      if (instance_name_len)
+      {
+        Log_type log_type;
+        switch (shift_token(&text, &word_len)) {
+        case TOK_LOG:
+          switch (Token tok3= shift_token(&text, &word_len)) {
+          case TOK_FILES:
+            get_word(&text, &word_len);
+            /* check that this is the end of the command */
+            if (word_len)
+              goto syntax_error;
+            command=  (Command *)
+                      factory->new_Show_instance_log_files(instance_name,
+                                                           instance_name_len);
+            break;
+          case TOK_ERROR:
+          case TOK_GENERAL:
+          case TOK_SLOW:
+            /* define a log type */
+            switch (tok3) {
+            case TOK_ERROR:
+              log_type= LOG_ERROR;
+              break;
+            case TOK_GENERAL:
+              log_type= LOG_GENERAL;
+              break;
+            case TOK_SLOW:
+              log_type= LOG_SLOW;
+              break;
+            default:
+              goto syntax_error;
+            }
+            /* get the size of the log we want to retrieve */
+            get_text_id(&text, &word_len, &log_size);
+            text+= word_len;
+            /* this parameter is required */
+            if (!word_len)
+              goto syntax_error;
+            /* the next token should be comma, or nothing */
+            get_word(&text, &word_len);
+            switch (*text) {
+              case ',':
+                text++; /* swallow the comma */
+                /* read the next word */
+                get_word(&text, &word_len);
+                if (!word_len)
+                  goto syntax_error;
+                command= (Command *)
+                      factory->new_Show_instance_log(instance_name,
+                                                     instance_name_len,
+                                                     log_type,
+                                                     log_size,
+                                                     text);
+
+                //get_text_id(&text, &log_size_len, &log_size);
+                break;
+              case '\0':
+                command= (Command *)
+                      factory->new_Show_instance_log(instance_name,
+                                                     instance_name_len,
+                                                     log_type,
+                                                     log_size,
+                                                     NULL);
+                break; /* this is ok */
+              default:
+              goto syntax_error;
+            }
+          break;
+          default:
+            goto syntax_error;
+          }
+        break;
+        default:
+          goto syntax_error;
+        }
+      }
+      else
+        goto syntax_error;
+      break;
     }
     break;
   default:
@@ -181,4 +328,3 @@ syntax_error:
   }
   return command;
 }
-

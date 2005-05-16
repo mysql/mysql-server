@@ -24,7 +24,6 @@
 #include "buffer.h"
 
 #include <my_sys.h>
-#include <mysql.h>
 #include <signal.h>
 #include <m_string.h>
 
@@ -36,7 +35,7 @@
     get_default_option()
     result            buffer to put found value
     result_len        buffer size
-    oprion_name       the name of the option, prefixed with "--"
+    option_name       the name of the option, prefixed with "--"
 
   DESCRIPTION
 
@@ -47,6 +46,7 @@
     1 - error occured
 */
 
+
 int Instance_options::get_default_option(char *result, size_t result_len,
                                          const char *option_name)
 {
@@ -54,7 +54,7 @@ int Instance_options::get_default_option(char *result, size_t result_len,
   int rc= 1;
   char verbose_option[]= " --no-defaults --verbose --help";
 
-  Buffer cmd(strlen(mysqld_path)+sizeof(verbose_option)+1);
+  Buffer cmd(strlen(mysqld_path) + sizeof(verbose_option) + 1);
   if (cmd.get_size()) /* malloc succeeded */
   {
     cmd.append(position, mysqld_path, strlen(mysqld_path));
@@ -75,6 +75,146 @@ err:
   return 1;
 }
 
+
+/*
+  Get compiled-in value of default_option
+
+  SYNOPSYS
+    get_default_option()
+    result            buffer to put found value
+    result_len        buffer size
+    option_name       the name of the option, prefixed with "--"
+
+  DESCRIPTION
+
+   Get compile-in value of requested option from server
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
+
+int Instance_options::fill_log_options()
+{
+  Buffer buff;
+  uint position= 0;
+  char **tmp_argv= argv;
+  enum { MAX_LOG_OPTION_LENGTH= 256 };
+  char datadir[MAX_LOG_OPTION_LENGTH];
+  char hostname[MAX_LOG_OPTION_LENGTH];
+  uint hostname_length;
+  struct log_files_st
+  {
+    const char *name;
+    uint length;
+    char **value;
+    const char *default_suffix;
+  } logs_st[]=
+  {
+    {"--log-error", 11, &(logs[LOG_ERROR]), ".err"},
+    {"--log", 5, &(logs[LOG_GENERAL]), ".log"},
+    {"--log-slow-queries", 18, &(logs[LOG_SLOW]), "-slow.log"},
+    {NULL, 0, NULL, NULL}
+  };
+  struct log_files_st *log_files;
+
+  /* compute hostname and datadir for the instance */
+  if (mysqld_datadir == NULL)
+  {
+    if (get_default_option(datadir,
+                           MAX_LOG_OPTION_LENGTH, "--datadir"))
+      goto err;
+  }
+  else           /* below is safe, as --datadir always has a value */
+    strncpy(datadir, strchr(mysqld_datadir, '=') + 1,
+            MAX_LOG_OPTION_LENGTH);
+
+  if (gethostname(hostname,sizeof(hostname)-1) < 0)
+    strmov(hostname, "mysql");
+
+  hostname[MAX_LOG_OPTION_LENGTH - 1]= 0; /* Safety */
+  hostname_length= strlen(hostname);
+
+
+  for (log_files= logs_st; log_files->name; log_files++)
+  {
+    for (int i=0; (argv[i] != 0); i++)
+    {
+      if (!strncmp(argv[i], log_files->name, log_files->length))
+      {
+        /*
+          This is really log_files->name option if and only if it is followed
+          by '=', '\0' or space character. This way we can distinguish such
+          options as '--log' and '--log-bin'. This is checked in the following
+          two statements.
+        */
+        if (argv[i][log_files->length] == '\0' ||
+            my_isspace(default_charset_info, argv[i][log_files->length]))
+        {
+          char full_name[MAX_LOG_OPTION_LENGTH];
+
+          fn_format(full_name, hostname, datadir, "",
+                    MY_UNPACK_FILENAME | MY_SAFE_PATH);
+
+
+          if ((MAX_LOG_OPTION_LENGTH - strlen(full_name)) >
+              strlen(log_files->default_suffix))
+          {
+            strcpy(full_name + strlen(full_name),
+                   log_files->default_suffix);
+          }
+          else
+            goto err;
+
+          /*
+            If there were specified two identical logfiles options,
+            we would loose some memory in MEM_ROOT here. However
+            this situation is not typical.
+          */
+          *(log_files->value)= strdup_root(&alloc, full_name);
+        }
+
+        if (argv[i][log_files->length] == '=')
+        {
+          char full_name[MAX_LOG_OPTION_LENGTH];
+
+          fn_format(full_name, argv[i] +log_files->length + 1,
+                    datadir, "", MY_UNPACK_FILENAME | MY_SAFE_PATH);
+
+          if (!(*(log_files->value)=
+                strdup_root(&alloc, full_name)))
+            goto err;
+        }
+      }
+    }
+  }
+
+  return 0;
+
+err:
+  return 1;
+
+}
+
+
+/*
+  Get the full pid file name with path
+
+  SYNOPSYS
+    get_pid_filaname()
+    result            buffer to sotre the pidfile value
+
+  IMPLEMENTATION
+    Get the data directory, then get the pid filename
+    (which is always set for an instance), then load the
+    full path with my_load_path(). It takes into account
+    whether it is already an absolute path or it should be
+    prefixed with the datadir and so on.
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
 
 int Instance_options::get_pid_filename(char *result)
 {
@@ -190,6 +330,8 @@ int Instance_options::complete_initialization(const char *default_path,
          options_array.elements*sizeof(char*));
   argv[filled_default_options + options_array.elements]= 0;
 
+  fill_log_options();
+
   return 0;
 
 err:
@@ -274,7 +416,7 @@ int Instance_options::add_to_argv(const char* option)
   DBUG_ASSERT(filled_default_options < MAX_NUMBER_OF_DEFAULT_OPTIONS);
 
   if ((option))
-    argv[filled_default_options++]= (char *) option;
+    argv[filled_default_options++]= (char*) option;
   return 0;
 }
 
@@ -302,10 +444,10 @@ int Instance_options::init(const char *instance_name_arg)
 
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 
-  if (my_init_dynamic_array(&options_array, sizeof(char *), 0, 32))
+  if (my_init_dynamic_array(&options_array, sizeof(char*), 0, 32))
       goto err;
 
-  if (!(instance_name= strmake_root(&alloc, (char *) instance_name_arg,
+  if (!(instance_name= strmake_root(&alloc, (char*) instance_name_arg,
                                   instance_name_len)))
     goto err;
 
