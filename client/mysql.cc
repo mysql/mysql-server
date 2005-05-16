@@ -2094,7 +2094,8 @@ print_table_data(MYSQL_RES *result)
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
-  tee_puts(separator.c_ptr_safe(), PAGER);
+  separator.append('\0');                       // End marker for \0
+  tee_puts((char*) separator.ptr(), PAGER);
   if (column_names)
   {
     mysql_field_seek(result,0);
@@ -2107,7 +2108,7 @@ print_table_data(MYSQL_RES *result)
       num_flag[off]= IS_NUM(field->type);
     }
     (void) tee_fputs("\n", PAGER);
-    tee_puts(separator.c_ptr(), PAGER);
+    tee_puts((char*) separator.ptr(), PAGER);
   }
 
   while ((cur= mysql_fetch_row(result)))
@@ -2136,7 +2137,7 @@ print_table_data(MYSQL_RES *result)
     }
     (void) tee_fputs("\n", PAGER);
   }
-  tee_puts(separator.c_ptr(), PAGER);
+  tee_puts((char*) separator.ptr(), PAGER);
   my_afree((gptr) num_flag);
 }
 
