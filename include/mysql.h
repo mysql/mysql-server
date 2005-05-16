@@ -664,6 +664,7 @@ typedef struct st_mysql_stmt
                                   unsigned char **row);
   unsigned long	 stmt_id;	       /* Id for prepared statement */
   unsigned long  flags;                /* i.e. type of cursor to open */
+  unsigned long  prefetch_rows;        /* number of rows per one COM_FETCH */
   /*
     Copied from mysql->server_status after execute/fetch to know
     server-side cursor status for this statement.
@@ -702,7 +703,12 @@ enum enum_stmt_attr_type
     unsigned long with combination of cursor flags (read only, for update,
     etc)
   */
-  STMT_ATTR_CURSOR_TYPE
+  STMT_ATTR_CURSOR_TYPE,
+  /*
+    Amount of rows to retrieve from server per one fetch if using cursors.
+    Accepts unsigned long attribute in the range 1 - ulong_max
+  */
+  STMT_ATTR_PREFETCH_ROWS
 };
 
 
