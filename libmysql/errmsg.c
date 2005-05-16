@@ -81,6 +81,7 @@ const char *client_errors[]=
   "Attempt to read column without prior row fetch",
   "Prepared statement contains no metadata",
   "Attempt to read a row while there is no result set associated with the statement",
+  "This feature is not implemented yet",
   ""
 };
 
@@ -143,6 +144,7 @@ const char *client_errors[]=
   "Attempt to read column without prior row fetch",
   "Prepared statement contains no metadata",
   "Attempt to read a row while there is no result set associated with the statement",
+  "This feature is not implemented yet",
   ""
 };
 
@@ -203,6 +205,7 @@ const char *client_errors[]=
   "Attempt to read column without prior row fetch",
   "Prepared statement contains no metadata",
   "Attempt to read a row while there is no result set associated with the statement",
+  "This feature is not implemented yet",
   ""
 };
 #endif
