@@ -246,7 +246,7 @@ int Instance_map::load()
     argv_options[1]= '\0';
 
   if (my_search_option_files("my", &argc, (char ***) &argv, &args_used,
-                             process_option, (void *) this) ||
+                             process_option, (void*) this) ||
       complete_initialization())
     return 1;
 

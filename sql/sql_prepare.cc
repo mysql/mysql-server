@@ -135,7 +135,8 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
   if (stmt == 0 || stmt->type() != Item_arena::PREPARED_STATEMENT)
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), 22, llstr(id, llbuf), where);
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf), llstr(id, llbuf),
+             where);
     return 0;
   }
   return (Prepared_statement *) stmt;
@@ -1006,7 +1007,7 @@ static int mysql_test_update(Prepared_statement *stmt,
 
   if (!open_tables(thd, &table_list, &table_count))
   {
-    if (table_list->ancestor && table_list->ancestor->next_local)
+    if (table_list->multitable_view)
     {
       DBUG_ASSERT(table_list->view != 0);
       DBUG_PRINT("info", ("Switch to multi-update"));
@@ -1095,8 +1096,6 @@ static int mysql_test_delete(Prepared_statement *stmt,
     bool res;
     if (!table_list->table)
     {
-      DBUG_ASSERT(table_list->view &&
-                  table_list->ancestor && table_list->ancestor->next_local);
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                table_list->view_db.str, table_list->view_name.str);
       DBUG_RETURN(-1);
@@ -1458,8 +1457,6 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
     return res;
   if (!tables->table)
   {
-    DBUG_ASSERT(tables->view &&
-		tables->ancestor && tables->ancestor->next_local);
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
 	     tables->view_db.str, tables->view_name.str);
     return -1;
@@ -1969,7 +1966,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
-  Cursor *cursor= 0;
+  Cursor *cursor;
   /*
     Query text for binary log, or empty string if the query is not put into
     binary log.
@@ -1995,6 +1992,13 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
+  cursor= stmt->cursor;
+  if (cursor && cursor->is_open())
+  {
+    my_error(ER_EXEC_STMT_WITH_OPEN_CURSOR, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
   DBUG_ASSERT(thd->free_list == NULL);
   mysql_reset_thd_for_next_command(thd);
   if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
@@ -2013,7 +2017,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     else
     {
       DBUG_PRINT("info",("Using READ_ONLY cursor"));
-      if (!stmt->cursor &&
+      if (!cursor &&
           !(cursor= stmt->cursor= new (&stmt->main_mem_root) Cursor()))
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
@@ -2208,13 +2212,15 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   Statement *stmt;
   DBUG_ENTER("mysql_stmt_fetch");
 
-  if (!(stmt= thd->stmt_map.find(stmt_id)) ||
-      !stmt->cursor ||
-      !stmt->cursor->is_open())
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
+    DBUG_VOID_RETURN;
+
+  if (!stmt->cursor || !stmt->cursor->is_open())
   {
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_id, "fetch");
+    my_error(ER_STMT_HAS_NO_OPEN_CURSOR, MYF(0));
     DBUG_VOID_RETURN;
   }
+
   thd->current_arena= stmt;
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
   stmt->cursor->init_thd(thd);
@@ -2265,6 +2271,9 @@ void mysql_stmt_reset(THD *thd, char *packet)
 
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
+
+  if (stmt->cursor && stmt->cursor->is_open())
+    stmt->cursor->close();
 
   stmt->state= Item_arena::PREPARED;
 

@@ -197,8 +197,7 @@ void manager(const Options &options)
       goto err;
     }
 
-    switch (signo)
-    {
+    switch (signo) {
       case THR_SERVER_ALARM:
         process_alarm(signo);
       break;
