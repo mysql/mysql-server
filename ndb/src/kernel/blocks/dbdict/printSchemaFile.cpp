@@ -195,7 +195,7 @@ NDB_COMMAND(printSchemafile,
     }
 
     SchemaFile* sf = (SchemaFile *)&buf[0];
-    if (sf->NdbVersion < NDB_SF_VERSION_5_0_5)
+    if (sf->NdbVersion < NDB_SF_VERSION_5_0_6)
       print_old(filename, sf);
     else
       print(filename, sf, sz);
