@@ -1736,6 +1736,9 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 
 /******************* Declarations ***********************************/
 
+/* Default number of rows fetched per one COM_FETCH command. */
+
+#define DEFAULT_PREFETCH_ROWS 1UL
 
 /*
   These functions are called by function pointer MYSQL_STMT::read_row_func.
@@ -1761,6 +1764,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *bind, MYSQL_FIELD *field);
 
 #define RESET_SERVER_SIDE 1
 #define RESET_LONG_DATA 2
+#define RESET_STORE_RESULT 4
 
 static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
 
@@ -2001,6 +2005,7 @@ mysql_stmt_init(MYSQL *mysql)
   stmt->state= MYSQL_STMT_INIT_DONE;
   stmt->mysql= mysql;
   stmt->read_row_func= stmt_read_row_no_data;
+  stmt->prefetch_rows= DEFAULT_PREFETCH_ROWS;
   /* The rest of statement members was bzeroed inside malloc */
 
   DBUG_RETURN(stmt);
@@ -2059,7 +2064,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     /* This is second prepare with another statement */
     char buff[MYSQL_STMT_HEADER];               /* 4 bytes - stmt id */
 
-    if (reset_stmt_handle(stmt, RESET_LONG_DATA))
+    if (reset_stmt_handle(stmt, RESET_LONG_DATA | RESET_STORE_RESULT))
       DBUG_RETURN(1);
     /*
       These members must be reset for API to
@@ -2714,7 +2719,7 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
     result->rows= 0;
     /* Send row request to the server */
     int4store(buff, stmt->stmt_id);
-    int4store(buff + 4, 1); /* number of rows to fetch */
+    int4store(buff + 4, stmt->prefetch_rows); /* number of rows to fetch */
     if (cli_advanced_command(mysql, COM_FETCH, buff, sizeof(buff),
                              NullS, 0, 1))
     {
@@ -2772,12 +2777,29 @@ my_bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
     stmt->update_max_length= value ? *(const my_bool*) value : 0;
     break;
   case STMT_ATTR_CURSOR_TYPE:
-    stmt->flags= value ? *(const unsigned long *) value : 0;
+  {
+    ulong cursor_type;
+    cursor_type= value ? *(ulong*) value : 0UL;
+    if (cursor_type > (ulong) CURSOR_TYPE_READ_ONLY)
+      goto err_not_implemented;
+    stmt->flags= cursor_type;
     break;
+  }
+  case STMT_ATTR_PREFETCH_ROWS:
+  {
+    ulong prefetch_rows= value ? *(ulong*) value : DEFAULT_PREFETCH_ROWS;
+    if (value == 0)
+      return TRUE;
+    stmt->prefetch_rows= prefetch_rows;
+    break;
+  }
   default:
-    return TRUE;
+    goto err_not_implemented;
   }
   return FALSE;
+err_not_implemented:
+  set_stmt_error(stmt, CR_NOT_IMPLEMENTED, unknown_sqlstate);
+  return TRUE;
 }
 
 
@@ -2854,7 +2876,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
     DBUG_RETURN(1);
   }
 
-  if (reset_stmt_handle(stmt, 0))
+  if (reset_stmt_handle(stmt, RESET_STORE_RESULT))
     DBUG_RETURN(1);
   /*
     No need to check for stmt->state: if the statement wasn't
@@ -4862,7 +4884,11 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
     MYSQL_DATA *result= &stmt->result;
     my_bool has_cursor= stmt->read_row_func == stmt_read_row_from_cursor;
 
-    if (result->data)
+    /*
+      Reset stored result set if so was requested or it's a part
+      of cursor fetch.
+    */
+    if (result->data && (has_cursor || (flags & RESET_STORE_RESULT)))
     {
       /* Result buffered */
       free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
@@ -4921,7 +4947,7 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
   DBUG_ENTER("mysql_stmt_free_result");
 
   /* Free the client side and close the server side cursor if there is one */
-  DBUG_RETURN(reset_stmt_handle(stmt, RESET_LONG_DATA));
+  DBUG_RETURN(reset_stmt_handle(stmt, RESET_LONG_DATA | RESET_STORE_RESULT));
 }
 
 /********************************************************************
