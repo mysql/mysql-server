@@ -139,7 +139,7 @@ int mysql_update(THD *thd,
   if (open_tables(thd, &table_list, &table_count))
     DBUG_RETURN(1);
 
-  if (table_list->ancestor && table_list->ancestor->next_local)
+  if (table_list->multitable_view)
   {
     DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
@@ -706,9 +706,11 @@ bool mysql_multi_update_prepare(THD *thd)
       if (!tl->placeholder() && !tl->schema_table && !using_lock_tables)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
-
+  }
+  for(tl= table_list; tl; tl= tl->next_local)
+  {
     /* Check access privileges for table */
-    if (!tl->derived && !tl->belong_to_view)
+    if (!tl->derived)
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
       if (check_access(thd, want_privilege,
@@ -721,12 +723,10 @@ bool mysql_multi_update_prepare(THD *thd)
   /* check single table update for view compound from several tables */
   for (tl= table_list; tl; tl= tl->next_local)
   {
-    if (tl->table == 0)
+    if (tl->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
-      DBUG_ASSERT(tl->view &&
-		  tl->ancestor && tl->ancestor->next_local);
       TABLE_LIST *for_update= 0;
-      if (tl->check_single_table(&for_update, tables_for_update))
+      if (tl->check_single_table(&for_update, tables_for_update, tl))
       {
 	my_error(ER_VIEW_MULTIUPDATE, MYF(0),
 		 tl->view_db.str, tl->view_name.str);

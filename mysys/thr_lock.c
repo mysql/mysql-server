@@ -409,7 +409,7 @@ static my_bool wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     result=0;
     statistic_increment(locks_waited, &THR_LOCK_lock);
     if (data->lock->get_status)
-      (*data->lock->get_status)(data->status_param);
+      (*data->lock->get_status)(data->status_param, 0);
     check_locks(data->lock,"got wait_for_lock",0);
   }
   pthread_mutex_unlock(&data->lock->mutex);
@@ -468,7 +468,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	  lock->read_no_write_count++;
 	check_locks(lock,"read lock with old write lock",0);
 	if (lock->get_status)
-	  (*lock->get_status)(data->status_param);
+	  (*lock->get_status)(data->status_param, 0);
 	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
@@ -489,7 +489,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
       data->prev=lock->read.last;
       lock->read.last= &data->next;
       if (lock->get_status)
-	(*lock->get_status)(data->status_param);
+	(*lock->get_status)(data->status_param, 0);
       if ((int) lock_type == (int) TL_READ_NO_INSERT)
 	lock->read_no_write_count++;
       check_locks(lock,"read lock with no write locks",0);
@@ -567,7 +567,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	lock->write.last= &data->next;
 	check_locks(lock,"second write lock",0);
 	if (data->lock->get_status)
-	  (*data->lock->get_status)(data->status_param);
+	  (*data->lock->get_status)(data->status_param, 0);
 	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
@@ -580,9 +580,16 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
                           (ulong) lock->write_wait.data));
       if (!lock->write_wait.data)
       {						/* no scheduled write locks */
-	if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
-	    (*lock->check_status)(data->status_param))
-	  data->type=lock_type= thr_upgraded_concurrent_insert_lock;
+        my_bool concurrent_insert= 0;
+	if (lock_type == TL_WRITE_CONCURRENT_INSERT)
+        {
+          concurrent_insert= 1;
+          if ((*lock->check_status)(data->status_param))
+          {
+            concurrent_insert= 0;
+            data->type=lock_type= thr_upgraded_concurrent_insert_lock;
+          }
+        }
 
 	if (!lock->read.data ||
 	    (lock_type <= TL_WRITE_DELAYED &&
@@ -594,7 +601,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	  data->prev=lock->write.last;
 	  lock->write.last= &data->next;
 	  if (data->lock->get_status)
-	    (*data->lock->get_status)(data->status_param);
+	    (*data->lock->get_status)(data->status_param, concurrent_insert);
 	  check_locks(lock,"only write lock",0);
 	  statistic_increment(locks_immediate,&THR_LOCK_lock);
 	  goto end;
@@ -1033,7 +1040,7 @@ my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data)
     if (!lock->read.data)			/* No read locks */
     {						/* We have the lock */
       if (data->lock->get_status)
-	(*data->lock->get_status)(data->status_param);
+	(*data->lock->get_status)(data->status_param, 0);
       pthread_mutex_unlock(&lock->mutex);
       DBUG_RETURN(0);
     }
@@ -1221,7 +1228,8 @@ static ulong sum=0;
 
 /* The following functions is for WRITE_CONCURRENT_INSERT */
 
-static void test_get_status(void* param __attribute__((unused)))
+static void test_get_status(void* param __attribute__((unused)),
+                            int concurrent_insert __attribute__((unused)))
 {
 }
 

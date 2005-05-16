@@ -89,9 +89,10 @@ sub mtr_report_test_passed ($) {
   my $tinfo= shift;
 
   my $timer=  "";
-  if ( $::opt_timer and -f "$::glob_mysql_test_dir/var/log/timer" )
+  if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
   {
-    $timer= mtr_fromfile("$::glob_mysql_test_dir/var/log/timer");
+    $timer= mtr_fromfile("$::opt_vardir/log/timer");
+    $::glob_tot_real_time += $timer;
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
@@ -177,8 +178,8 @@ sub mtr_report_stats ($) {
 
     # Report if there was any fatal warnings/errors in the log files
     #
-    unlink("$::glob_mysql_test_dir/var/log/warnings");
-    unlink("$::glob_mysql_test_dir/var/log/warnings.tmp");
+    unlink("$::opt_vardir/log/warnings");
+    unlink("$::opt_vardir/log/warnings.tmp");
     # Remove some non fatal warnings from the log files
 
 # FIXME what is going on ????? ;-)
@@ -196,11 +197,11 @@ sub mtr_report_stats ($) {
 #        found_error=1
 #      }
 #    done
-#    unlink("$::glob_mysql_test_dir/var/log/warnings.tmp");
+#    unlink("$::opt_vardir/log/warnings.tmp");
 #    if ( $found_error=  "1" )
 #      {
 #      print "WARNING: Got errors/warnings while running tests. Please examine\n"
-#      print "$::glob_mysql_test_dir/var/log/warnings for details.\n"
+#      print "$::opt_vardir/log/warnings for details.\n"
 #    }
 #  }
   }

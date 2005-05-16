@@ -1,4 +1,5 @@
-USE mysql;
+use mysql;
+set table_type=myisam;
 
 CREATE TABLE db (
   Host char(60) binary DEFAULT '' NOT NULL,
@@ -206,7 +207,7 @@ INSERT INTO time_zone_name (Name, Time_Zone_id) VALUES
 
 CREATE TABLE time_zone (
   Time_zone_id int unsigned NOT NULL auto_increment,
-  Use_leap_seconds enum('Y','N') DEFAULT 'N' NOT NULL,
+  Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   PRIMARY KEY TzId (Time_zone_id)
 ) engine=MyISAM
 CHARACTER SET utf8

@@ -52,7 +52,15 @@ public:
         FIXME: We should juggle with security context here (because trigger
         should be invoked with creator rights).
       */
+      /*
+	We disable binlogging, as in SP/functions, even though currently
+        triggers can't do updates. When triggers can do updates, someone
+        should add such a trigger to rpl_sp.test to verify that the update
+        does NOT go into binlog.
+      */
+      tmp_disable_binlog(thd);
       res= bodies[event][time_type]->execute_function(thd, 0, 0, 0);
+      reenable_binlog(thd);
 
 #ifndef EMBEDDED_LIBRARY
       thd->net.no_send_ok= nsok;

@@ -241,23 +241,20 @@ void Listener_thread::run()
             }
           }
         }
-        else
-          if (FD_ISSET(ip_socket, &read_fds_arg))
+        else if (FD_ISSET(ip_socket, &read_fds_arg))
+        {
+          int client_fd= accept(ip_socket, 0, 0);
+          /* accept may return -1 (failure or spurious wakeup) */
+          if (client_fd >= 0)                    // connection established
           {
-            int client_fd= accept(ip_socket, 0, 0);
-            /* accept may return -1 (failure or spurious wakeup) */
-            if (client_fd >= 0)                    // connection established
+            if (Vio *vio= vio_new(client_fd, VIO_TYPE_TCPIP, 0))
+              handle_new_mysql_connection(vio);
+            else
             {
-              if (Vio *vio= vio_new(client_fd, VIO_TYPE_TCPIP, 0))
-              {
-                handle_new_mysql_connection(vio);
-              }
-              else
-              {
-                shutdown(client_fd, SHUT_RDWR);
-                close(client_fd);
-              }
+              shutdown(client_fd, SHUT_RDWR);
+              close(client_fd);
             }
+          }
         }
       }
     }

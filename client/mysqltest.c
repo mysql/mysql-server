@@ -593,7 +593,7 @@ static void abort_not_supported_test()
     printf("skipped\n");
   free_used_memory();
   my_end(MY_CHECK_ERROR);
-  exit(2);
+  exit(62);
 }
 
 static void verbose_msg(const char* fmt, ...)
@@ -2729,6 +2729,8 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 
     if (!disable_result_log)
     {
+      ulong affected_rows;    /* Ok to be undef if 'disable_info' is set */
+
       if (res)
       {
 	MYSQL_FIELD *field= mysql_fetch_fields(res);
@@ -2749,6 +2751,13 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	}
 	append_result(ds, res);
       }
+
+      /*
+        Need to call mysql_affected_rows() before the new
+        query to find the warnings
+      */
+      if (!disable_info)
+        affected_rows= (ulong)mysql_affected_rows(mysql);
 
       /*
         Add all warnings to the result. We can't do this if we are in
@@ -2777,7 +2786,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
       if (!disable_info)
       {
 	char buf[40];
-	sprintf(buf,"affected rows: %lu\n",(ulong) mysql_affected_rows(mysql));
+	sprintf(buf,"affected rows: %lu\n", affected_rows);
 	dynstr_append(ds, buf);
 	if (mysql_info(mysql))
 	{
