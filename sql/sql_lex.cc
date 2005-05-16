@@ -1064,6 +1064,7 @@ int yylex(void *arg, void *yythd)
 void st_select_lex_node::init_query()
 {
   options= 0;
+  options2= 0;
   linkage= UNSPECIFIED_TYPE;
   no_error= no_table_names_allowed= 0;
   uncacheable= 0;
@@ -1127,6 +1128,7 @@ void st_select_lex::init_select()
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
   options= 0;
+  options2= 0;
   braces= 0;
   when_list.empty();
   expr_list.empty();
