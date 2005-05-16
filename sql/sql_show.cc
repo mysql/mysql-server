@@ -1362,13 +1362,12 @@ static bool show_status_array(THD *thd, const char *wild,
             {
               if (bitmap_is_set(bitmap, i))
               {
-                end+= my_snprintf((char *)end, sizeof(buff) - (end - buff),
-                                  "%d,", i);
+                end= int10_to_str(i, (char*) end, 10);
+                *(char*) end++= ',';
               }
             }
             if (end != buff)
               end--;				// Remove last ','
-            *(char *)end= 0;
           }
           break;
         }
