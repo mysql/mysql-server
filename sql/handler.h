@@ -23,7 +23,6 @@
 
 #include <ft_global.h>
 #include <keycache.h>
-#include <bitvector.h>
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
