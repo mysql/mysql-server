@@ -572,7 +572,7 @@ static void abort_not_supported_test()
     printf("skipped\n");
   free_used_memory();
   my_end(MY_CHECK_ERROR);
-  exit(2);
+  exit(62);
 }
 
 static void verbose_msg(const char* fmt, ...)
@@ -2597,6 +2597,8 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 
     if (!disable_result_log)
     {
+      ulong affected_rows;    /* Ok to be undef if 'disable_info' is set */
+
       if (res)
       {
 	MYSQL_FIELD *field= mysql_fetch_fields(res);
@@ -2618,6 +2620,13 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	}
 	append_result(ds, res);
       }
+
+      /*
+        Need to call mysql_affected_rows() before the new
+        query to find the warnings
+      */
+      if (!disable_info)
+        affected_rows= (ulong)mysql_affected_rows(mysql);
 
       /* Add all warnings to the result */
       if (!disable_warnings && mysql_warning_count(mysql))
@@ -2641,7 +2650,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
       if (!disable_info)
       {
 	char buf[40];
-	sprintf(buf,"affected rows: %lu\n",(ulong) mysql_affected_rows(mysql));
+	sprintf(buf,"affected rows: %lu\n", affected_rows);
 	dynstr_append(ds, buf);
 	if (mysql_info(mysql))
 	{
@@ -3522,6 +3531,12 @@ int main(int argc, char **argv)
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
+	if (save_file[0])
+	{
+	  strmov(q->record_file,save_file);
+	  q->require_file=require_file;
+	  save_file[0]=0;
+	}
 	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
 	break;

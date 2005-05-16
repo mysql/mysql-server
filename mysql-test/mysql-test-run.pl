@@ -84,7 +84,7 @@ use Sys::Hostname;
 #use Carp;
 use IO::Socket;
 use IO::Socket::INET;
-#use Data::Dumper;
+use Data::Dumper;
 use strict;
 #use diagnostics;
 
@@ -177,6 +177,7 @@ our $path_timefile;
 our $path_manager_log;           # Used by mysqldadmin
 our $path_slave_load_tmpdir;     # What is this?!
 our $path_my_basedir;
+our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_tmpdir;                 # A path but set directly on cmd line
 
 our $opt_usage;
@@ -447,8 +448,6 @@ sub initial_setup () {
   $glob_basedir=         dirname($glob_mysql_test_dir);
   $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
 
-  $path_timefile=  "$glob_mysql_test_dir/var/log/mysqltest-time";
-
   # needs to be same length to test logging (FIXME what???)
   $path_slave_load_tmpdir=  "../../var/tmp";
 
@@ -469,11 +468,6 @@ sub command_line_setup () {
   # These are defaults for things that are set on the command line
 
   $opt_suite=        "main";    # Special default suite
-  $opt_tmpdir=       "$glob_mysql_test_dir/var/tmp";
-  # FIXME maybe unneded?
-  $path_manager_log= "$glob_mysql_test_dir/var/log/manager.log";
-  $opt_current_test= "$glob_mysql_test_dir/var/log/current_test";
-
   my $opt_master_myport=   9306;
   my $opt_slave_myport=    9308;
   $opt_ndbcluster_port= 9350;
@@ -549,6 +543,7 @@ sub command_line_setup () {
              'unified-diff|udiff'       => \$opt_udiff,
              'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
+             'vardir=s'                 => \$opt_vardir,
              'verbose'                  => \$opt_verbose,
              'wait-timeout=i'           => \$opt_wait_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
@@ -564,51 +559,35 @@ sub command_line_setup () {
 
   @opt_cases= @ARGV;
 
-  # Put this into a hash, will be a C struct
+  # --------------------------------------------------------------------------
+  # Set the "var/" directory, as it is the base for everything else
+  # --------------------------------------------------------------------------
 
-  $master->[0]->{'path_myddir'}=  "$glob_mysql_test_dir/var/master-data";
-  $master->[0]->{'path_myerr'}=   "$glob_mysql_test_dir/var/log/master.err";
-  $master->[0]->{'path_mylog'}=   "$glob_mysql_test_dir/var/log/master.log";
-  $master->[0]->{'path_mypid'}=   "$glob_mysql_test_dir/var/run/master.pid";
-  $master->[0]->{'path_mysock'}=  "$opt_tmpdir/master.sock";
-  $master->[0]->{'path_myport'}=   $opt_master_myport;
-  $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
+  if ( ! $opt_vardir )
+  {
+    $opt_vardir= "$glob_mysql_test_dir/var";
+  }
 
-  $master->[0]->{'ndbcluster'}= 1; # ndbcluster not started
+  if ( $opt_vardir !~ m,^/, )
+  {
+    # Make absolute path, relative test dir
+    $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
+  }
 
-  $master->[1]->{'path_myddir'}=  "$glob_mysql_test_dir/var/master1-data";
-  $master->[1]->{'path_myerr'}=   "$glob_mysql_test_dir/var/log/master1.err";
-  $master->[1]->{'path_mylog'}=   "$glob_mysql_test_dir/var/log/master1.log";
-  $master->[1]->{'path_mypid'}=   "$glob_mysql_test_dir/var/run/master1.pid";
-  $master->[1]->{'path_mysock'}=  "$opt_tmpdir/master1.sock";
-  $master->[1]->{'path_myport'}=   $opt_master_myport + 1;
-  $master->[1]->{'start_timeout'}= 400; # enough time create innodb tables
+  # --------------------------------------------------------------------------
+  # If not set, set these to defaults
+  # --------------------------------------------------------------------------
 
-  $slave->[0]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave-data";
-  $slave->[0]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave.err";
-  $slave->[0]->{'path_mylog'}=    "$glob_mysql_test_dir/var/log/slave.log";
-  $slave->[0]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave.pid";
-  $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
-  $slave->[0]->{'path_myport'}=    $opt_slave_myport;
-  $slave->[0]->{'start_timeout'}=  400;
+  $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
+  # FIXME maybe not needed?
+  $path_manager_log= "$opt_vardir/log/manager.log"
+    unless $path_manager_log;
+  $opt_current_test= "$opt_vardir/log/current_test"
+    unless $opt_current_test;
 
-  $slave->[1]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave1-data";
-  $slave->[1]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave1.err";
-  $slave->[1]->{'path_mylog'}=    "$glob_mysql_test_dir/var/log/slave1.log";
-  $slave->[1]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave1.pid";
-  $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
-  $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
-  $slave->[1]->{'start_timeout'}=  300;
-
-  $slave->[2]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave2-data";
-  $slave->[2]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave2.err";
-  $slave->[2]->{'path_mylog'}=    "$glob_mysql_test_dir/var/log/slave2.log";
-  $slave->[2]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave2.pid";
-  $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
-  $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
-  $slave->[2]->{'start_timeout'}=  300;
-
+  # --------------------------------------------------------------------------
   # Do sanity checks of command line arguments
+  # --------------------------------------------------------------------------
 
   if ( $opt_extern and $opt_local )
   {
@@ -619,13 +598,6 @@ sub command_line_setup () {
   {     # FIXME set default before reading options?
 #    $opt_socket=  '@MYSQL_UNIX_ADDR@';
     $opt_socket=  "/tmp/mysql.sock"; # FIXME
-  }
-
-  if ( $opt_extern )
-  {
-    $glob_use_running_server=  1;
-    $opt_skip_rpl= 1;                   # We don't run rpl test cases
-    $master->[0]->{'path_mysock'}=  $opt_socket;
   }
 
   # --------------------------------------------------------------------------
@@ -746,6 +718,58 @@ sub command_line_setup () {
     }
   }
 
+  # Put this into a hash, will be a C struct
+
+  $master->[0]->{'path_myddir'}=  "$opt_vardir/master-data";
+  $master->[0]->{'path_myerr'}=   "$opt_vardir/log/master.err";
+  $master->[0]->{'path_mylog'}=   "$opt_vardir/log/master.log";
+  $master->[0]->{'path_mypid'}=   "$opt_vardir/run/master.pid";
+  $master->[0]->{'path_mysock'}=  "$opt_tmpdir/master.sock";
+  $master->[0]->{'path_myport'}=   $opt_master_myport;
+  $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
+
+  $master->[0]->{'ndbcluster'}= 1; # ndbcluster not started
+
+  $master->[1]->{'path_myddir'}=  "$opt_vardir/master1-data";
+  $master->[1]->{'path_myerr'}=   "$opt_vardir/log/master1.err";
+  $master->[1]->{'path_mylog'}=   "$opt_vardir/log/master1.log";
+  $master->[1]->{'path_mypid'}=   "$opt_vardir/run/master1.pid";
+  $master->[1]->{'path_mysock'}=  "$opt_tmpdir/master1.sock";
+  $master->[1]->{'path_myport'}=   $opt_master_myport + 1;
+  $master->[1]->{'start_timeout'}= 400; # enough time create innodb tables
+
+  $slave->[0]->{'path_myddir'}=   "$opt_vardir/slave-data";
+  $slave->[0]->{'path_myerr'}=    "$opt_vardir/log/slave.err";
+  $slave->[0]->{'path_mylog'}=    "$opt_vardir/log/slave.log";
+  $slave->[0]->{'path_mypid'}=    "$opt_vardir/run/slave.pid";
+  $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
+  $slave->[0]->{'path_myport'}=    $opt_slave_myport;
+  $slave->[0]->{'start_timeout'}=  400;
+
+  $slave->[1]->{'path_myddir'}=   "$opt_vardir/slave1-data";
+  $slave->[1]->{'path_myerr'}=    "$opt_vardir/log/slave1.err";
+  $slave->[1]->{'path_mylog'}=    "$opt_vardir/log/slave1.log";
+  $slave->[1]->{'path_mypid'}=    "$opt_vardir/run/slave1.pid";
+  $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
+  $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
+  $slave->[1]->{'start_timeout'}=  300;
+
+  $slave->[2]->{'path_myddir'}=   "$opt_vardir/slave2-data";
+  $slave->[2]->{'path_myerr'}=    "$opt_vardir/log/slave2.err";
+  $slave->[2]->{'path_mylog'}=    "$opt_vardir/log/slave2.log";
+  $slave->[2]->{'path_mypid'}=    "$opt_vardir/run/slave2.pid";
+  $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
+  $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
+  $slave->[2]->{'start_timeout'}=  300;
+
+  if ( $opt_extern )
+  {
+    $glob_use_running_server=  1;
+    $opt_skip_rpl= 1;                   # We don't run rpl test cases
+    $master->[0]->{'path_mysock'}=  $opt_socket;
+  }
+
+  $path_timefile=  "$opt_vardir/log/mysqltest-time";
 }
 
 
@@ -892,8 +916,8 @@ sub executable_setup () {
   }
 
   $path_ndb_backup_dir=
-    "$glob_mysql_test_dir/var/ndbcluster-$opt_ndbcluster_port";
-  $file_ndb_testrun_log= "$glob_mysql_test_dir/var/log/ndb_testrun.log";
+    "$opt_vardir/ndbcluster-$opt_ndbcluster_port";
+  $file_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 }
 
 
@@ -981,7 +1005,7 @@ sub kill_running_server () {
     # leftovers from previous runs.
 
     mtr_report("Killing Possible Leftover Processes");
-    mkpath("$glob_mysql_test_dir/var/log"); # Needed for mysqladmin log
+    mkpath("$opt_vardir/log"); # Needed for mysqladmin log
     mtr_kill_leftovers();
 
     ndbcluster_stop();
@@ -995,15 +1019,20 @@ sub kill_and_cleanup () {
 
   mtr_report("Removing Stale Files");
 
-  rmtree("$glob_mysql_test_dir/var/log");
-  rmtree("$glob_mysql_test_dir/var/ndbcluster-$opt_ndbcluster_port");
-  rmtree("$glob_mysql_test_dir/var/run");
-  rmtree("$glob_mysql_test_dir/var/tmp");
+  if ( -l $opt_vardir and ! unlink($opt_vardir) )
+  {
+    mtr_error("Can't remove soft link \"$opt_vardir\"");
+  }
 
-  mkpath("$glob_mysql_test_dir/var/log");
-  mkpath("$glob_mysql_test_dir/var/run");
-  mkpath("$glob_mysql_test_dir/var/tmp");
-  mkpath($opt_tmpdir);
+  rmtree("$opt_vardir/log");
+  rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
+  rmtree("$opt_vardir/run");
+  rmtree("$opt_vardir/tmp");
+
+  mkpath("$opt_vardir/log");
+  mkpath("$opt_vardir/run");
+  mkpath("$opt_vardir/tmp");
+  mkpath($opt_tmpdir) if $opt_tmpdir ne "$opt_vardir/tmp";
 
   # FIXME do we really need to create these all, or are they
   # created for us when tables are created?
@@ -1027,6 +1056,16 @@ sub kill_and_cleanup () {
   rmtree("$slave->[2]->{'path_myddir'}");
   mkpath("$slave->[2]->{'path_myddir'}/mysql");
   mkpath("$slave->[2]->{'path_myddir'}/test");
+
+  # To make some old test cases work, we create a soft
+  # link from the old "var" location to the new one
+
+  if ( ! $glob_win32 and $opt_vardir ne "$glob_mysql_test_dir/var" )
+  {
+    # FIXME why bother with the above, why not always remove all of var?!
+    rmtree("$glob_mysql_test_dir/var"); # Clean old var, FIXME or rename it?!
+    symlink($opt_vardir, "$glob_mysql_test_dir/var");
+  }
 }
 
 
@@ -1050,7 +1089,7 @@ sub ndbcluster_install () {
   if (  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 		["--port=$opt_ndbcluster_port",
 		 "--port-base=$ndbcluster_port_base",
-		 "--data-dir=$glob_mysql_test_dir/var",
+		 "--data-dir=$opt_vardir",
 		 $ndbcluster_opts,
 		 "--initial"],
 		"", "", "", "") )
@@ -1074,7 +1113,7 @@ sub ndbcluster_start () {
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
   if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 	       ["--port=$opt_ndbcluster_port",
-		"--data-dir=$glob_mysql_test_dir/var"],
+		"--data-dir=$opt_vardir"],
 	       "", "/dev/null", "", "") )
   {
     mtr_error("Error ndbcluster_start");
@@ -1094,7 +1133,7 @@ sub ndbcluster_stop () {
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
   mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
           ["--port=$opt_ndbcluster_port",
-           "--data-dir=$glob_mysql_test_dir/var",
+           "--data-dir=$opt_vardir",
            "--stop"],
           "", "/dev/null", "", "");
 
@@ -1497,15 +1536,15 @@ sub run_testcase ($) {
     {
       mtr_report_test_passed($tinfo);
     }
-    elsif ( $res == 2 )
+    elsif ( $res == 62 )
     {
       # Testcase itself tell us to skip this one
       mtr_report_test_skipped($tinfo);
     }
     else
     {
-      # Test case failed
-      if ( $res > 2 )
+      # Test case failed, if in control mysqltest returns 1
+      if ( $res != 1 )
       {
         mtr_tofile($path_timefile,
                    "mysqltest returned unexpected code $res, " .
@@ -1566,17 +1605,17 @@ sub do_before_start_master ($$) {
        $tname ne "rpl_crash_binlog_ib_3b")
   {
     # FIXME we really want separate dir for binlogs
-    foreach my $bin ( glob("$glob_mysql_test_dir/var/log/master*-bin.*") )
+    foreach my $bin ( glob("$opt_vardir/log/master*-bin.*") )
     {
       unlink($bin);
     }
   }
 
   # Remove old master.info and relay-log.info files
-  unlink("$glob_mysql_test_dir/var/master-data/master.info");
-  unlink("$glob_mysql_test_dir/var/master-data/relay-log.info");
-  unlink("$glob_mysql_test_dir/var/master1-data/master.info");
-  unlink("$glob_mysql_test_dir/var/master1-data/relay-log.info");
+  unlink("$opt_vardir/master-data/master.info");
+  unlink("$opt_vardir/master-data/relay-log.info");
+  unlink("$opt_vardir/master1-data/master.info");
+  unlink("$opt_vardir/master1-data/relay-log.info");
 
   # Run master initialization shell script if one exists
   if ( $init_script )
@@ -1603,13 +1642,13 @@ sub do_before_start_slave ($$) {
        $tname ne "rpl_crash_binlog_ib_3b" )
   {
     # FIXME we really want separate dir for binlogs
-    foreach my $bin ( glob("$glob_mysql_test_dir/var/log/slave*-bin.*") )
+    foreach my $bin ( glob("$opt_vardir/log/slave*-bin.*") )
     {
       unlink($bin);
     }
     # FIXME really master?!
-    unlink("$glob_mysql_test_dir/var/slave-data/master.info");
-    unlink("$glob_mysql_test_dir/var/slave-data/relay-log.info");
+    unlink("$opt_vardir/slave-data/master.info");
+    unlink("$opt_vardir/slave-data/relay-log.info");
   }
 
   # Run slave initialization shell script if one exists
@@ -1623,8 +1662,8 @@ sub do_before_start_slave ($$) {
     }
   }
 
-  `rm -f $glob_mysql_test_dir/var/slave-data/log.*`;
-#  unlink("$glob_mysql_test_dir/var/slave-data/log.*");
+  `rm -f $opt_vardir/slave-data/log.*`;
+#  unlink("$opt_vardir/slave-data/log.*");
 }
 
 sub mysqld_arguments ($$$$$) {
@@ -1670,8 +1709,7 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $type eq 'master' )
   {
-    mtr_add_arg($args, "%s--log-bin=%s/var/log/master-bin", $prefix,
-                $glob_mysql_test_dir);
+    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin", $prefix, $opt_vardir);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $master->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
@@ -1695,8 +1733,8 @@ sub mysqld_arguments ($$$$$) {
     # FIXME slave get this option twice?!
     mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
-    mtr_add_arg($args, "%s--log-bin=%s/var/log/slave%s-bin", $prefix,
-                $glob_mysql_test_dir, $sidx); # FIXME use own dir for binlogs
+    mtr_add_arg($args, "%s--log-bin=%s/log/slave%s-bin", $prefix,
+                $opt_vardir, $sidx); # FIXME use own dir for binlogs
     mtr_add_arg($args, "%s--log-slave-updates", $prefix);
     # FIXME option duplicated for slave
     mtr_add_arg($args, "%s--log=%s", $prefix,
@@ -1706,8 +1744,8 @@ sub mysqld_arguments ($$$$$) {
                 $slave->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
                 $slave->[$idx]->{'path_myport'});
-    mtr_add_arg($args, "%s--relay-log=%s/var/log/slave%s-relay-bin", $prefix,
-                $glob_mysql_test_dir, $sidx);
+    mtr_add_arg($args, "%s--relay-log=%s/log/slave%s-relay-bin", $prefix,
+                $opt_vardir, $sidx);
     mtr_add_arg($args, "%s--report-host=127.0.0.1", $prefix);
     mtr_add_arg($args, "%s--report-port=%d", $prefix,
                 $slave->[$idx]->{'path_myport'});
@@ -1745,13 +1783,13 @@ sub mysqld_arguments ($$$$$) {
   {
     if ( $type eq 'master' )
     {
-      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/var/log/master%s.trace",
-                  $prefix, $glob_mysql_test_dir, $sidx);
+      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/master%s.trace",
+                  $prefix, $opt_vardir, $sidx);
     }
     if ( $type eq 'slave' )
     {
-      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/var/log/slave%s.trace",
-                  $prefix, $glob_mysql_test_dir, $sidx);
+      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/slave%s.trace",
+                  $prefix, $opt_vardir, $sidx);
     }
   }
 
@@ -2003,7 +2041,7 @@ sub run_mysqltest ($$) {
   if ( $opt_debug )
   {
     $cmdline_mysqldump .=
-      " --debug=d:t:A,$glob_mysql_test_dir/var/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
   }
 
   my $cmdline_mysqlbinlog=
@@ -2012,7 +2050,7 @@ sub run_mysqltest ($$) {
   if ( $opt_debug )
   {
     $cmdline_mysqlbinlog .=
-      " --debug=d:t:A,$glob_mysql_test_dir/var/log/mysqlbinlog.trace";
+      " --debug=d:t:A,$opt_vardir/log/mysqlbinlog.trace";
   }
 
   my $cmdline_mysql=
@@ -2075,13 +2113,13 @@ sub run_mysqltest ($$) {
   {
     $exe=  "strace";            # FIXME there are ktrace, ....
     mtr_add_arg($args, "-o");
-    mtr_add_arg($args, "%s/var/log/mysqltest.strace", $glob_mysql_test_dir);
+    mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
     mtr_add_arg($args, "$exe_mysqltest");
   }
 
   if ( $opt_timer )
   {
-    mtr_add_arg($args, "--timer-file=%s/var/log/timer", $glob_mysql_test_dir);
+    mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
   }
 
   if ( $opt_big_test )
@@ -2106,8 +2144,7 @@ sub run_mysqltest ($$) {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=d:t:A,%s/var/log/mysqltest.trace",
-                $glob_mysql_test_dir);
+    mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir);
   }
 
   if ( $opt_with_openssl )
@@ -2129,7 +2166,7 @@ sub run_mysqltest ($$) {
     mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
   }
 
-  return mtr_run_test($exe_mysqltest,$args,$tinfo->{'path'},"",$path_timefile,"");
+  return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
 
 ##############################################################################
