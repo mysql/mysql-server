@@ -71,7 +71,7 @@ static const char *embedded_server_groups[]= {
 static time_t start_time, end_time;
 static double total_time;
 
-const char *default_dbug_option= "d:t:o,/tmp/client_test.trace";
+const char *default_dbug_option= "d:t:o,/tmp/mysql_client_test.trace";
 
 struct my_tests_st
 {
@@ -12942,6 +12942,7 @@ static void test_bug9478()
   char a[6];
   ulong a_len;
   int rc, i;
+  DBUG_ENTER("test_bug9478");
 
   myheader("test_bug9478");
 
@@ -13014,6 +13015,7 @@ static void test_bug9478()
 
   for (i= 0; i < 5; i++)
   {
+    DBUG_PRINT("loop",("i: %d", i));
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     rc= mysql_stmt_fetch(stmt);
@@ -13029,10 +13031,10 @@ static void test_bug9478()
     */
     {
       char buff[9];
-      bzero(buff, sizeof(buff));
       /* Fill in the execute packet */
       int4store(buff, stmt->stmt_id);
-      int4store(buff+5, 1);
+      buff[4]= 0;                               /* Flag */
+      int4store(buff+5, 1);                     /* Return 1 row */
       rc= ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff,
                                                sizeof(buff), 0,0,1) ||
            (*mysql->methods->read_query_result)(mysql));
@@ -13072,6 +13074,7 @@ static void test_bug9478()
 
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
+  DBUG_VOID_RETURN;
 }
 
 
