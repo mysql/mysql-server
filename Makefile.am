@@ -30,9 +30,11 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
-			@sql_union_dirs@ scripts @man_dirs@ tests SSL\
-			BUILD netware os2 @libmysqld_dirs@ \
-			@bench_dirs@ support-files @tools_dirs@
+                        strings mysys dbug extra regex storage \
+                        vio sql libmysql_r libmysql client scripts \
+			@man_dirs@ tests SSL\
+			BUILD netware os2 @libmysqld_dirs@\
+			@bench_dirs@ support-files server-tools tools
 
 # Relink after clean
 linked_sources = linked_client_sources linked_server_sources \
