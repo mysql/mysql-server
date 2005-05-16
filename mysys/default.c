@@ -117,10 +117,9 @@ int my_correct_defaults_file(const char *file_location, const char *option,
   char *file_buffer;
   uint position= 0;
   int is_found= FALSE;
+  DBUG_ENTER("my_correct_defaults_file");
 
   optlen= strlen(option);
-
-  DBUG_ENTER("my_correct_file");
 
   if (!(cnf_file= my_fopen(file_location, O_RDWR, MYF(0))))
     goto err_fopen;
