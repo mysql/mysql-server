@@ -1013,7 +1013,7 @@ void Dbdict::readSchemaConf(Signal* signal,
     ndbrequire(rr.firstPage == 0);
     SchemaFile * sf = &xsf->schemaPage[0];
     Uint32 noOfPages;
-    if (sf->NdbVersion < NDB_SF_VERSION_5_0_5) {
+    if (sf->NdbVersion < NDB_SF_VERSION_5_0_6) {
       jam();
       const Uint32 pageSize_old = 32 * 1024;
       noOfPages = pageSize_old / NDB_SF_PAGE_SIZE - 1;
@@ -1032,8 +1032,8 @@ void Dbdict::readSchemaConf(Signal* signal,
   SchemaFile * sf0 = &xsf->schemaPage[0];
   xsf->noOfPages = sf0->FileSize / NDB_SF_PAGE_SIZE;
 
-  if (sf0->NdbVersion < NDB_SF_VERSION_5_0_5 &&
-      ! convertSchemaFileTo_5_0_5(xsf)) {
+  if (sf0->NdbVersion < NDB_SF_VERSION_5_0_6 &&
+      ! convertSchemaFileTo_5_0_6(xsf)) {
     jam();
     ndbrequire(! crashInd);
     ndbrequire(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1);
@@ -1113,7 +1113,7 @@ void Dbdict::closeReadSchemaConf(Signal* signal,
 }//Dbdict::closeReadSchemaConf()
 
 bool
-Dbdict::convertSchemaFileTo_5_0_5(XSchemaFile * xsf)
+Dbdict::convertSchemaFileTo_5_0_6(XSchemaFile * xsf)
 {
   const Uint32 pageSize_old = 32 * 1024;
   Uint32 page_old[pageSize_old >> 2];
@@ -2175,8 +2175,8 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
   releaseSections(signal);
   
   SchemaFile * sf0 = &xsf->schemaPage[0];
-  if (sf0->NdbVersion < NDB_SF_VERSION_5_0_5) {
-    bool ok = convertSchemaFileTo_5_0_5(xsf);
+  if (sf0->NdbVersion < NDB_SF_VERSION_5_0_6) {
+    bool ok = convertSchemaFileTo_5_0_6(xsf);
     ndbrequire(ok);
   }
     
@@ -11922,8 +11922,8 @@ Dbdict::initSchemaFile(XSchemaFile * xsf, Uint32 firstPage, Uint32 lastPage,
       memset(sf, 0, NDB_SF_PAGE_SIZE);
 
     Uint32 ndb_version = NDB_VERSION;
-    if (ndb_version < NDB_SF_VERSION_5_0_5)
-      ndb_version = NDB_SF_VERSION_5_0_5;
+    if (ndb_version < NDB_SF_VERSION_5_0_6)
+      ndb_version = NDB_SF_VERSION_5_0_6;
 
     memcpy(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic));
     sf->ByteOrder = 0x12345678;
