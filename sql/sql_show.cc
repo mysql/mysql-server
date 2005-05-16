@@ -1345,6 +1345,32 @@ static bool show_status_array(THD *thd, const char *wild,
 	  pthread_mutex_unlock(&LOCK_active_mi);
 	  break;
         }
+        case SHOW_SLAVE_SKIP_ERRORS:
+        {
+          MY_BITMAP *bitmap= (MY_BITMAP *)value;
+          if (!use_slave_mask || bitmap_is_clear_all(bitmap))
+          {
+            end= strmov(buff, "OFF");
+          }
+          else if (bitmap_is_set_all(bitmap))
+          {
+            end= strmov(buff, "ALL");
+          }
+          else
+          {
+            for (int i= 1; i < MAX_SLAVE_ERROR; i++)
+            {
+              if (bitmap_is_set(bitmap, i))
+              {
+                end= int10_to_str(i, (char*) end, 10);
+                *(char*) end++= ',';
+              }
+            }
+            if (end != buff)
+              end--;				// Remove last ','
+          }
+          break;
+        }
 #endif /* HAVE_REPLICATION */
         case SHOW_OPENTABLES:
           end= int10_to_str((long) cached_tables(), buff, 10);
