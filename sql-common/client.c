@@ -650,6 +650,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   NET *net= &mysql->net;
   my_bool result= 1;
   init_sigpipe_variables
+    DBUG_ENTER("cli_advanced_command");
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -657,13 +658,13 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
     if (mysql_reconnect(mysql))
-      return 1;
+      DBUG_RETURN(1);
   }
   if (mysql->status != MYSQL_STATUS_READY)
   {
     DBUG_PRINT("error",("state: %d", mysql->status));
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   net->last_error[0]=0;
@@ -702,7 +703,8 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 	     1 : 0);
 end:
   reset_sigpipe(mysql);
-  return result;
+  DBUG_PRINT("exit",("result: %d", result));
+  DBUG_RETURN(result);
 }
 
 void free_old_query(MYSQL *mysql)
@@ -2458,6 +2460,7 @@ get_info:
   mysql->status= MYSQL_STATUS_GET_RESULT;
   mysql->field_count= (uint) field_count;
   mysql->warning_count= 0;
+  DBUG_PRINT("exit",("ok"));
   DBUG_RETURN(0);
 }
 
