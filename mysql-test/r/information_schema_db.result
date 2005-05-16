@@ -1,6 +1,6 @@
 use INFORMATION_SCHEMA;
 show tables;
-Tables_in_information_schema
+Tables_in_INFORMATION_SCHEMA
 SCHEMATA
 TABLES
 COLUMNS
@@ -17,7 +17,7 @@ COLUMN_PRIVILEGES
 TABLE_CONSTRAINTS
 KEY_COLUMN_USAGE
 show tables from INFORMATION_SCHEMA like 'T%';
-Tables_in_information_schema (T%)
+Tables_in_INFORMATION_SCHEMA (T%)
 TABLES
 TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
