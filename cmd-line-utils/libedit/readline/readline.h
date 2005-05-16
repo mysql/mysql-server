@@ -73,7 +73,7 @@ typedef KEYMAP_ENTRY *Keymap;
 
 #ifndef CTRL
 #include <sys/ioctl.h>
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__MWERKS__)
 #include <sys/ttydefaults.h>
 #endif
 #ifndef CTRL
