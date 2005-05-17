@@ -804,7 +804,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_delete_options opt_delete_option varchar nchar nvarchar
 	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
-	opt_column_list grant_privileges opt_table grant_list grant_option
+	opt_column_list grant_privileges grant_ident grant_list grant_option
 	object_privilege object_privilege_list user_list rename_list
 	clear_privileges flush_options flush_option
 	equal optional_braces opt_key_definition key_usage_list2
@@ -3994,6 +3994,7 @@ select_options:
               YYABORT;
 	    }
           }
+          ;
 
 select_option_list:
 	select_option_list select_option
@@ -7906,9 +7907,36 @@ revoke:
         ;
 
 revoke_command:
-	grant_privileges ON opt_table FROM grant_list
+	grant_privileges ON opt_table grant_ident FROM grant_list
 	{
-	  Lex->sql_command = SQLCOM_REVOKE;
+          LEX *lex= Lex;
+	  lex->sql_command= SQLCOM_REVOKE;
+          lex->type= 0;
+        }
+        |
+        grant_privileges ON FUNCTION_SYM grant_ident FROM grant_list
+        {
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+	  lex->sql_command= SQLCOM_REVOKE;
+          lex->type= TYPE_ENUM_FUNCTION;
+          
+        }
+	|
+        grant_privileges ON PROCEDURE grant_ident FROM grant_list
+        {
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+	  lex->sql_command= SQLCOM_REVOKE;
+          lex->type= TYPE_ENUM_PROCEDURE;
         }
 	|
 	ALL opt_privileges ',' GRANT OPTION FROM grant_list
@@ -7918,11 +7946,50 @@ revoke_command:
 	;
 
 grant:
-	GRANT clear_privileges grant_privileges ON opt_table TO_SYM grant_list
-	require_clause grant_options
-	{ Lex->sql_command= SQLCOM_GRANT; }
-	;
+	GRANT clear_privileges grant_command
+	{}
+        ;
 
+grant_command:
+	grant_privileges ON opt_table grant_ident TO_SYM grant_list
+	require_clause grant_options
+	{
+          LEX *lex= Lex;
+          lex->sql_command= SQLCOM_GRANT;
+          lex->type= 0;
+        }
+        |
+	grant_privileges ON FUNCTION_SYM grant_ident TO_SYM grant_list
+	require_clause grant_options
+	{
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+          lex->sql_command= SQLCOM_GRANT;
+          lex->type= TYPE_ENUM_FUNCTION;
+        }
+        |
+	grant_privileges ON PROCEDURE grant_ident TO_SYM grant_list
+	require_clause grant_options
+	{
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+          lex->sql_command= SQLCOM_GRANT;
+          lex->type= TYPE_ENUM_PROCEDURE;
+        }
+        ;
+
+opt_table:
+	/* Empty */
+	| TABLE_SYM ;
+        
 grant_privileges:
 	object_privilege_list { }
 	| ALL opt_privileges
@@ -8015,7 +8082,7 @@ require_list_element:
 	}
 	;
 
-opt_table:
+grant_ident:
 	'*'
 	  {
 	    LEX *lex= Lex;

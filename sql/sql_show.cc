@@ -2625,7 +2625,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   definer= get_field(thd->mem_root, proc_table->field[11]);
   if (!full_access)
     full_access= !strcmp(sp_user, definer);
-  if (!full_access && check_some_routine_access(thd, sp_db, sp_name))
+  if (!full_access && check_some_routine_access(thd, sp_db, sp_name,
+			proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE))
     return 0;
 
   if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
