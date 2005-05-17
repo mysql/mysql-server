@@ -3650,7 +3650,8 @@ err:
    1            error
 */
 
-bool check_routine_level_acl(THD *thd, const char *db, const char *name, bool is_proc)
+bool check_routine_level_acl(THD *thd, const char *db, const char *name, 
+                             bool is_proc)
 {
   bool no_routine_acl= 1;
   if (grant_option)
@@ -5662,7 +5663,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
  Dummy wrappers when we don't have any access checks
 ****************************************************************************/
 
-bool check_routine_level_acl(THD *thd, const char *db, const char *name)
+bool check_routine_level_acl(THD *thd, const char *db, const char *name,
+                             bool is_proc)
 {
   return FALSE;
 }
