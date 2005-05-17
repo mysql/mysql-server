@@ -51,3 +51,11 @@ select a from t1 where mid(a+0,6,3) = ( mid(20040106123400,6,3) );
 a
 2004-01-06 12:34:00
 drop table t1;
+create table t1 as select uuid(), length(uuid());
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `uuid()` varchar(36) character set utf8 NOT NULL default '',
+  `length(uuid())` int(10) NOT NULL default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
