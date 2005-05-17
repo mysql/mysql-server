@@ -3217,12 +3217,6 @@ no_commit:
 			/* This call will update the counter according to the
 			value that was inserted in the table */
 
-            		if (error != DB_SUCCESS) {
-              			error = convert_error_code_to_mysql(error,
-								user_thd);
-              			goto func_exit;
-            		}
-
             		dict_table_autoinc_update(prebuilt->table, auto_inc);
           	}
         }
