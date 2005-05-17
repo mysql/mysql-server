@@ -3994,7 +3994,7 @@ select_options:
               YYABORT;
 	    }
           }
-          ;
+	  ;
 
 select_option_list:
 	select_option_list select_option
