@@ -6,3 +6,12 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 set global slave_net_timeout=100;
 set global sql_slave_skip_counter=100;
+show variables like 'slave_compressed_protocol';
+Variable_name	Value
+slave_compressed_protocol	OFF
+show variables like 'slave_load_tmpdir';
+Variable_name	Value
+slave_load_tmpdir	MYSQL_TEST_DIR/var/tmp/
+show variables like 'slave_skip_errors';
+Variable_name	Value
+slave_skip_errors	3,100,137,643,1752
