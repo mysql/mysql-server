@@ -1,0 +1,34 @@
+#
+# Testing the MySQL command line client(mysql)
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Test the "delimiter" functionality
+# Bug#9879
+#
+create table t1(a int);
+insert into t1 values(1);
+
+# Test delimiters
+--exec $MYSQL test < "./t/mysql_delimiter.sql"
+
+--disable_query_log
+# Test delimiter : supplied on the command line
+select "Test delimiter : from command line" as " ";
+--exec $MYSQL test --delimiter=':' -e 'select * from t1:'
+# Test delimiter :; supplied on the command line
+select "Test delimiter :; from command line" as " ";
+--exec $MYSQL test --delimiter=':;' -e 'select * from t1:;'
+# Test 'go' command (vertical output) \G
+select "Test 'go' command(vertical output) \G" as " ";
+--exec $MYSQL test -e 'select * from t1\G'
+# Test 'go' command \g
+select "Test  'go' command \g" as " ";
+--exec $MYSQL test -e 'select * from t1\g'
+--enable_query_log
+
+drop table t1;
