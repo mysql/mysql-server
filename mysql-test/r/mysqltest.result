@@ -142,3 +142,9 @@ after_--enable_abort_on_error
 1064
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
+select 1 as `a'b`, 2 as `a"b`;
+a'b	a"b
+1	2
+select 'aaa\\','aa''a',"aa""a";
+aaa\	aa'a	aa"a
+aaa\	aa'a	aa"a
