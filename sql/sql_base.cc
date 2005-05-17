@@ -3171,10 +3171,8 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 {
   for (TABLE_LIST *table= tables; table; table= table->next_local)
   {
-    if (table->view && !table->table)
+    if (table->view && table->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
-      /* it is for multi table views only, check it */
-      DBUG_ASSERT(table->ancestor->next_local != 0);
       list= make_leaves_list(list, table->ancestor);
     }
     else
@@ -3310,8 +3308,8 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                         name->length(), 1)) <=
         0)
     {
-      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0),
-               name->c_ptr(), table->s->table_name);
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
+	       table->real_name);
       map->set_all();
       return 1;
     }

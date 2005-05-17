@@ -218,7 +218,8 @@ or
 ), mysqldump will create rows up to net_buffer_length length. If you increase this variable, you should also ensure that the max_allowed_packet variable in the MySQL server is bigger than the net_buffer_length. 
 .SH EXAMPLES
 .TP
-The most normal use of mysqldump is probably for making a backup of whole databases. See Mysql Manual section 21.2 Database Backups. 
+The most normal use of mysqldump is probably for making a backup of whole
+databases. See the section on Database Backups in the MySQL Reference Manual. 
 .TP
 mysqldump  \-\-opt \fP\fIdatabase\fP > backup-file.sql
 .TP

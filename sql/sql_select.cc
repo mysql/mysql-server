@@ -1738,6 +1738,7 @@ Cursor::init_from_thd(THD *thd)
   /*
     XXX: thd->locked_tables is not changed.
     What problems can we have with it if cursor is open?
+    TODO: must be fixed because of the prelocked mode.
   */
   /*
     TODO: grab thd->free_list here?
@@ -1829,12 +1830,13 @@ Cursor::fetch(ulong num_rows)
   THD *thd= join->thd;
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
+  DBUG_ENTER("Cursor::fetch");
+  DBUG_PRINT("enter",("rows: %lu", num_rows));
 
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
 
   join->fetch_limit+= num_rows;
-
 
   error= sub_select(join, join_tab, 0);
   if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
@@ -1867,11 +1869,8 @@ Cursor::fetch(ulong num_rows)
     }
     else if (error != NESTED_LOOP_KILLED)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    /* free cursor memory */
-    free_items(free_list);
-    free_list= 0;
-    free_root(&main_mem_root, MYF(0));
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1910,6 +1909,13 @@ Cursor::close()
   }
   join= 0;
   unit= 0;
+  free_items(free_list);
+  free_list= 0;
+  /*
+    Must be last, as some memory might be allocated for free purposes,
+    like in free_tmp_table() (TODO: fix this issue)
+  */
+  free_root(mem_root, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -1918,12 +1924,6 @@ Cursor::~Cursor()
 {
   if (is_open())
     close();
-  free_items(free_list);
-  /*
-    Must be last, as some memory might be allocated for free purposes,
-    like in free_tmp_table() (TODO: fix this issue)
-  */
-  free_root(&main_mem_root, MYF(0));
 }
 
 /*********************************************************************/
@@ -7296,7 +7296,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       */
       if (table->on_expr)
       {
-        Item *expr;
+        Item *expr= table->prep_on_expr ? table->prep_on_expr : table->on_expr;
         /* 
            If an on expression E is attached to the table, 
            check all null rejected predicates in this expression.
@@ -7306,7 +7306,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
            the corresponding on expression is added to E. 
 	*/ 
         expr= simplify_joins(join, &nested_join->join_list,
-                             table->on_expr, FALSE);
+                             expr, FALSE);
         table->prep_on_expr= table->on_expr= expr;
       }
       nested_join->used_tables= (table_map) 0;

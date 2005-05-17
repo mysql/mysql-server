@@ -315,7 +315,7 @@ int Guardian_thread::guard(Instance *instance, bool nolock)
   content->restart_counter= 0;
   content->crash_moment= 0;
   content->state= NOT_STARTED;
-  node->data= (void *) content;
+  node->data= (void*) content;
 
   if (nolock)
     guarded_instances= list_add(guarded_instances, node);
