@@ -23,10 +23,10 @@ root@localhost	1
 select db();
 db()
 db1_secret
-grant execute on db1_secret.stamp to user1@'%';
-grant execute on db1_secret.db to user1@'%';
-grant execute on db1_secret.stamp to ''@'%';
-grant execute on db1_secret.db to ''@'%';
+grant execute on procedure db1_secret.stamp to user1@'%';
+grant execute on function db1_secret.db to user1@'%';
+grant execute on procedure db1_secret.stamp to ''@'%';
+grant execute on function db1_secret.db to ''@'%';
 call db1_secret.stamp(2);
 select db1_secret.db();
 db1_secret.db()
@@ -105,8 +105,8 @@ select * from t2;
 s1
 0
 2
-grant usage on db2.q to user2@localhost with grant option;
-grant execute on db2.q to user1@localhost;
+grant usage on procedure db2.q to user2@localhost with grant option;
+grant execute on procedure db2.q to user1@localhost;
 use db2;
 call q();
 select * from t2;
@@ -117,9 +117,9 @@ s1
 alter procedure p modifies sql data;
 drop procedure p;
 alter procedure q modifies sql data;
-ERROR 42000: alter procedure command denied to user 'user1'@'localhost' for routine 'db2.q'
+ERROR 42000: alter routine command denied to user 'user1'@'localhost' for routine 'db2.q'
 drop procedure q;
-ERROR 42000: alter procedure command denied to user 'user1'@'localhost' for routine 'db2.q'
+ERROR 42000: alter routine command denied to user 'user1'@'localhost' for routine 'db2.q'
 use db2;
 alter procedure q modifies sql data;
 drop procedure q;
@@ -141,52 +141,52 @@ create database sptest;
 create table t1 ( u varchar(64), i int );
 create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
 grant insert on t1 to usera@localhost;
-grant execute on sptest.p1 to usera@localhost;
+grant execute on procedure sptest.p1 to usera@localhost;
 show grants for usera@localhost;
 Grants for usera@localhost
 GRANT USAGE ON *.* TO 'usera'@'localhost'
 GRANT INSERT ON `test`.`t1` TO 'usera'@'localhost'
-GRANT EXECUTE ON `sptest`.`p1` TO 'usera'@'localhost'
-grant execute on sptest.p1 to userc@localhost with grant option;
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'usera'@'localhost'
+grant execute on procedure sptest.p1 to userc@localhost with grant option;
 show grants for userc@localhost;
 Grants for userc@localhost
 GRANT USAGE ON *.* TO 'userc'@'localhost'
-GRANT EXECUTE ON `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
 call sptest.p1(1);
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 ERROR 42000: grant command denied to user 'usera'@'localhost' for routine 'sptest.p1'
 drop procedure sptest.p1;
-ERROR 42000: alter procedure command denied to user 'usera'@'localhost' for routine 'sptest.p1'
+ERROR 42000: alter routine command denied to user 'usera'@'localhost' for routine 'sptest.p1'
 call sptest.p1(2);
 ERROR 42000: execute command denied to user 'userb'@'localhost' for routine 'sptest.p1'
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 ERROR 42000: execute command denied to user 'userb'@'localhost' for routine 'sptest.p1'
 drop procedure sptest.p1;
-ERROR 42000: alter procedure command denied to user 'userb'@'localhost' for routine 'sptest.p1'
+ERROR 42000: alter routine command denied to user 'userb'@'localhost' for routine 'sptest.p1'
 call sptest.p1(3);
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 drop procedure sptest.p1;
-ERROR 42000: alter procedure command denied to user 'userc'@'localhost' for routine 'sptest.p1'
+ERROR 42000: alter routine command denied to user 'userc'@'localhost' for routine 'sptest.p1'
 call sptest.p1(4);
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 ERROR 42000: grant command denied to user 'userb'@'localhost' for routine 'sptest.p1'
 drop procedure sptest.p1;
-ERROR 42000: alter procedure command denied to user 'userb'@'localhost' for routine 'sptest.p1'
+ERROR 42000: alter routine command denied to user 'userb'@'localhost' for routine 'sptest.p1'
 select * from t1;
 u	i
 usera@localhost	1
 userc@localhost	3
 userb@localhost	4
-grant all privileges on sptest.p1 to userc@localhost;
+grant all privileges on procedure sptest.p1 to userc@localhost;
 show grants for userc@localhost;
 Grants for userc@localhost
 GRANT USAGE ON *.* TO 'userc'@'localhost'
-GRANT EXECUTE, ALTER ROUTINE ON `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
 show grants for userb@localhost;
 Grants for userb@localhost
 GRANT USAGE ON *.* TO 'userb'@'localhost'
-GRANT EXECUTE ON `sptest`.`p1` TO 'userb'@'localhost'
-revoke all privileges on sptest.p1 from userb@localhost;
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'userb'@'localhost'
+revoke all privileges on procedure sptest.p1 from userb@localhost;
 show grants for userb@localhost;
 Grants for userb@localhost
 GRANT USAGE ON *.* TO 'userb'@'localhost'

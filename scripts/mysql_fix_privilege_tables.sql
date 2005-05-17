@@ -67,6 +67,10 @@ ALTER TABLE tables_priv
 ALTER TABLE procs_priv ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE procs_priv
   modify Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+ALTER TABLE procs_priv
+  add Routine_type enum('FUNCTION','PROCEDURE') COLLATE utf8_general_ci NOT NULL AFTER Routine_name;
+ALTER TABLE procs_priv
+  modify Timestamp timestamp(14) AFTER Proc_priv;
 
 CREATE TABLE IF NOT EXISTS columns_priv (
   Host char(60) DEFAULT '' NOT NULL,
@@ -315,10 +319,11 @@ Host char(60) binary DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL,
 User char(16) binary DEFAULT '' NOT NULL,
 Routine_name char(64) binary DEFAULT '' NOT NULL,
+Routine_type enum('FUNCTION','PROCEDURE') NOT NULL,
 Grantor char(77) DEFAULT '' NOT NULL,
-Timestamp timestamp(14),
 Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
-PRIMARY KEY (Host,Db,User,Routine_name),
+Timestamp timestamp(14),
+PRIMARY KEY (Host,Db,User,Routine_name,Routine_type),
 KEY Grantor (Grantor)
 ) CHARACTER SET utf8 COLLATE utf8_bin comment='Procedure privileges';
 

@@ -186,9 +186,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
 bool mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
                        List <LEX_COLUMN> &column_list, ulong rights,
                        bool revoke);
-bool mysql_procedure_grant(THD *thd, TABLE_LIST *table, 
-			   List <LEX_USER> &user_list, ulong rights,
-			   bool revoke, bool no_error);
+bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
+			 List <LEX_USER> &user_list, ulong rights,
+			 bool revoke, bool no_error);
 ACL_USER *check_acl_user(LEX_USER *user_name, uint *acl_acl_userdx);
 my_bool grant_init(THD *thd);
 void grant_free(void);
@@ -201,8 +201,8 @@ bool check_grant_column (THD *thd, GRANT_INFO *grant,
 bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
                              const char* db_name, const char *table_name,
                              Field_iterator *fields);
-bool check_grant_procedure(THD *thd, ulong want_access, 
-			   TABLE_LIST *procs, bool no_error);
+bool check_grant_routine(THD *thd, ulong want_access,
+			 TABLE_LIST *procs, bool is_proc, bool no_error);
 bool check_grant_db(THD *thd,const char *db);
 ulong get_table_grant(THD *thd, TABLE_LIST *table);
 ulong get_column_grant(THD *thd, GRANT_INFO *grant,
@@ -217,9 +217,12 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table);
-bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name);
-bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name);
-bool check_routine_level_acl(THD *thd, const char *db, const char *name);
+bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
+                          bool is_proc);
+bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+                         bool is_proc);
+bool check_routine_level_acl(THD *thd, const char *db, const char *name,
+                             bool is_proc);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
