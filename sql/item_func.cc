@@ -4771,13 +4771,13 @@ Item_func_sp::execute(Item **itp)
 #endif
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_procedure_access(thd, EXECUTE_ACL, 
-			     m_sp->m_db.str, m_sp->m_name.str, 0))
+  if (check_routine_access(thd, EXECUTE_ACL, 
+			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
       DBUG_RETURN(-1);
   sp_change_security_context(thd, m_sp, &save_ctx);
   if (save_ctx.changed && 
-      check_procedure_access(thd, EXECUTE_ACL, 
-			     m_sp->m_db.str, m_sp->m_name.str, 0))
+      check_routine_access(thd, EXECUTE_ACL, 
+			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
   {
     sp_restore_security_context(thd, m_sp, &save_ctx);
     thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
