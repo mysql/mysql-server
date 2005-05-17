@@ -81,8 +81,6 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
   {
     if (!table)
     {
-      DBUG_ASSERT(table_list->view &&
-                  table_list->ancestor && table_list->ancestor->next_local);
       my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
                table_list->view_db.str, table_list->view_name.str);
       return -1;
@@ -134,7 +132,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     thd->lex->select_lex.no_wrap_view_item= 0;
     if (res)
       return -1;
-    if (table == 0)
+    if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
       /* it is join view => we need to find table for update */
       List_iterator_fast<Item> it(fields);
@@ -144,7 +142,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
       while ((item= it++))
         map|= item->used_tables();
-      if (table_list->check_single_table(&tbl, map) || tbl == 0)
+      if (table_list->check_single_table(&tbl, map, table_list) || tbl == 0)
       {
         my_error(ER_VIEW_MULTIUPDATE, MYF(0),
                  table_list->view_db.str, table_list->view_name.str);
@@ -722,8 +720,6 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     thd->lex->empty_field_list_on_rset= 1;
     if (!table_list->table)
     {
-      DBUG_ASSERT(table_list->view &&
-                  table_list->ancestor && table_list->ancestor->next_local);
       my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
                table_list->view_db.str, table_list->view_name.str);
       DBUG_RETURN(TRUE);

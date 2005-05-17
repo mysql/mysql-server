@@ -640,9 +640,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 {
   const char	*key_name;
   create_field	*sql_field,*dup_field;
-  uint		field,null_fields,blob_columns;
-  uint		max_key_length= file->max_key_length();
-  ulong		pos;
+  uint		field,null_fields,blob_columns,max_key_length;
+  ulong		record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
   int		timestamps= 0, timestamps_with_niladic= 0;
@@ -655,6 +654,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   select_field_pos= fields->elements - select_field_count;
   null_fields=blob_columns=0;
   create_info->varchar= 0;
+  max_key_length= file->max_key_length();
 
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
@@ -836,10 +836,10 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
-  /* If fixed row records, we need one bit to check for deleted rows */
-  if (!((*db_options) & HA_OPTION_PACK_RECORD))
-    null_fields++;
-  pos= (null_fields + total_uneven_bit_length + 7) / 8;
+
+  /* record_offset will be increased with 'length-of-null-bits' later */
+  record_offset= 0;
+  null_fields+= total_uneven_bit_length;
 
   it.rewind();
   while ((sql_field=it++))
@@ -852,10 +852,10 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(-1);
     if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
       create_info->varchar= 1;
-    sql_field->offset= pos;
+    sql_field->offset= record_offset;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    pos+=sql_field->pack_length;
+    record_offset+= sql_field->pack_length;
   }
   if (timestamps_with_niladic > 1)
   {
@@ -1159,6 +1159,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	    /* Implicitly set primary key fields to NOT NULL for ISO conf. */
 	    sql_field->flags|= NOT_NULL_FLAG;
 	    sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
+            null_fields--;
 	  }
 	  else
 	     key_info->flags|= HA_NULL_PART_KEY;
@@ -1190,10 +1191,10 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	if (f_is_blob(sql_field->pack_flag))
 	{
-	  if ((length=column->length) > file->max_key_length() ||
+	  if ((length=column->length) > max_key_length ||
 	      length > file->max_key_part_length())
 	  {
-	    length=min(file->max_key_length(), file->max_key_part_length());
+	    length=min(max_key_length, file->max_key_part_length());
 	    if (key->type == Key::MULTIPLE)
 	    {
 	      /* not a critical problem */
@@ -1317,6 +1318,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   /* Sort keys in optimized order */
   qsort((gptr) *key_info_buffer, *key_count, sizeof(KEY),
 	(qsort_cmp) sort_keys);
+  create_info->null_bits= null_fields;
 
   DBUG_RETURN(0);
 }
@@ -1345,7 +1347,8 @@ static bool prepare_blob_field(THD *thd, create_field *sql_field)
     /* Convert long VARCHAR columns to TEXT or BLOB */
     char warn_buff[MYSQL_ERRMSG_SIZE];
 
-    if (sql_field->def)
+    if (sql_field->def || (thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                                      MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
@@ -1354,7 +1357,7 @@ static bool prepare_blob_field(THD *thd, create_field *sql_field)
     sql_field->sql_type= FIELD_TYPE_BLOB;
     sql_field->flags|= BLOB_FLAG;
     sprintf(warn_buff, ER(ER_AUTO_CONVERT), sql_field->field_name,
-            "VARCHAR",
+            (sql_field->charset == &my_charset_bin) ? "VARBINARY" : "VARCHAR",
             (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
@@ -3417,12 +3420,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   /*
     better have a negative test here, instead of positive, like
-      alter_info->flags & ALTER_ADD_COLUMN|ALTER_ADD_INDEX|...
+    alter_info->flags & ALTER_ADD_COLUMN|ALTER_ADD_INDEX|...
     so that ALTER TABLE won't break when somebody will add new flag
   */
-  need_copy_table=(alter_info->flags & ~(ALTER_CHANGE_COLUMN_DEFAULT|ALTER_OPTIONS) ||
-                   create_info->used_fields & ~(HA_CREATE_USED_COMMENT|HA_CREATE_USED_PASSWORD) ||
-                   table->s->tmp_table);
+  need_copy_table= (alter_info->flags &
+                    ~(ALTER_CHANGE_COLUMN_DEFAULT|ALTER_OPTIONS) ||
+                    (create_info->used_fields &
+                     ~(HA_CREATE_USED_COMMENT|HA_CREATE_USED_PASSWORD)) ||
+                    table->s->tmp_table);
   create_info->frm_only= !need_copy_table;
 
   /*
@@ -3827,8 +3832,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 	!(sortorder=make_unireg_sortorder(order, &length)) ||
 	(from->sort.found_records = filesort(thd, from, sortorder, length,
 					     (SQL_SELECT *) 0, HA_POS_ERROR,
-					     &examined_rows))
-	== HA_POS_ERROR)
+					     &examined_rows)) ==
+	HA_POS_ERROR)
       goto err;
   };
 

@@ -25,9 +25,13 @@ typedef struct field {
   uint length;
 } NAME_WITH_LENGTH;
 
+/* default field length to be used in various field-realted functions */
+enum { DEFAULT_FIELD_LENGTH= 20 };
+
 struct st_net;
 
-int net_send_ok(struct st_net *net, unsigned long connection_id);
+int net_send_ok(struct st_net *net, unsigned long connection_id,
+                const char *message);
 
 int net_send_error(struct st_net *net, unsigned sql_errno);
 
@@ -38,6 +42,9 @@ int send_fields(struct st_net *net, LIST *fields);
 char *net_store_length(char *pkg, uint length);
 
 int store_to_string(Buffer *buf, const char *string, uint *position);
+
+int store_to_string(Buffer *buf, const char *string, uint *position,
+                    uint string_len);
 
 int send_eof(struct st_net *net);
 

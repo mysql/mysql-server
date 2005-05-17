@@ -141,7 +141,10 @@ AC_ARG_WITH(darwin-mwcc,
   export CC CXX LD AR RANLIB
   AC_SUBST(AR)
   AC_SUBST(RANLIB)
+  with_darwin_mwcc=yes
 ])
+
+AM_CONDITIONAL(DARWIN_MWCC, test x$with_darwin_mwcc = xyes)
 
 if test "x${CFLAGS-}" = x ; then
   cflags_is_set=no
@@ -1371,20 +1374,20 @@ then
           AC_MSG_CHECKING("for gcc")
           if expr "$CC" : ".*gcc.*"
           then
-	    CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	    CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	    CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
           else
-	    CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	    CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	    CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
           fi
         else
-          { AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) };
+          AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) 
         fi
       else
         AC_MSG_RESULT("no")
       fi
     else
-      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.]);
+      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.])
     fi
   else
     AC_MSG_RESULT("no")
@@ -1416,15 +1419,15 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       else
-	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       fi
       AC_MSG_RESULT("yes")
     else
-      { AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) };
+      AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) 
     fi
   else
     AC_MSG_RESULT("no")
@@ -1459,15 +1462,15 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       else
- 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
- 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+ 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+ 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       fi
       AC_MSG_RESULT("yes")
     else
-      { AC_MSG_ERROR([configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual.]) };
+      AC_MSG_ERROR([configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual.]) 
     fi
   else
     AC_MSG_RESULT("no")

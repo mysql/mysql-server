@@ -378,6 +378,7 @@ typedef struct st_ha_create_information
   SQL_LIST merge_list;
   enum db_type db_type;
   enum row_type row_type;
+  uint null_bits;                       /* NULL bits at start of record */
   uint options;				/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   uint merge_insert_method;

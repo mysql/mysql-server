@@ -202,7 +202,7 @@ public:
   virtual Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                                char *new_ptr, uchar *new_null_ptr,
                                uint new_null_bit);
-  virtual void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
+  inline void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
   {
     ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
   }

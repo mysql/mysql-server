@@ -586,10 +586,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  NDB_MGM="$BASEDIR/storage/ndb/src/mgmclient/ndb_mgm"
 
  if [ -n "$USE_PURIFY" ] ; then
-   PSUP="$MYSQL_TEST_DIR/purify.suppress"
-   echo "suppress UMR rw_read_held; mi_open; ha_myisam::open64; handler::ha_open; openfrm" >  $PSUP
-   echo "suppress UMR my_end; main" >> $PSUP
-   echo "suppress UMR _doprnt; fprintf; my_end; main" >> $PSUP
+   PSUP="$MYSQL_TEST_DIR/suppress.purify"
    PURIFYOPTIONS="-windows=no -log-file=%v.purifylog -append-logfile -add-suppression-files=$PSUP"
    if [ -f "${MYSQL_TEST}-purify" ] ; then
      MYSQL_TEST="${MYSQL_TEST}-purify"
@@ -1705,11 +1702,11 @@ run_testcase ()
       $ECHO "$RES$RES_SPACE [ pass ]   $TIMER"
     else
       # why the following ``if'' ? That is why res==1 is special ?
-      if [ $res = 2 ]; then
+      if [ $res = 62 ]; then
         skip_inc
 	$ECHO "$RES$RES_SPACE [ skipped ]"
       else
-        if [ $res -gt 2 ]; then
+        if [ $res -ne 1 ]; then
           $ECHO "mysqltest returned unexpected code $res, it has probably crashed" >> $TIMEFILE
         fi
 	total_inc

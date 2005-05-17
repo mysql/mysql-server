@@ -64,7 +64,7 @@ int Buffer::append(uint position, const char *string, uint len_arg)
 
   DESCRIPTION
 
-    The method checks whether it is possible to pus a string of teh "len_arg"
+    The method checks whether it is possible to put a string of the "len_arg"
     length into the buffer, starting from "position" byte. In the case when the
     buffer is too small it reallocs the buffer. The total size of the buffer is
     restricted with 16 Mb.
@@ -81,7 +81,7 @@ int Buffer::reserve(uint position, uint len_arg)
 
   if (position + len_arg >= buffer_size)
   {
-    buffer= (char *) my_realloc(buffer,
+    buffer= (char*) my_realloc(buffer,
                                 min(MAX_BUFFER_SIZE,
                                     max((uint) (buffer_size*1.5),
                                         position + len_arg)), MYF(0));

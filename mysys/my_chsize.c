@@ -30,7 +30,9 @@
       MyFlags		Flags
 
   DESCRIPTION
-    my_chsize() truncates file if shorter else fill with the filler character
+    my_chsize() truncates file if shorter else fill with the filler character.
+    The function also changes the file pointer. Usually it points to the end
+    of the file after execution.
 
   RETURN VALUE
     0	Ok
