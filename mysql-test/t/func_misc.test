@@ -38,3 +38,11 @@ select a from t1 where mid(a+0,6,3) = ( mid(20040106123400,6,3) );
 
 drop table t1;
 
+# Test for BUG#9535
+create table t1 as select uuid(), length(uuid());
+show create table t1;
+drop table t1;
+
+
+
+
