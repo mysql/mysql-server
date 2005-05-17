@@ -1712,3 +1712,17 @@ a	b
 2	2
 4	4
 DROP VIEW v2,v1;
+DROP TABLE t1, t2;
+create table t1 (a int);
+create view v1 as select sum(a) from t1 group by a;
+create procedure p1()
+begin
+select * from v1;
+end//
+call p1();
+sum(a)
+call p1();
+sum(a)
+drop procedure p1;
+drop view v1;
+drop table t1;
