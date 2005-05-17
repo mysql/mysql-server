@@ -359,6 +359,14 @@ AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
 
+if test "$GCC" = "yes"
+then
+  # mysqld requires -fno-implicit-templates.
+  # Disable exceptions as they seams to create problems with gcc and threads.
+  # mysqld doesn't use run-time-type-checking, so we disable it.
+  CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+fi
+
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
 # Any variation of Linux

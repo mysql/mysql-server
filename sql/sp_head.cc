@@ -2090,15 +2090,10 @@ sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
 
 typedef struct st_sp_table
 {
-  LEX_STRING qname;
-  bool temp;
-  TABLE_LIST *table;
-  /*
-    We can't use table->lock_type as lock type for table
-    in multi-set since it can be changed by statement during
-    its execution (e.g. as this happens for multi-update).
-  */
-  thr_lock_type lock_type;
+  LEX_STRING qname;     /* Multi-set key: db_name\0table_name\0alias\0 */
+  uint db_length, table_name_length;
+  bool temp;               /* true if corresponds to a temporary table */
+  thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
   uint query_lock_count;
 } SP_TABLE;
@@ -2150,15 +2145,15 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
   for (; table ; table= table->next_global)
     if (!table->derived && !table->schema_table)
     {
-      char tname[64+1+64+1+64+1];	// db.table.alias\0
+      char tname[(NAME_LEN + 1) * 3];           // db\0table\0alias\0
       uint tlen, alen;
 
       tlen= table->db_length;
       memcpy(tname, table->db, tlen);
-      tname[tlen++]= '.';
+      tname[tlen++]= '\0';
       memcpy(tname+tlen, table->table_name, table->table_name_length);
       tlen+= table->table_name_length;
-      tname[tlen++]= '.';
+      tname[tlen++]= '\0';
       alen= strlen(table->alias);
       memcpy(tname+tlen, table->alias, alen);
       tlen+= alen;
@@ -2181,14 +2176,15 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 	if (!(tab= (SP_TABLE *)thd->calloc(sizeof(SP_TABLE))))
 	  return FALSE;
 	tab->qname.length= tlen;
-	tab->qname.str= (char *)thd->strmake(tname, tab->qname.length);
+	tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
 	if (!tab->qname.str)
 	  return FALSE;
 	if (lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
 	    lex_for_tmp_check->query_tables == table &&
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
 	  tab->temp= TRUE;
-	tab->table= table;
+        tab->table_name_length= table->table_name_length;
+        tab->db_length= table->db_length;
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
 	my_hash_insert(&m_sptabs, (byte *)tab);
@@ -2236,12 +2232,10 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   for (i=0 ; i < m_sptabs.records ; i++)
   {
     char *tab_buff;
-    TABLE_LIST *table, *otable;
+    TABLE_LIST *table;
     SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
     if (stab->temp)
       continue;
-
-    otable= stab->table;
 
     if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
                                         stab->lock_count)))
@@ -2257,11 +2251,11 @@ sp_head::add_used_tables_to_table_list(THD *thd,
         that the PS will be invalidated if the functions is deleted or
         changed.
       */
-      table->db= otable->db;
-      table->db_length= otable->db_length;
-      table->alias= otable->alias;
-      table->table_name= otable->table_name;
-      table->table_name_length= otable->table_name_length;
+      table->db= stab->qname.str;
+      table->db_length= stab->db_length;
+      table->table_name= table->db + table->db_length + 1;
+      table->table_name_length= stab->table_name_length;
+      table->alias= table->table_name + table->table_name_length + 1;
       table->lock_type= stab->lock_type;
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
