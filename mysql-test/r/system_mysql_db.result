@@ -152,10 +152,11 @@ procs_priv	CREATE TABLE `procs_priv` (
   `Db` char(64) collate utf8_bin NOT NULL default '',
   `User` char(16) collate utf8_bin NOT NULL default '',
   `Routine_name` char(64) collate utf8_bin NOT NULL default '',
+  `Routine_type` enum('FUNCTION','PROCEDURE') collate utf8_bin NOT NULL default 'FUNCTION',
   `Grantor` char(77) collate utf8_bin NOT NULL default '',
-  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `Proc_priv` set('Execute','Alter Routine','Grant') character set utf8 NOT NULL default '',
-  PRIMARY KEY  (`Host`,`Db`,`User`,`Routine_name`),
+  `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`Host`,`Db`,`User`,`Routine_name`,`Routine_type`),
   KEY `Grantor` (`Grantor`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Procedure privileges'
 show create table proc;
