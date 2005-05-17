@@ -3673,17 +3673,20 @@ unsent_create_error:
     }
     if (first_table)
     {
-      if (!lex->columns.elements && 
-          sp_exists_routine(thd, all_tables, 1, 1))
+      if (lex->type == TYPE_ENUM_PROCEDURE ||
+          lex->type == TYPE_ENUM_FUNCTION)
       {
         uint grants= lex->all_privileges 
 		   ? (PROC_ACLS & ~GRANT_ACL) | (lex->grant & GRANT_ACL)
 		   : lex->grant;
         if (grant_option && 
-	    check_grant_procedure(thd, grants | GRANT_ACL, all_tables, 0))
+	    check_grant_routine(thd, grants | GRANT_ACL, all_tables,
+                                lex->type == TYPE_ENUM_PROCEDURE, 0))
 	  goto error;
-        res= mysql_procedure_grant(thd, all_tables, lex->users_list,
-				   grants, lex->sql_command == SQLCOM_REVOKE,0);
+        res= mysql_routine_grant(thd, all_tables,
+                                 lex->type == TYPE_ENUM_PROCEDURE, 
+                                 lex->users_list, grants,
+                                 lex->sql_command == SQLCOM_REVOKE, 0);
       }
       else
       {
@@ -3705,7 +3708,7 @@ unsent_create_error:
     }
     else
     {
-      if (lex->columns.elements)
+      if (lex->columns.elements || lex->type)
       {
 	my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
                    MYF(0));
@@ -3987,11 +3990,13 @@ unsent_create_error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
       if (sp_automatic_privileges &&
-          check_procedure_access(thd, DEFAULT_CREATE_PROC_ACLS,
-      				 db, name, 1))
+          check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
+      			       db, name,
+                               lex->sql_command == SQLCOM_CREATE_PROCEDURE, 1))
       {
         close_thread_tables(thd);
-        if (sp_grant_privileges(thd, db, name))
+        if (sp_grant_privileges(thd, db, name, 
+                                lex->sql_command == SQLCOM_CREATE_PROCEDURE))
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
 	  	       ER_PROC_AUTO_GRANT_FAIL,
 		       ER(ER_PROC_AUTO_GRANT_FAIL));
@@ -4076,8 +4081,8 @@ unsent_create_error:
 	}
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	if (check_procedure_access(thd, EXECUTE_ACL, 
-				   sp->m_db.str, sp->m_name.str, 0))
+	if (check_routine_access(thd, EXECUTE_ACL, 
+				 sp->m_db.str, sp->m_name.str, TRUE, 0))
 	{
 #ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
@@ -4086,8 +4091,8 @@ unsent_create_error:
 	}
 	sp_change_security_context(thd, sp, &save_ctx);
 	if (save_ctx.changed && 
-	    check_procedure_access(thd, EXECUTE_ACL, 
-				   sp->m_db.str, sp->m_name.str, 0))
+	    check_routine_access(thd, EXECUTE_ACL, 
+				   sp->m_db.str, sp->m_name.str, TRUE, 0))
 	{
 #ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
@@ -4189,8 +4194,9 @@ unsent_create_error:
       }
       else
       {
-        if (check_procedure_access(thd, ALTER_PROC_ACL, sp->m_db.str, 
-				  sp->m_name.str, 0))
+        if (check_routine_access(thd, ALTER_PROC_ACL, sp->m_db.str, 
+				 sp->m_name.str,
+                                 lex->sql_command == SQLCOM_ALTER_PROCEDURE, 0))
 	  goto error;
 	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
         if (!trust_routine_creators &&  mysql_bin_log.is_open() &&
@@ -4248,11 +4254,13 @@ unsent_create_error:
       {
         db= thd->strdup(sp->m_db.str);
 	name= thd->strdup(sp->m_name.str);
-	if (check_procedure_access(thd, ALTER_PROC_ACL, db, name, 0))
+	if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
+                                 lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
           goto error;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (sp_automatic_privileges &&
-	    sp_revoke_privileges(thd, db, name))
+	    sp_revoke_privileges(thd, db, name, 
+                                 lex->sql_command == SQLCOM_DROP_PROCEDURE))
 	{
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
 		       ER_PROC_AUTO_REVOKE_FAIL,
@@ -4836,8 +4844,8 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 
 
 bool
-check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
-		       bool no_errors)
+check_routine_access(THD *thd, ulong want_access,char *db, char *name,
+		     bool is_proc, bool no_errors)
 {
   TABLE_LIST tables[1];
   
@@ -4853,7 +4861,7 @@ check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
   
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (grant_option)
-    return check_grant_procedure(thd, want_access, tables, no_errors);
+    return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
 #endif
 
   return FALSE;
@@ -4874,7 +4882,8 @@ check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
     1            error
 */
 
-bool check_some_routine_access(THD *thd, const char *db, const char *name)
+bool check_some_routine_access(THD *thd, const char *db, const char *name,
+                               bool is_proc)
 {
   ulong save_priv;
   if (thd->master_access & SHOW_PROC_ACLS)
@@ -4882,7 +4891,7 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name)
   if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, 0, 1) ||
       (save_priv & SHOW_PROC_ACLS))
     return FALSE;
-  return check_routine_level_acl(thd, db, name);
+  return check_routine_level_acl(thd, db, name, is_proc);
 }
 
 
