@@ -43,10 +43,10 @@ call stamp(1);
 select * from t1;
 select db();
 
-grant execute on db1_secret.stamp to user1@'%';
-grant execute on db1_secret.db to user1@'%';
-grant execute on db1_secret.stamp to ''@'%';
-grant execute on db1_secret.db to ''@'%';
+grant execute on procedure db1_secret.stamp to user1@'%';
+grant execute on function db1_secret.db to user1@'%';
+grant execute on procedure db1_secret.stamp to ''@'%';
+grant execute on function db1_secret.db to ''@'%';
 
 connect (con2user1,localhost,user1,,);
 connect (con3anon,localhost,anon,,);
@@ -183,10 +183,10 @@ call q();
 select * from t2;
 
 connection con1root;
-grant usage on db2.q to user2@localhost with grant option;
+grant usage on procedure db2.q to user2@localhost with grant option;
 
 connection con4user2;
-grant execute on db2.q to user1@localhost;
+grant execute on procedure db2.q to user1@localhost;
 
 connection con2user1;
 use db2;
@@ -245,9 +245,9 @@ create database sptest;
 create table t1 ( u varchar(64), i int );
 create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
 grant insert on t1 to usera@localhost;
-grant execute on sptest.p1 to usera@localhost;
+grant execute on procedure sptest.p1 to usera@localhost;
 show grants for usera@localhost;
-grant execute on sptest.p1 to userc@localhost with grant option;
+grant execute on procedure sptest.p1 to userc@localhost with grant option;
 show grants for userc@localhost;
 
 connect (con2usera,localhost,usera,,);
@@ -257,7 +257,7 @@ connect (con4userc,localhost,userc,,);
 connection con2usera;
 call sptest.p1(1);
 --error 1370
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 --error 1370
 drop procedure sptest.p1;
 
@@ -265,32 +265,32 @@ connection con3userb;
 --error 1370
 call sptest.p1(2);
 --error 1370
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 --error 1370
 drop procedure sptest.p1;
 
 connection con4userc;
 call sptest.p1(3);
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 --error 1370
 drop procedure sptest.p1;
 
 connection con3userb;
 call sptest.p1(4);
 --error 1370
-grant execute on sptest.p1 to userb@localhost;
+grant execute on procedure sptest.p1 to userb@localhost;
 --error 1370
 drop procedure sptest.p1;
 
 connection con1root;
 select * from t1;
 
-grant all privileges on sptest.p1 to userc@localhost;
+grant all privileges on procedure sptest.p1 to userc@localhost;
 show grants for userc@localhost;
 show grants for userb@localhost;
 
 connection con4userc;
-revoke all privileges on sptest.p1 from userb@localhost;
+revoke all privileges on procedure sptest.p1 from userb@localhost;
 
 connection con1root;
 show grants for userb@localhost;

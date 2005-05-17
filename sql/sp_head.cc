@@ -1111,7 +1111,8 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
                  (!strcmp(sp->m_definer_user.str, thd->priv_user) &&
                   !strcmp(sp->m_definer_host.str, thd->priv_host)));
   if (!*full_access)
-    return check_some_routine_access(thd, sp->m_db.str, sp->m_name.str);
+    return check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,
+                                     sp->m_type == TYPE_ENUM_PROCEDURE);
   return 0;
 }
 

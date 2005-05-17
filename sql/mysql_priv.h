@@ -473,12 +473,12 @@ void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0,
                          TABLE *stopper= 0);
 bool check_one_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables);
-bool check_procedure_access(THD *thd,ulong want_access,char *db,char *name,
-			    bool no_errors);
+bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
+			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
-bool check_some_routine_access(THD *thd, const char *db, const char *name);
+bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 bool mysql_multi_update_prepare(THD *thd);
