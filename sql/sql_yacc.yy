@@ -3994,6 +3994,7 @@ select_options:
               YYABORT;
 	    }
           }
+          ;
 
 select_option_list:
 	select_option_list select_option
@@ -7454,8 +7455,8 @@ option_type_value:
             /*
               If we are in SP we want have own LEX for each assignment.
               This is mostly because it is hard for several sp_instr_set
-              and sp_instr_set_trigger instructions share one LEX. 
-              (Well, it is theoretically possible but adds some extra 
+              and sp_instr_set_trigger instructions share one LEX.
+              (Well, it is theoretically possible but adds some extra
                overhead on preparation for execution stage and IMO less
                robust).
 
@@ -7464,7 +7465,7 @@ option_type_value:
             LEX *lex;
             Lex->sphead->reset_lex(YYTHD);
             lex= Lex;
-            
+
             /* Set new LEX as if we at start of set rule. */
 	    lex->sql_command= SQLCOM_SET_OPTION;
 	    mysql_init_select(lex);
@@ -7477,11 +7478,11 @@ option_type_value:
 	option_type option_value
         {
           LEX *lex= Lex;
-          
+
           if (lex->sphead)
           {
             sp_head *sp= lex->sphead;
-            
+
 	    if (!lex->var_list.is_empty())
 	    {
               /*
@@ -7491,19 +7492,19 @@ option_type_value:
               */
               LEX_STRING qbuff;
 	      sp_instr_stmt *i;
-              
+
               if (!(i= new sp_instr_stmt(sp->instructions(), lex->spcont,
                                          lex)))
                 YYABORT;
-                
+
               if (lex->ptr - lex->tok_end > 1)
                 qbuff.length= lex->ptr - sp->m_tmp_query;
               else
                 qbuff.length= lex->tok_end - sp->m_tmp_query;
-              
+
               if (!(qbuff.str= alloc_root(YYTHD->mem_root, qbuff.length + 5)))
                 YYABORT;
-                
+
               strmake(strmake(qbuff.str, "SET ", 4), (char *)sp->m_tmp_query,
                       qbuff.length);
               qbuff.length+= 4;
