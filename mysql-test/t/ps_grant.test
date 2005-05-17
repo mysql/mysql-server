@@ -1,10 +1,6 @@
 # Can't test grants with embedded server
 -- source include/not_embedded.inc
 
-# Tested here simply so it is not tested with embedded server
-prepare stmt4 from ' show full processlist ';
---replace_column 1 number 6 time 3 localhost
-execute stmt4;
 
 let $type= 'MYISAM' ;
 
@@ -116,6 +112,7 @@ show grants for second_user@localhost ;
 
 drop database mysqltest;
 
+
 ## grant/revoke + drop user
 --error 1295
 prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
@@ -130,3 +127,10 @@ revoke all privileges on test.t1 from drop_user@localhost ;
 prepare stmt3 from ' drop user drop_user@localhost ';
 drop user drop_user@localhost;
 
+# This test must be the last one, otherwise it may produce extra
+# rows in the processlist under high load.
+# Tested here simply so it is not tested with embedded server
+prepare stmt4 from ' show full processlist ';
+--replace_column 1 number 6 time 3 localhost
+execute stmt4;
+deallocate prepare stmt4;

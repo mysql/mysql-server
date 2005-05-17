@@ -1203,3 +1203,60 @@ drop table t1;
 Got one of the listed errors
 drop table t1;
 ERROR 42S02: Unknown table 't1'
+set @save_concurrent_insert=@@concurrent_insert;
+set global concurrent_insert=1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+lock table t1 read local;
+insert into t1 values(6),(7);
+unlock tables;
+delete from t1 where a>=3 and a<=4;
+lock table t1 read local;
+set global concurrent_insert=2;
+insert into t1 values (8),(9);
+unlock tables;
+insert into t1 values (10),(11),(12);
+select * from t1;
+a
+1
+2
+11
+10
+5
+6
+7
+8
+9
+12
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (a int, b varchar(30) default "hello");
+insert into t1 (a) values (1),(2),(3),(4),(5);
+lock table t1 read local;
+insert into t1 (a) values(6),(7);
+unlock tables;
+delete from t1 where a>=3 and a<=4;
+lock table t1 read local;
+set global concurrent_insert=2;
+insert into t1 (a) values (8),(9);
+unlock tables;
+insert into t1 (a) values (10),(11),(12);
+select a from t1;
+a
+1
+2
+11
+10
+5
+6
+7
+8
+9
+12
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+set global concurrent_insert=@save_concurrent_insert;

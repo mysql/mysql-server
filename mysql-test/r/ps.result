@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+drop database if exists client_test_db;
 create table t1
 (
 a int primary key,

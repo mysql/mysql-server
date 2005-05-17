@@ -421,19 +421,19 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	Table is already up to date
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	128	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using where
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	128	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using where
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	129	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using where
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	129	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using where
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	name	uid	id	name	uid

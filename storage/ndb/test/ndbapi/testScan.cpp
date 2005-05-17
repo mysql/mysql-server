@@ -317,6 +317,7 @@ int runScanReadIndex(NDBT_Context* ctx, NDBT_Step* step){
     g_info << i << ": ";
     bool sort = (rand() % 100) > 50 ? true : false;
     bool desc = (rand() % 100) > 50 ? true : false;
+    desc = false;       // random causes too many deadlocks
     int scan_flags =
       (NdbScanOperation::SF_OrderBy & -(int)sort) |
       (NdbScanOperation::SF_Descending & -(int)desc);
