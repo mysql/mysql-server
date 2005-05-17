@@ -727,7 +727,12 @@ public:
   Item_func_uuid(): Item_str_func() {}
   void fix_length_and_dec() {
     collation.set(system_charset_info);
-    max_length= UUID_LENGTH;
+    /*
+       NOTE! uuid() should be changed to use 'ascii'
+       charset when hex(), format(), md5(), etc, and implicit
+       number-to-string conversion will use 'ascii'
+    */
+    max_length= UUID_LENGTH * system_charset_info->mbmaxlen;
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
