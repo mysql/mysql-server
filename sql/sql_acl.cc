@@ -3115,6 +3115,7 @@ void  grant_free(void)
   grant_option = FALSE;
   hash_free(&column_priv_hash);
   hash_free(&proc_priv_hash);
+  hash_free(&func_priv_hash);
   free_root(&memex,MYF(0));
   DBUG_VOID_RETURN;
 }
