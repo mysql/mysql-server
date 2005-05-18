@@ -11,5 +11,5 @@ libtoolize --automake --force \
 automake --add-missing --force \
            || (echo "Can't execute automake" && exit 1)
 autoconf   || (echo "Can't execute autoconf" && exit 1)
-(cd bdb/dist && sh s_all)
-(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+(cd storage/bdb/dist && sh s_all)
+(cd storage/innobase && aclocal && autoheader && aclocal && automake && autoconf)
