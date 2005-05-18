@@ -1,5 +1,6 @@
 drop table if exists test.t1,mysqltest.t1,mysqltest.t2;
 drop database if exists mysqltest;
+set GLOBAL query_cache_size=1355776;
 reset query cache;
 flush status;
 show grants for current_user;
@@ -206,3 +207,4 @@ delete from mysql.columns_priv where user in ("mysqltest_1","mysqltest_2","mysql
 flush privileges;
 drop table test.t1,mysqltest.t1,mysqltest.t2;
 drop database mysqltest;
+set GLOBAL query_cache_size=default;
