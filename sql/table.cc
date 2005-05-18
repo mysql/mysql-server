@@ -739,8 +739,13 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       set_if_bigger(share->max_key_length,keyinfo->key_length+
                     keyinfo->key_parts);
       share->total_key_length+= keyinfo->key_length;
-      if (keyinfo->flags & HA_NOSAME)
-        set_if_bigger(share->max_unique_length, keyinfo->key_length);
+      /*
+        MERGE tables do not have unique indexes. But every key could be
+        an unique index on the underlying MyISAM table. (Bug #10400)
+      */
+      if ((keyinfo->flags & HA_NOSAME) ||
+          (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
+        set_if_bigger(share->max_unique_length,keyinfo->key_length);
     }
     if (primary_key < MAX_KEY &&
 	(share->keys_in_use.is_set(primary_key)))

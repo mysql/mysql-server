@@ -87,6 +87,7 @@
 #define HA_NO_VARCHAR	       (1 << 27)
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 #define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
+#define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
