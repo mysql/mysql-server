@@ -223,7 +223,7 @@ extern "C" int gethostname(char *name, int namelen);
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
-const char *sql_mode_names[] =
+static const char *sql_mode_names[] =
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
@@ -237,10 +237,15 @@ const char *sql_mode_names[] =
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names, NULL };
-const char *tc_heuristic_recover_names[]= { "COMMIT", "ROLLBACK", NullS };
-TYPELIB tc_heuristic_recover_typelib=
-  { array_elements(tc_heuristic_recover_names)-1,"",
-    tc_heuristic_recover_names, NULL };
+static const char *tc_heuristic_recover_names[]=
+{
+  "COMMIT", "ROLLBACK", NullS
+};
+static TYPELIB tc_heuristic_recover_typelib=
+{
+  array_elements(tc_heuristic_recover_names)-1,"",
+  tc_heuristic_recover_names, NULL
+};
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
@@ -254,8 +259,7 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 /*
   Used with --help for detailed option
 */
-bool opt_help= 0;
-bool opt_verbose= 0;
+static bool opt_help= 0, opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -264,27 +268,55 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
+/* static variables */
+
+static bool lower_case_table_names_used= 0;
+static bool volatile select_thread_in_use, signal_thread_in_use;
+static bool volatile ready_to_exit;
+static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
+static my_bool opt_bdb, opt_isam, opt_ndbcluster;
+static my_bool opt_short_log_format= 0;
+static my_bool opt_log_queries_not_using_indexes= 0;
+static uint kill_cached_threads, wake_thread;
+static ulong killed_threads, thread_created;
+static ulong max_used_connections;
+static ulong my_bind_addr;			/* the address we bind to */
+static volatile ulong cached_thread_count= 0;
+static const char *sql_mode_str= "OFF";
+static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
+static char *opt_init_slave, *language_ptr, *opt_init_connect;
+static char *default_character_set_name;
+static char *my_bind_addr_str;
+static char *default_collation_name;
+static char mysql_data_home_buff[2];
+static struct passwd *user_info;
+static I_List<THD> thread_cache;
+
+static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
+
+#ifdef HAVE_BERKLEY_DB
+static my_bool opt_sync_bdb_logs;
+#endif
 
 /* Global variables */
 
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
-bool lower_case_table_names_used= 0;
 bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;
-bool volatile abort_loop, select_thread_in_use, signal_thread_in_use;
-bool volatile ready_to_exit, shutdown_in_progress, grant_option;
+bool volatile abort_loop;
+bool volatile shutdown_in_progress, grant_option;
 
 my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
-my_bool opt_enable_named_pipe= 0, opt_debugging= 0;
-my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
+my_bool opt_enable_named_pipe= 0;
+my_bool opt_local_infile, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
-my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
+my_bool	opt_innodb;
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
@@ -296,10 +328,8 @@ const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
-my_bool opt_sync_bdb_logs, opt_sync_frm, opt_allow_suspicious_udfs;
+my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
-my_bool opt_short_log_format= 0;
-my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 uint    opt_large_page_size= 0;
@@ -319,7 +349,7 @@ uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint tc_heuristic_recover= 0;
-uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
+uint volatile thread_count, thread_running;
 ulong back_log, connect_timeout, concurrency;
 ulong server_id, thd_startup_options;
 ulong table_cache_size, thread_stack, thread_stack_min, what_to_log;
@@ -330,21 +360,18 @@ ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version, flush_version;	/* Increments on each reload */
 query_id_t query_id;
-ulong aborted_threads, killed_threads, aborted_connects;
+ulong aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
-ulong delayed_insert_errors,flush_time, thread_created;
+ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
-ulong max_connections,max_used_connections,
-      max_connect_errors;
+ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
-ulong my_bind_addr;			/* the address we bind to */
-volatile ulong cached_thread_count= 0;
 double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
 
 double log_10[32];			/* 10 potences */
@@ -353,24 +380,18 @@ time_t start_time;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
 char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
-char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
-     *mysqld_user,*mysqld_chroot, *opt_init_file,
-     *opt_init_connect, *opt_init_slave, *opt_tc_log_file,
+     *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
 const char *opt_date_time_formats[3];
 
-char *language_ptr, *default_collation_name, *default_character_set_name;
-char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
-struct passwd *user_info;
+char *mysql_data_home= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
-char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
-const char *sql_mode_str="OFF";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
@@ -392,7 +413,7 @@ I_List<i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
 // allow the user to tell us which db to replicate and which to ignore
 I_List<i_string> binlog_do_db, binlog_ignore_db;
-I_List<THD> threads,thread_cache;
+I_List<THD> threads;
 I_List<NAMED_LIST> key_caches;
 
 struct system_variables global_system_variables;
@@ -425,9 +446,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
 rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
-pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
-	       COND_slave_start;
-pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
+pthread_cond_t COND_refresh,COND_thread_count;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 
@@ -502,7 +521,7 @@ static const char* default_dbug_option;
 char *libwrapName= NULL;
 #endif
 #ifdef HAVE_QUERY_CACHE
-ulong query_cache_limit= 0;
+static ulong query_cache_limit= 0;
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 #endif
@@ -522,7 +541,7 @@ struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
 /* Function declarations */
 
 static void start_signal_handler(void);
-extern "C" pthread_handler_decl(signal_hand, arg);
+static pthread_handler_decl(signal_hand, arg);
 static void mysql_init_variables(void);
 static void get_options(int argc,char **argv);
 static void set_server_version(void);
@@ -558,8 +577,6 @@ static void close_connections(void)
 #ifdef EXTRA_DEBUG
   int count=0;
 #endif
-  THD *thd= current_thd;
-
   DBUG_ENTER("close_connections");
 
   /* Clear thread cache */
@@ -1916,12 +1933,12 @@ the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", 
           (ulong) dflt_key_cache->key_cache_mem_size);
-  fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
-  fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
-  fprintf(stderr, "max_connections=%ld\n", max_connections);
-  fprintf(stderr, "threads_connected=%d\n", thread_count);
+  fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
+  fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
+  fprintf(stderr, "max_connections=%lu\n", max_connections);
+  fprintf(stderr, "threads_connected=%u\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
-key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
+key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
@@ -1952,7 +1969,7 @@ the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
     fprintf(stderr, "Trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
     safe_print_str("thd->query", thd->query, 1024);
-    fprintf(stderr, "thd->thread_id=%ld\n", thd->thread_id);
+    fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
   }
   fprintf(stderr, "\
 The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
@@ -2098,7 +2115,7 @@ static void start_signal_handler(void)
 /* This threads handles all signals and alarms */
 
 /* ARGSUSED */
-extern "C" void *signal_hand(void *arg __attribute__((unused)))
+static void *signal_hand(void *arg __attribute__((unused)))
 {
   sigset_t set;
   int sig;
@@ -2238,7 +2255,7 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
+static int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
@@ -2359,7 +2376,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= {
+static const char *load_default_groups[]= {
 #ifdef HAVE_NDBCLUSTER_DB
 "mysql_cluster",
 #endif
@@ -2369,6 +2386,7 @@ const char *load_default_groups[]= {
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
+
 
 /*
   Initialize one of the global date/time format variables
@@ -2387,8 +2405,8 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
     1 error
 */
 
-bool init_global_datetime_format(timestamp_type format_type,
-				 DATE_TIME_FORMAT **var_ptr)
+static bool init_global_datetime_format(timestamp_type format_type,
+                                        DATE_TIME_FORMAT **var_ptr)
 {
   /* Get command line option */
   const char *str= opt_date_time_formats[format_type];
@@ -4349,7 +4367,6 @@ Disable with --skip-bdb (will save memory).",
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-no-sync", OPT_BDB_NOSYNC,
    "This option is deprecated, use --skip-sync-bdb-logs instead",
-   //   (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-shared-data", OPT_BDB_SHARED,
    "Start Berkeley DB in multi-process mode.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -4571,7 +4588,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
   {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
    (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"language", 'L',
+   {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
    (gptr*) &language_ptr, (gptr*) &language_ptr, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -5795,11 +5812,6 @@ static void print_version(void)
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
-static void use_help(void)
-{
-  print_version();
-  printf("Use '--help' or '--no-defaults --help' for a list of available options\n");
-}
 
 static void usage(void)
 {
@@ -6096,7 +6108,7 @@ static void mysql_init_variables(void)
 }
 
 
-extern "C" my_bool
+static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
@@ -6623,7 +6635,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 	/* Initiates DEBUG - but no debugging here ! */
 
-extern "C" gptr *
+static gptr *
 mysql_getopt_value(const char *keyname, uint key_length,
 		   const struct my_option *option)
 {
@@ -6652,7 +6664,7 @@ mysql_getopt_value(const char *keyname, uint key_length,
 }
 
 
-void option_error_reporter(enum loglevel level, const char *format, ...)
+static void option_error_reporter(enum loglevel level, const char *format, ...)
 {
   va_list args;
   va_start(args, format);

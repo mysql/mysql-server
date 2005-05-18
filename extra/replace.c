@@ -63,7 +63,7 @@ typedef struct st_pointer_array {		/* when using array-strings */
 #define LAST_CHAR_CODE	259
 
 typedef struct st_replace {
-  bool   found;
+  my_bool   found;
   struct st_replace *next[256];
 } REPLACE;
 
@@ -80,19 +80,18 @@ typedef struct st_replace_found {
 
 	/* functions defined in this file */
 
-extern int main(int argc,char * *argv);
 static int static_get_options(int *argc,char * * *argv);
 static int get_replace_strings(int *argc,char * * *argv,
 				   POINTER_ARRAY *from_array,
 				   POINTER_ARRAY *to_array);
-int insert_pointer_name(POINTER_ARRAY *pa, my_string name);
-void free_pointer_array(POINTER_ARRAY *pa);
+static int insert_pointer_name(POINTER_ARRAY *pa, my_string name);
+static void free_pointer_array(POINTER_ARRAY *pa);
 static int convert_pipe(REPLACE *,FILE *,FILE *);
 static int convert_file(REPLACE *, my_string);
-REPLACE *init_replace(my_string *from, my_string *to,uint count, my_string
-		      word_end_chars);
-uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
-		     my_string from);
+static REPLACE *init_replace(my_string *from, my_string *to,uint count,
+                             my_string word_end_chars);
+static uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
+                            my_string from);
 static int initialize_buffer(void);
 static void reset_buffer(void);
 static void free_buffer(void);
@@ -101,9 +100,7 @@ static int silent=0,verbose=0,updated=0;
 
 	/* The main program */
 
-int main(argc,argv)
-int argc;
-char *argv[];
+int main(int argc, char *argv[])
 {
   int i,error;
   char word_end_chars[256],*pos;
@@ -118,7 +115,7 @@ char *argv[];
 
   for (i=1,pos=word_end_chars ; i < 256 ; i++)
     if (my_isspace(&my_charset_latin1,i))
-      *pos++=i;
+      *pos++= (char) i;
   *pos=0;
   if (!(replace=init_replace((char**) from.typelib.type_names,
 			     (char**) to.typelib.type_names,
@@ -153,7 +150,7 @@ static int static_get_options(argc,argv)
 register int *argc;
 register char **argv[];
 {
-  int help,version,opt;
+  int help,version;
   char *pos;
 
   silent=verbose=help=0;
@@ -162,7 +159,7 @@ register char **argv[];
     while (*++pos)
     {
       version=0;
-      switch((opt= *pos)) {
+      switch((*pos)) {
       case 's':
 	silent=1;
 	break;
@@ -249,7 +246,7 @@ POINTER_ARRAY *from_array,*to_array;
   return 0;
 }
 
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
+static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
 {
   uint i,length,old_count;
   byte *new_pos;
@@ -323,8 +320,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
 
 	/* free pointer array */
 
-void free_pointer_array(pa)
-reg1 POINTER_ARRAY *pa;
+static void free_pointer_array(reg1 POINTER_ARRAY *pa)
 {
   if (pa->typelib.count)
   {
@@ -382,9 +378,9 @@ static void or_bits(REP_SET *to,REP_SET *from);
 static void copy_bits(REP_SET *to,REP_SET *from);
 static int cmp_bits(REP_SET *set1,REP_SET *set2);
 static int get_next_bit(REP_SET *set,uint lastpos);
-static int find_set(REP_SETS *sets,REP_SET *find);
-static int find_found(FOUND_SET *found_set,uint table_offset,
-			  int found_offset);
+static short find_set(REP_SETS *sets,REP_SET *find);
+static short find_found(FOUND_SET *found_set,uint table_offset,
+                        int found_offset);
 static uint start_at_word(my_string pos);
 static uint end_of_word(my_string pos);
 static uint replace_len(my_string pos);
@@ -394,11 +390,12 @@ static uint found_sets=0;
 
 	/* Init a replace structure for further calls */
 
-REPLACE *init_replace(my_string *from, my_string *to,uint count,
-		      my_string word_end_chars)
+static REPLACE *init_replace(my_string *from, my_string *to,uint count,
+                             my_string word_end_chars)
 {
   uint i,j,states,set_nr,len,result_len,max_length,found_end,bits_set,bit_nr;
-  int used_sets,chr,default_state;
+  int used_sets,chr;
+  short default_state;
   char used_chars[LAST_CHAR_CODE],is_word_end[256];
   my_string pos,to_pos,*to_array;
   REP_SETS sets;
@@ -561,7 +558,7 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
     for (chr= 0 ; chr < 256 ; chr++)
     {
       if (! used_chars[chr])
-	set->next[chr]= chr ? default_state : -1;
+	set->next[chr]= (short) (chr ? default_state : -1);
       else
       {
 	new_set=make_new_set(&sets);
@@ -652,7 +649,7 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
     for (i=1 ; i <= found_sets ; i++)
     {
       pos=from[found_set[i-1].table_offset];
-      rep_str[i].found= !bcmp(pos,"\\^",3) ? 2 : 1;
+      rep_str[i].found= (my_bool) (!bcmp(pos,"\\^",3) ? 2 : 1);
       rep_str[i].replace_string=to_array[found_set[i-1].table_offset];
       rep_str[i].to_offset=found_set[i-1].found_offset-start_at_word(pos);
       rep_str[i].from_offset=found_set[i-1].found_offset-replace_len(pos)+
@@ -812,7 +809,7 @@ static int get_next_bit(REP_SET *set,uint lastpos)
 	   free given set, else put in given set in sets and return it's
 	   position */
 
-static int find_set(REP_SETS *sets,REP_SET *find)
+static short find_set(REP_SETS *sets,REP_SET *find)
 {
   uint i;
   for (i=0 ; i < sets->count-1 ; i++)
@@ -820,30 +817,33 @@ static int find_set(REP_SETS *sets,REP_SET *find)
     if (!cmp_bits(sets->set+i,find))
     {
       free_last_set(sets);
-      return i;
+      return (short) i;
     }
   }
-  return i;				/* return new postion */
+  return (short) i;			/* return new postion */
 }
 
-	/* find if there is a found_set with same table_offset & found_offset
-	   If there is return offset to it, else add new offset and return pos.
-	   Pos returned is -offset-2 in found_set_structure because it's is
-	   saved in set->next and set->next[] >= 0 points to next set and
-	   set->next[] == -1 is reserved for end without replaces.
-	   */
 
-static int find_found(FOUND_SET *found_set,uint table_offset, int found_offset)
+/*
+  find if there is a found_set with same table_offset & found_offset
+  If there is return offset to it, else add new offset and return pos.
+  Pos returned is -offset-2 in found_set_structure because it's is
+  saved in set->next and set->next[] >= 0 points to next set and
+  set->next[] == -1 is reserved for end without replaces.
+*/
+
+static short find_found(FOUND_SET *found_set,uint table_offset,
+                        int found_offset)
 {
   int i;
   for (i=0 ; (uint) i < found_sets ; i++)
     if (found_set[i].table_offset == table_offset &&
 	found_set[i].found_offset == found_offset)
-      return -i-2;
+      return (short) (-i-2);
   found_set[i].table_offset=table_offset;
   found_set[i].found_offset=found_offset;
   found_sets++;
-  return -i-2;				/* return new postion */
+  return (short) (-i-2);			/* return new postion */
 }
 
 	/* Return 1 if regexp starts with \b or ends with \b*/
@@ -878,7 +878,8 @@ static uint replace_len(my_string str)
 
 	/* The actual loop */
 
-uint replace_strings(REPLACE *rep, my_string *start,uint *max_length, my_string from)
+static uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
+                            my_string from)
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
