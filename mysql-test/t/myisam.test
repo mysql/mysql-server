@@ -660,3 +660,18 @@ select a from t1;
 check table t1;
 drop table t1;
 set global concurrent_insert=@save_concurrent_insert;
+
+# BUG#9622 - ANALYZE TABLE and ALTER TABLE .. ENABLE INDEX produce
+# different statistics on the same table with NULL values.
+create table t1 (a int, key(a));
+
+insert into t1 values (1),(2),(3),(4),(NULL),(NULL),(NULL),(NULL);
+analyze table t1;
+show keys from t1;
+
+alter table t1 disable keys;
+alter table t1 enable keys;
+show keys from t1;
+
+drop table t1;
+
