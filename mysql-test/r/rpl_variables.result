@@ -11,7 +11,7 @@ Variable_name	Value
 slave_compressed_protocol	OFF
 show variables like 'slave_load_tmpdir';
 Variable_name	Value
-slave_load_tmpdir	MYSQL_TEST_DIR/var/tmp/
+slave_load_tmpdir	SLAVE_LOAD_TMPDIR
 show variables like 'slave_skip_errors';
 Variable_name	Value
 slave_skip_errors	3,100,137,643,1752
