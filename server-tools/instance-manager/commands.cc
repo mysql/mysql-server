@@ -689,8 +689,8 @@ int Set_option::correct_file(int skip)
 {
   int error;
 
-  error= my_correct_defaults_file("/etc/my.cnf", option,
-                                  option_value, instance_name, skip);
+  error= modify_defaults_file("/etc/my.cnf", option,
+			      option_value, instance_name, skip);
   if (error > 0)
     return ER_OUT_OF_RESOURCES;
   else if (error < 0)
