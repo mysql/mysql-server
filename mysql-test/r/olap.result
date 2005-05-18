@@ -405,3 +405,36 @@ a	m
 2	2
 NULL	3
 DROP TABLE t1;
+CREATE TABLE t1 (a int(11));
+INSERT INTO t1 VALUES (1),(2);
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT a FROM t1 UNION select 2) d 
+GROUP BY a;
+a	SUM(a)	SUM(a)+1
+1	1	2
+2	2	3
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT a FROM t1 UNION select 2) d 
+GROUP BY a WITH ROLLUP;
+a	SUM(a)	SUM(a)+1
+1	1	2
+2	2	3
+NULL	3	4
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT 1 a UNION select 2) d 
+GROUP BY a;
+a	SUM(a)	SUM(a)+1
+1	1	2
+2	2	3
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT 1 a UNION select 2) d 
+GROUP BY a WITH ROLLUP;
+a	SUM(a)	SUM(a)+1
+1	1	2
+2	2	3
+NULL	3	4
+SELECT a, SUM(a), SUM(a)+1, CONCAT(SUM(a),'x'), SUM(a)+SUM(a), SUM(a)
+FROM (SELECT 1 a, 2 b UNION SELECT 2,3 UNION SELECT 5,6 ) d
+GROUP BY a WITH ROLLUP;
+a	SUM(a)	SUM(a)+1	CONCAT(SUM(a),'x')	SUM(a)+SUM(a)	SUM(a)
+1	1	2	1x	2	1
+2	2	3	2x	4	2
+5	5	6	5x	10	5
+NULL	8	9	8x	16	8
+DROP TABLE t1;
