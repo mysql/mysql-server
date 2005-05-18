@@ -1827,7 +1827,7 @@ void Item_func_round::fix_length_and_dec()
     return;
   }
   
-  int decimals_to_set= max(args[1]->val_int(), 0);
+  int decimals_to_set= max((int)args[1]->val_int(), 0);
   if (args[0]->decimals == NOT_FIXED_DEC)
   {
     max_length= args[0]->max_length;
