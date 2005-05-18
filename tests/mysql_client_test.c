@@ -787,6 +787,7 @@ static void verify_field_count(MYSQL_RES *result, uint exp_count)
 
 /* Utility function to execute a query using prepare-execute */
 
+#ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query, ulonglong exp_count)
 {
   MYSQL_STMT *stmt;
@@ -807,7 +808,7 @@ static void execute_prepare_query(const char *query, ulonglong exp_count)
   DIE_UNLESS(affected_rows == exp_count);
   mysql_stmt_close(stmt);
 }
-
+#endif
 
 /* Store result processing */
 
