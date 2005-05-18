@@ -2906,9 +2906,9 @@ String *Item_func_uuid::val_str(String *str)
   ulonglong tv=my_getsystime() + UUID_TIME_OFFSET + nanoseq;
   if (unlikely(tv < uuid_time))
     set_clock_seq_str();
-  else
-  if (unlikely(tv == uuid_time))
-  { /* special protection from low-res system clocks */
+  else if (unlikely(tv == uuid_time))
+  {
+    /* special protection from low-res system clocks */
     nanoseq++;
     tv++;
   }
