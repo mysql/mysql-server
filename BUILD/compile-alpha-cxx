@@ -2,7 +2,9 @@
 make -k clean
 /bin/rm -f */.deps/*.P */*.o
 /bin/rm -f */.deps/*.P config.cache storage/innobase/config.cache storage/bdb/build_unix/config.cache mysql-*.tar.gz
-aclocal; autoheader; aclocal; automake; autoconf
+
+path=`dirname $0`
+. "$path/autorun.sh"
 
 CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client --with-mysqld-ldflags=-non_shared --with-client-ldflags=-non_shared --without-extra-tools --disable-dependency-tracking
 

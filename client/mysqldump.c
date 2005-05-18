@@ -203,7 +203,9 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED.",
+  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED; "
+   "currently ignored because of http://bugs.mysql.com/bug.php?id=7815 "
+   "but will be re-enabled later",
    (gptr*) &opt_delayed, (gptr*) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
@@ -708,6 +710,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
       break;
     }
+#ifndef REMOVE_THIS_CODE_WHEN_FIX_BUG_7815
+  case (int) OPT_DELAYED:
+    /*
+      Because of http://bugs.mysql.com/bug.php?id=7815, we disable
+      --delayed-insert; when the bug gets fixed by checking the storage engine
+      (using the table definition cache) before printing INSERT DELAYED, we
+      can correct the option's description and re-enable it again (scheduled
+      for later 5.0 or 5.1 versions).
+      It's ok to do the if() below as get_one_option is called after
+      opt_delayed is set.
+    */
+    if (opt_delayed)
+    {
+      fprintf(stderr, "Warning: ignoring --delayed-insert (as explained "
+	      "in the output of 'mysqldump --help').\n");
+      opt_delayed= 0;
+    }
+    break;
+#endif
   }
   return 0;
 }
