@@ -17,6 +17,8 @@
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
 
+#include <mysql.h>
+
 #define RNIL    0xffffff00
 
 /**
@@ -52,7 +54,7 @@
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
 #define MAX_TABLES 1600
 #define MAX_TAB_NAME_SIZE 128
-#define MAX_ATTR_NAME_SIZE 32
+#define MAX_ATTR_NAME_SIZE NAME_LEN       /* From mysql_com.h */
 #define MAX_ATTR_DEFAULT_VALUE_SIZE 128
 #define MAX_ATTRIBUTES_IN_TABLE 128
 #define MAX_ATTRIBUTES_IN_INDEX 32
