@@ -948,7 +948,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 
 err:
   if (key)
-    my_afree(key);
+    my_safe_afree(key,table->max_unique_length,MAX_KEY_LENGTH);
   info->last_errno= error;
   table->file->print_error(error,MYF(0));
   DBUG_RETURN(1);
