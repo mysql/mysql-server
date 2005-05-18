@@ -1104,6 +1104,7 @@ static uint getTableStructure(char *table, char* db)
   char	     table_buff2[NAME_LEN*2+3];
   char       query_buff[512];
   FILE       *sql_file = md_result_file;
+  int        len;
   DBUG_ENTER("getTableStructure");
 
   if (!insert_pat_inited)
@@ -1118,11 +1119,11 @@ static uint getTableStructure(char *table, char* db)
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
 
-  my_snprintf(query_buff, sizeof(query_buff),
-	      "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
-	      (opt_quoted || opt_keywords));
+  len= my_snprintf(query_buff, sizeof(query_buff),
+                   "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+                   (opt_quoted || opt_keywords));
   if (!create_options)
-    strmov(strend(query_buff), "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
+    strmov(query_buff+len, "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
