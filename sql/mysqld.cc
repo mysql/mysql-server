@@ -39,11 +39,7 @@
 #else
 #define OPT_INNODB_DEFAULT 0
 #endif
-#ifdef HAVE_BERKLEY_DB
-#define OPT_BDB_DEFAULT 1
-#else
 #define OPT_BDB_DEFAULT 0
-#endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
 #if defined(NOT_ENOUGH_TESTED) \
@@ -294,7 +290,7 @@ static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
-#ifdef HAVE_BERKLEY_DB
+#ifdef HAVE_BERKELEY_DB
 static my_bool opt_sync_bdb_logs;
 #endif
 
