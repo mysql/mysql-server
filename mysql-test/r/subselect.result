@@ -2781,8 +2781,6 @@ c1	c2
 2	NULL
 3	NULL
 DROP TABLE t1,t2,t3;
-drop table t1
-#;
 CREATE TABLE `t1` (
 `itemid` bigint(20) unsigned NOT NULL auto_increment,
 `sessionid` bigint(20) unsigned default NULL,
