@@ -1358,6 +1358,7 @@ static bool show_status_array(THD *thd, const char *wild,
         }
         case SHOW_DOUBLE:
         {
+          value= ((char *) status_var + (ulong) value);
           end= buff + sprintf(buff, "%f", *(double*) value);
           break;
         }
