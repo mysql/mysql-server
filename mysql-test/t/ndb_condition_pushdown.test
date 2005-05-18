@@ -249,6 +249,104 @@ bin not like concat(0xBB, '%') and
 vbin not like concat(0xBB, '%')
 order by auto;
 
+# BETWEEN
+select auto from t1 where
+(string between "aaaa" and "cccc") and 
+(vstring between "aaaa" and "cccc") and 
+(bin between 0xAAAA and 0xCCCC) and 
+(vbin between 0xAAAA and 0xCCCC) and 
+(tiny between -3 and -1) and 
+(short between -3 and -1) and 
+(medium between -3 and -1) and 
+(long_int between -3 and -1) and 
+(longlong between -3 and -1) and 
+(utiny between 1 and 3) and 
+(ushort between 1 and 3) and 
+(umedium between 1 and 3) and 
+(ulong between 1 and 3) and 
+(ulonglong between 1 and 3) and 
+(bits between b'001' and b'011') and
+(options between 'one' and 'three') and 
+(flags between 'one' and 'one,two,three') and 
+(date_field between '1901-01-01' and '1903-03-03') and
+(year_field between '1901' and '1903') and
+(time_field between '01:01:01' and '03:03:03') and 
+(date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+("aaaa" between string and string) and 
+("aaaa" between vstring and vstring) and 
+(0xAAAA between bin and bin) and 
+(0xAAAA between vbin and vbin) and 
+(-1 between tiny and tiny) and 
+(-1 between short and short) and 
+(-1 between medium and medium) and 
+(-1 between long_int and long_int) and 
+(-1 between longlong and longlong) and 
+(1 between utiny and utiny) and 
+(1 between ushort and ushort) and 
+(1 between umedium and umedium) and 
+(1 between ulong and ulong) and 
+(1 between ulonglong and ulonglong) and 
+(b'001' between bits and bits) and
+('one' between options and options) and 
+('one' between flags and flags) and 
+('1901-01-01' between date_field and date_field) and
+('1901' between year_field and year_field) and
+('01:01:01' between time_field and time_field) and 
+('1901-01-01 01:01:01' between date_time and date_time) 
+order by auto;
+
+# IN
+select auto from t1 where
+string in("aaaa","cccc") and 
+vstring in("aaaa","cccc") and 
+bin in(0xAAAA,0xCCCC) and 
+vbin in(0xAAAA,0xCCCC) and 
+tiny in(-1,-3) and 
+short in(-1,-3) and 
+medium in(-1,-3) and 
+long_int in(-1,-3) and 
+longlong in(-1,-3) and 
+utiny in(1,3) and 
+ushort in(1,3) and 
+umedium in(1,3) and 
+ulong in(1,3) and 
+ulonglong in(1,3) and 
+bits in(b'001',b'011') and
+options in('one','three') and 
+flags in('one','one,two,three') and 
+date_field in('1901-01-01','1903-03-03') and
+year_field in('1901','1903') and
+time_field in('01:01:01','03:03:03') and 
+date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+"aaaa" in(string) and
+"aaaa" in(vstring) and
+0xAAAA in(bin) and 
+0xAAAA in(vbin) and 
+/* -1 in(tiny) and */
+/* -1 in (short) and */
+/* -1 in(medium) and */
+/* -1 in(long_int) and */
+/* -1 in(longlong) and */
+1 in(utiny) and 
+1 in(ushort) and 
+1 in(umedium) and 
+1 in(ulong) and 
+1 in(ulonglong) and 
+b'001' in(bits) and
+'one' in(options) and 
+'one' in(flags) and 
+'1901-01-01' in(date_field) and
+'1901' in(year_field) and
+'01:01:01' in(time_field) and 
+'1901-01-01 01:01:01' in(date_time) 
+order by auto;
+
 # Various tests 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
@@ -953,6 +1051,204 @@ string not like "b%" and
 vstring not like "b%" and
 bin not like concat(0xBB, '%') and
 vbin not like concat(0xBB, '%')
+order by auto;
+
+# BETWEEN
+explain 
+select auto from t1 where
+(string between "aaaa" and "cccc") and 
+(vstring between "aaaa" and "cccc") and 
+(bin between 0xAAAA and 0xCCCC) and 
+(vbin between 0xAAAA and 0xCCCC) and 
+(tiny between -3 and -1) and 
+(short between -3 and -1) and 
+(medium between -3 and -1) and 
+(long_int between -3 and -1) and 
+(longlong between -3 and -1) and 
+(utiny between 1 and 3) and 
+(ushort between 1 and 3) and 
+(umedium between 1 and 3) and 
+(ulong between 1 and 3) and 
+(ulonglong between 1 and 3) and 
+/* (bits between b'001' and b'011') and */
+(options between 'one' and 'three') and 
+(flags between 'one' and 'one,two,three') and 
+(date_field between '1901-01-01' and '1903-03-03') and
+(year_field between '1901' and '1903') and
+(time_field between '01:01:01' and '03:03:03') and 
+(date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+(string between "aaaa" and "cccc") and 
+(vstring between "aaaa" and "cccc") and 
+(bin between 0xAAAA and 0xCCCC) and 
+(vbin between 0xAAAA and 0xCCCC) and 
+(tiny between -3 and -1) and 
+(short between -3 and -1) and 
+(medium between -3 and -1) and 
+(long_int between -3 and -1) and 
+(longlong between -3 and -1) and 
+(utiny between 1 and 3) and 
+(ushort between 1 and 3) and 
+(umedium between 1 and 3) and 
+(ulong between 1 and 3) and 
+(ulonglong between 1 and 3) and 
+/* (bits between b'001' and b'011') and */
+(options between 'one' and 'three') and 
+(flags between 'one' and 'one,two,three') and 
+(date_field between '1901-01-01' and '1903-03-03') and
+(year_field between '1901' and '1903') and
+(time_field between '01:01:01' and '03:03:03') and 
+(date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+
+explain
+select auto from t1 where
+("aaaa" between string and string) and 
+("aaaa" between vstring and vstring) and 
+(0xAAAA between bin and bin) and 
+(0xAAAA between vbin and vbin) and 
+(-1 between tiny and tiny) and 
+(-1 between short and short) and 
+(-1 between medium and medium) and 
+(-1 between long_int and long_int) and 
+(-1 between longlong and longlong) and 
+(1 between utiny and utiny) and 
+(1 between ushort and ushort) and 
+(1 between umedium and umedium) and 
+(1 between ulong and ulong) and 
+(1 between ulonglong and ulonglong) and 
+/* (b'001' between bits and bits) and */
+('one' between options and options) and 
+('one' between flags and flags) and 
+('1901-01-01' between date_field and date_field) and
+('1901' between year_field and year_field) and
+('01:01:01' between time_field and time_field) and 
+('1901-01-01 01:01:01' between date_time and date_time) 
+order by auto;
+
+select auto from t1 where
+("aaaa" between string and string) and 
+("aaaa" between vstring and vstring) and 
+(0xAAAA between bin and bin) and 
+(0xAAAA between vbin and vbin) and 
+(-1 between tiny and tiny) and 
+(-1 between short and short) and 
+(-1 between medium and medium) and 
+(-1 between long_int and long_int) and 
+(-1 between longlong and longlong) and 
+(1 between utiny and utiny) and 
+(1 between ushort and ushort) and 
+(1 between umedium and umedium) and 
+(1 between ulong and ulong) and 
+(1 between ulonglong and ulonglong) and 
+/* (b'001' between bits and bits) and */
+('one' between options and options) and 
+('one' between flags and flags) and 
+('1901-01-01' between date_field and date_field) and
+('1901' between year_field and year_field) and
+('01:01:01' between time_field and time_field) and 
+('1901-01-01 01:01:01' between date_time and date_time) 
+order by auto;
+
+# IN
+explain
+select auto from t1 where
+string in("aaaa","cccc") and 
+vstring in("aaaa","cccc") and 
+bin in(0xAAAA,0xCCCC) and 
+vbin in(0xAAAA,0xCCCC) and 
+tiny in(-1,-3) and 
+short in(-1,-3) and 
+medium in(-1,-3) and 
+long_int in(-1,-3) and 
+longlong in(-1,-3) and 
+utiny in(1,3) and 
+ushort in(1,3) and 
+umedium in(1,3) and 
+ulong in(1,3) and 
+ulonglong in(1,3) and 
+/* bits in(b'001',b'011') and */
+options in('one','three') and 
+flags in('one','one,two,three') and 
+date_field in('1901-01-01','1903-03-03') and
+year_field in('1901','1903') and
+time_field in('01:01:01','03:03:03') and 
+date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+select auto from t1 where
+string in("aaaa","cccc") and 
+vstring in("aaaa","cccc") and 
+bin in(0xAAAA,0xCCCC) and 
+vbin in(0xAAAA,0xCCCC) and 
+tiny in(-1,-3) and 
+short in(-1,-3) and 
+medium in(-1,-3) and 
+long_int in(-1,-3) and 
+longlong in(-1,-3) and 
+utiny in(1,3) and 
+ushort in(1,3) and 
+umedium in(1,3) and 
+ulong in(1,3) and 
+ulonglong in(1,3) and 
+/* bits in(b'001',b'011') and */
+options in('one','three') and 
+flags in('one','one,two,three') and 
+date_field in('1901-01-01','1903-03-03') and
+year_field in('1901','1903') and
+time_field in('01:01:01','03:03:03') and 
+date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+
+explain
+select auto from t1 where
+"aaaa" in(string) and 
+"aaaa" in(vstring) and 
+0xAAAA in(bin) and 
+0xAAAA in(vbin) and 
+/* -1 in(tiny) and */
+/* -1 in (short) and */
+/* -1 in(medium) and */
+/* -1 in(long_int) and */
+/* -1 in(longlong) and */
+1 in(utiny) and 
+1 in(ushort) and 
+1 in(umedium) and 
+1 in(ulong) and 
+1 in(ulonglong) and 
+/* b'001' in(bits) and */
+'one' in(options) and 
+'one' in(flags) and 
+'1901-01-01' in(date_field) and
+'1901' in(year_field) and
+'01:01:01' in(time_field) and 
+'1901-01-01 01:01:01' in(date_time) 
+order by auto;
+
+select auto from t1 where
+"aaaa" in(string) and 
+"aaaa" in(vstring) and 
+0xAAAA in(bin) and 
+0xAAAA in(vbin) and 
+/* -1 in(tiny) and */
+/* -1 in (short) and */
+/* -1 in(medium) and */
+/* -1 in(long_int) and */
+/* -1 in(longlong) and */
+1 in(utiny) and 
+1 in(ushort) and 
+1 in(umedium) and 
+1 in(ulong) and 
+1 in(ulonglong) and 
+/* b'001' in(bits) and */
+'one' in(options) and 
+'one' in(flags) and 
+'1901-01-01' in(date_field) and
+'1901' in(year_field) and
+'01:01:01' in(time_field) and 
+'1901-01-01 01:01:01' in(date_time) 
 order by auto;
 
 # Update test
