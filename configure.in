@@ -1965,9 +1965,12 @@ AC_LANG_CPLUSPLUS
 # with respect to ANSI C++
 # We also remove the -fbranch-probabilities option as this will give warnings
 # about not profiled code, which confuses configure
+# We also must remove -W and -Wcheck which on icc produces warnings that
+# we don't want to catch with -Werror
+
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
 fi
 
 AC_TRY_COMPILE(
@@ -2002,7 +2005,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
@@ -2035,7 +2038,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
