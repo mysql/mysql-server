@@ -532,5 +532,5 @@ create table t1 (
  F_6faa8040da20ef399b63a72d0e4ab575 int,
  F_fe73f687e5bc5280214e0486b273a5f9 int);
 insert into t1 (F_8d3bba7425e7c98c50f52ca1b52d3735) values (1);
---exec $MYSQL_DUMP -c test
+--exec $MYSQL_DUMP --skip-comments -c test
 drop table t1;
