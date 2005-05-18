@@ -2694,8 +2694,11 @@ static my_bool get_view_structure(char *table, char* db)
   if (verbose)
     fprintf(stderr, "-- Retrieving view structure for table %s...\n", table);
 
+#ifdef NOT_REALLY_USED_YET
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
 	  (opt_quoted || opt_keywords));
+#endif
+
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 

@@ -174,7 +174,7 @@ explain select a1, max(a2) from t1 group by a1;
 explain select a1, min(a2), max(a2) from t1 group by a1;
 explain select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
 explain select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
---replace_column 7 #
+--replace_column 9 #
 explain select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
 -- Select fields in different order
 explain select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
@@ -213,17 +213,29 @@ explain select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 =
 explain select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
 explain select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
 
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+--replace_column 9 #
 explain select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
+--replace_column 9 #
 explain select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 
 -- queries
@@ -306,6 +318,7 @@ select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 
 -- C) Range predicates for the MIN/MAX attribute
 -- plans
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
 explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
 explain select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
@@ -323,20 +336,35 @@ explain select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or
 explain select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 explain select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
 
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 
 -- queries
@@ -394,11 +422,17 @@ explain select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2
 explain select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 explain select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
 
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 -- queries
@@ -428,9 +462,13 @@ explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 explain select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 explain select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
+--replace_column 9 #
 explain select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+--replace_column 9 #
 explain select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 -- queries
@@ -456,9 +494,12 @@ explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c
 explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 explain select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 
+--replace_column 9 #
 explain select distinct a1,a2,b from t2;
+--replace_column 9 #
 explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+--replace_column 9 #
 explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 explain select distinct b from t2 where (a2 >= 'b') and (b = 'a');
 
@@ -496,10 +537,15 @@ explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c
 explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 explain select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
+--replace_column 9 #
 explain select distinct a1,a2,b from t2;
+--replace_column 9 #
 explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+--replace_column 9 #
 explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+--replace_column 9 #
 explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+--replace_column 9 #
 explain select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 -- queries
