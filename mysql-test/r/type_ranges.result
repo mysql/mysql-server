@@ -62,7 +62,7 @@ blob_col	blob	NULL	YES		NULL		#
 tinyblob_col	tinyblob	NULL	YES		NULL		#	
 mediumblob_col	mediumblob	NULL	NO				#	
 longblob_col	longblob	NULL	NO				#	
-options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL	one		#	
+options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL			#	
 flags	set('one','two','tree')	latin1_swedish_ci	NO				#	
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -231,7 +231,7 @@ date_time	datetime	NULL	YES		NULL		#
 new_blob_col	varchar(20)	latin1_swedish_ci	YES		NULL		#	
 tinyblob_col	tinyblob	NULL	YES		NULL		#	
 mediumblob_col	mediumblob	NULL	NO				#	
-options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL	one		#	
+options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL			#	
 flags	set('one','two','tree')	latin1_swedish_ci	NO				#	
 new_field	char(10)	latin1_swedish_ci	NO		new		#	
 show full columns from t2;
