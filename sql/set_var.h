@@ -75,6 +75,7 @@ public:
   { return option_limits == 0; }
   Item *item(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual bool is_struct() { return 0; }
+  virtual bool is_readonly() const { return 0; }
 };
 
 
@@ -699,6 +700,7 @@ public:
     return (*value_ptr_func)(thd);
   }
   SHOW_TYPE type() { return show_type; }
+  bool is_readonly() const { return 1; }
 };
 
 class sys_var_thd_time_zone :public sys_var_thd
