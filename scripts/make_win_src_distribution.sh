@@ -199,11 +199,10 @@ copy_dir_files()
        print_debug "Creating directory '$arg'"
        mkdir $BASE/$arg
      fi
-    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.dsp \
-             README INSTALL* LICENSE *.inc *.test *.result \
-	     *.pem Moscow_leap des_key_file *.dat *.000001 \
-	     *.require *.opt
-
+    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.dsp *.dsw \
+             README INSTALL* LICENSE AUTHORS NEWS ChangeLog \
+             *.inc *.test *.result *.pem Moscow_leap des_key_file \
+             *.dat *.000001 *.require *.opt
     do
       if [ -f $i ]
       then
@@ -234,6 +233,7 @@ copy_dir_dirs() {
     find $arg -type d \
               -and -not -path \*SCCS\* \
               -and -not -path \*.deps\* \
+              -and -not -path \*.libs\* \
               -and -not -path \*autom4te.cache -print
     )|(
       while read v
@@ -266,7 +266,7 @@ make -C $SOURCE/ndb windoze
 # Input directories to be copied recursively
 #
 
-for i in bdb innobase ndb
+for i in bdb innobase ndb extra/yassl
 do
   copy_dir_dirs $i
 done
@@ -328,6 +328,8 @@ do
       $CP -R $i $BASE/$i
     fi
   fi
+  # But remove object files from destination
+  find $BASE/$i -type f -name \*.o | xargs rm -f
 done
 
 #
