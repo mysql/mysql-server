@@ -999,10 +999,6 @@ typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 #define WAITFOR_RESPONSE_TIMEOUT 120000 // Milliseconds
 #endif
 
-#define NDB_MAX_INTERNAL_TABLE_LENGTH NDB_MAX_DATABASE_NAME_SIZE + \
-                                      NDB_MAX_SCHEMA_NAME_SIZE + \
-                                      NDB_MAX_TAB_NAME_SIZE*2
-
 /**
  * @class Ndb 
  * @brief Represents the NDB kernel and is the main class of the NDB API.
@@ -1626,12 +1622,7 @@ private:
 
   bool fullyQualifiedNames;
 
-  // Ndb database name.
-  char                  theDataBase[NDB_MAX_DATABASE_NAME_SIZE];
-  // Ndb database schema name.  
-  char                  theDataBaseSchema[NDB_MAX_SCHEMA_NAME_SIZE];
-  char                  prefixName[NDB_MAX_INTERNAL_TABLE_LENGTH];
-  char *                prefixEnd;		
+
 
   class NdbImpl * theImpl;
   class NdbDictionaryImpl* theDictionary;
