@@ -1110,3 +1110,8 @@ VC++Files/client/mysql_amd64.dsp
 client/mysqltestmanager-pwgen
 client/mysqltestmanagerc
 tools/mysqltestmanager
+config.guess
+config.sub
+install-sh
+ltmain.sh
+missing
