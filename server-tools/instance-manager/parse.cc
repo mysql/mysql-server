@@ -262,13 +262,13 @@ Command *parse_command(Command_factory *factory, const char *text)
             /* define a log type */
             switch (tok3) {
             case TOK_ERROR:
-              log_type= LOG_ERROR;
+              log_type= IM_LOG_ERROR;
               break;
             case TOK_GENERAL:
-              log_type= LOG_GENERAL;
+              log_type= IM_LOG_GENERAL;
               break;
             case TOK_SLOW:
-              log_type= LOG_SLOW;
+              log_type= IM_LOG_SLOW;
               break;
             default:
               goto syntax_error;

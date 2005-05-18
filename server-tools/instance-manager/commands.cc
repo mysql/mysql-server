@@ -573,9 +573,9 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
       const char *value;
     } logs[]=
     {
-      {"ERROR LOG", instance->options.logs[LOG_ERROR]},
-      {"GENERAL LOG", instance->options.logs[LOG_GENERAL]},
-      {"SLOW LOG", instance->options.logs[LOG_SLOW]},
+      {"ERROR LOG", instance->options.logs[IM_LOG_ERROR]},
+      {"GENERAL LOG", instance->options.logs[IM_LOG_GENERAL]},
+      {"SLOW LOG", instance->options.logs[IM_LOG_SLOW]},
       {NULL, NULL}
     };
     struct log_files_st *log_files;
