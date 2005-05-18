@@ -32,7 +32,7 @@ extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib;
 
 enum enum_var_type
 {
-  OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
+  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
 };
 
 typedef int (*sys_check_func)(THD *,  set_var *);
