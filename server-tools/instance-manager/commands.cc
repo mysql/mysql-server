@@ -548,7 +548,7 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
   path_field.name= (char*) "Path";
   path_field.length= DEFAULT_FIELD_LENGTH;
   path.data= &path_field;
-  size_field.name= (char*) "Filesize";
+  size_field.name= (char*) "File size";
   size_field.length= DEFAULT_FIELD_LENGTH;
   size.data= &size_field;
   field_list= list_add(NULL, &size);
