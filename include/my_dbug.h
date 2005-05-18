@@ -39,9 +39,9 @@ extern	void _db_pargs_(uint _line_,const char *keyword);
 extern	void _db_doprnt_ _VARARGS((const char *format,...));
 extern	void _db_dump_(uint _line_,const char *keyword,const char *memory,
 		       uint length);
-extern	void _db_output_();
-extern	void _db_lock_file();
-extern	void _db_unlock_file();
+extern	void _db_output_(uint);
+extern	void _db_lock_file(void);
+extern	void _db_unlock_file(void);
 
 #define DBUG_ENTER(a) const char *_db_func_, *_db_file_; uint _db_level_; \
 	char **_db_framep_; \

@@ -62,14 +62,9 @@ done
 
 set -x
 make distclean
-aclocal
-autoheader
-libtoolize --automake --force
-automake --force --add-missing
-autoconf
 
-(cd storage/bdb/dist && sh s_all)
-(cd storage/innobase && aclocal && autoheader && aclocal && automake && autoconf)
+path=`dirname $0`
+. "$path/autorun.sh"
 
 CC=cc CXX=aCC CFLAGS="$cflags" CXXFLAGS="$cxxflags" \
 ./configure --prefix=/usr/local/mysql --disable-shared \

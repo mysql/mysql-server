@@ -131,7 +131,9 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
 ** if nothing else.
 */
 Item *
-sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
+sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
+		  MEM_ROOT *mem_root,
+		  Item *reuse)
 {
   DBUG_ENTER("sp_eval_func_item");
   Item *it= sp_prepare_func_item(thd, it_addr);
@@ -144,7 +146,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 
   /* QQ How do we do this? Is there some better way? */
   if (type == MYSQL_TYPE_NULL)
-    it= new Item_null();
+    it= new(mem_root, reuse) Item_null();
   else
   {
     switch (sp_map_result_type(type)) {
@@ -155,12 +157,12 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	if (it->null_value)
 	{
 	  DBUG_PRINT("info", ("INT_RESULT: null"));
-	  it= new Item_null();
+	  it= new(mem_root, reuse) Item_null();
 	}
 	else
 	{
 	  DBUG_PRINT("info", ("INT_RESULT: %d", i));
-          it= new Item_int(i);
+          it= new(mem_root, reuse) Item_int(i);
 	}
 	break;
       }
@@ -171,7 +173,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	if (it->null_value)
 	{
 	  DBUG_PRINT("info", ("REAL_RESULT: null"));
-	  it= new Item_null();
+	  it= new(mem_root, reuse) Item_null();
 	}
 	else
 	{
@@ -180,7 +182,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	  uint8 decimals= it->decimals;
 	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-          it= new Item_float(d);
+          it= new(mem_root, reuse) Item_float(d);
 	  it->decimals= decimals;
 	  it->max_length= max_length;
 	}
@@ -190,9 +192,9 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
       {
         my_decimal value, *val= it->val_decimal(&value);
         if (it->null_value)
-          it= new Item_null();
+          it= new(mem_root, reuse) Item_null();
         else
-          it= new Item_decimal(val);
+          it= new(mem_root, reuse) Item_decimal(val);
 #ifndef DBUG_OFF
         char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
         DBUG_PRINT("info", ("DECIMAL_RESULT: %s", dbug_decimal_as_string(dbug_buff, val)));
@@ -208,14 +210,16 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	if (it->null_value)
 	{
 	  DBUG_PRINT("info", ("default result: null"));
-	  it= new Item_null();
+	  it= new(mem_root, reuse) Item_null();
 	}
 	else
 	{
 	  DBUG_PRINT("info",("default result: %*s",
                              s->length(), s->c_ptr_quick()));
-	  it= new Item_string(thd->strmake(s->ptr(), s->length()),
-			      s->length(), it->collation.collation);
+	  it= new(mem_root, reuse) Item_string(thd->strmake(s->ptr(),
+							    s->length()),
+					       s->length(),
+					       it->collation.collation);
 	}
 	break;
       }
@@ -708,7 +712,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
-    Item *it= sp_eval_func_item(thd, argp++, pvar->type);
+    Item *it= sp_eval_func_item(thd, argp++, pvar->type, thd->mem_root, NULL);
 
     if (it)
       nctx->push_item(it);
@@ -823,7 +827,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	}
 	else
 	{
-	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type);
+	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type,
+				       thd->mem_root, NULL);
 
 	  if (it2)
 	    nctx->push_item(it2); // IN or INOUT
@@ -1469,7 +1474,9 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, &m_value, m_type);
+  it= sp_eval_func_item(thd, &m_value, m_type,
+			thd->mem_root,
+			thd->spcont->get_item(m_offset));
   if (! it)
     res= -1;
   else
@@ -1715,7 +1722,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, &m_value, m_type);
+  it= sp_eval_func_item(thd, &m_value, m_type, thd->mem_root, NULL);
   if (! it)
     res= -1;
   else

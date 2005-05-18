@@ -1200,6 +1200,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
   case JT_EQ_REF:
     return TRUE;				// At most one matching row
   case JT_REF:
+  case JT_REF_OR_NULL:
     return !check_if_key_used(table, join_tab->ref.key, *fields);
   case JT_ALL:
     /* If range search on index */
