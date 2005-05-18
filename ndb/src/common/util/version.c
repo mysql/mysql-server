@@ -90,6 +90,7 @@ void ndbSetOwnVersion() {}
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(4,1,12), MAKE_VERSION(4,1,10), UG_Range },
   { MAKE_VERSION(4,1,10), MAKE_VERSION(4,1,9), UG_Exact },
   { MAKE_VERSION(4,1,9), MAKE_VERSION(4,1,8), UG_Exact },
   { MAKE_VERSION(3,5,2), MAKE_VERSION(3,5,1), UG_Exact },
