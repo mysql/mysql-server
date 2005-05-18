@@ -32,7 +32,7 @@ extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib;
 
 enum enum_var_type
 {
-  OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
+  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
 };
 
 typedef int (*sys_check_func)(THD *,  set_var *);
@@ -75,6 +75,7 @@ public:
   { return option_limits == 0; }
   Item *item(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual bool is_struct() { return 0; }
+  virtual bool is_readonly() const { return 0; }
 };
 
 
@@ -699,6 +700,7 @@ public:
     return (*value_ptr_func)(thd);
   }
   SHOW_TYPE type() { return show_type; }
+  bool is_readonly() const { return 1; }
 };
 
 class sys_var_thd_time_zone :public sys_var_thd
