@@ -73,6 +73,7 @@
 #define HA_HAS_CHECKSUM        (1 << 24)
 /* Table data are stored in separate files (for lower_case_table_names) */
 #define HA_FILE_BASED	       (1 << 26)
+#define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
