@@ -1932,6 +1932,50 @@ Cursor::~Cursor()
 
 /*********************************************************************/
 
+/*
+  An entry point to single-unit select (a select without UNION).
+
+  SYNOPSIS
+    mysql_select()
+
+    thd                  thread handler
+    rref_pointer_array   a reference to ref_pointer_array of
+                         the top-level select_lex for this query
+    tables               list of all tables used in this query.
+                         The tables have been pre-opened.
+    wild_num             number of wildcards used in the top level 
+                         select of this query.
+                         For example statement
+                         SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
+                         has 3 wildcards.
+    fields               list of items in SELECT list of the top-level
+                         select
+                         e.g. SELECT a, b, c FROM t1 will have Item_field
+                         for a, b and c in this list.
+    conds                top level item of an expression representing
+                         WHERE clause of the top level select
+    og_num               total number of ORDER BY and GROUP BY clauses
+                         arguments
+    order                linked list of ORDER BY agruments
+    group                linked list of GROUP BY arguments
+    having               top level item of HAVING expression
+    proc_param           list of PROCEDUREs
+    select_options       select options (BIG_RESULT, etc)
+    result               an instance of result set handling class.
+                         This object is responsible for send result
+                         set rows to the client or inserting them
+                         into a table.
+    select_lex           the only SELECT_LEX of this query
+    unit                 top-level UNIT of this query
+                         UNIT is an artificial object created by the parser
+                         for every SELECT clause.
+                         e.g. SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
+                         has 2 unions.
+
+  RETURN VALUE
+   FALSE  success
+   TRUE   an error
+*/
 
 bool
 mysql_select(THD *thd, Item ***rref_pointer_array,
