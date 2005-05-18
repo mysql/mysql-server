@@ -85,10 +85,10 @@ static char *remove_end_comment(char *ptr);
   Add/remove option to the option file section.
 
   SYNOPSYS
-    my_correct_file()
+    my_correct_defaults_file()
     file_location     The location of configuration file to edit
     option            option to look for
-    option value      The value of the option we would like to set
+    option_value      The value of the option we would like to set
     section_name      the name of the section
     remove_option     This is true if we want to remove the option.
                       False otherwise.
