@@ -345,7 +345,6 @@ ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 ulong my_bind_addr;			/* the address we bind to */
 volatile ulong cached_thread_count= 0;
-double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
 
 double log_10[32];			/* 10 potences */
 time_t start_time;
@@ -5714,7 +5713,7 @@ struct show_var_st status_vars[]= {
   {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read, SHOW_KEY_CACHE_LONG},
   {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests, SHOW_KEY_CACHE_LONG},
   {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write, SHOW_KEY_CACHE_LONG},
-  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
+  {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
 #ifdef HAVE_NDBCLUSTER_DB
   {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},
