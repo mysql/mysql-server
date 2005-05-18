@@ -152,7 +152,7 @@ procs_priv	CREATE TABLE `procs_priv` (
   `Db` char(64) collate utf8_bin NOT NULL default '',
   `User` char(16) collate utf8_bin NOT NULL default '',
   `Routine_name` char(64) collate utf8_bin NOT NULL default '',
-  `Routine_type` enum('FUNCTION','PROCEDURE') collate utf8_bin NOT NULL default 'FUNCTION',
+  `Routine_type` enum('FUNCTION','PROCEDURE') collate utf8_bin NOT NULL,
   `Grantor` char(77) collate utf8_bin NOT NULL default '',
   `Proc_priv` set('Execute','Alter Routine','Grant') character set utf8 NOT NULL default '',
   `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
