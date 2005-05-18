@@ -698,7 +698,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts opt_chain opt_release
-        union_opt select_derived_init
+        union_opt select_derived_init option_type option_type2
 
 %type <ulong_num>
 	ulong_num raid_types merge_insert_types
@@ -7475,7 +7475,7 @@ option_type_value:
 	    lex->sphead->m_tmp_query= lex->tok_start;
           }
         }
-	option_type option_value
+	ext_option_value
         {
           LEX *lex= Lex;
 
@@ -7516,11 +7516,15 @@ option_type_value:
         };
 
 option_type:
-	/* empty */	{}
-	| GLOBAL_SYM	{ Lex->option_type= OPT_GLOBAL; }
-	| LOCAL_SYM	{ Lex->option_type= OPT_SESSION; }
-	| SESSION_SYM	{ Lex->option_type= OPT_SESSION; }
-	| ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
+        option_type2    {}
+	| GLOBAL_SYM	{ $$=OPT_GLOBAL; }
+	| LOCAL_SYM	{ $$=OPT_SESSION; }
+	| SESSION_SYM	{ $$=OPT_SESSION; }
+	;
+
+option_type2:
+	/* empty */	{ $$= OPT_DEFAULT; }
+	| ONE_SHOT_SYM	{ Lex->one_shot_set= 1; $$= OPT_SESSION; }
 	;
 
 opt_var_type:
@@ -7537,88 +7541,109 @@ opt_var_ident_type:
 	| SESSION_SYM '.'	{ $$=OPT_SESSION; }
 	;
 
-option_value:
-	  '@' ident_or_text equal expr
-	  {
-            Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
-	  }
-	| internal_variable_name equal set_expr_or_default
-	  {
-	    LEX *lex=Lex;
+ext_option_value:
+        sys_option_value
+        | option_type2 option_value;
 
-            if ($1.var == &trg_new_row_fake_var)
+sys_option_value:
+        option_type internal_variable_name equal set_expr_or_default
+        {
+          LEX *lex=Lex;
+
+          if ($2.var == &trg_new_row_fake_var)
+          {
+            /* We are in trigger and assigning value to field of new row */
+            Item *it;
+            sp_instr_set_trigger_field *i;
+            if ($1)
             {
-              /* We are in trigger and assigning value to field of new row */
-              Item *it;
-              sp_instr_set_trigger_field *i;
-              if (lex->query_tables)
-              {
-                my_message(ER_SP_SUBSELECT_NYI, ER(ER_SP_SUBSELECT_NYI),
-                           MYF(0));
-                YYABORT;
-              }
-              if ($3)
-                it= $3;
-              else
-              {
-                /* QQ: Shouldn't this be field's default value ? */
-                it= new Item_null();
-              }
-              
-              if (!(i= new sp_instr_set_trigger_field(
-                             lex->sphead->instructions(), lex->spcont,
-                             $1.base_name, it)))
-                YYABORT;
-              
-              /*
-                Let us add this item to list of all Item_trigger_field
-                objects in trigger.
-              */
-              lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
-                     (byte **)&i->trigger_field.next_trg_field);
-
-              lex->sphead->add_instr(i);
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
             }
-            else if ($1.var)
-	    { /* System variable */
-	      lex->var_list.push_back(new set_var(lex->option_type, $1.var,
-						  &$1.base_name, $3));
-	    }
+            if (lex->query_tables)
+            {
+              my_message(ER_SP_SUBSELECT_NYI, ER(ER_SP_SUBSELECT_NYI),
+              MYF(0));
+              YYABORT;
+            }
+            if ($4)
+              it= $4;
             else
-	    {
-	      /* An SP local variable */
-	      sp_pcontext *ctx= lex->spcont;
-	      sp_pvar_t *spv;
-              sp_instr_set *i;
-	      Item *it;
+            {
+              /* QQ: Shouldn't this be field's default value ? */
+              it= new Item_null();
+            }
 
-	      spv= ctx->find_pvar(&$1.base_name);
+            if (!(i= new sp_instr_set_trigger_field(
+                lex->sphead->instructions(), lex->spcont,
+                $2.base_name, it)))
+              YYABORT;
 
-	      if ($3)
-	        it= $3;
-	      else if (spv->dflt)
-	        it= spv->dflt;
-	      else
-	        it= new Item_null();
-              i= new sp_instr_set(lex->sphead->instructions(), ctx,
-	                          spv->offset, it, spv->type, lex, TRUE);
-	      lex->sphead->add_instr(i);
-	      spv->isset= TRUE;
-	    }
-	  }
+            /*
+              Let us add this item to list of all Item_trigger_field
+              objects in trigger.
+            */
+            lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
+            (byte **)&i->trigger_field.next_trg_field);
+
+            lex->sphead->add_instr(i);
+          }
+          else if ($2.var)
+          { /* System variable */
+            if ($1)
+              lex->option_type= (enum_var_type)$1;
+            lex->var_list.push_back(new set_var(lex->option_type, $2.var,
+                                    &$2.base_name, $4));
+          }
+          else
+          {
+            /* An SP local variable */
+            sp_pcontext *ctx= lex->spcont;
+            sp_pvar_t *spv;
+            sp_instr_set *i;
+            Item *it;
+            if ($1)
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+
+            spv= ctx->find_pvar(&$2.base_name);
+
+            if ($4)
+              it= $4;
+            else if (spv->dflt)
+              it= spv->dflt;
+            else
+              it= new Item_null();
+            i= new sp_instr_set(lex->sphead->instructions(), ctx,
+                                spv->offset, it, spv->type, lex, TRUE);
+            lex->sphead->add_instr(i);
+            spv->isset= TRUE;
+          }
+        }
+        | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
+	{
+	  LEX *lex=Lex;
+          if (!$1)
+            lex->option_type= (enum_var_type)$1;
+	  lex->var_list.push_back(new set_var(lex->option_type,
+                                              find_sys_var("tx_isolation"),
+                                              &null_lex_str,
+                                              new Item_int((int32) $5)));
+	}
+        ;
+
+option_value:
+	'@' ident_or_text equal expr
+	{
+          Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
+	}
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
 	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4.var,
 						&$4.base_name, $6));
-	  }
-	| TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
-	  {
-	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var(lex->option_type,
-						find_sys_var("tx_isolation"),
-						&null_lex_str,
-						new Item_int((int32) $4)));
 	  }
 	| charset old_or_new_charset_name_or_default
 	{
