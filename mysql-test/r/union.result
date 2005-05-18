@@ -1235,3 +1235,22 @@ show columns from t2;
 Field	Type	Null	Key	Default	Extra
 a	varchar(3)	YES		NULL	
 drop table t2, t1;
+create table t1 ( id int not null auto_increment, primary key (id), col1 int);
+insert into t1 (col1) values (2),(3),(4),(5),(6);
+select 99 union all select id from t1 order by 1;
+99
+1
+2
+3
+4
+5
+99
+select id from t1 union all select 99 order by 1;
+id
+1
+2
+3
+4
+5
+99
+drop table t1;
