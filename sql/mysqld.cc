@@ -294,7 +294,7 @@ static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
-#ifdef HAVE_BERKLEY_DB
+#ifdef HAVE_BERKELEY_DB
 static my_bool opt_sync_bdb_logs;
 #endif
 
