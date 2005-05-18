@@ -2,7 +2,9 @@
 make -k clean
 /bin/rm -f */.deps/*.P */*.o
 /bin/rm -f */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache mysql-*.tar.gz
-aclocal; autoheader; aclocal; automake; autoconf
+
+path=`dirname $0`
+. "$path/autorun.sh"
 
 CFLAGS=-O1 CC=gcc CXX=gcc CXXFLAGS="-O1 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex  --without-extra-tools
 make
