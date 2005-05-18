@@ -161,8 +161,6 @@ public:
    */
   bool equal(const NdbTableImpl&) const;
   void assign(const NdbTableImpl&);
-  void clearNewProperties();
-  void copyNewProperties();
 
   static NdbTableImpl & getImpl(NdbDictionary::Table & t);
   static NdbTableImpl & getImpl(const NdbDictionary::Table & t);
@@ -180,6 +178,7 @@ public:
   NdbIndexImpl(NdbDictionary::Index &);
   ~NdbIndexImpl();
 
+  void init();
   void setName(const char * name);
   const char * getName() const;
   void setTable(const char * table);
@@ -209,6 +208,7 @@ public:
   NdbEventImpl(NdbDictionary::Event &);
   ~NdbEventImpl();
 
+  void init();
   void setName(const char * name);
   const char * getName() const;
   void setTable(const NdbDictionary::Table& table);
@@ -368,6 +368,8 @@ private:
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;
+  // Buffer used when requesting a table by name
+  UtilBuffer m_namebuf;
 };
 
 class NdbDictionaryImpl : public NdbDictionary::Dictionary {
@@ -378,7 +380,7 @@ public:
 
   bool setTransporter(class Ndb * ndb, class TransporterFacade * tf);
   bool setTransporter(class TransporterFacade * tf);
-  
+
   int createTable(NdbTableImpl &t);
   int createBlobTables(NdbTableImpl &);
   int addBlobTables(NdbTableImpl &);
@@ -560,7 +562,7 @@ NdbTableImpl::getColumn(const char * name){
     do {
       if(hashValue == (tmp & 0xFFFE)){
 	NdbColumnImpl* col = cols[tmp >> 16];
-	if(strncmp(name, col->m_name.c_str(), NDB_MAX_ATTR_NAME_SIZE-1) == 0){
+	if(strncmp(name, col->m_name.c_str(), col->m_name.length()) == 0){
 	  return col;
 	}
       }
@@ -578,7 +580,7 @@ NdbTableImpl::getColumn(const char * name){
   } else {
     for(Uint32 i = 0; i<sz; i++){
       NdbColumnImpl* col = * cols++;
-      if(col != 0 && strncmp(name, col->m_name.c_str(), NDB_MAX_ATTR_NAME_SIZE-1) == 0)
+      if(col != 0 && strncmp(name, col->m_name.c_str(), col->m_name.length()) == 0)
 	return col;
     }
   }

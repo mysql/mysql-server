@@ -93,6 +93,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	signalHeader.theSendersSignalId = * signalData;
 	signalData ++;
       }//if
+      signalHeader.theSignalId= ~0;
       
       Uint32 * sectionPtr = signalData + signalHeader.theLength;
       Uint32 * sectionData = sectionPtr + signalHeader.m_noOfSections;
