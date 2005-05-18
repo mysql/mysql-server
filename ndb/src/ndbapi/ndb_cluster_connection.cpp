@@ -265,14 +265,11 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
   m_connect_callback= 0;
 
   if (ndb_global_event_buffer_mutex == NULL)
-  {
     ndb_global_event_buffer_mutex= NdbMutex_Create();
-  }
+
 #ifdef VM_TRACE
   if (ndb_print_state_mutex == NULL)
-  {
     ndb_print_state_mutex= NdbMutex_Create();
-  }
 #endif
   m_config_retriever=
     new ConfigRetriever(connect_string, NDB_VERSION, NODE_TYPE_API);
@@ -294,7 +291,6 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
 Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 {
   DBUG_ENTER("~Ndb_cluster_connection");
-  DBUG_PRINT("enter",("~Ndb_cluster_connection this=0x%x", this));
   TransporterFacade::stop_instance();
   if (m_connect_thread)
   {
@@ -312,10 +308,22 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     TransporterFacade::theFacadeInstance= 0;
   }
   if (m_config_retriever)
+  {
     delete m_config_retriever;
-
-  //  fragmentToNodeMap.release();
-
+    m_config_retriever= NULL;
+  }
+  if (ndb_global_event_buffer_mutex != NULL)
+  {
+    NdbMutex_Destroy(ndb_global_event_buffer_mutex);
+    ndb_global_event_buffer_mutex= NULL;
+  }
+#ifdef VM_TRACE
+  if (ndb_print_state_mutex != NULL)
+  {
+    NdbMutex_Destroy(ndb_print_state_mutex);
+    ndb_print_state_mutex= NULL;
+  }
+#endif
   DBUG_VOID_RETURN;
 }
 

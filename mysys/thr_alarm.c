@@ -85,6 +85,7 @@ void init_thr_alarm(uint max_alarms)
 #else
   {
     struct sigaction sact;
+    bzero(&sact, sizeof(sact));
     sact.sa_flags = 0;
     sact.sa_handler = thread_alarm;
     sigaction(THR_CLIENT_ALARM, &sact, (struct sigaction*) 0);
