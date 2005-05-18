@@ -43,8 +43,11 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
 int
 sp_rcontext::set_item_eval(uint idx, Item **item_addr, enum_field_types type)
 {
-  extern Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type);
-  Item *it= sp_eval_func_item(current_thd, item_addr, type);
+  extern Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
+				 MEM_ROOT *mem_root,
+				 Item *reuse);
+  THD *thd= current_thd;
+  Item *it= sp_eval_func_item(thd, item_addr, type, thd->mem_root, NULL);
 
   if (! it)
     return -1;
@@ -111,7 +114,12 @@ void
 sp_rcontext::save_variables(uint fp)
 {
   while (fp < m_count)
-    m_saved.push_front(m_frame[fp++]);
+  {
+    Item *it= m_frame[fp];
+
+    m_frame[fp++]= NULL;	// Prevent reuse
+    m_saved.push_front(it);
+  }
 }
 
 void
