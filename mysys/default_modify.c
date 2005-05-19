@@ -37,9 +37,9 @@
 #define NEWLINE_LEN 1
 #endif
 
-uint modify_defaults_file(const char *file_location, const char *option,
-			  const char *option_value,
-			  const char *section_name, int remove_option)
+int modify_defaults_file(const char *file_location, const char *option,
+                         const char *option_value,
+                         const char *section_name, int remove_option)
 {
   FILE *cnf_file;
   struct stat file_stat;
