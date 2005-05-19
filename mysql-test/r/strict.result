@@ -770,7 +770,7 @@ ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES ('-100E+1');
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES ('-100E');
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR HY000: Incorrect decimal value: '-100E' for column 'col1' at row 1
 UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
 ERROR 22003: Out of range value adjusted for column 'col1' at row 6
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
@@ -782,8 +782,7 @@ ERROR HY000: Incorrect decimal value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
 ERROR HY000: Incorrect decimal value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
-Warnings:
-Note	1265	Data truncated for column 'col1' at row 1
+ERROR HY000: Incorrect decimal value: '1a' for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
 Warnings:
 Note	1265	Data truncated for column 'col1' at row 1
@@ -818,7 +817,6 @@ NULL
 -10.56
 11.00
 10.00
-1.00
 2.00
 NULL
 99.99
