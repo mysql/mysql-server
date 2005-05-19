@@ -1088,6 +1088,7 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
     Send GET_TABINFOREQ signal with the table name in the first
     long section part
 */
+
 NdbTableImpl *
 NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
 {
@@ -1095,12 +1096,16 @@ NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
   GetTabInfoReq* const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
   const Uint32 str_len= strlen(name) + 1; // NULL terminated
+  const Uint32 str_len_words= (str_len + 3) / 4; // Size in words
 
-  /* Note! It might be a good idea to check that the length of
-     table name does not exceed the max size of a long signal */
+  if (str_len > MAX_SECTION_SIZE)
+  {
+    m_error.code= 4307;
+    return 0;
+  }
 
   m_namebuf.clear();
-  m_namebuf.grow(str_len+(4-str_len%4)); // Round up to word size
+  m_namebuf.grow(str_len_words*4); // Word size aligned number of bytes
   m_namebuf.append(name, str_len);
 
   req->senderRef= m_reference;
@@ -1114,7 +1119,7 @@ NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
 
   LinearSectionPtr ptr[1];
   ptr[0].p= (Uint32*)m_namebuf.get_data();
-  ptr[0].sz= (str_len + 3)/ 4; // Size in words
+  ptr[0].sz= str_len_words; 
 
   return getTable(&tSignal, ptr, 1, fullyQualifiedNames);
 }
