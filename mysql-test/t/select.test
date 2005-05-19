@@ -1950,7 +1950,6 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 
 DROP TABLE t1, t2;
 
-
 #
 # Test case for bug 7098: substitution of a constant for a string field 
 #
@@ -1993,5 +1992,62 @@ select all distinct * from t1;
 select distinct all * from t1;
 drop table t1;
 
-
 #
+# Test for BUG#10095
+#
+CREATE TABLE t1 (
+  kunde_intern_id int(10) unsigned NOT NULL default '0',
+  kunde_id int(10) unsigned NOT NULL default '0',
+  FK_firma_id int(10) unsigned NOT NULL default '0',
+  aktuell enum('Ja','Nein') NOT NULL default 'Ja',
+  vorname varchar(128) NOT NULL default '',
+  nachname varchar(128) NOT NULL default '',
+  geloescht enum('Ja','Nein') NOT NULL default 'Nein',
+  firma varchar(128) NOT NULL default ''
+);
+
+INSERT INTO t1 VALUES 
+  (3964,3051,1,'Ja','Vorname1','1Nachname','Nein','Print Schau XXXX'),
+  (3965,3051111,1,'Ja','Vorname1111','1111Nachname','Nein','Print Schau XXXX');
+
+
+SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname, geloescht FROM t1
+  WHERE
+   (
+      (
+         ( '' != '' AND firma LIKE CONCAT('%', '', '%'))
+         OR
+         (vorname LIKE CONCAT('%', 'Vorname1', '%') AND 
+          nachname LIKE CONCAT('%', '1Nachname', '%') AND 
+          'Vorname1' != '' AND 'xxxx' != '')
+      )
+      AND
+      (
+        aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
+      )
+   )
+ ;
+
+SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname,
+geloescht FROM t1
+  WHERE
+   (
+     (
+       aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
+     )
+     AND
+     (
+         ( '' != '' AND firma LIKE CONCAT('%', '', '%')  )
+         OR
+         (  vorname LIKE CONCAT('%', 'Vorname1', '%') AND
+nachname LIKE CONCAT('%', '1Nachname', '%') AND 'Vorname1' != '' AND
+'xxxx' != '')
+     )
+   )
+ ;
+
+SELECT COUNT(*) FROM t1 WHERE 
+( 0 OR (vorname LIKE '%Vorname1%' AND nachname LIKE '%1Nachname%' AND 1)) 
+AND FK_firma_id = 2;
+
+drop table t1;
