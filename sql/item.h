@@ -229,59 +229,9 @@ class Item {
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
-  /* For SP reuse mechanism */
-  bool reused;
-  size_t reuse_slot_size;
-  Item *reuse_next;
-
-  static void *operator new(size_t size)
-  {
-    Item *me= (Item *)sql_alloc((uint) size);
-
-    if (me)
-    {
-      me->reuse_slot_size= size;
-      me->reused= FALSE;
-    }
-    return (void*)me;
-  }
+  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
-  {
-    Item *me= (Item *)alloc_root(mem_root, (uint) size);
-
-    if (me)
-    {
-      me->reuse_slot_size= size;
-      me->reused= FALSE;
-    }
-    return (void*)me;
-  }
-  static void *operator new(size_t size, MEM_ROOT *mem_root, Item *reuse)
-  {
-    Item *me;
-
-    if (!reuse || size > reuse->reuse_slot_size)
-    {
-      me= (Item *)alloc_root(mem_root, (uint) size);
-      if (me)
-      {
-	me->reuse_slot_size= size;
-	me->reused= FALSE;
-      }
-    }
-    else
-    {				/* Reuse old item */
-      size_t slot_size= reuse->reuse_slot_size;
-
-      reuse->delete_self();
-      me= reuse;
-      me->reuse_slot_size= slot_size;
-      /* For the constructor */
-      me->reuse_next= reuse->next;
-      me->reused= TRUE;
-    }
-    return (void *)me;
-  }
+  { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 

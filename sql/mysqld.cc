@@ -40,11 +40,7 @@
 #else
 #define OPT_INNODB_DEFAULT 0
 #endif
-#ifdef HAVE_BERKLEY_DB
-#define OPT_BDB_DEFAULT 1
-#else
 #define OPT_BDB_DEFAULT 0
-#endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
 #if defined(NOT_ENOUGH_TESTED) \

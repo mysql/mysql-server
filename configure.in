@@ -1812,6 +1812,7 @@ fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
+AC_CHECK_TYPES([u_int32_t])
 
 MYSQL_PTHREAD_YIELD
 

@@ -330,6 +330,10 @@ SOURCE=..\mysys\my_alloc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\my_chsize.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_compress.c
 # ADD CPP /I "../zlib"
 # End Source File
