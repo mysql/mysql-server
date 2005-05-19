@@ -713,8 +713,7 @@ SQL_SELECT::~SQL_SELECT()
 
 QUICK_SELECT_I::QUICK_SELECT_I()
   :max_used_key_length(0),
-   used_key_parts(0),
-   records(0)
+   used_key_parts(0)
 {}
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
