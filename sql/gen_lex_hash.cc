@@ -459,8 +459,8 @@ int main(int argc,char **argv)
   generate_find_structs();
   print_find_structs();
 
-  printf("\static unsigned int sql_functions_max_len=%d;\n",max_len);
-  printf("\static unsigned int symbols_max_len=%d;\n\n",max_len2);
+  printf("\nstatic unsigned int sql_functions_max_len=%d;\n", max_len);
+  printf("\nstatic unsigned int symbols_max_len=%d;\n\n", max_len2);
 
   printf("\
 static inline SYMBOL *get_hash_symbol(const char *s,\n\
