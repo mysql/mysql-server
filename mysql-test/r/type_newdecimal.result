@@ -885,3 +885,9 @@ SELECT GRADE  FROM t1 WHERE GRADE= 151;
 GRADE
 151
 DROP TABLE t1;
+select abs(10/0);
+abs(10/0)
+NULL
+select abs(NULL);
+abs(NULL)
+NULL
