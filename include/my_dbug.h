@@ -39,7 +39,7 @@ extern	void _db_pargs_(uint _line_,const char *keyword);
 extern	void _db_doprnt_ _VARARGS((const char *format,...));
 extern	void _db_dump_(uint _line_,const char *keyword,const char *memory,
 		       uint length);
-extern	void _db_output_(uint);
+extern	void _db_output_(uint flag);
 extern	void _db_lock_file(void);
 extern	void _db_unlock_file(void);
 
