@@ -580,7 +580,7 @@ NdbTableImpl::getColumn(const char * name){
   } else {
     for(Uint32 i = 0; i<sz; i++){
       NdbColumnImpl* col = * cols++;
-      if(col != 0 && strncmp(name, col->m_name.c_str(), col->m_name.length()) == 0)
+      if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
 	return col;
     }
   }
