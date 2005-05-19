@@ -273,8 +273,8 @@ int CertManager::SetPrivateKey(const x509& key)
     privateKey_.assign(key.get_buffer(), key.get_length());
 
     // set key type
-    if (x509* cert = list_.front()) {
-        TaoCrypt::Source source(cert->get_buffer(), cert->get_length());
+    if (x509* cert509 = list_.front()) {
+        TaoCrypt::Source source(cert509->get_buffer(), cert509->get_length());
         TaoCrypt::CertDecoder cert(source, false);
         cert.DecodeToKey();
         if (int err = cert.GetError().What())
