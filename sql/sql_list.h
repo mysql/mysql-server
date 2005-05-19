@@ -129,10 +129,32 @@ public:
   void remove(list_node **prev)
   {
     list_node *node=(*prev)->next;
+    if (&(*prev)->next == last)
+    {
+      /*
+        We're removing the last element from the list. Adjust "last" to point
+        to the previous element.
+        The other way to fix this would be to change this function to
+        remove_next() and have base_list_iterator save ptr to previous node
+        (one extra assignment in iterator++) but as the remove() of the last
+        element isn't a common operation it's faster to just walk through the
+        list from the beginning here.
+      */
+      list_node *cur= first;
+      if (cur == *prev)
+      {
+        last= &first;
+      }
+      else
+      {
+        while (cur->next != *prev)
+          cur= cur->next;
+        last= &(cur->next);
+      }
+    }
     delete *prev;
     *prev=node;
-    if (!--elements)
-      last= &first;
+    elements--;
   }
   inline void concat(base_list *list)
   {
@@ -161,6 +183,54 @@ public:
   friend class base_list_iterator;
   friend class error_list;
   friend class error_list_iterator;
+
+#ifdef LIST_EXTRA_DEBUG
+  /*
+    Check list invariants and print results into trace. Invariants are:
+      - (*last) points to end_of_list
+      - There are no NULLs in the list.
+      - base_list::elements is the number of elements in the list.
+
+    SYNOPSIS
+      check_list()
+        name  Name to print to trace file
+
+    RETURN 
+      1  The list is Ok.
+      0  List invariants are not met.
+  */
+
+  bool check_list(const char *name)
+  {
+    base_list *list= this;
+    list_node *node= first;
+    uint cnt= 0;
+
+    while (node->next != &end_of_list)
+    {
+      if (!node->info)
+      {
+        DBUG_PRINT("list_invariants",("%s: error: NULL element in the list", 
+                                      name));
+        return FALSE;
+      }
+      node= node->next;
+      cnt++;
+    }
+    if (last != &(node->next))
+    {
+      DBUG_PRINT("list_invariants", ("%s: error: wrong last pointer", name));
+      return FALSE;
+    }
+    if (cnt+1 != elements)
+    {
+      DBUG_PRINT("list_invariants", ("%s: error: wrong element count", name));
+      return FALSE;
+    }
+    DBUG_PRINT("list_invariants", ("%s: list is ok", name));
+    return TRUE;
+  }
+#endif // LIST_EXTRA_DEBUG
 
 protected:
   void after(void *info,list_node *node)
