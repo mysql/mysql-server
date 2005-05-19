@@ -417,9 +417,9 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 /* Some other useful functions */
 
 my_bool my_init(void);
-extern uint modify_defaults_file(const char *file_location, const char *option,
-				 const char *option_value,
-				 const char *section_name, int remove_option);
+extern int modify_defaults_file(const char *file_location, const char *option,
+                                const char *option_value,
+                                const char *section_name, int remove_option);
 int load_defaults(const char *conf_file, const char **groups,
 		  int *argc, char ***argv);
 my_bool my_thread_init(void);

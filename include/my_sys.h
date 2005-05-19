@@ -782,9 +782,9 @@ extern void get_defaults_files(int argc, char **argv,
                                char **defaults, char **extra_defaults);
 extern int load_defaults(const char *conf_file, const char **groups,
 			 int *argc, char ***argv);
-extern uint modify_defaults_file(const char *file_location, const char *option,
-				 const char *option_value,
-				 const char *section_name, int remove_option);
+extern int modify_defaults_file(const char *file_location, const char *option,
+                                const char *option_value,
+                                const char *section_name, int remove_option);
 extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
                                   Process_option_func func, void *func_ctx);
