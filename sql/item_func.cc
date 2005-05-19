@@ -1063,11 +1063,11 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
   if ((null_value= args[0]->null_value))
     return 0;
   val2= args[1]->val_decimal(&value2);
-  if ((null_value= (args[1]->null_value ||
-                    my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                   val2) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[1]->null_value ||
+                     my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 /*
@@ -1136,11 +1136,11 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
   if ((null_value= args[0]->null_value))
     return 0;
   val2= args[1]->val_decimal(&value2);
-  if ((null_value= (args[1]->null_value ||
-                    my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                   val2) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[1]->null_value ||
+                     my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1174,11 +1174,11 @@ my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value)
   if ((null_value= args[0]->null_value))
     return 0;
   val2= args[1]->val_decimal(&value2);
-  if ((null_value= (args[1]->null_value ||
-                    my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                   val2) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[1]->null_value ||
+                     my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1396,8 +1396,9 @@ my_decimal *Item_func_neg::decimal_op(my_decimal *decimal_value)
   {
     my_decimal2decimal(value, decimal_value);
     my_decimal_neg(decimal_value);
+    return decimal_value;
   }
-  return decimal_value;
+  return 0;
 }
 
 
@@ -1460,8 +1461,9 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value)
     my_decimal2decimal(value, decimal_value);
     if (decimal_value->sign())
       my_decimal_neg(decimal_value);
+    return decimal_value;
   }
-  return decimal_value;
+  return 0;
 }
 
 
@@ -1761,11 +1763,11 @@ double Item_func_ceiling::real_op()
 my_decimal *Item_func_ceiling::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
-  if ((null_value= (args[0]->null_value ||
-                    my_decimal_ceiling(E_DEC_FATAL_ERROR, value,
-                                       decimal_value) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[0]->null_value ||
+                     my_decimal_ceiling(E_DEC_FATAL_ERROR, value,
+                                        decimal_value) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1808,11 +1810,11 @@ double Item_func_floor::real_op()
 my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
-  if ((null_value= (args[0]->null_value ||
-                    my_decimal_floor(E_DEC_FATAL_ERROR, value,
-                                     decimal_value) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[0]->null_value ||
+                     my_decimal_floor(E_DEC_FATAL_ERROR, value,
+                                      decimal_value) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1955,11 +1957,11 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   {
     decimals= min(dec, DECIMAL_MAX_SCALE); // to get correct output
   }
-  if ((null_value= (args[0]->null_value || args[1]->null_value ||
-                    my_decimal_round(E_DEC_FATAL_ERROR, value, dec, truncate,
-                                     decimal_value) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[0]->null_value || args[1]->null_value ||
+                     my_decimal_round(E_DEC_FATAL_ERROR, value, dec, truncate,
+                                      decimal_value) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
