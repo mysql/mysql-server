@@ -97,7 +97,7 @@ typedef unsigned int   word32;
             typedef word32 word;
             typedef word64 dword;
     #else
-            typedef word8  hword;
+            typedef byte   hword;
             typedef word16 word;
             typedef word32 dword;
     #endif
