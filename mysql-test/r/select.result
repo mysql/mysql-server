@@ -2454,7 +2454,7 @@ select all distinct * from t1;
 ERROR HY000: Incorrect usage of ALL and DISTINCT
 select distinct all * from t1;
 ERROR HY000: Incorrect usage of ALL and DISTINCT
-DROP TABLE t1;
+drop table t1;
 CREATE TABLE t1 (
 kunde_intern_id int(10) unsigned NOT NULL default '0',
 kunde_id int(10) unsigned NOT NULL default '0',
