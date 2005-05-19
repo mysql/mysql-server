@@ -307,14 +307,8 @@ Item::Item():
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
-
-  if (reused)
-    next= reuse_next;
-  else
-  {
-    next= thd->free_list;
-    thd->free_list= this;
-  }
+  next= thd->free_list;
+  thd->free_list= this;
   /*
     Item constructor can be called during execution other then SQL_COM
     command => we should check thd->lex->current_select on zero (thd->lex
@@ -349,13 +343,8 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation)
 {
-  if (reused)
-    next= reuse_next;
-  else
-  {
-    next= thd->free_list;	// Put in free list
-    thd->free_list= this;
-  }
+  next= thd->free_list;				// Put in free list
+  thd->free_list= this;
 }
 
 
