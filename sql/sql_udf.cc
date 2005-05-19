@@ -195,7 +195,7 @@ void udf_init()
     */
     if (strchr(dl_name, '/') ||
         IF_WIN(strchr(dl_name, '\\'),0) ||
-        strlen(name) > NAME_LEN)
+        strlen(name.str) > NAME_LEN)
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
                       name.str);
