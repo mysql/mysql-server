@@ -851,10 +851,13 @@ static void init_default_directories()
 
   if (GetWindowsDirectory(system_dir,sizeof(system_dir)))
     *ptr++= &system_dir;
+#if defined(_MSC_VER) && (_MSC_VER >= 1300)
+  /* Only VC7 and up */
   /* Only add shared system directory if different from default. */
   if (GetSystemWindowsDirectory(shared_system_dir,sizeof(shared_system_dir)) &&
       strcmp(system_dir, shared_system_dir))
     *ptr++= &shared_system_dir;
+#endif
 
 #elif defined(__NETWARE__)
   *ptr++= "sys:/etc/";
