@@ -111,9 +111,9 @@ int Instance_options::fill_log_options()
     const char *default_suffix;
   } logs_st[]=
   {
-    {"--log-error", 11, &(logs[LOG_ERROR]), ".err"},
-    {"--log", 5, &(logs[LOG_GENERAL]), ".log"},
-    {"--log-slow-queries", 18, &(logs[LOG_SLOW]), "-slow.log"},
+    {"--log-error", 11, &(logs[IM_LOG_ERROR]), ".err"},
+    {"--log", 5, &(logs[IM_LOG_GENERAL]), ".log"},
+    {"--log-slow-queries", 18, &(logs[IM_LOG_SLOW]), "-slow.log"},
     {NULL, 0, NULL, NULL}
   };
   struct log_files_st *log_files;

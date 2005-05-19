@@ -307,14 +307,8 @@ Item::Item():
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
-
-  if (reused)
-    next= reuse_next;
-  else
-  {
-    next= thd->free_list;
-    thd->free_list= this;
-  }
+  next= thd->free_list;
+  thd->free_list= this;
   /*
     Item constructor can be called during execution other then SQL_COM
     command => we should check thd->lex->current_select on zero (thd->lex
@@ -349,13 +343,8 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation)
 {
-  if (reused)
-    next= reuse_next;
-  else
-  {
-    next= thd->free_list;	// Put in free list
-    thd->free_list= this;
-  }
+  next= thd->free_list;				// Put in free list
+  thd->free_list= this;
 }
 
 
@@ -3559,7 +3548,7 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
 
 Item *Item_int_with_ref::new_item()
 {
-  DBUG_ASSERT(ref->basic_const_item());
+  DBUG_ASSERT(ref->const_item());
   /*
     We need to evaluate the constant to make sure it works with
     parameter markers.
