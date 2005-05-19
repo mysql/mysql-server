@@ -148,7 +148,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using index for group-by
 explain select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	NULL	idx_t2_1	146	NULL	#	Using index for group-by
+1	SIMPLE	t2	range	NULL	idx_t2_1	#	NULL	#	Using index for group-by
 explain select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	65	NULL	5	Using index for group-by
