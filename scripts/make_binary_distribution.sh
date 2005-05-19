@@ -315,7 +315,7 @@ system=`echo $system | sed -e 's/solaris2.\([0-9]*\)/solaris\1/g'`
 system=`echo $system | sed -e 's/sco3.2v\(.*\)/openserver\1/g'`
 
 # Use the override --machine if present
-if [ -n $MACHINE ] ; then
+if [ -n "$MACHINE" ] ; then
   machine=$MACHINE
 fi
 

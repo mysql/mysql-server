@@ -2244,7 +2244,6 @@ print_warnings()
   char query[30];
   MYSQL_RES    *result;
   MYSQL_ROW    cur;
-  MYSQL_FIELD  *field;
 
   /* Get the warnings */
   strmov(query,"show warnings");
