@@ -1316,7 +1316,7 @@ JOIN::exec()
     }
     curr_all_fields= &tmp_all_fields1;
     curr_fields_list= &tmp_fields_list1;
-    set_items_ref_array(items1);
+    curr_join->set_items_ref_array(items1);
     
     if (sort_and_group || curr_tmp_table->group)
     {
@@ -1451,7 +1451,7 @@ JOIN::exec()
       }
       curr_fields_list= &curr_join->tmp_fields_list2;
       curr_all_fields= &curr_join->tmp_all_fields2;
-      set_items_ref_array(items2);
+      curr_join->set_items_ref_array(items2);
       curr_join->tmp_table_param.field_count+= 
 	curr_join->tmp_table_param.sum_func_count;
       curr_join->tmp_table_param.sum_func_count= 0;
@@ -1512,7 +1512,7 @@ JOIN::exec()
     }
     curr_fields_list= &tmp_fields_list3;
     curr_all_fields= &tmp_all_fields3;
-    set_items_ref_array(items3);
+    curr_join->set_items_ref_array(items3);
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 				      1, TRUE) || 
