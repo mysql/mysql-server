@@ -67,14 +67,14 @@ master-bin.000002	110	Query	1	110	use `test`; create table t1 (n int)
 master-bin.000002	168	Query	1	168	use `test`; insert into t1 values (1)
 master-bin.000002	228	Query	1	228	use `test`; drop table t1
 show binary logs;
-Log_name
-master-bin.000001
-master-bin.000002
+Log_name	File_size
+master-bin.000001	0
+master-bin.000002	276
 start slave;
 show binary logs;
-Log_name
-slave-bin.000001
-slave-bin.000002
+Log_name	File_size
+slave-bin.000001	0
+slave-bin.000002	170
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 slave-bin.000001	4	Start	2	4	Server ver: VERSION, Binlog ver: 3
