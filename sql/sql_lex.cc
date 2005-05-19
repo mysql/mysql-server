@@ -1101,7 +1101,7 @@ void st_select_lex::init_query()
   embedding= leaf_tables= 0;
   item_list.empty();
   join= 0;
-  where= prep_where= 0;
+  having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
   resolve_mode= NOMATTER_MODE;

@@ -72,6 +72,9 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
+  *opened= FALSE;
+  *tablep= 0;
+
   /*
     Speed up things if mysql.proc doesn't exists. mysql_proc_table_exists
     is set when we create or read stored procedure or on flush privileges.
@@ -88,9 +91,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
           strcmp(table->s->table_name, "proc") == 0)
         break;
   }
-  if (table)
-    *opened= FALSE;
-  else
+  if (!table)
   {
     TABLE_LIST tables;
 
@@ -99,7 +100,6 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
     tables.table_name= tables.alias= (char*)"proc";
     if (! (table= open_ltable(thd, &tables, ltype)))
     {
-      *tablep= NULL;
       /*
         Under explicit LOCK TABLES or in prelocked mode we should not
         say that mysql.proc table does not exist if we are unable to
@@ -131,7 +131,6 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
 				  key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
   {
-    *tablep= NULL;
     DBUG_RETURN(SP_KEY_NOT_FOUND);
   }
   *tablep= table;
