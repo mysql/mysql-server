@@ -28,7 +28,8 @@
     %#[l]u
     %#[l]x
     %#.#s	Note first # is ignored
-
+    %c
+    
   RETURN
     length of result string
 */
@@ -118,6 +119,11 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 	bmove(to, store_start, res_length);
       }
       to+= res_length;
+      continue;
+    }
+    else if (*fmt == 'c')
+    {
+      *(to++)= (char) va_arg(ap, int);
       continue;
     }
     /* We come here on '%%', unknown code or too long parameter */
