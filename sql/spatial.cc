@@ -98,6 +98,12 @@ static Geometry::Class_info
 geometrycollection_class("GEOMETRYCOLLECTION",Geometry::wkb_geometrycollection,
 			 create_geometrycollection);
 
+static void get_point(double *x, double *y, const char *data)
+{
+  float8get(*x, data);
+  float8get(*y, data + SIZEOF_STORED_DOUBLE);
+}
+
 /***************************** Geometry *******************************/
 
 Geometry::Class_info *Geometry::find_class(const char *name, uint32 len)
@@ -268,14 +274,13 @@ const char *Geometry::append_points(String *txt, uint32 n_points,
 {			     
   while (n_points--)
   {
-    double d;
+    double x,y;
     data+= offset;
-    float8get(d, data);
-    txt->qs_append(d);
-    txt->qs_append(' ');
-    float8get(d, data + SIZEOF_STORED_DOUBLE);
+    get_point(&x, &y, data);
     data+= SIZEOF_STORED_DOUBLE * 2;
-    txt->qs_append(d);
+    txt->qs_append(x);
+    txt->qs_append(' ');
+    txt->qs_append(y);
     txt->qs_append(',');
   }
   return data;
@@ -428,8 +433,7 @@ bool Gis_line_string::get_data_as_wkt(String *txt, const char **end) const
   while (n_points--)
   {
     double x, y;
-    float8get(x, data);
-    float8get(y, data + SIZEOF_STORED_DOUBLE);
+    get_point(&x, &y, data);
     data+= SIZEOF_STORED_DOUBLE * 2;
     txt->qs_append(x);
     txt->qs_append(' ');
@@ -462,15 +466,13 @@ int Gis_line_string::length(double *len) const
   if (n_points < 1 || no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
     return 1;
 
-  float8get(prev_x, data);
-  float8get(prev_y, data + SIZEOF_STORED_DOUBLE);
+  get_point(&prev_x, &prev_y, data);
   data+= SIZEOF_STORED_DOUBLE*2;
 
   while (--n_points)
   {
     double x, y;
-    float8get(x, data);
-    float8get(y, data + SIZEOF_STORED_DOUBLE);
+    get_point(&x, &y, data);
     data+= SIZEOF_STORED_DOUBLE * 2;
     *len+= sqrt(pow(prev_x-x,2)+pow(prev_y-y,2));
     prev_x= x;
@@ -499,13 +501,11 @@ int Gis_line_string::is_closed(int *closed) const
     return 1;
 
   /* Get first point */
-  float8get(x1, data);
-  float8get(y1, data + SIZEOF_STORED_DOUBLE);
+  get_point(&x1, &y1, data);
 
   /* get last point */
   data+= SIZEOF_STORED_DOUBLE*2 + (n_points-2)*POINT_DATA_SIZE;
-  float8get(x2, data);
-  float8get(y2, data + SIZEOF_STORED_DOUBLE);
+  get_point(&x2, &y2, data);
 
   *closed= (x1==x2) && (y1==y2);
   return 0;
@@ -683,15 +683,13 @@ int Gis_polygon::area(double *ar, const char **end_of_data) const
     n_points= uint4korr(data);
     if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
       return 1;
-    float8get(prev_x, data+4);
-    float8get(prev_y, data+(4+SIZEOF_STORED_DOUBLE));
+    get_point(&prev_x, &prev_y, data+4);
     data+= (4+SIZEOF_STORED_DOUBLE*2);
 
     while (--n_points)				// One point is already read
     {
       double x, y;
-      float8get(x, data);
-      float8get(y, data + SIZEOF_STORED_DOUBLE);
+      get_point(&x, &y, data);
       data+= (SIZEOF_STORED_DOUBLE*2);
       /* QQ: Is the following prev_x+x right ? */
       lr_area+= (prev_x + x)* (prev_y - y);
@@ -781,7 +779,8 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
 int Gis_polygon::centroid_xy(double *x, double *y) const
 {
   uint32 n_linear_rings;
-  double res_area, res_cx, res_cy;
+  double res_area;
+  double res_cx, res_cy;
   const char *data= m_data;
   bool first_loop= 1;
   LINT_INIT(res_area);
@@ -807,15 +806,13 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
     data+= 4;
     if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
       return 1;
-    float8get(prev_x, data);
-    float8get(prev_y, data+SIZEOF_STORED_DOUBLE);
+    get_point(&prev_x, &prev_y, data);
     data+= (SIZEOF_STORED_DOUBLE*2);
 
     while (--n_points)				// One point is already read
     {
       double x, y;
-      float8get(x, data);
-      float8get(y, data + SIZEOF_STORED_DOUBLE);
+      get_point(&x, &y, data);
       data+= (SIZEOF_STORED_DOUBLE*2);
       /* QQ: Is the following prev_x+x right ? */
       cur_area+= (prev_x + x) * (prev_y - y);
