@@ -226,7 +226,7 @@ void symdirget(char *dir)
 {
   char buff[FN_REFLEN];
   char *pos=strend(dir);
-  if (dir[0] && pos[-1] != FN_DEVCHAR && access(dir, F_OK))
+  if (dir[0] && pos[-1] != FN_DEVCHAR && !my_access(dir, F_OK))
   {
     File file;
     uint length;
