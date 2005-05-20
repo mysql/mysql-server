@@ -257,18 +257,17 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   int n_dim;
   uchar *source_cur, *cur1, *cur2;
   uchar *new_page;
-  int err_code = 0;
-
-  uint nod_flag = mi_test_if_nod(page);
-  uint full_length = key_length + (nod_flag ? nod_flag : 
-                                   info->s->base.rec_reflength);
-
-  int max_keys = (mi_getint(page)-2) / (full_length);
+  int err_code= 0;
+  uint nod_flag= mi_test_if_nod(page);
+  uint full_length= key_length + (nod_flag ? nod_flag : 
+                                  info->s->base.rec_reflength);
+  int max_keys= (mi_getint(page)-2) / (full_length);
 
   n_dim = keyinfo->keysegs / 2;
   
-  if (!(coord_buf= my_alloca(n_dim * 2 * sizeof(double) * (max_keys + 1 + 4) +
-			     sizeof(SplitStruct) * (max_keys + 1))))
+  if (!(coord_buf= (double*) my_alloca(n_dim * 2 * sizeof(double) *
+                                       (max_keys + 1 + 4) +
+                                       sizeof(SplitStruct) * (max_keys + 1))))
     return -1;
 
   task= (SplitStruct *)(coord_buf + n_dim * 2 * (max_keys + 1 + 4));
