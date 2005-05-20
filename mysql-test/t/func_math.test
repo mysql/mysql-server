@@ -54,6 +54,11 @@ SELECT ASIN(1.2-0.2);
 #select floor(log(8)/log(2));
 #select floor(log(16)/log(2));
 
+#
+# Bug #9060 (format returns incorrect result)
+#
+select format(4.55, 1), format(4.551, 1);
+
 explain extended select degrees(pi()),radians(360);
 
 #
