@@ -1270,8 +1270,10 @@ void free_items(Item *item)
 
 void cleanup_items(Item *item)
 {
+  DBUG_ENTER("cleanup_items");  
   for (; item ; item=item->next)
     item->cleanup();
+  DBUG_VOID_RETURN;
 }
 
 int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
