@@ -29,7 +29,7 @@
 #ifndef yaSSL_SOCKET_WRAPPER_HPP
 #define yaSSL_SOCKET_WRAPPER_HPP
 
-#include <cassert>
+#include <assert.h>
 
 #ifdef WIN32
     #include <winsock2.h>

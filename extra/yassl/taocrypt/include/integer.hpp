@@ -29,7 +29,7 @@
 #include "block.hpp"
 #include "random.hpp"
 #include "file.hpp"
-#include <cstring>
+#include <string.h>
 #include "algorithm.hpp"    // mySTL::swap
 
 
