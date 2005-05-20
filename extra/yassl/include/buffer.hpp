@@ -27,7 +27,7 @@
 #ifndef yaSSL_BUFFER_HPP
 #define yaSSL_BUFFER_HPP
 
-#include <cassert>              // assert
+#include <assert.h>             // assert
 #include "yassl_error.hpp"      // Error
 #include "memory.hpp"           // mySTL::auto_ptr
 #include "algorithm.hpp"        // mySTL::swap
