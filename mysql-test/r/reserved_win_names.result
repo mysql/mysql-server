@@ -1,0 +1,7 @@
+use COM1;
+ERROR 42000: Unknown database 'com1'
+use LPT1;
+ERROR 42000: Unknown database 'lpt1'
+use PRN;
+ERROR 42000: Unknown database 'prn'
+
