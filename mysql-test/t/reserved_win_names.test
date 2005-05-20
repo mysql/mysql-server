@@ -1,0 +1,12 @@
+#
+# Test of reserved Windows names
+#
+--require r/reserved_win_names.require
+
+--error 1049
+use COM1;
+--error 1049
+use LPT1;
+--error 1049
+use PRN;
+
