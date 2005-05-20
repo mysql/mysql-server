@@ -32,8 +32,8 @@
 
 #ifdef __IBMCPP__
 /*
-  Workaround the lack of operator new(size_t, void*)
-  in IBM VA CPP 6.0
+  Workaround for the lack of operator new(size_t, void*)
+  in IBM VA C++ 6.0
 */
 struct Dummy {};
 inline void *operator new(size_t size, Dummy *d) { return (void*) d; }
