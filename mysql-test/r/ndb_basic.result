@@ -667,3 +667,9 @@ counter	datavalue
 57	newval
 58	newval
 drop table t1;
+create table atablewithareallylongandirritatingname (a int);
+insert into atablewithareallylongandirritatingname values (2);
+select * from atablewithareallylongandirritatingname;
+a
+2
+drop table atablewithareallylongandirritatingname;

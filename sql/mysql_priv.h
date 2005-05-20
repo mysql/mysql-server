@@ -1254,6 +1254,7 @@ ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 ha_rows max_rows, ha_rows *examined_rows);
 void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
+double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
 uint calc_week(TIME *l_time, uint week_behaviour, uint *year);

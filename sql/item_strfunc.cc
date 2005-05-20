@@ -1673,6 +1673,7 @@ String *Item_func_format::val_str(String *str)
   int diff;
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
+  nr= my_double_round(nr, decimals, FALSE);
   dec= decimals ? decimals+1 : 0;
   /* Here default_charset() is right as this is not an automatic conversion */
   str->set(nr,decimals, default_charset());

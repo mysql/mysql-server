@@ -120,6 +120,9 @@ ASIN(0.8+0.2)
 SELECT ASIN(1.2-0.2);
 ASIN(1.2-0.2)
 1.5707963267949
+select format(4.55, 1), format(4.551, 1);
+format(4.55, 1)	format(4.551, 1)
+4.6	4.6
 explain extended select degrees(pi()),radians(360);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
