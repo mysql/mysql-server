@@ -2803,3 +2803,16 @@ SELECT s.ip, count( e.itemid ) FROM `t1` e JOIN t2 s ON s.sessionid = e.sessioni
 ip	count( e.itemid )
 10.10.10.1	1
 drop tables t1,t2;
+CREATE TABLE t1 (EMPNUM   CHAR(3));
+CREATE TABLE t2 (EMPNUM   CHAR(3) );
+INSERT INTO t1 VALUES ('E1'),('E2');
+INSERT INTO t2 VALUES ('E1');
+DELETE FROM t1
+WHERE t1.EMPNUM NOT IN
+(SELECT t2.EMPNUM
+FROM t2
+WHERE t1.EMPNUM = t2.EMPNUM);
+select * from t1;
+EMPNUM
+E1
+DROP TABLE t1,t2;
