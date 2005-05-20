@@ -6611,6 +6611,11 @@ use:	USE_SYM ident
 load:   LOAD DATA_SYM 
         {
           LEX *lex=Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
+	    YYABORT;
+	  }
           lex->fname_start= lex->ptr;
         }
         load_data
@@ -6618,7 +6623,13 @@ load:   LOAD DATA_SYM
         |
         LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
-          Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+	  LEX *lex=Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD TABLE");
+	    YYABORT;
+	  }
+          lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
           if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
             YYABORT;
         };
