@@ -27,7 +27,7 @@
 #ifndef yaSSL_TYPES_HPP
 #define yaSSL_TYPES_HPP
 
-#include<cstddef>
+#include <stddef.h>
 
 namespace yaSSL {
 
