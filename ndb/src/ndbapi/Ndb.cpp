@@ -230,9 +230,10 @@ Remark:        Disconnect all connections to the database.
 void 
 Ndb::doDisconnect()
 {
-  DBUG_ENTER("Ndb::doDisconnect");
   NdbTransaction* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
+  /* DBUG_ENTER must be after CHECK_STATUS_MACRO_VOID because of 'return' */
+  DBUG_ENTER("Ndb::doDisconnect");
 
   Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
   Uint8 *theDBnodes= theImpl->theDBnodes;
