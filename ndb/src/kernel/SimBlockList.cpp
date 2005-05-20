@@ -39,7 +39,6 @@
 #else
 enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
 
-static
 void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
   char * tmp = (char *)malloc(sz);
 
