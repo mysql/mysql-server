@@ -3009,12 +3009,13 @@ static int get_schema_key_column_usage_record(THD *thd,
     while ((f_key_info= it++))
     {
       LEX_STRING *f_info;
+      LEX_STRING *r_info;
       List_iterator_fast<LEX_STRING> it(f_key_info->foreign_fields),
         it1(f_key_info->referenced_fields);
       uint f_idx= 0;
       while ((f_info= it++))
       {
-        it1++;                                  // Ignore r_info
+        r_info= it1++;
         f_idx++;
         restore_record(table, s->default_values);
         store_key_column_usage(table, base_name, file_name,
@@ -3024,6 +3025,17 @@ static int get_schema_key_column_usage_record(THD *thd,
                                (longlong) f_idx);
         table->field[8]->store((longlong) f_idx);
         table->field[8]->set_notnull();
+        table->field[9]->store(f_key_info->referenced_db->str,
+                               f_key_info->referenced_db->length,
+                               system_charset_info);
+        table->field[9]->set_notnull();
+        table->field[10]->store(f_key_info->referenced_table->str,
+                                f_key_info->referenced_table->length, 
+                                system_charset_info);
+        table->field[10]->set_notnull();
+        table->field[11]->store(r_info->str, r_info->length,
+                                system_charset_info);
+        table->field[11]->set_notnull();
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(1);
       }
@@ -3771,6 +3783,9 @@ ST_FIELD_INFO key_column_usage_fields_info[]=
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ORDINAL_POSITION", 10 ,MYSQL_TYPE_LONG, 0, 0, 0},
   {"POSITION_IN_UNIQUE_CONSTRAINT", 10 ,MYSQL_TYPE_LONG, 0, 1, 0},
+  {"REFERENCED_TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"REFERENCED_COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
