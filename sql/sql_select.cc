@@ -6381,7 +6381,9 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
     if (left_item->type() == Item::FIELD_ITEM &&
-        right_item->type() == Item::FIELD_ITEM)
+        right_item->type() == Item::FIELD_ITEM &&
+        !((Item_field*)left_item)->depended_from &&
+        !((Item_field*)right_item)->depended_from)
     {
       /* The predicate the form field1=field2 is processed */
 
@@ -6460,13 +6462,15 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
       /* The predicate of the form field=const/const=field is processed */
       Item *const_item= 0;
       Item_field *field_item= 0;
-      if (left_item->type() == Item::FIELD_ITEM && 
+      if (left_item->type() == Item::FIELD_ITEM &&
+          !((Item_field*)left_item)->depended_from &&
           right_item->const_item())
       {
         field_item= (Item_field*) left_item;
         const_item= right_item;
       }
-      else if (right_item->type() == Item::FIELD_ITEM && 
+      else if (right_item->type() == Item::FIELD_ITEM &&
+               !((Item_field*)right_item)->depended_from &&
                left_item->const_item())
       {
         field_item= (Item_field*) right_item;
