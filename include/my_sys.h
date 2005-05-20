@@ -573,6 +573,11 @@ extern char *_my_strdup_with_length(const byte *from, uint length,
 				    const char *sFile, uint uLine,
 				    myf MyFlag);
 
+#ifdef __WIN__
+extern int my_access(const char *path, int amode);
+#else
+#define my_access access
+#endif
 
 #ifndef TERMINATE
 extern void TERMINATE(FILE *file);
