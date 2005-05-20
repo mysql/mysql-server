@@ -894,6 +894,18 @@ delete from t1|
 
 
 #
+# BUG#10537: Server crashes while loading data file into table through
+#            procedure.
+# Disable load until it's PS and SP safe
+--disable_warnings
+drop procedure if exists bug10537|
+--enable_warnings
+--error ER_SP_BADSTATEMENT
+create procedure bug10537()
+  load data local infile '/tmp/somefile' into table t1|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
