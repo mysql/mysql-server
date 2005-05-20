@@ -28,7 +28,7 @@
 #define mySTL_STDEXCEPT_HPP
 
 
-#include <cstring>  // strncpy
+#include <string.h>  // strncpy
 
 
 namespace mySTL {
