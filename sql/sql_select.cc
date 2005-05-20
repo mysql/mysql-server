@@ -12659,8 +12659,10 @@ static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
   Item_sum *func;
   DBUG_ENTER("setup_sum_funcs");
   while ((func= *(func_ptr++)))
+  {
     if (func->setup(thd))
       DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(FALSE);
 }
 
@@ -12947,8 +12949,6 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	*/
 	item= item->copy_or_same(thd);
 	((Item_sum*) item)->make_unique();
-	if (((Item_sum*) item)->setup(thd))
-	  return 1;
 	*(*func)= (Item_sum*) item;
 	(*func)++;
       }
