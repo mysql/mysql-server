@@ -29,7 +29,7 @@
 #include "misc.hpp"
 #include "block.hpp"
 #include "error.hpp"
-#include <cstdio>
+#include <stdio.h>
 
 namespace TaoCrypt {
 
