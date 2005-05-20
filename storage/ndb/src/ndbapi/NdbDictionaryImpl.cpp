@@ -172,6 +172,7 @@ NdbColumnImpl::init(Type t)
     m_length = 1; // legal
     m_cs = NULL;
     break;
+  default:
   case Undefined:
     assert(false);
     break;
@@ -299,22 +300,25 @@ NdbTableImpl::~NdbTableImpl()
 
 void
 NdbTableImpl::init(){
-  clearNewProperties();
+  m_changeMask= 0;
+  m_tableId= RNIL;
   m_frm.clear();
-  m_fragmentType = NdbDictionary::Object::FragAllSmall;
-  m_logging = true;
-  m_kvalue = 6;
-  m_minLoadFactor = 78;
-  m_maxLoadFactor = 80;
-
-  m_index = 0;
-  m_indexType = NdbDictionary::Index::Undefined;
-  
-  m_noOfKeys = 0;
-  m_noOfDistributionKeys = 0;
-  m_fragmentCount = 0;
-  m_keyLenInWords = 0;
-  m_noOfBlobs = 0;
+  m_fragmentType= NdbDictionary::Object::FragAllSmall;
+  m_hashValueMask= 0;
+  m_hashpointerValue= 0;
+  m_logging= true;
+  m_kvalue= 6;
+  m_minLoadFactor= 78;
+  m_maxLoadFactor= 80;
+  m_keyLenInWords= 0;
+  m_fragmentCount= 0;
+  m_dictionary= NULL;
+  m_index= NULL;
+  m_indexType= NdbDictionary::Index::Undefined;
+  m_noOfKeys= 0;
+  m_noOfDistributionKeys= 0;
+  m_noOfBlobs= 0;
+  m_replicaCount= 0;
 }
 
 bool
@@ -428,19 +432,6 @@ NdbTableImpl::getName() const
     return m_newExternalName.c_str();
 }
 
-void NdbTableImpl::clearNewProperties()
-{
-  m_newExternalName.assign("");
-  m_changeMask = 0;
-}
-
-void NdbTableImpl::copyNewProperties()
-{
-  if (!m_newExternalName.empty()) {
-    m_externalName.assign(m_newExternalName);
-    AlterTableReq::setNameFlag(m_changeMask, true);
-  }
-}
 
 void
 NdbTableImpl::buildColumnHash(){
@@ -537,14 +528,22 @@ NdbIndexImpl::NdbIndexImpl() :
   NdbDictionary::Index(* this), 
   m_facade(this)
 {
-  m_logging = true;
+  init();
 }
 
 NdbIndexImpl::NdbIndexImpl(NdbDictionary::Index & f) : 
   NdbDictionary::Index(* this), 
   m_facade(&f)
 {
-  m_logging = true;
+  init();
+}
+
+void NdbIndexImpl::init()
+{
+  m_indexId= RNIL;
+  m_type= NdbDictionary::Index::Undefined;
+  m_logging= true;
+  m_table= NULL;
 }
 
 NdbIndexImpl::~NdbIndexImpl(){
@@ -589,20 +588,26 @@ NdbEventImpl::NdbEventImpl() :
   NdbDictionary::Event(* this),
   m_facade(this)
 {
-  mi_type = 0;
-  m_dur = NdbDictionary::Event::ED_UNDEFINED;
-  eventOp = NULL;
-  m_tableImpl = NULL;
+  init();
 }
 
 NdbEventImpl::NdbEventImpl(NdbDictionary::Event & f) : 
   NdbDictionary::Event(* this),
   m_facade(&f)
 {
-  mi_type = 0;
-  m_dur = NdbDictionary::Event::ED_UNDEFINED;
-  eventOp = NULL;
-  m_tableImpl = NULL;
+  init();
+}
+
+void NdbEventImpl::init()
+{
+  m_eventId= RNIL;
+  m_eventKey= RNIL;
+  m_tableId= RNIL;
+  mi_type= 0;
+  m_dur= NdbDictionary::Event::ED_UNDEFINED;
+  m_tableImpl= NULL;
+  m_bufferId= RNIL;
+  eventOp= NULL;
 }
 
 NdbEventImpl::~NdbEventImpl()
@@ -715,11 +720,13 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       delete NdbDictionary::Column::ROW_COUNT;
       delete NdbDictionary::Column::COMMIT_COUNT;
       delete NdbDictionary::Column::ROW_SIZE;
+      delete NdbDictionary::Column::RANGE_NO;
       NdbDictionary::Column::FRAGMENT= 0;
       NdbDictionary::Column::FRAGMENT_MEMORY= 0;
       NdbDictionary::Column::ROW_COUNT= 0;
       NdbDictionary::Column::COMMIT_COUNT= 0;
       NdbDictionary::Column::ROW_SIZE= 0;
+      NdbDictionary::Column::RANGE_NO= 0;
     }
     m_globalHash->unlock();
   } else {
@@ -1049,61 +1056,80 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
   DBUG_RETURN(-1);
 }
 
-/*****************************************************************
- * get tab info
+/*
+  Get dictionary information for a table using table id as reference
+
+  DESCRIPTION
+    Sends a GET_TABINFOREQ signal containing the table id
  */
-NdbTableImpl * 
+NdbTableImpl *
 NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
 {
   NdbApiSignal tSignal(m_reference);
-  GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
-  
+  GetTabInfoReq* const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
+
   req->senderRef = m_reference;
   req->senderData = 0;
-  req->requestType = 
+  req->requestType =
     GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
   req->tableId = tableId;
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
-  
+
   return getTable(&tSignal, 0, 0, fullyQualifiedNames);
 }
 
-NdbTableImpl * 
+
+/*
+  Get dictionary information for a table using table name as the reference
+
+  DESCRIPTION
+    Send GET_TABINFOREQ signal with the table name in the first
+    long section part
+*/
+
+NdbTableImpl *
 NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
 {
   NdbApiSignal tSignal(m_reference);
-  GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
-  
-  const Uint32 strLen = strlen(name) + 1; // NULL Terminated
-  if(strLen > MAX_TAB_NAME_SIZE) {//sizeof(req->tableName)){
+  GetTabInfoReq* const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
+
+  const Uint32 str_len= strlen(name) + 1; // NULL terminated
+  const Uint32 str_len_words= (str_len + 3) / 4; // Size in words
+
+  if (str_len > MAX_SECTION_SIZE)
+  {
     m_error.code= 4307;
     return 0;
   }
 
-  req->senderRef = m_reference;
-  req->senderData = 0;
-  req->requestType = 
+  m_namebuf.clear();
+  m_namebuf.grow(str_len_words*4); // Word size aligned number of bytes
+  m_namebuf.append(name, str_len);
+
+  req->senderRef= m_reference;
+  req->senderData= 0;
+  req->requestType=
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
-  req->tableNameLen = strLen;
-  tSignal.theReceiversBlockNumber = DBDICT;
-  tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
-  //  tSignal.theLength = GetTabInfoReq::HeaderLength + ((strLen + 3) / 4);
-  tSignal.theLength = GetTabInfoReq::SignalLength;
+  req->tableNameLen= str_len;
+  tSignal.theReceiversBlockNumber= DBDICT;
+  tSignal.theVerId_signalNumber= GSN_GET_TABINFOREQ;
+  tSignal.theLength= GetTabInfoReq::SignalLength;
+
   LinearSectionPtr ptr[1];
-  ptr[0].p  = (Uint32*)name;
-  ptr[0].sz = strLen;
-  
+  ptr[0].p= (Uint32*)m_namebuf.get_data();
+  ptr[0].sz= str_len_words; 
+
   return getTable(&tSignal, ptr, 1, fullyQualifiedNames);
 }
 
+
 NdbTableImpl *
-NdbDictInterface::getTable(class NdbApiSignal * signal, 
+NdbDictInterface::getTable(class NdbApiSignal * signal,
 			   LinearSectionPtr ptr[3],
 			   Uint32 noOfSections, bool fullyQualifiedNames)
 {
-  //GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, signal->getDataPtrSend());
   int errCodes[] = {GetTabInfoRef::Busy };
 
   int r = dictSignal(signal,ptr,noOfSections,
@@ -1464,7 +1490,7 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
       return -1;
     // Save BLOB table handle
     Ndb_local_table_info *info=
-      get_local_table_info(bt.m_internalName.c_str(),false);
+      get_local_table_info(bt.m_internalName.c_str(), false);
     if (info == 0) {
       return -1;
     }
@@ -1560,7 +1586,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     DBUG_RETURN(-1);
   }
 
-  impl.copyNewProperties();
+  if (!impl.m_newExternalName.empty()) {
+    impl.m_externalName.assign(impl.m_newExternalName);
+    AlterTableReq::setNameFlag(impl.m_changeMask, true);
+  }
+
   //validate();
   //aggregate();
 
@@ -1677,7 +1707,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
   
-  LinearSectionPtr ptr[3];
+  LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
   int ret;
@@ -2182,7 +2212,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
     }
     attributeList.id[i] = col->m_attrId;
   }
-  LinearSectionPtr ptr[3];
+  LinearSectionPtr ptr[2];
   ptr[0].p = (Uint32*)&attributeList;
   ptr[0].sz = 1 + attributeList.sz;
   ptr[1].p = (Uint32*)m_buffer.get_data();
@@ -2489,7 +2519,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
     w.add(SimpleProperties::StringValue,
 	  ndb.internalizeTableName(evnt.m_tableName.c_str()));
 
-  LinearSectionPtr ptr[3];
+  LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32*)m_buffer.get_data();
   ptr[0].sz = (m_buffer.length()+3) >> 2;
 
