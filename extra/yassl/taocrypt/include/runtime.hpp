@@ -31,7 +31,7 @@
 
 #if __GNUC__ > 2
 
-#include <cstdlib>
+#include <stdlib.h>
 
 
 static void* operator new (size_t sz)
