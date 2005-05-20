@@ -30,7 +30,7 @@
 #include "socket_wrapper.hpp"
 
 #ifdef YASSL_LOG
-#include <cstdio>
+#include <stdio.h>
 #endif
 
 namespace yaSSL {

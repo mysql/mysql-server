@@ -31,7 +31,7 @@
 #include "stdexcept.hpp"    // mySTL::runtime_error
 #include "misc.hpp"
 #include <string.h>         // memcpy
-#include <cstddef>          // ptrdiff_t
+#include <stddef.h>         // ptrdiff_t
 
 
 #if defined(_MSC_VER) && defined(_CRTAPI1)
@@ -49,11 +49,7 @@ class AllocatorBase
 public:
     typedef T      value_type;
     typedef size_t size_type;
-#ifdef TAOCRYPT_MSVCRT6
     typedef ptrdiff_t      difference_type;
-#else
-    typedef std::ptrdiff_t difference_type;
-#endif
     typedef T*       pointer;
     typedef const T* const_pointer;
     typedef T&       reference;
