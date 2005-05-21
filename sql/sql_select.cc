@@ -2825,6 +2825,11 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond_func->functype() == Item_func::NOT_FUNC)
   {
     Item *item= cond_func->arguments()[0];
+    /* 
+       At this moment all NOT before simple comparison predicates
+       are eliminated. NOT IN and NOT BETWEEN are treated similar
+       IN and BETWEEN respectively.
+    */
     if (item->type() == Item::FUNC_ITEM &&
         ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
     {
