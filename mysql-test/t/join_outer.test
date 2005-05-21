@@ -676,3 +676,26 @@ left join t3 on t1.art = t3.id where t2.id =1 and t2.x = -5 and t2.y =-8
 and t1.gid =1 and t2.gid =1 and t3.set_id =1;
 drop tables t1,t2,t3;
 
+#
+# Test for bug #9938: invalid conversion from outer join to inner join 
+# for queries containing indirect reference in WHERE clause
+#
+
+CREATE TABLE t1 (EMPNUM INT, GRP INT);
+INSERT INTO t1 VALUES (0, 10);
+INSERT INTO t1 VALUES (2, 30);
+
+CREATE TABLE t2 (EMPNUM INT, NAME CHAR(5));
+INSERT INTO t2 VALUES (0, 'KERI');
+INSERT INTO t2 VALUES (9, 'BARRY');
+
+CREATE VIEW v1 AS
+SELECT COALESCE(t2.EMPNUM,t1.EMPNUM) AS EMPNUM, NAME, GRP
+  FROM t2 LEFT OUTER JOIN t1 ON t2.EMPNUM=t1.EMPNUM;
+
+SELECT * FROM v1;
+SELECT * FROM v1 WHERE EMPNUM < 10;
+
+DROP TABLE t1,t2;
+
+
