@@ -204,6 +204,10 @@ SOURCE=.\default.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\default_modify.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\errors.c
 # End Source File
 # Begin Source File
