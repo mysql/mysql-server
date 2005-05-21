@@ -3307,6 +3307,38 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
 
 
 /*
+  Build a SEL_TREE for <> predicate
+ 
+  SYNOPSIS
+    get_ne_mm_tree()
+      param       PARAM from SQL_SELECT::test_quick_select
+      cond_func   item for the predicate
+      field       field in the predicate
+      value       constant in the predicate
+      cmp_type    compare type for the field
+
+  RETURN 
+    Pointer to tree built tree
+*/
+
+static SEL_TREE *get_ne_mm_tree(PARAM *param, Item_func *cond_func, 
+                                Field *field, Item *value,
+                                Item_result cmp_type)
+{
+  SEL_TREE *tree= 0;
+  tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
+		       value, cmp_type);
+  if (tree)
+  {
+    tree= tree_or(param, tree, get_mm_parts(param, cond_func, field,
+					    Item_func::GT_FUNC,
+					    value, cmp_type));
+  }
+  return tree;
+}
+   
+
+/*
   Build a SEL_TREE for a simple predicate
  
   SYNOPSIS
@@ -3316,55 +3348,85 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
       field       field in the predicate
       value       constant in the predicate
       cmp_type    compare type for the field
+      inv         TRUE <> NOT cond_func is considered
 
   RETURN 
-    Pointer to thre built tree
+    Pointer to tree built tree
 */
 
 static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func, 
                                   Field *field, Item *value,
-                                  Item_result cmp_type)
+                                  Item_result cmp_type, bool inv)
 {
   SEL_TREE *tree= 0;
   DBUG_ENTER("get_func_mm_tree");
 
   switch (cond_func->functype()) {
+
   case Item_func::NE_FUNC:
-    tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
-		       value, cmp_type);
-    if (tree)
-    {
-      tree= tree_or(param, tree, get_mm_parts(param, cond_func, field,
-					      Item_func::GT_FUNC,
-					      value, cmp_type));
-    }
+    tree= get_ne_mm_tree(param, cond_func, field, value, cmp_type);
     break;
+
   case Item_func::BETWEEN:
-    tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
-		       cond_func->arguments()[1],cmp_type);
-    if (tree)
+    if (inv)
     {
-      tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
-					       Item_func::LE_FUNC,
-					       cond_func->arguments()[2],
-                                               cmp_type));
+      tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
+		         cond_func->arguments()[1],cmp_type);
+      if (tree)
+      {
+        tree= tree_or(param, tree, get_mm_parts(param, cond_func, field,
+					        Item_func::GT_FUNC,
+					        cond_func->arguments()[2],
+                                                cmp_type));
+      }
+    }
+    else
+    {
+      tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
+		         cond_func->arguments()[1],cmp_type);
+      if (tree)
+      {
+        tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
+					         Item_func::LE_FUNC,
+					         cond_func->arguments()[2],
+                                                 cmp_type));
+      }
     }
     break;
+
   case Item_func::IN_FUNC:
   {
     Item_func_in *func=(Item_func_in*) cond_func;
-    tree= get_mm_parts(param, cond_func, field, Item_func::EQ_FUNC,
-                       func->arguments()[1], cmp_type);
-    if (tree)
+
+    if (inv)
     {
-      Item **arg, **end;
-      for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
-           arg < end ; arg++)
+      tree= get_ne_mm_tree(param, cond_func, field,
+                           func->arguments()[1], cmp_type);
+      if (tree)
       {
-        tree=  tree_or(param, tree, get_mm_parts(param, cond_func, field, 
-                                                 Item_func::EQ_FUNC,
-                                                 *arg,
-                                                 cmp_type));
+        Item **arg, **end;
+        for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
+             arg < end ; arg++)
+        {
+          tree=  tree_and(param, tree, get_ne_mm_tree(param, cond_func, field, 
+                                                      *arg, cmp_type));
+        }
+      }
+    }
+    else
+    {    
+      tree= get_mm_parts(param, cond_func, field, Item_func::EQ_FUNC,
+                         func->arguments()[1], cmp_type);
+      if (tree)
+      {
+        Item **arg, **end;
+        for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
+             arg < end ; arg++)
+        {
+          tree= tree_or(param, tree, get_mm_parts(param, cond_func, field, 
+                                                  Item_func::EQ_FUNC,
+                                                  *arg, cmp_type));
+        }
       }
     }
     break;
@@ -3396,6 +3458,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   SEL_TREE *tree=0;
   SEL_TREE *ftree= 0;
   Item_field *field_item= 0;
+  bool inv= FALSE;
   Item *value;
   DBUG_ENTER("get_mm_tree");
 
@@ -3457,15 +3520,28 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   }
 
   Item_func *cond_func= (Item_func*) cond;
-  if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-    DBUG_RETURN(0);				// Can't be calculated
+  if (cond_func->functype() == Item_func::NOT_FUNC)
+  {
+    Item *arg= cond_func->arguments()[0];
+    if (arg->type() == Item::FUNC_ITEM)
+    {
+      cond_func= (Item_func*) arg;
+      if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
+        DBUG_RETURN(0);
+      inv= TRUE;	
+    }
+    else
+      DBUG_RETURN(0);
+  }    
+  else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(0);			       
 
   param->cond= cond;
 
   switch (cond_func->functype()) {
   case Item_func::BETWEEN:
     if (cond_func->arguments()[0]->type() != Item::FIELD_ITEM)
-      DBUG_RETURN(0);
+        DBUG_RETURN(0);
     field_item= (Item_field*) (cond_func->arguments()[0]);
     value= NULL;
     break;
@@ -3536,7 +3612,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   Field *field= field_item->field;
   Item_result cmp_type= field->cmp_type();
   if (!((ref_tables | field->table->map) & param_comp))
-    ftree= get_func_mm_tree(param, cond_func, field, value, cmp_type);
+    ftree= get_func_mm_tree(param, cond_func, field, value, cmp_type, inv);
   Item_equal *item_equal= field_item->item_equal;
   if (item_equal)
   {
@@ -3549,7 +3625,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
         continue;
       if (!((ref_tables | f->table->map) & param_comp))
       {
-        tree= get_func_mm_tree(param, cond_func, f, value, cmp_type);
+        tree= get_func_mm_tree(param, cond_func, f, value, cmp_type, inv);
         ftree= !ftree ? tree : tree_and(param, ftree, tree);
       }
     }
