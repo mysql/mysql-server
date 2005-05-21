@@ -3349,9 +3349,10 @@ static SEL_TREE *get_ne_mm_tree(PARAM *param, Item_func *cond_func,
       value       constant in the predicate
       cmp_type    compare type for the field
       inv         TRUE <> NOT cond_func is considered
+                  (makes sense only when cond_func is BETWEEN or IN) 
 
   RETURN 
-    Pointer to tree built tree
+    Pointer to the tree built tree
 */
 
 static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func, 
@@ -3534,14 +3535,14 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       DBUG_RETURN(0);
   }    
   else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-      DBUG_RETURN(0);			       
+    DBUG_RETURN(0);			       
 
   param->cond= cond;
 
   switch (cond_func->functype()) {
   case Item_func::BETWEEN:
     if (cond_func->arguments()[0]->type() != Item::FIELD_ITEM)
-        DBUG_RETURN(0);
+      DBUG_RETURN(0);
     field_item= (Item_field*) (cond_func->arguments()[0]);
     value= NULL;
     break;
