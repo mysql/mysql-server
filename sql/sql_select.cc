@@ -2822,6 +2822,17 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond->type() != Item::FUNC_ITEM)
     return;
   Item_func *cond_func= (Item_func*) cond;
+  if (cond_func->functype() == Item_func::NOT_FUNC)
+  {
+    Item *item= cond_func->arguments()[0];
+    if (item->type() == Item::FUNC_ITEM &&
+        ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
+    {
+      add_key_fields(key_fields,and_level,item,usable_tables);
+      return;
+    }
+    return;
+  }
   switch (cond_func->select_optimize()) {
   case Item_func::OPTIMIZE_NONE:
     break;
