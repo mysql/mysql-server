@@ -59,7 +59,7 @@ typedef unsigned char  byte;
 typedef unsigned short word16;
 typedef unsigned int   word32;
 
-#if defined(__GNUC__) || defined(__MWERKS__)
+#if defined(__GNUC__) || defined(__MWERKS__) || defined(_LONGLONG_TYPE)
     #define WORD64_AVAILABLE
     typedef unsigned long long word64;
     #define W64LIT(x) x##LL
@@ -79,8 +79,10 @@ typedef unsigned int   word32;
     typedef word32 lword;
 #endif
 
+// FIXME the !defined(__sun) is a temporarely solution until asm for
+// __x86_64__ and Solaris is written
 #if defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-    defined(__x86_64__) || defined(__mips64)
+    defined(__mips64) || (defined(__x86_64__) && !defined(__sun))
 // These platforms have 64-bit CPU registers. Unfortunately most C++ compilers
 // don't allow any way to access the 64-bit by 64-bit multiply instruction
 // without using assembly, so in order to use word64 as word, the assembly
