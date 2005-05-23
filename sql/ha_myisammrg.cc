@@ -406,7 +406,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
         This means that it might not be possible to move the DATADIR of
         an embedded server without changing the paths in the .MRG file.
       */
-      uint length= my_snprintf(buff, FN_REFLEN, "%s%s/%s", mysql_data_home,
+      uint length= my_snprintf(buff, FN_REFLEN, "%s/%s/%s", mysql_data_home,
 			       tables->db, tables->real_name);
       /*
         If a MyISAM table is in the same directory as the MERGE table,
