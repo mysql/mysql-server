@@ -86,6 +86,7 @@ typedef struct ndb_item_field_value {
 typedef union ndb_item_value {
   const Item *item;
   NDB_ITEM_FIELD_VALUE *field_value;
+  uint arg_count;
 } NDB_ITEM_VALUE;
 
 struct negated_function_mapping
@@ -144,6 +145,7 @@ class Ndb_item {
     }
     case(NDB_FUNCTION):
       value.item= item_value;
+      value.arg_count= ((Item_func *) item_value)->argument_count();
       break;
     case(NDB_END_COND):
       break;
@@ -162,6 +164,13 @@ class Ndb_item {
   {
     qualification.function_type= func_type;
     value.item= item_value;
+    value.arg_count= ((Item_func *) item_value)->argument_count();
+  };
+  Ndb_item(Item_func::Functype func_type, uint no_args) 
+    : type(NDB_FUNCTION)
+  {
+    qualification.function_type= func_type;
+    value.arg_count= no_args;
   };
   ~Ndb_item()
   { 
@@ -194,7 +203,7 @@ class Ndb_item {
 
   int argument_count() 
   { 
-    return ((Item_func *) value.item)->argument_count(); 
+    return value.arg_count;
   };
 
   const char* get_val() 
@@ -273,10 +282,26 @@ class Ndb_cond_stack
   { 
     if (ndb_cond) delete ndb_cond; 
     ndb_cond= NULL; 
+    if (next) delete next;
     next= NULL; 
   };
   Ndb_cond *ndb_cond;
   Ndb_cond_stack *next;
+};
+
+class Ndb_rewrite_context
+{
+public:
+  Ndb_rewrite_context(Item_func *func) 
+    : func_item(func), left_hand_item(NULL), count(0) {};
+  ~Ndb_rewrite_context()
+  {
+    if (next) delete next;
+  }
+  const Item_func *func_item;
+  const Item *left_hand_item;
+  uint count;
+  Ndb_rewrite_context *next;
 };
 
 /*
@@ -292,11 +317,16 @@ class Ndb_cond_traverse_context
   Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
     supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
-    expect_mask(0), expect_field_result_mask(0), skip(0), collation(NULL)
+    expect_mask(0), expect_field_result_mask(0), skip(0), collation(NULL),
+    rewrite_stack(NULL)
   {
     if (stack)
       cond_ptr= stack->ndb_cond;
   };
+  ~Ndb_cond_traverse_context()
+  {
+    if (rewrite_stack) delete rewrite_stack;
+  }
   void expect(Item::Type type)
   {
     expect_mask|= (1 << type);
@@ -357,7 +387,7 @@ class Ndb_cond_traverse_context
   uint expect_field_result_mask;
   uint skip;
   CHARSET_INFO* collation;
-
+  Ndb_rewrite_context *rewrite_stack;
 };
 
 /*
