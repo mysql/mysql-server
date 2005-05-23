@@ -455,3 +455,43 @@ SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 1' OR ARG1 != ' 2');
 SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 2' OR ARG1 != ' 1');
 drop table t1;
 
+#
+# Test for optimization request #10561: to use keys for
+# NOT IN (c1,...,cn) and NOT BETWEEN c1 AND c2
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  status varchar(20),
+  PRIMARY KEY  (id),
+  KEY (status)
+);
+
+INSERT INTO t1 VALUES
+(1,'B'), (2,'B'), (3,'B'), (4,'B'), (5,'B'), (6,'B'),
+(7,'B'), (8,'B'), (9,'B'), (10,'B'), (11,'B'), (12,'B'),
+(13,'B'), (14,'B'), (15,'B'), (16,'B'), (17,'B'), (18,'B'),
+(19,'B'), (20,'B'), (21,'B'), (22,'B'), (23,'B'), (24,'B'), 
+(25,'A'), (26,'A'), (27,'A'), (28,'A'), (29,'A'), (30,'A'),
+(31,'A'), (32,'A'), (33,'A'), (34,'A'), (35,'A'), (36,'A'),
+(37,'A'), (38,'A'), (39,'A'), (40,'A'), (41,'A'), (42,'A'),
+(43,'A'), (44,'A'), (45,'A'), (46,'A'), (47,'A'), (48,'A'),
+(49,'A'), (50,'A'), (51,'A'), (52,'A'), (53,'C'), (54,'C'),
+(55,'C'), (56,'C'), (57,'C'), (58,'C'), (59,'C'), (60,'C');
+
+EXPLAIN SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
+EXPLAIN SELECT * FROM t1 WHERE status NOT IN ('A','B');
+
+SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
+SELECT * FROM t1 WHERE status NOT IN ('A','B');
+
+EXPLAIN SELECT status FROM t1 WHERE status <> 'A' AND status <> 'B';
+EXPLAIN SELECT status FROM t1 WHERE status NOT IN ('A','B');
+
+EXPLAIN SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
+EXPLAIN SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
+
+SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
+SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
+
+DROP TABLE t1;
