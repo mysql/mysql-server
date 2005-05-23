@@ -219,6 +219,10 @@ SOURCE=..\mysys\default.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\default_modify.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\dll.c
 # End Source File
 # Begin Source File
