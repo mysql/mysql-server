@@ -67,7 +67,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   while ((length=my_b_gets(&file,buff,FN_REFLEN-1)))
   {
     if ((end=buff+length)[-1] == '\n')
-      end[-1]='\0';
+      *--end='\0';
     if (!buff[0])
       continue;		/* Skip empty lines */
     if (buff[0] == '#')
@@ -86,6 +86,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
                    sizeof(name_buff)-1-dir_length));
       VOID(cleanup_dirname(buff,name_buff));
     }
+    else
+      fn_format(buff, buff, "", "", 0);
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
       goto err;
     if (!m_info)                                /* First file */
