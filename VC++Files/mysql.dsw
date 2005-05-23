@@ -537,30 +537,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "mysqlshutdown"=".\mysqlshutdown\mysqlshutdown.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
-Project: "mysqlwatch"=".\mysqlwatch\mysqlwatch.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
 Project: "mysys"=".\mysys\mysys.dsp" - Package Owner=<4>
 
 Package=<5>
