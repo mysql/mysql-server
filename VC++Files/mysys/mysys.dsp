@@ -186,6 +186,11 @@ SOURCE=.\array.c
 !ENDIF
 
 # End Source File
+ 
+# Begin Source File
+SOURCE=".\my_access.c"
+# End Source File
+ 
 # Begin Source File
 
 SOURCE=".\charset-def.c"

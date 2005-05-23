@@ -1777,7 +1777,6 @@ DROP TABLE t1,t2;
 #
 # Test for bug #9516: wrong evaluation of not_null_tables attribute in SQ 
 #
-
 CREATE TABLE t1 ( c1 integer );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
@@ -1822,3 +1821,19 @@ CREATE TABLE `t2` (
 INSERT INTO `t2` VALUES (1, 1, 1, '10.10.10.1');
 SELECT s.ip, count( e.itemid ) FROM `t1` e JOIN t2 s ON s.sessionid = e.sessionid WHERE e.sessionid = ( SELECT sessionid FROM t2 ORDER BY sessionid DESC LIMIT 1 ) GROUP BY s.ip HAVING count( e.itemid ) >0 LIMIT 0 , 30;
 drop tables t1,t2;
+
+#
+# Correct building of equal fields list (do not include outer
+# fields) (BUG#6384)
+#
+CREATE TABLE t1 (EMPNUM   CHAR(3));
+CREATE TABLE t2 (EMPNUM   CHAR(3) );
+INSERT INTO t1 VALUES ('E1'),('E2');
+INSERT INTO t2 VALUES ('E1');
+DELETE FROM t1
+WHERE t1.EMPNUM NOT IN
+      (SELECT t2.EMPNUM
+       FROM t2
+       WHERE t1.EMPNUM = t2.EMPNUM);
+select * from t1;
+DROP TABLE t1,t2;

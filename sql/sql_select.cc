@@ -2818,6 +2818,22 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond->type() != Item::FUNC_ITEM)
     return;
   Item_func *cond_func= (Item_func*) cond;
+  if (cond_func->functype() == Item_func::NOT_FUNC)
+  {
+    Item *item= cond_func->arguments()[0];
+    /* 
+       At this moment all NOT before simple comparison predicates
+       are eliminated. NOT IN and NOT BETWEEN are treated similar
+       IN and BETWEEN respectively.
+    */
+    if (item->type() == Item::FUNC_ITEM &&
+        ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
+    {
+      add_key_fields(key_fields,and_level,item,usable_tables);
+      return;
+    }
+    return;
+  }
   switch (cond_func->select_optimize()) {
   case Item_func::OPTIMIZE_NONE:
     break;
@@ -6377,7 +6393,9 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
     if (left_item->type() == Item::FIELD_ITEM &&
-        right_item->type() == Item::FIELD_ITEM)
+        right_item->type() == Item::FIELD_ITEM &&
+        !((Item_field*)left_item)->depended_from &&
+        !((Item_field*)right_item)->depended_from)
     {
       /* The predicate the form field1=field2 is processed */
 
@@ -6456,13 +6474,15 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
       /* The predicate of the form field=const/const=field is processed */
       Item *const_item= 0;
       Item_field *field_item= 0;
-      if (left_item->type() == Item::FIELD_ITEM && 
+      if (left_item->type() == Item::FIELD_ITEM &&
+          !((Item_field*)left_item)->depended_from &&
           right_item->const_item())
       {
         field_item= (Item_field*) left_item;
         const_item= right_item;
       }
-      else if (right_item->type() == Item::FIELD_ITEM && 
+      else if (right_item->type() == Item::FIELD_ITEM &&
+               !((Item_field*)right_item)->depended_from &&
                left_item->const_item())
       {
         field_item= (Item_field*) right_item;
@@ -12658,8 +12678,10 @@ static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
   Item_sum *func;
   DBUG_ENTER("setup_sum_funcs");
   while ((func= *(func_ptr++)))
+  {
     if (func->setup(thd))
       DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(FALSE);
 }
 
@@ -12946,8 +12968,6 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	*/
 	item= item->copy_or_same(thd);
 	((Item_sum*) item)->make_unique();
-	if (((Item_sum*) item)->setup(thd))
-	  return 1;
 	*(*func)= (Item_sum*) item;
 	(*func)++;
       }

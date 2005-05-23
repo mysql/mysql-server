@@ -32,7 +32,11 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
                               double *mbr, int top);
 static int sp_mbr_from_wkb(uchar (*wkb), uint size, uint n_dims, double *mbr);
 
-
+static void get_double(double *d, const byte *pos)
+{
+  float8get(*d, pos);
+}
+  
 uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
 		 const byte *record, my_off_t filepos)
 {
@@ -80,7 +84,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
       else if (keyseg->type == HA_KEYTYPE_DOUBLE)
       {
 	double nr;
-	float8get(nr, pos);
+	get_double(&nr, pos);
 	if (isnan(nr))
 	{
  	  bzero(key, length);
@@ -138,7 +142,7 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   {
     if ((*wkb) > end - 8)
       return -1;
-    float8get(ord, (*wkb));
+    get_double(&ord, *wkb);
     (*wkb)+= 8;
     if (ord < *mbr)
       float8store((char*) mbr, ord);
