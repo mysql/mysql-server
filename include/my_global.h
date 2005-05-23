@@ -44,7 +44,7 @@
 #endif /* __CYGWIN__ */
 
 /* Determine when to use "#pragma interface" */
-#if !defined(__CYGWIN__) && !defined(__ICC) && defined(__GNUC__) && (__GNUC__ < 3)
+#if !defined(__CYGWIN__) && !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
 #define USE_PRAGMA_INTERFACE
 #endif
 
