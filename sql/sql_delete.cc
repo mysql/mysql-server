@@ -49,7 +49,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
 	     table_list->view_db.str, table_list->view_name.str);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
