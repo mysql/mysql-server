@@ -750,6 +750,7 @@ mwagner@work.mysql.com|mysql-test/r/3.23/sel000001.result|20001010091454|28284|3
 mwagner@work.mysql.com|mysql-test/r/3.23/sel000002.result|20001010091454|29230|d1787e6fd5dbc1cc
 nick@nick.leippe.com|mysql-test/r/rpl_empty_master_crash.result|20020531235552|47718|615f521be2132141
 nick@nick.leippe.com|mysql-test/t/rpl_empty_master_crash.test|20020531235552|52328|99464e737639ccc6
+reggie@mdk10.(none)|mysql-test/t/reserved_win_names-master.opt|20050520210356|14878|e56da049a7ce9a5b
 sasha@mysql.sashanet.com|BitKeeper/etc/logging_ok|20000801000905|12967|5b7d847a2158554
 sasha@mysql.sashanet.com|build-tags|20011125054855|05181|7afb7e785b80f97
 sasha@mysql.sashanet.com|build-tags|20011201050944|25384|b6f6fff142121618
