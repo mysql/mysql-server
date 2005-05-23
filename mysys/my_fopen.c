@@ -34,8 +34,9 @@ FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
   DBUG_PRINT("my",("Name: '%s'  Flags: %d  MyFlags: %d",
 		   FileName, Flags, MyFlags));
   /* 
-   * if we are not creating, then we need to use my_access to make sure  
-   * the file exists since Windows doesn't handle files like "com1.sym" very  well 
+    if we are not creating, then we need to use my_access to make sure  
+    the file exists since Windows doesn't handle files like "com1.sym" 
+    very  well 
   */
 #ifdef __WIN__
   if (! (Flags & O_CREAT) && my_access(FileName, F_OK))
