@@ -31,36 +31,12 @@
 #include "openssl/ssl.h"  // for DH
 
 
-void* operator new(size_t sz, yaSSL::new_t)
-{
-    void* ptr = ::operator new(sz);
-
-    if (!ptr) abort();
-
-    return ptr;
-}
-
-void* operator new[](size_t sz, yaSSL::new_t n)
-{
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
-    void* ptr = ::operator new(sz);         // no ::operator new[]
-#else
-    void* ptr = ::operator new[](sz);
-#endif
-
-    if (!ptr) abort();
-
-    return ptr;
-}
-
 
 namespace yaSSL {
 
 
 using mySTL::min;
 
-
-new_t ys;   // for library new
 
 
 // convert a 32 bit integer into a 24 bit one
@@ -308,8 +284,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = AES_256_KEY_SZ;
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) AES(AES_256_KEY_SZ));
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new AES(AES_256_KEY_SZ));
         strncpy(parms.cipher_name_, cipher_names[TLS_RSA_WITH_AES_256_CBC_SHA],
                 MAX_SUITE_NAME);
         break;
@@ -322,8 +298,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = AES_128_KEY_SZ;
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) AES);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new AES);
         strncpy(parms.cipher_name_, cipher_names[TLS_RSA_WITH_AES_128_CBC_SHA],
                 MAX_SUITE_NAME);
         break;
@@ -336,8 +312,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = DES_EDE_KEY_SZ;
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) DES_EDE);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new DES_EDE);
         strncpy(parms.cipher_name_, cipher_names[SSL_RSA_WITH_3DES_EDE_CBC_SHA]
                 , MAX_SUITE_NAME);
         break;
@@ -350,8 +326,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = DES_KEY_SZ;
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) DES);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new DES);
         strncpy(parms.cipher_name_, cipher_names[SSL_RSA_WITH_DES_CBC_SHA],
                 MAX_SUITE_NAME);
         break;
@@ -364,8 +340,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = RC4_KEY_SZ;
         parms.iv_size_   = 0;
         parms.cipher_type_ = stream;
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) RC4);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new RC4);
         strncpy(parms.cipher_name_, cipher_names[SSL_RSA_WITH_RC4_128_SHA],
                 MAX_SUITE_NAME);
         break;
@@ -378,8 +354,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = RC4_KEY_SZ;
         parms.iv_size_   = 0;
         parms.cipher_type_ = stream;
-        crypto_.setDigest(new (ys) MD5);
-        crypto_.setCipher(new (ys) RC4);
+        crypto_.setDigest(new MD5);
+        crypto_.setCipher(new RC4);
         strncpy(parms.cipher_name_, cipher_names[SSL_RSA_WITH_RC4_128_MD5],
                 MAX_SUITE_NAME);
         break;
@@ -394,8 +370,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) DES);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new DES);
         strncpy(parms.cipher_name_, cipher_names[SSL_DHE_RSA_WITH_DES_CBC_SHA],
                 MAX_SUITE_NAME);
         break;
@@ -410,8 +386,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) DES_EDE);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new DES_EDE);
         strncpy(parms.cipher_name_,
               cipher_names[SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA], MAX_SUITE_NAME);
         break;
@@ -426,8 +402,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) AES(AES_256_KEY_SZ));
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new AES(AES_256_KEY_SZ));
         strncpy(parms.cipher_name_,
                cipher_names[TLS_DHE_RSA_WITH_AES_256_CBC_SHA], MAX_SUITE_NAME);
         break;
@@ -442,8 +418,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) AES);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new AES);
         strncpy(parms.cipher_name_,
                cipher_names[TLS_DHE_RSA_WITH_AES_128_CBC_SHA], MAX_SUITE_NAME);
         break;
@@ -458,8 +434,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) DES);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new DES);
         strncpy(parms.cipher_name_, cipher_names[SSL_DHE_DSS_WITH_DES_CBC_SHA],
                 MAX_SUITE_NAME);
         break;
@@ -474,8 +450,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) DES_EDE);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new DES_EDE);
         strncpy(parms.cipher_name_,
               cipher_names[SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA], MAX_SUITE_NAME);
         break;
@@ -490,8 +466,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) AES(AES_256_KEY_SZ));
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new AES(AES_256_KEY_SZ));
         strncpy(parms.cipher_name_,
                cipher_names[TLS_DHE_DSS_WITH_AES_256_CBC_SHA], MAX_SUITE_NAME);
         break;
@@ -506,8 +482,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) SHA);
-        crypto_.setCipher(new (ys) AES);
+        crypto_.setDigest(new SHA);
+        crypto_.setCipher(new AES);
         strncpy(parms.cipher_name_,
                cipher_names[TLS_DHE_DSS_WITH_AES_128_CBC_SHA], MAX_SUITE_NAME);
         break;
@@ -520,8 +496,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = AES_256_KEY_SZ;
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) AES(AES_256_KEY_SZ));
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new AES(AES_256_KEY_SZ));
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_RSA_WITH_AES_256_CBC_RMD160], MAX_SUITE_NAME);
         break;
@@ -534,8 +510,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = AES_128_KEY_SZ;
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) AES);
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new AES);
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_RSA_WITH_AES_128_CBC_RMD160], MAX_SUITE_NAME);
         break;
@@ -548,8 +524,8 @@ void SSL::set_pending(Cipher suite)
         parms.key_size_  = DES_EDE_KEY_SZ;
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) DES_EDE);
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new DES_EDE);
         strncpy(parms.cipher_name_,
                cipher_names[TLS_RSA_WITH_3DES_EDE_CBC_RMD160], MAX_SUITE_NAME);
         break;
@@ -564,8 +540,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) DES_EDE);
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new DES_EDE);
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_DHE_RSA_WITH_3DES_EDE_CBC_RMD160],
                 MAX_SUITE_NAME);
@@ -581,8 +557,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) AES(AES_256_KEY_SZ));
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new AES(AES_256_KEY_SZ));
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_DHE_RSA_WITH_AES_256_CBC_RMD160],
                 MAX_SUITE_NAME);
@@ -598,8 +574,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) AES);
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new AES);
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_DHE_RSA_WITH_AES_128_CBC_RMD160],
                 MAX_SUITE_NAME);
@@ -615,8 +591,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = DES_IV_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) DES_EDE);
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new DES_EDE);
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_DHE_DSS_WITH_3DES_EDE_CBC_RMD160],
                 MAX_SUITE_NAME);
@@ -632,8 +608,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) AES(AES_256_KEY_SZ));
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new AES(AES_256_KEY_SZ));
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_DHE_DSS_WITH_AES_256_CBC_RMD160],
                 MAX_SUITE_NAME);
@@ -649,8 +625,8 @@ void SSL::set_pending(Cipher suite)
         parms.iv_size_   = AES_BLOCK_SZ;
         parms.cipher_type_ = block;
         secure_.use_connection().send_server_key_  = true; // eph
-        crypto_.setDigest(new (ys) RMD);
-        crypto_.setCipher(new (ys) AES);
+        crypto_.setDigest(new RMD);
+        crypto_.setCipher(new AES);
         strncpy(parms.cipher_name_,
                 cipher_names[TLS_DHE_DSS_WITH_AES_128_CBC_RMD160],
                 MAX_SUITE_NAME);
@@ -936,11 +912,13 @@ struct SumBuffer {
 } // namespace for locals
 using namespace yassl_int_cpp_local1;
 
+
 uint SSL::bufferedData()
 {
     return mySTL::for_each(buffers_.getData().begin(),buffers_.getData().end(),
                            SumData()).total_;
 }
+
 
 // use input buffer to fill data
 void SSL::fillData(Data& data)
@@ -1367,7 +1345,7 @@ typedef Mutex::Lock Lock;
 void Sessions::add(const SSL& ssl) 
 {
     Lock guard(mutex_);
-    list_.push_back(new (ys) SSL_SESSION(ssl, random_));
+    list_.push_back(new SSL_SESSION(ssl, random_));
 }
 
 
@@ -1396,6 +1374,7 @@ struct sess_match {
 
 } // local namespace
 using namespace yassl_int_cpp_local2;
+
 
 // lookup session by id, return a copy if space provided
 SSL_SESSION* Sessions::lookup(const opaque* id, SSL_SESSION* copy)
@@ -1764,7 +1743,7 @@ void Crypto::SetDH(DiffieHellman* dh)
 void Crypto::SetDH(const DH_Parms& dh)
 {
     if (dh.set_)
-        dh_ = new (ys) DiffieHellman(dh.p_, dh.g_, random_);
+        dh_ = new DiffieHellman(dh.p_, dh.g_, random_);
 }
 
 
@@ -1931,7 +1910,7 @@ X509_NAME::X509_NAME(const char* n, size_t sz)
     : name_(0)
 {
     if (sz) {
-        name_ = new (ys) char[sz];
+        name_ = new char[sz];
         memcpy(name_, n, sz);
     }
 }
@@ -1952,7 +1931,7 @@ char* X509_NAME::GetName()
 X509::X509(const char* i, size_t iSz, const char* s, size_t sSz)
     : issuer_(i, iSz), subject_(s, sSz)
 {}
-
+   
 
 X509_NAME* X509::GetIssuer()
 {
