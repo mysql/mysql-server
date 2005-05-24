@@ -2606,7 +2606,7 @@ get_innobase_type_from_mysql_type(
 						return(DATA_MYSQL);
 					}
                 case FIELD_TYPE_NEWDECIMAL:
-                                        return(DATA_BINARY);
+                                        return(DATA_FIXBINARY);
 		case FIELD_TYPE_LONG:
 		case FIELD_TYPE_LONGLONG:
 		case FIELD_TYPE_TINY:
@@ -3170,12 +3170,28 @@ no_commit:
 			prebuilt->sql_stat_start = TRUE;
 		}
 
-		/*
-                  We must use the handler code to update the auto-increment
-                  value to be sure that increment it correctly.
-                */
+		/* We have to use the transactional lock mechanism on the
+		auto-inc counter of the table to ensure that replication and
+		roll-forward of the binlog exactly imitates also the given
+		auto-inc values. The lock is released at each SQL statement's
+		end. This lock also prevents a race where two threads would
+		call ::get_auto_increment() simultaneously. */
+
+		error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+		if (error != DB_SUCCESS) {
+			/* Deadlock or lock wait timeout */
+
+			error = convert_error_code_to_mysql(error, user_thd);
+
+			goto func_exit;
+		}
+
+		/* We must use the handler code to update the auto-increment
+                value to be sure that we increment it correctly. */
+
     		update_auto_increment();
-                auto_inc_used= 1;
+                auto_inc_used = 1;
 
 	}
 
@@ -3198,24 +3214,9 @@ no_commit:
           	auto_inc = table->next_number_field->val_int();
 
           	if (auto_inc != 0) {
-			/* This call will calculate the max of the current
-			value and the value supplied by the user and
-			update the counter accordingly */
+			/* This call will update the counter according to the
+			value that was inserted in the table */
 
-			/* We have to use the transactional lock mechanism
-			on the auto-inc counter of the table to ensure
-			that replication and roll-forward of the binlog
-			exactly imitates also the given auto-inc values.
-			The lock is released at each SQL statement's
-			end. */
-
-            		error = row_lock_table_autoinc_for_mysql(prebuilt);
-
-            		if (error != DB_SUCCESS) {
-              			error = convert_error_code_to_mysql(error,
-								user_thd);
-              			goto func_exit;
-            		}
             		dict_table_autoinc_update(prebuilt->table, auto_inc);
           	}
         }
@@ -5795,7 +5796,6 @@ ha_innobase::start_stmt(
 	    	read_view_close_for_mysql(trx);
 	}
 
-	auto_inc_counter_for_this_stat = 0;
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	prebuilt->read_just_key = 0;
@@ -5985,7 +5985,7 @@ ha_innobase::external_lock(
 
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
-	auto_inc_counter_for_this_stat = 0;
+
 	if (trx->n_lock_table_exp) {
 		row_unlock_tables_for_mysql(trx);
 	}
@@ -6505,7 +6505,7 @@ ha_innobase::store_lock(
 /***********************************************************************
 This function initializes the auto-inc counter if it has not been
 initialized yet. This function does not change the value of the auto-inc
-counter if it already has been initialized. In paramete ret returns
+counter if it already has been initialized. In parameter ret returns
 the value of the auto-inc counter. */
 
 int
@@ -6624,7 +6624,14 @@ ha_innobase::get_auto_increment()
 	error = innobase_read_and_init_auto_inc(&nr);
 
 	if (error) {
-
+		/* This should never happen in the current (5.0.6) code, since
+		we call this function only after the counter has been
+		initialized. */
+	
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+		"  InnoDB: Error: error %lu in ::get_auto_increment()\n",
+						(ulong)error);
           	return(~(ulonglong) 0);
 	}
 

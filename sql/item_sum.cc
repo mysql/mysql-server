@@ -584,13 +584,8 @@ bool Item_sum_distinct::setup(THD *thd)
 {
   List<create_field> field_list;
   create_field field_def;                              /* field definition */
-
   DBUG_ENTER("Item_sum_distinct::setup");
-
-  /*
-    Setup can be called twice for ROLLUP items. This is a bug.
-    Please add DBUG_ASSERT(tree == 0) here when it's fixed.
-  */
+  DBUG_ASSERT(tree == 0);
 
   /*
     Virtual table and the tree are created anew on each re-execution of
@@ -610,7 +605,7 @@ bool Item_sum_distinct::setup(THD *thd)
                                args[0]->unsigned_flag);
 
   if (! (table= create_virtual_tmp_table(thd, field_list)))
-      return TRUE;
+    return TRUE;
 
   /* XXX: check that the case of CHAR(0) works OK */
   tree_key_length= table->s->reclength - table->s->null_bytes;

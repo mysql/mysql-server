@@ -1626,7 +1626,7 @@ create table t1 (a enum (' ','a','b') not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('','a','b') NOT NULL default ''
+  `a` enum('','a','b') NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a enum (' ','a','b ') not null default 'b ');
@@ -1670,12 +1670,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) default '1',
-  `b` enum('value','๖ไü_value','สรี') NOT NULL default 'value'
+  `b` enum('value','๖ไü_value','สรี') NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		1	
-b	enum('value','๖ไü_value','สรี')	NO		value	
+b	enum('value','๖ไü_value','สรี')	NO			
 drop table t1;
 CREATE TABLE t1 (c enum('a', 'A') BINARY);
 INSERT INTO t1 VALUES ('a'),('A');

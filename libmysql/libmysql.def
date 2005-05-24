@@ -1,5 +1,5 @@
 LIBRARY		LIBMYSQL
-DESCRIPTION	'MySQL 4.1 Client Library'
+DESCRIPTION	'MySQL 5.0 Client Library'
 VERSION		6.0
 EXPORTS
 	_dig_vec_lower
@@ -150,6 +150,4 @@ EXPORTS
 	mysql_server_end
 	mysql_set_character_set
 	get_defaults_files
-	get_charset_by_csname
-	get_charsets_dir
-	charsets_dir
+	modify_defaults_file

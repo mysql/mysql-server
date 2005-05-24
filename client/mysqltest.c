@@ -2024,11 +2024,11 @@ my_bool end_of_query(int c)
 int read_line(char* buf, int size)
 {
   int c;
+  char quote;
   char* p= buf, *buf_end= buf + size - 1;
   int no_save= 0;
-  enum {R_NORMAL, R_Q1, R_ESC_Q_Q1, R_ESC_Q_Q2,
-	R_ESC_SLASH_Q1, R_ESC_SLASH_Q2,
-	R_Q2, R_COMMENT, R_LINE_START} state= R_LINE_START;
+  enum {R_NORMAL, R_Q, R_Q_IN_Q, R_SLASH_IN_Q,
+	R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
 
   start_lineno= *lineno;
@@ -2063,10 +2063,11 @@ int read_line(char* buf, int size)
 	*p= 0;
 	DBUG_RETURN(0);
       }
-      else if (c == '\'')
-	state = R_Q1;
-      else if (c == '"')
-	state = R_Q2;
+      else if (c == '\'' || c == '"' || c == '`')
+      {
+        quote= c;
+	state= R_Q;
+      }
       else if (c == '\n')
       {
 	state = R_LINE_START;
@@ -2101,55 +2102,36 @@ int read_line(char* buf, int size)
 	*p= 0;
 	DBUG_RETURN(0);
       }
-      else if (c == '\'')
-	state= R_Q1;
-      else if (c == '"')
-	state= R_Q2;
+      else if (c == '\'' || c == '"' || c == '`')
+      {
+        quote= c;
+	state= R_Q;
+      }
       else
 	state= R_NORMAL;
       break;
 
-    case R_Q1:
-      if (c == '\'')
-	state= R_ESC_Q_Q1;
+    case R_Q:
+      if (c == quote)
+	state= R_Q_IN_Q;
       else if (c == '\\')
-	state= R_ESC_SLASH_Q1;
+	state= R_SLASH_IN_Q;
       break;
-    case R_ESC_Q_Q1:
+    case R_Q_IN_Q:
       if (end_of_query(c))
       {
 	*p= 0;
 	DBUG_RETURN(0);
       }
-      if (c != '\'')
+      if (c != quote)
 	state= R_NORMAL;
       else
-	state= R_Q1;
+	state= R_Q;
       break;
-    case R_ESC_SLASH_Q1:
-      state= R_Q1;
+    case R_SLASH_IN_Q:
+      state= R_Q;
       break;
 
-    case R_Q2:
-      if (c == '"')
-	state= R_ESC_Q_Q2;
-      else if (c == '\\')
-	state= R_ESC_SLASH_Q2;
-      break;
-    case R_ESC_Q_Q2:
-      if (end_of_query(c))
-      {
-	*p= 0;
-	DBUG_RETURN(0);
-      }
-      if (c != '"')
-	state= R_NORMAL;
-      else
-	state= R_Q2;
-      break;
-    case R_ESC_SLASH_Q2:
-      state= R_Q2;
-      break;
     }
 
     if (!no_save)

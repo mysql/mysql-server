@@ -300,7 +300,7 @@ void print_hash_map(const char *name)
   char *cur;
   int i;
 
-  printf("uchar %s[%d]= {\n",name,size_hash_map);
+  printf("static uchar %s[%d]= {\n",name,size_hash_map);
   for (i=0, cur= hash_map; i<size_hash_map; i++, cur++)
   {
     switch(i%4){
@@ -459,11 +459,11 @@ int main(int argc,char **argv)
   generate_find_structs();
   print_find_structs();
 
-  printf("\nunsigned int sql_functions_max_len=%d;\n",max_len);
-  printf("\nunsigned int symbols_max_len=%d;\n\n",max_len2);
+  printf("\nstatic unsigned int sql_functions_max_len=%d;\n", max_len);
+  printf("\nstatic unsigned int symbols_max_len=%d;\n\n", max_len2);
 
   printf("\
-inline SYMBOL *get_hash_symbol(const char *s,\n                         \
+static inline SYMBOL *get_hash_symbol(const char *s,\n\
                                     unsigned int len,bool function)\n\
 {\n\
   register uchar *hash_map;\n\

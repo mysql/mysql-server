@@ -131,10 +131,12 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
 ** if nothing else.
 */
 Item *
-sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
+sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
+		  Item *reuse)
 {
   DBUG_ENTER("sp_eval_func_item");
   Item *it= sp_prepare_func_item(thd, it_addr);
+  uint rsize;
   DBUG_PRINT("info", ("type: %d", type));
 
   if (!it)
@@ -144,7 +146,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 
   /* QQ How do we do this? Is there some better way? */
   if (type == MYSQL_TYPE_NULL)
-    it= new Item_null();
+    it= new(reuse, &rsize) Item_null();
   else
   {
     switch (sp_map_result_type(type)) {
@@ -155,12 +157,12 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	if (it->null_value)
 	{
 	  DBUG_PRINT("info", ("INT_RESULT: null"));
-	  it= new Item_null();
+	  it= new(reuse, &rsize) Item_null();
 	}
 	else
 	{
 	  DBUG_PRINT("info", ("INT_RESULT: %d", i));
-          it= new Item_int(i);
+          it= new(reuse, &rsize) Item_int(i);
 	}
 	break;
       }
@@ -171,7 +173,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	if (it->null_value)
 	{
 	  DBUG_PRINT("info", ("REAL_RESULT: null"));
-	  it= new Item_null();
+	  it= new(reuse, &rsize) Item_null();
 	}
 	else
 	{
@@ -180,7 +182,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	  uint8 decimals= it->decimals;
 	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-          it= new Item_float(d);
+          it= new(reuse, &rsize) Item_float(d);
 	  it->decimals= decimals;
 	  it->max_length= max_length;
 	}
@@ -190,9 +192,9 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
       {
         my_decimal value, *val= it->val_decimal(&value);
         if (it->null_value)
-          it= new Item_null();
+          it= new(reuse, &rsize) Item_null();
         else
-          it= new Item_decimal(val);
+          it= new(reuse, &rsize) Item_decimal(val);
 #ifndef DBUG_OFF
         char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
         DBUG_PRINT("info", ("DECIMAL_RESULT: %s", dbug_decimal_as_string(dbug_buff, val)));
@@ -208,14 +210,16 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 	if (it->null_value)
 	{
 	  DBUG_PRINT("info", ("default result: null"));
-	  it= new Item_null();
+	  it= new(reuse, &rsize) Item_null();
 	}
 	else
 	{
 	  DBUG_PRINT("info",("default result: %*s",
                              s->length(), s->c_ptr_quick()));
-	  it= new Item_string(thd->strmake(s->ptr(), s->length()),
-			      s->length(), it->collation.collation);
+	  it= new(reuse, &rsize) Item_string(thd->strmake(s->ptr(),
+							  s->length()),
+					     s->length(),
+					     it->collation.collation);
 	}
 	break;
       }
@@ -224,6 +228,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
       DBUG_ASSERT(0);
     }
   }
+  it->rsize= rsize;
 
   DBUG_RETURN(it);
 }
@@ -708,7 +713,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
-    Item *it= sp_eval_func_item(thd, argp++, pvar->type);
+    Item *it= sp_eval_func_item(thd, argp++, pvar->type, NULL);
 
     if (it)
       nctx->push_item(it);
@@ -823,7 +828,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	}
 	else
 	{
-	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type);
+	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type, NULL);
 
 	  if (it2)
 	    nctx->push_item(it2); // IN or INOUT
@@ -1111,7 +1116,8 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
                  (!strcmp(sp->m_definer_user.str, thd->priv_user) &&
                   !strcmp(sp->m_definer_host.str, thd->priv_host)));
   if (!*full_access)
-    return check_some_routine_access(thd, sp->m_db.str, sp->m_name.str);
+    return check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,
+                                     sp->m_type == TYPE_ENUM_PROCEDURE);
   return 0;
 }
 
@@ -1465,19 +1471,9 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 int
 sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
-  Item *it;
-  int res;
+  int res= thd->spcont->set_item_eval(thd, m_offset, &m_value, m_type);
 
-  it= sp_eval_func_item(thd, &m_value, m_type);
-  if (! it)
-    res= -1;
-  else
-  {
-    res= 0;
-    thd->spcont->set_item(m_offset, it);
-  }
   *nextp = m_ip+1;
-
   return res;
 }
 
@@ -1714,7 +1710,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, &m_value, m_type);
+  it= sp_eval_func_item(thd, &m_value, m_type, NULL);
   if (! it)
     res= -1;
   else
@@ -2090,15 +2086,10 @@ sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
 
 typedef struct st_sp_table
 {
-  LEX_STRING qname;
-  bool temp;
-  TABLE_LIST *table;
-  /*
-    We can't use table->lock_type as lock type for table
-    in multi-set since it can be changed by statement during
-    its execution (e.g. as this happens for multi-update).
-  */
-  thr_lock_type lock_type;
+  LEX_STRING qname;     /* Multi-set key: db_name\0table_name\0alias\0 */
+  uint db_length, table_name_length;
+  bool temp;               /* true if corresponds to a temporary table */
+  thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
   uint query_lock_count;
 } SP_TABLE;
@@ -2150,15 +2141,15 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
   for (; table ; table= table->next_global)
     if (!table->derived && !table->schema_table)
     {
-      char tname[64+1+64+1+64+1];	// db.table.alias\0
+      char tname[(NAME_LEN + 1) * 3];           // db\0table\0alias\0
       uint tlen, alen;
 
       tlen= table->db_length;
       memcpy(tname, table->db, tlen);
-      tname[tlen++]= '.';
+      tname[tlen++]= '\0';
       memcpy(tname+tlen, table->table_name, table->table_name_length);
       tlen+= table->table_name_length;
-      tname[tlen++]= '.';
+      tname[tlen++]= '\0';
       alen= strlen(table->alias);
       memcpy(tname+tlen, table->alias, alen);
       tlen+= alen;
@@ -2181,14 +2172,15 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 	if (!(tab= (SP_TABLE *)thd->calloc(sizeof(SP_TABLE))))
 	  return FALSE;
 	tab->qname.length= tlen;
-	tab->qname.str= (char *)thd->strmake(tname, tab->qname.length);
+	tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
 	if (!tab->qname.str)
 	  return FALSE;
 	if (lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
 	    lex_for_tmp_check->query_tables == table &&
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
 	  tab->temp= TRUE;
-	tab->table= table;
+        tab->table_name_length= table->table_name_length;
+        tab->db_length= table->db_length;
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
 	my_hash_insert(&m_sptabs, (byte *)tab);
@@ -2236,12 +2228,10 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   for (i=0 ; i < m_sptabs.records ; i++)
   {
     char *tab_buff;
-    TABLE_LIST *table, *otable;
+    TABLE_LIST *table;
     SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
     if (stab->temp)
       continue;
-
-    otable= stab->table;
 
     if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
                                         stab->lock_count)))
@@ -2257,11 +2247,11 @@ sp_head::add_used_tables_to_table_list(THD *thd,
         that the PS will be invalidated if the functions is deleted or
         changed.
       */
-      table->db= otable->db;
-      table->db_length= otable->db_length;
-      table->alias= otable->alias;
-      table->table_name= otable->table_name;
-      table->table_name_length= otable->table_name_length;
+      table->db= stab->qname.str;
+      table->db_length= stab->db_length;
+      table->table_name= table->db + table->db_length + 1;
+      table->table_name_length= stab->table_name_length;
+      table->alias= table->table_name + table->table_name_length + 1;
       table->lock_type= stab->lock_type;
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;

@@ -1260,3 +1260,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 set global concurrent_insert=@save_concurrent_insert;
+create table t1 (a int, key(a));
+insert into t1 values (1),(2),(3),(4),(NULL),(NULL),(NULL),(NULL);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+alter table t1 enable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	
+drop table t1;

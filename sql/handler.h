@@ -87,6 +87,7 @@
 #define HA_NO_VARCHAR	       (1 << 27)
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 #define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
+#define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -378,6 +379,7 @@ typedef struct st_ha_create_information
   SQL_LIST merge_list;
   enum db_type db_type;
   enum row_type row_type;
+  uint null_bits;                       /* NULL bits at start of record */
   uint options;				/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   uint merge_insert_method;
@@ -496,7 +498,7 @@ public:
     {}
   virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
   int ha_open(const char *name, int mode, int test_if_locked);
-  void update_auto_increment();
+  bool update_auto_increment();
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);

@@ -600,6 +600,11 @@ extern char *_my_strdup_with_length(const byte *from, uint length,
 				    const char *sFile, uint uLine,
 				    myf MyFlag);
 
+#ifdef __WIN__
+extern int my_access(const char *path, int amode);
+#else
+#define my_access access
+#endif
 
 #ifndef TERMINATE
 extern void TERMINATE(FILE *file);
@@ -778,15 +783,13 @@ extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
-extern int my_correct_defaults_file(const char *file_location,
-                                   const char *option,
-                                   const char *option_value,
-                                   const char *section_name,
-                                   int remove_option);
 extern void get_defaults_files(int argc, char **argv,
                                char **defaults, char **extra_defaults);
 extern int load_defaults(const char *conf_file, const char **groups,
 			 int *argc, char ***argv);
+extern int modify_defaults_file(const char *file_location, const char *option,
+                                const char *option_value,
+                                const char *section_name, int remove_option);
 extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
                                   Process_option_func func, void *func_ctx);

@@ -27,8 +27,20 @@
 #ifndef mySTL_HELPERS_HPP
 #define mySTL_HELPERS_HPP
 
-#include <cstdlib>
+#include <stdlib.h>
 
+
+#ifdef __IBMCPP__
+/*
+  Workaround for the lack of operator new(size_t, void*)
+  in IBM VA C++ 6.0
+*/
+struct Dummy {};
+inline void *operator new(size_t size, Dummy *d) { return (void*) d; }
+typedef Dummy *yassl_pointer;
+#else
+typedef void *yassl_pointer;
+#endif
 
 namespace mySTL {
 
@@ -36,7 +48,7 @@ namespace mySTL {
 template <typename T, typename T2>
 inline void construct(T* p, const T2& value)
 {
-    new (static_cast<void*>(p)) T(value);
+    new ((yassl_pointer) p) T(value);
 }
 
 

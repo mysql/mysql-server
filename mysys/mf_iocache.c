@@ -171,7 +171,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->arg = 0;
   info->alloced_buffer = 0;
   info->buffer=0;
-  info->seek_not_done= test(file >= 0);
+  info->seek_not_done= test(file >= 0 && seek_offset != my_tell(file, MYF(0)));
   info->disk_writes= 0;
 #ifdef THREAD
   info->share=0;
@@ -184,8 +184,10 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   {						/* Assume file isn't growing */
     if (!(cache_myflags & MY_DONT_CHECK_FILESIZE))
     {
-      /* Calculate end of file to not allocate to big buffers */
+      /* Calculate end of file to avoid allocating oversized buffers */
       end_of_file=my_seek(file,0L,MY_SEEK_END,MYF(0));
+      /* Need to reset seek_not_done now that we just did a seek. */
+      info->seek_not_done= end_of_file == seek_offset ? 0 : 1;
       if (end_of_file < seek_offset)
 	end_of_file=seek_offset;
       /* Trim cache size if the file is very small */
