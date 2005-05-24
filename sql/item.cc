@@ -2107,6 +2107,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
   *ptr=0;					// Keep purify happy
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
+  unsigned_flag= 1;
 }
 
 longlong Item_varbinary::val_int()
