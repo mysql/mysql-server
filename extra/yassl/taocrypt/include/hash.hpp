@@ -50,7 +50,7 @@ public:
 class HASHwithTransform : public HASH {
 public:
     HASHwithTransform(word32 digSz, word32 buffSz) 
-        : digest_(new (tc) word32[digSz]), buffer_(new (tc) byte[buffSz]) {}
+        : digest_(new word32[digSz]), buffer_(new byte[buffSz]) {}
     virtual ~HASHwithTransform() { delete[] buffer_; delete[] digest_; }
 
     virtual ByteOrder getByteOrder()  const = 0;

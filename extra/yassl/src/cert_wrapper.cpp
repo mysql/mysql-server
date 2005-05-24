@@ -39,7 +39,7 @@
 namespace yaSSL {
 
 
-x509::x509(uint sz) : length_(sz), buffer_(new (ys) opaque[sz]) 
+x509::x509(uint sz) : length_(sz), buffer_(new opaque[sz]) 
 {
 }
 
@@ -51,7 +51,7 @@ x509::~x509()
 
 
 x509::x509(const x509& that) : length_(that.length_),
-                               buffer_(new (ys) opaque[length_])
+                               buffer_(new opaque[length_])
 {
     memcpy(buffer_, that.buffer_, length_);
 }
@@ -153,7 +153,7 @@ void CertManager::AddPeerCert(x509* x)
 void CertManager::CopySelfCert(const x509* x)
 {
     if (x)
-        list_.push_back(new (ys) x509(*x));
+        list_.push_back(new x509(*x));
 }
 
 
@@ -165,7 +165,7 @@ int CertManager::CopyCaCert(const x509* x)
 
     if (!cert.GetError().What()) {
         const TaoCrypt::PublicKey& key = cert.GetPublicKey();
-        signers_.push_back(new (ys) TaoCrypt::Signer(key.GetKey(), key.size(),
+        signers_.push_back(new TaoCrypt::Signer(key.GetKey(), key.size(),
                                         cert.GetCommonName(), cert.GetHash()));
     }
     return cert.GetError().What();
@@ -234,7 +234,7 @@ int CertManager::Validate()
             return err;
 
         const TaoCrypt::PublicKey& key = cert.GetPublicKey();
-        signers_.push_back(new (ys) TaoCrypt::Signer(key.GetKey(), key.size(),
+        signers_.push_back(new TaoCrypt::Signer(key.GetKey(), key.size(),
                                         cert.GetCommonName(), cert.GetHash()));
         --last;
         --count;
@@ -259,7 +259,7 @@ int CertManager::Validate()
 
         int iSz = cert.GetIssuer() ? strlen(cert.GetIssuer()) + 1 : 0;
         int sSz = cert.GetCommonName() ? strlen(cert.GetCommonName()) + 1 : 0;
-        peerX509_ = new (ys) X509(cert.GetIssuer(), iSz, cert.GetCommonName(),
+        peerX509_ = new X509(cert.GetIssuer(), iSz, cert.GetCommonName(),
                                   sSz);
     }
     return 0;
@@ -273,13 +273,13 @@ int CertManager::SetPrivateKey(const x509& key)
     privateKey_.assign(key.get_buffer(), key.get_length());
 
     // set key type
-    if (x509* cert509 = list_.front()) {
-        TaoCrypt::Source source(cert509->get_buffer(), cert509->get_length());
-        TaoCrypt::CertDecoder cert(source, false);
-        cert.DecodeToKey();
-        if (int err = cert.GetError().What())
+    if (x509* cert = list_.front()) {
+        TaoCrypt::Source source(cert->get_buffer(), cert->get_length());
+        TaoCrypt::CertDecoder cd(source, false);
+        cd.DecodeToKey();
+        if (int err = cd.GetError().What())
             return err;
-        if (cert.GetKeyType() == TaoCrypt::RSAk)
+        if (cd.GetKeyType() == TaoCrypt::RSAk)
             keyType_ = rsa_sa_algo;
         else
             keyType_ = dsa_sa_algo;
