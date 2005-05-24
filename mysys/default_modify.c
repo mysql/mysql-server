@@ -42,7 +42,7 @@ int modify_defaults_file(const char *file_location, const char *option,
                          const char *section_name, int remove_option)
 {
   FILE *cnf_file;
-  struct stat file_stat;
+  MY_STAT file_stat;
   char linebuff[BUFF_SIZE], tmp[BUFF_SIZE], *tmp_ptr, *src_ptr, *dst_ptr,
        *file_buffer;
   uint optlen, optval_len, sect_len;

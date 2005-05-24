@@ -757,7 +757,13 @@ typedef struct st_lex
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
   bool tx_chain, tx_release;
-  /* special JOIN::prepare mode: changing of query is prohibited */
+  /*
+    Special JOIN::prepare mode: changing of query is prohibited.
+    When creating a view, we need to just check its syntax omitting
+    any optimizations: afterwards definition of the view will be
+    reconstructed by means of ::print() methods and written to
+    to an .frm file. We need this definition to stay untouched.
+  */
   bool view_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;

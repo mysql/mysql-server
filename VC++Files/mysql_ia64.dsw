@@ -640,30 +640,6 @@ Package=<4>
 
 ###############################################################################
 
-Project: "mysqlshutdown"=".\mysqlshutdown\mysqlshutdown_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
-Project: "mysqlwatch"=".\mysqlwatch\mysqlwatch_ia64.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
 Project: "pack_isam"=".\pack_isam\pack_isam_ia64.dsp" - Package Owner=<4>
 
 Package=<5>

@@ -28,7 +28,7 @@
     %#[l]u
     %#[l]x
     %#.#s	Note first # is ignored
-
+    
   RETURN
     length of result string
 */
