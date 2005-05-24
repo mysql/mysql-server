@@ -29,16 +29,6 @@
 
 #include <stddef.h>
 
-namespace yaSSL {
-
-// library allocation
-struct new_t {};      // yaSSL New type
-extern new_t ys;      // pass in parameter
-
-} // namespace yaSSL
-
-void* operator new  (size_t, yaSSL::new_t);
-void* operator new[](size_t, yaSSL::new_t);
 
 namespace yaSSL {
 
