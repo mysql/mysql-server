@@ -27,34 +27,7 @@
 #include <new>        // for NewHandler
 
 
-void* operator new(size_t sz, TaoCrypt::new_t)
-{
-    void* ptr = ::operator new(sz);
-
-    if (!ptr) abort();
-
-    return ptr;
-}
-
-void* operator new[](size_t sz, TaoCrypt::new_t tc)
-{
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
-    void* ptr = ::operator new(sz);         // no ::operator new[]
-#else
-    void* ptr = ::operator new[](sz);
-#endif
-
-    if (!ptr) abort();
-
-    return ptr;
-}
-
-
-
 namespace TaoCrypt {
-
-
-new_t tc;   // for library new
 
 
 inline void XorWords(word* r, const word* a, unsigned int n)
