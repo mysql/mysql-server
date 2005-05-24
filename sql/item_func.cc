@@ -1063,11 +1063,11 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
   if ((null_value= args[0]->null_value))
     return 0;
   val2= args[1]->val_decimal(&value2);
-  if ((null_value= (args[1]->null_value ||
-                    my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                   val2) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[1]->null_value ||
+                     my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 /*
@@ -1136,11 +1136,11 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
   if ((null_value= args[0]->null_value))
     return 0;
   val2= args[1]->val_decimal(&value2);
-  if ((null_value= (args[1]->null_value ||
-                    my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                   val2) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[1]->null_value ||
+                     my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1174,11 +1174,11 @@ my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value)
   if ((null_value= args[0]->null_value))
     return 0;
   val2= args[1]->val_decimal(&value2);
-  if ((null_value= (args[1]->null_value ||
-                    my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                   val2) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[1]->null_value ||
+                     my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1396,8 +1396,9 @@ my_decimal *Item_func_neg::decimal_op(my_decimal *decimal_value)
   {
     my_decimal2decimal(value, decimal_value);
     my_decimal_neg(decimal_value);
+    return decimal_value;
   }
-  return decimal_value;
+  return 0;
 }
 
 
@@ -1460,8 +1461,9 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value)
     my_decimal2decimal(value, decimal_value);
     if (decimal_value->sign())
       my_decimal_neg(decimal_value);
+    return decimal_value;
   }
-  return decimal_value;
+  return 0;
 }
 
 
@@ -1761,11 +1763,11 @@ double Item_func_ceiling::real_op()
 my_decimal *Item_func_ceiling::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
-  if ((null_value= (args[0]->null_value ||
-                    my_decimal_ceiling(E_DEC_FATAL_ERROR, value,
-                                       decimal_value) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[0]->null_value ||
+                     my_decimal_ceiling(E_DEC_FATAL_ERROR, value,
+                                        decimal_value) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1808,11 +1810,11 @@ double Item_func_floor::real_op()
 my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
-  if ((null_value= (args[0]->null_value ||
-                    my_decimal_floor(E_DEC_FATAL_ERROR, value,
-                                     decimal_value) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[0]->null_value ||
+                     my_decimal_floor(E_DEC_FATAL_ERROR, value,
+                                      decimal_value) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -1827,7 +1829,7 @@ void Item_func_round::fix_length_and_dec()
     return;
   }
   
-  int decimals_to_set= max(args[1]->val_int(), 0);
+  int decimals_to_set= max((int)args[1]->val_int(), 0);
   if (args[0]->decimals == NOT_FIXED_DEC)
   {
     max_length= args[0]->max_length;
@@ -1878,22 +1880,16 @@ void Item_func_round::fix_length_and_dec()
   }
 }
 
-double Item_func_round::real_op()
+double my_double_round(double value, int dec, bool truncate)
 {
-  double value= args[0]->val_real();
-  int dec=(int) args[1]->val_int();
-  if (dec > 0)
-    decimals= dec; // to get correct output
-  uint abs_dec=abs(dec);
   double tmp;
+  uint abs_dec= abs(dec);
   /*
     tmp2 is here to avoid return the value with 80 bit precision
     This will fix that the test round(0.1,1) = round(0.1,1) is true
   */
   volatile double tmp2;
 
-  if ((null_value=args[0]->null_value || args[1]->null_value))
-    return 0.0;
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
@@ -1907,6 +1903,18 @@ double Item_func_round::real_op()
   else
     tmp2=dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
   return tmp2;
+}
+
+
+double Item_func_round::real_op()
+{
+  double value= args[0]->val_real();
+  int dec= (int) args[1]->val_int();
+
+  if (!(null_value= args[0]->null_value || args[1]->null_value))
+    return my_double_round(value, dec, truncate);
+
+  return 0.0;
 }
 
 
@@ -1955,11 +1963,11 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   {
     decimals= min(dec, DECIMAL_MAX_SCALE); // to get correct output
   }
-  if ((null_value= (args[0]->null_value || args[1]->null_value ||
-                    my_decimal_round(E_DEC_FATAL_ERROR, value, dec, truncate,
-                                     decimal_value) > 1)))
-    return 0;
-  return decimal_value;
+  if (!(null_value= (args[0]->null_value || args[1]->null_value ||
+                     my_decimal_round(E_DEC_FATAL_ERROR, value, dec, truncate,
+                                      decimal_value) > 1)))
+    return decimal_value;
+  return 0;
 }
 
 
@@ -4311,6 +4319,11 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     return TRUE;
   }
   table=((Item_field *)item)->field->table;
+  if (!(table->file->table_flags() & HA_CAN_FULLTEXT))
+  {
+    my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+    return 1;
+  }
   table->fulltext_searched=1;
   return agg_arg_collations_for_comparison(cmp_collation, args+1, arg_count-1);
 }
@@ -4766,13 +4779,13 @@ Item_func_sp::execute(Item **itp)
 #endif
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_procedure_access(thd, EXECUTE_ACL, 
-			     m_sp->m_db.str, m_sp->m_name.str, 0))
+  if (check_routine_access(thd, EXECUTE_ACL, 
+			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
       DBUG_RETURN(-1);
   sp_change_security_context(thd, m_sp, &save_ctx);
   if (save_ctx.changed && 
-      check_procedure_access(thd, EXECUTE_ACL, 
-			     m_sp->m_db.str, m_sp->m_name.str, 0))
+      check_routine_access(thd, EXECUTE_ACL, 
+			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
   {
     sp_restore_security_context(thd, m_sp, &save_ctx);
     thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;

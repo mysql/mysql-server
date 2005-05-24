@@ -60,7 +60,7 @@ static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
 static bool initialized=0;
 static bool allow_all_hosts=1;
-static HASH acl_check_hosts, column_priv_hash, proc_priv_hash;
+static HASH acl_check_hosts, column_priv_hash, proc_priv_hash, func_priv_hash;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
 static uint grant_version=0; /* Version of priv tables. incremented by acl_init */
@@ -2136,11 +2136,12 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
 
 
 inline GRANT_NAME *
-proc_hash_search(const char *host, const char *ip, const char *db,
-                 const char *user, const char *tname, bool exact)
+routine_hash_search(const char *host, const char *ip, const char *db,
+                 const char *user, const char *tname, bool proc, bool exact)
 {
-  return (GRANT_TABLE*) name_hash_search(&proc_priv_hash, host, ip, db,
-					 user, tname, exact);
+  return (GRANT_TABLE*)
+    name_hash_search(proc ? &proc_priv_hash : &func_priv_hash,
+		     host, ip, db, user, tname, exact);
 }
 
 
@@ -2466,16 +2467,17 @@ table_error:
 }
 
 
-static int replace_proc_table(THD *thd, GRANT_NAME *grant_name,
+static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
 			      TABLE *table, const LEX_USER &combo,
-			      const char *db, const char *proc_name,
-			      ulong rights, bool revoke_grant)
+			      const char *db, const char *routine_name,
+			      bool is_proc, ulong rights, bool revoke_grant)
 {
   char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   int old_row_exists= 1;
   int error=0;
   ulong store_proc_rights;
-  DBUG_ENTER("replace_proc_table");
+  byte *key;
+  DBUG_ENTER("replace_routine_table");
 
   if (!initialized)
   {
@@ -2499,7 +2501,10 @@ static int replace_proc_table(THD *thd, GRANT_NAME *grant_name,
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->field[3]->store(proc_name,(uint) strlen(proc_name), &my_charset_latin1);
+  table->field[3]->store(routine_name,(uint) strlen(routine_name),
+                         &my_charset_latin1);
+  table->field[4]->store((longlong)(is_proc ? 
+                         TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION));
   store_record(table,record[1]);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0],0,
@@ -2514,7 +2519,7 @@ static int replace_proc_table(THD *thd, GRANT_NAME *grant_name,
     if (revoke_grant)
     { // no row, no revoke
       my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
-               combo.user.str, combo.host.str, proc_name);
+               combo.user.str, combo.host.str, routine_name);
       DBUG_RETURN(-1);
     }
     old_row_exists= 0;
@@ -2539,7 +2544,7 @@ static int replace_proc_table(THD *thd, GRANT_NAME *grant_name,
     }
   }
 
-  table->field[4]->store(grantor,(uint) strlen(grantor), &my_charset_latin1);
+  table->field[5]->store(grantor,(uint) strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong) store_proc_rights);
   rights=fix_rights_for_procedure(store_proc_rights);
 
@@ -2566,7 +2571,7 @@ static int replace_proc_table(THD *thd, GRANT_NAME *grant_name,
   }
   else
   {
-    hash_delete(&proc_priv_hash,(byte*) grant_name);
+    hash_delete(is_proc ? &proc_priv_hash : &func_priv_hash,(byte*) grant_name);
   }
   DBUG_RETURN(0);
 
@@ -2841,12 +2846,13 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
 
 /*
-  Store procedure level grants in the privilege tables
+  Store routine level grants in the privilege tables
 
   SYNOPSIS
-    mysql_procedure_grant()
+    mysql_routine_grant()
     thd			Thread handle
-    table_list		List of procedures to give grant
+    table_list		List of routines to give grant
+    is_proc             true indicates routine list are procedures
     user_list		List of users to give grant
     rights		Table level grant
     revoke_grant	Set to 1 if this is a REVOKE command
@@ -2856,16 +2862,16 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     1	error
 */
 
-bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
-			   List <LEX_USER> &user_list, ulong rights,
-			   bool revoke_grant, bool no_error)
+bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
+			 List <LEX_USER> &user_list, ulong rights,
+			 bool revoke_grant, bool no_error)
 {
   List_iterator <LEX_USER> str_list (user_list);
   LEX_USER *Str;
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
   char *db_name, *table_name;
-  DBUG_ENTER("mysql_procedure_grant");
+  DBUG_ENTER("mysql_routine_grant");
 
   if (!initialized)
   {
@@ -2884,7 +2890,7 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!revoke_grant)
   {
-    if (sp_exists_routine(thd, table_list, 0, no_error)<0)
+    if (sp_exists_routine(thd, table_list, is_proc, no_error)<0)
       DBUG_RETURN(TRUE);
   }
 
@@ -2957,8 +2963,8 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
     db_name= table_list->db;
     table_name= table_list->table_name;
 
-    grant_name= proc_hash_search(Str->host.str, NullS, db_name,
-                                 Str->user.str, table_name, 1);
+    grant_name= routine_hash_search(Str->host.str, NullS, db_name,
+                                    Str->user.str, table_name, is_proc, 1);
     if (!grant_name)
     {
       if (revoke_grant)
@@ -2977,11 +2983,11 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
         result= TRUE;
 	continue;
       }
-      my_hash_insert(&proc_priv_hash,(byte*) grant_name);
+      my_hash_insert(is_proc ? &proc_priv_hash : &func_priv_hash,(byte*) grant_name);
     }
 
-    if (replace_proc_table(thd, grant_name, tables[1].table, *Str,
-			   db_name, table_name, rights, revoke_grant))
+    if (replace_routine_table(thd, grant_name, tables[1].table, *Str,
+			   db_name, table_name, is_proc, rights, revoke_grant))
     {
       result= TRUE;
       continue;
@@ -3109,6 +3115,7 @@ void  grant_free(void)
   grant_option = FALSE;
   hash_free(&column_priv_hash);
   hash_free(&proc_priv_hash);
+  hash_free(&func_priv_hash);
   free_root(&memex,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -3131,6 +3138,9 @@ my_bool grant_init(THD *org_thd)
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
   (void) hash_init(&proc_priv_hash,system_charset_info,
+		   0,0,0, (hash_get_key) get_grant_table,
+		   0,0);
+  (void) hash_init(&func_priv_hash,system_charset_info,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   0,0);
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
@@ -3206,6 +3216,8 @@ my_bool grant_init(THD *org_thd)
     do
     {
       GRANT_NAME *mem_check;
+      longlong proc_type;
+      HASH *hash;
       if (!(mem_check=new GRANT_NAME(p_table)))
       {
 	/* This could only happen if we are out memory */
@@ -3224,11 +3236,27 @@ my_bool grant_init(THD *org_thd)
 	  continue;
 	}
       }
+      if (p_table->field[4]->val_int() == TYPE_ENUM_PROCEDURE)
+      {
+        hash= &proc_priv_hash;
+      }
+      else
+      if (p_table->field[4]->val_int() == TYPE_ENUM_FUNCTION)
+      {
+        hash= &func_priv_hash;
+      }
+      else
+      {
+        sql_print_warning("'procs_priv' entry '%s' "
+                          "ignored, bad routine type",
+                          mem_check->tname);
+	continue;
+      }
 
       mem_check->privs= fix_rights_for_procedure(mem_check->privs);
       if (! mem_check->ok())
 	delete mem_check;
-      else if (my_hash_insert(&proc_priv_hash,(byte*) mem_check))
+      else if (my_hash_insert(hash, (byte*) mem_check))
       {
 	delete mem_check;
 	grant_option= FALSE;
@@ -3272,7 +3300,7 @@ end:
 
 void grant_reload(THD *thd)
 {
-  HASH old_column_priv_hash, old_proc_priv_hash;
+  HASH old_column_priv_hash, old_proc_priv_hash, old_func_priv_hash;
   bool old_grant_option;
   MEM_ROOT old_mem;
   DBUG_ENTER("grant_reload");
@@ -3281,6 +3309,7 @@ void grant_reload(THD *thd)
   grant_version++;
   old_column_priv_hash= column_priv_hash;
   old_proc_priv_hash= proc_priv_hash;
+  old_func_priv_hash= func_priv_hash;
   old_grant_option= grant_option;
   old_mem= memex;
 
@@ -3290,6 +3319,7 @@ void grant_reload(THD *thd)
     grant_free();				/* purecov: deadcode */
     column_priv_hash= old_column_priv_hash;	/* purecov: deadcode */
     proc_priv_hash= old_proc_priv_hash;
+    func_priv_hash= old_func_priv_hash;
     grant_option= old_grant_option;		/* purecov: deadcode */
     memex= old_mem;				/* purecov: deadcode */
   }
@@ -3297,6 +3327,7 @@ void grant_reload(THD *thd)
   {
     hash_free(&old_column_priv_hash);
     hash_free(&old_proc_priv_hash);
+    hash_free(&old_func_priv_hash);
     free_root(&old_mem,MYF(0));
   }
   rw_unlock(&LOCK_grant);
@@ -3540,13 +3571,14 @@ bool check_grant_db(THD *thd,const char *db)
 
 
 /****************************************************************************
-  Check procedure level grants
+  Check routine level grants
 
   SYNPOSIS
-   bool check_grant_procedure()
+   bool check_grant_routine()
    thd		Thread handler
    want_access  Bits of privileges user needs to have
-   procs	List of procedures to check. The user should have 'want_access'
+   procs	List of routines to check. The user should have 'want_access'
+   is_proc	True if the list is all procedures, else functions
    no_errors	If 0 then we write an error. The error is sent directly to
 		the client
 
@@ -3555,13 +3587,13 @@ bool check_grant_db(THD *thd,const char *db)
      1  Error: User did not have the requested privielges
 ****************************************************************************/
 
-bool check_grant_procedure(THD *thd, ulong want_access, 
-			   TABLE_LIST *procs, bool no_errors)
+bool check_grant_routine(THD *thd, ulong want_access, 
+			 TABLE_LIST *procs, bool is_proc, bool no_errors)
 {
   TABLE_LIST *table;
   char *user= thd->priv_user;
   char *host= thd->priv_host;
-  DBUG_ENTER("check_grant_procedure");
+  DBUG_ENTER("check_grant_routine");
 
   want_access&= ~thd->master_access;
   if (!want_access)
@@ -3571,8 +3603,8 @@ bool check_grant_procedure(THD *thd, ulong want_access,
   for (table= procs; table; table= table->next_global)
   {
     GRANT_NAME *grant_proc;
-    if ((grant_proc= proc_hash_search(host,thd->ip, 
-				      table->db, user, table->table_name, 0)))
+    if ((grant_proc= routine_hash_search(host,thd->ip, table->db, user,
+					 table->table_name, is_proc, 0)))
       table->grant.privilege|= grant_proc->privs;
 
     if (want_access & ~table->grant.privilege)
@@ -3594,7 +3626,7 @@ err:
     if (want_access & EXECUTE_ACL)
       command= "execute";
     else if (want_access & ALTER_PROC_ACL)
-      command= "alter procedure";
+      command= "alter routine";
     else if (want_access & GRANT_ACL)
       command= "grant";
     my_error(ER_PROCACCESS_DENIED_ERROR, MYF(0),
@@ -3606,7 +3638,7 @@ err:
 
 /*
   Check if routine has any of the 
-  procedure level grants
+  routine level grants
   
   SYNPOSIS
    bool    check_routine_level_acl()
@@ -3619,15 +3651,16 @@ err:
    1            error
 */
 
-bool check_routine_level_acl(THD *thd, const char *db, const char *name)
+bool check_routine_level_acl(THD *thd, const char *db, const char *name, 
+                             bool is_proc)
 {
   bool no_routine_acl= 1;
   if (grant_option)
   {
     GRANT_NAME *grant_proc;
     rw_rdlock(&LOCK_grant);
-    if ((grant_proc= proc_hash_search(thd->priv_host, thd->ip, db,
-                                      thd->priv_user, name, 0)))
+    if ((grant_proc= routine_hash_search(thd->priv_host, thd->ip, db,
+                                         thd->priv_user, name, is_proc, 0)))
       no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
     rw_unlock(&LOCK_grant);
   }
@@ -3728,6 +3761,11 @@ static uint command_lengths[]=
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
   14, 13, 11
 };
+
+
+static int show_routine_grants(THD *thd, LEX_USER *lex_user, HASH *hash,
+                               const char *type, int typelen,
+                               char *buff, int buffsize);
 
 
 /*
@@ -4076,12 +4114,40 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     }
   }
 
-  /* Add procedure access */
-  for (index=0 ; index < proc_priv_hash.records ; index++)
+  if (show_routine_grants(thd, lex_user, &proc_priv_hash, 
+                          "PROCEDURE", 9, buff, sizeof(buff)))
+  {
+    error= -1;
+    goto end;
+  }
+
+  if (show_routine_grants(thd, lex_user, &func_priv_hash,
+                          "FUNCTION", 8, buff, sizeof(buff)))
+  {
+    error= -1;
+    goto end;
+  }
+
+end:
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  rw_unlock(&LOCK_grant);
+
+  send_eof(thd);
+  DBUG_RETURN(error);
+}
+
+static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
+                               const char *type, int typelen,
+                               char *buff, int buffsize)
+{
+  uint counter, index;
+  int error= 0;
+  Protocol *protocol= thd->protocol;
+  /* Add routine access */
+  for (index=0 ; index < hash->records ; index++)
   {
     const char *user;
-    GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(&proc_priv_hash,
-						       index);
+    GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, index);
 
     if (!(user=grant_proc->user))
       user= "";
@@ -4093,7 +4159,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       ulong proc_access= grant_proc->privs;
       if (proc_access != 0)
       {
-	String global(buff, sizeof(buff), system_charset_info);
+	String global(buff, buffsize, system_charset_info);
 	ulong test_access= proc_access & ~GRANT_ACL;
 
 	global.length(0);
@@ -4119,6 +4185,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	  }
 	}
 	global.append(" ON ",4);
+        global.append(type,typelen);
+        global.append(' ');
 	append_identifier(thd, &global, grant_proc->db,
 			  strlen(grant_proc->db));
 	global.append('.');
@@ -4143,14 +4211,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       }
     }
   }
-end:
-  VOID(pthread_mutex_unlock(&acl_cache->lock));
-  rw_unlock(&LOCK_grant);
-
-  send_eof(thd);
-  DBUG_RETURN(error);
+  return error;
 }
-
 
 /*
   Make a clear-text version of the requested privilege.
@@ -4977,7 +5039,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
 bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
-  uint counter, revoked;
+  uint counter, revoked, is_proc;
   int result;
   ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
@@ -5092,12 +5154,12 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     } while (revoked);
 
     /* Remove procedure access */
-    do {
-      for (counter= 0, revoked= 0 ; counter < proc_priv_hash.records ; )
+    for (is_proc=0; is_proc<2; is_proc++) do {
+      HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
+      for (counter= 0, revoked= 0 ; counter < hash->records ; )
       {
 	const char *user,*host;
-	GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(&proc_priv_hash,
-							   counter);
+	GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, counter);
 	if (!(user=grant_proc->user))
 	  user= "";
 	if (!(host=grant_proc->host.hostname))
@@ -5106,9 +5168,10 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  if (!replace_proc_table(thd,grant_proc,tables[4].table,*lex_user,
+	  if (!replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
 				  grant_proc->db,
 				  grant_proc->tname,
+                                  is_proc,
 				  ~0, 1))
 	  {
 	    revoked= 1;
@@ -5146,11 +5209,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     < 0         Error. Error message not yet sent.
 */
 
-bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
+bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
+                          bool is_proc)
 {
   uint counter, revoked;
   int result;
   TABLE_LIST tables[GRANT_TABLES];
+  HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
   DBUG_ENTER("sp_revoke_privileges");
 
   if ((result= open_grant_tables(thd, tables)))
@@ -5162,10 +5227,9 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
   /* Remove procedure access */
   do
   {
-    for (counter= 0, revoked= 0 ; counter < proc_priv_hash.records ; )
+    for (counter= 0, revoked= 0 ; counter < hash->records ; )
     {
-      GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(&proc_priv_hash,
-							 counter);
+      GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, counter);
       if (!my_strcasecmp(system_charset_info, grant_proc->db, sp_db) &&
 	  !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name))
       {
@@ -5174,8 +5238,9 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
 	lex_user.user.length= strlen(grant_proc->user);
 	lex_user.host.str= grant_proc->host.hostname;
 	lex_user.host.length= strlen(grant_proc->host.hostname);
-	if (!replace_proc_table(thd,grant_proc,tables[4].table,lex_user,
-				grant_proc->db, grant_proc->tname, ~0, 1))
+	if (!replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
+				   grant_proc->db, grant_proc->tname,
+                                   is_proc, ~0, 1))
 	{
 	  revoked= 1;
 	  continue;
@@ -5211,7 +5276,8 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
     < 0         Error. Error message not yet sent.
 */
 
-bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name)
+bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+                         bool is_proc)
 {
   LEX_USER *combo;
   TABLE_LIST tables[1];
@@ -5249,7 +5315,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name)
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
 
-  result= mysql_procedure_grant(thd, tables, user_list,
+  result= mysql_routine_grant(thd, tables, is_proc, user_list,
   				DEFAULT_CREATE_PROC_ACLS, 0, 1);
   DBUG_RETURN(result);
 }
@@ -5598,7 +5664,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
  Dummy wrappers when we don't have any access checks
 ****************************************************************************/
 
-bool check_routine_level_acl(THD *thd, const char *db, const char *name)
+bool check_routine_level_acl(THD *thd, const char *db, const char *name,
+                             bool is_proc)
 {
   return FALSE;
 }

@@ -3,6 +3,9 @@
 #
 --disable_warnings
 drop table if exists t1,t2;
+
+# Avoid wrong warnings if mysql_client_test fails
+drop database if exists client_test_db;
 --enable_warnings
 
 create table t1

@@ -173,6 +173,9 @@ public:
   static void operator delete(void *ptr, void *buffer)
   {}
 
+  static void operator delete(void *buffer)
+  {}
+
   static String bad_geometry_data;
 
   enum wkbType

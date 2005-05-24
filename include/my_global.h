@@ -44,7 +44,7 @@
 #endif /* __CYGWIN__ */
 
 /* Determine when to use "#pragma interface" */
-#if !defined(__CYGWIN__) && !defined(__ICC) && defined(__GNUC__) && (__GNUC__ < 3)
+#if !defined(__CYGWIN__) && !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
 #define USE_PRAGMA_INTERFACE
 #endif
 
@@ -285,7 +285,7 @@ C_MODE_END
 # endif
 #endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_UNISTD_H
-#if defined(HAVE_OPENSSL) && !defined(__FreeBSD__) && !defined(NeXT) && !defined(__OpenBSD__)
+#if defined(HAVE_OPENSSL) && !defined(__FreeBSD__) && !defined(NeXT) && !defined(__OpenBSD__) && !defined(__APPLE__)
 #define crypt unistd_crypt
 #endif
 #include <unistd.h>

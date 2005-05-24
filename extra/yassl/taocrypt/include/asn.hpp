@@ -79,7 +79,7 @@ enum ASNIdFlag
 
 enum DNTags
 {
-    COMMON_NAME         = 0x03,
+    COMMON_NAME         = 0x03
 };
 
 
@@ -92,7 +92,7 @@ enum Constants
     MAX_SEQ_SZ    =  5,    // enum(seq|con) + length(4)
     MAX_ALGO_SIZE =  9,
     MAX_DIGEST_SZ = 25,    // SHA + enum(Bit or Octet) + length(4)
-    DSA_SIG_SZ    = 40,
+    DSA_SIG_SZ    = 40
 };
 
 

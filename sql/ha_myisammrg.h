@@ -37,7 +37,7 @@ class ha_myisammrg: public handler
   {
     return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_READ_RND_SAME |
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
-            HA_CAN_INSERT_DELAYED);
+            HA_CAN_INSERT_DELAYED | HA_ANY_INDEX_MAY_BE_UNIQUE);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {

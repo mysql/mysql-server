@@ -387,3 +387,11 @@ select a into @x from t1;
 show warnings;
 drop table t1;
 
+#
+# Bug #10339: read only variables.
+#
+
+--error 1238
+set @@warning_count=1;
+--error 1238
+set @@global.error_count=1;

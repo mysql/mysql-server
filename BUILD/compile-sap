@@ -1,0 +1,9 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium_cflags"
+extra_configs="$pentium_configs --without-berkeley-db"
+
+. "$path/FINISH.sh"

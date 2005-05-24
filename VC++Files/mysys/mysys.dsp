@@ -186,6 +186,11 @@ SOURCE=.\array.c
 !ENDIF
 
 # End Source File
+ 
+# Begin Source File
+SOURCE=".\my_access.c"
+# End Source File
+ 
 # Begin Source File
 
 SOURCE=".\charset-def.c"
@@ -201,6 +206,10 @@ SOURCE=.\checksum.c
 # Begin Source File
 
 SOURCE=.\default.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\default_modify.c
 # End Source File
 # Begin Source File
 

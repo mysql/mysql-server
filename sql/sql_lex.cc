@@ -50,7 +50,8 @@ pthread_key(LEX*,THR_LEX);
   used when comparing keywords
 */
 
-uchar to_upper_lex[] = {
+static uchar to_upper_lex[]=
+{
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -1100,7 +1101,7 @@ void st_select_lex::init_query()
   embedding= leaf_tables= 0;
   item_list.empty();
   join= 0;
-  where= prep_where= 0;
+  having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
   resolve_mode= NOMATTER_MODE;
@@ -1530,8 +1531,8 @@ void st_select_lex::print_order(String *str, ORDER *order)
     if (order->counter_used)
     {
       char buffer[20];
-      my_snprintf(buffer, 20, "%u", order->counter);
-      str->append(buffer);
+      uint length= my_snprintf(buffer, 20, "%d", order->counter);
+      str->append(buffer, length);
     }
     else
       (*order->item)->print(str);

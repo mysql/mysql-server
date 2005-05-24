@@ -945,7 +945,11 @@ struct show_var_st init_vars[]= {
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
+  {sys_slave_compressed_protocol.name,
+    (char*) &sys_slave_compressed_protocol,           SHOW_SYS},
+  {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
+  {"slave_skip_errors",       (char*) &slave_error_mask,            SHOW_SLAVE_SKIP_ERRORS},
   {sys_slave_trans_retries.name,(char*) &sys_slave_trans_retries,   SHOW_SYS},
 #endif
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},
@@ -2950,6 +2954,11 @@ bool not_all_support_one_shot(List<set_var_base> *var_list)
 
 int set_var::check(THD *thd)
 {
+  if (var->is_readonly())
+  {
+    my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name, "read only");
+    return -1;
+  }
   if (var->check_type(type))
   {
     int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;

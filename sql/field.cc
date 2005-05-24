@@ -2365,9 +2365,20 @@ int Field_new_decimal::store(const char *from, uint length,
   my_decimal decimal_value;
   DBUG_ENTER("Field_new_decimal::store(char*)");
 
-  switch ((err= str2my_decimal(E_DEC_FATAL_ERROR &
-                               ~(E_DEC_OVERFLOW | E_DEC_BAD_NUM),
-                               from, length, charset,  &decimal_value))) {
+  if ((err= str2my_decimal(E_DEC_FATAL_ERROR &
+                      ~(E_DEC_OVERFLOW | E_DEC_BAD_NUM),
+                      from, length, charset,  &decimal_value)) &&
+      table->in_use->abort_on_warning)
+  {
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        "decimal", from, field_name,
+                        (ulong) table->in_use->row_count);
+    DBUG_RETURN(err);
+  }
+
+  switch (err) {
   case E_DEC_TRUNCATED:
     set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
     break;

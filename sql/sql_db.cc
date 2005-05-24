@@ -1076,7 +1076,7 @@ bool mysql_change_db(THD *thd, const char *name)
   length=unpack_dirname(path,path);		// Convert if not unix
   if (length && path[length-1] == FN_LIBCHAR)
     path[length-1]=0;				// remove ending '\'
-  if (access(path,F_OK))
+  if (my_access(path,F_OK))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
     my_free(dbname,MYF(0));

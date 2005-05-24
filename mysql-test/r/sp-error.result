@@ -642,4 +642,8 @@ val	x	bug8408()
 7	7	3
 drop function bug8408|
 delete from t1|
+drop procedure if exists bug10537|
+create procedure bug10537()
+load data local infile '/tmp/somefile' into table t1|
+ERROR 0A000: LOAD DATA is not allowed in stored procedures
 drop table t1|
