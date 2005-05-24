@@ -36,12 +36,13 @@ namespace TaoCrypt {
 enum { DES_BLOCK_SIZE = 8 };
 
 // Base for all DES types
-class DES_BASE : public Mode_BASE<DES_BLOCK_SIZE> {
+class DES_BASE : public Mode_BASE {
 public:
     enum { BLOCK_SIZE = DES_BLOCK_SIZE, KEY_SIZE = 32, BOXES = 8,
            BOX_SIZE = 64 };
 
-    DES_BASE(CipherDir DIR, Mode MODE) : dir_(DIR), mode_(MODE) {}
+    DES_BASE(CipherDir DIR, Mode MODE) 
+        : Mode_BASE(BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
 
     void Process(byte*, const byte*, word32);
 protected:
