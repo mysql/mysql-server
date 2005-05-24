@@ -1027,12 +1027,14 @@ public:
   void print(String *str);
 };
 
+
 /*
   The following class is used to optimize comparing of date and bigint columns
-  We need to save the original item, to be able to set the field to the
-  original value in 'opt_range'.
-  An instance of Item_int_with_ref may refer to a signed or an unsigned
-  integer.
+  We need to save the original item ('ref') to be able to call
+  ref->save_in_field(). This is used to create index search keys.
+  
+  An instance of Item_int_with_ref may have signed or unsigned integer value.
+  
 */
 
 class Item_int_with_ref :public Item_int

@@ -422,6 +422,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
     }
     else
       table_name=(*tbl)->path;
+    DBUG_PRINT("info",("MyISAM table_name: '%s'", table_name));
     *pos++= table_name;
   }
   *pos=0;

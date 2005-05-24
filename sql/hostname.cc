@@ -209,8 +209,8 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
     DBUG_PRINT("error",("gethostbyaddr returned %d",errno));
 
     if (errno == HOST_NOT_FOUND || errno == NO_DATA)
-	add_wrong_ip(in); /* only cache negative responses, not failures */
-
+      goto add_wrong_ip_and_return;
+    /* Failure, don't cache responce */
     DBUG_RETURN(0);
   }
   if (!hp->h_name[0])				// Don't allow empty hostnames

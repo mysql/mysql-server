@@ -163,6 +163,13 @@ LIB32=link.exe -lib
 # Name "mysys - WinIA64 Max"
 # Name "mysys - WinIA64 TLS_DEBUG"
 # Name "mysys - WinIA64 TLS"
+
+# Begin Source File
+
+SOURCE=.\my_access.c
+
+# End Source File
+ 
 # Begin Source File
 
 SOURCE=.\array.c

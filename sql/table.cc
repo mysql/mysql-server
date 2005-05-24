@@ -688,7 +688,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       set_if_bigger(outparam->max_key_length,keyinfo->key_length+
 		    keyinfo->key_parts);
       outparam->total_key_length+= keyinfo->key_length;
-      if (keyinfo->flags & HA_NOSAME)
+      /*
+        MERGE tables do not have unique indexes. But every key could be
+        an unique index on the underlying MyISAM table. (Bug #10400)
+      */
+      if ((keyinfo->flags & HA_NOSAME) ||
+          (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
         set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
     }
     if (primary_key < MAX_KEY &&
