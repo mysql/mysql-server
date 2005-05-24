@@ -28,7 +28,7 @@
     %#[l]u
     %#[l]x
     %#.#s	Note first # is ignored
-
+    
   RETURN
     length of result string
 */
@@ -135,6 +135,16 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       to+= res_length;
       continue;
     }
+    else if (*fmt == 'c')                       /* Character parameter */
+    {
+      register int larg;
+      if (to == end)
+        break;
+      larg = va_arg(ap, int);
+      *to++= (char) larg;
+      continue;
+    }
+
     /* We come here on '%%', unknown code or too long parameter */
     if (to == end)
       break;

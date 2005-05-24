@@ -232,6 +232,21 @@ public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
+  /* Special for SP local variable assignment - reusing slots */
+  static void *operator new(size_t size, Item *reuse, uint *rsize)
+  {
+    if (reuse && size <= reuse->rsize)
+    {
+      reuse->cleanup();
+      TRASH((void *)reuse, size);
+      if (rsize)
+	(*rsize)= reuse->rsize;
+      return (void *)reuse;
+    }
+    if (rsize)
+      (*rsize)= size;
+    return (void *)sql_alloc((uint)size);
+  }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
@@ -247,6 +262,9 @@ public:
 
   enum traverse_order { POSTFIX, PREFIX };
   
+  /* Reuse size, only used by SP local variable assignment, otherwize 0 */
+  uint rsize;
+
   /*
     str_values's main purpose is to be used to cache the value in
     save_in_field
@@ -1325,6 +1343,7 @@ public:
   { 
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
+  table_map not_null_tables() const { return (*ref)->not_null_tables(); }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
@@ -1394,12 +1413,14 @@ public:
   void print(String *str);
 };
 
+
 /*
   The following class is used to optimize comparing of date and bigint columns
-  We need to save the original item, to be able to set the field to the
-  original value in 'opt_range'.
-  An instance of Item_int_with_ref may refer to a signed or an unsigned
-  integer.
+  We need to save the original item ('ref') to be able to call
+  ref->save_in_field(). This is used to create index search keys.
+  
+  An instance of Item_int_with_ref may have signed or unsigned integer value.
+  
 */
 
 class Item_int_with_ref :public Item_int

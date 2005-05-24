@@ -605,3 +605,12 @@ insert into t1 (datavalue) select datavalue from t1 where counter < 100;
 select * from t1 order by counter;
 
 drop table t1;
+
+
+#
+# Test long table name
+#
+create table atablewithareallylongandirritatingname (a int);
+insert into atablewithareallylongandirritatingname values (2);
+select * from atablewithareallylongandirritatingname;
+drop table atablewithareallylongandirritatingname;

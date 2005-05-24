@@ -59,6 +59,37 @@ public:
   NdbWaiter             theWaiter;
 
   int m_optimized_node_selection;
+
+
+  BaseString m_dbname; // Database name
+  BaseString m_schemaname; // Schema name
+
+  BaseString m_prefix; // Buffer for preformatted internal name <db>/<schema>/
+  BaseString m_internalname;
+
+  void update_prefix()
+  {
+    m_prefix.assfmt("%s%c%s%c", m_dbname.c_str(), table_name_separator,
+                    m_schemaname.c_str(), table_name_separator);
+  }
+
+  const char* internalize_table_name(const char* ext_name)
+  {
+    // Internal table name format <db>/<schema>/<table>
+    return m_internalname.assign(m_prefix).append(ext_name).c_str();
+  }
+
+  const char* internalize_index_name(const NdbTableImpl *table,
+                                     const char* ext_name)
+  {
+    // Internal index name format <db>/<schema>/<tabid>/<table>
+    return m_internalname.assign(m_prefix).appfmt("%d%c%s",
+                                                  table->m_tableId,
+                                                  table_name_separator,
+                                                  ext_name).c_str();
+  }
+
+
 };
 
 #ifdef VM_TRACE

@@ -698,7 +698,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts opt_chain opt_release
-        union_opt select_derived_init
+        union_opt select_derived_init option_type option_type2
 
 %type <ulong_num>
 	ulong_num raid_types merge_insert_types
@@ -804,7 +804,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_delete_options opt_delete_option varchar nchar nvarchar
 	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
-	opt_column_list grant_privileges opt_table grant_list grant_option
+	opt_column_list grant_privileges grant_ident grant_list grant_option
 	object_privilege object_privilege_list user_list rename_list
 	clear_privileges flush_options flush_option
 	equal optional_braces opt_key_definition key_usage_list2
@@ -3986,7 +3986,15 @@ select_from:
 
 select_options:
 	/* empty*/
-	| select_option_list;
+	| select_option_list
+	  {
+	    if (test_all_bits(Select->options, SELECT_ALL | SELECT_DISTINCT))
+	    {
+	      my_error(ER_WRONG_USAGE, MYF(0), "ALL", "DISTINCT");
+              YYABORT;
+	    }
+          }
+	  ;
 
 select_option_list:
 	select_option_list select_option
@@ -4000,15 +4008,7 @@ select_option:
 	      YYABORT;
 	    Lex->lock_option= TL_READ_HIGH_PRIORITY;
 	  }
-	| DISTINCT
-	  {
-            if (Select->options & SELECT_ALL)
-            {
-              yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-            Select->options|= SELECT_DISTINCT; 
-	  }
+	| DISTINCT         { Select->options|= SELECT_DISTINCT; }
 	| SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
 	| SQL_BUFFER_RESULT
@@ -4028,15 +4028,7 @@ select_option:
 	  {
 	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 	  }
-	| ALL
-	  {
-            if (Select->options & SELECT_DISTINCT)
-            {
-              yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-            Select->options|= SELECT_ALL; 
-	  }
+	| ALL		    { Select->options|= SELECT_ALL; }
 	;
 
 select_lock_type:
@@ -6619,6 +6611,11 @@ use:	USE_SYM ident
 load:   LOAD DATA_SYM 
         {
           LEX *lex=Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
+	    YYABORT;
+	  }
           lex->fname_start= lex->ptr;
         }
         load_data
@@ -6626,7 +6623,13 @@ load:   LOAD DATA_SYM
         |
         LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
-          Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+	  LEX *lex=Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD TABLE");
+	    YYABORT;
+	  }
+          lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
           if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
             YYABORT;
         };
@@ -7463,8 +7466,8 @@ option_type_value:
             /*
               If we are in SP we want have own LEX for each assignment.
               This is mostly because it is hard for several sp_instr_set
-              and sp_instr_set_trigger instructions share one LEX. 
-              (Well, it is theoretically possible but adds some extra 
+              and sp_instr_set_trigger instructions share one LEX.
+              (Well, it is theoretically possible but adds some extra
                overhead on preparation for execution stage and IMO less
                robust).
 
@@ -7473,7 +7476,7 @@ option_type_value:
             LEX *lex;
             Lex->sphead->reset_lex(YYTHD);
             lex= Lex;
-            
+
             /* Set new LEX as if we at start of set rule. */
 	    lex->sql_command= SQLCOM_SET_OPTION;
 	    mysql_init_select(lex);
@@ -7483,14 +7486,14 @@ option_type_value:
 	    lex->sphead->m_tmp_query= lex->tok_start;
           }
         }
-	option_type option_value
+	ext_option_value
         {
           LEX *lex= Lex;
-          
+
           if (lex->sphead)
           {
             sp_head *sp= lex->sphead;
-            
+
 	    if (!lex->var_list.is_empty())
 	    {
               /*
@@ -7500,19 +7503,19 @@ option_type_value:
               */
               LEX_STRING qbuff;
 	      sp_instr_stmt *i;
-              
+
               if (!(i= new sp_instr_stmt(sp->instructions(), lex->spcont,
                                          lex)))
                 YYABORT;
-                
+
               if (lex->ptr - lex->tok_end > 1)
                 qbuff.length= lex->ptr - sp->m_tmp_query;
               else
                 qbuff.length= lex->tok_end - sp->m_tmp_query;
-              
+
               if (!(qbuff.str= alloc_root(YYTHD->mem_root, qbuff.length + 5)))
                 YYABORT;
-                
+
               strmake(strmake(qbuff.str, "SET ", 4), (char *)sp->m_tmp_query,
                       qbuff.length);
               qbuff.length+= 4;
@@ -7524,11 +7527,15 @@ option_type_value:
         };
 
 option_type:
-	/* empty */	{}
-	| GLOBAL_SYM	{ Lex->option_type= OPT_GLOBAL; }
-	| LOCAL_SYM	{ Lex->option_type= OPT_SESSION; }
-	| SESSION_SYM	{ Lex->option_type= OPT_SESSION; }
-	| ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
+        option_type2    {}
+	| GLOBAL_SYM	{ $$=OPT_GLOBAL; }
+	| LOCAL_SYM	{ $$=OPT_SESSION; }
+	| SESSION_SYM	{ $$=OPT_SESSION; }
+	;
+
+option_type2:
+	/* empty */	{ $$= OPT_DEFAULT; }
+	| ONE_SHOT_SYM	{ Lex->one_shot_set= 1; $$= OPT_SESSION; }
 	;
 
 opt_var_type:
@@ -7545,88 +7552,109 @@ opt_var_ident_type:
 	| SESSION_SYM '.'	{ $$=OPT_SESSION; }
 	;
 
-option_value:
-	  '@' ident_or_text equal expr
-	  {
-            Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
-	  }
-	| internal_variable_name equal set_expr_or_default
-	  {
-	    LEX *lex=Lex;
+ext_option_value:
+        sys_option_value
+        | option_type2 option_value;
 
-            if ($1.var == &trg_new_row_fake_var)
+sys_option_value:
+        option_type internal_variable_name equal set_expr_or_default
+        {
+          LEX *lex=Lex;
+
+          if ($2.var == &trg_new_row_fake_var)
+          {
+            /* We are in trigger and assigning value to field of new row */
+            Item *it;
+            sp_instr_set_trigger_field *i;
+            if ($1)
             {
-              /* We are in trigger and assigning value to field of new row */
-              Item *it;
-              sp_instr_set_trigger_field *i;
-              if (lex->query_tables)
-              {
-                my_message(ER_SP_SUBSELECT_NYI, ER(ER_SP_SUBSELECT_NYI),
-                           MYF(0));
-                YYABORT;
-              }
-              if ($3)
-                it= $3;
-              else
-              {
-                /* QQ: Shouldn't this be field's default value ? */
-                it= new Item_null();
-              }
-              
-              if (!(i= new sp_instr_set_trigger_field(
-                             lex->sphead->instructions(), lex->spcont,
-                             $1.base_name, it)))
-                YYABORT;
-              
-              /*
-                Let us add this item to list of all Item_trigger_field
-                objects in trigger.
-              */
-              lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
-                     (byte **)&i->trigger_field.next_trg_field);
-
-              lex->sphead->add_instr(i);
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
             }
-            else if ($1.var)
-	    { /* System variable */
-	      lex->var_list.push_back(new set_var(lex->option_type, $1.var,
-						  &$1.base_name, $3));
-	    }
+            if (lex->query_tables)
+            {
+              my_message(ER_SP_SUBSELECT_NYI, ER(ER_SP_SUBSELECT_NYI),
+              MYF(0));
+              YYABORT;
+            }
+            if ($4)
+              it= $4;
             else
-	    {
-	      /* An SP local variable */
-	      sp_pcontext *ctx= lex->spcont;
-	      sp_pvar_t *spv;
-              sp_instr_set *i;
-	      Item *it;
+            {
+              /* QQ: Shouldn't this be field's default value ? */
+              it= new Item_null();
+            }
 
-	      spv= ctx->find_pvar(&$1.base_name);
+            if (!(i= new sp_instr_set_trigger_field(
+                lex->sphead->instructions(), lex->spcont,
+                $2.base_name, it)))
+              YYABORT;
 
-	      if ($3)
-	        it= $3;
-	      else if (spv->dflt)
-	        it= spv->dflt;
-	      else
-	        it= new Item_null();
-              i= new sp_instr_set(lex->sphead->instructions(), ctx,
-	                          spv->offset, it, spv->type, lex, TRUE);
-	      lex->sphead->add_instr(i);
-	      spv->isset= TRUE;
-	    }
-	  }
+            /*
+              Let us add this item to list of all Item_trigger_field
+              objects in trigger.
+            */
+            lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
+            (byte **)&i->trigger_field.next_trg_field);
+
+            lex->sphead->add_instr(i);
+          }
+          else if ($2.var)
+          { /* System variable */
+            if ($1)
+              lex->option_type= (enum_var_type)$1;
+            lex->var_list.push_back(new set_var(lex->option_type, $2.var,
+                                    &$2.base_name, $4));
+          }
+          else
+          {
+            /* An SP local variable */
+            sp_pcontext *ctx= lex->spcont;
+            sp_pvar_t *spv;
+            sp_instr_set *i;
+            Item *it;
+            if ($1)
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+
+            spv= ctx->find_pvar(&$2.base_name);
+
+            if ($4)
+              it= $4;
+            else if (spv->dflt)
+              it= spv->dflt;
+            else
+              it= new Item_null();
+            i= new sp_instr_set(lex->sphead->instructions(), ctx,
+                                spv->offset, it, spv->type, lex, TRUE);
+            lex->sphead->add_instr(i);
+            spv->isset= TRUE;
+          }
+        }
+        | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
+	{
+	  LEX *lex=Lex;
+          if (!$1)
+            lex->option_type= (enum_var_type)$1;
+	  lex->var_list.push_back(new set_var(lex->option_type,
+                                              find_sys_var("tx_isolation"),
+                                              &null_lex_str,
+                                              new Item_int((int32) $5)));
+	}
+        ;
+
+option_value:
+	'@' ident_or_text equal expr
+	{
+          Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
+	}
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
 	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4.var,
 						&$4.base_name, $6));
-	  }
-	| TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
-	  {
-	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var(lex->option_type,
-						find_sys_var("tx_isolation"),
-						&null_lex_str,
-						new Item_int((int32) $4)));
 	  }
 	| charset old_or_new_charset_name_or_default
 	{
@@ -7915,9 +7943,36 @@ revoke:
         ;
 
 revoke_command:
-	grant_privileges ON opt_table FROM grant_list
+	grant_privileges ON opt_table grant_ident FROM grant_list
 	{
-	  Lex->sql_command = SQLCOM_REVOKE;
+          LEX *lex= Lex;
+	  lex->sql_command= SQLCOM_REVOKE;
+          lex->type= 0;
+        }
+        |
+        grant_privileges ON FUNCTION_SYM grant_ident FROM grant_list
+        {
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+	  lex->sql_command= SQLCOM_REVOKE;
+          lex->type= TYPE_ENUM_FUNCTION;
+          
+        }
+	|
+        grant_privileges ON PROCEDURE grant_ident FROM grant_list
+        {
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+	  lex->sql_command= SQLCOM_REVOKE;
+          lex->type= TYPE_ENUM_PROCEDURE;
         }
 	|
 	ALL opt_privileges ',' GRANT OPTION FROM grant_list
@@ -7927,11 +7982,50 @@ revoke_command:
 	;
 
 grant:
-	GRANT clear_privileges grant_privileges ON opt_table TO_SYM grant_list
-	require_clause grant_options
-	{ Lex->sql_command= SQLCOM_GRANT; }
-	;
+	GRANT clear_privileges grant_command
+	{}
+        ;
 
+grant_command:
+	grant_privileges ON opt_table grant_ident TO_SYM grant_list
+	require_clause grant_options
+	{
+          LEX *lex= Lex;
+          lex->sql_command= SQLCOM_GRANT;
+          lex->type= 0;
+        }
+        |
+	grant_privileges ON FUNCTION_SYM grant_ident TO_SYM grant_list
+	require_clause grant_options
+	{
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+          lex->sql_command= SQLCOM_GRANT;
+          lex->type= TYPE_ENUM_FUNCTION;
+        }
+        |
+	grant_privileges ON PROCEDURE grant_ident TO_SYM grant_list
+	require_clause grant_options
+	{
+          LEX *lex= Lex;
+          if (lex->columns.elements)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+          }
+          lex->sql_command= SQLCOM_GRANT;
+          lex->type= TYPE_ENUM_PROCEDURE;
+        }
+        ;
+
+opt_table:
+	/* Empty */
+	| TABLE_SYM ;
+        
 grant_privileges:
 	object_privilege_list { }
 	| ALL opt_privileges
@@ -8024,7 +8118,7 @@ require_list_element:
 	}
 	;
 
-opt_table:
+grant_ident:
 	'*'
 	  {
 	    LEX *lex= Lex;

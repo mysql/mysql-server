@@ -31,7 +31,7 @@
 #include "helpers.hpp"    // construct, destory, fill, etc.
 #include "algorithm.hpp"  // swap
 #include <new>            // ::operator new and delete, placement too
-#include <cassert>        // assert
+#include <assert.h>       // assert
 
 
 namespace mySTL {

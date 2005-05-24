@@ -473,12 +473,12 @@ void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0,
                          TABLE *stopper= 0);
 bool check_one_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables);
-bool check_procedure_access(THD *thd,ulong want_access,char *db,char *name,
-			    bool no_errors);
+bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
+			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
-bool check_some_routine_access(THD *thd, const char *db, const char *name);
+bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 bool mysql_multi_update_prepare(THD *thd);
@@ -1113,7 +1113,8 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
-       LOCK_global_system_variables, LOCK_user_conn;
+       LOCK_global_system_variables, LOCK_user_conn, 
+       LOCK_bytes_sent, LOCK_bytes_received;
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
@@ -1250,6 +1251,7 @@ ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 ha_rows max_rows, ha_rows *examined_rows);
 void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
+double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
 uint calc_week(TIME *l_time, uint week_behaviour, uint *year);

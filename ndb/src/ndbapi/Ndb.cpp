@@ -230,9 +230,10 @@ Remark:        Disconnect all connections to the database.
 void 
 Ndb::doDisconnect()
 {
-  DBUG_ENTER("Ndb::doDisconnect");
   NdbTransaction* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
+  /* DBUG_ENTER must be after CHECK_STATUS_MACRO_VOID because of 'return' */
+  DBUG_ENTER("Ndb::doDisconnect");
 
   Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
   Uint8 *theDBnodes= theImpl->theDBnodes;
@@ -1041,39 +1042,31 @@ convertEndian(Uint32 Data)
 }
 const char * Ndb::getCatalogName() const
 {
-  return theDataBase;
+  return theImpl->m_dbname.c_str();
 }
- 
+
+
 void Ndb::setCatalogName(const char * a_catalog_name)
 {
-  if (a_catalog_name) {
-    BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
-             a_catalog_name ? a_catalog_name : "");
-    
-    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
-                       theDataBase, table_name_separator,
-                       theDataBaseSchema, table_name_separator);
-    prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
-                              sizeof(prefixName) - 1);
+  if (a_catalog_name)
+  {
+    theImpl->m_dbname.assign(a_catalog_name);
+    theImpl->update_prefix();
   }
 }
- 
+
+
 const char * Ndb::getSchemaName() const
 {
-  return theDataBaseSchema;
+  return theImpl->m_schemaname.c_str();
 }
- 
+
+
 void Ndb::setSchemaName(const char * a_schema_name)
 {
   if (a_schema_name) {
-    BaseString::snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
-             a_schema_name ? a_schema_name : "");
-
-    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
-                       theDataBase, table_name_separator,
-                       theDataBaseSchema, table_name_separator);
-    prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
-                              sizeof(prefixName) - 1);
+    theImpl->m_schemaname.assign(a_schema_name);
+    theImpl->update_prefix();
   }
 }
  
@@ -1153,10 +1146,8 @@ Ndb::externalizeIndexName(const char * internalIndexName)
 const char *
 Ndb::internalizeTableName(const char * externalTableName)
 {
-  if (fullyQualifiedNames) {
-    strncpy(prefixEnd, externalTableName, NDB_MAX_TAB_NAME_SIZE);
-    return prefixName;
-  }
+  if (fullyQualifiedNames)
+    return theImpl->internalize_table_name(externalTableName);
   else
     return externalTableName;
 }
@@ -1165,16 +1156,8 @@ const char *
 Ndb::internalizeIndexName(const NdbTableImpl * table,
                           const char * externalIndexName)
 {
-  if (fullyQualifiedNames) {
-    char tableId[10];
-    sprintf(tableId, "%d", table->m_tableId);
-    Uint32 tabIdLen = strlen(tableId);
-    strncpy(prefixEnd, tableId, tabIdLen);
-    prefixEnd[tabIdLen] = table_name_separator;
-    strncpy(prefixEnd + tabIdLen + 1, 
-	    externalIndexName, NDB_MAX_TAB_NAME_SIZE);
-    return prefixName;
-  }
+  if (fullyQualifiedNames)
+    return theImpl->internalize_index_name(table, externalIndexName);
   else
     return externalIndexName;
 }

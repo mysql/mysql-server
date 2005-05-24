@@ -206,3 +206,15 @@ alter table t1 modify b varchar(255);
 insert into t1 values (0,4);
 select * from t1;
 drop table t1;
+
+#
+# BUG #10045: Problem with composite AUTO_INCREMENT + BLOB key
+
+CREATE TABLE t1 ( a INT AUTO_INCREMENT, b BLOB, PRIMARY KEY (a,b(10)));
+INSERT INTO t1 (b) VALUES ('aaaa');
+CHECK TABLE t1;
+INSERT INTO t1 (b) VALUES ('');
+CHECK TABLE t1;
+INSERT INTO t1 (b) VALUES ('bbbb');
+CHECK TABLE t1;
+DROP TABLE IF EXISTS t1;

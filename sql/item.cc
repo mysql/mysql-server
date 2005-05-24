@@ -298,7 +298,7 @@ longlong Item::val_int_from_decimal()
 
 
 Item::Item():
-  name(0), orig_name(0), name_length(0), fixed(0),
+  rsize(0), name(0), orig_name(0), name_length(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE)
 {
   marker= 0;
@@ -330,6 +330,7 @@ Item::Item():
   tables
 */
 Item::Item(THD *thd, Item *item):
+  rsize(0),
   str_value(item->str_value),
   name(item->name),
   orig_name(item->orig_name),
@@ -3543,7 +3544,7 @@ bool Item_int::eq(const Item *arg, bool binary_cmp) const
 
 Item *Item_int_with_ref::new_item()
 {
-  DBUG_ASSERT(ref->basic_const_item());
+  DBUG_ASSERT(ref->const_item());
   /*
     We need to evaluate the constant to make sure it works with
     parameter markers.

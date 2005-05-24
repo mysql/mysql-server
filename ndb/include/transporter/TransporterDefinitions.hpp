@@ -45,8 +45,9 @@ enum SendStatus {
  * Protocol6 Header + 
  *  (optional signal id) + (optional checksum) + (signal data)
  */
+const Uint32 MAX_SECTION_SIZE= 4096;
 //const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25));
-const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*4096);
+const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*MAX_SECTION_SIZE);
 
 /**
  * TransporterConfiguration

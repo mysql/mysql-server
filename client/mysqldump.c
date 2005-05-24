@@ -75,18 +75,22 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
 		      char **err_pos, uint *err_len);
 
 static char *field_escape(char *to,const char *from,uint length);
-static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
+static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		lock_tables=1,ignore_errors=0,flush_logs=0,
 		opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
-                opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,opt_set_charset,
+                opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
+                opt_set_charset=0,
 		opt_autocommit=0,opt_disable_keys=1,opt_xml=0,
 		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
-		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0;
+		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
+                opt_complete_insert= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
-static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
+static my_bool insert_pat_inited=0;
+static DYNAMIC_STRING insert_pat;
+static char  *opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
              *where=0, *order_by=0,
@@ -180,8 +184,9 @@ static struct my_option my_long_options[] =
    "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --no-set-names --skip-disable-keys --skip-add-locks",
    (gptr*) &opt_compact, (gptr*) &opt_compact, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"complete-insert", 'c', "Use complete insert statements.", (gptr*) &cFlag,
-   (gptr*) &cFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"complete-insert", 'c', "Use complete insert statements.",
+   (gptr*) &opt_complete_insert, (gptr*) &opt_complete_insert, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -203,7 +208,9 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED.",
+  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED; "
+   "currently ignored because of http://bugs.mysql.com/bug.php?id=7815 "
+   "but will be re-enabled later",
    (gptr*) &opt_delayed, (gptr*) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
@@ -708,6 +715,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
       break;
     }
+#ifndef REMOVE_THIS_CODE_WHEN_FIX_BUG_7815
+  case (int) OPT_DELAYED:
+    /*
+      Because of http://bugs.mysql.com/bug.php?id=7815, we disable
+      --delayed-insert; when the bug gets fixed by checking the storage engine
+      (using the table definition cache) before printing INSERT DELAYED, we
+      can correct the option's description and re-enable it again (scheduled
+      for later 5.0 or 5.1 versions).
+      It's ok to do the if() below as get_one_option is called after
+      opt_delayed is set.
+    */
+    if (opt_delayed)
+    {
+      fprintf(stderr, "Warning: ignoring --delayed-insert (as explained "
+	      "in the output of 'mysqldump --help').\n");
+      opt_delayed= 0;
+    }
+    break;
+#endif
   }
   return 0;
 }
@@ -1089,7 +1115,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 
 
 /*
-  getStructure -- retrievs database structure, prints out corresponding
+  getTableStructure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat.
 
   RETURN
@@ -1102,12 +1128,21 @@ static uint get_table_structure(char *table, char *db)
   MYSQL_ROW  row;
   my_bool    init=0;
   uint       numFields;
-  char	     *strpos, *result_table, *opt_quoted_table;
+  char	     *result_table, *opt_quoted_table;
   const char *insert_option;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
   char	     table_buff2[NAME_LEN*2+3];
+  char       query_buff[512];
   FILE       *sql_file = md_result_file;
+  int        len;
   DBUG_ENTER("get_table_structure");
+
+  if (!insert_pat_inited)
+  {
+    insert_pat_inited= init_dynamic_string(&insert_pat, "", 1024, 1024);
+  }
+  else
+    dynstr_set(&insert_pat, "");
 
   insert_option= (opt_delayed && opt_ignore) ? " DELAYED IGNORE " : 
     opt_delayed ? " DELAYED " :
@@ -1116,11 +1151,11 @@ static uint get_table_structure(char *table, char *db)
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
 
-  my_snprintf(insert_pat, sizeof(insert_pat), 
-	      "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
-	      (opt_quoted || opt_keywords));
+  len= my_snprintf(query_buff, sizeof(query_buff),
+                   "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+                   (opt_quoted || opt_keywords));
   if (!create_options)
-    strmov(strend(insert_pat), "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
+    strmov(query_buff+len, "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
@@ -1128,7 +1163,7 @@ static uint get_table_structure(char *table, char *db)
   if (opt_order_by_primary)
     order_by = primary_key_fields(opt_quoted_table);
 
-  if (!opt_xml && !mysql_query_with_error_report(sock, 0, insert_pat))
+  if (!opt_xml && !mysql_query_with_error_report(sock, 0, query_buff))
   {
     /* using SHOW CREATE statement */
     if (!tFlag)
@@ -1183,9 +1218,9 @@ static uint get_table_structure(char *table, char *db)
       check_io(sql_file);
       mysql_free_result(tableRes);
     }
-    my_snprintf(insert_pat, sizeof(insert_pat), "show fields from %s", 
+    my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
-    if (mysql_query_with_error_report(sock, &tableRes, insert_pat))
+    if (mysql_query_with_error_report(sock, &tableRes, query_buff))
     {
       if (path)
 	my_fclose(sql_file, MYF(MY_WME));
@@ -1193,28 +1228,32 @@ static uint get_table_structure(char *table, char *db)
       DBUG_RETURN(0);
     }
 
-    if (cFlag)
-      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s (", 
-		  insert_option, opt_quoted_table);
+    dynstr_append_mem(&insert_pat, "INSERT ", 7);
+    dynstr_append(&insert_pat, insert_option);
+    dynstr_append_mem(&insert_pat, "INTO ", 5);
+    dynstr_append(&insert_pat, opt_quoted_table);
+    if (opt_complete_insert)
+    {
+      dynstr_append_mem(&insert_pat, " (", 2);
+    }
     else
     {
-      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s VALUES ", 
-		  insert_option, opt_quoted_table);
+      dynstr_append_mem(&insert_pat, " VALUES ", 8);
       if (!extended_insert)
-        strcat(insert_pat,"(");
+        dynstr_append_mem(&insert_pat, "(", 1);
     }
 
-    strpos=strend(insert_pat);
     while ((row=mysql_fetch_row(tableRes)))
     {
       if (init)
       {
-        if (cFlag)
-	  strpos=strmov(strpos,", ");
+        if (opt_complete_insert)
+          dynstr_append_mem(&insert_pat, ", ", 2);
       }
       init=1;
-      if (cFlag)
-        strpos=strmov(strpos,quote_name(row[SHOW_FIELDNAME], name_buff, 0));
+      if (opt_complete_insert)
+        dynstr_append(&insert_pat,
+                      quote_name(row[SHOW_FIELDNAME], name_buff, 0));
     }
     numFields = (uint) mysql_num_rows(tableRes);
     mysql_free_result(tableRes);
@@ -1226,9 +1265,9 @@ static uint get_table_structure(char *table, char *db)
               "%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
               my_progname, mysql_error(sock));
 
-    my_snprintf(insert_pat, sizeof(insert_pat), "show fields from %s", 
+    my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
-    if (mysql_query_with_error_report(sock, &tableRes, insert_pat))
+    if (mysql_query_with_error_report(sock, &tableRes, query_buff))
     {
       safe_exit(EX_MYSQLERR);
       DBUG_RETURN(0);
@@ -1261,18 +1300,22 @@ static uint get_table_structure(char *table, char *db)
         print_xml_tag1(sql_file, "\t", "table_structure name=", table, "\n");
       check_io(sql_file);
     }
-    if (cFlag)
-      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s (", 
-		  insert_option, result_table);
+
+    dynstr_append_mem(&insert_pat, "INSERT ", 7);
+    dynstr_append(&insert_pat, insert_option);
+    dynstr_append_mem(&insert_pat, "INTO ", 5);
+    dynstr_append(&insert_pat, result_table);
+    if (opt_complete_insert)
+    {
+      dynstr_append_mem(&insert_pat, " (", 2);
+    }
     else
     {
-      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s VALUES ",
-		  insert_option, result_table);
+      dynstr_append_mem(&insert_pat, " VALUES ", 8);
       if (!extended_insert)
-        strcat(insert_pat,"(");
+        dynstr_append_mem(&insert_pat, "(", 1);
     }
 
-    strpos=strend(insert_pat);
     while ((row=mysql_fetch_row(tableRes)))
     {
       ulong *lengths=mysql_fetch_lengths(tableRes);
@@ -1283,12 +1326,13 @@ static uint get_table_structure(char *table, char *db)
 	  fputs(",\n",sql_file);
 	  check_io(sql_file);
 	}
-        if (cFlag)
-	  strpos=strmov(strpos,", ");
+        if (opt_complete_insert)
+          dynstr_append_mem(&insert_pat, ", ", 2);
       }
       init=1;
-      if (cFlag)
-        strpos=strmov(strpos,quote_name(row[SHOW_FIELDNAME], name_buff, 0));
+      if (opt_complete_insert)
+        dynstr_append(&insert_pat,
+                      quote_name(row[SHOW_FIELDNAME], name_buff, 0));
       if (!tFlag)
       {
 	if (opt_xml)
@@ -1296,7 +1340,7 @@ static uint get_table_structure(char *table, char *db)
 	  print_xml_row(sql_file, "field", tableRes, &row);
 	  continue;
 	}
-	
+
         if (opt_keywords)
 	  fprintf(sql_file, "  %s.%s %s", result_table,
 		  quote_name(row[SHOW_FIELDNAME],name_buff, 0),
@@ -1449,11 +1493,11 @@ continue_xml:
       check_io(sql_file);
     }
   }
-  if (cFlag)
+  if (opt_complete_insert)
   {
-    strpos=strmov(strpos,") VALUES ");
+    dynstr_append_mem(&insert_pat, ") VALUES ", 9);
     if (!extended_insert)
-      strpos=strmov(strpos,"(");
+      dynstr_append_mem(&insert_pat, "(", 1);
   }
   if (sql_file != md_result_file)
   {
@@ -1678,7 +1722,7 @@ static void dump_table(uint numFields, char *table)
     total_length= opt_net_buffer_length;		/* Force row break */
     row_break=0;
     rownr=0;
-    init_length=(uint) strlen(insert_pat)+4;
+    init_length=(uint) insert_pat.length+4;
     if (opt_xml)
       print_xml_tag1(md_result_file, "\t", "table_data name=", table, "\n");
 
@@ -1695,7 +1739,7 @@ static void dump_table(uint numFields, char *table)
       rownr++;
       if (!extended_insert && !opt_xml)
       {
-	fputs(insert_pat,md_result_file);
+	fputs(insert_pat.str,md_result_file);
 	check_io(md_result_file);
       }
       mysql_field_seek(res,0);
@@ -1893,7 +1937,7 @@ static void dump_table(uint numFields, char *table)
 	    fputs(";\n", md_result_file);
 	  row_break=1;				/* This is first row */
 
-          fputs(insert_pat,md_result_file);
+          fputs(insert_pat.str,md_result_file);
           fputs(extended_row.str,md_result_file);
 	  total_length = row_length+init_length;
         }
@@ -2650,8 +2694,11 @@ static my_bool get_view_structure(char *table, char* db)
   if (verbose)
     fprintf(stderr, "-- Retrieving view structure for table %s...\n", table);
 
+#ifdef NOT_REALLY_USED_YET
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
 	  (opt_quoted || opt_keywords));
+#endif
+
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
@@ -2777,6 +2824,8 @@ err:
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
   if (extended_insert)
     dynstr_free(&extended_row);
+  if (insert_pat_inited)
+    dynstr_free(&insert_pat);
   my_end(0);
   return(first_error);
 } /* main */

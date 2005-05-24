@@ -24,9 +24,9 @@ class Command_factory;
 
 enum Log_type
 {
-  LOG_ERROR= 0,
-  LOG_GENERAL,
-  LOG_SLOW
+  IM_LOG_ERROR= 0,
+  IM_LOG_GENERAL,
+  IM_LOG_SLOW
 };
 
 Command *parse_command(Command_factory *factory, const char  *text);

@@ -196,3 +196,27 @@ SELECT * FROM ( SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP ) t2;
 
 DROP TABLE t1;
 set div_precision_increment= @sav_dpi;
+
+#
+# Tests for bug #7914: ROLLUP over expressions on temporary table
+#
+
+CREATE TABLE t1 (a int(11));
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT a FROM t1 UNION select 2) d 
+  GROUP BY a;
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT a FROM t1 UNION select 2) d 
+  GROUP BY a WITH ROLLUP;
+
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT 1 a UNION select 2) d 
+  GROUP BY a;
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT 1 a UNION select 2) d 
+  GROUP BY a WITH ROLLUP;
+
+SELECT a, SUM(a), SUM(a)+1, CONCAT(SUM(a),'x'), SUM(a)+SUM(a), SUM(a)
+  FROM (SELECT 1 a, 2 b UNION SELECT 2,3 UNION SELECT 5,6 ) d
+    GROUP BY a WITH ROLLUP;
+
+DROP TABLE t1;
+
