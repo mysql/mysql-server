@@ -1,7 +1,9 @@
 -- source include/testdb_only.inc
 
 use INFORMATION_SCHEMA;
+--replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
 show tables;
+--replace_result 'Tables_in_INFORMATION_SCHEMA (T%)' 'Tables_in_information_schema (T%)'
 show tables from INFORMATION_SCHEMA like 'T%';
 create database `inf%`;
 use `inf%`;
