@@ -2052,6 +2052,28 @@ send_result_message:
             ((result_code= table->table->file->analyze(thd, check_opt)) > 0))
           result_code= 0; // analyze went ok
       }
+      if (result_code) // either mysql_recreate_table or analyze failed
+      {
+        const char *err_msg;
+        if ((err_msg= thd->net.last_error))
+        {
+          if (!thd->vio_ok())
+          {
+            sql_print_error(err_msg);
+          }
+          else
+          {
+            /* Hijack the row already in-progress. */
+            protocol->store("error", 5, system_charset_info);
+            protocol->store(err_msg, system_charset_info);
+            (void)protocol->write();
+            /* Start off another row for HA_ADMIN_FAILED */
+            protocol->prepare_for_resend();
+            protocol->store(table_name, system_charset_info);
+            protocol->store(operator_name, system_charset_info);
+          }
+        }
+      }
       result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
       table->next= save_next;
       goto send_result_message;
