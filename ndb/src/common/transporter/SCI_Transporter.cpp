@@ -48,7 +48,7 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
 				 Uint32 reportFreq) :  
   Transporter(t_reg, tt_SCI_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection, _localNodeId,
-              _remoteNodeId, serverNodeID, 0, false, chksm, signalId) 
+              _remoteNodeId, serverNodeId, 0, false, chksm, signalId) 
 {
   DBUG_ENTER("SCI_Transporter::SCI_Transporter");
   m_PacketSize = (packetSize + 3)/4 ; 
