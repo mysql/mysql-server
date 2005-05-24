@@ -398,13 +398,12 @@ int mysql_update(THD *thd,
     if (!(select && select->skip_record()))
     {
       store_record(table,record[1]);
-      if (fill_record(thd, fields, values, 0))
+      if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
+                                               table->triggers,
+                                               TRG_EVENT_UPDATE))
 	break; /* purecov: inspected */
 
       found++;
-
-      if (table->triggers)
-        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
 
       if (compare_record(table, query_id))
       {
@@ -425,6 +424,14 @@ int mysql_update(THD *thd,
 	{
 	  updated++;
           thd->no_trans_update= !transactional_table;
+
+          if (table->triggers &&
+              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                TRG_ACTION_AFTER, TRUE))
+          {
+            error= 1;
+            break;
+          }
 	}
  	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	{
@@ -434,9 +441,6 @@ int mysql_update(THD *thd,
 	  break;
 	}
       }
-
-      if (table->triggers)
-        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
 
       if (!--limit && using_limit)
       {
@@ -1073,14 +1077,18 @@ multi_update::initialize_tables(JOIN *join)
 
   NOTES
     We can update the first table in join on the fly if we know that
-    a row in this tabel will never be read twice. This is true under
-    the folloing conditions:
+    a row in this table will never be read twice. This is true under
+    the following conditions:
 
     - We are doing a table scan and the data is in a separate file (MyISAM) or
       if we don't update a clustered key.
 
     - We are doing a range scan and we don't update the scan key or
       the primary key for a clustered table handler.
+
+    When checking for above cases we also should take into account that
+    BEFORE UPDATE trigger potentially may change value of any field in row
+    being updated.
 
   WARNING
     This code is a bit dependent of how make_join_readinfo() works.
@@ -1100,15 +1108,21 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
     return TRUE;				// At most one matching row
   case JT_REF:
   case JT_REF_OR_NULL:
-    return !check_if_key_used(table, join_tab->ref.key, *fields);
+    return !check_if_key_used(table, join_tab->ref.key, *fields) &&
+           !(table->triggers &&
+             table->triggers->has_before_update_triggers());
   case JT_ALL:
     /* If range search on index */
     if (join_tab->quick)
-      return !join_tab->quick->check_if_keys_used(fields);
+      return !join_tab->quick->check_if_keys_used(fields) &&
+             !(table->triggers &&
+               table->triggers->has_before_update_triggers());
     /* If scanning in clustered key */
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
-      return !check_if_key_used(table, table->s->primary_key, *fields);
+      return !check_if_key_used(table, table->s->primary_key, *fields) &&
+             !(table->triggers &&
+               table->triggers->has_before_update_triggers());
     return TRUE;
   default:
     break;					// Avoid compler warning
@@ -1171,8 +1185,10 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
-      if (fill_record(thd, *fields_for_table[offset],
-                      *values_for_table[offset], 0))
+      if (fill_record_n_invoke_before_triggers(thd, *fields_for_table[offset],
+                                               *values_for_table[offset], 0,
+                                               table->triggers,
+                                               TRG_EVENT_UPDATE))
 	DBUG_RETURN(1);
 
       found++;
@@ -1208,8 +1224,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	    DBUG_RETURN(1);
 	  }
 	}
-        else if (!table->file->has_transactions())
-          thd->no_trans_update= 1;
+        else
+        {
+          if (!table->file->has_transactions())
+            thd->no_trans_update= 1;
+          if (table->triggers &&
+              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                TRG_ACTION_AFTER, TRUE))
+	    DBUG_RETURN(1);
+        }
       }
     }
     else
@@ -1330,6 +1353,11 @@ int multi_update::do_updates(bool from_send_error)
 	   copy_field_ptr++)
 	(*copy_field_ptr->do_copy)(copy_field_ptr);
 
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                            TRG_ACTION_BEFORE, TRUE))
+        goto err2;
+
       if (compare_record(table, thd->query_id))
       {
 	if ((local_error=table->file->update_row(table->record[1],
@@ -1339,6 +1367,11 @@ int multi_update::do_updates(bool from_send_error)
 	    goto err;
 	}
 	updated++;
+
+        if (table->triggers &&
+            table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                              TRG_ACTION_AFTER, TRUE))
+          goto err2;
       }
     }
 
@@ -1361,6 +1394,7 @@ err:
     table->file->print_error(local_error,MYF(0));
   }
 
+err2:
   (void) table->file->ha_rnd_end();
   (void) tmp_table->file->ha_rnd_end();
 
