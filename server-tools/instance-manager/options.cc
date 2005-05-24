@@ -158,7 +158,7 @@ static void passwd()
 
   fprintf(stderr, "Creating record for new user.\n");
   fprintf(stderr, "Enter user name: ");
-  if (! fgets(user, sizeof(user), stdin))
+  if (!fgets(user, sizeof(user), stdin))
   {
     fprintf(stderr, "Unable to read user.\n");
     return;

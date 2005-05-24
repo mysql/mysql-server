@@ -149,7 +149,9 @@ static int write_dynamic_record(MI_INFO *info, const byte *record,
   {
     if (_mi_find_writepos(info,reclength,&filepos,&length))
       goto err;
-    if (_mi_write_part_record(info,filepos,length,info->s->state.dellink,
+    if (_mi_write_part_record(info,filepos,length,
+                              (info->append_insert_at_end ?
+                               HA_OFFSET_ERROR : info->s->state.dellink),
 			      (byte**) &record,&reclength,&flag))
       goto err;
   } while (reclength);
@@ -171,7 +173,8 @@ static int _mi_find_writepos(MI_INFO *info,
   ulong tmp;
   DBUG_ENTER("_mi_find_writepos");
 
-  if (info->s->state.dellink != HA_OFFSET_ERROR)
+  if (info->s->state.dellink != HA_OFFSET_ERROR &&
+      !info->append_insert_at_end)
   {
     /* Deleted blocks exists;  Get last used block */
     *filepos=info->s->state.dellink;
@@ -420,8 +423,9 @@ int _mi_write_part_record(MI_INFO *info,
   else if (length-long_block < *reclength+4)
   {						/* To short block */
     if (next_filepos == HA_OFFSET_ERROR)
-      next_filepos=info->s->state.dellink != HA_OFFSET_ERROR ?
-	info->s->state.dellink : info->state->data_file_length;
+      next_filepos= (info->s->state.dellink != HA_OFFSET_ERROR &&
+                     !info->append_insert_at_end ?
+                     info->s->state.dellink : info->state->data_file_length);
     if (*flag == 0)				/* First block */
     {
       if (*reclength > MI_MAX_BLOCK_LENGTH)

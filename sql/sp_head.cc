@@ -97,19 +97,48 @@ sp_multi_results_command(enum enum_sql_command cmd)
   }
 }
 
+
+/*
+  Prepare Item for execution (call of fix_fields)
+
+  SYNOPSIS
+    sp_prepare_func_item()
+    thd       thread handler
+    it_addr   pointer on item refernce
+
+  RETURN
+    NULL  error
+    prepared item
+*/
+
+static Item *
+sp_prepare_func_item(THD* thd, Item **it_addr)
+{
+  Item *it= *it_addr;
+  DBUG_ENTER("sp_prepare_func_item");
+  it_addr= it->this_item_addr(thd, it_addr);
+
+  if (!it->fixed && (*it_addr)->fix_fields(thd, 0, it_addr))
+  {
+    DBUG_PRINT("info", ("fix_fields() failed"));
+    DBUG_RETURN(NULL);
+  }
+  DBUG_RETURN(*it_addr);
+}
+
+
 /* Evaluate a (presumed) func item. Always returns an item, the parameter
 ** if nothing else.
 */
 Item *
-sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
+sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type)
 {
   DBUG_ENTER("sp_eval_func_item");
-  it= it->this_item();
+  Item *it= sp_prepare_func_item(thd, it_addr);
   DBUG_PRINT("info", ("type: %d", type));
 
-  if (!it->fixed && it->fix_fields(thd, 0, &it))
+  if (!it)
   {
-    DBUG_PRINT("info", ("fix_fields() failed"));
     DBUG_RETURN(NULL);
   }
 
@@ -679,7 +708,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
-    Item *it= sp_eval_func_item(thd, *argp++, pvar->type);
+    Item *it= sp_eval_func_item(thd, argp++, pvar->type);
 
     if (it)
       nctx->push_item(it);
@@ -761,7 +790,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   {
     Item_null *nit= NULL;	// Re-use this, and only create if needed
     uint i;
-    List_iterator_fast<Item> li(*args);
+    List_iterator<Item> li(*args);
     Item *it;
 
     nctx= new sp_rcontext(csize, hmax, cmax);
@@ -794,7 +823,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	}
 	else
 	{
-	  Item *it2= sp_eval_func_item(thd, it, pvar->type);
+	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type);
 
 	  if (it2)
 	    nctx->push_item(it2); // IN or INOUT
@@ -1439,7 +1468,7 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_value, m_type);
+  it= sp_eval_func_item(thd, &m_value, m_type);
   if (! it)
     res= -1;
   else
@@ -1569,13 +1598,13 @@ sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  it= sp_prepare_func_item(thd, &m_expr);
   if (!it)
     res= -1;
   else
   {
     res= 0;
-    if (it->val_int())
+    if (it->val_bool())
       *nextp = m_dest;
     else
       *nextp = m_ip+1;
@@ -1627,13 +1656,13 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
+  it= sp_prepare_func_item(thd, &m_expr);
   if (! it)
     res= -1;
   else
   {
     res= 0;
-    if (! it->val_int())
+    if (! it->val_bool())
       *nextp = m_dest;
     else
       *nextp = m_ip+1;
@@ -1685,7 +1714,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, m_value, m_type);
+  it= sp_eval_func_item(thd, &m_value, m_type);
   if (! it)
     res= -1;
   else
