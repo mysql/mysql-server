@@ -924,10 +924,18 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table,
 			     bool return_if_owned_by_thd);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
-bool fill_record(THD *thd, List<Item> &fields, List<Item> &values,
-                 bool ignore_errors);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);
+bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+                                          List<Item> &values,
+                                          bool ignore_errors,
+                                          Table_triggers_list *triggers,
+                                          enum trg_event_type event);
+bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
+                                          List<Item> &values,
+                                          bool ignore_errors,
+                                          Table_triggers_list *triggers,
+                                          enum trg_event_type event);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
 
 inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
