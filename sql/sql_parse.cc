@@ -1992,6 +1992,10 @@ mysql_execute_command(THD *thd)
 #endif
   }
 #endif /* !HAVE_REPLICATION */
+
+  /* When subselects or time_zone info is used in a query
+   * we create a new TABLE_LIST containing all referenced tables
+   * and set local variable 'tables' to point to this list. */
   if ((&lex->select_lex != lex->all_selects_list ||
        lex->time_zone_tables_used) &&
       lex->unit.create_total_list(thd, lex, &tables))
@@ -5438,6 +5442,9 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     walk->lock_type= target_tbl->lock_type;
     target_tbl->table_list= walk;	// Remember corresponding table
+    
+    /* in case of subselects, we need to set lock_type in
+     * corresponding table in list of all tables */
     if (walk->table_list)
     {
       target_tbl->table_list= walk->table_list;
