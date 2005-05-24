@@ -31,8 +31,8 @@
 #include "yassl_imp.hpp"
 #include "crypto_wrapper.hpp"
 #include "cert_wrapper.hpp"
-#include "lock.hpp"
 #include "log.hpp"
+#include "lock.hpp"
 
 
 namespace yaSSL {
