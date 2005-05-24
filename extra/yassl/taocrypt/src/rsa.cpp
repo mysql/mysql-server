@@ -27,7 +27,6 @@
 #include "modarith.hpp"
 #include "stdexcept.hpp"
 
-#include "algebra.cpp"   // for GCC 3.2 on aix ?
 
 
 namespace TaoCrypt {
@@ -214,8 +213,6 @@ word32 SSL_Decrypt(const RSA_PublicKey& key, const byte* sig, byte* plain)
 #ifdef __GNUC__
 template AllocatorWithCleanup<unsigned char>::pointer StdReallocate<unsigned char, AllocatorWithCleanup<unsigned char> >(AllocatorWithCleanup<unsigned char>&, unsigned char*, AllocatorWithCleanup<unsigned char>::size_type, AllocatorWithCleanup<unsigned char>::size_type, bool);
 template AllocatorWithCleanup<unsigned int>::pointer StdReallocate<unsigned int, AllocatorWithCleanup<unsigned int> >(AllocatorWithCleanup<unsigned int>&, unsigned int*, AllocatorWithCleanup<unsigned int>::size_type, AllocatorWithCleanup<unsigned int>::size_type, bool);
-template class AbstractGroup<Integer>;
-template class AbstractRing<Integer>;
 template class RSA_Decryptor<RSA_BlockType2>;
 template class RSA_Encryptor<RSA_BlockType1>;
 template class RSA_Encryptor<RSA_BlockType2>;
@@ -227,11 +224,7 @@ template class RSA_Encryptor<RSA_BlockType2>;
 namespace mySTL {
 template TaoCrypt::Integer* uninit_copy<TaoCrypt::Integer*, TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*, TaoCrypt::Integer*);
 template TaoCrypt::Integer* uninit_fill_n<TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer>(TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer const&);
-template TaoCrypt::WindowSlider* uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
-template vector<TaoCrypt::Integer>* uninit_fill_n<vector<TaoCrypt::Integer>*, unsigned int, vector<TaoCrypt::Integer> >(vector<TaoCrypt::Integer>*, unsigned int, vector<TaoCrypt::Integer> const&);
 template void destroy<TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*);
-template void destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
-template void destroy<vector<TaoCrypt::Integer>*>(vector<TaoCrypt::Integer>*, vector<TaoCrypt::Integer>*);
 }
 #endif
 
