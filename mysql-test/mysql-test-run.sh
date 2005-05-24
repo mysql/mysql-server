@@ -569,10 +569,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  NDB_MGM="$BASEDIR/ndb/src/mgmclient/ndb_mgm"
 
  if [ -n "$USE_PURIFY" ] ; then
-   PSUP="$MYSQL_TEST_DIR/purify.suppress"
-   echo "suppress UMR rw_read_held; mi_open; ha_myisam::open64; handler::ha_open; openfrm" >  $PSUP
-   echo "suppress UMR my_end; main" >> $PSUP
-   echo "suppress UMR _doprnt; fprintf; my_end; main" >> $PSUP
+   PSUP="$MYSQL_TEST_DIR/suppress.purify"
    PURIFYOPTIONS="-windows=no -log-file=%v.purifylog -append-logfile -add-suppression-files=$PSUP"
    if [ -f "${MYSQL_TEST}-purify" ] ; then
      MYSQL_TEST="${MYSQL_TEST}-purify"
@@ -694,7 +691,7 @@ fi
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
-MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
+MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
 export NDB_TOOLS_DIR
@@ -1660,11 +1657,11 @@ run_testcase ()
       $ECHO "$RES$RES_SPACE [ pass ]   $TIMER"
     else
       # why the following ``if'' ? That is why res==1 is special ?
-      if [ $res = 2 ]; then
+      if [ $res = 62 ]; then
         skip_inc
 	$ECHO "$RES$RES_SPACE [ skipped ]"
       else
-        if [ $res -gt 2 ]; then
+        if [ $res -ne 1 ]; then
           $ECHO "mysqltest returned unexpected code $res, it has probably crashed" >> $TIMEFILE
         fi
 	total_inc

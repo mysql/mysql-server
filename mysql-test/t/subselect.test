@@ -1722,3 +1722,27 @@ select (1,2,3) = (select * from t1);
 -- error 1241
 select (select * from t1) = (1,2,3);
 drop table t1
+
+#
+# Item_int_with_ref check (BUG#10020)
+#
+CREATE TABLE `t1` (
+  `itemid` bigint(20) unsigned NOT NULL auto_increment,
+  `sessionid` bigint(20) unsigned default NULL,
+  `time` int(10) unsigned NOT NULL default '0',
+  `type` set('A','D','E','F','G','I','L','N','U') collate latin1_general_ci NOT
+NULL default '',
+  `data` text collate latin1_general_ci NOT NULL,
+  PRIMARY KEY  (`itemid`)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO `t1` VALUES (1, 1, 1, 'D', '');
+CREATE TABLE `t2` (
+  `sessionid` bigint(20) unsigned NOT NULL auto_increment,
+  `pid` int(10) unsigned NOT NULL default '0',
+  `date` int(10) unsigned NOT NULL default '0',
+  `ip` varchar(15) collate latin1_general_ci NOT NULL default '',
+  PRIMARY KEY  (`sessionid`)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO `t2` VALUES (1, 1, 1, '10.10.10.1');
+SELECT s.ip, count( e.itemid ) FROM `t1` e JOIN t2 s ON s.sessionid = e.sessionid WHERE e.sessionid = ( SELECT sessionid FROM t2 ORDER BY sessionid DESC LIMIT 1 ) GROUP BY s.ip HAVING count( e.itemid ) >0 LIMIT 0 , 30;
+drop tables t1,t2;

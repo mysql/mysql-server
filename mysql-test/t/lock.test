@@ -59,3 +59,17 @@ unlock tables;
 lock tables t1 write, t1 as t1_alias read;
 insert into t1 select index1,nr from t1 as t1_alias;
 drop table t1,t2;
+
+#
+# Bug7241 - Invalid response when DELETE .. USING and LOCK TABLES used.
+#
+create table t1 ( a int(11) not null auto_increment, primary key(a));
+create table t2 ( a int(11) not null auto_increment, primary key(a));
+lock tables t1 write, t2 read;
+delete from t1 using t1,t2 where t1.a=t2.a;
+delete t1 from t1,t2 where t1.a=t2.a;
+--error 1099
+delete from t2 using t1,t2 where t1.a=t2.a;
+--error 1099
+delete t2 from t1,t2 where t1.a=t2.a;
+drop table t1,t2;
