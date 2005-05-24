@@ -140,6 +140,48 @@ drop trigger t1.trg1;
 drop trigger t1.trg2;
 drop trigger t1.trg3;
 drop table t1;
+create table t1 (id int not null primary key, data int);
+create trigger t1_bi before insert on t1 for each row
+set @log:= concat(@log, "(BEFORE_INSERT: new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_ai after insert on t1 for each row
+set @log:= concat(@log, "(AFTER_INSERT: new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_bu before update on t1 for each row
+set @log:= concat(@log, "(BEFORE_UPDATE: old=(id=", old.id, ", data=", old.data,
+") new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_au after update on t1 for each row
+set @log:= concat(@log, "(AFTER_UPDATE: old=(id=", old.id, ", data=", old.data,
+") new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_bd before delete on t1 for each row
+set @log:= concat(@log, "(BEFORE_DELETE: old=(id=", old.id, ", data=", old.data,"))");
+create trigger t1_ad after delete on t1 for each row
+set @log:= concat(@log, "(AFTER_DELETE: old=(id=", old.id, ", data=", old.data,"))");
+set @log:= "";
+insert into t1 values (1, 1);
+select @log;
+@log
+(BEFORE_INSERT: new=(id=1, data=1))(AFTER_INSERT: new=(id=1, data=1))
+set @log:= "";
+insert ignore t1 values (1, 2);
+select @log;
+@log
+(BEFORE_INSERT: new=(id=1, data=2))
+set @log:= "";
+replace t1 values (1, 3), (2, 2);
+select @log;
+@log
+(BEFORE_INSERT: new=(id=1, data=3))(BEFORE_UPDATE: old=(id=1, data=1) new=(id=1, data=3))(AFTER_UPDATE: old=(id=1, data=1) new=(id=1, data=3))(BEFORE_INSERT: new=(id=2, data=2))(AFTER_INSERT: new=(id=2, data=2))
+alter table t1 add ts timestamp default now();
+set @log:= "";
+replace t1 (id, data) values (1, 4);
+select @log;
+@log
+(BEFORE_INSERT: new=(id=1, data=4))(BEFORE_DELETE: old=(id=1, data=3))(AFTER_DELETE: old=(id=1, data=3))(AFTER_INSERT: new=(id=1, data=4))
+set @log:= "";
+insert into t1 (id, data) values (1, 5), (3, 3) on duplicate key update data= data + 2;
+select @log;
+@log
+(BEFORE_INSERT: new=(id=1, data=5))(BEFORE_UPDATE: old=(id=1, data=4) new=(id=1, data=6))(AFTER_UPDATE: old=(id=1, data=4) new=(id=1, data=6))(BEFORE_INSERT: new=(id=3, data=3))(AFTER_INSERT: new=(id=3, data=3))
+drop table t1;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:= old.i;
 ERROR HY000: There is no OLD row in on INSERT trigger
@@ -206,3 +248,70 @@ create table t1 (i int);
 create trigger trg1 before insert on t1 for each row set @a:= 1;
 drop database mysqltest;
 use test;
+create table t1 (i int, j int default 10, k int not null, key (k));
+create table t2 (i int);
+insert into t1 (i, k) values (1, 1);
+insert into t2 values (1);
+create trigger trg1 before update on t1 for each row set @a:= @a + new.j - old.j;
+create trigger trg2 after update on t1 for each row set @b:= "Fired";
+set @a:= 0, @b:= "";
+update t1, t2 set j = j + 10 where t1.i = t2.i;
+select @a, @b;
+@a	@b
+10	Fired
+insert into t1 values (2, 13, 2);
+insert into t2 values (2);
+set @a:= 0, @b:= "";
+update t1, t2 set j = j + 15 where t1.i = t2.i and t1.k >= 2;
+select @a, @b;
+@a	@b
+15	Fired
+create trigger trg3 before delete on t1 for each row set @c:= @c + old.j;
+create trigger trg4 before delete on t2 for each row set @d:= @d + old.i;
+create trigger trg5 after delete on t1 for each row set @e:= "After delete t1 fired";
+create trigger trg6 after delete on t2 for each row set @f:= "After delete t2 fired";
+set @c:= 0, @d:= 0, @e:= "", @f:= "";
+delete t1, t2 from t1, t2 where t1.i = t2.i;
+select @c, @d, @e, @f;
+@c	@d	@e	@f
+48	3	After delete t1 fired	After delete t2 fired
+drop table t1, t2;
+create table t1 (i int, j int default 10)|
+create table t2 (i int)|
+insert into t2 values (1), (2)|
+create trigger trg1 before insert on t1 for each row 
+begin
+if new.i = 1 then
+set new.j := 1;
+end if;
+end|
+create trigger trg2 after insert on t1 for each row set @a:= 1|
+set @a:= 0|
+insert into t1 (i) select * from t2|
+select * from t1|
+i	j
+1	1
+2	10
+select @a|
+@a
+1
+drop table t1, t2|
+create table t1 (i int, j int, k int);
+create trigger trg1 before insert on t1 for each row set new.k = new.i;
+create trigger trg2 after insert on t1 for each row set @b:= "Fired";
+set @b:="";
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, i);
+select *, @b from t1;
+i	j	k	@b
+10	NULL	10	Fired
+15	NULL	15	Fired
+set @b:="";
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
+select *, @b from t1;
+i	j	k	@b
+10	NULL	10	Fired
+15	NULL	15	Fired
+1	2	1	Fired
+3	4	3	Fired
+5	6	5	Fired
+drop table t1;

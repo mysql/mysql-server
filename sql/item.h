@@ -1601,13 +1601,18 @@ enum trg_event_type
   TRG_EVENT_INSERT= 0 , TRG_EVENT_UPDATE= 1, TRG_EVENT_DELETE= 2
 };
 
+class Table_triggers_list;
+
 /*
   Represents NEW/OLD version of field of row which is
   changed/read in trigger.
 
-  Note: For this item actual binding to Field object happens not during
-        fix_fields() (like for Item_field) but during parsing of trigger
-        definition, when table is opened, with special setup_field() call.
+  Note: For this item main part of actual binding to Field object happens
+        not during fix_fields() call (like for Item_field) but right after
+        parsing of trigger definition, when table is opened, with special
+        setup_field() call. On fix_fields() stage we simply choose one of
+        two Field instances representing either OLD or NEW version of this
+        field.
 */
 class Item_trigger_field : public Item_field
 {
@@ -1617,13 +1622,17 @@ public:
   row_version_type row_version;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
+  /* Index of the field in the TABLE::field array */
+  uint field_idx;
+  /* Pointer to Table_trigger_list object for table of this trigger */
+  Table_triggers_list *triggers;
 
   Item_trigger_field(row_version_type row_ver_par,
                      const char *field_name_par):
     Item_field((const char *)NULL, (const char *)NULL, field_name_par),
-    row_version(row_ver_par)
+    row_version(row_ver_par), field_idx((uint)-1)
   {}
-  void setup_field(THD *thd, TABLE *table, enum trg_event_type event);
+  void setup_field(THD *thd, TABLE *table);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
