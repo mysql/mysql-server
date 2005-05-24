@@ -29,7 +29,10 @@ show binary logs;
 Log_name	File_size
 master-bin.000001	0
 master-bin.000002	0
-master-bin.000003	4
+master-bin.000003	98
+Warnings:
+Error	29	File 'master-bin.000001' not found (Errcode: 2)
+Error	29	File 'master-bin.000002' not found (Errcode: 2)
 create table t3 select * from temp_table;
 select * from t3;
 a
@@ -44,16 +47,20 @@ purge master logs to 'master-bin.000002';
 show master logs;
 Log_name	File_size
 master-bin.000002	0
-master-bin.000003	229
+master-bin.000003	407
+Warnings:
+Error	29	File 'master-bin.000002' not found (Errcode: 2)
 purge binary logs to 'master-bin.000002';
 show binary logs;
 Log_name	File_size
 master-bin.000002	0
-master-bin.000003	229
+master-bin.000003	407
+Warnings:
+Error	29	File 'master-bin.000002' not found (Errcode: 2)
 purge master logs before now();
 show binary logs;
 Log_name	File_size
-master-bin.000003	229
+master-bin.000003	407
 insert into t2 values (65);
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
@@ -75,8 +82,11 @@ create table t4 select * from temp_table;
 show binary logs;
 Log_name	File_size
 master-bin.000003	0
-master-bin.000004	2886
-master-bin.000005
+master-bin.000004	0
+master-bin.000005	2032
+Warnings:
+Error	29	File 'master-bin.000003' not found (Errcode: 2)
+Error	29	File 'master-bin.000004' not found (Errcode: 2)
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000005	2032		
