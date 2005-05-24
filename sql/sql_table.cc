@@ -451,7 +451,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   const char	*key_name;
   create_field	*sql_field,*dup_field;
   uint		field,null_fields,blob_columns;
-  ulong		pos;
+  ulong		record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
   int		timestamps= 0, timestamps_with_niladic= 0;
@@ -629,10 +629,9 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     it2.rewind();
   }
-  /* If fixed row records, we need one bit to check for deleted rows */
-  if (!(db_options & HA_OPTION_PACK_RECORD))
-    null_fields++;
-  pos=(null_fields+7)/8;
+
+  /* record_offset will be increased with 'length-of-null-bits' later */
+  record_offset= 0;
 
   it.rewind();
   while ((sql_field=it++))
@@ -737,10 +736,10 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       sql_field->pack_flag|=FIELDFLAG_MAYBE_NULL;
-    sql_field->offset= pos;
+    sql_field->offset= record_offset;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    pos+=sql_field->pack_length;
+    record_offset+= sql_field->pack_length;
   }
   if (timestamps_with_niladic > 1)
   {
@@ -1048,6 +1047,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	    /* Implicitly set primary key fields to NOT NULL for ISO conf. */
 	    sql_field->flags|= NOT_NULL_FLAG;
 	    sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
+            null_fields--;
 	  }
 	  else
 	     key_info->flags|= HA_NULL_PART_KEY;
@@ -1205,6 +1205,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   /* Sort keys in optimized order */
   qsort((gptr) key_info_buffer, *key_count, sizeof(KEY),
 	(qsort_cmp) sort_keys);
+  create_info->null_bits= null_fields;
 
   DBUG_RETURN(0);
 }

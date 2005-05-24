@@ -1,10 +1,6 @@
 # Can't test grants with embedded server
 -- source include/not_embedded.inc
 
-# Tested here simply so it is not tested with embedded server
-prepare stmt4 from ' show full processlist ';
---replace_column 1 number 6 time 3 localhost
-execute stmt4;
 
 let $type= 'MYISAM' ;
 
@@ -115,5 +111,10 @@ commit ;
 show grants for second_user@localhost ;
 
 drop database mysqltest;
+
+# Tested here simply so it is not tested with embedded server
+prepare stmt4 from ' show full processlist ';
+--replace_column 1 number 6 time 3 localhost
+execute stmt4;
 
 
