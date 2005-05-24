@@ -2326,6 +2326,10 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
 
+
+
+
+
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.
@@ -5198,6 +5202,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
+  lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
@@ -6776,6 +6781,14 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
+    
+    /* in case of subselects, we need to set lock_type in
+     * corresponding table in list of all tables */
+    if (walk->correspondent_table)
+    {
+      target_tbl->correspondent_table= walk->correspondent_table;
+      walk->correspondent_table->lock_type= walk->lock_type;
+    }
   }
   DBUG_RETURN(FALSE);
 }
