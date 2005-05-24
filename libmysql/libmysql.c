@@ -1495,6 +1495,36 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql)
   return mysql->charset->csname;
 }
 
+int STDCALL mysql_set_character_set(MYSQL *mysql, char *cs_name)
+{
+  struct charset_info_st *cs;
+  const char *save_csdir = charsets_dir;
+
+  if (mysql->options.charset_dir)
+    charsets_dir = mysql->options.charset_dir; 
+
+  if ( (cs = get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0))) )
+  {
+    char buff[MY_CS_NAME_SIZE + 10];
+    charsets_dir = save_csdir;
+    sprintf(buff, "SET NAMES %s", cs_name);
+    if (!mysql_query(mysql, buff)) {
+      mysql->charset = cs;
+    } 
+  } else {
+    char cs_dir_name[FN_REFLEN];
+    get_charsets_dir(cs_dir_name);
+    mysql->net.last_errno=CR_CANT_READ_CHARSET;
+    strmov(mysql->net.sqlstate, unknown_sqlstate);
+    my_snprintf(mysql->net.last_error, sizeof(mysql->net.last_error)-1,
+                ER(mysql->net.last_errno),
+                cs_name,
+                cs_dir_name);
+
+  }
+  charsets_dir = save_csdir;
+  return mysql->net.last_errno;
+}
 
 uint STDCALL mysql_thread_safe(void)
 {
@@ -1723,6 +1753,13 @@ static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
 */
 static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 static my_bool setup_one_fetch_function(MYSQL_BIND *bind, MYSQL_FIELD *field);
+
+/* Auxilary function used to reset statement handle. */
+
+#define RESET_SERVER_SIDE 1
+#define RESET_LONG_DATA 2
+
+static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
 
 /*
   Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
@@ -2019,7 +2056,8 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     /* This is second prepare with another statement */
     char buff[MYSQL_STMT_HEADER];               /* 4 bytes - stmt id */
 
-    mysql_stmt_free_result(stmt);
+    if (reset_stmt_handle(stmt, RESET_LONG_DATA))
+      DBUG_RETURN(1);
     /*
       These members must be reset for API to
       function in case of error or misuse.
@@ -2702,12 +2740,8 @@ static int
 stmt_read_row_no_data(MYSQL_STMT *stmt  __attribute__((unused)),
                       unsigned char **row  __attribute__((unused)))
 {
-  if ((int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE)
-  {
-    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    return 1;
-  }
-  return MYSQL_NO_DATA;
+  set_stmt_error(stmt, CR_NO_RESULT_SET, unknown_sqlstate);
+  return 1;
 }
 
 
@@ -2817,7 +2851,8 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
     DBUG_RETURN(1);
   }
 
-  mysql_stmt_free_result(stmt);
+  if (reset_stmt_handle(stmt, 0))
+    DBUG_RETURN(1);
   /*
     No need to check for stmt->state: if the statement wasn't
     prepared we'll get 'unknown statement handler' error from server.
@@ -4370,9 +4405,12 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   /*
     We only need to check that stmt->field_count - if it is not null
     stmt->bind was initialized in mysql_stmt_prepare
-   */
+    stmt->bind overlaps with bind if mysql_stmt_bind_param
+    is called from mysql_stmt_store_result.
+  */
 
-  memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
+  if (stmt->bind != bind)
+    memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
 
   for (param= stmt->bind, end= param + bind_count, field= stmt->fields ;
        param < end ;
@@ -4805,16 +4843,21 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
   DBUG_RETURN(stmt->result.rows);
 }
 
-my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
+
+/*
+  Free the client side memory buffers, reset long data state
+  on client if necessary, and reset the server side statement if
+  this has been requested.
+*/
+
+static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
 {
-  MYSQL_DATA *result= &stmt->result;
-  DBUG_ENTER("mysql_stmt_free_result");
-
-  DBUG_ASSERT(stmt != 0);
-
+  /* If statement hasn't been prepared there is nothing to reset */
   if ((int) stmt->state > (int) MYSQL_STMT_INIT_DONE)
   {
     MYSQL *mysql= stmt->mysql;
+    MYSQL_DATA *result= &stmt->result;
+    my_bool has_cursor= stmt->read_row_func == stmt_read_row_from_cursor;
 
     if (result->data)
     {
@@ -4824,23 +4867,58 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
       result->rows= 0;
       stmt->data_cursor= NULL;
     }
-
-    if (mysql && stmt->field_count &&
-        (int) stmt->state > (int) MYSQL_STMT_PREPARE_DONE)
+    if (flags & RESET_LONG_DATA)
     {
-      if (mysql->unbuffered_fetch_owner == &stmt->unbuffered_fetch_cancelled)
-        mysql->unbuffered_fetch_owner= 0;
-      if (mysql->status != MYSQL_STATUS_READY)
+      MYSQL_BIND *param= stmt->params, *param_end= param + stmt->param_count;
+      /* Clear long_data_used flags */
+      for (; param < param_end; param++)
+        param->long_data_used= 0;
+    }
+    stmt->read_row_func= stmt_read_row_no_data;
+    if (mysql)
+    {
+      if ((int) stmt->state > (int) MYSQL_STMT_PREPARE_DONE)
       {
-        /* There is a result set and it belongs to this statement */
-        (*mysql->methods->flush_use_result)(mysql);
-        mysql->status= MYSQL_STATUS_READY;
+        if (mysql->unbuffered_fetch_owner == &stmt->unbuffered_fetch_cancelled)
+          mysql->unbuffered_fetch_owner= 0;
+        if (stmt->field_count && mysql->status != MYSQL_STATUS_READY)
+        {
+          /* There is a result set and it belongs to this statement */
+          (*mysql->methods->flush_use_result)(mysql);
+          if (mysql->unbuffered_fetch_owner)
+            *mysql->unbuffered_fetch_owner= TRUE;
+          mysql->status= MYSQL_STATUS_READY;
+        }
+      }
+      if (has_cursor || (flags & RESET_SERVER_SIDE))
+      {
+        /*
+          Reset the server side statement and close the server side
+          cursor if it exists.
+        */
+        char buff[MYSQL_STMT_HEADER]; /* packet header: 4 bytes for stmt id */
+        int4store(buff, stmt->stmt_id);
+        if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT, buff,
+                                                sizeof(buff), 0, 0, 0))
+        {
+          set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
+                          mysql->net.sqlstate);
+          stmt->state= MYSQL_STMT_INIT_DONE;
+          return 1;
+        }
       }
     }
     stmt->state= MYSQL_STMT_PREPARE_DONE;
-    stmt->read_row_func= stmt_read_row_no_data;
   }
-  DBUG_RETURN(0);
+  return 0;
+}
+
+my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
+{
+  DBUG_ENTER("mysql_stmt_free_result");
+
+  /* Free the client side and close the server side cursor if there is one */
+  DBUG_RETURN(reset_stmt_handle(stmt, RESET_LONG_DATA));
 }
 
 /********************************************************************
@@ -4913,33 +4991,10 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
 
 my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
 {
-  char buff[MYSQL_STMT_HEADER]; /* packet header: 4 bytes for stmt id */
-  MYSQL *mysql;
-  MYSQL_BIND *param, *param_end;
   DBUG_ENTER("mysql_stmt_reset");
   DBUG_ASSERT(stmt != 0);
-
-  /* If statement hasnt been prepared there is nothing to reset */
-  if ((int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE)
-    DBUG_RETURN(0);
-
-  mysql= stmt->mysql->last_used_con;
-  int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT, buff,
-                                          sizeof(buff), 0, 0, 0))
-  {
-    set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
-                    mysql->net.sqlstate);
-    DBUG_RETURN(1);
-  }
-
-  /* Clear long_data_used for next call (as we do in mysql_stmt_execute() */
-  for (param= stmt->params, param_end= param + stmt->param_count;
-       param < param_end;
-       param++)
-    param->long_data_used= 0;
-
-  DBUG_RETURN(0);
+  /* Reset the client and server sides of the prepared statement */
+  DBUG_RETURN(reset_stmt_handle(stmt, RESET_SERVER_SIDE | RESET_LONG_DATA));
 }
 
 /*

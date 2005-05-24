@@ -55,15 +55,15 @@ count(*)
 4181
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	217
-Key_reads	45
+Key_read_requests	294
+Key_reads	60
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	434
-Key_reads	45
+Key_read_requests	588
+Key_reads	60
 flush tables;
 flush status;
 select @@preload_buffer_size;
@@ -74,15 +74,15 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	581
-Key_reads	581
+Key_read_requests	774
+Key_reads	774
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	798
-Key_reads	581
+Key_read_requests	1068
+Key_reads	774
 flush tables;
 flush status;
 show status like "key_read%";
@@ -98,15 +98,15 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	10
-Key_reads	10
+Key_read_requests	17
+Key_reads	17
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	227
-Key_reads	52
+Key_read_requests	311
+Key_reads	75
 flush tables;
 flush status;
 show status like "key_read%";
@@ -123,8 +123,8 @@ test.t1	preload_keys	status	OK
 test.t2	preload_keys	status	OK
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	587
-Key_reads	587
+Key_read_requests	785
+Key_reads	785
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
@@ -133,8 +133,8 @@ count(*)
 2584
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	938
-Key_reads	613
+Key_read_requests	1266
+Key_reads	821
 flush tables;
 flush status;
 show status like "key_read%";
@@ -149,8 +149,8 @@ Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	355
-Key_reads	355
+Key_read_requests	478
+Key_reads	478
 flush tables;
 flush status;
 show status like "key_read%";

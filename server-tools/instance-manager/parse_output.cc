@@ -47,7 +47,7 @@ int parse_output_and_get_value(const char *command, const char *word,
 {
   FILE *output;
   uint wordlen;
-  /* should be enought to store the string from the output */
+  /* should be enough to store the string from the output */
   enum { MAX_LINE_LEN= 512 };
   char linebuf[MAX_LINE_LEN];
 
@@ -99,3 +99,4 @@ pclose:
 err:
   return 1;
 }
+

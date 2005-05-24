@@ -261,10 +261,10 @@ int Mysql_connection_thread::check_connection()
   }
   client_capabilities|= ((ulong) uint2korr(net.read_pos + 2)) << 16;
 
-  pos= (char *) net.read_pos + 32;
+  pos= (char*) net.read_pos + 32;
 
   /* At least one byte for username and one byte for password */
-  if (pos >= (char *) net.read_pos + pkt_len + 2)
+  if (pos >= (char*) net.read_pos + pkt_len + 2)
   {
     /*TODO add user and password handling in error messages*/
     net_send_error(&net, ER_HANDSHAKE_ERROR);
@@ -284,7 +284,7 @@ int Mysql_connection_thread::check_connection()
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;
   }
-  net_send_ok(&net, connection_id);
+  net_send_ok(&net, connection_id, NULL);
   return 0;
 }
 
@@ -301,9 +301,7 @@ int Mysql_connection_thread::do_command()
   {
     /* Check if we can continue without closing the connection */
     if (net.error != 3) // what is 3 - find out
-    {
       return 1;
-    }
     if (thread_registry.is_shutdown())
       return 1;
     net_send_error(&net, net.last_errno);
@@ -332,7 +330,7 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
     return 1;
   case COM_PING:
     log_info("query for connection %d received ping command", connection_id);
-    net_send_ok(&net, connection_id);
+    net_send_ok(&net, connection_id, NULL);
     break;
   case COM_QUERY:
   {
@@ -346,14 +344,12 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
       res= command->execute(&net, connection_id);
       delete command;
       if (!res)
-      {
-	log_info("query for connection %d executed ok",connection_id);
-      }
+        log_info("query for connection %d executed ok",connection_id);
       else
       {
-	log_info("query for connection %d executed err=%d",connection_id,res);
-	net_send_error(&net, res);
-	return 0;
+        log_info("query for connection %d executed err=%d",connection_id,res);
+        net_send_error(&net, res);
+        return 0;
       }
     }
     else

@@ -3307,7 +3307,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
         0)
     {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0),
-               name->c_ptr(), table->s->table_name);
+               name->c_ptr_safe(), table->s->table_name);
       map->set_all();
       return 1;
     }

@@ -67,7 +67,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
                         mf_iocache2.lo my_seek.lo my_sleep.lo \
 			my_pread.lo mf_cache.lo md5.lo sha1.lo \
 			my_getopt.lo my_gethostbyname.lo my_port.lo \
-                        my_rename.lo
+                        my_rename.lo my_chsize.lo
 sqlobjects =		net.lo
 sql_cmn_objects =	pack.lo client.lo my_time.lo
 
