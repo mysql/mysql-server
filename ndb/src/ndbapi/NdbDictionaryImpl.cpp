@@ -2049,12 +2049,22 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
     return 0;
   }
 
+  /*
+   * internalName may be pointer to m_ndb.theImpl->m_internalname.c_str()
+   * and may get deallocated in next call.
+   *
+   * Passing around pointers to volatile internal members may not be
+   * optimal.  Suggest use BaseString instances passed by value.
+   */
+
+  BaseString save_me(internalName);
   NdbTableImpl* prim = getTable(tab->m_primaryTable.c_str());
   if(prim == 0){
     m_error.code = 4243;
     return 0;
   }
-  
+  internalName = save_me.c_str();
+
   /**
    * Create index impl
    */

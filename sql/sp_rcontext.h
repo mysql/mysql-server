@@ -62,26 +62,25 @@ class sp_rcontext : public Sql_alloc
   push_item(Item *i)
   {
     if (m_count < m_fsize)
-      m_frame[m_count++] = i;
+      m_frame[m_count++]= i;
   }
 
   inline void
   set_item(uint idx, Item *i)
   {
     if (idx < m_count)
-      m_frame[idx] = i;
+      m_frame[idx]= i;
   }
 
   /* Returns 0 on success, -1 on (eval) failure */
   int
-  set_item_eval(uint idx, Item **i, enum_field_types type);
+  set_item_eval(THD *thd, uint idx, Item **i, enum_field_types type);
 
   inline Item *
   get_item(uint idx)
   {
     return m_frame[idx];
   }
-
 
   inline Item **
   get_item_addr(uint idx)
