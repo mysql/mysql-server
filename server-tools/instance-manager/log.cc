@@ -70,7 +70,7 @@ static inline void log(FILE *file,  const char *format, va_list args)
   if (n < 0 || n == sizeof(buff_stack))
   {
     int size= sizeof(buff_stack) * 2;
-    buff_msg= (char *) my_malloc(size, 0);
+    buff_msg= (char*) my_malloc(size, MYF(0));
     while (true)
     {
       if (buff_msg == 0)
@@ -86,16 +86,16 @@ static inline void log(FILE *file,  const char *format, va_list args)
       size*= 2;
       /* realloc() does unnecessary memcpy */
       my_free(buff_msg, 0);
-      buff_msg= (char *) my_malloc(size, 0);
+      buff_msg= (char*) my_malloc(size, MYF(0));
     }
   }
   else if ((size_t) n > sizeof(buff_stack))
   {
-    buff_msg= (char *) my_malloc(n + 1, 0);
+    buff_msg= (char*) my_malloc(n + 1, MYF(0));
 #ifdef DBUG
     DBUG_ASSERT(n == vsnprintf(buff_msg, n + 1, format, args));
 #else
-   vsnprintf(buff_msg, n + 1, format, args); 
+   vsnprintf(buff_msg, n + 1, format, args);
 #endif
   }
   fprintf(file, "%s%s\n", buff_date, buff_msg);

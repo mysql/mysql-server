@@ -606,3 +606,57 @@ system rm ./var/master-data/test/t1.MYD ;
 drop table t1;
 --error 1051
 drop table t1;
+
+#
+# Test concurrent insert
+# First with static record length
+#
+set @save_concurrent_insert=@@concurrent_insert;
+set global concurrent_insert=1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+lock table t1 read local;
+connect (con1,localhost,root,,);
+connection con1;
+# Insert in table without hole
+insert into t1 values(6),(7);
+connection default;
+unlock tables;
+delete from t1 where a>=3 and a<=4;
+lock table t1 read local;
+connection con1;
+set global concurrent_insert=2;
+# Insert in table with hole -> Should insert at end
+insert into t1 values (8),(9);
+connection default;
+unlock tables;
+# Insert into hole
+insert into t1 values (10),(11),(12);
+select * from t1;
+check table t1;
+drop table t1;
+
+# Same test with dynamic record length
+create table t1 (a int, b varchar(30) default "hello");
+insert into t1 (a) values (1),(2),(3),(4),(5);
+lock table t1 read local;
+connect (con1,localhost,root,,);
+connection con1;
+# Insert in table without hole
+insert into t1 (a) values(6),(7);
+connection default;
+unlock tables;
+delete from t1 where a>=3 and a<=4;
+lock table t1 read local;
+connection con1;
+set global concurrent_insert=2;
+# Insert in table with hole -> Should insert at end
+insert into t1 (a) values (8),(9);
+connection default;
+unlock tables;
+# Insert into hole
+insert into t1 (a) values (10),(11),(12);
+select a from t1;
+check table t1;
+drop table t1;
+set global concurrent_insert=@save_concurrent_insert;

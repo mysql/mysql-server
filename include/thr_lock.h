@@ -88,10 +88,10 @@ typedef struct st_thr_lock {
   struct st_lock_list read;
   struct st_lock_list write_wait;
   struct st_lock_list write;
-/* write_lock_count is incremented for write locks and reset on read locks */
+  /* write_lock_count is incremented for write locks and reset on read locks */
   ulong write_lock_count;
   uint read_no_write_count;
-  void (*get_status)(void*);		/* When one gets a lock */
+  void (*get_status)(void*, int);	/* When one gets a lock */
   void (*copy_status)(void*,void*);
   void (*update_status)(void*);		/* Before release of write */
   my_bool (*check_status)(void *);

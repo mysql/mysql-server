@@ -23,14 +23,13 @@
 #include <NdbOut.hpp>
 #include <NdbTest.hpp>
 #include <NdbTick.h>
-#include <ndb/src/ndbapi/NdbBlobImpl.hpp>
 
 struct Bcol {
   bool m_nullable;
   unsigned m_inline;
   unsigned m_partsize;
   unsigned m_stripe;
-  char m_btname[NdbBlobImpl::BlobTableNameSize];
+  char m_btname[200];
   Bcol(bool a, unsigned b, unsigned c, unsigned d) :
     m_nullable(a),
     m_inline(b),
@@ -365,7 +364,7 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
 {
   if (b.m_nullable && urandom(10) == 0) {
     v.m_len = 0;
-    delete v.m_val;
+    delete [] v.m_val;
     v.m_val = 0;
     v.m_buf = new char [1];
   } else {
@@ -375,7 +374,7 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
       v.m_len = urandom(b.m_inline);
     else
       v.m_len = urandom(b.m_inline + g_opt.m_parts * b.m_partsize + 1);
-    delete v.m_val;
+    delete [] v.m_val;
     v.m_val = new char [v.m_len + 1];
     for (unsigned i = 0; i < v.m_len; i++)
       v.m_val[i] = 'a' + urandom(25);

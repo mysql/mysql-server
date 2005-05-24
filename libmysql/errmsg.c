@@ -80,6 +80,7 @@ const char *client_errors[]=
   "Row retrieval was canceled by mysql_stmt_close() call",
   "Attempt to read column without prior row fetch",
   "Prepared statement contains no metadata",
+  "Attempt to read a row while there is no result set associated with the statement",
   ""
 };
 
@@ -141,6 +142,7 @@ const char *client_errors[]=
   "Row retrieval was canceled by mysql_stmt_close() call",
   "Attempt to read column without prior row fetch",
   "Prepared statement contains no metadata",
+  "Attempt to read a row while there is no result set associated with the statement",
   ""
 };
 
@@ -200,6 +202,7 @@ const char *client_errors[]=
   "Row retrieval was canceled by mysql_stmt_close() call",
   "Attempt to read column without prior row fetch",
   "Prepared statement contains no metadata",
+  "Attempt to read a row while there is no result set associated with the statement",
   ""
 };
 #endif
