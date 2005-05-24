@@ -213,4 +213,4 @@ drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 # Test BUG#10287
 #
 
---exec $NDB_TOOLS_DIR/ndb_select_all -d sys -D , SYSTAB_0 | grep 520093696
+--exec $NDB_TOOLS_DIR/ndb_select_all --no-defaults -d sys -D , SYSTAB_0 | grep 520093696
