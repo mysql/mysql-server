@@ -3948,6 +3948,9 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
 
 #ifdef __GNUC__
 template unsigned int DivideThreeWordsByTwo<unsigned int, DWord>(unsigned int*, unsigned int, unsigned int, DWord*);
+#if defined(SSE2_INTRINSICS_AVAILABLE)
+template AlignedAllocator<unsigned int>::pointer StdReallocate<unsigned int, AlignedAllocator<unsigned int> >(AlignedAllocator<unsigned int>&, unsigned int*, AlignedAllocator<unsigned int>::size_type, AlignedAllocator<unsigned int>::size_type, bool);
+#endif
 #endif
 
 } // namespace

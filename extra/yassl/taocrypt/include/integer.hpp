@@ -251,11 +251,11 @@ public:
 private:
     friend class ModularArithmetic;
     friend class MontgomeryRepresentation;
-    Integer(word value, unsigned int length);
 
     static const Integer zero;
     static const Integer one;
     static const Integer two;
+    Integer(word value, unsigned int length);
     int PositiveCompare(const Integer& t) const;
 
     friend void PositiveAdd(Integer& sum, const Integer& a, const Integer& b);
