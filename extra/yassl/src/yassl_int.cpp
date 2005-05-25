@@ -1324,18 +1324,19 @@ SSL_SESSION::~SSL_SESSION()
 }
 
 
-Sessions Sessions::instance; // simple singleton
+Sessions Sessions::instance_; // simple singleton
 
 Sessions& GetSessions()
 {
-    return Sessions::instance;
+    return Sessions::instance_;
 }
 
-sslFactory sslFactory::instance;
+
+sslFactory sslFactory::instance_; // simple singleton
 
 sslFactory& GetSSL_Factory()
 {   
-    return sslFactory::instance;
+    return sslFactory::instance_;
 }
 
 
