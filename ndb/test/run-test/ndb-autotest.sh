@@ -70,14 +70,19 @@ if [ "$build" ]
 then
 	cd $dst_place
         rm -rf $run_dir/*
-        aclocal; autoheader; autoconf; automake
-	if [ -d storage ]
+	if [ -x BUILD/autorun.sh ]
 	then
-	    (cd storage/innobase; aclocal; autoheader; autoconf; automake)
-	    (cd storage/bdb/dist; sh s_all)
+	    ./BUILD/autorun.sh
 	else
-	    (cd innobase; aclocal; autoheader; autoconf; automake)
-	    (cd bdb/dist; sh s_all)
+	    aclocal; autoheader; autoconf; automake
+	    if [ -d storage ]
+	    then
+		(cd storage/innobase; aclocal; autoheader; autoconf; automake)
+		(cd storage/bdb/dist; sh s_all)
+	    else
+		(cd innobase; aclocal; autoheader; autoconf; automake)
+		(cd bdb/dist; sh s_all)
+	    fi
 	fi
 	eval $configure --prefix=$run_dir
 	make
