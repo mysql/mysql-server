@@ -137,6 +137,8 @@ protected:
   int m_remote_pid;
   Uint32 m_last_signal;
   Uint32 m_signal_threshold;
+
+  virtual Uint32 get_free_buffer() const;
   
 private:
   bool _shmSegCreated;

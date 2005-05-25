@@ -1023,7 +1023,8 @@ SCI_Transporter::initSCI() {
   DBUG_RETURN(true);
 } 
  
- 
- 
- 
- 
+Uint32
+SCI_Transporter::get_free_buffer() const
+{
+  return (m_TargetSegm[m_ActiveAdapterId].writer)->get_free_buffer();
+}
