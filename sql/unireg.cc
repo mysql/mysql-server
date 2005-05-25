@@ -759,8 +759,11 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
   }
   DBUG_ASSERT(data_offset == ((null_count + 7) / 8));
 
-  /* Fill not used startpos */
-  if (null_count)
+  /*
+    We need to set the unused bits to 1. If the number of bits is a multiple
+    of 8 there are no unused bits.
+  */
+  if (null_count & 7)
     *(null_pos + null_count / 8)|= ~(((uchar) 1 << (null_count & 7)) - 1);
 
   error=(int) my_write(file,(byte*) buff, (uint) reclength,MYF_RW);
