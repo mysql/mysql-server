@@ -420,7 +420,7 @@ static const uint signed_longlong_len=19;
 static const char *unsigned_longlong_str="18446744073709551615";
 static const uint unsigned_longlong_len=20;
 
-inline static uint int_token(const char *str,uint length)
+static inline uint int_token(const char *str,uint length)
 {
   if (length < long_len)			// quick normal case
     return NUM;
