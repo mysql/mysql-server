@@ -1607,9 +1607,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
         trying to discover the table at the same time.
       */
       if (discover_retry_count++ != 0)
-       goto err;
+        goto err;
       if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
-       goto err;
+        goto err;
 
       mysql_reset_errors(thd, 1);    // Clear warnings
       thd->clear_error();            // Clear error message
