@@ -62,13 +62,13 @@ input_buffer::input_buffer()
 
 
 input_buffer::input_buffer(uint s) 
-    : size_(0), current_(0), buffer_(new (ys) byte[s]), end_(buffer_ + s)
+    : size_(0), current_(0), buffer_(new byte[s]), end_(buffer_ + s)
 {}
 
 
 // with assign
 input_buffer::input_buffer(uint s, const byte* t, uint len) 
-    : size_(0), current_(0), buffer_(new (ys) byte[s]), end_(buffer_ + s) 
+    : size_(0), current_(0), buffer_(new byte[s]), end_(buffer_ + s) 
 { 
     assign(t, len); 
 }
@@ -84,7 +84,7 @@ input_buffer::~input_buffer()
 void input_buffer::allocate(uint s) 
 { 
     assert(!buffer_);       // find realloc error
-    buffer_ = new (ys) byte[s];
+    buffer_ = new byte[s];
     end_ = buffer_ + s; 
 }
 
@@ -198,13 +198,13 @@ output_buffer::output_buffer()
 
 // with allocate
 output_buffer::output_buffer(uint s) 
-    : current_(0), buffer_(new (ys) byte[s]), end_(buffer_ + s) 
+    : current_(0), buffer_(new byte[s]), end_(buffer_ + s) 
 {}
 
 
 // with assign
 output_buffer::output_buffer(uint s, const byte* t, uint len) 
-    : current_(0), buffer_(new (ys) byte[s]), end_(buffer_+ s) 
+    : current_(0), buffer_(new byte[s]), end_(buffer_+ s) 
 { 
     write(t, len); 
 }
@@ -239,7 +239,7 @@ void output_buffer::set_current(uint c)
 void output_buffer::allocate(uint s) 
 { 
     assert(!buffer_);   // find realloc error
-    buffer_ = new (ys) byte[s]; end_ = buffer_ + s; 
+    buffer_ = new byte[s]; end_ = buffer_ + s; 
 }
 
 
