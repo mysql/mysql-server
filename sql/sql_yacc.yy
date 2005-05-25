@@ -2449,7 +2449,7 @@ select_part2:
 	select_into select_lock_type;
 
 select_into:
-	opt_limit_clause {}
+	opt_order_clause opt_limit_clause {}
         | into
 	| select_from
 	| into select_from
