@@ -1526,6 +1526,8 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(mysql_errno(mysql));
   }
+  /* very important - joins will not work without this! */
+  table->status=0;
 
   DBUG_RETURN(rnd_next(buf));
 }

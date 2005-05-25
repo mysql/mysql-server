@@ -906,9 +906,57 @@ INSERT INTO federated.t1 (name, country_id, other) VALUES ('Lenz', 2, 22222);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Marizio', 3, 33333);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Monty', 4, 33333);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Sanja', 5, 33333);
+SELECT federated.t1.name AS name, federated.t1.country_id AS country_id,
+federated.t1.other AS other, federated.countries.country AS country 
+FROM federated.t1, federated.countries WHERE
+federated.t1.country_id = federated.countries.id;
+name	country_id	other	country
+Kumar	1	11111	India
+Lenz	2	22222	Germany
+Marizio	3	33333	Italy
+Monty	4	33333	Finland
+Sanja	5	33333	Ukraine
+SELECT federated.t1.name AS name, federated.t1.country_id AS country_id,
+federated.t1.other AS other, federated.countries.country AS country
+FROM federated.t1 INNER JOIN federated.countries ON
+federated.t1.country_id = federated.countries.id;
+name	country_id	other	country
+Kumar	1	11111	India
+Lenz	2	22222	Germany
+Marizio	3	33333	Italy
+Monty	4	33333	Finland
+Sanja	5	33333	Ukraine
+SELECT federated.t1.name AS name, federated.t1.country_id AS country_id,
+federated.t1.other AS other, federated.countries.country AS country
+FROM federated.t1 INNER JOIN federated.countries ON
+federated.t1.country_id = federated.countries.id
+WHERE federated.t1.name = 'Monty';
+name	country_id	other	country
+Monty	4	33333	Finland
 SELECT federated.t1.*, federated.countries.country 
-FROM federated.t1 left join federated.countries 
-ON federated.t1.country_id = federated.countries.id;
+FROM federated.t1 LEFT JOIN federated.countries 
+ON federated.t1.country_id = federated.countries.id
+ORDER BY federated.countries.id;
+id	country_id	name	other	country
+1	1	Kumar	11111	India
+2	2	Lenz	22222	Germany
+3	3	Marizio	33333	Italy
+4	4	Monty	33333	Finland
+5	5	Sanja	33333	Ukraine
+SELECT federated.t1.*, federated.countries.country 
+FROM federated.t1 LEFT JOIN federated.countries 
+ON federated.t1.country_id = federated.countries.id
+ORDER BY federated.countries.country;
+id	country_id	name	other	country
+4	4	Monty	33333	Finland
+2	2	Lenz	22222	Germany
+1	1	Kumar	11111	India
+3	3	Marizio	33333	Italy
+5	5	Sanja	33333	Ukraine
+SELECT federated.t1.*, federated.countries.country 
+FROM federated.t1 RIGHT JOIN federated.countries 
+ON federated.t1.country_id = federated.countries.id 
+ORDER BY federated.t1.country_id;
 id	country_id	name	other	country
 1	1	Kumar	11111	India
 2	2	Lenz	22222	Germany
