@@ -861,9 +861,39 @@ INSERT INTO federated.t1 (name, country_id, other) VALUES ('Marizio', 3, 33333);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Monty', 4, 33333);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Sanja', 5, 33333);
 
+#inner join
+SELECT federated.t1.name AS name, federated.t1.country_id AS country_id,
+federated.t1.other AS other, federated.countries.country AS country 
+FROM federated.t1, federated.countries WHERE
+federated.t1.country_id = federated.countries.id;
+
+SELECT federated.t1.name AS name, federated.t1.country_id AS country_id,
+federated.t1.other AS other, federated.countries.country AS country
+FROM federated.t1 INNER JOIN federated.countries ON
+federated.t1.country_id = federated.countries.id;
+
+SELECT federated.t1.name AS name, federated.t1.country_id AS country_id,
+federated.t1.other AS other, federated.countries.country AS country
+FROM federated.t1 INNER JOIN federated.countries ON
+federated.t1.country_id = federated.countries.id
+WHERE federated.t1.name = 'Monty';
+
+#left join
 SELECT federated.t1.*, federated.countries.country 
-FROM federated.t1 left join federated.countries 
-ON federated.t1.country_id = federated.countries.id;
+FROM federated.t1 LEFT JOIN federated.countries 
+ON federated.t1.country_id = federated.countries.id
+ORDER BY federated.countries.id;
+
+SELECT federated.t1.*, federated.countries.country 
+FROM federated.t1 LEFT JOIN federated.countries 
+ON federated.t1.country_id = federated.countries.id
+ORDER BY federated.countries.country;
+
+#right join
+SELECT federated.t1.*, federated.countries.country 
+FROM federated.t1 RIGHT JOIN federated.countries 
+ON federated.t1.country_id = federated.countries.id 
+ORDER BY federated.t1.country_id;
 
 DROP TABLE federated.countries;
 
