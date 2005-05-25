@@ -872,9 +872,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
       if (info->handle_duplicates == DUP_UPDATE)
       {
         int res= 0;
-        /* we don't check for other UNIQUE keys - the first row
-           that matches, is updated. If update causes a conflict again,
-           an error is returned
+        /*
+          We don't check for other UNIQUE keys - the first row
+          that matches, is updated. If update causes a conflict again,
+          an error is returned
         */
 	DBUG_ASSERT(table->insert_values != NULL);
         store_record(table,insert_values);
