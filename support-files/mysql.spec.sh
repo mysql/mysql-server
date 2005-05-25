@@ -299,6 +299,9 @@ fi
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
+# Now clean up
+make clean
+
 # RPM:s destroys Makefile.in files, so we generate them here
 # aclocal; autoheader; aclocal; automake; autoconf
 # (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
@@ -584,6 +587,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed May 25 2005 Joerg Bruehe <joerg@mysql.com>
+
+- Added a "make clean" between separate calls to "BuildMySQL".
+
 * Wed Apr 13 2005 Lenz Grimmer <lenz@mysql.com>
 
 - removed the MySQL manual files (html/ps/texi) - they have been removed
