@@ -297,6 +297,22 @@ longlong Item::val_int_from_decimal()
 }
 
 
+void *Item::operator new(size_t size, Item *reuse, uint *rsize)
+{
+  if (reuse && size <= reuse->rsize)
+  {
+    reuse->cleanup();
+    TRASH((void *)reuse, size);
+    if (rsize)
+      (*rsize)= reuse->rsize;
+    return (void *)reuse;
+  }
+  if (rsize)
+    (*rsize)= size;
+  return (void *)sql_alloc((uint)size);
+}
+
+
 Item::Item():
   rsize(0), name(0), orig_name(0), name_length(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE)
