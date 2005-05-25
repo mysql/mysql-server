@@ -67,7 +67,7 @@ public:
         init(*this); 
     }
 
-    // reservce place in vector before registering, used by init funcion
+    // reserve place in vector before registering, used by init funcion
     void Reserve(size_t sz)
     {
         callbacks_.reserve(sz);

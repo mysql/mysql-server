@@ -28,17 +28,6 @@
 #include <assert.h>
 #include <string.h>
 
-namespace TaoCrypt {
-
-// library allocation
-struct new_t {};      // TaoCrypt New type
-extern new_t tc;      // pass in parameter
-
-} // namespace TaoCrypt
-
-void* operator new  (size_t, TaoCrypt::new_t);
-void* operator new[](size_t, TaoCrypt::new_t);
-
 
 namespace TaoCrypt {
 

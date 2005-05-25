@@ -1478,6 +1478,11 @@ bool show_binlog_info(THD* thd)
 bool show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
+  LOG_INFO cur;
+  IO_CACHE log;
+  File file;
+  const char *errmsg= 0;
+  MY_STAT stat_area;
   char fname[FN_REFLEN];
   List<Item> field_list;
   uint length;
@@ -1491,21 +1496,43 @@ bool show_binlogs(THD* thd)
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
+  field_list.push_back(new Item_return_int("File_size", 20, 
+                                           MYSQL_TYPE_LONGLONG));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
-  
+
+  mysql_bin_log.get_current_log(&cur);
+  int cur_dir_len = dirname_length(cur.log_file_name);
+
   reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 0);
 
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)
   {
+    fname[--length] = '\0';  /* remove the newline */
+
     protocol->prepare_for_resend();
     int dir_len = dirname_length(fname);
-    /* The -1 is for removing newline from fname */
-    protocol->store(fname + dir_len, length-1-dir_len, &my_charset_bin);
+    protocol->store(fname + dir_len, length-dir_len, &my_charset_bin);
+    if(!(strncmp(fname+dir_len, cur.log_file_name+cur_dir_len, length-dir_len)))
+    {
+      /* this is the active log, use the active position */
+      protocol->store((ulonglong) cur.pos);
+    } else {
+      /* this is an old log, open it and find the size */
+      if ((file=open_binlog(&log, fname+dir_len, &errmsg)) >= 0)
+      {
+        protocol->store((ulonglong) my_b_filelength(&log));
+        end_io_cache(&log);
+        my_close(file, MYF(0));
+      } else {
+        /* the file wasn't openable, but 0 is an invalid value anyway */
+        protocol->store((ulonglong) 0);
+      }
+    }
     if (protocol->write())
       goto err;
   }
