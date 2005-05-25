@@ -578,6 +578,7 @@ extern int my_access(const char *path, int amode);
 #else
 #define my_access access
 #endif
+extern int check_if_legal_filename(const char *path);
 
 #ifndef TERMINATE
 extern void TERMINATE(FILE *file);
