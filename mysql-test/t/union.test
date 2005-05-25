@@ -742,3 +742,14 @@ create table t2 select a from t1 union select c from t1;
 create table t2 select a from t1 union select b from t1;
 show columns from t2;
 drop table t2, t1;
+
+
+#
+# Bug #10032 Bug in parsing UNION with ORDER BY when one node does not use FROM
+#
+
+create table t1 ( id int not null auto_increment, primary key (id), col1 int);
+insert into t1 (col1) values (2),(3),(4),(5),(6);
+select 99 union all select id from t1 order by 1;
+select id from t1 union all select 99 order by 1;
+drop table t1;
