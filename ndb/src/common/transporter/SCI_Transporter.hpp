@@ -133,7 +133,8 @@ public:
    * remote segment is mapped. Otherwize false. 
    */ 
   bool getConnectionStatus(); 
-   
+
+  virtual Uint32 get_free_buffer() const;   
 private: 
   SCI_Transporter(TransporterRegistry &t_reg,
                   const char *local_host,

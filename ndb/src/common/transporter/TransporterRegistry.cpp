@@ -523,6 +523,18 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
   theTransporters[nodeId] = NULL;        
 }
 
+Uint32
+TransporterRegistry::get_free_buffer(Uint32 node) const
+{
+  Transporter *t;
+  if(likely((t = theTransporters[node]) != 0))
+  {
+    return t->get_free_buffer();
+  }
+  return 0;
+}
+
+
 SendStatus
 TransporterRegistry::prepareSend(const SignalHeader * const signalHeader, 
 				 Uint8 prio,

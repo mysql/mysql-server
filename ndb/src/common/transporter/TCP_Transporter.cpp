@@ -250,6 +250,11 @@ TCP_Transporter::sendIsPossible(struct timeval * timeout) {
 #endif
 }
 
+Uint32
+TCP_Transporter::get_free_buffer() const 
+{
+  return m_sendBuffer.bufferSizeRemaining();
+}
 
 Uint32 *
 TCP_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio){
