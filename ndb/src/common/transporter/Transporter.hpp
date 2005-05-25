@@ -69,6 +69,8 @@ public:
    */
   NodeId getLocalNodeId() const;
 
+  virtual Uint32 get_free_buffer() const = 0;
+  
 protected:
   Transporter(TransporterRegistry &,
 	      TransporterType,
