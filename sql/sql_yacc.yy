@@ -3512,6 +3512,10 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->alter_info.flags|= ALTER_OPTIONS;
 	  }
+	| FORCE_SYM
+	  {
+	    Lex->alter_info.flags|= ALTER_FORCE;
+	   }
 	| order_clause
 	  {
 	    LEX *lex=Lex;
