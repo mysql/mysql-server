@@ -3099,8 +3099,8 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                          enum_set_typelib, collation.collation);
   case MYSQL_TYPE_VAR_STRING:
     table->db_create_options|= HA_OPTION_PACK_RECORD;
-    return new Field_string(max_length, maybe_null, name, table,
-                            collation.collation);
+    fld_type= MYSQL_TYPE_STRING;
+    break;
   default:
     break;
   }
