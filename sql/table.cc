@@ -166,6 +166,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   share->db_type= ha_checktype((enum db_type) (uint) *(head+3));
   share->db_create_options= db_create_options=uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
+  share->mysql_version= uint4korr(head+51);
   null_field_first= 0;
   if (!head[32])				// New frm file in 3.23
   {
@@ -572,6 +573,29 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       error= 4;
       goto err;			/* purecov: inspected */
     }
+#ifndef TO_BE_DELETED_ON_PRODUCTION
+    if (field_type == FIELD_TYPE_NEWDECIMAL && !share->mysql_version)
+    {
+      /*
+        Fix pack length of old decimal values from 5.0.3 -> 5.0.4
+        The difference is that in the old version we stored precision
+        in the .frm table while we now store the display_length
+      */
+      Field_new_decimal *dec_field= (Field_new_decimal*) reg_field;
+      dec_field->bin_size= my_decimal_get_binary_size(field_length,
+                                                      dec_field->dec);
+      dec_field->precision= field_length;
+      dec_field->field_length=
+        my_decimal_precision_to_length(field_length, dec_field->dec,
+                                       dec_field->unsigned_flag);
+      sql_print_error("Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", dec_field->field_name, name, share->table_name);
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_CRASHED_ON_USAGE,
+                          "Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", dec_field->field_name, name, share->table_name);
+      share->crashed= 1;                        // Marker for CHECK TABLE
+    }
+#endif
+
     reg_field->comment=comment;
     if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
@@ -712,6 +736,28 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	  }
 	  if (field->key_length() != key_part->length)
 	  {
+#ifndef TO_BE_DELETED_ON_PRODUCTION
+            if (field->type() == FIELD_TYPE_NEWDECIMAL)
+            {
+              /*
+                Fix a fatal error in decimal key handling that causes crashes
+                on Innodb. We fix it by reducing the key length so that
+                InnoDB never gets a too big key when searching.
+                This allows the end user to do an ALTER TABLE to fix the
+                error.
+              */
+	      keyinfo->key_length-= (key_part->length - field->key_length());
+	      key_part->store_length-= (key_part->length - field->key_length());
+              key_part->length= field->key_length();
+              sql_print_error("Found wrong key definition in %s; Please do \"ALTER TABLE '%s' FORCE \" to fix it!", name, share->table_name);
+              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                  ER_CRASHED_ON_USAGE,
+                                  "Found wrong key definition in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", name, share->table_name);
+
+              share->crashed= 1;                // Marker for CHECK TABLE
+	      goto to_be_deleted;
+            }
+#endif
 	    key_part->key_part_flag|= HA_PART_KEY_SEG;
 	    if (!(field->flags & BLOB_FLAG))
 	    {					// Create a new field
@@ -720,6 +766,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	      field->field_length=key_part->length;
 	    }
 	  }
+
+	to_be_deleted:
+
 	  /*
 	    If the field can be NULL, don't optimize away the test
 	    key_part_column = expression from the WHERE clause
@@ -1298,7 +1347,6 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
 		HA_CREATE_INFO *create_info, uint keys)
 {
   register File file;
-  uint key_length;
   ulong length;
   char fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
@@ -1321,6 +1369,8 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
 
   if ((file= my_create(name, CREATE_MODE, create_flags, MYF(MY_WME))) >= 0)
   {
+    uint key_length, tmp_key_length;
+    uint tmp;
     bzero((char*) fileinfo,64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -1333,8 +1383,8 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
     length=(ulong) next_io_size((ulong) (IO_SIZE+key_length+reclength));
     int4store(fileinfo+10,length);
-    if (key_length > 0xffff) key_length=0xffff;
-    int2store(fileinfo+14,key_length);
+    tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
+    int2store(fileinfo+14,tmp_key_length);
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18,create_info->max_rows);
     int4store(fileinfo+22,create_info->min_rows);
@@ -1350,6 +1400,9 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     fileinfo[41]= (uchar) create_info->raid_type;
     fileinfo[42]= (uchar) create_info->raid_chunks;
     int4store(fileinfo+43,create_info->raid_chunksize);
+    int4store(fileinfo+47, key_length);
+    tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
+    int4store(fileinfo+51, tmp);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
