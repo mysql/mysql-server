@@ -119,6 +119,7 @@ public:
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
   virtual Item_result cast_to_int_type () const { return result_type(); }
+  static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
   bool eq(Field *field)

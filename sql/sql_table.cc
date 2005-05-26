@@ -3334,12 +3334,21 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	continue;				// Field is removed
       uint key_part_length=key_part->length;
       if (cfield->field)			// Not new field
-      {						// Check if sub key
-	if (cfield->field->type() != FIELD_TYPE_BLOB &&
-	    (cfield->field->pack_length() == key_part_length ||
-	     cfield->length <= key_part_length /
-			       key_part->field->charset()->mbmaxlen))
-	  key_part_length=0;			// Use whole field
+      {
+        /*
+          If the field can't have only a part used in a key according to its
+          new type, or should not be used partially according to its
+          previous type, or the field length is less than the key part
+          length, unset the key part length.
+
+          BLOBs may have cfield->length == 0, which is why we test it before
+          checking whether cfield->length < key_part_length (in chars).
+         */
+        if (!Field::type_can_have_key_part(cfield->field->type()) ||
+            !Field::type_can_have_key_part(cfield->sql_type) ||
+	    (cfield->length && (cfield->length < key_part_length /
+                                key_part->field->charset()->mbmaxlen)))
+	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
       key_parts.push_back(new key_part_spec(cfield->field_name,
