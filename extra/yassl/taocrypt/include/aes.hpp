@@ -37,11 +37,12 @@ enum { AES_BLOCK_SIZE = 16 };
 
 
 // AES encryption and decryption, see FIPS-197
-class AES : public Mode_BASE<AES_BLOCK_SIZE> {
+class AES : public Mode_BASE {
 public:
     enum { BLOCK_SIZE = AES_BLOCK_SIZE };
 
-    AES(CipherDir DIR, Mode MODE) : dir_(DIR), mode_(MODE) {}
+    AES(CipherDir DIR, Mode MODE)
+        : Mode_BASE(BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
 
     void Process(byte*, const byte*, word32);
     void SetKey(const byte* iv, word32 sz, CipherDir fake = ENCRYPTION);

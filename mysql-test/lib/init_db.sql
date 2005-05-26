@@ -50,6 +50,9 @@ CREATE TABLE host (
   Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   PRIMARY KEY Host (Host,Db)
 ) engine=MyISAM
 CHARACTER SET utf8 COLLATE utf8_bin
@@ -489,10 +492,11 @@ CREATE TABLE procs_priv (
   Db char(64) binary DEFAULT '' NOT NULL,
   User char(16) binary DEFAULT '' NOT NULL,
   Routine_name char(64) binary DEFAULT '' NOT NULL,
+  Routine_type enum('FUNCTION','PROCEDURE') NOT NULL,
   Grantor char(77) DEFAULT '' NOT NULL,
-  Timestamp timestamp(14),
   Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
-  PRIMARY KEY (Host,Db,User,Routine_name),
+  Timestamp timestamp(14),
+  PRIMARY KEY (Host,Db,User,Routine_name,Routine_type),
   KEY Grantor (Grantor)
 ) engine=MyISAM
 CHARACTER SET utf8 COLLATE utf8_bin
