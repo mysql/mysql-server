@@ -33,7 +33,7 @@ int main(int argc, const char** argv){
   int _loops = 1;
   int _abort = 0;
   int _parallelism = 1;
-  const char* _tabname = NULL;
+  const char* _tabname = NULL, *db = 0;
   int _help = 0;
   int lock = NdbOperation::LM_Read;
   int sorted = 0;
@@ -45,7 +45,8 @@ int main(int argc, const char** argv){
     { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
     { "usage", '?', arg_flag, &_help, "Print help", "" },
     { "lock", 'm', arg_integer, &lock, "lock mode", "" },
-    { "sorted", 's', arg_flag, &sorted, "sorted", "" }
+    { "sorted", 's', arg_flag, &sorted, "sorted", "" },
+    { "database", 'd', arg_string, &db, "Database", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -61,7 +62,7 @@ int main(int argc, const char** argv){
   _tabname = argv[optind];
 
   // Connect to Ndb
-  Ndb MyNdb( "TEST_DB" );
+  Ndb MyNdb( db ? db : "TEST_DB" );
 
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
