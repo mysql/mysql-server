@@ -198,7 +198,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     ACL_HOST host;
     update_hostname(&host.host,get_field(&mem, table->field[0]));
     host.db=	 get_field(&mem, table->field[1]);
-    if (lower_case_table_names)
+    if (lower_case_table_names && host.db)
     {
       /*
        We make a temporary copy of the database, force it to lower case,
