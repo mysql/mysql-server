@@ -740,12 +740,12 @@ select concat('value is: ', @val) union select 'some text';
 # Enum merging test
 #
 CREATE TABLE t1 (
-  a ENUM('Ã¤','Ã¶','Ã¼') character set utf8 not null default 'Ã¼',
+  a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
   b ENUM("one", "two") character set utf8,
   c ENUM("one", "two")
 );
 show create table t1;
-insert into t1 values ('Ã¤', 'one', 'one'), ('Ã¶', 'two', 'one'), ('Ã¼', NULL, NULL);
+insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
 create table t2 select NULL union select a from t1;
 show columns from t2;
 drop table t2;
