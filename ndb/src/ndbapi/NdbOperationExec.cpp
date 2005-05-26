@@ -104,8 +104,9 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 {
   Uint32 tTransId1, tTransId2;
   Uint32 tReqInfo;
-  Uint32 tInterpretInd = theInterpretIndicator;
-  
+  Uint8 tInterpretInd = theInterpretIndicator;
+  Uint8 tDirtyIndicator = theDirtyIndicator;
+  Uint32 tTotalCurrAI_Len = theTotalCurrAI_Len;
   theErrorLine = 0;
 
   if (tInterpretInd != 1) {
@@ -123,7 +124,13 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
       if (tStatus != GetValue) {
         setErrorCodeAbort(4116);
         return -1;
-      }//if
+      } 
+      else if(unlikely(tDirtyIndicator && tTotalCurrAI_Len == 0))
+      {
+	getValue(NdbDictionary::Column::FRAGMENT);
+	tTotalCurrAI_Len = theTotalCurrAI_Len;
+	assert(theTotalCurrAI_Len);
+      }
     } else {
       setErrorCodeAbort(4005);      
       return -1;
@@ -140,7 +147,6 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 //-------------------------------------------------------------
   TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
 
-  Uint32 tTotalCurrAI_Len = theTotalCurrAI_Len;
   Uint32 tTableId = m_currentTable->m_tableId;
   Uint32 tSchemaVersion = m_currentTable->m_version;
   
@@ -188,7 +194,6 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tcKeyReq->setStartFlag(tReqInfo, tStartIndicator);
   tcKeyReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
 
-  Uint8 tDirtyIndicator = theDirtyIndicator;
   OperationType tOperationType = theOperationType;
   Uint32 tTupKeyLen = theTupKeyLen;
   Uint8 abortOption =

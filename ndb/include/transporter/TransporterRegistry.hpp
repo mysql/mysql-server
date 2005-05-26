@@ -203,6 +203,13 @@ public:
   bool createSCITransporter(struct TransporterConfiguration * config);
   bool createSHMTransporter(struct TransporterConfiguration * config);
   bool createOSETransporter(struct TransporterConfiguration * config);
+
+  /**
+   * Get free buffer space
+   *
+   *   Get #free bytes in send buffer for <em>node</node>
+   */
+  Uint32 get_free_buffer(Uint32 node) const ;
   
   /**
    * prepareSend
