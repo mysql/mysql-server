@@ -942,8 +942,7 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
     
-    NdbResultSet *rs;
-    if ((rs = pOp->readTuples((NdbOperation::LockMode)lm)) == 0){
+    if ((pOp->readTuples((NdbOperation::LockMode)lm)) != 0){
       pNdb->closeTransaction(pCon);
       ERR(pOp->getNdbError());
       return NDBT_FAILED;
@@ -962,7 +961,7 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
     }
   
     int res;
-    while((res = rs->nextResult()) == 0);
+    while((res = pOp->nextResult()) == 0);
     pNdb->closeTransaction(pCon);  
     
     if(res != 1)
