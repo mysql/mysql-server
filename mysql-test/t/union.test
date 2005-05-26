@@ -740,12 +740,12 @@ select concat('value is: ', @val) union select 'some text';
 # Enum merging test
 #
 CREATE TABLE t1 (
-  a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
+  a ENUM('Ã¤','Ã¶','Ã¼') character set utf8 not null default 'Ã¼',
   b ENUM("one", "two") character set utf8,
   c ENUM("one", "two")
 );
 show create table t1;
-insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
+insert into t1 values ('Ã¤', 'one', 'one'), ('Ã¶', 'two', 'one'), ('Ã¼', NULL, NULL);
 create table t2 select NULL union select a from t1;
 show columns from t2;
 drop table t2;
@@ -772,3 +772,14 @@ select row_format from information_schema.TABLES where table_schema="test" and t
 alter table t2 ROW_FORMAT=fixed;
 show create table t2;
 drop table t1,t2;
+
+
+#
+# Bug #10032 Bug in parsing UNION with ORDER BY when one node does not use FROM
+#
+
+create table t1 ( id int not null auto_increment, primary key (id), col1 int);
+insert into t1 (col1) values (2),(3),(4),(5),(6);
+select 99 union all select id from t1 order by 1;
+select id from t1 union all select 99 order by 1;
+drop table t1;
