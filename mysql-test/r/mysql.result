@@ -1,0 +1,50 @@
+drop table if exists t1;
+create table t1(a int);
+insert into t1 values(1);
+
+Test default delimiter ;
+a
+1
+
+Test delimiter without arg
+
+Test delimiter :
+a
+1
+
+Test delimiter :
+a
+1
+
+Test delimiter :;
+a
+1
+
+Test delimiter //
+a
+1
+
+Test delimiter MySQL
+a
+1
+
+Test delimiter delimiter
+a
+1
+
+Test delimiter : from command line
+a
+1
+
+Test delimiter :; from command line
+a
+1
+
+Test 'go' command(vertical output) G
+*************************** 1. row ***************************
+a: 1
+
+Test  'go' command g
+a
+1
+drop table t1;
