@@ -17,7 +17,7 @@
 
 /* This file defines all spatial functions */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
