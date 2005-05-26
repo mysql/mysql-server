@@ -28,7 +28,7 @@
 
 #ifdef DISABLED_UNTIL_REWRITTEN_IN_4_1
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 

@@ -342,7 +342,6 @@ private:
    * Complete metadata for one index. The array of attributes has
    * variable size.
    */
-  struct DescEnt;
   friend struct DescEnt;
   struct DescEnt {
     DescHead m_descHead;

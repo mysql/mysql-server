@@ -36,7 +36,7 @@
      QUICK_RANGEs are also created in this step.
 */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 

@@ -3180,7 +3180,7 @@ unsent_create_error:
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
-      lex->select_lex.table_list.first= (byte*)first_table->next_local;
+      select_lex->table_list.first= (byte*)first_table->next_local;
 
       res= mysql_insert_select_prepare(thd);
       if (!res && (result= new select_insert(first_table, first_table->table,
@@ -3192,13 +3192,13 @@ unsent_create_error:
           insert/replace from SELECT give its SELECT_LEX for SELECT,
           and item_list belong to SELECT
         */
-	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
-	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+	select_lex->resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
       /* revert changes for SP */
-      lex->select_lex.table_list.first= (byte*) first_table;
+      select_lex->table_list.first= (byte*) first_table;
     }
 
     if (first_table->view && !first_table->contain_auto_increment)
