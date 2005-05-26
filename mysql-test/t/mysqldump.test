@@ -554,3 +554,12 @@ create table t1 (
 insert into t1 (F_8d3bba7425e7c98c50f52ca1b52d3735) values (1);
 --exec $MYSQL_DUMP --skip-comments -c test
 drop table t1;
+
+#
+# Test for --add-drop-database
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+--exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
+DROP TABLE t1;
