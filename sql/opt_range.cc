@@ -3307,32 +3307,35 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
 
 
 /*
-  Build a SEL_TREE for <> predicate
+  Build a SEL_TREE for <> or NOT BETWEEN predicate
  
   SYNOPSIS
     get_ne_mm_tree()
       param       PARAM from SQL_SELECT::test_quick_select
       cond_func   item for the predicate
       field       field in the predicate
-      value       constant in the predicate
+      lt_value    constant that field should be smaller
+      gt_value    constant that field should be greaterr
       cmp_type    compare type for the field
 
   RETURN 
-    Pointer to tree built tree
+    #  Pointer to tree built tree
+    0  on error
 */
 
 static SEL_TREE *get_ne_mm_tree(PARAM *param, Item_func *cond_func, 
-                                Field *field, Item *value,
+                                Field *field,
+                                Item *lt_value, Item *gt_value,
                                 Item_result cmp_type)
 {
-  SEL_TREE *tree= 0;
+  SEL_TREE *tree;
   tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
-		       value, cmp_type);
+                     lt_value, cmp_type);
   if (tree)
   {
     tree= tree_or(param, tree, get_mm_parts(param, cond_func, field,
 					    Item_func::GT_FUNC,
-					    value, cmp_type));
+					    gt_value, cmp_type));
   }
   return tree;
 }
@@ -3365,21 +3368,14 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
   switch (cond_func->functype()) {
 
   case Item_func::NE_FUNC:
-    tree= get_ne_mm_tree(param, cond_func, field, value, cmp_type);
+    tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
     break;
 
   case Item_func::BETWEEN:
     if (inv)
     {
-      tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
-		         cond_func->arguments()[1],cmp_type);
-      if (tree)
-      {
-        tree= tree_or(param, tree, get_mm_parts(param, cond_func, field,
-					        Item_func::GT_FUNC,
-					        cond_func->arguments()[2],
-                                                cmp_type));
-      }
+      tree= get_ne_mm_tree(param, cond_func, field, cond_func->arguments()[1],
+                           cond_func->arguments()[2], cmp_type);
     }
     else
     {
@@ -3402,7 +3398,8 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
     if (inv)
     {
       tree= get_ne_mm_tree(param, cond_func, field,
-                           func->arguments()[1], cmp_type);
+                           func->arguments()[1], func->arguments()[1],
+                           cmp_type);
       if (tree)
       {
         Item **arg, **end;
@@ -3410,7 +3407,7 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
              arg < end ; arg++)
         {
           tree=  tree_and(param, tree, get_ne_mm_tree(param, cond_func, field, 
-                                                      *arg, cmp_type));
+                                                      *arg, *arg, cmp_type));
         }
       }
     }
@@ -3523,17 +3520,18 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   Item_func *cond_func= (Item_func*) cond;
   if (cond_func->functype() == Item_func::NOT_FUNC)
   {
+    /* Optimize NOT BETWEEN and NOT IN */
     Item *arg= cond_func->arguments()[0];
     if (arg->type() == Item::FUNC_ITEM)
     {
       cond_func= (Item_func*) arg;
       if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
         DBUG_RETURN(0);
-      inv= TRUE;	
+      inv= TRUE;
     }
     else
       DBUG_RETURN(0);
-  }    
+  }
   else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);			       
 

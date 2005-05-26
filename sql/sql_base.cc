@@ -1607,9 +1607,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
         trying to discover the table at the same time.
       */
       if (discover_retry_count++ != 0)
-       goto err;
+        goto err;
       if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
-       goto err;
+        goto err;
 
       mysql_reset_errors(thd, 1);    // Clear warnings
       thd->clear_error();            // Clear error message
@@ -3813,7 +3813,7 @@ err_no_arena:
     TRUE    error occured
 */
 
-bool
+static bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
             bool ignore_errors)
 {
@@ -3836,6 +3836,41 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     }
   }
   DBUG_RETURN(thd->net.report_error);
+}
+
+
+/*
+  Fill fields in list with values from the list of items and invoke
+  before triggers.
+
+  SYNOPSIS
+    fill_record_n_invoke_before_triggers()
+      thd           thread context
+      fields        Item_fields list to be filled
+      values        values to fill with
+      ignore_errors TRUE if we should ignore errors
+      triggers      object holding list of triggers to be invoked
+      event         event type for triggers to be invoked
+
+  NOTE
+    This function assumes that fields which values will be set and triggers
+    to be invoked belong to the same table, and that TABLE::record[0] and
+    record[1] buffers correspond to new and old versions of row respectively.
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+                                     List<Item> &values, bool ignore_errors,
+                                     Table_triggers_list *triggers,
+                                     enum trg_event_type event)
+{
+  return (fill_record(thd, fields, values, ignore_errors) ||
+          triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE));
 }
 
 
@@ -3872,6 +3907,41 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
       DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(thd->net.report_error);
+}
+
+
+/*
+  Fill fields in array with values from the list of items and invoke
+  before triggers.
+
+  SYNOPSIS
+    fill_record_n_invoke_before_triggers()
+      thd           thread context
+      ptr           NULL-ended array of fields to be filled
+      values        values to fill with
+      ignore_errors TRUE if we should ignore errors
+      triggers      object holding list of triggers to be invoked
+      event         event type for triggers to be invoked
+
+  NOTE
+    This function assumes that fields which values will be set and triggers
+    to be invoked belong to the same table, and that TABLE::record[0] and
+    record[1] buffers correspond to new and old versions of row respectively.
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
+                                     List<Item> &values, bool ignore_errors,
+                                     Table_triggers_list *triggers,
+                                     enum trg_event_type event)
+{
+  return (fill_record(thd, ptr, values, ignore_errors) ||
+          triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE));
 }
 
 
