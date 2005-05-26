@@ -948,7 +948,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 
 err:
   if (key)
-    my_afree(key);
+    my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   info->last_errno= error;
   table->file->print_error(error,MYF(0));
   DBUG_RETURN(1);
@@ -965,7 +965,8 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry)
   for (Field **field=entry->field ; *field ; field++)
   {
     if ((*field)->query_id != thd->query_id &&
-        ((*field)->flags & NO_DEFAULT_VALUE_FLAG))
+        ((*field)->flags & NO_DEFAULT_VALUE_FLAG) &&
+        ((*field)->real_type() != FIELD_TYPE_ENUM))
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                            ER_NO_DEFAULT_FOR_FIELD,

@@ -71,7 +71,7 @@ static const char *embedded_server_groups[]= {
 static time_t start_time, end_time;
 static double total_time;
 
-const char *default_dbug_option= "d:t:o,/tmp/client_test.trace";
+const char *default_dbug_option= "d:t:o,/tmp/mysql_client_test.trace";
 
 struct my_tests_st
 {
@@ -787,6 +787,7 @@ static void verify_field_count(MYSQL_RES *result, uint exp_count)
 
 /* Utility function to execute a query using prepare-execute */
 
+#ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query, ulonglong exp_count)
 {
   MYSQL_STMT *stmt;
@@ -807,7 +808,7 @@ static void execute_prepare_query(const char *query, ulonglong exp_count)
   DIE_UNLESS(affected_rows == exp_count);
   mysql_stmt_close(stmt);
 }
-
+#endif
 
 /* Store result processing */
 
@@ -12942,6 +12943,7 @@ static void test_bug9478()
   char a[6];
   ulong a_len;
   int rc, i;
+  DBUG_ENTER("test_bug9478");
 
   myheader("test_bug9478");
 
@@ -13014,6 +13016,7 @@ static void test_bug9478()
 
   for (i= 0; i < 5; i++)
   {
+    DBUG_PRINT("loop",("i: %d", i));
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     rc= mysql_stmt_fetch(stmt);
@@ -13029,10 +13032,10 @@ static void test_bug9478()
     */
     {
       char buff[9];
-      bzero(buff, sizeof(buff));
       /* Fill in the execute packet */
       int4store(buff, stmt->stmt_id);
-      int4store(buff+5, 1);
+      buff[4]= 0;                               /* Flag */
+      int4store(buff+5, 1);                     /* Return 1 row */
       rc= ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff,
                                                sizeof(buff), 0,0,1) ||
            (*mysql->methods->read_query_result)(mysql));
@@ -13072,8 +13075,71 @@ static void test_bug9478()
 
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
+  DBUG_VOID_RETURN;
 }
 
+
+/*
+  Error message is returned for unsupported features.
+  Test also cursors with non-default PREFETCH_ROWS
+*/
+
+static void test_bug9643()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  int32 a;
+  int rc;
+  const char *stmt_text;
+  int num_rows= 0;
+  ulong type;
+  ulong prefetch_rows= 5;
+
+  myheader("test_bug9643");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (id integer not null primary key)");
+  rc= mysql_query(mysql, "insert into t1 (id) values "
+                         " (1), (2), (3), (4), (5), (6), (7), (8), (9)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  /* Not implemented in 5.0 */
+  type= (ulong) CURSOR_TYPE_SCROLLABLE;
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_stmt_error(stmt));
+
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_PREFETCH_ROWS,
+                          (void*) &prefetch_rows);
+  check_execute(stmt, rc);
+  stmt_text= "select * from t1";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (void*) &a;
+  bind[0].buffer_length= sizeof(a);
+  mysql_stmt_bind_result(stmt, bind);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  while ((rc= mysql_stmt_fetch(stmt)) == 0)
+    ++num_rows;
+  DIE_UNLESS(num_rows == 9);
+
+  rc= mysql_stmt_close(stmt);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -13306,6 +13372,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9159", test_bug9159 },
   { "test_bug9520", test_bug9520 },
   { "test_bug9478", test_bug9478 },
+  { "test_bug9643", test_bug9643 },
   { 0, 0 }
 };
 

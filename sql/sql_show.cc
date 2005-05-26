@@ -1345,6 +1345,32 @@ static bool show_status_array(THD *thd, const char *wild,
 	  pthread_mutex_unlock(&LOCK_active_mi);
 	  break;
         }
+        case SHOW_SLAVE_SKIP_ERRORS:
+        {
+          MY_BITMAP *bitmap= (MY_BITMAP *)value;
+          if (!use_slave_mask || bitmap_is_clear_all(bitmap))
+          {
+            end= strmov(buff, "OFF");
+          }
+          else if (bitmap_is_set_all(bitmap))
+          {
+            end= strmov(buff, "ALL");
+          }
+          else
+          {
+            for (int i= 1; i < MAX_SLAVE_ERROR; i++)
+            {
+              if (bitmap_is_set(bitmap, i))
+              {
+                end= int10_to_str(i, (char*) end, 10);
+                *(char*) end++= ',';
+              }
+            }
+            if (end != buff)
+              end--;				// Remove last ','
+          }
+          break;
+        }
 #endif /* HAVE_REPLICATION */
         case SHOW_OPENTABLES:
           end= int10_to_str((long) cached_tables(), buff, 10);
@@ -2599,7 +2625,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   definer= get_field(thd->mem_root, proc_table->field[11]);
   if (!full_access)
     full_access= !strcmp(sp_user, definer);
-  if (!full_access && check_some_routine_access(thd, sp_db, sp_name))
+  if (!full_access && check_some_routine_access(thd, sp_db, sp_name,
+			proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE))
     return 0;
 
   if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
@@ -2982,12 +3009,13 @@ static int get_schema_key_column_usage_record(THD *thd,
     while ((f_key_info= it++))
     {
       LEX_STRING *f_info;
+      LEX_STRING *r_info;
       List_iterator_fast<LEX_STRING> it(f_key_info->foreign_fields),
         it1(f_key_info->referenced_fields);
       uint f_idx= 0;
       while ((f_info= it++))
       {
-        it1++;                                  // Ignore r_info
+        r_info= it1++;
         f_idx++;
         restore_record(table, s->default_values);
         store_key_column_usage(table, base_name, file_name,
@@ -2997,6 +3025,17 @@ static int get_schema_key_column_usage_record(THD *thd,
                                (longlong) f_idx);
         table->field[8]->store((longlong) f_idx);
         table->field[8]->set_notnull();
+        table->field[9]->store(f_key_info->referenced_db->str,
+                               f_key_info->referenced_db->length,
+                               system_charset_info);
+        table->field[9]->set_notnull();
+        table->field[10]->store(f_key_info->referenced_table->str,
+                                f_key_info->referenced_table->length, 
+                                system_charset_info);
+        table->field[10]->set_notnull();
+        table->field[11]->store(r_info->str, r_info->length,
+                                system_charset_info);
+        table->field[11]->set_notnull();
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(1);
       }
@@ -3744,6 +3783,9 @@ ST_FIELD_INFO key_column_usage_fields_info[]=
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ORDINAL_POSITION", 10 ,MYSQL_TYPE_LONG, 0, 0, 0},
   {"POSITION_IN_UNIQUE_CONSTRAINT", 10 ,MYSQL_TYPE_LONG, 0, 1, 0},
+  {"REFERENCED_TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"REFERENCED_COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

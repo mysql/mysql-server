@@ -605,7 +605,11 @@ void field_conv(Field *to,Field *from)
          to->type() != FIELD_TYPE_DATE &&
          to->type() != FIELD_TYPE_DATETIME))
     {						// Identical fields
-      memcpy(to->ptr,from->ptr,to->pack_length());
+#ifdef HAVE_purify
+      /* This may happen if one does 'UPDATE ... SET x=x' */
+      if (to->ptr != from->ptr)
+#endif
+        memcpy(to->ptr,from->ptr,to->pack_length());
       return;
     }
   }

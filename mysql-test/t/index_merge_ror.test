@@ -185,7 +185,7 @@ explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 # 
 
 # Different value on 32 and 64 bit
---replace sta_swt12a sta_swt21a
+--replace_result sta_swt12a sta_swt21a sta_swt12a, sta_swt12a,
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;

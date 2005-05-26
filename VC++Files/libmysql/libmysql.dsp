@@ -219,6 +219,10 @@ SOURCE=..\mysys\default.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\default_modify.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\dll.c
 # End Source File
 # Begin Source File
@@ -303,6 +307,10 @@ SOURCE=..\mysys\my_alloc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\my_chsize.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_compress.c
 # End Source File
 # Begin Source File
@@ -384,6 +392,10 @@ SOURCE=..\mysys\my_realloc.c
 # Begin Source File
 
 SOURCE=..\mysys\my_rename.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_seek.c
 # End Source File
 # Begin Source File
 

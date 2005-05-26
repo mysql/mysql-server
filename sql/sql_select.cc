@@ -1320,7 +1320,7 @@ JOIN::exec()
     }
     curr_all_fields= &tmp_all_fields1;
     curr_fields_list= &tmp_fields_list1;
-    set_items_ref_array(items1);
+    curr_join->set_items_ref_array(items1);
     
     if (sort_and_group || curr_tmp_table->group)
     {
@@ -1455,7 +1455,7 @@ JOIN::exec()
       }
       curr_fields_list= &curr_join->tmp_fields_list2;
       curr_all_fields= &curr_join->tmp_all_fields2;
-      set_items_ref_array(items2);
+      curr_join->set_items_ref_array(items2);
       curr_join->tmp_table_param.field_count+= 
 	curr_join->tmp_table_param.sum_func_count;
       curr_join->tmp_table_param.sum_func_count= 0;
@@ -1516,7 +1516,7 @@ JOIN::exec()
     }
     curr_fields_list= &tmp_fields_list3;
     curr_all_fields= &tmp_all_fields3;
-    set_items_ref_array(items3);
+    curr_join->set_items_ref_array(items3);
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 				      1, TRUE) || 
@@ -1834,12 +1834,13 @@ Cursor::fetch(ulong num_rows)
   THD *thd= join->thd;
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
+  DBUG_ENTER("Cursor::fetch");
+  DBUG_PRINT("enter",("rows: %lu", num_rows));
 
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
 
   join->fetch_limit+= num_rows;
-
 
   error= sub_select(join, join_tab, 0);
   if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
@@ -1873,6 +1874,7 @@ Cursor::fetch(ulong num_rows)
     else if (error != NESTED_LOOP_KILLED)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1930,6 +1932,50 @@ Cursor::~Cursor()
 
 /*********************************************************************/
 
+/*
+  An entry point to single-unit select (a select without UNION).
+
+  SYNOPSIS
+    mysql_select()
+
+    thd                  thread handler
+    rref_pointer_array   a reference to ref_pointer_array of
+                         the top-level select_lex for this query
+    tables               list of all tables used in this query.
+                         The tables have been pre-opened.
+    wild_num             number of wildcards used in the top level 
+                         select of this query.
+                         For example statement
+                         SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
+                         has 3 wildcards.
+    fields               list of items in SELECT list of the top-level
+                         select
+                         e.g. SELECT a, b, c FROM t1 will have Item_field
+                         for a, b and c in this list.
+    conds                top level item of an expression representing
+                         WHERE clause of the top level select
+    og_num               total number of ORDER BY and GROUP BY clauses
+                         arguments
+    order                linked list of ORDER BY agruments
+    group                linked list of GROUP BY arguments
+    having               top level item of HAVING expression
+    proc_param           list of PROCEDUREs
+    select_options       select options (BIG_RESULT, etc)
+    result               an instance of result set handling class.
+                         This object is responsible for send result
+                         set rows to the client or inserting them
+                         into a table.
+    select_lex           the only SELECT_LEX of this query
+    unit                 top-level UNIT of this query
+                         UNIT is an artificial object created by the parser
+                         for every SELECT clause.
+                         e.g. SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
+                         has 2 unions.
+
+  RETURN VALUE
+   FALSE  success
+   TRUE   an error
+*/
 
 bool
 mysql_select(THD *thd, Item ***rref_pointer_array,
@@ -12609,8 +12655,10 @@ static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
   Item_sum *func;
   DBUG_ENTER("setup_sum_funcs");
   while ((func= *(func_ptr++)))
+  {
     if (func->setup(thd))
       DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(FALSE);
 }
 
@@ -12897,8 +12945,6 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	*/
 	item= item->copy_or_same(thd);
 	((Item_sum*) item)->make_unique();
-	if (((Item_sum*) item)->setup(thd))
-	  return 1;
 	*(*func)= (Item_sum*) item;
 	(*func)++;
       }

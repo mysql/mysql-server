@@ -87,7 +87,7 @@ case $FLAG in
     cat $FILES | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
-	    printf("#include \"sys.h\"\n#include \"el.h\"\n");
+	    printf("#include \"config.h\"\n#include \"el.h\"\n");
 	    printf("private const struct el_bindings_t el_func_help[] = {\n");
 	    low = "abcdefghijklmnopqrstuvwxyz_";
 	    high = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_";
@@ -170,7 +170,7 @@ case $FLAG in
     cat $FILES | $AWK '/el_action_t/ { print $3 }' | sort | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
-	    printf("#include \"sys.h\"\n#include \"el.h\"\n");
+	    printf("#include \"config.h\"\n#include \"el.h\"\n");
 	    printf("private const el_func_t el_func[] = {");
 	    maxlen = 80;
 	    needn = 1;
