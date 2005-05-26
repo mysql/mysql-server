@@ -444,6 +444,7 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
   while (to != end)
     *(to++)+= *(from++);
+  /* it doesn't make sense to add last_query_cost values */
 }
 
 
