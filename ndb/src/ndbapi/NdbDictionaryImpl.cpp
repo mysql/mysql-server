@@ -1649,7 +1649,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     abort();
   }
   
-  int distKeys= impl.m_noOfDistributionKeys;
+  int distKeys= impl.m_noOfDistributionKeys && 
+    impl.m_noOfDistributionKeys < impl.m_noOfKeys;
+  
+  assert(distKeys == 0 || distKeys == 1);
+
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)
@@ -1661,7 +1665,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeId = i;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeDKey = col->m_distributionKey;
+    tmpAttr.AttributeDKey = distKeys * col->m_distributionKey;
 
     tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);

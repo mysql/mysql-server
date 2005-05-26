@@ -86,6 +86,8 @@ public:
       m_socket_client->set_port(port);
   };
 
+  virtual Uint32 get_free_buffer() const = 0;
+  
 protected:
   Transporter(TransporterRegistry &,
 	      TransporterType,
