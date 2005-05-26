@@ -925,19 +925,12 @@ operator<<(NdbOut& ndbout, const LogEntry& logE)
   return ndbout;
 }
 
+#include <NDBT.hpp>
 
 NdbOut & 
 operator<<(NdbOut& ndbout, const TableS & table){
-  ndbout << endl << "Table: " << table.getTableName() << endl;
-  for (int j = 0; j < table.getNoOfAttributes(); j++) 
-  {
-    const AttributeDesc * desc = table[j];
-    ndbout << desc->m_column->getName() << ": "
-	   << (Uint32) desc->m_column->getType();
-    ndbout << " key: "  << (Uint32) desc->m_column->getPrimaryKey();
-    ndbout << " array: " << desc->arraySize;
-    ndbout << " size: " << desc->size << endl;
-  } // for
+  
+  ndbout << (* (NDBT_Table*)table.m_dictTable) << endl;
   return ndbout;
 }
 
