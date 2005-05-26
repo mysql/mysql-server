@@ -48,6 +48,11 @@
 #define USE_PRAGMA_INTERFACE
 #endif
 
+/* Determine when to use "#pragma implementation" */
+#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
+#define USE_PRAGMA_IMPLEMENTATION
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
