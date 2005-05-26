@@ -16,8 +16,8 @@
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
-Group(pt_BR):	Aplicações/Banco_de_Dados
+Summary(pt_BR): MySQL: Um servidor SQL rÃ¡pido e confiÃ¡vel.
+Group(pt_BR):	AplicaÃ§Ãµes/Banco_de_Dados
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
 License:	GPL
@@ -57,8 +57,8 @@ documentation and the manual for more information.
 Release: %{release}
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
-Group(pt_BR):	Aplicações/Banco_de_Dados
+Summary(pt_BR): MySQL: Um servidor SQL rÃ¡pido e confiÃ¡vel.
+Group(pt_BR):	AplicaÃ§Ãµes/Banco_de_Dados
 Requires: fileutils sh-utils
 Provides:	msqlormysql mysql-server mysql MySQL
 Obsoletes:	MySQL mysql mysql-server
@@ -92,7 +92,7 @@ Release: %{release}
 Summary: MySQL - Client
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Cliente
-Group(pt_BR): Aplicações/Banco_de_Dados
+Group(pt_BR): AplicaÃ§Ãµes/Banco_de_Dados
 Obsoletes: mysql-client
 Provides: mysql-client
 
@@ -102,7 +102,7 @@ This package contains the standard MySQL clients and administration tools.
 %{see_base}
 
 %description client -l pt_BR
-Este pacote contém os clientes padrão para o MySQL.
+Este pacote contÃ©m os clientes padrÃ£o para o MySQL.
 
 %package ndb-storage
 Release: %{release}
@@ -156,8 +156,8 @@ Release: %{release}
 Requires: %{name}-client perl-DBI perl
 Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
+Summary(pt_BR): MySQL - MediÃ§Ãµes de desempenho
+Group(pt_BR): AplicaÃ§Ãµes/Banco_de_Dados
 Provides: mysql-bench
 Obsoletes: mysql-bench
 
@@ -167,14 +167,14 @@ This package contains MySQL benchmark scripts and data.
 %{see_base}
 
 %description bench -l pt_BR
-Este pacote contém medições de desempenho de scripts e dados do MySQL.
+Este pacote contÃ©m mediÃ§Ãµes de desempenho de scripts e dados do MySQL.
 
 %package devel
 Release: %{release}
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
+Summary(pt_BR): MySQL - MediÃ§Ãµes de desempenho
+Group(pt_BR): AplicaÃ§Ãµes/Banco_de_Dados
 Provides: mysql-devel
 Obsoletes: mysql-devel
 
@@ -185,8 +185,8 @@ necessary to develop MySQL client applications.
 %{see_base}
 
 %description devel -l pt_BR
-Este pacote contém os arquivos de cabeçalho (header files) e bibliotecas 
-necessárias para desenvolver aplicações clientes do MySQL. 
+Este pacote contÃ©m os arquivos de cabeÃ§alho (header files) e bibliotecas 
+necessÃ¡rias para desenvolver aplicaÃ§Ãµes clientes do MySQL. 
 
 %package shared
 Release: %{release}
@@ -226,8 +226,8 @@ Release: %{release}
 Requires: %{name}-devel
 Summary: MySQL - embedded library
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
+Summary(pt_BR): MySQL - MediÃ§Ãµes de desempenho
+Group(pt_BR): AplicaÃ§Ãµes/Banco_de_Dados
 Obsoletes: mysql-embedded
 
 %description embedded
@@ -363,6 +363,9 @@ fi
 # Save libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
+
+# Now clean up
+make clean
 
 #
 # Only link statically on our i386 build host (which has a specially
@@ -686,6 +689,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed May 25 2005 Joerg Bruehe <joerg@mysql.com>
+
+- Added a "make clean" between separate calls to "BuildMySQL".
+
 * Wed Apr 20 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Enabled the "blackhole" storage engine for the Max RPM
