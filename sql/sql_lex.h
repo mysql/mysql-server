@@ -635,6 +635,7 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_CHANGE_COLUMN_DEFAULT 256
 #define ALTER_KEYS_ONOFF        512
 #define ALTER_CONVERT          1024
+#define ALTER_FORCE		2048
 
 typedef struct st_alter_info
 {

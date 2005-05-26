@@ -150,6 +150,55 @@ drop trigger t1.trg3;
 drop table t1;
 
 
+# Let us test how triggers work for special forms of INSERT such as
+# REPLACE and INSERT ... ON DUPLICATE KEY UPDATE
+create table t1 (id int not null primary key, data int);
+create trigger t1_bi before insert on t1 for each row
+  set @log:= concat(@log, "(BEFORE_INSERT: new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_ai after insert on t1 for each row
+  set @log:= concat(@log, "(AFTER_INSERT: new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_bu before update on t1 for each row
+  set @log:= concat(@log, "(BEFORE_UPDATE: old=(id=", old.id, ", data=", old.data,
+                                        ") new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_au after update on t1 for each row
+  set @log:= concat(@log, "(AFTER_UPDATE: old=(id=", old.id, ", data=", old.data,
+                                       ") new=(id=", new.id, ", data=", new.data,"))");
+create trigger t1_bd before delete on t1 for each row
+  set @log:= concat(@log, "(BEFORE_DELETE: old=(id=", old.id, ", data=", old.data,"))");
+create trigger t1_ad after delete on t1 for each row
+  set @log:= concat(@log, "(AFTER_DELETE: old=(id=", old.id, ", data=", old.data,"))");
+# Simple INSERT - both triggers should be called
+set @log:= "";
+insert into t1 values (1, 1);
+select @log;
+# INSERT IGNORE for already existing key - only before trigger should fire
+set @log:= "";
+insert ignore t1 values (1, 2);
+select @log;
+# REPLACE: before insert trigger should be called for both records,
+#          but then for first one update will be executed (and both update
+#          triggers should fire). For second after insert trigger will be
+#          called as for usual insert
+set @log:= "";
+replace t1 values (1, 3), (2, 2);
+select @log;
+# Now let us change table in such way that REPLACE on won't be executed
+# using update.
+alter table t1 add ts timestamp default now();
+set @log:= "";
+# This REPLACE should be executed via DELETE and INSERT so proper 
+# triggers should be invoked.
+replace t1 (id, data) values (1, 4);
+select @log;
+# Finally let us test INSERT ... ON DUPLICATE KEY UPDATE ...
+set @log:= "";
+insert into t1 (id, data) values (1, 5), (3, 3) on duplicate key update data= data + 2; 
+select @log;
+
+# This also drops associated triggers
+drop table t1;
+
+
 #
 # Test of wrong column specifiers in triggers
 #
@@ -249,3 +298,72 @@ create trigger trg1 before insert on t1 for each row set @a:= 1;
 # This should succeed
 drop database mysqltest;
 use test;
+
+# Test for bug #5860 "Multi-table UPDATE does not activate update triggers"
+# We will also test how delete triggers wor for multi-table DELETE.
+create table t1 (i int, j int default 10, k int not null, key (k));
+create table t2 (i int);
+insert into t1 (i, k) values (1, 1);
+insert into t2 values (1);
+create trigger trg1 before update on t1 for each row set @a:= @a + new.j - old.j;
+create trigger trg2 after update on t1 for each row set @b:= "Fired";
+set @a:= 0, @b:= "";
+# Check that trigger works in case of update on the fly
+update t1, t2 set j = j + 10 where t1.i = t2.i;
+select @a, @b;
+insert into t1 values (2, 13, 2);
+insert into t2 values (2);
+set @a:= 0, @b:= "";
+# And now let us check that triggers work in case of multi-update which
+# is done through temporary tables...
+update t1, t2 set j = j + 15 where t1.i = t2.i and t1.k >= 2;
+select @a, @b;
+# Let us test delete triggers for multi-delete now.
+# We create triggers for both tables because we want test how they
+# work in both on-the-fly and via-temp-tables cases.
+create trigger trg3 before delete on t1 for each row set @c:= @c + old.j;
+create trigger trg4 before delete on t2 for each row set @d:= @d + old.i;
+create trigger trg5 after delete on t1 for each row set @e:= "After delete t1 fired";
+create trigger trg6 after delete on t2 for each row set @f:= "After delete t2 fired";
+set @c:= 0, @d:= 0, @e:= "", @f:= "";
+delete t1, t2 from t1, t2 where t1.i = t2.i;
+select @c, @d, @e, @f;
+# This also will drop triggers
+drop table t1, t2;
+
+# Test for bug #6812 "Triggers are not activated for INSERT ... SELECT".
+# (We also check the fact that trigger modifies some field does not affect
+#  value of next record inserted).
+delimiter |;
+create table t1 (i int, j int default 10)|
+create table t2 (i int)|
+insert into t2 values (1), (2)|
+create trigger trg1 before insert on t1 for each row 
+begin
+  if new.i = 1 then
+    set new.j := 1;
+  end if;
+end|
+create trigger trg2 after insert on t1 for each row set @a:= 1|
+set @a:= 0|
+insert into t1 (i) select * from t2|
+select * from t1|
+select @a|
+# This also will drop triggers
+drop table t1, t2|
+delimiter ;|
+
+# Test for bug #8755 "Trigger is not activated by LOAD DATA"
+create table t1 (i int, j int, k int);
+create trigger trg1 before insert on t1 for each row set new.k = new.i;
+create trigger trg2 after insert on t1 for each row set @b:= "Fired"; 
+set @b:="";
+# Test triggers with file with separators
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, i);
+select *, @b from t1;
+set @b:="";
+# Test triggers with fixed size row file
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
+select *, @b from t1;
+# This also will drop triggers
+drop table t1;
