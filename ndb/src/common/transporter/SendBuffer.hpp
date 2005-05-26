@@ -51,7 +51,7 @@ public:
   bool initBuffer(Uint32 aRemoteNodeId);  
 
   // Number of bytes remaining in the buffer
-  Uint32 bufferSizeRemaining();
+  Uint32 bufferSizeRemaining() const;
 
   // Number of bytes of data in the buffer 
   int bufferSize(); 
