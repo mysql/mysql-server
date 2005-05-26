@@ -138,7 +138,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
 
-  if (check_stack_overrun(thd, (gptr)&res))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE))
     return TRUE;
 
   res= engine->prepare();
