@@ -5713,7 +5713,7 @@ struct show_var_st status_vars[]= {
   {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read, SHOW_KEY_CACHE_LONG},
   {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests, SHOW_KEY_CACHE_LONG},
   {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write, SHOW_KEY_CACHE_LONG},
-  {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE},
+  {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
 #ifdef HAVE_NDBCLUSTER_DB
   {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},
