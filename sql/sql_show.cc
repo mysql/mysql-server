@@ -1382,8 +1382,9 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strend(pos);
           break;
         }
-        case SHOW_DOUBLE:
+        case SHOW_DOUBLE_STATUS:
         {
+          value= ((char *) status_var + (ulong) value);
           end= buff + sprintf(buff, "%f", *(double*) value);
           break;
         }

@@ -310,12 +310,14 @@ C_MODE_END
 #endif
 #if defined(__ia64__)
 #define new my_arg_new
+#define need_to_restore_new 1
 #endif
 C_MODE_START
 #include <asm/atomic.h>
 C_MODE_END
-#if defined(__ia64__)
+#ifdef need_to_restore_new /* probably safer than #ifdef new */
 #undef new
+#undef need_to_restore_new
 #endif
 #endif
 #include <errno.h>				/* Recommended by debian */
