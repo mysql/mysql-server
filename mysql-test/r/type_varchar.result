@@ -392,3 +392,26 @@ group by t1.b, t1.a;
 a	b	min(t1.b)
 22	NULL	NULL
 drop table t1, t2;
+create table t1 (f1 varchar(65500));
+create index index1 on t1(f1(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` varchar(65500) default NULL,
+  KEY `index1` (`f1`(10))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify f1 varchar(255);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` varchar(255) default NULL,
+  KEY `index1` (`f1`(10))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify f1 tinytext;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` tinytext,
+  KEY `index1` (`f1`(10))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
