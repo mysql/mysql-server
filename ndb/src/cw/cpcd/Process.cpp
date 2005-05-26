@@ -223,11 +223,8 @@ set_ulimit(const BaseString & pair){
   if(!(list[1].trim() == "unlimited")){
     value = atoi(list[1].c_str());
   }
-#if defined(__INTEL_COMPILER)
-  struct rlimit64 rlp;
-#else
+
   struct rlimit rlp;
-#endif
 #define _RLIMIT_FIX(x) { res = getrlimit(x,&rlp); if(!res){ rlp.rlim_cur = value; res = setrlimit(x, &rlp); }}
   
   if(list[0].trim() == "c"){

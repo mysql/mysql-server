@@ -70,10 +70,10 @@ extern char *alloca ();
 #include <fcntl.h>
 #include <vis.h>
 
+#include "readline/readline.h"
 #include "el.h"
 #include "fcns.h"		/* for EL_NUM_FCNS */
 #include "histedit.h"
-#include "readline/readline.h"
 
 /* for rl_complete() */
 #define TAB		'\r'

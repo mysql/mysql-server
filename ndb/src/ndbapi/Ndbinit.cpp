@@ -62,7 +62,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theNoOfAllocatedTransactions= 0;
   theMaxNoOfTransactions= 0;
   theMinNoOfEventsToWakeUp= 0;
-  prefixEnd= NULL;
   theConIdleList= NULL;
   theOpIdleList= NULL;
   theScanOpIdleList= NULL;
@@ -109,17 +108,10 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     theFirstTupleId[i] = 0;
     theLastTupleId[i] = 0;
   }//for
-  
-  BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
-           aDataBase ? aDataBase : "");
-  BaseString::snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
-	   aSchema ? aSchema : "");
 
-  int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
-                     theDataBase, table_name_separator,
-                     theDataBaseSchema, table_name_separator);
-  prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
-                            sizeof(prefixName) - 1);
+  theImpl->m_dbname.assign(aDataBase);
+  theImpl->m_schemaname.assign(aSchema);
+  theImpl->update_prefix();
 
   theImpl->theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
 

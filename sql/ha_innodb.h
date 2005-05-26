@@ -70,7 +70,6 @@ class ha_innobase: public handler
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
 	uint		num_write_row;	/* number of write_row() calls */
-	longlong	auto_inc_counter_for_this_stat;
 	ulong max_supported_row_length(const byte *buf);
 
 	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,

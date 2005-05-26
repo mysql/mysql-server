@@ -799,11 +799,7 @@ AsyncFile::rmrfReq(Request * request, char * path, bool removePath){
       request->error = errno;
     return;
   }
-#if defined(__INTEL_COMPILER)
-  struct dirent64 * dp;
-#else
   struct dirent * dp;
-#endif
   while ((dp = readdir(dirp)) != NULL){
     if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) {
       BaseString::snprintf(path_add, (size_t)path_max_copy, "%s%s",

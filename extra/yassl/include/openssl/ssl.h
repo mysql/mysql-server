@@ -149,7 +149,7 @@ enum { /* X509 Constants */
     X509_V_ERR_CRL_SIGNATURE_FAILURE          = 10,
     X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD = 11,
     X509_V_ERR_CRL_HAS_EXPIRED                = 12,
-    X509_V_ERR_CERT_REVOKED                   = 13,
+    X509_V_ERR_CERT_REVOKED                   = 13
 
 };
 
@@ -166,7 +166,7 @@ int           ERR_GET_REASON(int);
 
 enum {  /* ERR Constants */
     ERR_TXT_STRING = 1,
-    EVP_R_BAD_DECRYPT = 2,
+    EVP_R_BAD_DECRYPT = 2
 };
 
 
@@ -263,8 +263,8 @@ enum { /* ssl Constants */
     SSL_UNKNOWN         = -2,
     SSL_FATAL_ERROR     = -1,
     SSL_NORMAL_SHUTDOWN =  0,
-    SSL_ERROR_NONE      =  0,   // for most functions
-    SSL_FAILURE         =  0,   // for some functions
+    SSL_ERROR_NONE      =  0,   /* for most functions */
+    SSL_FAILURE         =  0,   /* for some functions */
     SSL_SUCCESS	        =  1,
 
     SSL_FILETYPE_ASN1    = 10,
@@ -320,7 +320,7 @@ enum { /* ssl Constants */
     SSL_ST_ACCEPT         = 94,
     SSL_CB_ALERT          = 95,
     SSL_CB_READ           = 96,
-    SSL_CB_HANDSHAKE_DONE = 97,
+    SSL_CB_HANDSHAKE_DONE = 97
 
 };
 
