@@ -884,25 +884,16 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
 
   HugoOperations hugoOps(*pTab);
 
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-  }
-  if (pNdb->init()){
-    ERR(pNdb->getNdbError());
-    delete pNdb;
-    return NDBT_FAILED;
-  }
+  Ndb* pNdb = GETNDB(step);
+  Uint32 lm;
 
   for(Uint32 cm= 0; cm < 2; cm++)
   {
-    for(Uint32 lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
+    for(lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
     {
       NdbConnection* pCon = pNdb->startTransaction();
       if (pCon == NULL){
 	pNdb->closeTransaction(pCon);  
-	delete pNdb;
 	return NDBT_FAILED;
       }
     
@@ -910,14 +901,12 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
       if (pOp == NULL){
 	ERR(pCon->getNdbError());
 	pNdb->closeTransaction(pCon);  
-	delete pNdb;
 	return NDBT_FAILED;
       }
   
       if (pOp->readTuple((NdbOperation::LockMode)lm) != 0){
 	pNdb->closeTransaction(pCon);
 	ERR(pOp->getNdbError());
-	delete pNdb;
 	return NDBT_FAILED;
       }
     
@@ -926,7 +915,6 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
 	  if(hugoOps.equalForAttr(pOp, a, 1) != 0){
 	    ERR(pCon->getNdbError());
 	    pNdb->closeTransaction(pCon);
-	    delete pNdb;
 	    return NDBT_FAILED;
 	  }
 	}
@@ -946,7 +934,51 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
       pNdb->closeTransaction(pCon);  
     }
   }
-  delete pNdb;
+
+  /**
+   * Now test scans
+   */
+  for(lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
+  {
+    NdbConnection* pCon = pNdb->startTransaction();
+    if (pCon == NULL){
+      pNdb->closeTransaction(pCon);  
+      return NDBT_FAILED;
+    }
+    
+    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+    if (pOp == NULL){
+      ERR(pCon->getNdbError());
+      pNdb->closeTransaction(pCon);  
+      return NDBT_FAILED;
+    }
+    
+    NdbResultSet *rs;
+    if ((rs = pOp->readTuples((NdbOperation::LockMode)lm)) == 0){
+      pNdb->closeTransaction(pCon);
+      ERR(pOp->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    
+    // Dont' call any getValues
+    
+    // Execute should work
+    int check = pCon->execute(NoCommit);
+    if (check == 0){
+      ndbout << "execute worked" << endl;
+    } else {
+      ERR(pCon->getNdbError());
+      result = NDBT_FAILED;
+    }
+  
+    int res;
+    while((res = rs->nextResult()) == 0);
+    pNdb->closeTransaction(pCon);  
+    
+    if(res != 1)
+      result = NDBT_FAILED;
+  }
   
   return result;
 }
