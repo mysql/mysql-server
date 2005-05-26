@@ -982,6 +982,39 @@ Item_result Field::result_merge_type(enum_field_types field_type)
   Static help functions
 *****************************************************************************/
 
+
+/*
+  Check whether a field type can be partially indexed by a key
+
+  This is a static method, rather than a virtual function, because we need
+  to check the type of a non-Field in mysql_alter_table().
+
+  SYNOPSIS
+   type_can_have_key_part()
+   type                 field type
+
+  RETURN
+    TRUE  Type can have a prefixed key
+    FALSE Type can not have a prefixed key
+*/
+
+bool Field::type_can_have_key_part(enum enum_field_types type)
+{
+  switch (type) {
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+
 /*
   Numeric fields base class constructor
 */
