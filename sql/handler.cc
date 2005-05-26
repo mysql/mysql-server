@@ -1376,7 +1376,19 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
 
 
 /*
-  Updates columns with type NEXT_NUMBER if:
+  Update the auto_increment field if necessary
+
+  SYNOPSIS
+     update_auto_increment()
+
+  RETURN
+    0	ok
+    1 	get_auto_increment() was called and returned ~(ulonglong) 0
+    
+
+  IMPLEMENTATION
+
+    Updates columns with type NEXT_NUMBER if:
 
   - If column value is set to NULL (in which case
     auto_increment_field_not_null is 0)
@@ -1415,11 +1427,13 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
     thd->next_insert_id is cleared after it's been used for a statement.
 */
 
-void handler::update_auto_increment()
+bool handler::update_auto_increment()
 {
   ulonglong nr;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
+  bool auto_increment_field_not_null;
+  bool result= 0;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -1427,13 +1441,14 @@ void handler::update_auto_increment()
     row was not inserted
   */
   thd->prev_insert_id= thd->next_insert_id;
+  auto_increment_field_not_null= table->auto_increment_field_not_null;
+  table->auto_increment_field_not_null= FALSE;
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
-      table->auto_increment_field_not_null &&
+      auto_increment_field_not_null &&
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
     /* Clear flag for next row */
-    table->auto_increment_field_not_null= FALSE;
     /* Mark that we didn't generate a new value **/
     auto_increment_column_changed=0;
 
@@ -1447,12 +1462,13 @@ void handler::update_auto_increment()
       thd->next_insert_id= nr;
       DBUG_PRINT("info",("next_insert_id: %lu", (ulong) nr));
     }
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
   }
-  table->auto_increment_field_not_null= FALSE;
   if (!(nr= thd->next_insert_id))
   {
-    nr= get_auto_increment();
+    if ((nr= get_auto_increment()) == ~(ulonglong) 0)
+      result= 1;                                // Mark failure
+
     if (variables->auto_increment_increment != 1)
       nr= next_insert_id(nr-1, variables);
     /*
@@ -1492,7 +1508,7 @@ void handler::update_auto_increment()
 
   /* Mark that we generated a new value */
   auto_increment_column_changed=1;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(result);
 }
 
 /*

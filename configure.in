@@ -359,6 +359,14 @@ AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
 
+if test "$GCC" = "yes"
+then
+  # mysqld requires -fno-implicit-templates.
+  # Disable exceptions as they seams to create problems with gcc and threads.
+  # mysqld doesn't use run-time-type-checking, so we disable it.
+  CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+fi
+
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
 # Any variation of Linux
@@ -1374,20 +1382,20 @@ then
           AC_MSG_CHECKING("for gcc")
           if expr "$CC" : ".*gcc.*"
           then
-	    CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	    CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	    CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
           else
-	    CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	    CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	    CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
           fi
         else
-          { AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) };
+          AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) 
         fi
       else
         AC_MSG_RESULT("no")
       fi
     else
-      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.]);
+      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.])
     fi
   else
     AC_MSG_RESULT("no")
@@ -1419,15 +1427,15 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       else
-	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       fi
       AC_MSG_RESULT("yes")
     else
-      { AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) };
+      AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) 
     fi
   else
     AC_MSG_RESULT("no")
@@ -1462,15 +1470,15 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       else
- 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
- 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+ 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+ 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       fi
       AC_MSG_RESULT("yes")
     else
-      { AC_MSG_ERROR([configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual.]) };
+      AC_MSG_ERROR([configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual.]) 
     fi
   else
     AC_MSG_RESULT("no")
@@ -1804,6 +1812,7 @@ fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
+AC_CHECK_TYPES([u_int32_t])
 
 MYSQL_PTHREAD_YIELD
 
@@ -1957,9 +1966,12 @@ AC_LANG_CPLUSPLUS
 # with respect to ANSI C++
 # We also remove the -fbranch-probabilities option as this will give warnings
 # about not profiled code, which confuses configure
+# We also must remove -W and -Wcheck which on icc produces warnings that
+# we don't want to catch with -Werror
+
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
 fi
 
 AC_TRY_COMPILE(
@@ -1994,7 +2006,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
@@ -2027,7 +2039,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline

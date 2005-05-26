@@ -37,6 +37,7 @@
 /*
  * search.c: History and character search functions
  */
+#include <sys/types.h>
 #include <stdlib.h>
 #if defined(REGEX)
 #include <regex.h>

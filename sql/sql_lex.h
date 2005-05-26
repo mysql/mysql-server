@@ -898,10 +898,11 @@ struct st_lex_local: public st_lex
   { /* Never called */ }
 };
 
-void lex_init(void);
-void lex_free(void);
-void lex_start(THD *thd, uchar *buf,uint length);
-void lex_end(LEX *lex);
+extern void lex_init(void);
+extern void lex_free(void);
+extern void lex_start(THD *thd, uchar *buf,uint length);
+extern void lex_end(LEX *lex);
+extern int yylex(void *arg, void *yythd);
 
 extern pthread_key(LEX*,THR_LEX);
 

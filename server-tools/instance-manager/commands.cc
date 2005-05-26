@@ -548,7 +548,7 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
   path_field.name= (char*) "Path";
   path_field.length= DEFAULT_FIELD_LENGTH;
   path.data= &path_field;
-  size_field.name= (char*) "Filesize";
+  size_field.name= (char*) "File size";
   size_field.length= DEFAULT_FIELD_LENGTH;
   size.data= &size_field;
   field_list= list_add(NULL, &size);
@@ -573,9 +573,9 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
       const char *value;
     } logs[]=
     {
-      {"ERROR LOG", instance->options.logs[LOG_ERROR]},
-      {"GENERAL LOG", instance->options.logs[LOG_GENERAL]},
-      {"SLOW LOG", instance->options.logs[LOG_SLOW]},
+      {"ERROR LOG", instance->options.logs[IM_LOG_ERROR]},
+      {"GENERAL LOG", instance->options.logs[IM_LOG_GENERAL]},
+      {"SLOW LOG", instance->options.logs[IM_LOG_SLOW]},
       {NULL, NULL}
     };
     struct log_files_st *log_files;
@@ -689,8 +689,8 @@ int Set_option::correct_file(int skip)
 {
   int error;
 
-  error= my_correct_defaults_file("/etc/my.cnf", option,
-                                  option_value, instance_name, skip);
+  error= modify_defaults_file("/etc/my.cnf", option,
+			      option_value, instance_name, skip);
   if (error > 0)
     return ER_OUT_OF_RESOURCES;
   else if (error < 0)
