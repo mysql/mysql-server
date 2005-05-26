@@ -18,6 +18,27 @@
 
 /*  TODO: add caching - pre-read several index entries at once */
 
+/*
+  Added optimization for full-text queries with plus-words. It was
+  implemented by sharing maximal document id (max_docid) variable
+  inside plus subtree. max_docid could be used by any word in plus
+  subtree, but it could be updated by plus-word only.
+
+  The idea is: there is no need to search for docid smaller than
+  biggest docid inside current plus subtree.
+
+  Examples:
+  +word1 word2
+    share same max_docid
+    max_docid updated by word1
+  +word1 +(word2 word3)
+    share same max_docid
+    max_docid updated by word1
+  +(word1 -word2) +(+word3 word4)
+    share same max_docid
+    max_docid updated by word3
+*/
+
 #define FT_CORE
 #include "ftdefs.h"
 
@@ -66,6 +87,7 @@ struct st_ftb_expr
   uint      flags;
 /* ^^^^^^^^^^^^^^^^^^ FTB_{EXPR,WORD} common section */
   my_off_t  docid[2];
+  my_off_t  max_docid;
   float     weight;
   float     cur_weight;
   LIST     *phrase;               /* phrase words */
@@ -82,6 +104,7 @@ typedef struct st_ftb_word
 /* ^^^^^^^^^^^^^^^^^^ FTB_{EXPR,WORD} common section */
   my_off_t   docid[2];             /* for index search and for scan */
   my_off_t   key_root;
+  my_off_t  *max_docid;
   MI_KEYDEF *keyinfo;
   float      weight;
   uint       ndepth;
@@ -139,6 +162,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
   FT_WORD     w;
   FTB_WORD   *ftbw;
   FTB_EXPR   *ftbe;
+  FTB_EXPR   *tmp_expr;
   FT_WORD    *phrase_word;
   LIST       *phrase_list;
   uint  extra=HA_FT_WLEN+ftb->info->s->rec_reflength; /* just a shortcut */
@@ -174,6 +198,10 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if (param.yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
         ftb->with_scan|=(param.trunc & FTB_FLAG_TRUNC);
+        for (tmp_expr= up; tmp_expr->up; tmp_expr= tmp_expr->up)
+          if (! (tmp_expr->flags & FTB_FLAG_YES))
+            break;
+        ftbw->max_docid= &tmp_expr->max_docid;
       case 4: /* not indexed word (stopword or too short/long) */
         if (! up_quot) break;
         phrase_word= (FT_WORD *)alloc_root(&ftb->mem_root, sizeof(FT_WORD));
@@ -190,7 +218,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if (param.yesno<0) ftbe->flags|=FTB_FLAG_NO;
         ftbe->weight=weight;
         ftbe->up=up;
-        ftbe->ythresh=ftbe->yweaks=0;
+        ftbe->max_docid= ftbe->ythresh= ftbe->yweaks= 0;
         ftbe->docid[0]=ftbe->docid[1]=HA_OFFSET_ERROR;
         ftbe->phrase= NULL;
         if (param.quot) ftb->with_scan|=2;
@@ -236,8 +264,15 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   }
   else
   {
+    uint sflag= SEARCH_BIGGER;
+    if (ftbw->docid[0] < *ftbw->max_docid)
+    {
+      sflag|= SEARCH_SAME;
+      _mi_dpointer(info, (uchar *)(ftbw->word + ftbw->len + HA_FT_WLEN),
+                   *ftbw->max_docid);
+    }
     r=_mi_search(info, ftbw->keyinfo, (uchar*) lastkey_buf,
-                   USE_WHOLE_KEY, SEARCH_BIGGER, ftbw->key_root);
+                   USE_WHOLE_KEY, sflag, ftbw->key_root);
   }
 
   can_go_down=(!ftbw->off && (init_search || (ftbw->flags & FTB_FLAG_TRUNC)));
@@ -313,6 +348,8 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     memcpy(lastkey_buf+off, info->lastkey, info->lastkey_length);
   }
   ftbw->docid[0]=info->lastpos;
+  if (ftbw->flags & FTB_FLAG_YES)
+    *ftbw->max_docid= info->lastpos;
   return 0;
 }
 
@@ -422,7 +459,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftbe->flags=FTB_FLAG_YES;
   ftbe->nos=1;
   ftbe->up=0;
-  ftbe->ythresh=ftbe->yweaks=0;
+  ftbe->max_docid= ftbe->ythresh= ftbe->yweaks= 0;
   ftbe->docid[0]=ftbe->docid[1]=HA_OFFSET_ERROR;
   ftbe->phrase= NULL;
   ftb->root=ftbe;
