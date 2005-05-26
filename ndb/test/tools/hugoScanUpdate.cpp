@@ -64,7 +64,7 @@ int main(int argc, const char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb( db ? db : "TEST_DB" );
+  Ndb MyNdb( &con, db ? db : "TEST_DB" );
 
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
