@@ -554,6 +554,26 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       unhex_type2(interval);
     }
     
+#ifndef TO_BE_DELETED_ON_PRODUCTION
+    if (field_type == FIELD_TYPE_NEWDECIMAL && !share->mysql_version)
+    {
+      /*
+        Fix pack length of old decimal values from 5.0.3 -> 5.0.4
+        The difference is that in the old version we stored precision
+        in the .frm table while we now store the display_length
+      */
+      uint decimals= f_decimals(pack_flag);
+      field_length= my_decimal_precision_to_length(field_length,
+                                                   decimals,
+                                                   f_is_dec(pack_flag) == 0);
+      sql_print_error("Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", share->fieldnames.type_names[i], name, share->table_name);
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_CRASHED_ON_USAGE,
+                          "Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", share->fieldnames.type_names[i], name, share->table_name);
+      share->crashed= 1;                        // Marker for CHECK TABLE
+    }
+#endif
+
     *field_ptr=reg_field=
       make_field(record+recpos,
 		 (uint32) field_length,
@@ -573,28 +593,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       error= 4;
       goto err;			/* purecov: inspected */
     }
-#ifndef TO_BE_DELETED_ON_PRODUCTION
-    if (field_type == FIELD_TYPE_NEWDECIMAL && !share->mysql_version)
-    {
-      /*
-        Fix pack length of old decimal values from 5.0.3 -> 5.0.4
-        The difference is that in the old version we stored precision
-        in the .frm table while we now store the display_length
-      */
-      Field_new_decimal *dec_field= (Field_new_decimal*) reg_field;
-      dec_field->bin_size= my_decimal_get_binary_size(field_length,
-                                                      dec_field->dec);
-      dec_field->precision= field_length;
-      dec_field->field_length=
-        my_decimal_precision_to_length(field_length, dec_field->dec,
-                                       dec_field->unsigned_flag);
-      sql_print_error("Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", dec_field->field_name, name, share->table_name);
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                          ER_CRASHED_ON_USAGE,
-                          "Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", dec_field->field_name, name, share->table_name);
-      share->crashed= 1;                        // Marker for CHECK TABLE
-    }
-#endif
 
     reg_field->comment=comment;
     if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
