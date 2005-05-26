@@ -3796,8 +3796,7 @@ choose_plan(JOIN *join, table_map join_tables)
     Don't update last_query_cost for 'show status' command
   */
   if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
-    last_query_cost= join->best_read;
-
+    join->thd->status_var.last_query_cost= join->best_read;
   DBUG_VOID_RETURN;
 }
 
