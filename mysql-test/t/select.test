@@ -9,8 +9,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
 # The following may be left from older tests
-drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
-drop view if exists v1;
+drop table if exists t1_1,t1_2,t9_1,t9_2;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -1765,9 +1764,9 @@ DO benchmark(100,1+1),1,1;
 # Bug #6449: do default;
 #
 
---error ER_PARSE_ERROR
+--error 1064
 do default;
---error ER_BAD_FIELD_ERROR
+--error 1054
 do foobar;
 
 #
@@ -1793,10 +1792,7 @@ CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned defa
 INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\E$',''),(200002,2,2,1,101,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\C$',''),(200003,1,3,2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,0,1,20020425060427,'c:',NULL);
 CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
-# Disable PS becasue we get more warnings from PS than from normal execution
---disable_ps_protocol
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
---enable_ps_protocol
 # Testing the same select with NULL's instead of invalid datetime values
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= NULL AND b.sampletime < NULL AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 DROP TABLE t1,t2;
@@ -1954,196 +1950,6 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 
 DROP TABLE t1, t2;
 
-
-#
-# Test case for bug 7098: substitution of a constant for a string field 
-#
-
-CREATE TABLE t1 ( city char(30) );
-INSERT INTO t1 VALUES ('London');
-INSERT INTO t1 VALUES ('Paris');
-
-SELECT * FROM t1 WHERE city='London';
-SELECT * FROM t1 WHERE city='london';
-EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
-SELECT * FROM t1 WHERE city='London' AND city='london';
-EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-
-DROP TABLE t1;
-
-#
-# Bug#7425 inconsistent sort order on unsigned columns result of substraction
-#
-
-create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
-select a-b  from t1 order by 1;
-select a-b , (a-b < 0)  from t1 order by 1;
-select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
-select cast((a - b) as unsigned) from t1 order by 1;
-drop table t1;
-
-
-#
-# Bug#8733 server accepts malformed query (multiply mentioned distinct)
-#
-create table t1 (a int(11));
-select all all * from t1;
-select distinct distinct * from t1;
---error 1221
-select all distinct * from t1;
---error 1221
-select distinct all * from t1;
-drop table t1;
-
-#
-# Test for bug #6474
-#
-
-CREATE TABLE t1 ( 
-K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
-K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
-F2I4 int(11) NOT NULL default '0' 
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
-INSERT INTO t1 VALUES 
-('W%RT', '0100',  1), 
-('W-RT', '0100', 1), 
-('WART', '0100', 1), 
-('WART', '0200', 1), 
-('WERT', '0100', 2), 
-('WORT','0200', 2), 
-('WT', '0100', 2), 
-('W_RT', '0100', 2), 
-('WaRT', '0100', 3), 
-('WART', '0300', 3), 
-('WRT' , '0400', 3), 
-('WURM', '0500', 3), 
-('W%T', '0600', 4), 
-('WA%T', '0700', 4), 
-('WA_T', '0800', 4);
-
-SELECT K2C4, K4N4, F2I4 FROM t1
-  WHERE  K2C4 = 'WART' AND 
-        (F2I4 = 2 AND K2C4 = 'WART' OR (F2I4 = 2 OR K4N4 = '0200'));
-
-SELECT K2C4, K4N4, F2I4 FROM t1
-  WHERE  K2C4 = 'WART' AND (K2C4 = 'WART' OR K4N4 = '0200');
-
-DROP TABLE t1;
-
-#
-# Test case for bug 7520: a wrong cost of the index for a BLOB field
-#
-
-CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
-CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
-
-INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
-INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
-
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
-
-DROP TABLE t1, t2;
-
-
-#
-# Test case for bug 7098: substitution of a constant for a string field 
-#
-
-CREATE TABLE t1 ( city char(30) );
-INSERT INTO t1 VALUES ('London');
-INSERT INTO t1 VALUES ('Paris');
-
-SELECT * FROM t1 WHERE city='London';
-SELECT * FROM t1 WHERE city='london';
-EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
-SELECT * FROM t1 WHERE city='London' AND city='london';
-EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-
-DROP TABLE t1;
-
-#
-# Bug#7425 inconsistent sort order on unsigned columns result of substraction
-#
-
-create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
-select a-b  from t1 order by 1;
-select a-b , (a-b < 0)  from t1 order by 1;
-select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
-select cast((a - b) as unsigned) from t1 order by 1;
-drop table t1;
-
-#
-# Bug#8670
-#
-create table t1 (a int, b int);
-create table t2 like t1;
-select t1.a from (t1 inner join t2 on t1.a=t2.a) where t2.a=1;
-select t1.a from ((t1 inner join t2 on t1.a=t2.a)) where t2.a=1;
-select x.a, y.a, z.a from ( (t1 x inner join t2 y on x.a=y.a) inner join t2 z on y.a=z.a) WHERE x.a=1;
-drop table t1,t2;
-
-#
-# Bug#9820
-#
-
-create table t1 (s1 varchar(5));
-insert into t1 values ('Wall');
-select min(s1) from t1 group by s1 with rollup;
-drop table t1;
-
-#
-# Bug#9799
-#
-
-create table t1 (s1 int) engine=myisam;
-insert into t1 values (0);
-select avg(distinct s1) from t1 group by s1 with rollup;
-drop table t1;
-
-#
-# Bug#9800
-#
-
-create table t1 (s1 int);
-insert into t1 values (null),(1);
-select distinct avg(s1) as x from t1 group by s1 with rollup;
-drop table t1;
-
-
-#
-# Bug#8733 server accepts malformed query (multiply mentioned distinct)
-#
-create table t1 (a int(11));
-select all all * from t1;
-select distinct distinct * from t1;
---error 1221
-select all distinct * from t1;
---error 1221
-select distinct all * from t1;
-drop table t1;
-
-
-#
-# Test case for bug 7520: a wrong cost of the index for a BLOB field
-#
-
-CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
-CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
-
-INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
-INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
-
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
-
-DROP TABLE t1, t2;
-
 #
 # Test case for bug 7098: substitution of a constant for a string field 
 #
@@ -2246,3 +2052,11 @@ AND FK_firma_id = 2;
 
 drop table t1;
 
+#
+# Test for Bug#8009, SELECT failed on bigint unsigned when using HEX
+#
+
+CREATE TABLE t1 (b BIGINT(20) UNSIGNED NOT NULL, PRIMARY KEY (b));
+INSERT INTO t1 VALUES (0x8000000000000000);
+SELECT b FROM t1 WHERE b=0x8000000000000000;
+DROP TABLE t1;
