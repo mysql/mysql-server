@@ -877,6 +877,81 @@ int runUpdateWithoutKeys(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+
+int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  HugoOperations hugoOps(*pTab);
+
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+  if (pNdb == NULL){
+    ndbout << "pNdb == NULL" << endl;      
+    return NDBT_FAILED;  
+  }
+  if (pNdb->init()){
+    ERR(pNdb->getNdbError());
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  for(Uint32 cm= 0; cm < 2; cm++)
+  {
+    for(Uint32 lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
+    {
+      NdbConnection* pCon = pNdb->startTransaction();
+      if (pCon == NULL){
+	pNdb->closeTransaction(pCon);  
+	delete pNdb;
+	return NDBT_FAILED;
+      }
+    
+      NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
+      if (pOp == NULL){
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);  
+	delete pNdb;
+	return NDBT_FAILED;
+      }
+  
+      if (pOp->readTuple((NdbOperation::LockMode)lm) != 0){
+	pNdb->closeTransaction(pCon);
+	ERR(pOp->getNdbError());
+	delete pNdb;
+	return NDBT_FAILED;
+      }
+    
+      for(int a = 0; a<pTab->getNoOfColumns(); a++){
+	if (pTab->getColumn(a)->getPrimaryKey() == true){
+	  if(hugoOps.equalForAttr(pOp, a, 1) != 0){
+	    ERR(pCon->getNdbError());
+	    pNdb->closeTransaction(pCon);
+	    delete pNdb;
+	    return NDBT_FAILED;
+	  }
+	}
+      }
+    
+      // Dont' call any getValues
+    
+      // Execute should work
+      int check = pCon->execute(cm == 0 ? NoCommit : Commit);
+      if (check == 0){
+	ndbout << "execute worked" << endl;
+      } else {
+	ERR(pCon->getNdbError());
+	result = NDBT_FAILED;
+      }
+    
+      pNdb->closeTransaction(pCon);  
+    }
+  }
+  delete pNdb;
+  
+  return result;
+}
+
+
 int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   const NdbDictionary::Table* pTab = ctx->getTab();
@@ -1010,6 +1085,12 @@ TESTCASE("UpdateWithoutValues",
 TESTCASE("NdbErrorOperation", 
 	 "Test that NdbErrorOperation is properly set"){
   INITIALIZER(runCheckGetNdbErrorOperation);
+}
+TESTCASE("ReadWithoutGetValue", 
+	 "Test that it's possible to perform read wo/ getvalue's\n"){ 
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runReadWithoutGetValue);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
