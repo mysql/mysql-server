@@ -33,7 +33,7 @@ int main(int argc, const char** argv){
   int _loops = 1;
   int _abort = 0;
   int _batch = 0;
-  const char* _tabname = NULL;
+  const char* _tabname = NULL, *db = 0;
   int _help = 0;
 
   struct getargs args[] = {
@@ -41,7 +41,8 @@ int main(int argc, const char** argv){
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
     //    { "batch", 'b', arg_integer, &_batch, "batch value", "batch" },
     { "records", 'r', arg_integer, &_records, "Number of records", "records" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
+    { "usage", '?', arg_flag, &_help, "Print help", "" },
+    { "database", 'd', arg_string, &db, "Database", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -62,7 +63,7 @@ int main(int argc, const char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb(&con, "TEST_DB" );
+  Ndb MyNdb( db ? db : "TEST_DB" );
 
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());

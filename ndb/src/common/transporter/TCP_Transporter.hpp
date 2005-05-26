@@ -101,6 +101,7 @@ private:
    */
   virtual void updateReceiveDataPtr(Uint32 bytesRead);
 
+  virtual Uint32 get_free_buffer() const;
 protected:
   /**
    * Setup client/server and perform connect/accept
