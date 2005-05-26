@@ -310,6 +310,7 @@ my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
   changed). False otherwise.
 */
 volatile bool mqh_used = 0;
+my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 #ifdef HAVE_INITGROUPS
@@ -445,7 +446,7 @@ char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-static my_bool opt_do_pstack, opt_noacl, opt_bootstrap, opt_myisam_log;
+static my_bool opt_do_pstack, opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
