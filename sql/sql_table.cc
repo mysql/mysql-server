@@ -54,16 +54,16 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
    ext                  Filename extension
 
   RETURN
-    FALSE               Always -- see usage in mysql_create_indexes()
+    0                   Error
+    #                   Size of path
  */
 
-static bool build_table_path(char *buff, size_t bufflen, const char *db,
+static uint build_table_path(char *buff, size_t bufflen, const char *db,
                              const char *table, const char *ext)
 {
   strxnmov(buff, bufflen-1, mysql_data_home, "/", db, "/", table, ext,
            NullS);
-  unpack_filename(buff,buff);
-  return FALSE;
+  return unpack_filename(buff,buff);
 }
 
 
@@ -1611,14 +1611,13 @@ mysql_rename_table(enum db_type base,
     to_base= lc_to;
   }
 
-  if (!(error=file->rename_table((const char*) from_base,
-                                 (const char *) to_base)))
+  if (!(error=file->rename_table(from_base, to_base)))
   {
     if (rename_file_ext(from,to,reg_ext))
     {
       error=my_errno;
       /* Restore old file name */
-      file->rename_table((const char*) to_base, (const char *) from_base);
+      file->rename_table(to_base, from_base);
     }
   }
   delete file;
@@ -2600,7 +2599,8 @@ int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
     if (table->file->add_index(table, key_info_buffer, key_count)||
         build_table_path(path, sizeof(path), table_list->db,
                          (lower_case_table_names == 2) ?
-                         table_list->alias : table_list->real_name, reg_ext) ||
+                         table_list->alias : table_list->real_name,
+                         reg_ext) != 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /* don't need to free((gptr) key_info_buffer);*/
@@ -2700,7 +2700,8 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
 			    /*select_field_count*/ 0)||
         build_table_path(path, sizeof(path), table_list->db,
                          (lower_case_table_names == 2) ?
-                         table_list->alias : table_list->real_name, reg_ext) ||
+                         table_list->alias : table_list->real_name,
+                         reg_ext) != 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /*don't need to free((gptr) key_numbers);*/
