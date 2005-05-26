@@ -395,7 +395,7 @@ SignalLoggerManager::log(BlockNumber bno, const char * msg, ...)
     va_start(ap, msg);
     fprintf(outputStream, "%s: ", getBlockName(bno, "API"));
     vfprintf(outputStream, msg, ap);
-    fprintf(outputStream, "\n", msg);
+    fprintf(outputStream, "\n");
     va_end(ap);
   }
 }
