@@ -18,7 +18,7 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
