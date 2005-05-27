@@ -570,7 +570,6 @@ show tables from mysqltest;
 set autocommit=0;
 create table t1 (a int not null) engine= innodb;
 insert into t1 values(1),(2);
---error 1192
 truncate table t1;
 commit;
 truncate table t1;
