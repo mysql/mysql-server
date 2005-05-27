@@ -497,7 +497,6 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 		    timestamp_type type, String *str)
 {
   char intbuff[15];
-  uint days_i;
   uint hours_i;
   uint weekday;
   ulong length;
@@ -600,8 +599,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	break;
       case 'h':
       case 'I':
-	days_i= l_time->hour/24;
-	hours_i= (l_time->hour%24 + 11)%12+1 + 24*days_i;
+	hours_i= (l_time->hour%24 + 11)%12+1;
 	length= int10_to_str(hours_i, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
@@ -622,8 +620,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	str->append_with_prefill(intbuff, length, 1, '0');
 	break;
       case 'l':
-	days_i= l_time->hour/24;
-	hours_i= (l_time->hour%24 + 11)%12+1 + 24*days_i;
+	hours_i= (l_time->hour%24 + 11)%12+1;
 	length= int10_to_str(hours_i, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 1, '0');
 	break;
