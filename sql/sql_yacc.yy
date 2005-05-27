@@ -6511,6 +6511,11 @@ flush:
 	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
+	  if (lex->sphead && lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "FLUSH");
+	    YYABORT;
+	  }
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
           lex->no_write_to_binlog= $2;
 	}
