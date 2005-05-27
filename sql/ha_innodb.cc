@@ -5420,7 +5420,8 @@ ha_innobase::store_lock(
 
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
 	 	    lock_type <= TL_WRITE) && !thd->in_lock_tables
-		    && !thd->tablespace_op) {
+		    && !thd->tablespace_op
+                    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
       			lock_type = TL_WRITE_ALLOW_WRITE;
       		}
