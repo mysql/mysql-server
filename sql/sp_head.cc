@@ -1499,8 +1499,8 @@ sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
   /* QQ: Still unsure what should we return in case of error 1 or -1 ? */
   if (!value->fixed && value->fix_fields(thd, 0, &value) ||
-      trigger_field.fix_fields(thd, 0, 0) ||
-      (value->save_in_field(trigger_field.field, 0) < 0))
+      trigger_field->fix_fields(thd, 0, 0) ||
+      (value->save_in_field(trigger_field->field, 0) < 0))
     res= -1;
   *nextp= m_ip + 1;
   DBUG_RETURN(res);
@@ -1510,7 +1510,7 @@ void
 sp_instr_set_trigger_field::print(String *str)
 {
   str->append("set ", 4);
-  trigger_field.print(str);
+  trigger_field->print(str);
   str->append(":=", 2);
   value->print(str);
 }
