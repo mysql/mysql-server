@@ -773,6 +773,16 @@ alter table t2 ROW_FORMAT=fixed;
 show create table t2;
 drop table t1,t2;
 
+#
+# correct conversion long string to TEXT (BUG#10025)
+#
+CREATE TABLE t1 (a mediumtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+show create table t3;
+drop tables t1,t2,t3;
 
 #
 # Bug #10032 Bug in parsing UNION with ORDER BY when one node does not use FROM
