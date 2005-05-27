@@ -23,7 +23,7 @@
 #ifndef  HASH_FILO_H
 #define  HASH_FILO_H
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class interface */
 #endif
 
