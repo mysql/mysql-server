@@ -348,7 +348,7 @@ uint tc_heuristic_recover= 0;
 uint volatile thread_count, thread_running;
 ulong back_log, connect_timeout, concurrency;
 ulong server_id, thd_startup_options;
-ulong table_cache_size, thread_stack, thread_stack_min, what_to_log;
+ulong table_cache_size, thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -2089,7 +2089,13 @@ static void start_signal_handler(void)
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&thr_attr,INTERRUPT_PRIOR);
+#if defined(__ia64__) || defined(__ia64)
+  /* Peculiar things with ia64 platforms - it seems we only have half the
+     stack size in reality, so we have to double it here */
+  pthread_attr_setstacksize(&thr_attr,thread_stack*2);
+#else
   pthread_attr_setstacksize(&thr_attr,thread_stack);
+#endif
 #endif
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -3010,23 +3016,35 @@ int main(int argc, char **argv)
   init_signals();
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
+#if defined(__ia64__) || defined(__ia64)
+  /* Peculiar things with ia64 platforms - it seems we only have half the
+     stack size in reality, so we have to double it here */
+  pthread_attr_setstacksize(&connection_attrib,thread_stack*2);
+#else
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
+#endif
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size= 0;
     pthread_attr_getstacksize(&connection_attrib, &stack_size);
+#if defined(__ia64__) || defined(__ia64)
+    stack_size/= 2;
+#endif
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
     if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %ld thread stack, but got %ld",
-			thread_stack, stack_size);
+			  thread_stack, stack_size);
+#if defined(__ia64__) || defined(__ia64)
+      thread_stack= stack_size*2;
+#else
       thread_stack= stack_size;
+#endif
     }
   }
 #endif
-  thread_stack_min=thread_stack - STACK_MIN_SIZE;
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 

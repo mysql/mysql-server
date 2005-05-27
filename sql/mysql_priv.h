@@ -1077,7 +1077,7 @@ extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
-extern ulong query_buff_size, thread_stack,thread_stack_min;
+extern ulong query_buff_size, thread_stack;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
@@ -1429,7 +1429,7 @@ inline int hexchar_to_int(char c)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code);
 void kill_delayed_threads(void);
-bool check_stack_overrun(THD *thd,char *dummy);
+bool check_stack_overrun(THD *thd, long margin);
 #else
 #define unireg_abort(exit_code) DBUG_RETURN(exit_code)
 inline void kill_delayed_threads(void) {}
