@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -3100,8 +3100,8 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                          enum_set_typelib, collation.collation);
   case MYSQL_TYPE_VAR_STRING:
     table->db_create_options|= HA_OPTION_PACK_RECORD;
-    return new Field_string(max_length, maybe_null, name, table,
-                            collation.collation);
+    fld_type= MYSQL_TYPE_STRING;
+    break;
   default:
     break;
   }
