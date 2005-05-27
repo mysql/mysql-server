@@ -688,3 +688,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select timestamp_diff(WEEK,_latin1'2001-02-01',_latin1'2001-05-01') AS `a1`,timestamp_diff(SECOND_FRAC,_latin1'2001-02-01 12:59:59.120000',_latin1'2001-05-01 12:58:58.119999') AS `a2`
+select time_format('100:00:00', '%H %k %h %I %l');
+time_format('100:00:00', '%H %k %h %I %l')
+100 100 04 04 4

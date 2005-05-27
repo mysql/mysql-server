@@ -336,3 +336,9 @@ DROP TABLE t1;
 
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 			timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
+
+#
+# Bug #10590: %h, %I, and %l format specifies should all return results in
+# the 0-11 range
+#
+select time_format('100:00:00', '%H %k %h %I %l');
