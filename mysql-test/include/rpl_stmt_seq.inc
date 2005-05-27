@@ -1,0 +1,155 @@
+# include/rpl_stmt_seq.inc
+#
+# Please be very careful when editing this routine, because the handling of 
+# the $variables is extreme sensitive. 
+#
+
+######## The typical test sequence
+# 1. INSERT without commit
+#    check table content of master and slave
+# 2. EXECUTE the statement
+#    check table content of master and slave
+# 3. ROLLBACK
+#    check table content of master and slave
+# 4. flush the logs
+
+let $VERSION=`select version()`;
+
+--disable_query_log
+# SELECT '######## new test sequence ########' as "";
+eval SELECT CONCAT('######## ','$my_stmt','  ########') as "";
+--enable_query_log
+
+
+### Predict the number of the current log
+# Disable the logging of the log number computation. 
+--disable_query_log
+# $_log_num_n should contain the number of the current binlog in numeric style.
+# If this routine is called for the first time, $_log_num will not initialized
+# and contain the value '' instead of '1'. So we will correct it here.
+#
+eval set @aux= IF('$_log_num_n' = '', '1', '$_log_num_n');
+let $_log_num_n= `SELECT @aux`;
+eval set @aux= LPAD('$_log_num_n',6,'0');
+#              SELECT @aux AS "@aux is";
+#
+# $_log_num_s should contain the number of the current binlog in string style.
+let $_log_num_s= `select @aux`;
+# eval SELECT '$log_num' ;
+--enable_query_log
+
+# INSERT + command to be tested + ROLLBACK
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+# Maybe it would be smarter to use a table with autoincrement column.
+let $MAX= `SELECT MAX(f1) FROM t1` ;
+eval INSERT INTO t1 SET f1= $MAX + 1;
+# results before DDL(to be tested)
+SELECT MAX(f1) FROM t1;
+--replace_result $VERSION VERSION
+eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+sync_slave_with_master;
+
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+# results before DDL(to be tested)
+SELECT MAX(f1) FROM t1;
+--replace_result $VERSION VERSION
+eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+eval $my_stmt;
+# Devaluate $my_stmt, to detect script bugs
+let $my_stmt= ERROR: YOU FORGOT TO FILL IN THE STATEMENT;
+# results after DDL(to be tested)
+SELECT MAX(f1) FROM t1;
+--replace_result $VERSION VERSION
+eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+sync_slave_with_master;
+
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+# results after DDL(to be tested)
+SELECT MAX(f1) FROM t1;
+--replace_result $VERSION VERSION
+eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+ROLLBACK;
+# results after final ROLLBACK
+SELECT MAX(f1) FROM t1;
+# Try to detect if the DDL command caused that the INSERT is committed
+# $MAX holds the highest/last value just before the insert of MAX + 1
+--disable_query_log
+eval SELECT CONCAT('TEST-INFO: MASTER: The INSERT is      ',
+               IF(MAX(f1) = $MAX + 1, 'committed', 'not committed')) AS ""
+FROM d1.t1;
+--enable_query_log
+--replace_result $VERSION VERSION
+eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+sync_slave_with_master;
+
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+# results after final ROLLBACK
+SELECT MAX(f1) FROM t1;
+--disable_query_log
+eval SELECT CONCAT('TEST-INFO: SLAVE:  The INSERT is      ',
+               IF(MAX(f1) = $MAX + 1, 'committed', 'not committed')) AS ""
+FROM d1.t1;
+--enable_query_log
+--replace_result $VERSION VERSION
+eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+
+#let $manipulate= 0;
+let $manipulate= 1;
+while ($manipulate)
+{
+#### Manipulate the binary logs,
+# so that the output of SHOW BINLOG EVENTS IN <current log>
+# contains only commands of the current test sequence.
+# - flush the master and the slave log
+#   ---> both start to write into new logs with incremented number
+# - increment $_log_num_n
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+flush logs;
+# sleep 1;
+# eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+sync_slave_with_master;
+
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+# the final content of the binary log
+flush logs;
+# The next sleep is urgent needed.
+# Without this sleep the slaves crashes often, when the SHOW BINLOG
+# is executed.   :-(
+# sleep 1;
+# eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+inc $_log_num_n;
+let $manipulate= 0;
+}
+
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log

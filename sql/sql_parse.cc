@@ -2409,6 +2409,11 @@ mysql_execute_command(THD *thd)
 
   case SQLCOM_CREATE_TABLE:
   {
+    /* If CREATE TABLE of non-temporary table, do implicit commit */
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) && 
+	end_active_trans(thd))
+      res= -1;
+
     /* Skip first table, which is the table we are creating */
     TABLE_LIST *create_table, *create_table_local;
     tables= lex->unlink_first_table(tables, &create_table,
@@ -2855,6 +2860,11 @@ unsent_create_error:
     break;
   }
   case SQLCOM_TRUNCATE:
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     if (check_one_table_access(thd, DELETE_ACL, tables))
       goto error;
     /*
@@ -3213,6 +3223,11 @@ purposes internal to the MySQL server", MYF(0));
     break;
   case SQLCOM_CREATE_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     char *alias;
     if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
@@ -3243,6 +3258,11 @@ purposes internal to the MySQL server", MYF(0));
   }
   case SQLCOM_DROP_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     char *alias;
     if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
