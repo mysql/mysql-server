@@ -646,4 +646,12 @@ drop procedure if exists bug10537|
 create procedure bug10537()
 load data local infile '/tmp/somefile' into table t1|
 ERROR 0A000: LOAD DATA is not allowed in stored procedures
+drop function if exists bug8409|
+create function bug8409()
+returns int
+begin
+flush tables;
+return 5;
+end|
+ERROR 0A000: FLUSH is not allowed in stored procedures
 drop table t1|

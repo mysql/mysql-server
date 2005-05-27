@@ -906,6 +906,21 @@ create procedure bug10537()
 
 
 #
+# BUG#8409: Stored procedure crash if function contains FLUSH
+#
+--disable_warnings
+drop function if exists bug8409|
+--enable_warnings
+--error ER_SP_BADSTATEMENT
+create function bug8409()
+  returns int
+begin
+  flush tables;
+  return 5;
+end|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
