@@ -3597,7 +3597,7 @@ longlong user_var_entry::val_int(my_bool *null_value)
   case DECIMAL_RESULT:
   {
     longlong result;
-    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 1, &result);
+    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, &result);
     return result;
   }
   case STRING_RESULT:
