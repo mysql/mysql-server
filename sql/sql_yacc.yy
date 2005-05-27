@@ -7565,6 +7565,7 @@ sys_option_value:
           {
             /* We are in trigger and assigning value to field of new row */
             Item *it;
+            Item_trigger_field *trg_fld;
             sp_instr_set_trigger_field *i;
             if ($1)
             {
@@ -7585,17 +7586,19 @@ sys_option_value:
               it= new Item_null();
             }
 
-            if (!(i= new sp_instr_set_trigger_field(
-                lex->sphead->instructions(), lex->spcont,
-                $2.base_name, it)))
+            if (!(trg_fld= new Item_trigger_field(Item_trigger_field::NEW_ROW,
+                                                  $2.base_name.str)) ||
+                !(i= new sp_instr_set_trigger_field(
+                           lex->sphead->instructions(), lex->spcont,
+                           trg_fld, it)))
               YYABORT;
 
             /*
               Let us add this item to list of all Item_trigger_field
               objects in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
-            (byte **)&i->trigger_field.next_trg_field);
+            lex->trg_table_fields.link_in_list((byte *)trg_fld,
+                                    (byte **)&trg_fld->next_trg_field);
 
             lex->sphead->add_instr(i);
           }
