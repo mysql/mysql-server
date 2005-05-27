@@ -3992,7 +3992,7 @@ unsent_create_error:
       lex->sphead= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
-      if (sp_automatic_privileges &&
+      if (sp_automatic_privileges && !opt_noacl &&
           check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
       			       db, name,
                                lex->sql_command == SQLCOM_CREATE_PROCEDURE, 1))
@@ -4261,7 +4261,7 @@ unsent_create_error:
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
           goto error;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	if (sp_automatic_privileges &&
+	if (sp_automatic_privileges && !opt_noacl &&
 	    sp_revoke_privileges(thd, db, name, 
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE))
 	{
