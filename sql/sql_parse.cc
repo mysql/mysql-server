@@ -1655,6 +1655,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     while (!thd->killed && thd->lex->found_semicolon && !thd->net.report_error)
     {
       char *packet= thd->lex->found_semicolon;
+      net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
 	in embedded server - just store them to be executed later 
