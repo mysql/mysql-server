@@ -1526,6 +1526,12 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(mysql_errno(mysql));
   }
+  /* 
+     This basically says that the record in table->record[0] is legal, and that it is
+     ok to use this record, for whatever reason, such as with a join (without it, joins 
+     will not work)
+  */
+  table->status=0;
 
   DBUG_RETURN(rnd_next(buf));
 }
