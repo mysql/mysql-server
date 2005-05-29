@@ -12313,7 +12313,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 {
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
-  Copy_field *copy;
+  Copy_field *copy= NULL;
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
@@ -12321,7 +12321,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   uint i, border= all_fields.elements - elements;
   DBUG_ENTER("setup_copy_fields");
 
-  if (!(copy=param->copy_field= new Copy_field[param->field_count]))
+  if (param->field_count && 
+      !(copy=param->copy_field= new Copy_field[param->field_count]))
     goto err2;
 
   param->copy_funcs.empty();
@@ -12360,9 +12361,12 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
-	copy->set(tmp, item->result_field);
-	item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-	copy++;
+      if (copy)
+      {
+        copy->set(tmp, item->result_field);
+        item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
+        copy++;
+      }				
       }
     }
     else if ((pos->type() == Item::FUNC_ITEM ||
@@ -12405,7 +12409,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   DBUG_RETURN(0);
 
  err:
-  delete [] param->copy_field;			// This is never 0
+  if (copy)
+    delete [] param->copy_field;			// This is never 0
   param->copy_field=0;
 err2:
   DBUG_RETURN(TRUE);
