@@ -63,3 +63,15 @@ create table t1 (a char(3), b char(20), primary key (a, b));
 insert into t1 values ('ABW', 'Dutch'), ('ABW', 'English');
 select count(distinct a) from t1 group by b;
 drop table t1;
+
+#
+# Bug #9593 "The combination of COUNT, DISTINCT and CONCAT 
+#            seems to lock the server"
+# Bug appears only on Windows system
+#
+
+create table t1 (f1 int, f2 int);
+insert into t1 values (0,1),(1,2);
+select count(distinct if(f1,3,f2)) from t1;
+drop table t1;
+
