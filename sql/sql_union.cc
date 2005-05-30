@@ -115,27 +115,15 @@ bool select_union::flush()
     options of SELECT
 */
 
-ulong
+void
 st_select_lex_unit::init_prepare_fake_select_lex(THD *thd) 
 {
-  ulong options_tmp= thd->options | fake_select_lex->options;
   thd->lex->current_select= fake_select_lex;
-  offset_limit_cnt= global_parameters->offset_limit;
-  select_limit_cnt= global_parameters->select_limit +
-    global_parameters->offset_limit;
-
-  if (select_limit_cnt < global_parameters->select_limit)
-    select_limit_cnt= HA_POS_ERROR;		// no limit
-  if (select_limit_cnt == HA_POS_ERROR)
-    options_tmp&= ~OPTION_FOUND_ROWS;
-  else if (found_rows_for_union && !thd->lex->describe)
-    options_tmp|= OPTION_FOUND_ROWS;
   fake_select_lex->ftfunc_list_alloc.empty();
   fake_select_lex->ftfunc_list= &fake_select_lex->ftfunc_list_alloc;
   fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					   (byte **)
 					   &result_table_list.next_local);
-  return options_tmp;
 }
 
 
@@ -217,10 +205,9 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       goto err;
 
     thd_arg->lex->current_select= sl;
-    set_limit(sl, sl);
 
     can_skip_order_by= is_union &&
-                       (!sl->braces || select_limit_cnt == HA_POS_ERROR);
+                       (!sl->braces || sl->select_limit == HA_POS_ERROR);
     
     res= join->prepare(&sl->ref_pointer_array,
 		       (TABLE_LIST*) sl->table_list.first, sl->with_wild,
@@ -340,7 +327,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       if (arena->is_stmt_prepare())
       {
 	/* prepare fake select to initialize it correctly */
-	(void) init_prepare_fake_select_lex(thd);
+	init_prepare_fake_select_lex(thd);
         /*
           Should be done only once (the only item_list per statement).
         */
@@ -429,12 +416,8 @@ bool st_select_lex_unit::exec()
 	res= sl->join->reinit();
       else
       {
-	if (sl != global_parameters && !describe)
-	{
-	  offset_limit_cnt= sl->offset_limit;
-	  select_limit_cnt= sl->select_limit+sl->offset_limit;
-	}
-	else
+        set_limit(sl);
+	if (sl == global_parameters || describe)
 	{
 	  offset_limit_cnt= 0;
 	  /*
@@ -443,11 +426,7 @@ bool st_select_lex_unit::exec()
 	  */
 	  if (sl->order_list.first || describe)
 	    select_limit_cnt= HA_POS_ERROR;
-	  else
-	    select_limit_cnt= sl->select_limit+sl->offset_limit;
-	}
-	if (select_limit_cnt < sl->select_limit)
-	  select_limit_cnt= HA_POS_ERROR;		// no limit
+        }
 
         /*
           When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
@@ -512,7 +491,8 @@ bool st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)				// Check if EOM
     {
-      ulong options_tmp= init_prepare_fake_select_lex(thd);
+      set_limit(global_parameters);
+      init_prepare_fake_select_lex(thd);
       JOIN *join= fake_select_lex->join;
       if (!join)
       {
