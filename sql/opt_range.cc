@@ -7980,8 +7980,17 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
       }
     }
   }
-  else if (have_min && min_max_arg_part && min_max_arg_part->field->is_null())
+  else if (have_min && min_max_arg_part &&
+           min_max_arg_part->field->real_maybe_null())
   {
+    /*
+      If a MIN/MAX argument value is NULL, we can quickly determine
+      that we're in the beginning of the next group, because NULLs
+      are always < any other value. This allows us to quickly
+      determine the end of the current group and jump to the next
+      group (see next_min()) and thus effectively increases the
+      usable key length.
+    */
     max_used_key_length+= min_max_arg_len;
     ++used_key_parts;
   }
