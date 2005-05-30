@@ -696,11 +696,11 @@ bool multi_delete::send_eof()
     Note that if we deleted nothing we don't write to the binlog (TODO:
     fix this).
   */
-  if (deleted && (error <= 0 || normal_tables))
+  if (deleted && ((error <= 0 && !local_error) || normal_tables))
   {
     if (mysql_bin_log.is_open())
     {
-      if (error <= 0)
+      if (error <= 0 && !local_error)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
