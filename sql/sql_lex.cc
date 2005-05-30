@@ -1369,8 +1369,6 @@ bool st_select_lex::test_limit()
              "LIMIT & IN/ALL/ANY/SOME subquery");
     return(1);
   }
-  // We need only 1 row to determinate existence
-  select_limit= 1;
   // no sense in ORDER BY without LIMIT
   order_list.empty();
   return(0);
@@ -1553,7 +1551,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
        item->substype() == Item_subselect::IN_SUBS ||
        item->substype() == Item_subselect::ALL_SUBS))
   {
-    DBUG_ASSERT(select_limit == 1L && offset_limit == 0L);
+    DBUG_ASSERT(!item->fixed || select_limit == 1L && offset_limit == 0L);
     return;
   }
 
@@ -1756,11 +1754,9 @@ bool st_lex::need_correct_ident()
   SYNOPSIS
     st_select_lex_unit::set_limit()
     values	- SELECT_LEX with initial values for counters
-    sl		- SELECT_LEX for options set
 */
 
-void st_select_lex_unit::set_limit(SELECT_LEX *values,
-				   SELECT_LEX *sl)
+void st_select_lex_unit::set_limit(SELECT_LEX *values)
 {
   offset_limit_cnt= values->offset_limit;
   select_limit_cnt= values->select_limit+values->offset_limit;
