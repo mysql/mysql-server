@@ -9197,17 +9197,14 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
     1   on error
 */
 
-static bool change_group_ref(THD *thd, Item *expr, ORDER *group_list,
+static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
                              bool *changed)
 {
-  if (expr->type() != Item::FUNC_ITEM)
-    return 0;
-  Item_func *func_item= (Item_func *) expr;
-  if (func_item->arg_count)
+  if (expr->arg_count)
   {
     Item **arg,**arg_end;
-    for (arg= func_item->arguments(),
-         arg_end= func_item->arguments()+func_item->arg_count;
+    for (arg= expr->arguments(),
+         arg_end= expr->arguments()+expr->arg_count;
          arg != arg_end; arg++)
     {
       Item *item= *arg;
@@ -9228,7 +9225,7 @@ static bool change_group_ref(THD *thd, Item *expr, ORDER *group_list,
       }
       else if (item->type() == Item::FUNC_ITEM)
       {
-        if (change_group_ref(thd, item, group_list, changed))
+        if (change_group_ref(thd, (Item_func *) item, group_list, changed))
           return 1;
       }
     }
@@ -9294,7 +9291,7 @@ bool JOIN::rollup_init()
     if (item->type() == Item::FUNC_ITEM)
     {
       bool changed= 0;
-      if (change_group_ref(thd, item, group_list, &changed))
+      if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
         return 1;
       /*
         We have to prevent creation of a field in a temporary table for
