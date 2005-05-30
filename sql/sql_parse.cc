@@ -4986,11 +4986,11 @@ long max_stack_used;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
+bool check_stack_overrun(THD *thd, long margin)
 {
   long stack_used;
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      (long) thread_stack_min)
+      thread_stack - margin)
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
     my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));
