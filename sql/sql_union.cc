@@ -206,9 +206,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     thd_arg->lex->current_select= sl;
 
-    can_skip_order_by= is_union &&
-                       (!sl->braces || sl->select_limit == HA_POS_ERROR);
-    
+    can_skip_order_by= is_union && !(sl->braces && sl->explicit_limit);
+
     res= join->prepare(&sl->ref_pointer_array,
 		       (TABLE_LIST*) sl->table_list.first, sl->with_wild,
 		       sl->where,
