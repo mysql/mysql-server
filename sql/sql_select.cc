@@ -9164,6 +9164,79 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
   ROLLUP handling
 ****************************************************************************/
 
+/*
+  Replace occurences of group by fields in an expression by ref items
+
+  SYNOPSIS
+    change_group_ref()
+    thd                  reference to the context
+    expr                 expression to make replacement
+    group_list           list of references to group by items
+    changed        out:  returns 1 if item contains a replaced field item 
+     
+  DESCRIPTION
+    The function replaces occurrences of group by fields in expr
+    by ref objects for these fields unless they are under aggregate
+    functions.
+
+  IMPLEMENTATION
+    The function recursively traverses the tree of the expr expression,
+    looks for occurrences of the group by fields that are not under
+    aggregate functions and replaces them for the corresponding ref items.
+
+  NOTES
+    This substitution is needed GROUP BY queries with ROLLUP if
+    SELECT list contains expressions over group by attributes.
+
+  EXAMPLES
+    SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
+    SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP 
+    
+  RETURN
+    0	if ok
+    1   on error
+*/
+
+static bool change_group_ref(THD *thd, Item *expr, ORDER *group_list,
+                             bool *changed)
+{
+  if (expr->type() != Item::FUNC_ITEM)
+    return 0;
+  Item_func *func_item= (Item_func *) expr;
+  if (func_item->arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= func_item->arguments(),
+         arg_end= func_item->arguments()+func_item->arg_count;
+         arg != arg_end; arg++)
+    {
+      Item *item= *arg;
+      if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
+      {
+        ORDER *group_tmp;
+        for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+        {
+          if (item->eq(*group_tmp->item,0))
+          {
+            Item *new_item;    
+            if(!(new_item= new Item_ref(group_tmp->item, 0, item->name)))
+              return 1;                                 // fatal_error is set
+            thd->change_item_tree(arg, new_item);
+            *changed= TRUE;
+          }
+        }
+      }
+      else if (item->type() == Item::FUNC_ITEM)
+      {
+        if (change_group_ref(thd, item, group_list, changed))
+          return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+
 /* Allocate memory needed for other rollup functions */
 
 bool JOIN::rollup_init()
@@ -9208,19 +9281,31 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
-  List_iterator_fast<Item> it(fields_list);
+  List_iterator_fast<Item> it(all_fields);
   Item *item;
   while ((item= it++))
   {
     ORDER *group_tmp;
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
-      if (*group_tmp->item == item)
+      if (item->eq(*group_tmp->item,0))
         item->maybe_null= 1;
+    }
+    if (item->type() == Item::FUNC_ITEM)
+    {
+      bool changed= 0;
+      if (change_group_ref(thd, item, group_list, &changed))
+        return 1;
+      /*
+        We have to prevent creation of a field in a temporary table for
+        an expression that contains GROUP BY attributes.
+        Marking the expression item as 'with_sum_func' will ensure this.
+      */ 
+      if (changed)
+        item->with_sum_func= 1;
     }
   }
   return 0;
-
 }
   
 
@@ -9318,14 +9403,14 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	*(*func)= (Item_sum*) item;
 	(*func)++;
       }
-      else if (real_fields)
+      else 
       {
 	/* Check if this is something that is part of this group by */
 	ORDER *group_tmp;
 	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
-	  if (*group_tmp->item == item)
+          if (item->eq(*group_tmp->item,0))
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be
