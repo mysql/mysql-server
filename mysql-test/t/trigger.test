@@ -367,3 +367,130 @@ load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated 
 select *, @b from t1;
 # This also will drop triggers
 drop table t1;
+
+# Test for bug #5894 "Triggers with altered tables cause corrupt databases"
+# Also tests basic error handling for various kinds of triggers.
+create table t1 (i int, at int, k int, key(k)) engine=myisam;
+create table t2 (i int);
+insert into t1 values (1, 1, 1);
+# We need at least 3 elements in t2 to test multi-update properly
+insert into t2 values (1), (2), (3);
+# Create and then break "after" triggers
+create trigger ai after insert on t1 for each row set @a:= new.at;
+create trigger au after update on t1 for each row set @a:= new.at;
+create trigger ad after delete on t1 for each row set @a:= old.at;
+alter table t1 drop column at;
+# We still should be able select data from tables.
+select * from t1;
+# The following statements changing t1 should fail, but still cause
+# their main effect. This is because operation on the table row is
+# executed before "after" trigger and its effect cannot be rolled back
+# when whole statement fails, because t1 is MyISAM table.
+--error 1054
+insert into t1 values (2, 1);
+select * from t1;
+--error 1054
+update t1 set k = 2 where i = 2;
+select * from t1;
+--error 1054
+delete from t1 where i = 2;
+select * from t1;
+# Should fail and insert only 1 row
+--error 1054
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+select * from t1;
+--error 1054
+insert into t1 select 3, 3;
+select * from t1;
+# Multi-update working on the fly, again it will update only
+# one row even if more matches
+--error 1054
+update t1, t2 set k = k + 10 where t1.i = t2.i;
+select * from t1;
+# The same for multi-update via temp table
+--error 1054
+update t1, t2 set k = k + 10 where t1.i = t2.i and k < 3;
+select * from t1;
+# Multi-delete on the fly
+--error 1054
+delete t1, t2 from t1 straight_join t2 where t1.i = t2.i;
+select * from t1;
+# And via temporary storage
+--error 1054
+delete t2, t1 from t2 straight_join t1 where t1.i = t2.i;
+select * from t1;
+# Prepare table for testing of REPLACE and INSERT ... ON DUPLICATE KEY UPDATE
+alter table t1 add primary key (i);
+--error 1054
+insert into t1 values (3, 4) on duplicate key update k= k + 10;
+select * from t1;
+--error 1054
+replace into t1 values (3, 3);
+select * from t1;
+# Change table in such way that REPLACE will delete row
+alter table t1 add ts timestamp default now();
+--error 1054
+replace into t1 (i, k) values (3, 13);
+select * from t1;
+# Also drops all triggers
+drop table t1, t2;
+
+create table t1 (i int, bt int, k int, key(k)) engine=myisam;
+create table t2 (i int);
+insert into t1 values (1, 1, 1), (2, 2, 2);
+insert into t2 values (1), (2), (3);
+# Create and then break "before" triggers
+create trigger bi before insert on t1 for each row set @a:= new.bt;
+create trigger bu before update on t1 for each row set @a:= new.bt;
+create trigger bd before delete on t1 for each row set @a:= old.bt;
+alter table t1 drop column bt;
+# The following statements changing t1 should fail and should not
+# cause any effect on table, since "before" trigger is executed 
+# before operation on the table row.
+--error 1054
+insert into t1 values (3, 3);
+select * from t1;
+--error 1054
+update t1 set i = 2;
+select * from t1;
+--error 1054
+delete from t1;
+select * from t1;
+--error 1054
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+select * from t1;
+--error 1054
+insert into t1 select 3, 3;
+select * from t1;
+# Both types of multi-update (on the fly and via temp table)
+--error 1054
+update t1, t2 set k = k + 10 where t1.i = t2.i;
+select * from t1;
+--error 1054
+update t1, t2 set k = k + 10 where t1.i = t2.i and k < 2;
+select * from t1;
+# Both types of multi-delete
+--error 1054
+delete t1, t2 from t1 straight_join t2 where t1.i = t2.i;
+select * from t1;
+--error 1054
+delete t2, t1 from t2 straight_join t1 where t1.i = t2.i;
+select * from t1;
+# Let us test REPLACE/INSERT ... ON DUPLICATE KEY UPDATE.
+# To test properly code-paths different from those that are used
+# in ordinary INSERT we need to drop "before insert" trigger.
+alter table t1 add primary key (i);
+drop trigger t1.bi;
+--error 1054
+insert into t1 values (2, 4) on duplicate key update k= k + 10;
+select * from t1;
+--error 1054
+replace into t1 values (2, 4);
+select * from t1;
+# Change table in such way that REPLACE will delete row
+alter table t1 add ts timestamp default now();
+--error 1054
+replace into t1 (i, k) values (2, 11);
+select * from t1;
+# Also drops all triggers
+drop table t1, t2;
