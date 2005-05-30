@@ -315,3 +315,170 @@ i	j	k	@b
 3	4	3	Fired
 5	6	5	Fired
 drop table t1;
+create table t1 (i int, at int, k int, key(k)) engine=myisam;
+create table t2 (i int);
+insert into t1 values (1, 1, 1);
+insert into t2 values (1), (2), (3);
+create trigger ai after insert on t1 for each row set @a:= new.at;
+create trigger au after update on t1 for each row set @a:= new.at;
+create trigger ad after delete on t1 for each row set @a:= old.at;
+alter table t1 drop column at;
+select * from t1;
+i	k
+1	1
+insert into t1 values (2, 1);
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	1
+update t1 set k = 2 where i = 2;
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+delete from t1 where i = 2;
+ERROR 42S22: Unknown column 'at' in 'OLD'
+select * from t1;
+i	k
+1	1
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+1	1
+1	2
+insert into t1 select 3, 3;
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+1	1
+1	2
+3	3
+update t1, t2 set k = k + 10 where t1.i = t2.i;
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+1	11
+1	2
+3	3
+update t1, t2 set k = k + 10 where t1.i = t2.i and k < 3;
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+1	11
+1	12
+3	3
+delete t1, t2 from t1 straight_join t2 where t1.i = t2.i;
+ERROR 42S22: Unknown column 'at' in 'OLD'
+select * from t1;
+i	k
+1	12
+3	3
+delete t2, t1 from t2 straight_join t1 where t1.i = t2.i;
+ERROR 42S22: Unknown column 'at' in 'OLD'
+select * from t1;
+i	k
+3	3
+alter table t1 add primary key (i);
+insert into t1 values (3, 4) on duplicate key update k= k + 10;
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+3	13
+replace into t1 values (3, 3);
+ERROR 42S22: Unknown column 'at' in 'NEW'
+select * from t1;
+i	k
+3	3
+alter table t1 add ts timestamp default now();
+replace into t1 (i, k) values (3, 13);
+ERROR 42S22: Unknown column 'at' in 'OLD'
+select * from t1;
+i	k	ts
+drop table t1, t2;
+create table t1 (i int, bt int, k int, key(k)) engine=myisam;
+create table t2 (i int);
+insert into t1 values (1, 1, 1), (2, 2, 2);
+insert into t2 values (1), (2), (3);
+create trigger bi before insert on t1 for each row set @a:= new.bt;
+create trigger bu before update on t1 for each row set @a:= new.bt;
+create trigger bd before delete on t1 for each row set @a:= old.bt;
+alter table t1 drop column bt;
+insert into t1 values (3, 3);
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+update t1 set i = 2;
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+delete from t1;
+ERROR 42S22: Unknown column 'bt' in 'OLD'
+select * from t1;
+i	k
+1	1
+2	2
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+insert into t1 select 3, 3;
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+update t1, t2 set k = k + 10 where t1.i = t2.i;
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+update t1, t2 set k = k + 10 where t1.i = t2.i and k < 2;
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+delete t1, t2 from t1 straight_join t2 where t1.i = t2.i;
+ERROR 42S22: Unknown column 'bt' in 'OLD'
+select * from t1;
+i	k
+1	1
+2	2
+delete t2, t1 from t2 straight_join t1 where t1.i = t2.i;
+ERROR 42S22: Unknown column 'bt' in 'OLD'
+select * from t1;
+i	k
+1	1
+2	2
+alter table t1 add primary key (i);
+drop trigger t1.bi;
+insert into t1 values (2, 4) on duplicate key update k= k + 10;
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+replace into t1 values (2, 4);
+ERROR 42S22: Unknown column 'bt' in 'NEW'
+select * from t1;
+i	k
+1	1
+2	2
+alter table t1 add ts timestamp default now();
+replace into t1 (i, k) values (2, 11);
+ERROR 42S22: Unknown column 'bt' in 'OLD'
+select * from t1;
+i	k	ts
+1	1	0000-00-00 00:00:00
+2	2	0000-00-00 00:00:00
+drop table t1, t2;
