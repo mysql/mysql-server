@@ -7957,7 +7957,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
   max_used_key_length= real_prefix_len;
   if (min_max_ranges.elements > 0)
   {
-    QUICK_RANGE *cur_range= 0;
+    QUICK_RANGE *cur_range;
     if (have_min)
     { /* Check if the right-most range has a lower boundary. */
       get_dynamic(&min_max_ranges, (gptr)&cur_range,
@@ -7965,7 +7965,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
       if (!(cur_range->flag & NO_MIN_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
-        ++used_key_parts;
+        used_key_parts++;
         return;
       }
     }
@@ -7975,7 +7975,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
       if (!(cur_range->flag & NO_MAX_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
-        ++used_key_parts;
+        used_key_parts++;
         return;
       }
     }
@@ -7983,7 +7983,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
   else if (have_min && min_max_arg_part && min_max_arg_part->field->is_null())
   {
     max_used_key_length+= min_max_arg_len;
-    ++used_key_parts;
+    used_key_parts++;
   }
 }
 

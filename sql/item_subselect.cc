@@ -773,9 +773,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
   Item_subselect::trans_res result= RES_ERROR;
-  DBUG_ENTER("Item_in_subselect::single_value_transformer");
-
   SELECT_LEX *select_lex= join->select_lex;
+  DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
   /*
     Check that the right part of the subselect contains no more than one
