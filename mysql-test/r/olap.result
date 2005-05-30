@@ -248,7 +248,7 @@ concat(':',product,':')	sum(profit)	avg(profit)
 :Computer:	6900	1380.0000
 :Phone:	10	10.0000
 :TV:	600	120.0000
-:TV:	7785	519.0000
+NULL	7785	519.0000
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
 ERROR 42000: This version of MySQL doesn't yet support 'CUBE'
 explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
@@ -438,3 +438,69 @@ a	SUM(a)	SUM(a)+1	CONCAT(SUM(a),'x')	SUM(a)+SUM(a)	SUM(a)
 5	5	6	5x	10	5
 NULL	8	9	8x	16	8
 DROP TABLE t1;
+CREATE TABLE t1 (a int(11));
+INSERT INTO t1 VALUES (1),(2);
+SELECT a, a+1, SUM(a) FROM t1 GROUP BY a WITH ROLLUP;
+a	a+1	SUM(a)
+1	2	1
+2	3	2
+NULL	NULL	3
+SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP;
+a+1
+2
+3
+NULL
+SELECT a+SUM(a) FROM t1 GROUP BY a WITH ROLLUP;
+a+SUM(a)
+2
+4
+NULL
+SELECT a, a+1 as b FROM t1 GROUP BY a WITH ROLLUP HAVING b > 2;
+a	b
+2	3
+SELECT a, a+1 as b FROM t1 GROUP BY a WITH ROLLUP HAVING a IS NULL;
+a	b
+NULL	NULL
+SELECT a, a+1 as b FROM t1 GROUP BY a WITH ROLLUP HAVING b IS NULL;
+a	b
+NULL	NULL
+SELECT IFNULL(a, 'TEST') FROM t1 GROUP BY a WITH ROLLUP;
+IFNULL(a, 'TEST')
+1
+2
+TEST
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES
+(1,4),
+(2,2), (2,2),
+(4,1), (4,1), (4,1), (4,1),
+(2,1), (2,1);
+SELECT a,b,SUM(b) FROM t2 GROUP BY a,b WITH ROLLUP;
+a	b	SUM(b)
+1	4	4
+1	NULL	4
+2	1	2
+2	2	4
+2	NULL	6
+4	1	4
+4	NULL	4
+NULL	NULL	14
+SELECT a,b,SUM(b), a+b as c FROM t2
+GROUP BY a,b WITH ROLLUP HAVING c IS NULL;
+a	b	SUM(b)	c
+1	NULL	4	NULL
+2	NULL	6	NULL
+4	NULL	4	NULL
+NULL	NULL	14	NULL
+SELECT IFNULL(a, 'TEST'), COALESCE(b, 'TEST') FROM t2 
+GROUP BY a, b WITH ROLLUP;
+IFNULL(a, 'TEST')	COALESCE(b, 'TEST')
+1	4
+1	TEST
+2	1
+2	2
+2	TEST
+4	1
+4	TEST
+TEST	TEST
+DROP TABLE t1,t2;
