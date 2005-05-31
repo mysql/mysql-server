@@ -563,3 +563,12 @@ select * from t2;
 b
 1
 drop table t1,t2;
+create table t1(column.name int);
+ERROR 42000: Incorrect table name 'column'
+create table t1(test.column.name int);
+ERROR 42000: Incorrect table name 'column'
+create table t1(xyz.t1.name int);
+ERROR 42000: Incorrect database name 'xyz'
+create table t1(t1.name int);
+create table t2(test.t2.name int);
+drop table t1,t2;
