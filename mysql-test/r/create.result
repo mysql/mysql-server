@@ -563,3 +563,11 @@ select * from t2;
 b
 1
 drop table t1,t2;
+create table t1 (a int);
+create table t1 select * from t1;
+INSERT TABLE 't1' isn't allowed in FROM table list
+create table t2 union = (t1) select * from t1;
+INSERT TABLE 't1' isn't allowed in FROM table list
+flush tables with read lock;
+unlock tables;
+drop table t1;
