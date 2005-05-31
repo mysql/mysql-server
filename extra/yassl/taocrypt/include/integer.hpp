@@ -29,8 +29,8 @@
 #include "block.hpp"
 #include "random.hpp"
 #include "file.hpp"
-#include <string.h>
 #include "algorithm.hpp"    // mySTL::swap
+#include <string.h>
 
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
@@ -127,9 +127,6 @@ public:
         Integer(const Integer& t);
         Integer(signed long value);
         Integer(Sign s, word highWord, word lowWord);
-
-        explicit Integer(const char* str);
-        explicit Integer(const wchar_t* str);
 
         // BER Decode Source
         explicit Integer(Source&);
@@ -254,15 +251,13 @@ public:
 private:
     friend class ModularArithmetic;
     friend class MontgomeryRepresentation;
-    friend class HalfMontgomeryRepresentation;
-
-    Integer(word value, unsigned int length);
 
     static const Integer zero;
     static const Integer one;
     static const Integer two;
-
+    Integer(word value, unsigned int length);
     int PositiveCompare(const Integer& t) const;
+
     friend void PositiveAdd(Integer& sum, const Integer& a, const Integer& b);
     friend void PositiveSubtract(Integer& diff, const Integer& a,
                                  const Integer& b);
@@ -308,6 +303,7 @@ inline void swap(Integer &a, Integer &b)
 
 Integer CRT(const Integer& xp, const Integer& p, const Integer& xq,
             const Integer& q,  const Integer& u);
+
 inline Integer ModularExponentiation(const Integer& a, const Integer& e,
                                      const Integer& m)
 {

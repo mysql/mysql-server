@@ -1252,3 +1252,36 @@ t2	CREATE TABLE `t2` (
   `a` varchar(12) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
 drop table t1,t2;
+CREATE TABLE t1 (a mediumtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+left(a,100000000)
+a
+b
+create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `left(a,100000000)` longtext
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop tables t1,t2,t3;
+create table t1 ( id int not null auto_increment, primary key (id), col1 int);
+insert into t1 (col1) values (2),(3),(4),(5),(6);
+select 99 union all select id from t1 order by 1;
+99
+1
+2
+3
+4
+5
+99
+select id from t1 union all select 99 order by 1;
+id
+1
+2
+3
+4
+5
+99
+drop table t1;

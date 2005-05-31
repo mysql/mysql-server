@@ -443,7 +443,7 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
             fseek(input, 0, SEEK_END);
             long sz = ftell(input);
             rewind(input);
-            x = new (ys) x509(sz); // takes ownership
+            x = new x509(sz); // takes ownership
             size_t bytes = fread(x->use_buffer(), sz, 1, input);
             if (bytes != 1) {
                 fclose(input);
@@ -663,7 +663,7 @@ BIGNUM* BN_bin2bn(const unsigned char* num, int sz, BIGNUM* retVal)
 
     if (!retVal) {
         created = true;
-        bn.reset(new (ys) BIGNUM);
+        bn.reset(new BIGNUM);
         retVal = bn.get();
     }
 

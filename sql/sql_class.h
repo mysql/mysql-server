@@ -636,6 +636,8 @@ typedef struct system_status_var
   ulong filesort_range_count;
   ulong filesort_rows;
   ulong filesort_scan_count;
+
+  double last_query_cost;
 } STATUS_VAR;
 
 /*

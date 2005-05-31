@@ -85,7 +85,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
-                opt_complete_insert= 0;
+                opt_complete_insert= 0, opt_drop_database= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static my_bool insert_pat_inited=0;
@@ -161,6 +161,9 @@ static struct my_option my_long_options[] =
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"add-drop-database", OPT_DROP_DATABASE, "Add a 'DROP DATABASE' before each create.",
+   (gptr*) &opt_drop_database, (gptr*) &opt_drop_database, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
   {"add-drop-table", OPT_DROP, "Add a 'drop table' before each create.",
    (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
@@ -1144,9 +1147,9 @@ static uint get_table_structure(char *table, char *db)
   else
     dynstr_set(&insert_pat, "");
 
-  insert_option= (opt_delayed && opt_ignore) ? " DELAYED IGNORE " : 
-    opt_delayed ? " DELAYED " :
-    opt_ignore ? " IGNORE " : "";
+  insert_option= ((opt_delayed && opt_ignore) ? " DELAYED IGNORE " : 
+                  opt_delayed ? " DELAYED " :
+                  opt_ignore ? " IGNORE " : "");
 
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
@@ -2116,12 +2119,20 @@ static int init_dumping(char *database)
         if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
           /* Old server version, dump generic CREATE DATABASE */
+          if (opt_drop_database)
+            fprintf(md_result_file,
+                    "\n/*!40000 DROP DATABASE IF EXISTS %s;*/\n",
+                    qdatabase);
 	  fprintf(md_result_file,
 		  "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
 		  qdatabase);
 	}
 	else
         {
+          if (opt_drop_database)
+            fprintf(md_result_file,
+                    "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
+                    qdatabase);
 	  row = mysql_fetch_row(dbinfo);
 	  if (row[1])
 	  {

@@ -28,29 +28,9 @@
 bool 
 File_class::exists(const char* aFileName)
 {
-  bool rc = true;
-#ifdef USE_MY_STAT_STRUCT
-  struct my_stat stmp;
-#else
-  struct stat stmp;
-#endif
-  if (my_stat(aFileName, &stmp, MYF(0)) != 0)
-  {
-    rc = false;
-  }
-  
-  /*
-  File f;
-  if (!f.open(aFileName, "r"))  
-  {
-    rc = (errno == ENOENT ? false : true);
-  }
-  else  
-  {
-    f.close();
-  }
-  */
-  return rc;
+  MY_STAT stmp;
+
+  return (my_stat(aFileName, &stmp, MYF(0))!=NULL);
 }
 
 long

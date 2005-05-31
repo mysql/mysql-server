@@ -1659,6 +1659,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     while (!thd->killed && thd->lex->found_semicolon && !thd->net.report_error)
     {
       char *packet= thd->lex->found_semicolon;
+      net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
 	in embedded server - just store them to be executed later 
@@ -2330,6 +2331,10 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
 
+
+
+
+
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.
@@ -2777,7 +2782,7 @@ mysql_execute_command(THD *thd)
       select_result *result;
 
       select_lex->options|= SELECT_NO_UNLOCK;
-      unit->set_limit(select_lex, select_lex);
+      unit->set_limit(select_lex);
 
       if (!(res= open_and_lock_tables(thd, select_tables)))
       {
@@ -3175,12 +3180,12 @@ unsent_create_error:
     select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
-    unit->set_limit(select_lex, select_lex);
+    unit->set_limit(select_lex);
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
-      lex->select_lex.table_list.first= (byte*)first_table->next_local;
+      select_lex->table_list.first= (byte*)first_table->next_local;
 
       res= mysql_insert_select_prepare(thd);
       if (!res && (result= new select_insert(first_table, first_table->table,
@@ -3192,13 +3197,13 @@ unsent_create_error:
           insert/replace from SELECT give its SELECT_LEX for SELECT,
           and item_list belong to SELECT
         */
-	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
-	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+	select_lex->resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
       /* revert changes for SP */
-      lex->select_lex.table_list.first= (byte*) first_table;
+      select_lex->table_list.first= (byte*) first_table;
     }
 
     if (first_table->view && !first_table->contain_auto_increment)
@@ -3991,7 +3996,7 @@ unsent_create_error:
       lex->sphead= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
-      if (sp_automatic_privileges &&
+      if (sp_automatic_privileges && !opt_noacl &&
           check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
       			       db, name,
                                lex->sql_command == SQLCOM_CREATE_PROCEDURE, 1))
@@ -4260,7 +4265,7 @@ unsent_create_error:
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
           goto error;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	if (sp_automatic_privileges &&
+	if (sp_automatic_privileges && !opt_noacl &&
 	    sp_revoke_privileges(thd, db, name, 
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE))
 	{
@@ -5202,6 +5207,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
+  lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
@@ -6780,6 +6786,14 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
+    
+    /* in case of subselects, we need to set lock_type in
+     * corresponding table in list of all tables */
+    if (walk->correspondent_table)
+    {
+      target_tbl->correspondent_table= walk->correspondent_table;
+      walk->correspondent_table->lock_type= walk->lock_type;
+    }
   }
   DBUG_RETURN(FALSE);
 }
