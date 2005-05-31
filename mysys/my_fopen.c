@@ -33,9 +33,25 @@ FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
   DBUG_ENTER("my_fopen");
   DBUG_PRINT("my",("Name: '%s'  Flags: %d  MyFlags: %d",
 		   FileName, Flags, MyFlags));
-
-  make_ftype(type,Flags);
-  if ((fd = fopen(FileName, type)) != 0)
+  /* 
+    if we are not creating, then we need to use my_access to make sure  
+    the file exists since Windows doesn't handle files like "com1.sym" 
+    very  well 
+  */
+#ifdef __WIN__
+  if (check_if_legal_filename(FileName))
+  {
+    errno= EACCES;
+    fd= 0;
+  }
+  else
+#endif
+  {
+    make_ftype(type,Flags);
+    fd = fopen(FileName, type);
+  }
+  
+  if (fd != 0)
   {
     /*
       The test works if MY_NFILE < 128. The problem is that fileno() is char

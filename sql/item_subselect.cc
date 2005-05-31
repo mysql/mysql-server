@@ -22,7 +22,7 @@ SUBSELECT TODO:
      (sql_select.h/sql_select.cc)
 */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -537,8 +537,6 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
   null_value= 0; //can't be NULL
   maybe_null= 0; //can't be NULL
   value= 0;
-  // We need only 1 row to determinate existence
-  select_lex->master_unit()->global_parameters->select_limit= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -605,6 +603,8 @@ void Item_exists_subselect::fix_length_and_dec()
    decimals= 0;
    max_length= 1;
    max_columns= engine->cols();
+   /* We need only 1 row to determinate existence */
+  unit->global_parameters->select_limit= 1;
 }
 
 double Item_exists_subselect::val_real()
@@ -854,9 +854,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     else
     {
       Item_maxmin_subselect *item;
-      // remove LIMIT placed  by ALL/ANY subquery
-      select_lex->master_unit()->global_parameters->select_limit=
-	HA_POS_ERROR;
       subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
       if (upper_item)
         upper_item->set_sub_test(item);
@@ -1286,13 +1283,10 @@ subselect_single_select_engine(st_select_lex *select,
 			       select_subselect *result,
 			       Item_subselect *item)
   :subselect_engine(item, result),
-   prepared(0), optimized(0), executed(0), join(0)
+   prepared(0), optimized(0), executed(0),
+   select_lex(select), join(0)
 {
-  select_lex= select;
-  SELECT_LEX_UNIT *unit= select_lex->master_unit();
-  unit->set_limit(unit->global_parameters, select_lex);
-  unit->item= item;
-  this->select_lex= select_lex;
+  select_lex->master_unit()->item= item;
 }
 
 
@@ -1440,7 +1434,10 @@ int subselect_single_select_engine::exec()
   thd->lex->current_select= select_lex;
   if (!optimized)
   {
-    optimized=1;
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+
+    optimized= 1;
+    unit->set_limit(unit->global_parameters);
     if (join->optimize())
     {
       thd->where= save_where;

@@ -22,7 +22,7 @@
 **
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -444,6 +444,7 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
   while (to != end)
     *(to++)+= *(from++);
+  /* it doesn't make sense to add last_query_cost values */
 }
 
 
@@ -1746,7 +1747,8 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       if ((yy=var_li++)) 
       {
-	if (thd->spcont->set_item_eval(yy->get_offset(), it.ref(), zz->type))
+	if (thd->spcont->set_item_eval(current_thd,
+				       yy->get_offset(), it.ref(), zz->type))
 	  DBUG_RETURN(1);
       }
     }

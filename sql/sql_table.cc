@@ -2203,12 +2203,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
+      uint length;
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
       protocol->store("error", 5, system_charset_info);
-      my_snprintf(buff, sizeof(buff), ER(ER_OPEN_AS_READONLY), table_name);
-      protocol->store(buff, system_charset_info);
+      length= my_snprintf(buff, sizeof(buff), ER(ER_OPEN_AS_READONLY),
+                          table_name);
+      protocol->store(buff, length, system_charset_info);
       close_thread_tables(thd);
       table->table=0;				// For query cache
       if (protocol->write())
@@ -2237,6 +2239,17 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       /* Flush entries in the query cache involving this table. */
       query_cache_invalidate3(thd, table->table, 0);
       open_for_modify= 0;
+    }
+
+    if (table->table->s->crashed && operator_func == &handler::check)
+    {
+      protocol->prepare_for_resend();
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
+      protocol->store("warning", 7, system_charset_info);
+      protocol->store("Table is marked as crashed", 26, system_charset_info);
+      if (protocol->write())
+        goto err;
     }
 
     result_code = (table->table->file->*operator_func)(thd, check_opt);

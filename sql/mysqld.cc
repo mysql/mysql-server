@@ -337,6 +337,7 @@ my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
   changed). False otherwise.
 */
 volatile bool mqh_used = 0;
+my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 #ifdef HAVE_INITGROUPS
@@ -369,7 +370,6 @@ ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
-double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
 
 double log_10[32];			/* 10 potences */
 time_t start_time;
@@ -459,7 +459,7 @@ char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-static my_bool opt_do_pstack, opt_noacl, opt_bootstrap, opt_myisam_log;
+static my_bool opt_do_pstack, opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
@@ -5729,7 +5729,7 @@ struct show_var_st status_vars[]= {
   {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read, SHOW_KEY_CACHE_LONG},
   {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests, SHOW_KEY_CACHE_LONG},
   {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write, SHOW_KEY_CACHE_LONG},
-  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
+  {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
 #ifdef HAVE_NDBCLUSTER_DB
   {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},

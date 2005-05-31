@@ -18,7 +18,7 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
@@ -467,9 +467,9 @@ class sp_instr_set_trigger_field : public sp_instr
 public:
 
   sp_instr_set_trigger_field(uint ip, sp_pcontext *ctx,
-                             LEX_STRING field_name, Item *val)
+                             Item_trigger_field *trg_fld, Item *val)
     : sp_instr(ip, ctx),
-      trigger_field(Item_trigger_field::NEW_ROW, field_name.str),
+      trigger_field(trg_fld),
       value(val)
   {}
 
@@ -480,9 +480,8 @@ public:
 
   virtual void print(String *str);
 
-  Item_trigger_field trigger_field;
-
 private:
+  Item_trigger_field *trigger_field;
   Item *value;
 }; // class sp_instr_trigger_field : public sp_instr
 

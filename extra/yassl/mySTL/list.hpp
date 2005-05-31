@@ -38,6 +38,13 @@ namespace mySTL {
 
 template<typename T> 
 class list {
+#ifdef __SUNPRO_CC
+/*
+  Sun Forte 7 C++ v. 5.4 needs class 'node' be public to be visible to
+  the nested class 'iterator' (a non-standard behaviour).
+*/
+public:
+#endif
     struct node {
         node(T t) : prev_(0), next_(0), value_(t) {}
 

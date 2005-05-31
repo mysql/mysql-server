@@ -73,6 +73,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 		      handler *db_file)
 {
   uint reclength,info_length,screens,key_info_length,maxlength;
+  ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
   uchar fileinfo[64],forminfo[288],*keybuff;
@@ -119,7 +120,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
     DBUG_RETURN(1);
   }
 
-  uint key_buff_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
+  key_buff_length= uint4korr(fileinfo+47);
   keybuff=(uchar*) my_malloc(key_buff_length, MYF(0));
   key_info_length= pack_keys(keybuff, keys, key_info, data_offset);
   VOID(get_form_pos(file,fileinfo,&formnames));
@@ -128,7 +129,6 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
   int2store(forminfo+2,maxlength);
   int4store(fileinfo+10,(ulong) (filepos+maxlength));
-  int4store(fileinfo+47,key_buff_length);
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
 			     (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
@@ -411,7 +411,8 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
     DBUG_RETURN(1);
   }
 
-  totlength=reclength=0L;
+  totlength= 0L;
+  reclength= data_offset;
   no_empty=int_count=int_parts=int_length=time_stamp_pos=null_fields=
     com_length=0;
   n_length=2L;
@@ -440,6 +441,8 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
 	!time_stamp_pos)
       time_stamp_pos= (uint) field->offset+ (uint) data_offset + 1;
     length=field->pack_length;
+    /* Ensure we don't have any bugs when generating offsets */
+    DBUG_ASSERT(reclength == field->offset + data_offset);
     if ((uint) field->offset+ (uint) data_offset+ length > reclength)
       reclength=(uint) (field->offset+ data_offset + length);
     n_length+= (ulong) strlen(field->field_name)+1;
@@ -757,8 +760,11 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
   }
   DBUG_ASSERT(data_offset == ((null_count + 7) / 8));
 
-  /* Fill not used startpos */
-  if (null_count)
+  /*
+    We need to set the unused bits to 1. If the number of bits is a multiple
+    of 8 there are no unused bits.
+  */
+  if (null_count & 7)
     *(null_pos + null_count / 8)|= ~(((uchar) 1 << (null_count & 7)) - 1);
 
   error=(int) my_write(file,(byte*) buff, (uint) reclength,MYF_RW);
