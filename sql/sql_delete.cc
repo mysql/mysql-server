@@ -300,8 +300,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
 
-  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables,
-                   FALSE, FALSE) ||
+  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       setup_ftfuncs(select_lex))
     DBUG_RETURN(TRUE);
@@ -358,7 +357,7 @@ bool mysql_multi_delete_prepare(THD *thd)
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
   if (setup_tables(thd, lex->query_tables, &lex->select_lex.where,
-                   &lex->select_lex.leaf_tables, FALSE, FALSE))
+                   &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
 
 
@@ -696,11 +695,11 @@ bool multi_delete::send_eof()
     Note that if we deleted nothing we don't write to the binlog (TODO:
     fix this).
   */
-  if (deleted && (error <= 0 || normal_tables))
+  if (deleted && ((error <= 0 && !local_error) || normal_tables))
   {
     if (mysql_bin_log.is_open())
     {
-      if (error <= 0)
+      if (error <= 0 && !local_error)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);

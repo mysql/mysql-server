@@ -2778,7 +2778,7 @@ mysql_execute_command(THD *thd)
       select_result *result;
 
       select_lex->options|= SELECT_NO_UNLOCK;
-      unit->set_limit(select_lex, select_lex);
+      unit->set_limit(select_lex);
 
       if (!(res= open_and_lock_tables(thd, select_tables)))
       {
@@ -3176,7 +3176,7 @@ unsent_create_error:
     select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
-    unit->set_limit(select_lex, select_lex);
+    unit->set_limit(select_lex);
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
