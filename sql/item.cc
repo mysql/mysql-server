@@ -301,10 +301,10 @@ void *Item::operator new(size_t size, Item *reuse, uint *rsize)
 {
   if (reuse && size <= reuse->rsize)
   {
-    reuse->cleanup();
-    TRASH((void *)reuse, size);
     if (rsize)
       (*rsize)= reuse->rsize;
+    reuse->cleanup();
+    TRASH((void *)reuse, size);
     return (void *)reuse;
   }
   if (rsize)
