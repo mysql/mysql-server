@@ -460,3 +460,16 @@ insert into t2 values ();
 select * from t1;
 select * from t2;
 drop table t1,t2;
+
+#
+# Bug#10413: Invalid column name is not rejected
+#
+--error 1103
+create table t1(column.name int);
+--error 1103
+create table t1(test.column.name int);
+--error 1102
+create table t1(xyz.t1.name int);
+create table t1(t1.name int);
+create table t2(test.t2.name int);
+drop table t1,t2;
