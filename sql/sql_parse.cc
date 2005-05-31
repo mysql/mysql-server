@@ -4019,6 +4019,12 @@ unsent_create_error:
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
+    case SP_BAD_IDENTIFIER:
+      my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+      lex->unit.cleanup();
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
     default:
       my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
       lex->unit.cleanup();
