@@ -2091,8 +2091,10 @@ static void start_signal_handler(void)
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&thr_attr,INTERRUPT_PRIOR);
 #if defined(__ia64__) || defined(__ia64)
-  /* Peculiar things with ia64 platforms - it seems we only have half the
-     stack size in reality, so we have to double it here */
+  /*
+    Peculiar things with ia64 platforms - it seems we only have half the
+    stack size in reality, so we have to double it here
+  */
   pthread_attr_setstacksize(&thr_attr,thread_stack*2);
 #else
   pthread_attr_setstacksize(&thr_attr,thread_stack);
@@ -3018,8 +3020,10 @@ int main(int argc, char **argv)
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
 #if defined(__ia64__) || defined(__ia64)
-  /* Peculiar things with ia64 platforms - it seems we only have half the
-     stack size in reality, so we have to double it here */
+  /*
+    Peculiar things with ia64 platforms - it seems we only have half the
+    stack size in reality, so we have to double it here
+  */
   pthread_attr_setstacksize(&connection_attrib,thread_stack*2);
 #else
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
