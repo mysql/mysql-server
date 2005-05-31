@@ -4986,7 +4986,14 @@ long max_stack_used;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-bool check_stack_overrun(THD *thd, long margin)
+/*
+  Note: The 'buf' parameter is necessary, even if it is unused here.
+  - fix_fields functions has a "dummy" buffer large enough for the
+    corresponding exec. (Thus we only have to check in fix_fields.)
+  - Passing to check_stack_overrun() prevents the compiler from removing it.
+ */
+bool check_stack_overrun(THD *thd, long margin,
+			 char *buf __attribute__((unused)))
 {
   long stack_used;
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=

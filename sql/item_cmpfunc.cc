@@ -2321,7 +2321,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   */
   and_tables_cache= ~(table_map) 0;
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error flag is set!
   /*
     The following optimization reduces the depth of an AND-OR tree.

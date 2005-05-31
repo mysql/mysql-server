@@ -293,11 +293,14 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
 
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE+STACK_BUFF_ALLOC))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -2564,9 +2567,12 @@ bool
 udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE+STACK_BUFF_ALLOC))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(TRUE);				// Fatal error flag is set!
 
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
