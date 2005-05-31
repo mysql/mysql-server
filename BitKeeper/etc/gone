@@ -1184,6 +1184,7 @@ mwagner@evoq.home.mwagner.org|mysql-test/xml/xsl/README|20001013051514|26509|cd4
 mwagner@evoq.home.mwagner.org|mysql-test/xml/xsl/mysqltest.xsl|20001013051514|27425|1b8f6ec4f1b5f634
 mwagner@work.mysql.com|mysql-test/r/3.23/sel000001.result|20001010091454|28284|383913ae4505ec86
 mwagner@work.mysql.com|mysql-test/r/3.23/sel000002.result|20001010091454|29230|d1787e6fd5dbc1cc
+mysql-test/t/reserved_win_names-master.opt
 ndb/src/client/Makefile
 nick@nick.leippe.com|mysql-test/r/rpl_empty_master_crash.result|20020531235552|47718|615f521be2132141
 nick@nick.leippe.com|mysql-test/t/rpl_empty_master_crash.test|20020531235552|52328|99464e737639ccc6
