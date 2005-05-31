@@ -3098,4 +3098,15 @@ call bug5963_2(1)|
 call bug5963_2(1)|
 drop procedure bug5963_2|
 drop table t3|
+drop function if exists bug9559|
+create function bug9559()
+returns int
+begin
+set @y = -6/2;
+return @y;
+end|
+select bug9559()|
+bug9559()
+-3
+drop function bug9559|
 drop table t1,t2;

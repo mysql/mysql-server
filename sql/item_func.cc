@@ -300,7 +300,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (check_stack_overrun(thd, buff))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -2572,7 +2572,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 #endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
-  if (check_stack_overrun(thd, buff))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(TRUE);				// Fatal error flag is set!
 
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
@@ -3603,7 +3603,7 @@ longlong user_var_entry::val_int(my_bool *null_value)
   case DECIMAL_RESULT:
   {
     longlong result;
-    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 1, &result);
+    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, &result);
     return result;
   }
   case STRING_RESULT:
