@@ -24,7 +24,6 @@
  *
  */
 
-#include "runtime.hpp"
 #include "cert_wrapper.hpp"
 #include "yassl_int.hpp"
 
@@ -39,19 +38,19 @@
 namespace yaSSL {
 
 
-x509::x509(uint sz) : length_(sz), buffer_(new opaque[sz]) 
+x509::x509(uint sz) : length_(sz), buffer_(new (ys) opaque[sz]) 
 {
 }
 
 
 x509::~x509() 
 { 
-    delete [] buffer_; 
+    ysArrayDelete(buffer_); 
 }
 
 
 x509::x509(const x509& that) : length_(that.length_),
-                               buffer_(new opaque[length_])
+                               buffer_(new (ys) opaque[length_])
 {
     memcpy(buffer_, that.buffer_, length_);
 }
@@ -98,7 +97,7 @@ CertManager::CertManager()
 
 CertManager::~CertManager()
 {
-    delete peerX509_;
+    ysDelete(peerX509_);
 
     mySTL::for_each(signers_.begin(), signers_.end(), del_ptr_zero()) ;
 
@@ -153,7 +152,7 @@ void CertManager::AddPeerCert(x509* x)
 void CertManager::CopySelfCert(const x509* x)
 {
     if (x)
-        list_.push_back(new x509(*x));
+        list_.push_back(new (ys) x509(*x));
 }
 
 
@@ -165,7 +164,7 @@ int CertManager::CopyCaCert(const x509* x)
 
     if (!cert.GetError().What()) {
         const TaoCrypt::PublicKey& key = cert.GetPublicKey();
-        signers_.push_back(new TaoCrypt::Signer(key.GetKey(), key.size(),
+        signers_.push_back(new (ys) TaoCrypt::Signer(key.GetKey(), key.size(),
                                         cert.GetCommonName(), cert.GetHash()));
     }
     return cert.GetError().What();
@@ -234,7 +233,7 @@ int CertManager::Validate()
             return err;
 
         const TaoCrypt::PublicKey& key = cert.GetPublicKey();
-        signers_.push_back(new TaoCrypt::Signer(key.GetKey(), key.size(),
+        signers_.push_back(new (ys) TaoCrypt::Signer(key.GetKey(), key.size(),
                                         cert.GetCommonName(), cert.GetHash()));
         --last;
         --count;
@@ -259,7 +258,7 @@ int CertManager::Validate()
 
         int iSz = cert.GetIssuer() ? strlen(cert.GetIssuer()) + 1 : 0;
         int sSz = cert.GetCommonName() ? strlen(cert.GetCommonName()) + 1 : 0;
-        peerX509_ = new X509(cert.GetIssuer(), iSz, cert.GetCommonName(),
+        peerX509_ = new (ys) X509(cert.GetIssuer(), iSz, cert.GetCommonName(),
                                   sSz);
     }
     return 0;
