@@ -27,75 +27,59 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include "types.hpp"
+#include "type_traits.hpp"
+
+/*
+namespace GCC_ABI {
+    extern "C" int __cxa_pure_virtual();
+} */
+
+namespace TaoCrypt {
+
+// using GCC_ABI::__cxa_pure_virtual;
+
+// library allocation
+struct new_t {};      // TaoCrypt New type
+extern new_t tc;      // pass in parameter
+
+} // namespace TaoCrypt
+
+void* operator new  (size_t, TaoCrypt::new_t);
+void* operator new[](size_t, TaoCrypt::new_t);
+
+void operator delete  (void*, TaoCrypt::new_t);
+void operator delete[](void*, TaoCrypt::new_t);
 
 
 namespace TaoCrypt {
 
+template<typename T>
+void tcDelete(T* ptr)
+{
+    if (ptr) ptr->~T();
+    ::operator delete(ptr, TaoCrypt::tc);
+}
 
-// define this if running on a big-endian CPU
-#if !defined(LITTLE_ENDIAN_ORDER) && (defined(__BIG_ENDIAN__) || \
-   defined(__sparc)  || defined(__sparc__) || defined(__hppa__) || \
-   defined(__mips__) || (defined(__MWERKS__) && !defined(__INTEL__)))
-    #define BIG_ENDIAN_ORDER
-#endif
+template<typename T>
+void tcArrayDelete(T* ptr)
+{
+    // can't do array placement destruction since not tracking size in
+    // allocation, only allow builtins to use array placement since they
+    // don't need destructors called
+    typedef char builtin[IsFundamentalType<T>::Yes ? 1 : -1];
+    (void)sizeof(builtin);
 
-#ifndef BIG_ENDIAN_ORDER
-    #define LITTLE_ENDIAN_ORDER
-#endif
+    ::operator delete[](ptr, TaoCrypt::tc);
+}
 
 
-typedef unsigned char  byte;
-typedef unsigned short word16;
-typedef unsigned int   word32;
-
-#if defined(__GNUC__) || defined(__MWERKS__) || defined(_LONGLONG_TYPE)
-    #define WORD64_AVAILABLE
-    typedef unsigned long long word64;
-    #define W64LIT(x) x##LL
-#elif defined(_MSC_VER) || defined(__BCPLUSPLUS__)
-    #define WORD64_AVAILABLE
-    typedef unsigned __int64 word64;
-    #define W64LIT(x) x##ui64
-#elif defined(__DECCXX)
-    #define WORD64_AVAILABLE
-    typedef unsigned long word64;
-#endif
-
-// define largest word type
-#ifdef WORD64_AVAILABLE
-    typedef word64 lword;
-#else
-    typedef word32 lword;
-#endif
-
-// FIXME the !defined(__sun) is a temporarely solution until asm for
-// __x86_64__ and Solaris is written
-#if defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-    defined(__mips64) || (defined(__x86_64__) && !defined(__sun))
-// These platforms have 64-bit CPU registers. Unfortunately most C++ compilers
-// don't allow any way to access the 64-bit by 64-bit multiply instruction
-// without using assembly, so in order to use word64 as word, the assembly
-// instruction must be defined in Dword::Multiply().
-    typedef word32 hword;
-    typedef word64 word;
-#else
-    #define TAOCRYPT_NATIVE_DWORD_AVAILABLE
-    #ifdef WORD64_AVAILABLE
-            #define TAOCRYPT_SLOW_WORD64 
-            // define this if your CPU is not64-bit to use alternative code
-            // that avoids word64
-            typedef word16 hword;
-            typedef word32 word;
-            typedef word64 dword;
-    #else
-            typedef byte   hword;
-            typedef word16 word;
-            typedef word32 dword;
-    #endif
-#endif
-
-const word32 WORD_SIZE = sizeof(word);
-const word32 WORD_BITS = WORD_SIZE * 8;
+// to resolve compiler generated operator delete on base classes with
+// virtual destructors, make sure doesn't get called
+class virtual_base {
+public:
+    static void operator delete(void*) { assert(0); }
+};
 
 
 #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)

@@ -106,7 +106,7 @@ class DH;
 
 
 // General BER decoding
-class BER_Decoder {
+class BER_Decoder : public virtual_base {
 protected:
     Source& source_;
 public:
@@ -184,7 +184,7 @@ class PublicKey {
     word32 sz_;
 public:
     explicit PublicKey(const byte* k = 0, word32 s = 0);
-    ~PublicKey() { delete[] key_; }
+    ~PublicKey() { tcArrayDelete(key_); }
 
     const byte* GetKey() const { return key_; }
     word32      size()   const { return sz_; }
@@ -287,7 +287,7 @@ word32 DecodeDSA_Signature(byte* decoded, const byte* encoded, word32 sz);
 
 
 // General DER encoding
-class DER_Encoder {
+class DER_Encoder : public virtual_base {
 public:
     DER_Encoder() {}
     virtual ~DER_Encoder() {}
