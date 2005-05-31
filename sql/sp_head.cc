@@ -564,13 +564,11 @@ sp_head::execute(THD *thd)
   Item_change_list old_change_list;
   String old_packet;
 
-
-#ifndef EMBEDDED_LIBRARY
-  if (check_stack_overrun(thd, olddb))
+  /* Use some extra margin for possible SP recursion and functions */
+  if (check_stack_overrun(thd, 4*STACK_MIN_SIZE, olddb))
   {
     DBUG_RETURN(-1);
   }
-#endif
 
   dbchanged= FALSE;
   if (m_db.length &&
