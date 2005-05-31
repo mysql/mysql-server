@@ -448,7 +448,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   send_fields(thd,list,1);
 
   HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0);
   HANDLER_TABLES_HACK(thd);
   
   byte *key;

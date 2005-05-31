@@ -228,3 +228,11 @@ create table t1 (a int,,b int);
 You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
 create table t1 (,b int);
 You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+create table t1 (a int);
+create table t1 select * from t1;
+INSERT TABLE 't1' isn't allowed in FROM table list
+create table t2 union = (t1) select * from t1;
+INSERT TABLE 't1' isn't allowed in FROM table list
+flush tables with read lock;
+unlock tables;
+drop table t1;

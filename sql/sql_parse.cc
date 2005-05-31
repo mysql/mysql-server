@@ -1673,6 +1673,24 @@ mysql_execute_command(void)
       break;
     }
 #endif
+    /*
+      The create-select command will open and read-lock the select table
+      and then create, open and write-lock the new table. If a global
+      read lock steps in, we get a deadlock. The write lock waits for
+      the global read lock, while the global read lock waits for the
+      select table to be closed. So we wait until the global readlock is
+      gone before starting both steps. Note that
+      wait_if_global_read_lock() sets a protection against a new global
+      read lock when it succeeds. This needs to be released by
+      start_waiting_global_read_lock(). We protect the normal CREATE
+      TABLE in the same way. That way we avoid that a new table is
+      created during a gobal read lock.
+    */
+    if (wait_if_global_read_lock(thd, 0, 1))
+    {
+      res= -1;
+      break;
+    }
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
@@ -1681,7 +1699,7 @@ mysql_execute_command(void)
 	  check_dup(tables->db, tables->real_name, tables->next))
       {
 	net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
-	DBUG_VOID_RETURN;
+	goto error1;
       }
       if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
       {
@@ -1692,7 +1710,7 @@ mysql_execute_command(void)
                         (TABLE_LIST*)lex->create_info.merge_list.first))
           {
             net_printf(&thd->net, ER_INSERT_TABLE_USED, tab->real_name);
-            DBUG_VOID_RETURN;
+            goto error1;
           }
         }  
       }    
@@ -1700,7 +1718,7 @@ mysql_execute_command(void)
       {
 	TABLE_LIST *table;
 	if (check_table_access(thd, SELECT_ACL, tables->next))
-	  goto error;				// Error message is given
+          goto error1;				// Error message is given
 	/* TODO: Delete the following loop when locks is set by sql_yacc */
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
@@ -1737,6 +1755,11 @@ mysql_execute_command(void)
       if (!res)
 	send_ok(&thd->net);
     }
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
     break;
   }
   case SQLCOM_CREATE_INDEX:
@@ -2673,6 +2696,14 @@ error:
     if (thd->lock == thd->locked_tables)
       thd->lock= 0;
   }
+  DBUG_VOID_RETURN;
+
+ error1:
+  /*
+    Release the protection against the global read lock and wake
+    everyone, who might want to set a global read lock.
+  */
+  start_waiting_global_read_lock(thd);
   DBUG_VOID_RETURN;
 }
 

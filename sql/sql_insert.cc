@@ -674,10 +674,13 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
         Avoid that a global read lock steps in while we are creating the
         new thread. It would block trying to open the table. Hence, the
         DI thread and this thread would wait until after the global
-        readlock is gone. If the read lock exists already, we leave with
-        no table and then switch to non-delayed insert.
+        readlock is gone. Since the insert thread needs to wait for a
+        global read lock anyway, we do it right now. Note that
+        wait_if_global_read_lock() sets a protection against a new
+        global read lock when it succeeds. This needs to be released by
+        start_waiting_global_read_lock().
       */
-      if (set_protect_against_global_read_lock())
+      if (wait_if_global_read_lock(thd, 0, 1))
         goto err;
       if (!(tmp=new delayed_insert()))
       {
@@ -719,7 +722,11 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
-      unset_protect_against_global_read_lock();
+      /*
+        Release the protection against the global read lock and wake
+        everyone, who might want to set a global read lock.
+      */
+      start_waiting_global_read_lock(thd);
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -755,7 +762,11 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 
  err1:
   thd->fatal_error= 1;
-  unset_protect_against_global_read_lock();
+  /*
+    Release the protection against the global read lock and wake
+    everyone, who might want to set a global read lock.
+  */
+  start_waiting_global_read_lock(thd);
  err:
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(0); // Continue with normal insert
@@ -1105,7 +1116,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
         handler will close the table and finish when the outstanding
         inserts are done.
       */
-      if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1, TRUE)))
+      if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
+                                          MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK)))
       {
 	di->dead=thd->killed=1;			// Fatal error
       }

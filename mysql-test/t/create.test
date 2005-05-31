@@ -203,3 +203,18 @@ create table t1 (a int,);
 create table t1 (a int,,b int);
 --error 1064
 create table t1 (,b int);
+
+#
+# Bug#10224 - ANALYZE TABLE crashing with simultaneous
+# CREATE ... SELECT statement.
+# This tests two additional possible errors and a hang if 
+# an improper fix is present.
+#
+create table t1 (a int);
+--error 1093
+create table t1 select * from t1;
+--error 1093
+create table t2 union = (t1) select * from t1;
+flush tables with read lock;
+unlock tables;
+drop table t1;
