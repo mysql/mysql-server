@@ -1429,11 +1429,11 @@ inline int hexchar_to_int(char c)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code);
 void kill_delayed_threads(void);
-bool check_stack_overrun(THD *thd, long margin);
+bool check_stack_overrun(THD *thd, long margin, char *dummy);
 #else
 #define unireg_abort(exit_code) DBUG_RETURN(exit_code)
 inline void kill_delayed_threads(void) {}
-#define check_stack_overrun(A, B) 0
+#define check_stack_overrun(A, B, C) 0
 #endif
 
 #endif /* MYSQL_CLIENT */

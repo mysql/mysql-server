@@ -1815,7 +1815,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   bool res= FALSE;
   DBUG_ENTER("st_table_list::setup_ancestor");
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (char *)&res))
     return TRUE;
 
   for (tbl= ancestor; tbl; tbl= tbl->next_local)

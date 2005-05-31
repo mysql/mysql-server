@@ -565,7 +565,7 @@ sp_head::execute(THD *thd)
   String old_packet;
 
   /* Use some extra margin for possible SP recursion and functions */
-  if (check_stack_overrun(thd, 4*STACK_MIN_SIZE))
+  if (check_stack_overrun(thd, 4*STACK_MIN_SIZE, olddb))
   {
     DBUG_RETURN(-1);
   }
