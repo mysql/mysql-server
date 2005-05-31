@@ -1536,7 +1536,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   if (!table)
     DBUG_RETURN(0);
   table->reginfo.lock_type=TL_WRITE;
-  if (!((*lock)=mysql_lock_tables(thd,&table,1)))
+  if (! ((*lock)= mysql_lock_tables(thd, &table, 1, MYSQL_LOCK_IGNORE_FLUSH)))
   {
     VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
