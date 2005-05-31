@@ -233,7 +233,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   else
   {
     SELECT_LEX_UNIT *unit= &lex->unit;
-    unit->set_limit(unit->global_parameters, select_lex);
+    unit->set_limit(unit->global_parameters);
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
       every PS/SP execution new, we will not need reset this flag if 
@@ -342,7 +342,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
        setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
-                    FALSE, FALSE)) ||
+                    FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -465,13 +465,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   count_field_types(&tmp_table_param, all_fields, 0);
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
   this->group= group_list != 0;
-  row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
-	      unit_arg->select_limit_cnt);
-  /* select_limit is used to decide if we are likely to scan the whole table */
-  select_limit= unit_arg->select_limit_cnt;
-  if (having || (select_options & OPTION_FOUND_ROWS))
-    select_limit= HA_POS_ERROR;
-  do_send_rows = (unit_arg->select_limit_cnt) ? 1 : 0;
   unit= unit_arg;
 
 #ifdef RESTRICTED_GROUP
@@ -550,6 +543,13 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
+  row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
+	      unit->select_limit_cnt);
+  /* select_limit is used to decide if we are likely to scan the whole table */
+  select_limit= unit->select_limit_cnt;
+  if (having || (select_options & OPTION_FOUND_ROWS))
+    select_limit= HA_POS_ERROR;
+  do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
     thd->lex->current_select->no_error= 1;
@@ -1110,18 +1110,7 @@ int
 JOIN::reinit()
 {
   DBUG_ENTER("JOIN::reinit");
-  /* TODO move to unit reinit */
-  unit->set_limit(select_lex, select_lex);
 
-  /* conds should not be used here, it is added just for safety */
-  if (tables_list)
-  {
-    if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
-                     TRUE, FALSE))
-      DBUG_RETURN(1);
-  }
-
-  /* Reset of sum functions */
   first_record= 0;
 
   if (exec_tmp_table1)
@@ -1147,6 +1136,7 @@ JOIN::reinit()
   if (tmp_join)
     restore_tmp();
 
+  /* Reset of sum functions */
   if (sum_funcs)
   {
     Item_sum *func, **func_ptr= sum_funcs;
@@ -13486,7 +13476,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   else
   {
     thd->lex->current_select= first;
-    unit->set_limit(unit->global_parameters, first);
+    unit->set_limit(unit->global_parameters);
     res= mysql_select(thd, &first->ref_pointer_array,
 			(TABLE_LIST*) first->table_list.first,
 			first->with_wild, first->item_list,

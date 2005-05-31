@@ -3208,7 +3208,7 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 */
 
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-                  TABLE_LIST **leaves, bool refresh, bool select_insert)
+                  TABLE_LIST **leaves, bool select_insert)
 {
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
@@ -3261,17 +3261,14 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
     my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
     DBUG_RETURN(1);
   }
-  if (!refresh)
+  for (TABLE_LIST *table_list= tables;
+       table_list;
+       table_list= table_list->next_local)
   {
-    for (TABLE_LIST *table_list= tables;
-	 table_list;
-	 table_list= table_list->next_local)
-    {
-      if (table_list->ancestor &&
-	table_list->setup_ancestor(thd, conds,
-				   table_list->effective_with_check))
-        DBUG_RETURN(1);
-    }
+    if (table_list->ancestor &&
+        table_list->setup_ancestor(thd, conds,
+                                   table_list->effective_with_check))
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }

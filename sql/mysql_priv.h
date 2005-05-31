@@ -884,8 +884,7 @@ bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   List_iterator<Item> *it, bool any_privileges,
                    bool allocate_view_names);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-		  TABLE_LIST **leaves, bool refresh_only,
-                  bool select_insert);
+		  TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
