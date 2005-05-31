@@ -292,3 +292,15 @@ create table r2 (a int, b int);
 insert into r2 values (1,1), (2,2);
 select  b x, (select group_concat(x) from r2) from  r2;
 drop table r2;
+
+#
+# Bug #7405: problems with rollup
+#
+
+create table t1 (d int, a int, b int, c int);
+insert into t1(a,b) values (1,3), (1,4), (1,2), (2,7), (1,1), (1,2), (2,3), (2,3);
+select a, group_concat(b) from t1 group by a with rollup;
+select a, group_concat(distinct b) from t1 group by a with rollup;
+select a, group_concat(b order by b) from t1 group by a with rollup;
+select a, group_concat(distinct b order by b) from t1 group by a with rollup;
+drop table t1;
