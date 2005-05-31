@@ -249,11 +249,11 @@ select product, country_id , year, sum(profit) from t1 group by product, country
 product	country_id	year	sum(profit)
 select concat(':',product,':'), sum(profit),avg(profit) from t1 group by product with rollup;
 concat(':',product,':')	sum(profit)	avg(profit)
-:Calculator:	275	68.7500
-:Computer:	6900	1380.0000
-:Phone:	10	10.0000
-:TV:	600	120.0000
-:TV:	7785	519.0000
+:Calculator:	275	68.75000
+:Computer:	6900	1380.00000
+:Phone:	10	10.00000
+:TV:	600	120.00000
+NULL	7785	519.00000
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
 ERROR 42000: This version of MySQL doesn't yet support 'CUBE'
 explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
@@ -503,7 +503,7 @@ a+1
 NULL
 SELECT a+SUM(a) FROM t1 GROUP BY a WITH ROLLUP;
 a+SUM(a)
-2
+3
 4
 NULL
 SELECT a, a+1 as b FROM t1 GROUP BY a WITH ROLLUP HAVING b > 2;
