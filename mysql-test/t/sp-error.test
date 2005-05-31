@@ -921,6 +921,16 @@ end|
 
 
 #
+# BUG#9529: Stored Procedures: No Warning on truncation of procedure name
+#           during creation.
+#
+--error ER_TOO_LONG_IDENT
+create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890()
+begin
+end|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
