@@ -1854,7 +1854,8 @@ class multi_delete :public select_result_interceptor
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
-  bool do_delete, transactional_tables, normal_tables;
+  bool do_delete, transactional_tables, normal_tables, delete_while_scanning;
+
 public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
@@ -1862,7 +1863,7 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_deletes (bool from_send_error);
+  int  do_deletes();
   bool send_eof();
 };
 
