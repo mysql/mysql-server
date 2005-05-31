@@ -467,6 +467,8 @@ drop table t1,t2;
 # This tests two additional possible errors and a hang if 
 # an improper fix is present.
 #
+connection default;
+use test;
 create table t1 (a int);
 --error 1093
 create table t1 select * from t1;
