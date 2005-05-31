@@ -396,7 +396,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   else
   {
     if (table_list->schema_table)
-      protocol->store(table_list->schema_table_name, system_charset_info);
+      protocol->store(table_list->schema_table->table_name,
+                      system_charset_info);
     else
       protocol->store(table->alias, system_charset_info);
     if (store_create_info(thd, table_list, &buffer))
@@ -757,7 +758,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   else
     packet->append("CREATE TABLE ", 13);
   if (table_list->schema_table)
-    alias= table_list->schema_table_name;
+    alias= table_list->schema_table->table_name;
   else
     alias= (lower_case_table_names == 2 ? table->alias :
             share->table_name);
