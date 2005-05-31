@@ -72,6 +72,7 @@ case "$cpu_family--$model_name" in
     ;;
   *ppc)
     cpu_flag="powerpc";
+    no_march=1;
     ;;
   *)
     cpu_flag="";
@@ -106,6 +107,9 @@ case "$cc_ver--$cc_verno" in
       cpu_flag="$cpu_flag_old"
     fi
     check_cpu_cflags="-mcpu=$cpu_flag -march=$cpu_flag"
+    if test -n "$no_march"; then
+      check_cpu_cflags="-mcpu=$cpu_flag"
+    fi
     ;;
   *)
     check_cpu_cflags=""

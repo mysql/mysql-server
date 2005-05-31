@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -297,8 +297,24 @@ longlong Item::val_int_from_decimal()
 }
 
 
+void *Item::operator new(size_t size, Item *reuse, uint *rsize)
+{
+  if (reuse && size <= reuse->rsize)
+  {
+    reuse->cleanup();
+    TRASH((void *)reuse, size);
+    if (rsize)
+      (*rsize)= reuse->rsize;
+    return (void *)reuse;
+  }
+  if (rsize)
+    (*rsize)= size;
+  return (void *)sql_alloc((uint)size);
+}
+
+
 Item::Item():
-  name(0), orig_name(0), name_length(0), fixed(0),
+  rsize(0), name(0), orig_name(0), name_length(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE)
 {
   marker= 0;
@@ -330,6 +346,7 @@ Item::Item():
   tables
 */
 Item::Item(THD *thd, Item *item):
+  rsize(0),
   str_value(item->str_value),
   name(item->name),
   orig_name(item->orig_name),
@@ -3688,6 +3705,7 @@ Item_hex_string::Item_hex_string(const char *str, uint str_length)
   *ptr=0;					// Keep purify happy
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
+  unsigned_flag= 1;
 }
 
 longlong Item_hex_string::val_int()
@@ -4558,40 +4576,40 @@ void Item_insert_value::print(String *str)
 
 
 /*
-  Bind item representing field of row being changed in trigger
-  to appropriate Field object.
+  Find index of Field object which will be appropriate for item
+  representing field of row being changed in trigger.
 
   SYNOPSIS
     setup_field()
       thd   - current thread context
       table - table of trigger (and where we looking for fields)
-      event - type of trigger event
 
   NOTE
     This function does almost the same as fix_fields() for Item_field
-    but is invoked during trigger definition parsing and takes TABLE
-    object as its argument. If proper field was not found in table
-    error will be reported at fix_fields() time.
+    but is invoked right after trigger definition parsing. Since at
+    this stage we can't say exactly what Field object (corresponding
+    to TABLE::record[0] or TABLE::record[1]) should be bound to this
+    Item, we only find out index of the Field and then select concrete
+    Field object in fix_fields() (by that time Table_trigger_list::old_field/
+    new_field should point to proper array of Fields).
+    It also binds Item_trigger_field to Table_triggers_list object for
+    table of trigger which uses this item.
 */
-void Item_trigger_field::setup_field(THD *thd, TABLE *table,
-                                     enum trg_event_type event)
+
+void Item_trigger_field::setup_field(THD *thd, TABLE *table)
 {
-  uint field_idx= (uint)-1;
   bool save_set_query_id= thd->set_query_id;
 
   /* TODO: Think more about consequences of this step. */
   thd->set_query_id= 0;
-
-  if (find_field_in_real_table(thd, table, field_name,
-                                     strlen(field_name), 0, 0,
-                                     &field_idx))
-  {
-    field= (row_version == OLD_ROW && event == TRG_EVENT_UPDATE) ?
-             table->triggers->old_field[field_idx] :
-             table->field[field_idx];
-  }
-
+  /*
+    Try to find field by its name and if it will be found
+    set field_idx properly.
+  */
+  (void)find_field_in_real_table(thd, table, field_name, strlen(field_name),
+                                 0, 0, &field_idx);
   thd->set_query_id= save_set_query_id;
+  triggers= table->triggers;
 }
 
 
@@ -4616,9 +4634,10 @@ bool Item_trigger_field::fix_fields(THD *thd,
   */
   DBUG_ASSERT(fixed == 0);
 
-  if (field)
+  if (field_idx != (uint)-1)
   {
-    // QQ: May be this should be moved to setup_field?
+    field= (row_version == OLD_ROW) ? triggers->old_field[field_idx] :
+                                      triggers->new_field[field_idx];
     set_field(field);
     fixed= 1;
     return 0;

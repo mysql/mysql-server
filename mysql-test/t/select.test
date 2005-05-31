@@ -1998,6 +1998,15 @@ select distinct all * from t1;
 drop table t1;
 
 #
+
+#
+# Test for Bug#8009, SELECT failed on bigint unsigned when using HEX
+#
+
+CREATE TABLE t1 (b BIGINT(20) UNSIGNED NOT NULL, PRIMARY KEY (b));
+INSERT INTO t1 VALUES (0x8000000000000000);
+SELECT b FROM t1 WHERE b=0x8000000000000000;
+DROP TABLE t1;
 # Test for bug #6474
 #
 

@@ -17,7 +17,7 @@
 
 /* mysql_select and join optimization */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -233,7 +233,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   else
   {
     SELECT_LEX_UNIT *unit= &lex->unit;
-    unit->set_limit(unit->global_parameters, select_lex);
+    unit->set_limit(unit->global_parameters);
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
       every PS/SP execution new, we will not need reset this flag if 
@@ -342,7 +342,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
        setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
-                    FALSE, FALSE)) ||
+                    FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -465,13 +465,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   count_field_types(&tmp_table_param, all_fields, 0);
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
   this->group= group_list != 0;
-  row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
-	      unit_arg->select_limit_cnt);
-  /* select_limit is used to decide if we are likely to scan the whole table */
-  select_limit= unit_arg->select_limit_cnt;
-  if (having || (select_options & OPTION_FOUND_ROWS))
-    select_limit= HA_POS_ERROR;
-  do_send_rows = (unit_arg->select_limit_cnt) ? 1 : 0;
   unit= unit_arg;
 
 #ifdef RESTRICTED_GROUP
@@ -550,6 +543,13 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
+  row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
+	      unit->select_limit_cnt);
+  /* select_limit is used to decide if we are likely to scan the whole table */
+  select_limit= unit->select_limit_cnt;
+  if (having || (select_options & OPTION_FOUND_ROWS))
+    select_limit= HA_POS_ERROR;
+  do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
     thd->lex->current_select->no_error= 1;
@@ -1106,18 +1106,7 @@ int
 JOIN::reinit()
 {
   DBUG_ENTER("JOIN::reinit");
-  /* TODO move to unit reinit */
-  unit->set_limit(select_lex, select_lex);
 
-  /* conds should not be used here, it is added just for safety */
-  if (tables_list)
-  {
-    if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
-                     TRUE, FALSE))
-      DBUG_RETURN(1);
-  }
-
-  /* Reset of sum functions */
   first_record= 0;
 
   if (exec_tmp_table1)
@@ -1143,6 +1132,7 @@ JOIN::reinit()
   if (tmp_join)
     restore_tmp();
 
+  /* Reset of sum functions */
   if (sum_funcs)
   {
     Item_sum *func, **func_ptr= sum_funcs;
@@ -2821,17 +2811,14 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond_func->functype() == Item_func::NOT_FUNC)
   {
     Item *item= cond_func->arguments()[0];
-    /* 
-       At this moment all NOT before simple comparison predicates
-       are eliminated. NOT IN and NOT BETWEEN are treated similar
-       IN and BETWEEN respectively.
+    /*
+      At this moment all NOT before simple comparison predicates
+      are eliminated. NOT IN and NOT BETWEEN are treated similar
+      IN and BETWEEN respectively.
     */
     if (item->type() == Item::FUNC_ITEM &&
         ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
-    {
       add_key_fields(key_fields,and_level,item,usable_tables);
-      return;
-    }
     return;
   }
   switch (cond_func->select_optimize()) {
@@ -3795,8 +3782,7 @@ choose_plan(JOIN *join, table_map join_tables)
     Don't update last_query_cost for 'show status' command
   */
   if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
-    last_query_cost= join->best_read;
-
+    join->thd->status_var.last_query_cost= join->best_read;
   DBUG_VOID_RETURN;
 }
 
@@ -12320,7 +12306,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 {
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
-  Copy_field *copy;
+  Copy_field *copy= NULL;
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
@@ -12328,7 +12314,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   uint i, border= all_fields.elements - elements;
   DBUG_ENTER("setup_copy_fields");
 
-  if (!(copy=param->copy_field= new Copy_field[param->field_count]))
+  if (param->field_count && 
+      !(copy=param->copy_field= new Copy_field[param->field_count]))
     goto err2;
 
   param->copy_funcs.empty();
@@ -12367,9 +12354,12 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
-	copy->set(tmp, item->result_field);
-	item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-	copy++;
+      if (copy)
+      {
+        copy->set(tmp, item->result_field);
+        item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
+        copy++;
+      }				
       }
     }
     else if ((pos->type() == Item::FUNC_ITEM ||
@@ -12412,7 +12402,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   DBUG_RETURN(0);
 
  err:
-  delete [] param->copy_field;			// This is never 0
+  if (copy)
+    delete [] param->copy_field;			// This is never 0
   param->copy_field=0;
 err2:
   DBUG_RETURN(TRUE);
@@ -13488,7 +13479,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   else
   {
     thd->lex->current_select= first;
-    unit->set_limit(unit->global_parameters, first);
+    unit->set_limit(unit->global_parameters);
     res= mysql_select(thd, &first->ref_pointer_array,
 			(TABLE_LIST*) first->table_list.first,
 			first->with_wild, first->item_list,

@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
 
@@ -40,19 +40,39 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   m_saved.empty();
 }
 
-int
-sp_rcontext::set_item_eval(uint idx, Item **item_addr, enum_field_types type)
-{
-  extern Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type);
-  Item *it= sp_eval_func_item(current_thd, item_addr, type);
 
+int
+sp_rcontext::set_item_eval(THD *thd, uint idx, Item **item_addr,
+			   enum_field_types type)
+{
+  extern Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
+				 Item *reuse);
+  Item *it;
+  Item *reuse_it;
+  Item *old_item_next;
+  Item *old_free_list= thd->free_list;
+  int res;
+  LINT_INIT(old_item_next);
+
+  if ((reuse_it= get_item(idx)))
+    old_item_next= reuse_it->next;
+  it= sp_eval_func_item(thd, item_addr, type, reuse_it);
   if (! it)
-    return -1;
+    res= -1;
   else
   {
+    res= 0;
+    if (reuse_it && it == reuse_it)
+    {
+      // A reused item slot, where the constructor put it in the free_list,
+      // so we have to restore the list.
+      thd->free_list= old_free_list;
+      it->next= old_item_next;
+    }
     set_item(idx, it);
-    return 0;
   }
+
+  return res;
 }
 
 bool
@@ -111,7 +131,10 @@ void
 sp_rcontext::save_variables(uint fp)
 {
   while (fp < m_count)
-    m_saved.push_front(m_frame[fp++]);
+  {
+    m_saved.push_front(m_frame[fp]);
+    m_frame[fp++]= NULL;	// Prevent reuse
+  }
 }
 
 void
@@ -230,7 +253,12 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
   for (fldcount= 0 ; (pv= li++) ; fldcount++)
   {
     Item *it;
+    Item *reuse;
+    uint rsize;
+    Item *old_item_next;
+    Item *old_free_list= thd->free_list;
     const char *s;
+    LINT_INIT(old_item_next);
 
     if (fldcount >= m_prot->get_field_count())
     {
@@ -238,9 +266,13 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
                  ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
       return -1;
     }
+
+    if ((reuse= thd->spcont->get_item(pv->offset)))
+      old_item_next= reuse->next;
+
     s= row[fldcount];
     if (!s)
-      it= new Item_null();
+      it= new(reuse, &rsize) Item_null();
     else
     {
       /*
@@ -255,22 +287,31 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
       len= (*next -s)-1;
       switch (sp_map_result_type(pv->type)) {
       case INT_RESULT:
-	it= new Item_int(s);
+	it= new(reuse, &rsize) Item_int(s);
 	break;
       case REAL_RESULT:
-        it= new Item_float(s, len);
+        it= new(reuse, &rsize) Item_float(s, len);
 	break;
       case DECIMAL_RESULT:
-        it= new Item_decimal(s, len, thd->db_charset);
+        it= new(reuse, &rsize) Item_decimal(s, len, thd->db_charset);
         break;
       case STRING_RESULT:
         /* TODO: Document why we do an extra copy of the string 's' here */
-        it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
+        it= new(reuse, &rsize) Item_string(thd->strmake(s, len), len,
+					   thd->db_charset);
         break;
       case ROW_RESULT:
       default:
         DBUG_ASSERT(0);
       }
+    }
+    it->rsize= rsize;
+    if (reuse && it == reuse)
+    {
+      // A reused item slot, where the constructor put it in the free_list,
+      // so we have to restore the list.
+      thd->free_list= old_free_list;
+      it->next= old_item_next;
     }
     thd->spcont->set_item(pv->offset, it);
   }

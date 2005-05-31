@@ -233,7 +233,8 @@ File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
   File file;
   DBUG_ENTER("open_binlog");
 
-  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
+  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY | O_SHARE, 
+                      MYF(MY_WME))) < 0)
   {
     sql_print_error("Failed to open log (file '%s', errno %d)",
                     log_file_name, my_errno);

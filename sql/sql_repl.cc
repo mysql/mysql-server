@@ -1479,9 +1479,12 @@ bool show_binlog_info(THD* thd)
 bool show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
+  LOG_INFO cur;
+  File file;
   char fname[FN_REFLEN];
   List<Item> field_list;
   uint length;
+  int cur_dir_len;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlogs");
 
@@ -1492,21 +1495,44 @@ bool show_binlogs(THD* thd)
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
+  field_list.push_back(new Item_return_int("File_size", 20, 
+                                           MYSQL_TYPE_LONGLONG));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
-  
+
+  mysql_bin_log.get_current_log(&cur);
+  cur_dir_len= dirname_length(cur.log_file_name);
+
   reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 0);
 
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)
   {
+    int dir_len;
+    ulonglong file_length= 0;                   // Length if open fails
+    fname[--length] = '\0';                     // remove the newline
+
     protocol->prepare_for_resend();
-    int dir_len = dirname_length(fname);
-    /* The -1 is for removing newline from fname */
-    protocol->store(fname + dir_len, length-1-dir_len, &my_charset_bin);
+    dir_len= dirname_length(fname);
+    length-= dir_len;
+    protocol->store(fname + dir_len, length, &my_charset_bin);
+
+    if (!(strncmp(fname+dir_len, cur.log_file_name+cur_dir_len, length)))
+      file_length= cur.pos;  /* The active log, use the active position */
+    else
+    {
+      /* this is an old log, open it and find the size */
+      if ((file= my_open(fname+dir_len, O_RDONLY | O_SHARE | O_BINARY,
+                         MYF(0))) >= 0)
+      {
+        file_length= (ulonglong) my_seek(file, 0L, MY_SEEK_END, MYF(0));
+        my_close(file, MYF(0));
+      }
+    }
+    protocol->store(file_length);
     if (protocol->write())
       goto err;
   }

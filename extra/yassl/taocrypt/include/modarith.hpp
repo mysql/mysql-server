@@ -27,14 +27,13 @@
 #define TAO_CRYPT_MODARITH_HPP
 
 #include "misc.hpp"
-#include "integer.hpp"
 #include "algebra.hpp"
 
 namespace TaoCrypt {
 
 
-//! ModularArithmetic
-class ModularArithmetic : public AbstractRing<Integer>
+// ModularArithmetic
+class ModularArithmetic : public AbstractRing
 {
 public:
 
@@ -45,7 +44,7 @@ public:
         : modulus(modulus), result((word)0, modulus.reg_.size()) {}
 
     ModularArithmetic(const ModularArithmetic &ma)
-        : AbstractRing<Integer>(),
+        : AbstractRing(),
         modulus(ma.modulus), result((word)0, modulus.reg_.size()) {}
 
     const Integer& GetModulus() const {return modulus;}
@@ -149,12 +148,12 @@ public:
 
     Integer CascadeExponentiate(const Integer &x, const Integer &e1,
                                 const Integer &y, const Integer &e2) const
-        {return AbstractRing<Integer>::CascadeExponentiate(x, e1, y, e2);}
+        {return AbstractRing::CascadeExponentiate(x, e1, y, e2);}
 
     void SimultaneousExponentiate(Element *results, const Element &base,
             const Integer *exponents, unsigned int exponentsCount) const
-        {AbstractRing<Integer>::SimultaneousExponentiate(results, base,
-                                              exponents, exponentsCount);}
+        {AbstractRing::SimultaneousExponentiate(results, base,
+                                                exponents, exponentsCount);}
 
 private:
     Integer u;

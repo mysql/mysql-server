@@ -85,7 +85,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       DBUG_RETURN(TRUE);
     }
 
-    if (!(table->triggers= new (&table->mem_root) Table_triggers_list()))
+    if (!(table->triggers= new (&table->mem_root) Table_triggers_list(table)))
       DBUG_RETURN(TRUE);
   }
 
@@ -190,17 +190,16 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
     to other tables from trigger we won't be able to catch changes in other
     tables...
 
-    To simplify code a bit we have to create Fields for accessing to old row
-    values if we have ON UPDATE trigger.
+    Since we don't plan to access to contents of the fields it does not
+    matter that we choose for both OLD and NEW values the same versions
+    of Field objects here.
   */
-  if (!old_field && lex->trg_chistics.event == TRG_EVENT_UPDATE &&
-      prepare_old_row_accessors(table))
-    return 1;
+  old_field= new_field= table->field;
 
   for (trg_field= (Item_trigger_field *)(lex->trg_table_fields.first);
        trg_field; trg_field= trg_field->next_trg_field)
   {
-    trg_field->setup_field(thd, table, lex->trg_chistics.event);
+    trg_field->setup_field(thd, table);
     if (!trg_field->fixed &&
         trg_field->fix_fields(thd, (TABLE_LIST *)0, (Item **)0))
       return 1;
@@ -318,34 +317,35 @@ Table_triggers_list::~Table_triggers_list()
     for (int j= 0; j < 2; j++)
       delete bodies[i][j];
 
-  if (old_field)
-    for (Field **fld_ptr= old_field; *fld_ptr; fld_ptr++)
+  if (record1_field)
+    for (Field **fld_ptr= record1_field; *fld_ptr; fld_ptr++)
       delete *fld_ptr;
 }
 
 
 /*
-  Prepare array of Field objects which will represent OLD.* row values in
-  ON UPDATE trigger (by referencing to record[1] instead of record[0]).
+  Prepare array of Field objects referencing to TABLE::record[1] instead
+  of record[0] (they will represent OLD.* row values in ON UPDATE trigger
+  and in ON DELETE trigger which will be called during REPLACE execution).
 
   SYNOPSIS
-    prepare_old_row_accessors()
+    prepare_record1_accessors()
       table - pointer to TABLE object for which we are creating fields.
 
   RETURN VALUE
     False - success
     True  - error
 */
-bool Table_triggers_list::prepare_old_row_accessors(TABLE *table)
+bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
 {
   Field **fld, **old_fld;
 
-  if (!(old_field= (Field **)alloc_root(&table->mem_root,
-                                        (table->s->fields + 1) *
-                                        sizeof(Field*))))
+  if (!(record1_field= (Field **)alloc_root(&table->mem_root,
+                                            (table->s->fields + 1) *
+                                            sizeof(Field*))))
     return 1;
 
-  for (fld= table->field, old_fld= old_field; *fld; fld++, old_fld++)
+  for (fld= table->field, old_fld= record1_field; *fld; fld++, old_fld++)
   {
     /*
       QQ: it is supposed that it is ok to use this function for field
@@ -406,7 +406,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                  parser->type()->length))
     {
       Table_triggers_list *triggers=
-        new (&table->mem_root) Table_triggers_list();
+        new (&table->mem_root) Table_triggers_list(table);
 
       if (!triggers)
         DBUG_RETURN(1);
@@ -417,8 +417,11 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       table->triggers= triggers;
 
-      /* TODO: This could be avoided if there is no ON UPDATE trigger. */
-      if (triggers->prepare_old_row_accessors(table))
+      /*
+        TODO: This could be avoided if there is no triggers
+              for UPDATE and DELETE.
+      */
+      if (triggers->prepare_record1_accessors(table))
         DBUG_RETURN(1);
 
       List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
@@ -478,7 +481,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                (Item_trigger_field *)(lex.trg_table_fields.first);
              trg_field;
              trg_field= trg_field->next_trg_field)
-          trg_field->setup_field(thd, table, lex.trg_chistics.event);
+          trg_field->setup_field(thd, table);
 
         lex_end(&lex);
       }

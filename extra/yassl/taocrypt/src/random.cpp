@@ -26,7 +26,6 @@
 
 #include "runtime.hpp"
 #include "random.hpp"
-#include "stdexcept.hpp"
 
 #if defined(WIN32)
     #define _WIN32_WINNT 0x0400
