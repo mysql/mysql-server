@@ -4023,6 +4023,12 @@ unsent_create_error:
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
+    case SP_BAD_IDENTIFIER:
+      my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+      lex->unit.cleanup();
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
     default:
       my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
       lex->unit.cleanup();
@@ -4990,11 +4996,18 @@ long max_stack_used;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
+/*
+  Note: The 'buf' parameter is necessary, even if it is unused here.
+  - fix_fields functions has a "dummy" buffer large enough for the
+    corresponding exec. (Thus we only have to check in fix_fields.)
+  - Passing to check_stack_overrun() prevents the compiler from removing it.
+ */
+bool check_stack_overrun(THD *thd, long margin,
+			 char *buf __attribute__((unused)))
 {
   long stack_used;
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      (long) thread_stack_min)
+      thread_stack - margin)
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
     my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));
