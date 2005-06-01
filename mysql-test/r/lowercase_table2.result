@@ -72,7 +72,7 @@ T1	CREATE TABLE `T1` (
 RENAME TABLE T1 TO T2;
 SHOW TABLES LIKE "T2";
 Tables_in_test (T2)
-t2
+T2
 SELECT * FROM t2;
 a
 1
@@ -83,25 +83,25 @@ t3
 RENAME TABLE T3 TO T1;
 SHOW TABLES LIKE "T1";
 Tables_in_test (T1)
-t1
+T1
 ALTER TABLE T1 add b int;
 SHOW TABLES LIKE "T1";
 Tables_in_test (T1)
-t1
+T1
 ALTER TABLE T1 RENAME T2;
 SHOW TABLES LIKE "T2";
 Tables_in_test (T2)
-t2
+T2
 LOCK TABLE T2 WRITE;
 ALTER TABLE T2 drop b;
 SHOW TABLES LIKE "T2";
 Tables_in_test (T2)
-t2
+T2
 UNLOCK TABLES;
 RENAME TABLE T2 TO T1;
 SHOW TABLES LIKE "T1";
 Tables_in_test (T1)
-t1
+T1
 SELECT * from T1;
 a
 1
