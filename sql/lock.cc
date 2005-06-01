@@ -82,8 +82,24 @@ static int unlock_external(THD *thd, TABLE **table,uint count);
 static void print_lock_error(int error, const char *);
 
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
-                              bool ignore_global_read_lock)
+/*
+  Lock tables.
+
+  SYNOPSIS
+    mysql_lock_tables()
+    thd                         The current thread.
+    tables                      An array of pointers to the tables to lock.
+    count                       The number of tables to lock.
+    flags                       Options:
+      MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      Ignore a global read lock
+      MYSQL_LOCK_IGNORE_FLUSH                 Ignore a flush tables.
+
+  RETURN
+    A lock structure pointer on success.
+    NULL on error.
+*/
+
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
 {
   MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
@@ -94,7 +110,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     if (!(sql_lock = get_lock_data(thd,tables,count, 0,&write_lock_used)))
       break;
 
-    if (global_read_lock && write_lock_used && ! ignore_global_read_lock)
+    if (global_read_lock && write_lock_used &&
+        ! (flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK))
     {
       /*
 	Someone has issued LOCK ALL TABLES FOR READ and we want a write lock
@@ -128,7 +145,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       thd->some_tables_deleted=1;		// Try again
       sql_lock->lock_count=0;			// Locks are alread freed
     }
-    else if (!thd->some_tables_deleted)
+    else if (!thd->some_tables_deleted || (flags & MYSQL_LOCK_IGNORE_FLUSH))
     {
       thd->locked=0;
       break;
@@ -948,51 +965,6 @@ bool make_global_read_lock_block_commit(THD *thd)
     thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
   thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   DBUG_RETURN(error);
-}
-
-
-
-/*
-  Set protection against global read lock.
-
-  SYNOPSIS
-    set_protect_against_global_read_lock()
-    void
-
-  RETURN
-    FALSE       OK, no global read lock exists.
-    TRUE        Error, global read lock exists already.
-*/
-
-bool set_protect_against_global_read_lock(void)
-{
-  bool       global_read_lock_exists;
-
-  pthread_mutex_lock(&LOCK_open);
-  if (! (global_read_lock_exists= test(global_read_lock)))
-    protect_against_global_read_lock++;
-  pthread_mutex_unlock(&LOCK_open);
-  return global_read_lock_exists;
-}
-
-
-/*
-  Unset protection against global read lock.
-
-  SYNOPSIS
-    unset_protect_against_global_read_lock()
-    void
-
-  RETURN
-    void
-*/
-
-void unset_protect_against_global_read_lock(void)
-{
-  pthread_mutex_lock(&LOCK_open);
-  protect_against_global_read_lock--;
-  pthread_mutex_unlock(&LOCK_open);
-  pthread_cond_broadcast(&COND_refresh);
 }
 
 
