@@ -931,6 +931,29 @@ end|
 
 
 #
+# BUG#10969: Stored procedures: crash if default() function
+#
+--disable_warnings
+drop procedure if exists bug10969|
+--enable_warnings
+--error ER_WRONG_COLUMN_NAME
+create procedure bug10969()
+begin
+  declare s1 int default 0;
+  select default(s1) from t30;
+end|
+
+# This should work
+create procedure bug10969()
+begin
+  declare s1 int default 0;
+  select default(t30.s1) from t30;
+end|
+
+drop procedure bug10969|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
