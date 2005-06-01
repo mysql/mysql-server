@@ -114,7 +114,7 @@ then
   MY_BASEDIR_VERSION=$MY_PWD		# Where bin, share and data are
   ledir=$MY_BASEDIR_VERSION/bin		# Where mysqld is
   DATADIR=$MY_BASEDIR_VERSION/data
-  if test -z "$defaults"
+  if test -z "$defaults" -a -r "$DATADIR/my.cnf"
   then
     defaults="--defaults-extra-file=$DATADIR/my.cnf"
   fi
