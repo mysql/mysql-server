@@ -76,7 +76,7 @@ fi
 # Validate that all interesting
 #   variables where set in conf
 ###############################
-vars="target base_dir src_clone install_dir build_dir hosts configure"
+vars="target base_dir src_clone_base install_dir build_dir hosts configure"
 if [ "$report" ]
 then
 	vars="$vars result_host result_path"
