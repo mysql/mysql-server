@@ -17,6 +17,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 int parse_output_and_get_value(const char *command, const char *word,
-                               char *result, size_t result_len);
+                               char *result, size_t result_len,
+                               int get_all_line= 0);
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_OUTPUT_H */

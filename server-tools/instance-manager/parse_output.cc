@@ -32,10 +32,13 @@
     word         the word to look for (usually an option name)
     result       the buffer to store the next word (option value)
     result_len   self-explanatory
+    get_all_line flag, which is set if we want to get all the line after
+                 the matched word.
 
   DESCRIPTION
 
     Parse output of the "command". Find the "word" and return the next one
+    if get_all_line is 0. Return the rest of the parsed string otherwise.
 
   RETURN
     0 - ok
@@ -43,7 +46,8 @@
 */
 
 int parse_output_and_get_value(const char *command, const char *word,
-                               char *result, size_t result_len)
+                               char *result, size_t result_len,
+                               int get_all_line)
 {
   FILE *output;
   uint wordlen;
@@ -81,11 +85,19 @@ int parse_output_and_get_value(const char *command, const char *word,
         an option value.
       */
       linep+= lineword_len;                     /* swallow the previous one */
-      get_word((const char **) &linep, &lineword_len, NONSPACE);
-      if (result_len <= lineword_len)
-        goto err;
-      strncpy(result, linep, lineword_len);
-      result[lineword_len]= '\0';
+      if (!get_all_line)
+      {
+        get_word((const char **) &linep, &lineword_len, NONSPACE);
+        if (result_len <= lineword_len)
+          goto err;
+        strncpy(result, linep, lineword_len);
+        result[lineword_len]= '\0';
+      }
+      else
+      {
+        strncpy(result, linep, result_len);
+        result[result_len]= '\0'; /* safety */
+      }
       goto pclose;
     }
   }
