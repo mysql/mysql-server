@@ -100,13 +100,13 @@ public:
         CheckSize(n);
         if (n == 0)
             return 0;
-        return new T[n];
+        return new (tc) T[n];
     }
 
     void deallocate(void* p, size_type n)
     {
         memset(p, 0, n * sizeof(T));
-        delete [] (T*)p;
+        tcArrayDelete((T*)p);
     }
 
     pointer reallocate(T* p, size_type oldSize, size_type newSize,

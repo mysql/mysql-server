@@ -21,7 +21,6 @@
 
 /* based on Wei Dai's rsa.cpp from CryptoPP */
 
-#include "runtime.hpp"
 #include "rsa.hpp"
 #include "asn.hpp"
 #include "modarith.hpp"
@@ -210,22 +209,5 @@ word32 SSL_Decrypt(const RSA_PublicKey& key, const byte* sig, byte* plain)
                                   lengths.PaddedBlockBitLength(), plain);
 }
 
-#ifdef __GNUC__
-template AllocatorWithCleanup<unsigned char>::pointer StdReallocate<unsigned char, AllocatorWithCleanup<unsigned char> >(AllocatorWithCleanup<unsigned char>&, unsigned char*, AllocatorWithCleanup<unsigned char>::size_type, AllocatorWithCleanup<unsigned char>::size_type, bool);
-template AllocatorWithCleanup<unsigned int>::pointer StdReallocate<unsigned int, AllocatorWithCleanup<unsigned int> >(AllocatorWithCleanup<unsigned int>&, unsigned int*, AllocatorWithCleanup<unsigned int>::size_type, AllocatorWithCleanup<unsigned int>::size_type, bool);
-template class RSA_Decryptor<RSA_BlockType2>;
-template class RSA_Encryptor<RSA_BlockType1>;
-template class RSA_Encryptor<RSA_BlockType2>;
-#endif
 
 } // namespace
-
-#ifdef __GNUC__
-namespace mySTL {
-template TaoCrypt::Integer* uninit_copy<TaoCrypt::Integer*, TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*, TaoCrypt::Integer*);
-template TaoCrypt::Integer* uninit_fill_n<TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer>(TaoCrypt::Integer*, unsigned int, TaoCrypt::Integer const&);
-template void destroy<TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*);
-}
-#endif
-
-
