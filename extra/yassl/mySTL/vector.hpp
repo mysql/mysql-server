@@ -27,11 +27,10 @@
 #ifndef mySTL_VECTOR_HPP
 #define mySTL_VECTOR_HPP
 
-
 #include "helpers.hpp"    // construct, destory, fill, etc.
 #include "algorithm.hpp"  // swap
-#include <new>            // ::operator new and delete, placement too
 #include <assert.h>       // assert
+#include <stdlib.h>       // malloc
 
 
 namespace mySTL {
@@ -46,13 +45,13 @@ struct vector_base {
     vector_base() : start_(0), finish_(0), end_of_storage_(0) {}
     vector_base(size_t n)
     {
-        start_ = static_cast<T*>(::operator new(n * sizeof(T)));
+        start_ = static_cast<T*>(malloc(n * sizeof(T)));
         if (!start_) abort();
         finish_ = start_;
         end_of_storage_ = start_ + n;
     }
 
-    ~vector_base() { ::operator delete(start_); }
+    ~vector_base() { if (start_) free(start_); }
 
     void Swap(vector_base& that) 
     {
