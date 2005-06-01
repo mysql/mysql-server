@@ -322,8 +322,6 @@ void AbstractRing::SimultaneousExponentiate(Integer *results,
 #ifdef __GNUC__
 namespace mySTL {
 template TaoCrypt::WindowSlider* uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
-template vector<TaoCrypt::Integer>* uninit_fill_n<vector<TaoCrypt::Integer>*, unsigned int, vector<TaoCrypt::Integer> >(vector<TaoCrypt::Integer>*, unsigned int, vector<TaoCrypt::Integer> const&);
 template void destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
-template void destroy<vector<TaoCrypt::Integer>*>(vector<TaoCrypt::Integer>*, vector<TaoCrypt::Integer>*);
 }
 #endif
