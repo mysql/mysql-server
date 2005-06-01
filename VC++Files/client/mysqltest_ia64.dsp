@@ -55,7 +55,7 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console /debug  /out:"..\client_debug\mysqltest.exe" /libpath:"..\lib_debug\\"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 ..\lib_debug\zlib.lib ..\lib_debug\dbug.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib /nologo /subsystem:console /incremental:no /debug  /out:"..\client_debug\mysqltest.exe" /libpath:"..\lib_debug\\" /machine:IA64
+# ADD LINK32 ..\lib_debug\zlib.lib ..\lib_debug\dbug.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console /incremental:no /debug  /out:"..\client_debug\mysqltest.exe" /libpath:"..\lib_debug\\" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "mysqltest - WinIA64 classic"
@@ -84,7 +84,7 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console  /out:"..\client_classic\mysqltest.exe" /libpath:"..\lib_release\\"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"..\client_classic\mysqltest.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console  /out:"..\client_classic\mysqltest.exe" /libpath:"..\lib_release\\" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "mysqltest - WinIA64 Release"
@@ -113,7 +113,7 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console  /out:"..\client_release\mysqltest.exe" /libpath:"..\lib_release\\"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"..\client_release\mysqltest.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console  /out:"..\client_release\mysqltest.exe" /libpath:"..\lib_release\\" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 
