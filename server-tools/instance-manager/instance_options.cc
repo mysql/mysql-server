@@ -27,6 +27,39 @@
 #include <signal.h>
 #include <m_string.h>
 
+#ifdef __WIN__
+#define NEWLINE_LEN 2
+#else
+#define NEWLINE_LEN 1
+#endif
+
+
+/* Create "mysqld ..." command in the buffer */
+
+static inline int create_mysqld_command(Buffer *buf,
+                                        const char *mysqld_path_str,
+                                        uint mysqld_path_len,
+                                        const char *option,
+                                        uint option_len)
+{
+  int position= 0;
+
+  if (buf->get_size()) /* malloc succeeded */
+  {
+    buf->append(position, mysqld_path_str, mysqld_path_len);
+    position+= mysqld_path_len;
+    /* here the '\0' character is copied from the option string */
+    buf->append(position, option, option_len);
+
+    if (buf->is_error())
+      return 1;
+  }
+  else
+    return 1;
+
+  return 0;
+}
+
 
 /*
   Get compiled-in value of default_option
@@ -50,25 +83,19 @@
 int Instance_options::get_default_option(char *result, size_t result_len,
                                          const char *option_name)
 {
-  int position= 0;
   int rc= 1;
   char verbose_option[]= " --no-defaults --verbose --help";
 
-  Buffer cmd(strlen(mysqld_path) + sizeof(verbose_option) + 1);
-  if (cmd.get_size()) /* malloc succeeded */
-  {
-    cmd.append(position, mysqld_path, strlen(mysqld_path));
-    position+=  strlen(mysqld_path);
-    cmd.append(position, verbose_option, sizeof(verbose_option) - 1);
-    position+= sizeof(verbose_option) - 1;
-    cmd.append(position, "\0", 1);
+  /* reserve space fot the path + option + final '\0' */
+  Buffer cmd(mysqld_path_len + sizeof(verbose_option));
 
-    if (cmd.is_error())
-      goto err;
-    /* get the value from "mysqld --help --verbose" */
-    rc= parse_output_and_get_value(cmd.buffer, option_name + 2,
+  if (create_mysqld_command(&cmd, mysqld_path, mysqld_path_len,
+                            verbose_option, sizeof(verbose_option)))
+    goto err;
+
+  /* +2 eats first "--" from the option string (E.g. "--datadir") */
+  rc= parse_output_and_get_value(cmd.buffer, option_name + 2,
                                    result, result_len);
-  }
 
   return rc;
 err:
@@ -77,17 +104,62 @@ err:
 
 
 /*
-  Get compiled-in value of default_option
+  Fill mysqld_version option (used at initialization stage)
 
   SYNOPSYS
-    get_default_option()
-    result            buffer to put found value
-    result_len        buffer size
-    option_name       the name of the option, prefixed with "--"
+    fill_instance_version()
 
   DESCRIPTION
 
-   Get compile-in value of requested option from server
+  Get mysqld version string from "mysqld --version" output.
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
+
+int Instance_options::fill_instance_version()
+{
+  enum { MAX_VERSION_STRING_LENGTH= 160 };
+  enum { RETURN_LINE= 1 };
+  char result[MAX_VERSION_STRING_LENGTH];
+  char version_option[]= " --version";
+  int rc= 1;
+  Buffer cmd(mysqld_path_len + sizeof(version_option));
+
+  if (create_mysqld_command(&cmd, mysqld_path, mysqld_path_len,
+                            version_option, sizeof(version_option)))
+    goto err;
+
+  rc= parse_output_and_get_value(cmd.buffer, mysqld_path,
+                                 result, MAX_VERSION_STRING_LENGTH,
+                                 RETURN_LINE);
+
+  if (*result != '\0')
+  {
+    /* chop the newline from the end of the version string */
+    result[strlen(result) - NEWLINE_LEN]= '\0';
+    mysqld_version= strdup_root(&alloc, result);
+  }
+
+  return rc;
+
+err:
+  return 1;
+}
+
+
+/*
+  Fill various log options
+
+  SYNOPSYS
+    fill_log_options()
+
+  DESCRIPTION
+
+  Compute paths to enabled log files. If the path is not specified in the
+  instance explicitly (I.e. log=/home/user/mysql.log), we try to guess the
+  file name and placement.
 
   RETURN
     0 - ok
@@ -276,6 +348,8 @@ int Instance_options::complete_initialization(const char *default_path,
       goto err;
   }
 
+  mysqld_path_len= strlen(mysqld_path);
+
   if (mysqld_port)
     mysqld_port_val= atoi(strchr(mysqld_port, '=') + 1);
 
@@ -330,7 +404,8 @@ int Instance_options::complete_initialization(const char *default_path,
          options_array.elements*sizeof(char*));
   argv[filled_default_options + options_array.elements]= 0;
 
-  fill_log_options();
+  if (fill_log_options() || fill_instance_version())
+    goto err;
 
   return 0;
 
