@@ -56,7 +56,7 @@ private:
 
 
 // Mode Base for block ciphers, static size
-class Mode_BASE {
+class Mode_BASE : public virtual_base {
 public:
     enum { MaxBlockSz = 16 };
 
