@@ -1913,7 +1913,19 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
     else
       res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
-    c->post_open(thd, (lex_keeper ? TRUE : FALSE));
+    /*
+      Work around the fact that errors in selects are not returned properly
+      (but instead converted into a warning), so if a condition handler
+      caught, we have lost the result code.
+     */
+    if (!res)
+    {
+      uint dummy1, dummy2;
+
+      if (thd->spcont->found_handler(&dummy1, &dummy2))
+	res= -1;
+    }
+    c->post_open(thd, (lex_keeper && !res ? TRUE : FALSE));
   }
 
   DBUG_RETURN(res);

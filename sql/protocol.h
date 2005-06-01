@@ -159,8 +159,8 @@ public:
   MYSQL_ROWS **prev_record;
   ulong row_count;
 
-  Protocol_cursor() {}
-  Protocol_cursor(THD *thd_arg, MEM_ROOT *ini_alloc) :Protocol_simple(thd_arg), alloc(ini_alloc) {}
+  Protocol_cursor() :data(NULL) {}
+  Protocol_cursor(THD *thd_arg, MEM_ROOT *ini_alloc) :Protocol_simple(thd_arg), alloc(ini_alloc), data(NULL) {}
   bool prepare_for_send(List<Item> *item_list) 
   {
     row_count= 0;
