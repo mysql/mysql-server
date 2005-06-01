@@ -7083,12 +7083,13 @@ field_ident:
             TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->db))
             {
-              net_printf(YYTHD, ER_WRONG_DB_NAME, $1.str);
+              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
               YYABORT;
             }
-            if (my_strcasecmp(table_alias_charset, $3.str, table->real_name))
+            if (my_strcasecmp(table_alias_charset, $3.str,
+                              table->table_name))
             {
-              net_printf(YYTHD, ER_WRONG_TABLE_NAME, $3.str);
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $3.str);
               YYABORT;
             }
             $$=$5;
@@ -7098,7 +7099,7 @@ field_ident:
             TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
             {
-              net_printf(YYTHD, ER_WRONG_TABLE_NAME, $1.str);
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
               YYABORT;
             }
             $$=$3;

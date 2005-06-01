@@ -1384,7 +1384,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     MYSQL_LOCK *lock;
     /* We should always get these locks */
     thd->some_tables_deleted=0;
-    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr-tables), 0)))
+    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables), 0)))
     {
       thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
     }
