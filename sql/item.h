@@ -584,6 +584,13 @@ public:
     Item::maybe_null= TRUE;
   }
 
+  /* For error printing */
+  inline void my_name(char **strp, uint *lengthp)
+  {
+    *strp= m_name.str;
+    *lengthp= m_name.length;
+  }
+
   bool is_splocal() { return 1; } /* Needed for error checking */
 
   Item *this_item();
