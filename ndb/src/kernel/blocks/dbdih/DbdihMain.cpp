@@ -5072,6 +5072,7 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, TabRecordPtr tabPtr)
          * And reset nextLcp
          */
         replicaPtr.p->nextLcp = 0;
+        replicaPtr.p->noCrashedReplicas = 0;
       }//if
     }//for
   }//for
