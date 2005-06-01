@@ -915,6 +915,8 @@ extern "C" {
    * @param   backup_id       Backup ID is returned from function.
    * @param   reply           Reply message.
    * @return                  -1 on error.
+   * @note                    backup_id will not be returned if
+   *                          wait_completed == 0
    */
   int ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 			   unsigned int* backup_id,
