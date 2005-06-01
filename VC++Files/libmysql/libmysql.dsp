@@ -147,6 +147,10 @@ SOURCE="..\strings\ctype-czech.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-cp932.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-euc_kr.c"
 # End Source File
 # Begin Source File
