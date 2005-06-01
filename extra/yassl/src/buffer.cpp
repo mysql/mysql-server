@@ -24,7 +24,6 @@
  * with SSL types and sockets
  */
 
-#include "runtime.hpp"
 #include "buffer.hpp"
 #include "yassl_types.hpp"
 
@@ -62,13 +61,13 @@ input_buffer::input_buffer()
 
 
 input_buffer::input_buffer(uint s) 
-    : size_(0), current_(0), buffer_(new byte[s]), end_(buffer_ + s)
+    : size_(0), current_(0), buffer_(new (ys) byte[s]), end_(buffer_ + s)
 {}
 
 
 // with assign
 input_buffer::input_buffer(uint s, const byte* t, uint len) 
-    : size_(0), current_(0), buffer_(new byte[s]), end_(buffer_ + s) 
+    : size_(0), current_(0), buffer_(new (ys) byte[s]), end_(buffer_ + s) 
 { 
     assign(t, len); 
 }
@@ -76,7 +75,7 @@ input_buffer::input_buffer(uint s, const byte* t, uint len)
 
 input_buffer::~input_buffer() 
 { 
-    delete [] buffer_; 
+    ysArrayDelete(buffer_); 
 }
 
 
@@ -84,7 +83,7 @@ input_buffer::~input_buffer()
 void input_buffer::allocate(uint s) 
 { 
     assert(!buffer_);       // find realloc error
-    buffer_ = new byte[s];
+    buffer_ = new (ys) byte[s];
     end_ = buffer_ + s; 
 }
 
@@ -96,7 +95,7 @@ byte* input_buffer::get_buffer() const
 }
 
 
-// after a raw write user can set new size
+// after a raw write user can set new (ys) size
 // if you know the size before the write use assign()
 void input_buffer::add_size(uint i) 
 { 
@@ -198,13 +197,13 @@ output_buffer::output_buffer()
 
 // with allocate
 output_buffer::output_buffer(uint s) 
-    : current_(0), buffer_(new byte[s]), end_(buffer_ + s) 
+    : current_(0), buffer_(new (ys) byte[s]), end_(buffer_ + s) 
 {}
 
 
 // with assign
 output_buffer::output_buffer(uint s, const byte* t, uint len) 
-    : current_(0), buffer_(new byte[s]), end_(buffer_+ s) 
+    : current_(0), buffer_(new (ys) byte[s]), end_(buffer_+ s) 
 { 
     write(t, len); 
 }
@@ -212,7 +211,7 @@ output_buffer::output_buffer(uint s, const byte* t, uint len)
 
 output_buffer::~output_buffer() 
 { 
-    delete [] buffer_; 
+    ysArrayDelete(buffer_); 
 }
 
 
@@ -239,7 +238,7 @@ void output_buffer::set_current(uint c)
 void output_buffer::allocate(uint s) 
 { 
     assert(!buffer_);   // find realloc error
-    buffer_ = new byte[s]; end_ = buffer_ + s; 
+    buffer_ = new (ys) byte[s]; end_ = buffer_ + s; 
 }
 
 

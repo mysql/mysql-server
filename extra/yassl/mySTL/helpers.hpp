@@ -28,6 +28,7 @@
 #define mySTL_HELPERS_HPP
 
 #include <stdlib.h>
+#include <new>        // placement new
 
 
 #ifdef __IBMCPP__

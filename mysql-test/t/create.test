@@ -471,3 +471,33 @@ insert into t2 values ();
 select * from t1;
 select * from t2;
 drop table t1,t2;
+
+#
+# Bug#10224 - ANALYZE TABLE crashing with simultaneous
+# CREATE ... SELECT statement.
+# This tests two additional possible errors and a hang if 
+# an improper fix is present.
+#
+connection default;
+use test;
+create table t1 (a int);
+--error 1093
+create table t1 select * from t1;
+--error 1093
+create table t2 union = (t1) select * from t1;
+flush tables with read lock;
+unlock tables;
+drop table t1;
+
+#
+# Bug#10413: Invalid column name is not rejected
+#
+--error 1103
+create table t1(column.name int);
+--error 1103
+create table t1(test.column.name int);
+--error 1102
+create table t1(xyz.t1.name int);
+create table t1(t1.name int);
+create table t2(test.t2.name int);
+drop table t1,t2;

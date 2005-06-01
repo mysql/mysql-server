@@ -4343,7 +4343,18 @@ simple_expr:
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| DEFAULT '(' simple_ident ')'
-	  { $$= new Item_default_value($3); }
+	  {
+	    if ($3->is_splocal())
+	    {
+	      LEX_STRING name;
+	      Item_splocal *il= static_cast<Item_splocal *>($3);
+
+	      il->my_name(&name.str, &name.length);
+	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name.str);
+	      YYABORT;
+	    }
+	    $$= new Item_default_value($3);
+	  }
 	| VALUES '(' simple_ident ')'
 	  { $$= new Item_insert_value($3); }
 	| FUNC_ARG0 '(' ')'
@@ -7078,7 +7089,32 @@ simple_ident_q:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
+	| ident '.' ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->db))
+            {
+              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+              YYABORT;
+            }
+            if (my_strcasecmp(table_alias_charset, $3.str,
+                              table->table_name))
+            {
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $3.str);
+              YYABORT;
+            }
+            $$=$5;
+          }
+	| ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
+            {
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
+              YYABORT;
+            }
+            $$=$3;
+          }
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
