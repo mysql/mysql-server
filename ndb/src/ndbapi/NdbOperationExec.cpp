@@ -139,6 +139,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
     if (prepareSendInterpreted() == -1) {
       return -1;
     }//if
+    tTotalCurrAI_Len = theTotalCurrAI_Len;
   }//if
   
 //-------------------------------------------------------------
