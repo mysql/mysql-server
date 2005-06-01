@@ -1169,8 +1169,11 @@ extern pthread_t signal_thread;
 extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
-                              bool ignore_global_read_lock= FALSE);
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count, uint flags);
+/* mysql_lock_tables() flags bits */
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
+#define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
+
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
