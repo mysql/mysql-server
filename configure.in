@@ -1193,16 +1193,10 @@ EOF
     #
     echo -n "making sure specific build files are writable... "
     for file in \
-        Docs/include.texi \
         Docs/mysql.info \
-        Docs/manual.txt \
-        Docs/manual_toc.html \
-        Docs/manual.html \
         Docs/INSTALL-BINARY \
         INSTALL-SOURCE \
-        COPYING \
-        COPYING.LIB \
-        MIRRORS
+        COPYING
     do
       if test -e $file; then
         chmod +w $file
