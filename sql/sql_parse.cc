@@ -2808,7 +2808,7 @@ mysql_execute_command(THD *thd)
             unique_table(create_table, select_tables))
         {
           my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
-          goto unsent_create_error;
+          goto unsent_create_error1;
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2821,7 +2821,7 @@ mysql_execute_command(THD *thd)
             if (unique_table(tab, select_tables))
             {
               my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
-              goto unsent_create_error;
+              goto unsent_create_error1;
             }
           }
         }
@@ -2871,6 +2871,13 @@ mysql_execute_command(THD *thd)
     start_waiting_global_read_lock(thd);
     lex->link_first_table_back(create_table, link_to_local);
     break;
+
+unsent_create_error1:
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
 
     /* put tables back for PS rexecuting */
 unsent_create_error:
@@ -6959,6 +6966,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
 
+#ifdef NOT_NECESSARY_TO_CHECK_CREATE_TABLE_EXIST_WHEN_PREPARING_STATEMENT
+    /* This code throws an ill error for CREATE TABLE t1 SELECT * FROM t1 */
     /*
       Only do the check for PS, becasue we on execute we have to check that
       against the opened tables to ensure we don't use a table that is part
@@ -6977,6 +6986,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
         goto err;
       }
     }
+#endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
       goto err;
   }
