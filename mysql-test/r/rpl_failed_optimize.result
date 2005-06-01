@@ -9,6 +9,7 @@ BEGIN;
 INSERT INTO t1 VALUES (1);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	error	Lock wait timeout exceeded; try restarting transaction
 test.t1	optimize	status	Operation failed
 Warnings:
 Error	1205	Lock wait timeout exceeded; try restarting transaction
