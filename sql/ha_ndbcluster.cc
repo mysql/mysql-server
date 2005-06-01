@@ -5590,8 +5590,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   const NDBINDEX *idx= (NDBINDEX *) m_index[active_index].index; 
   const NdbOperation* lastOp= m_active_trans->getLastDefinedOperation();
   NdbIndexScanOperation* scanOp= 0;
-  for(; multi_range_curr<multi_range_end && curr+reclength <= end_of_buffer; 
-      multi_range_curr++)
+  for (; multi_range_curr<multi_range_end && curr+reclength <= end_of_buffer; 
+       multi_range_curr++)
   {
     switch(index_type){
     case PRIMARY_KEY_INDEX:
@@ -5728,7 +5728,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
   int range_no;
   ulong reclength= table->s->reclength;
   const NdbOperation* op= m_current_multi_operation;
-  for(;multi_range_curr < m_multi_range_defined; multi_range_curr++)
+  for (;multi_range_curr < m_multi_range_defined; multi_range_curr++)
   {
     if (multi_range_curr->range_flag & UNIQUE_RANGE)
     {

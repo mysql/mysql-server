@@ -82,7 +82,7 @@ public:
     if (sizeof(buffer) >= 8)
       return uint8korr(buffer);
     DBUG_ASSERT(sizeof(buffer) >= 4);
-    uint4korr(buffer);
+    return (ulonglong) uint4korr(buffer);
   }
 };
 

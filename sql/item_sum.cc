@@ -240,8 +240,12 @@ Item_sum_hybrid::Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
   case REAL_RESULT:
     sum= item->sum;
     break;
-  case STRING_RESULT: // This can happen with ROLLUP. Note that the value is already
-    break;            // copied at function call.
+  case STRING_RESULT:
+    /*
+      This can happen with ROLLUP. Note that the value is already
+      copied at function call.
+    */
+    break;
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);

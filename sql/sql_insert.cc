@@ -128,7 +128,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       /* it is join view => we need to find table for update */
       List_iterator_fast<Item> it(fields);
       Item *item;
-      TABLE_LIST *tbl= 0;
+      TABLE_LIST *tbl= 0;            // reset for call to check_single_table()
       table_map map= 0;
 
       while ((item= it++))
@@ -1012,6 +1012,7 @@ ok_or_after_trg_err:
 
 err:
   info->last_errno= error;
+  thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
 
 before_trg_err:
