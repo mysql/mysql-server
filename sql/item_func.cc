@@ -1488,6 +1488,10 @@ void Item_func_locate::print(String *str)
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
+  if (args[0]->null_value)
+    return 0;
+
   if (cmp_type == STRING_RESULT)
   {
     String *field;
@@ -1505,8 +1509,8 @@ longlong Item_func_field::val_int()
     longlong val= args[0]->val_int();
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_int())
- 	return (longlong) (i);
+      if (!args[i]->null_value && val == args[i]->val_int())
+        return (longlong) (i);
     }
   }
   else
@@ -1514,8 +1518,8 @@ longlong Item_func_field::val_int()
     double val= args[0]->val();
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val())
- 	return (longlong) (i);
+      if (!args[i]->null_value && val == args[i]->val())
+        return (longlong) (i);
     }
   }
   return 0;
