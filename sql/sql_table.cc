@@ -3764,7 +3764,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       shutdown.
     */
     char path[FN_REFLEN];
-    build_table_path(path, sizeof(path), new_db, table_name);
+    build_table_path(path, sizeof(path), new_db, table_name, "");
     table=open_temporary_table(thd, path, new_db, tmp_name,0);
     if (table)
     {
