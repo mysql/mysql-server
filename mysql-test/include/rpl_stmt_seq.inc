@@ -21,7 +21,9 @@ eval SELECT CONCAT('######## ','$my_stmt','  ########') as "";
 --enable_query_log
 
 
-### Predict the number of the current log
+###############################################################
+# Predict the number of the current log
+###############################################################
 # Disable the logging of the log number computation. 
 --disable_query_log
 # $_log_num_n should contain the number of the current binlog in numeric style.
@@ -38,7 +40,9 @@ let $_log_num_s= `select @aux`;
 # eval SELECT '$log_num' ;
 --enable_query_log
 
-# INSERT + command to be tested + ROLLBACK
+###############################################################
+# INSERT 
+###############################################################
 connection master;
 --disable_query_log
 SELECT '-------- switch to master -------' as "";
@@ -49,6 +53,7 @@ eval INSERT INTO t1 SET f1= $MAX + 1;
 # results before DDL(to be tested)
 SELECT MAX(f1) FROM t1;
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
 sync_slave_with_master;
 
@@ -59,8 +64,12 @@ SELECT '-------- switch to slave --------' as "";
 # results before DDL(to be tested)
 SELECT MAX(f1) FROM t1;
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
 
+###############################################################
+# command to be tested
+###############################################################
 connection master;
 --disable_query_log
 SELECT '-------- switch to master -------' as "";
@@ -71,6 +80,7 @@ let $my_stmt= ERROR: YOU FORGOT TO FILL IN THE STATEMENT;
 # results after DDL(to be tested)
 SELECT MAX(f1) FROM t1;
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
 sync_slave_with_master;
 
@@ -81,8 +91,12 @@ SELECT '-------- switch to slave --------' as "";
 # results after DDL(to be tested)
 SELECT MAX(f1) FROM t1;
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
 
+###############################################################
+# ROLLBACK
+###############################################################
 connection master;
 --disable_query_log
 SELECT '-------- switch to master -------' as "";
@@ -93,11 +107,15 @@ SELECT MAX(f1) FROM t1;
 # Try to detect if the DDL command caused that the INSERT is committed
 # $MAX holds the highest/last value just before the insert of MAX + 1
 --disable_query_log
-eval SELECT CONCAT('TEST-INFO: MASTER: The INSERT is      ',
-               IF(MAX(f1) = $MAX + 1, 'committed', 'not committed')) AS ""
-FROM d1.t1;
+eval SELECT CONCAT(CONCAT('TEST-INFO: MASTER: The INSERT is ',
+               IF(MAX(f1) = $MAX + 1, 'committed', 'not committed')),
+               IF((MAX(f1) = $MAX + 1) XOR NOT $my_master_commit,
+                ' (Succeeded)',
+                ' (Failed)')) AS "" 
+               FROM mysqltest1.t1;
 --enable_query_log
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
 sync_slave_with_master;
 
@@ -108,13 +126,20 @@ SELECT '-------- switch to slave --------' as "";
 # results after final ROLLBACK
 SELECT MAX(f1) FROM t1;
 --disable_query_log
-eval SELECT CONCAT('TEST-INFO: SLAVE:  The INSERT is      ',
-               IF(MAX(f1) = $MAX + 1, 'committed', 'not committed')) AS ""
-FROM d1.t1;
+eval SELECT CONCAT(CONCAT('TEST-INFO: SLAVE:  The INSERT is ',
+               IF(MAX(f1) = $MAX + 1, 'committed', 'not committed')),
+               IF((MAX(f1) = $MAX + 1) XOR NOT $my_slave_commit,
+                ' (Succeeded)',
+                ' (Failed)')) AS "" 
+               FROM mysqltest1.t1;
 --enable_query_log
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
 
+###############################################################
+# Manipulate binlog
+###############################################################
 #let $manipulate= 0;
 let $manipulate= 1;
 while ($manipulate)

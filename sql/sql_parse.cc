@@ -2410,10 +2410,19 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CREATE_TABLE:
   {
     /* If CREATE TABLE of non-temporary table, do implicit commit */
-    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) && 
-	end_active_trans(thd))
-      res= -1;
-
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      if (end_active_trans(thd))
+      {
+	res= -1;
+	break;
+      }
+    }
+    else 
+    {
+      /* So that CREATE TEMPORARY TABLE gets flushed to binlog */
+      thd->options|= (OPTION_STATUS_NO_TRANS_UPDATE);
+    }
     /* Skip first table, which is the table we are creating */
     TABLE_LIST *create_table, *create_table_local;
     tables= lex->unlink_first_table(tables, &create_table,
@@ -2979,6 +2988,9 @@ unsent_create_error:
       */
       if (thd->slave_thread)
 	lex->drop_if_exists= 1;
+
+      /* So that DROP TEMPORARY TABLE gets flushed to binlog */
+      thd->options|= (OPTION_STATUS_NO_TRANS_UPDATE);
     }
     res= mysql_rm_table(thd,tables,lex->drop_if_exists, lex->drop_temporary);
   }
