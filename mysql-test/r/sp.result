@@ -3109,4 +3109,33 @@ select bug9559()|
 bug9559()
 -3
 drop function bug9559|
+drop procedure if exists bug10961|
+create procedure bug10961()
+begin
+declare v char;
+declare x int;
+declare c cursor for select * from dual;
+declare continue handler for sqlexception select x;
+set x = 1;
+open c;
+set x = 2;
+fetch c into v;
+set x = 3;
+close c;
+end|
+call bug10961()|
+x
+1
+x
+2
+x
+3
+call bug10961()|
+x
+1
+x
+2
+x
+3
+drop procedure bug10961|
 drop table t1,t2;
