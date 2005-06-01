@@ -184,7 +184,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
   ptr[2]= tables[2].table;
-  if (!(lock=mysql_lock_tables(thd,ptr,3)))
+  if (! (lock= mysql_lock_tables(thd, ptr, 3, 0)))
   {
     sql_print_error("Fatal error: Can't lock privilege tables: %s",
 		    thd->net.last_error);
@@ -2658,7 +2658,7 @@ my_bool grant_init(THD *org_thd)
   TABLE *ptr[2];				// Lock tables for quick update
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
-  if (!(lock=mysql_lock_tables(thd,ptr,2)))
+  if (! (lock= mysql_lock_tables(thd, ptr, 2, 0)))
     goto end;
 
   t_table = tables[0].table; c_table = tables[1].table;
