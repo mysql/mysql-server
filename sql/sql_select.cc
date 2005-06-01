@@ -13520,7 +13520,7 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   (*table)->print(thd, str);
 
   TABLE_LIST **end= table + tables->elements;
-  for(TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
+  for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
     if (curr->outer_join)

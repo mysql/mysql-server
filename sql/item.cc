@@ -2246,9 +2246,8 @@ bool Item_param::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       SELECT_LEX_UNIT::item set only for subqueries, so test of it presence
       can be barrier to stop before derived table SELECT or very outer SELECT
     */
-    for(;
-        cursel->master_unit()->item;
-        cursel= cursel->outer_select())
+    for (; cursel->master_unit()->item;
+         cursel= cursel->outer_select())
     {
       Item_subselect *subselect_item= cursel->master_unit()->item;
       subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
@@ -2528,9 +2527,8 @@ void mark_select_range_as_dependent(THD *thd,
     resolving)
   */
   SELECT_LEX *previous_select= current_sel;
-  for(;
-      previous_select->outer_select() != last_select;
-      previous_select= previous_select->outer_select())
+  for (; previous_select->outer_select() != last_select;
+       previous_select= previous_select->outer_select())
   {
     Item_subselect *prev_subselect_item=
       previous_select->master_unit()->item;

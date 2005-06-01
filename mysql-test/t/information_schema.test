@@ -4,6 +4,11 @@
 # Test for information_schema.schemata &
 # show databases
 
+--disable_warnings
+DROP TABLE IF EXISTS t0,t1,t2;
+--enable_warnings
+
+
 show variables where variable_name like "skip_show_database";
 grant select, update, execute on test.* to mysqltest_2@localhost;
 grant select, update on test.* to mysqltest_1@localhost;
