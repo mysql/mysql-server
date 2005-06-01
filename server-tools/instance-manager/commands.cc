@@ -203,15 +203,14 @@ int Show_instance_status::execute(struct st_net *net,
     if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     if (instance->is_running())
-    {
       store_to_string(&send_buff, (char*) "online", &position);
-      store_to_string(&send_buff, "unknown", &position);
-    }
     else
-    {
       store_to_string(&send_buff, (char*) "offline", &position);
+
+    if (instance->options.mysqld_version)
+      store_to_string(&send_buff, instance->options.mysqld_version, &position);
+    else
       store_to_string(&send_buff, (char*) "unknown", &position);
-    }
 
 
     if (send_buff.is_error() ||
