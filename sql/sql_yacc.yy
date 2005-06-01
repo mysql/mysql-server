@@ -4343,7 +4343,18 @@ simple_expr:
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| DEFAULT '(' simple_ident ')'
-	  { $$= new Item_default_value($3); }
+	  {
+	    if ($3->is_splocal())
+	    {
+	      LEX_STRING name;
+	      Item_splocal *il= static_cast<Item_splocal *>($3);
+
+	      il->my_name(&name.str, &name.length);
+	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name.str);
+	      YYABORT;
+	    }
+	    $$= new Item_default_value($3);
+	  }
 	| VALUES '(' simple_ident ')'
 	  { $$= new Item_insert_value($3); }
 	| FUNC_ARG0 '(' ')'
