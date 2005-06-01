@@ -2777,6 +2777,24 @@ mysql_execute_command(THD *thd)
       lex->create_info.default_table_charset= lex->create_info.table_charset;
       lex->create_info.table_charset= 0;
     }
+    /*
+      The create-select command will open and read-lock the select table
+      and then create, open and write-lock the new table. If a global
+      read lock steps in, we get a deadlock. The write lock waits for
+      the global read lock, while the global read lock waits for the
+      select table to be closed. So we wait until the global readlock is
+      gone before starting both steps. Note that
+      wait_if_global_read_lock() sets a protection against a new global
+      read lock when it succeeds. This needs to be released by
+      start_waiting_global_read_lock(). We protect the normal CREATE
+      TABLE in the same way. That way we avoid that a new table is
+      created during a gobal read lock.
+    */
+    if (wait_if_global_read_lock(thd, 0, 1))
+    {
+      res= -1;
+      goto unsent_create_error;
+    }
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
@@ -2794,7 +2812,7 @@ mysql_execute_command(THD *thd)
             unique_table(create_table, select_tables))
         {
           my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
-          goto unsent_create_error;
+          goto unsent_create_error1;
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2807,7 +2825,7 @@ mysql_execute_command(THD *thd)
             if (unique_table(tab, select_tables))
             {
               my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
-              goto unsent_create_error;
+              goto unsent_create_error1;
             }
           }
         }
@@ -2850,8 +2868,20 @@ mysql_execute_command(THD *thd)
       if (!res)
 	send_ok(thd);
     }
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
     lex->link_first_table_back(create_table, link_to_local);
     break;
+
+unsent_create_error1:
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
 
     /* put tables back for PS rexecuting */
 unsent_create_error:
@@ -6940,6 +6970,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
 
+#ifdef NOT_NECESSARY_TO_CHECK_CREATE_TABLE_EXIST_WHEN_PREPARING_STATEMENT
+    /* This code throws an ill error for CREATE TABLE t1 SELECT * FROM t1 */
     /*
       Only do the check for PS, becasue we on execute we have to check that
       against the opened tables to ensure we don't use a table that is part
@@ -6958,6 +6990,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
         goto err;
       }
     }
+#endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
       goto err;
   }
