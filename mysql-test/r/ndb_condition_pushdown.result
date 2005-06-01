@@ -303,6 +303,58 @@ order by auto;
 auto
 1
 select auto from t1 where
+(string not between "aaaa" and "cccc") and 
+(vstring not between "aaaa" and "cccc") and 
+(bin not between 0xAAAA and 0xCCCC) and 
+(vbin not between 0xAAAA and 0xCCCC) and 
+(tiny not between -3 and -1) and 
+(short not between -3 and -1) and 
+(medium not between -3 and -1) and 
+(long_int not between -3 and -1) and 
+(longlong not between -3 and -1) and 
+(utiny not between 1 and 3) and 
+(ushort not between 1 and 3) and 
+(umedium not between 1 and 3) and 
+(ulong not between 1 and 3) and 
+(ulonglong not between 1 and 3) and 
+(bits not between b'001' and b'011') and
+(options not between 'one' and 'three') and 
+(flags not between 'one' and 'one,two,three') and 
+(date_field not between '1901-01-01' and '1903-03-03') and
+(year_field not between '1901' and '1903') and
+(time_field not between '01:01:01' and '03:03:03') and 
+(date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+auto
+4
+select auto from t1 where
+("aaaa" not between string and string) and 
+("aaaa" not between vstring and vstring) and 
+(0xAAAA not between bin and bin) and 
+(0xAAAA not between vbin and vbin) and 
+(-1 not between tiny and tiny) and 
+(-1 not between short and short) and 
+(-1 not between medium and medium) and 
+(-1 not between long_int and long_int) and 
+(-1 not between longlong and longlong) and 
+(1 not between utiny and utiny) and 
+(1 not between ushort and ushort) and 
+(1 not between umedium and umedium) and 
+(1 not between ulong and ulong) and 
+(1 not between ulonglong and ulonglong) and 
+(b'001' not between bits and bits) and
+('one' not between options and options) and 
+('one' not between flags and flags) and 
+('1901-01-01' not between date_field and date_field) and
+('1901' not between year_field and year_field) and
+('01:01:01' not between time_field and time_field) and 
+('1901-01-01 01:01:01' not between date_time and date_time) 
+order by auto;
+auto
+2
+3
+4
+select auto from t1 where
 string in("aaaa","cccc") and 
 vstring in("aaaa","cccc") and 
 bin in(0xAAAA,0xCCCC) and 
@@ -333,11 +385,11 @@ select auto from t1 where
 "aaaa" in(vstring) and
 0xAAAA in(bin) and 
 0xAAAA in(vbin) and 
-/* -1 in(tiny) and */
-/* -1 in (short) and */
-/* -1 in(medium) and */
-/* -1 in(long_int) and */
-/* -1 in(longlong) and */
+(-1 in(tiny)) and
+(-1 in(short)) and
+(-1 in(medium)) and
+(-1 in(long_int)) and
+(-1 in(longlong)) and
 1 in(utiny) and 
 1 in(ushort) and 
 1 in(umedium) and 
@@ -353,6 +405,59 @@ b'001' in(bits) and
 order by auto;
 auto
 1
+select auto from t1 where
+string not in("aaaa","cccc") and 
+vstring not in("aaaa","cccc") and 
+bin not in(0xAAAA,0xCCCC) and 
+vbin not in(0xAAAA,0xCCCC) and 
+tiny not in(-1,-3) and 
+short not in(-1,-3) and 
+medium not in(-1,-3) and 
+long_int not in(-1,-3) and 
+longlong not in(-1,-3) and 
+utiny not in(1,3) and 
+ushort not in(1,3) and 
+umedium not in(1,3) and 
+ulong not in(1,3) and 
+ulonglong not in(1,3) and 
+bits not in(b'001',b'011') and
+options not in('one','three') and 
+flags not in('one','one,two,three') and 
+date_field not in('1901-01-01','1903-03-03') and
+year_field not in('1901','1903') and
+time_field not in('01:01:01','03:03:03') and 
+date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+auto
+2
+4
+select auto from t1 where
+"aaaa" not in(string) and
+"aaaa" not in(vstring) and
+0xAAAA not in(bin) and 
+0xAAAA not in(vbin) and 
+(-1 not in(tiny)) and
+(-1 not in(short)) and
+(-1 not in(medium)) and
+(-1 not in(long_int)) and
+(-1 not in(longlong)) and
+1 not in(utiny) and 
+1 not in(ushort) and 
+1 not in(umedium) and 
+1 not in(ulong) and 
+1 not in(ulonglong) and 
+b'001' not in(bits) and
+'one' not in(options) and 
+'one' not in(flags) and 
+'1901-01-01' not in(date_field) and
+'1901' not in(year_field) and
+'01:01:01' not in(time_field) and 
+'1901-01-01 01:01:01' not in(date_time) 
+order by auto;
+auto
+2
+3
+4
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
@@ -1228,6 +1333,110 @@ select auto from t1 where
 order by auto;
 auto
 1
+explain 
+select auto from t1 where
+(string not between "aaaa" and "cccc") and 
+(vstring not between "aaaa" and "cccc") and 
+(bin not between 0xAAAA and 0xCCCC) and 
+(vbin not between 0xAAAA and 0xCCCC) and 
+(tiny not between -3 and -1) and 
+(short not between -3 and -1) and 
+(medium not between -3 and -1) and 
+(long_int not between -3 and -1) and 
+(longlong not between -3 and -1) and 
+(utiny not between 1 and 3) and 
+(ushort not between 1 and 3) and 
+(umedium not between 1 and 3) and 
+(ulong not between 1 and 3) and 
+(ulonglong not between 1 and 3) and 
+/* (bits not between b'001' and b'011') and */
+(options not between 'one' and 'three') and 
+(flags not between 'one' and 'one,two,three') and 
+(date_field not between '1901-01-01' and '1903-03-03') and
+(year_field not between '1901' and '1903') and
+(time_field not between '01:01:01' and '03:03:03') and 
+(date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	20	Using where with pushed condition; Using filesort
+select auto from t1 where
+(string not between "aaaa" and "cccc") and 
+(vstring not between "aaaa" and "cccc") and 
+(bin not between 0xAAAA and 0xCCCC) and 
+(vbin not between 0xAAAA and 0xCCCC) and 
+(tiny not between -3 and -1) and 
+(short not between -3 and -1) and 
+(medium not between -3 and -1) and 
+(long_int not between -3 and -1) and 
+(longlong not between -3 and -1) and 
+(utiny not between 1 and 3) and 
+(ushort not between 1 and 3) and 
+(umedium not between 1 and 3) and 
+(ulong not between 1 and 3) and 
+(ulonglong not between 1 and 3) and 
+/* (bits not between b'001' and b'011') and */
+(options not between 'one' and 'three') and 
+(flags not between 'one' and 'one,two,three') and 
+(date_field not between '1901-01-01' and '1903-03-03') and
+(year_field not between '1901' and '1903') and
+(time_field not between '01:01:01' and '03:03:03') and 
+(date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
+order by auto;
+auto
+4
+explain
+select auto from t1 where
+("aaaa" not between string and string) and 
+("aaaa" not between vstring and vstring) and 
+(0xAAAA not between bin and bin) and 
+(0xAAAA not between vbin and vbin) and 
+(-1 not between tiny and tiny) and 
+(-1 not between short and short) and 
+(-1 not between medium and medium) and 
+(-1 not between long_int and long_int) and 
+(-1 not between longlong and longlong) and 
+(1 not between utiny and utiny) and 
+(1 not between ushort and ushort) and 
+(1 not between umedium and umedium) and 
+(1 not between ulong and ulong) and 
+(1 not between ulonglong and ulonglong) and 
+/* (b'001' not between bits and bits) and */
+('one' not between options and options) and 
+('one' not between flags and flags) and 
+('1901-01-01' not between date_field and date_field) and
+('1901' not between year_field and year_field) and
+('01:01:01' not between time_field and time_field) and 
+('1901-01-01 01:01:01' not between date_time and date_time) 
+order by auto;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+select auto from t1 where
+("aaaa" not between string and string) and 
+("aaaa" not between vstring and vstring) and 
+(0xAAAA not between bin and bin) and 
+(0xAAAA not between vbin and vbin) and 
+(-1 not between tiny and tiny) and 
+(-1 not between short and short) and 
+(-1 not between medium and medium) and 
+(-1 not between long_int and long_int) and 
+(-1 not between longlong and longlong) and 
+(1 not between utiny and utiny) and 
+(1 not between ushort and ushort) and 
+(1 not between umedium and umedium) and 
+(1 not between ulong and ulong) and 
+(1 not between ulonglong and ulonglong) and 
+/* (b'001' not between bits and bits) and */
+('one' not between options and options) and 
+('one' not between flags and flags) and 
+('1901-01-01' not between date_field and date_field) and
+('1901' not between year_field and year_field) and
+('01:01:01' not between time_field and time_field) and 
+('1901-01-01 01:01:01' not between date_time and date_time) 
+order by auto;
+auto
+2
+3
+4
 explain
 select auto from t1 where
 string in("aaaa","cccc") and 
@@ -1286,11 +1495,11 @@ select auto from t1 where
 "aaaa" in(vstring) and 
 0xAAAA in(bin) and 
 0xAAAA in(vbin) and 
-/* -1 in(tiny) and */
-/* -1 in (short) and */
-/* -1 in(medium) and */
-/* -1 in(long_int) and */
-/* -1 in(longlong) and */
+(-1 in(tiny)) and
+(-1 in (short)) and
+(-1 in(medium)) and
+(-1 in(long_int)) and
+(-1 in(longlong)) and
 1 in(utiny) and 
 1 in(ushort) and 
 1 in(umedium) and 
@@ -1311,11 +1520,11 @@ select auto from t1 where
 "aaaa" in(vstring) and 
 0xAAAA in(bin) and 
 0xAAAA in(vbin) and 
-/* -1 in(tiny) and */
-/* -1 in (short) and */
-/* -1 in(medium) and */
-/* -1 in(long_int) and */
-/* -1 in(longlong) and */
+(-1 in(tiny)) and
+(-1 in (short)) and
+(-1 in(medium)) and
+(-1 in(long_int)) and
+(-1 in(longlong)) and
 1 in(utiny) and 
 1 in(ushort) and 
 1 in(umedium) and 
@@ -1331,6 +1540,111 @@ select auto from t1 where
 order by auto;
 auto
 1
+explain
+select auto from t1 where
+string not in("aaaa","cccc") and 
+vstring not in("aaaa","cccc") and 
+bin not in(0xAAAA,0xCCCC) and 
+vbin not in(0xAAAA,0xCCCC) and 
+tiny not in(-1,-3) and 
+short not in(-1,-3) and 
+medium not in(-1,-3) and 
+long_int not in(-1,-3) and 
+longlong not in(-1,-3) and 
+utiny not in(1,3) and 
+ushort not in(1,3) and 
+umedium not in(1,3) and 
+ulong not in(1,3) and 
+ulonglong not in(1,3) and 
+/* bits not in(b'001',b'011') and */
+options not in('one','three') and 
+flags not in('one','one,two,three') and 
+date_field not in('1901-01-01','1903-03-03') and
+year_field not in('1901','1903') and
+time_field not in('01:01:01','03:03:03') and 
+date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	30	Using where with pushed condition; Using filesort
+select auto from t1 where
+string not in("aaaa","cccc") and 
+vstring not in("aaaa","cccc") and 
+bin not in(0xAAAA,0xCCCC) and 
+vbin not in(0xAAAA,0xCCCC) and 
+tiny not in(-1,-3) and 
+short not in(-1,-3) and 
+medium not in(-1,-3) and 
+long_int not in(-1,-3) and 
+longlong not in(-1,-3) and 
+utiny not in(1,3) and 
+ushort not in(1,3) and 
+umedium not in(1,3) and 
+ulong not in(1,3) and 
+ulonglong not in(1,3) and 
+/* bits not in(b'001',b'011') and */
+options not in('one','three') and 
+flags not in('one','one,two,three') and 
+date_field not in('1901-01-01','1903-03-03') and
+year_field not in('1901','1903') and
+time_field not in('01:01:01','03:03:03') and 
+date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
+order by auto;
+auto
+2
+4
+explain
+select auto from t1 where
+"aaaa" not in(string) and 
+"aaaa" not in(vstring) and 
+0xAAAA not in(bin) and 
+0xAAAA not in(vbin) and 
+(-1 not in(tiny)) and
+(-1 not in(short)) and
+(-1 not in(medium)) and
+(-1 not in(long_int)) and
+(-1 not in(longlong)) and
+1 not in(utiny) and 
+1 not in(ushort) and 
+1 not in(umedium) and 
+1 not in(ulong) and 
+1 not in(ulonglong) and 
+/* b'001' not in(bits) and */
+'one' not in(options) and 
+'one' not in(flags) and 
+'1901-01-01' not in(date_field) and
+'1901' not in(year_field) and
+'01:01:01' not in(time_field) and 
+'1901-01-01 01:01:01' not in(date_time) 
+order by auto;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+select auto from t1 where
+"aaaa" not in(string) and 
+"aaaa" not in(vstring) and 
+0xAAAA not in(bin) and 
+0xAAAA not in(vbin) and 
+(-1 not in(tiny)) and
+(-1 not in(short)) and
+(-1 not in(medium)) and
+(-1 not in(long_int)) and
+(-1 not in(longlong)) and
+1 not in(utiny) and 
+1 not in(ushort) and 
+1 not in(umedium) and 
+1 not in(ulong) and 
+1 not in(ulonglong) and 
+/* b'001' not in(bits) and */
+'one' not in(options) and 
+'one' not in(flags) and 
+'1901-01-01' not in(date_field) and
+'1901' not in(year_field) and
+'01:01:01' not in(time_field) and 
+'1901-01-01 01:01:01' not in(date_time) 
+order by auto;
+auto
+2
+3
+4
 update t1
 set medium = 17
 where 

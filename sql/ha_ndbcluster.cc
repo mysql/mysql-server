@@ -7232,8 +7232,10 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         break;
       }
       case(Item_func::NOT_FUNC): {
+        DBUG_PRINT("info", ("Generating negated query"));
         cond= cond->next;
         negated= TRUE;
+        
         break;
       }
       default:
@@ -7249,12 +7251,14 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
       if (cond) cond= cond->next;
       if (filter->end() == -1)
         DBUG_RETURN(1);
-      break;
+      if (!negated)
+        break;
+      // else fall through (NOT END is an illegal condition)
     default: {
       DBUG_PRINT("info", ("Illegal scan filter"));
     }
     }
-  }  while (level > 0);
+  }  while (level > 0 || negated);
   
   DBUG_RETURN(0);
 }
@@ -7296,6 +7300,7 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   DBUG_ENTER("generate_scan_filter");
   if (ndb_cond_stack)
   {
+    DBUG_PRINT("info", ("Generating scan filter"));
     NdbScanFilter filter(op);
     bool multiple_cond= FALSE;
     // Wrap an AND group around multiple conditions
