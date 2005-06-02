@@ -43,7 +43,7 @@
 void create_last_word_mask(MY_BITMAP *map)
 {
   /* Get the number of used bits (1..8) in the last byte */
-  unsigned int const used= 1U + ((map->bitmap_size-1U) & 0x7U);
+  unsigned int const used= 1U + ((map->n_bits-1U) & 0x7U);
 
   /*
    * Create a mask with the upper 'unused' bits set and the lower 'used'
@@ -101,14 +101,14 @@ static inline void bitmap_unlock(MY_BITMAP *map)
 }
 
 
-my_bool bitmap_init(MY_BITMAP *map, uint32 *buf, uint bitmap_size,
+my_bool bitmap_init(MY_BITMAP *map, uint32 *buf, uint n_bits,
 		    my_bool thread_safe)
 {
   DBUG_ENTER("bitmap_init");
-  DBUG_ASSERT(bitmap_size > 0);
+  DBUG_ASSERT(n_bits > 0);
   if (!buf)
   {
-    uint size_in_bytes= ((bitmap_size+31)/32)*4
+    uint size_in_bytes= ((n_bits+31)/32)*4
 #ifdef THREAD
       +(thread_safe ? sizeof(pthread_mutex_t) : 0)
 #endif
@@ -131,7 +131,7 @@ my_bool bitmap_init(MY_BITMAP *map, uint32 *buf, uint bitmap_size,
     map->mutex=0;
 #endif
   map->bitmap= buf;
-  map->bitmap_size=bitmap_size;
+  map->n_bits=n_bits;
   create_last_word_mask(map);
   bitmap_clear_all(map);
   DBUG_RETURN(0);
@@ -175,8 +175,8 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
   uchar *m= (uchar *)map->bitmap;
 
   DBUG_ASSERT(map->bitmap &&
-	      (prefix_size <= map->bitmap_size || prefix_size == (uint) ~0));
-  set_if_smaller(prefix_size, map->bitmap_size);
+	      (prefix_size <= map->n_bits || prefix_size == (uint) ~0));
+  set_if_smaller(prefix_size, map->n_bits);
   if ((prefix_bytes= prefix_size / 8))
     memset(m, 0xff, prefix_bytes);
   m+= prefix_bytes;
@@ -194,7 +194,7 @@ my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
   uchar *m= (uchar*)map->bitmap;
   uchar *end_prefix= m+prefix_size/8;
   uchar *end;
-  DBUG_ASSERT(m && prefix_size <= map->bitmap_size);
+  DBUG_ASSERT(m && prefix_size <= map->n_bits);
   end= m+no_bytes_in_map(map);
 
   while (m < end_prefix)
@@ -246,7 +246,7 @@ my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
   uint32 *m1= map1->bitmap, *m2= map2->bitmap, *end;
 
   DBUG_ASSERT(map1->bitmap && map2->bitmap &&
-              map1->bitmap_size==map2->bitmap_size);
+              map1->n_bits==map2->n_bits);
 
   end= map1->last_word_ptr;
 
@@ -287,7 +287,7 @@ void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2)
   uint32 *to= map->bitmap, *from= map2->bitmap, *end;
 
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
-              map->bitmap_size==map2->bitmap_size);
+              map->n_bits==map2->n_bits);
 
   end= map->last_word_ptr;
 
@@ -302,7 +302,7 @@ void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2)
   uint32 *to= map->bitmap, *from= map2->bitmap, *end;
 
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
-              map->bitmap_size==map2->bitmap_size);
+              map->n_bits==map2->n_bits);
   end= map->last_word_ptr;
 
   while (to <= end)
@@ -314,7 +314,7 @@ void bitmap_xor(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   uint32 *to= map->bitmap, *from= map2->bitmap, *end= map->last_word_ptr;
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
-              map->bitmap_size==map2->bitmap_size);
+              map->n_bits==map2->n_bits);
   while (to <= end)
     *to++ ^= *from++;
   *map->last_word_ptr|= map->last_word_mask; /*Set last bits again*/
@@ -370,7 +370,7 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
             if (*byte_ptr & (1 << k))
             {
               bit_found= (i*32) + (j*8) + k;
-              if (bit_found == map->bitmap_size)
+              if (bit_found == map->n_bits)
                 return MY_BIT_NONE;
               return bit_found;
             }
@@ -407,7 +407,7 @@ uint bitmap_get_first(const MY_BITMAP *map)
             if (!(*byte_ptr & (1 << k)))
             {
               bit_found= (i*32) + (j*8) + k;
-              if (bit_found == map->bitmap_size)
+              if (bit_found == map->n_bits)
                 return MY_BIT_NONE;
               return bit_found;
             }
@@ -435,7 +435,7 @@ uint bitmap_lock_set_next(MY_BITMAP *map)
 void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   bitmap_lock(map);
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size);
+  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_clear_bit(map, bitmap_bit);
   bitmap_unlock(map);
 }
@@ -499,7 +499,7 @@ my_bool bitmap_lock_is_set_all(const MY_BITMAP *map)
 my_bool bitmap_lock_is_set(const MY_BITMAP *map, uint bitmap_bit)
 {
   my_bool res;
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size);
+  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock((MY_BITMAP *)map);
   res= bitmap_is_set(map, bitmap_bit);
   bitmap_unlock((MY_BITMAP *)map);
@@ -524,7 +524,7 @@ my_bool bitmap_lock_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
   uint res;
 
   DBUG_ASSERT(map1->bitmap && map2->bitmap &&
-              map1->bitmap_size==map2->bitmap_size);
+              map1->n_bits==map2->n_bits);
   bitmap_lock((MY_BITMAP *)map1);
   bitmap_lock((MY_BITMAP *)map2);
   res= bitmap_cmp(map1, map2);
@@ -611,7 +611,7 @@ uint bitmap_lock_get_first_set(const MY_BITMAP *map)
 
 void bitmap_lock_set_bit(MY_BITMAP *map, uint bitmap_bit)
 {
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size);
+  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock(map);
   bitmap_set_bit(map, bitmap_bit);
   bitmap_unlock(map);
@@ -620,7 +620,7 @@ void bitmap_lock_set_bit(MY_BITMAP *map, uint bitmap_bit)
 
 void bitmap_lock_flip_bit(MY_BITMAP *map, uint bitmap_bit)
 {
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size);
+  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock(map);
   bitmap_flip_bit(map, bitmap_bit);
   bitmap_unlock(map);
