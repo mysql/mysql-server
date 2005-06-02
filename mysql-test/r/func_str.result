@@ -783,3 +783,9 @@ id	aes_decrypt(str, 'bar')
 1	foo
 2	NULL
 DROP TABLE t1, t2;
+select field(0,NULL,1,0), field("",NULL,"bar",""), field(0.0,NULL,1.0,0.0);
+field(0,NULL,1,0)	field("",NULL,"bar","")	field(0.0,NULL,1.0,0.0)
+3	3	3
+select field(NULL,1,2,NULL), field(NULL,1,2,0);
+field(NULL,1,2,NULL)	field(NULL,1,2,0)
+0	0
