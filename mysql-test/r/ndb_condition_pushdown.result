@@ -1760,7 +1760,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where with pushed condition; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using filesort
 explain
 select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
