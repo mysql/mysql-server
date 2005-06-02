@@ -2462,7 +2462,7 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
 {
   dst->param= src->param;
   memcpy(dst->covered_fields.bitmap, src->covered_fields.bitmap, 
-         src->covered_fields.bitmap_size);
+         no_bytes_in_map(&src->covered_fields));
   dst->out_rows= src->out_rows;
   dst->is_covering= src->is_covering;
   dst->index_records= src->index_records;
