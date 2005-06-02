@@ -362,7 +362,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
         because we do not rollback this changes
         TODO: make rollback for it, or special name resolving mode in 5.0.
       */
-      !arena->is_stmt_prepare()
+      !arena->is_stmt_prepare_or_first_sp_execute()
       )
   {
 
