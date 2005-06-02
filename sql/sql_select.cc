@@ -37,7 +37,7 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 };
 
 const key_map key_map_empty(0);
-const key_map key_map_full(~0);
+const key_map key_map_full(~(uint)0);
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, COND *conds,
@@ -5088,7 +5088,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
-  join_tab->keys.init(~0);                      /* test everything in quick */
+  join_tab->keys.init(~(uint)0);                /* test everything in quick */
   join_tab->info=0;
   join_tab->on_expr_ref=0;
   join_tab->last_inner= 0;

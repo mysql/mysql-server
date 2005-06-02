@@ -3478,7 +3478,7 @@ static void bootstrap(FILE *file)
   thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
-  thd->master_access= ~0;
+  thd->master_access= ~(ulong)0;
   thd->thread_id=thread_id++;
   thread_count++;
 
@@ -5829,7 +5829,6 @@ static void print_version(void)
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
-
 
 static void usage(void)
 {
