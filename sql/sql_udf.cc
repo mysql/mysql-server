@@ -28,6 +28,8 @@
    dynamic functions, so this shouldn't be a real problem.
 */
 
+#include <my_global.h>
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: implement sql_udf.h
 #endif
