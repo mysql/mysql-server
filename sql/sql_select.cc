@@ -5233,7 +5233,10 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     tmp= new Item_func_trig_cond(tmp, &tab->found);
   }
   if (tmp)
+  {
     tmp->quick_fix_field();
+    tmp->update_used_tables();
+  }
   return tmp;
 }
 
@@ -5454,7 +5457,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	*/        
         if (cond)
         {
-          COND *unguarded= tmp;
           /*
             Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
             a cond, so neutralize the hack above.
@@ -5465,11 +5467,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
-	  if (thd->variables.engine_condition_pushdown &&
-              unguarded == tmp)
+	  if (thd->variables.engine_condition_pushdown)
           {
             COND *push_cond= 
-              make_cond_for_table(cond, current_map, current_map);
+              make_cond_for_table(tmp, current_map, current_map);
             if (push_cond)
             {
               /* Push condition to handler */
