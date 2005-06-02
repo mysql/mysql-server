@@ -5454,6 +5454,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	*/        
         if (cond)
         {
+          COND *unguarded= tmp;
           /*
             Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
             a cond, so neutralize the hack above.
@@ -5463,11 +5464,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond=sel->cond=tmp;
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-	  if (thd->variables.engine_condition_pushdown)
+          tab->table->file->pushed_cond= NULL;
+	  if (thd->variables.engine_condition_pushdown &&
+              unguarded == tmp)
           {
             COND *push_cond= 
-              make_cond_for_table(tmp,current_map,current_map);
-            tab->table->file->pushed_cond= NULL;
+              make_cond_for_table(cond, current_map, current_map);
             if (push_cond)
             {
               /* Push condition to handler */
