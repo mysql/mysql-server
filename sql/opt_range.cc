@@ -1566,9 +1566,9 @@ static int fill_used_fields_bitmap(PARAM *param)
 {
   TABLE *table= param->table;
   param->fields_bitmap_size= (table->s->fields/8 + 1);
-  uchar *tmp;
+  uint32 *tmp;
   uint pk;
-  if (!(tmp= (uchar*)alloc_root(param->mem_root,
+  if (!(tmp= (uint32*)alloc_root(param->mem_root,
     bytes_word_aligned(param->fields_bitmap_size))) ||
       bitmap_init(&param->needed_fields, tmp, param->fields_bitmap_size*8,
                   FALSE))
@@ -2309,7 +2309,7 @@ static
 ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 {
   ROR_SCAN_INFO *ror_scan;
-  uchar *bitmap_buf;
+  uint32 *bitmap_buf;
   uint keynr;
   DBUG_ENTER("make_ror_scan");
   if (!(ror_scan= (ROR_SCAN_INFO*)alloc_root(param->mem_root,
@@ -2323,7 +2323,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   ror_scan->sel_arg= sel_arg;
   ror_scan->records= param->table->quick_rows[keynr];
 
-  if (!(bitmap_buf= (uchar*)alloc_root(param->mem_root,
+  if (!(bitmap_buf= (uint32*)alloc_root(param->mem_root,
                             bytes_word_aligned(param->fields_bitmap_size))))
     DBUG_RETURN(NULL);
 
@@ -2439,12 +2439,12 @@ static
 ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
 {
   ROR_INTERSECT_INFO *info;
-  uchar* buf;
+  uint32* buf;
   if (!(info= (ROR_INTERSECT_INFO*)alloc_root(param->mem_root,
                                               sizeof(ROR_INTERSECT_INFO))))
     return NULL;
   info->param= param;
-  if (!(buf= (uchar*)alloc_root(param->mem_root,
+  if (!(buf= (uint32*)alloc_root(param->mem_root,
                              bytes_word_aligned(param->fields_bitmap_size))))
     return NULL;
   if (bitmap_init(&info->covered_fields, buf, param->fields_bitmap_size*8,
@@ -3003,9 +3003,8 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   ror_scan_mark= tree->ror_scans;
 
   uint32 int_buf[MAX_KEY/32+1];
-  uchar *buf= (uchar*)&int_buf;
   MY_BITMAP covered_fields;
-  if (bitmap_init(&covered_fields, buf, nbits, FALSE))
+  if (bitmap_init(&covered_fields, int_buf, nbits, FALSE))
     DBUG_RETURN(0);
   bitmap_clear_all(&covered_fields);
 

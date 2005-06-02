@@ -80,6 +80,9 @@ FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 # which automaticly removes the object files you use to compile a final program
 #
 
+test_bitmap$(EXEEXT): my_bitmap.c $(LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN  ./my_bitmap.c $(LDADD) $(LIBS)
+
 test_thr_alarm$(EXEEXT): thr_alarm.c $(LIBRARIES)
 	$(CP) $(srcdir)/thr_alarm.c ./test_thr_alarm.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_thr_alarm.c $(LDADD) $(LIBS)

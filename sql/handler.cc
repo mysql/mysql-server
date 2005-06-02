@@ -1360,20 +1360,31 @@ int handler::ha_initialise()
 int handler::ha_allocate_read_write_set(ulong no_fields)
 {
   uint bitmap_size= 4*(((no_fields+1)+31)/32);
-  uchar *read_buf, *write_buf;
+  uint32 *read_buf, *write_buf;
+#ifndef DEBUG_OFF
+  my_bool r;
+#endif
   DBUG_ENTER("ha_allocate_read_write_set");
   DBUG_PRINT("info", ("no_fields = %d", no_fields));
   read_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
   write_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
-  read_buf= (uchar*)sql_alloc(bitmap_size);
-  write_buf= (uchar*)sql_alloc(bitmap_size);
-  DBUG_ASSERT(!bitmap_init(read_set, read_buf, (no_fields+1), FALSE));
-  DBUG_ASSERT(!bitmap_init(write_set, write_buf, (no_fields+1), FALSE));
+  read_buf= (uint32*)sql_alloc(bitmap_size);
+  write_buf= (uint32*)sql_alloc(bitmap_size);
   if (!read_set || !write_set || !read_buf || !write_buf)
   {
     ha_deallocate_read_write_set();
     DBUG_RETURN(TRUE);
   }
+#ifndef DEBUG_OFF
+  r =
+#endif
+    bitmap_init(read_set, read_buf, no_fields+1, FALSE);
+  DBUG_ASSERT(!r /*bitmap_init(read_set...)*/);
+#ifndef DEBUG_OFF
+  r =
+#endif
+    bitmap_init(write_set, write_buf, no_fields+1, FALSE);
+  DBUG_ASSERT(!r /*bitmap_init(write_set...)*/);
   ha_clear_all_set();
   DBUG_RETURN(FALSE);
 }
