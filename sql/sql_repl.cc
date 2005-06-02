@@ -1341,7 +1341,6 @@ int show_binlogs(THD* thd)
   IO_CACHE log;
   File file;
   const char *errmsg= 0;
-  MY_STAT stat_area;
   char fname[FN_REFLEN];
   List<Item> field_list;
   uint length;
