@@ -194,6 +194,9 @@ public:
   Item_func_numhybrid(Item *a,Item *b)
     :Item_func(a,b),hybrid_type(REAL_RESULT)
   {}
+  Item_func_numhybrid(List<Item> &list)
+    :Item_func(list),hybrid_type(REAL_RESULT)
+  {}
 
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec();
@@ -208,6 +211,7 @@ public:
   virtual longlong int_op()= 0;
   virtual double real_op()= 0;
   virtual my_decimal *decimal_op(my_decimal *)= 0;
+  virtual String *str_op(String *)= 0;
   bool is_null() { (void) val_real(); return null_value; }
 };
 
@@ -220,6 +224,7 @@ public:
 
   void fix_num_length_and_dec();
   void find_num_type();
+  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
 };
 
 
@@ -231,6 +236,7 @@ class Item_num_op :public Item_func_numhybrid
   virtual void result_precision()= 0;
   void print(String *str) { print_op(str); }
   void find_num_type();
+  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
 };
 
 
