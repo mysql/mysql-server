@@ -1103,7 +1103,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
-  ulong host_access= ~0, db_access= 0;
+  ulong host_access= ~(ulong)0, db_access= 0;
   uint i,key_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
@@ -5064,7 +5064,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     if (replace_user_table(thd, tables[0].table,
-                           *lex_user, ~0, 1, 0, 0))
+			   *lex_user, ~(ulong)0, 1, 0, 0))
     {
       result= -1;
       continue;
@@ -5091,7 +5091,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~(ulong)0, 1))
 	  {
 	    /*
 	      Don't increment counter as replace_db_table deleted the
@@ -5125,7 +5125,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
 				  grant_table->db,
 				  grant_table->tname,
-				  ~0, 0, 1))
+				  ~(ulong)0, 0, 1))
 	  {
 	    result= -1;
 	  }
@@ -5141,7 +5141,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				      columns,
 				      grant_table->db,
 				      grant_table->tname,
-				      ~0, 1))
+				      ~(ulong)0, 1))
 	    {
 	      revoked= 1;
 	      continue;

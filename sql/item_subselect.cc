@@ -386,9 +386,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     return RES_REDUCE;
   }
   return RES_OK;
-
-err:
-  return RES_ERROR;
 }
 
 
