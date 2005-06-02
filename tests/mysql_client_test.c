@@ -7455,12 +7455,16 @@ static void test_explain_bug()
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN, 0);
 
-  verify_prepare_field(result, 6, "key_len", "",
-                       (mysql_get_server_version(mysql) <= 50000 ?
-                        MYSQL_TYPE_LONGLONG : MYSQL_TYPE_VAR_STRING),
-                       "", "", "",
-                       (mysql_get_server_version(mysql) <= 50000 ? 3 : 4096),
-                       0);
+  if (mysql_get_server_version(mysql) <= 50000)
+  {
+    verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_LONGLONG, "",
+                         "", "", 3, 0);
+  }
+  else
+  {
+    verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
+                         "", "", NAME_LEN*MAX_KEY, 0);
+  }
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN*16, 0);
