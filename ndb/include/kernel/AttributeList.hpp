@@ -17,6 +17,8 @@
 #ifndef ATTRIBUTE_LIST_HPP
 #define ATTRIBUTE_LIST_HPP
 
+#include "ndb_limits.h"
+
 /**
  * Masks and lists used by index and trigger.  Must be plain old Uint32 data.
  * XXX depends on other headers XXX move to some common file
