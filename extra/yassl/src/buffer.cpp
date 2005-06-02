@@ -24,7 +24,6 @@
  * with SSL types and sockets
  */
 
-#include "runtime.hpp"
 #include "buffer.hpp"
 #include "yassl_types.hpp"
 
@@ -76,7 +75,7 @@ input_buffer::input_buffer(uint s, const byte* t, uint len)
 
 input_buffer::~input_buffer() 
 { 
-    delete [] buffer_; 
+    ysArrayDelete(buffer_); 
 }
 
 
@@ -96,7 +95,7 @@ byte* input_buffer::get_buffer() const
 }
 
 
-// after a raw write user can set new size
+// after a raw write user can set new (ys) size
 // if you know the size before the write use assign()
 void input_buffer::add_size(uint i) 
 { 
@@ -212,7 +211,7 @@ output_buffer::output_buffer(uint s, const byte* t, uint len)
 
 output_buffer::~output_buffer() 
 { 
-    delete [] buffer_; 
+    ysArrayDelete(buffer_); 
 }
 
 

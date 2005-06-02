@@ -48,6 +48,11 @@
 #define USE_PRAGMA_INTERFACE
 #endif
 
+/* Determine when to use "#pragma implementation" */
+#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
+#define USE_PRAGMA_IMPLEMENTATION
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
@@ -310,12 +315,14 @@ C_MODE_END
 #endif
 #if defined(__ia64__)
 #define new my_arg_new
+#define need_to_restore_new 1
 #endif
 C_MODE_START
 #include <asm/atomic.h>
 C_MODE_END
-#if defined(__ia64__)
+#ifdef need_to_restore_new /* probably safer than #ifdef new */
 #undef new
+#undef need_to_restore_new
 #endif
 #endif
 #include <errno.h>				/* Recommended by debian */

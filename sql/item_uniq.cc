@@ -15,7 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* Compability file */
-#ifdef __GNUC__
+
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
 

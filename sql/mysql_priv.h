@@ -884,8 +884,7 @@ bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   List_iterator<Item> *it, bool any_privileges,
                    bool allocate_view_names);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-		  TABLE_LIST **leaves, bool refresh_only,
-                  bool select_insert);
+		  TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
@@ -924,10 +923,18 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table,
 			     bool return_if_owned_by_thd);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
-bool fill_record(THD *thd, List<Item> &fields, List<Item> &values,
-                 bool ignore_errors);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);
+bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+                                          List<Item> &values,
+                                          bool ignore_errors,
+                                          Table_triggers_list *triggers,
+                                          enum trg_event_type event);
+bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
+                                          List<Item> &values,
+                                          bool ignore_errors,
+                                          Table_triggers_list *triggers,
+                                          enum trg_event_type event);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
 
 inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
@@ -1051,7 +1058,6 @@ extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
-extern double last_query_cost;
 extern double log_10[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
@@ -1070,7 +1076,7 @@ extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
-extern ulong query_buff_size, thread_stack,thread_stack_min;
+extern ulong query_buff_size, thread_stack;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
@@ -1095,7 +1101,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
-extern my_bool sp_automatic_privileges;
+extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_routine_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
@@ -1160,8 +1166,11 @@ extern pthread_t signal_thread;
 extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
-                              bool ignore_global_read_lock= FALSE);
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count, uint flags);
+/* mysql_lock_tables() flags bits */
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
+#define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
+
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
@@ -1422,11 +1431,11 @@ inline int hexchar_to_int(char c)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code);
 void kill_delayed_threads(void);
-bool check_stack_overrun(THD *thd,char *dummy);
+bool check_stack_overrun(THD *thd, long margin, char *dummy);
 #else
 #define unireg_abort(exit_code) DBUG_RETURN(exit_code)
 inline void kill_delayed_threads(void) {}
-#define check_stack_overrun(A, B) 0
+#define check_stack_overrun(A, B, C) 0
 #endif
 
 #endif /* MYSQL_CLIENT */

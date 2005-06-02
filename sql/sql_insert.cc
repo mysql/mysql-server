@@ -398,7 +398,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (fields.elements || !value_count)
     {
       restore_record(table,s->default_values);	// Get empty record
-      if (fill_record(thd, fields, *values, 0))
+      if (fill_record_n_invoke_before_triggers(thd, fields, *values, 0,
+                                               table->triggers,
+                                               TRG_EVENT_INSERT))
       {
 	if (values_list.elements != 1 && !thd->net.report_error)
 	{
@@ -419,8 +421,17 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       if (thd->used_tables)			// Column used in values()
 	restore_record(table,s->default_values);	// Get empty record
       else
-	table->record[0][0]= table->s->default_values[0]; // Fix delete marker
-      if (fill_record(thd, table->field, *values, 0))
+      {
+        /*
+          Fix delete marker. No need to restore rest of record since it will
+          be overwritten by fill_record() anyway (and fill_record() does not
+          use default values in this case).
+        */
+	table->record[0][0]= table->s->default_values[0];
+      }
+      if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
+                                               table->triggers,
+                                               TRG_EVENT_INSERT))
       {
 	if (values_list.elements != 1 && ! thd->net.report_error)
 	{
@@ -431,14 +442,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	break;
       }
     }
-
-    /*
-      FIXME: Actually we should do this before
-      check_that_all_fields_are_given_values Or even go into write_record ?
-    */
-    if (table->triggers)
-      table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                        TRG_ACTION_BEFORE);
 
     if ((res= table_list->view_check_option(thd,
 					    (values_list.elements == 1 ?
@@ -473,9 +476,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (error)
       break;
     thd->row_count++;
-
-    if (table->triggers)
-      table->triggers->process_triggers(thd, TRG_EVENT_INSERT, TRG_ACTION_AFTER);
   }
 
   /*
@@ -699,7 +699,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
   if (setup_tables(thd, table_list, where, &thd->lex->select_lex.leaf_tables,
-		   FALSE, select_insert))
+		   select_insert))
     DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
@@ -802,15 +802,35 @@ static int last_uniq_key(TABLE *table,uint keynr)
 
 
 /*
-  Write a record to table with optional deleting of conflicting records
+  Write a record to table with optional deleting of conflicting records,
+  invoke proper triggers if needed.
 
-  Sets thd->no_trans_update if table which is updated didn't have transactions
+  SYNOPSIS
+     write_record()
+      thd   - thread context
+      table - table to which record should be written
+      info  - COPY_INFO structure describing handling of duplicates
+              and which is used for counting number of records inserted
+              and deleted.
+
+  NOTE
+    Once this record will be written to table after insert trigger will
+    be invoked. If instead of inserting new record we will update old one
+    then both on update triggers will work instead. Similarly both on
+    delete triggers will be invoked if we will delete conflicting records.
+
+    Sets thd->no_trans_update if table which is updated didn't have
+    transactions.
+
+  RETURN VALUE
+    0     - success
+    non-0 - error
 */
 
 
 int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 {
-  int error;
+  int error, trg_error= 0;
   char *key=0;
   DBUG_ENTER("write_record");
 
@@ -872,34 +892,43 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
       if (info->handle_duplicates == DUP_UPDATE)
       {
         int res= 0;
-        /* we don't check for other UNIQUE keys - the first row
-           that matches, is updated. If update causes a conflict again,
-           an error is returned
+        /*
+          We don't check for other UNIQUE keys - the first row
+          that matches, is updated. If update causes a conflict again,
+          an error is returned
         */
 	DBUG_ASSERT(table->insert_values != NULL);
         store_record(table,insert_values);
         restore_record(table,record[1]);
         DBUG_ASSERT(info->update_fields->elements ==
                     info->update_values->elements);
-        if (fill_record(thd, *info->update_fields, *info->update_values, 0))
-          goto err;
+        if (fill_record_n_invoke_before_triggers(thd, *info->update_fields,
+                                                 *info->update_values, 0,
+                                                 table->triggers,
+                                                 TRG_EVENT_UPDATE))
+          goto before_trg_err;
 
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
         if (info->view &&
             (res= info->view->view_check_option(current_thd, info->ignore)) ==
             VIEW_CHECK_SKIP)
-          break;
+          goto ok_or_after_trg_err;
         if (res == VIEW_CHECK_ERROR)
-          goto err;
+          goto before_trg_err;
 
         if ((error=table->file->update_row(table->record[1],table->record[0])))
 	{
 	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
-	    break;
+            goto ok_or_after_trg_err;
           goto err;
 	}
         info->updated++;
-        break;
+
+        trg_error= (table->triggers &&
+                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                      TRG_ACTION_AFTER, TRUE));
+        info->copied++;
+        goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
       {
@@ -916,20 +945,48 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             (table->timestamp_field_type == TIMESTAMP_NO_AUTO_SET ||
              table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
         {
+          if (table->triggers &&
+              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                TRG_ACTION_BEFORE, TRUE))
+            goto before_trg_err;
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
             goto err;
           info->deleted++;
-          break;				/* Update logfile and count */
+          trg_error= (table->triggers &&
+                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                        TRG_ACTION_AFTER,
+                                                        TRUE));
+          /* Update logfile and count */
+          info->copied++;
+          goto ok_or_after_trg_err;
         }
-        else if ((error=table->file->delete_row(table->record[1])))
-          goto err;
-        info->deleted++;
-        if (!table->file->has_transactions())
-          thd->no_trans_update= 1;
+        else
+        {
+          if (table->triggers &&
+              table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                                TRG_ACTION_BEFORE, TRUE))
+            goto before_trg_err;
+          if ((error=table->file->delete_row(table->record[1])))
+            goto err;
+          info->deleted++;
+          if (!table->file->has_transactions())
+            thd->no_trans_update= 1;
+          if (table->triggers &&
+              table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                                TRG_ACTION_AFTER, TRUE))
+          {
+            trg_error= 1;
+            goto ok_or_after_trg_err;
+          }
+          /* Let us attempt do write_row() once more */
+        }
       }
     }
     info->copied++;
+    trg_error= (table->triggers &&
+                table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
+                                                  TRG_ACTION_AFTER, TRUE));
   }
   else if ((error=table->file->write_row(table->record[0])))
   {
@@ -939,18 +996,27 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
     table->file->restore_auto_increment();
   }
   else
+  {
     info->copied++;
+    trg_error= (table->triggers &&
+                table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
+                                                  TRG_ACTION_AFTER, TRUE));
+  }
+
+ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
     thd->no_trans_update= 1;
-  DBUG_RETURN(0);
+  DBUG_RETURN(trg_error);
 
 err:
-  if (key)
-    my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   info->last_errno= error;
   table->file->print_error(error,MYF(0));
+
+before_trg_err:
+  if (key)
+    my_safe_afree(key, table->s->max_unique_length, MAX_KEY_LENGTH);
   DBUG_RETURN(1);
 }
 
@@ -1145,10 +1211,13 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
         Avoid that a global read lock steps in while we are creating the
         new thread. It would block trying to open the table. Hence, the
         DI thread and this thread would wait until after the global
-        readlock is gone. If the read lock exists already, we leave with
-        no table and then switch to non-delayed insert.
+        readlock is gone. Since the insert thread needs to wait for a
+        global read lock anyway, we do it right now. Note that
+        wait_if_global_read_lock() sets a protection against a new
+        global read lock when it succeeds. This needs to be released by
+        start_waiting_global_read_lock().
       */
-      if (set_protect_against_global_read_lock())
+      if (wait_if_global_read_lock(thd, 0, 1))
         goto err;
       if (!(tmp=new delayed_insert()))
       {
@@ -1190,7 +1259,11 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
-      unset_protect_against_global_read_lock();
+      /*
+        Release the protection against the global read lock and wake
+        everyone, who might want to set a global read lock.
+      */
+      start_waiting_global_read_lock(thd);
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -1226,7 +1299,11 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 
  err1:
   thd->fatal_error();
-  unset_protect_against_global_read_lock();
+  /*
+    Release the protection against the global read lock and wake
+    everyone, who might want to set a global read lock.
+  */
+  start_waiting_global_read_lock(thd);
  err:
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(0); // Continue with normal insert
@@ -1584,7 +1661,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
         handler will close the table and finish when the outstanding
         inserts are done.
       */
-      if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1, TRUE)))
+      if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
+                                          MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK)))
       {
 	/* Fatal error */
 	di->dead= 1;
@@ -1698,7 +1776,7 @@ bool delayed_insert::handle_inserts(void)
   if (thd.killed || table->s->version != refresh_version)
   {
     thd.killed= THD::KILL_CONNECTION;
-    max_rows= ~0;				// Do as much as possible
+    max_rows= ~(uint)0;				// Do as much as possible
   }
 
   /*
@@ -2014,12 +2092,27 @@ bool select_insert::send_data(List<Item> &values)
       DBUG_RETURN(1);
     }
   }
-  if (!(error= write_record(thd, table,&info)) && table->next_number_field)
+  if (!(error= write_record(thd, table, &info)))
   {
-    /* Clear for next record */
-    table->next_number_field->reset();
-    if (! last_insert_id && thd->insert_id_used)
-      last_insert_id=thd->insert_id();
+    if (table->triggers)
+    {
+      /*
+        If triggers exist then whey can modify some fields which were not
+        originally touched by INSERT ... SELECT, so we have to restore
+        their original values for the next row.
+      */
+      restore_record(table, s->default_values);
+    }
+    if (table->next_number_field)
+    {
+      /*
+        Clear auto-increment field for the next record, if triggers are used
+        we will clear it twice, but this should be cheap.
+      */
+      table->next_number_field->reset();
+      if (!last_insert_id && thd->insert_id_used)
+        last_insert_id= thd->insert_id();
+    }
   }
   DBUG_RETURN(error);
 }
@@ -2028,9 +2121,11 @@ bool select_insert::send_data(List<Item> &values)
 void select_insert::store_values(List<Item> &values)
 {
   if (fields->elements)
-    fill_record(thd, *fields, values, 1);
+    fill_record_n_invoke_before_triggers(thd, *fields, values, 1,
+                                         table->triggers, TRG_EVENT_INSERT);
   else
-    fill_record(thd, table->field, values, 1);
+    fill_record_n_invoke_before_triggers(thd, table->field, values, 1,
+                                         table->triggers, TRG_EVENT_INSERT);
 }
 
 void select_insert::send_error(uint errcode,const char *err)
@@ -2173,7 +2268,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
 void select_create::store_values(List<Item> &values)
 {
-  fill_record(thd, field, values, 1);
+  fill_record_n_invoke_before_triggers(thd, field, values, 1,
+                                       table->triggers, TRG_EVENT_INSERT);
 }
 
 

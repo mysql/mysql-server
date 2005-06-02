@@ -43,7 +43,7 @@ namespace yaSSL {
 
 // Digest policy should implement a get_digest, update, and get sizes for pad and 
 // digest
-struct Digest {
+struct Digest : public virtual_base {
     virtual void   get_digest(byte*) = 0;
     virtual void   get_digest(byte*, const byte*, unsigned int) = 0;
     virtual void   update(const byte*, unsigned int) = 0;
@@ -178,7 +178,7 @@ private:
 
 // BulkCipher policy should implement encrypt, decrypt, get block size, 
 // and set keys for encrypt and decrypt
-struct BulkCipher {
+struct BulkCipher : public virtual_base {
     virtual void   encrypt(byte*, const byte*, unsigned int) = 0;
     virtual void   decrypt(byte*, const byte*, unsigned int) = 0;
     virtual void   set_encryptKey(const byte*, const byte* = 0) = 0;
@@ -308,7 +308,7 @@ private:
 
 
 // Authentication policy should implement sign, and verify
-struct Auth {
+struct Auth : public virtual_base {
     virtual void sign(byte*, const byte*, unsigned int, const RandomPool&) = 0;
     virtual bool verify(const byte*, unsigned int, const byte*,
                         unsigned int) = 0;

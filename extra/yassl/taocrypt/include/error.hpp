@@ -65,7 +65,8 @@ UNKOWN_HASH_E   = 1034, // "unknown hash OID"
 DSA_SZ_E        = 1035, // "bad DSA r or s size"
 BEFORE_DATE_E   = 1036, // "before date in the future"
 AFTER_DATE_E    = 1037, // "after date in the past"
-SIG_CONFIRM_E   = 1038  // "bad signature confirmation"
+SIG_CONFIRM_E   = 1038, // "bad self  signature confirmation"
+SIG_OTHER_E     = 1039  // "bad other signature confirmation"
 
 };
 

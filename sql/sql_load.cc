@@ -21,6 +21,8 @@
 #include <my_dir.h>
 #include <m_ctype.h>
 #include "sql_repl.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 class READ_INFO {
   File	file;
@@ -148,7 +150,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables(thd, table_list, &unused_conds,
-		   &thd->lex->select_lex.leaf_tables, FALSE, FALSE))
+		   &thd->lex->select_lex.leaf_tables, FALSE))
      DBUG_RETURN(-1);
   if (!table_list->table ||               // do not suport join view
       !table_list->updatable ||           // and derived tables
@@ -568,7 +570,11 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           ER(ER_WARN_TOO_MANY_RECORDS), thd->row_count); 
     }
 
-    if (fill_record(thd, set_fields, set_values, ignore_check_option_errors))
+    if (thd->killed ||
+        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
+                                             ignore_check_option_errors,
+                                             table->triggers,
+                                             TRG_EVENT_INSERT))
       DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
@@ -580,7 +586,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-    if (thd->killed || write_record(thd,table,&info))
+    if (write_record(thd, table, &info))
       DBUG_RETURN(1);
     thd->no_trans_update= no_trans_update;
    
@@ -592,8 +598,10 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (!id && thd->insert_id_used)
       id= thd->last_insert_id;
-    if (table->next_number_field)
-      table->next_number_field->reset();	// Clear for next record
+    /*
+      We don't need to reset auto-increment field since we are restoring
+      its default value at the beginning of each loop iteration.
+    */
     if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)
@@ -725,7 +733,11 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
     }
 
-    if (fill_record(thd, set_fields, set_values, ignore_check_option_errors))
+    if (thd->killed ||
+        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
+                                             ignore_check_option_errors,
+                                             table->triggers,
+                                             TRG_EVENT_INSERT))
       DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
@@ -738,7 +750,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
 
-    if (thd->killed || write_record(thd, table, &info))
+    if (write_record(thd, table, &info))
       DBUG_RETURN(1);
     /*
       If auto_increment values are used, save the first one
@@ -748,8 +760,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (!id && thd->insert_id_used)
       id= thd->last_insert_id;
-    if (table->next_number_field)
-      table->next_number_field->reset();	// Clear for next record
+    /*
+      We don't need to reset auto-increment field since we are restoring
+      its default value at the beginning of each loop iteration.
+    */
     thd->no_trans_update= no_trans_update;
     if (read_info.next_line())			// Skip to next line
       break;

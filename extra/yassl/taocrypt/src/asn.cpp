@@ -199,14 +199,14 @@ void PublicKey::SetKey(const byte* k)
 
 void PublicKey::AddToEnd(const byte* data, word32 len)
 {
-    mySTL::auto_ptr<byte> tmp(new (tc) byte[sz_ + len]);
+    mySTL::auto_ptr<byte> tmp(new (tc) byte[sz_ + len], tcArrayDelete);
 
     memcpy(tmp.get(), key_, sz_);
     memcpy(tmp.get() + sz_, data, len);
 
     byte* del = 0;
     mySTL::swap(del, key_);
-    delete[] del;
+    tcArrayDelete(del);
 
     key_ = tmp.release();
     sz_ += len;
@@ -228,7 +228,7 @@ Signer::Signer(const byte* k, word32 kSz, const char* n, const byte* h)
 
 Signer::~Signer()
 {
-    delete[] name_;
+    tcArrayDelete(name_);
 }
 
 
@@ -433,9 +433,9 @@ CertDecoder::CertDecoder(Source& s, bool decode, SignerList* signers)
 
 CertDecoder::~CertDecoder()
 {
-    delete[] subject_;
-    delete[] issuer_;
-    delete[] signature_;
+    tcArrayDelete(subject_);
+    tcArrayDelete(issuer_);
+    tcArrayDelete(signature_);
 }
 
 
@@ -480,7 +480,7 @@ void CertDecoder::Decode(SignerList* signers)
     }
     else
         if (!ValidateSignature(signers))
-            source_.SetError(SIG_CONFIRM_E);
+            source_.SetError(SIG_OTHER_E);
 }
 
 
@@ -807,7 +807,7 @@ bool CertDecoder::ValidateSignature(SignerList* signers)
 bool CertDecoder::ConfirmSignature(Source& pub)
 {
     HashType ht;
-    mySTL::auto_ptr<HASH> hasher;
+    mySTL::auto_ptr<HASH> hasher(tcDelete);
 
     if (signatureOID_ == MD5wRSA) {
         hasher.reset(new (tc) MD5);

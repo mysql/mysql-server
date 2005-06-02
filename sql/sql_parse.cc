@@ -651,7 +651,6 @@ static bool check_mqh(THD *thd, uint check_command)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool error= 0;
-  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
@@ -1655,6 +1654,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     while (!thd->killed && thd->lex->found_semicolon && !thd->net.report_error)
     {
       char *packet= thd->lex->found_semicolon;
+      net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
 	in embedded server - just store them to be executed later 
@@ -2326,6 +2326,10 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
 
+
+
+
+
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.
@@ -2768,12 +2772,30 @@ mysql_execute_command(THD *thd)
       lex->create_info.default_table_charset= lex->create_info.table_charset;
       lex->create_info.table_charset= 0;
     }
+    /*
+      The create-select command will open and read-lock the select table
+      and then create, open and write-lock the new table. If a global
+      read lock steps in, we get a deadlock. The write lock waits for
+      the global read lock, while the global read lock waits for the
+      select table to be closed. So we wait until the global readlock is
+      gone before starting both steps. Note that
+      wait_if_global_read_lock() sets a protection against a new global
+      read lock when it succeeds. This needs to be released by
+      start_waiting_global_read_lock(). We protect the normal CREATE
+      TABLE in the same way. That way we avoid that a new table is
+      created during a gobal read lock.
+    */
+    if (wait_if_global_read_lock(thd, 0, 1))
+    {
+      res= -1;
+      goto unsent_create_error;
+    }
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
 
       select_lex->options|= SELECT_NO_UNLOCK;
-      unit->set_limit(select_lex, select_lex);
+      unit->set_limit(select_lex);
 
       if (!(res= open_and_lock_tables(thd, select_tables)))
       {
@@ -2785,7 +2807,7 @@ mysql_execute_command(THD *thd)
             unique_table(create_table, select_tables))
         {
           my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
-          goto unsent_create_error;
+          goto unsent_create_error1;
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2798,7 +2820,7 @@ mysql_execute_command(THD *thd)
             if (unique_table(tab, select_tables))
             {
               my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
-              goto unsent_create_error;
+              goto unsent_create_error1;
             }
           }
         }
@@ -2841,8 +2863,20 @@ mysql_execute_command(THD *thd)
       if (!res)
 	send_ok(thd);
     }
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
     lex->link_first_table_back(create_table, link_to_local);
     break;
+
+unsent_create_error1:
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
 
     /* put tables back for PS rexecuting */
 unsent_create_error:
@@ -3171,12 +3205,12 @@ unsent_create_error:
     select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
-    unit->set_limit(select_lex, select_lex);
+    unit->set_limit(select_lex);
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
-      lex->select_lex.table_list.first= (byte*)first_table->next_local;
+      select_lex->table_list.first= (byte*)first_table->next_local;
 
       res= mysql_insert_select_prepare(thd);
       if (!res && (result= new select_insert(first_table, first_table->table,
@@ -3188,13 +3222,13 @@ unsent_create_error:
           insert/replace from SELECT give its SELECT_LEX for SELECT,
           and item_list belong to SELECT
         */
-	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
-	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+	select_lex->resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
       /* revert changes for SP */
-      lex->select_lex.table_list.first= (byte*) first_table;
+      select_lex->table_list.first= (byte*) first_table;
     }
 
     if (first_table->view && !first_table->contain_auto_increment)
@@ -3987,7 +4021,7 @@ unsent_create_error:
       lex->sphead= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
-      if (sp_automatic_privileges &&
+      if (sp_automatic_privileges && !opt_noacl &&
           check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
       			       db, name,
                                lex->sql_command == SQLCOM_CREATE_PROCEDURE, 1))
@@ -4010,6 +4044,12 @@ unsent_create_error:
       goto error;
     case SP_NO_DB_ERROR:
       my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
+      lex->unit.cleanup();
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
+    case SP_BAD_IDENTIFIER:
+      my_error(ER_TOO_LONG_IDENT, MYF(0), name);
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
@@ -4256,7 +4296,7 @@ unsent_create_error:
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
           goto error;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	if (sp_automatic_privileges &&
+	if (sp_automatic_privileges && !opt_noacl &&
 	    sp_revoke_privileges(thd, db, name, 
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE))
 	{
@@ -4981,11 +5021,18 @@ long max_stack_used;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
+/*
+  Note: The 'buf' parameter is necessary, even if it is unused here.
+  - fix_fields functions has a "dummy" buffer large enough for the
+    corresponding exec. (Thus we only have to check in fix_fields.)
+  - Passing to check_stack_overrun() prevents the compiler from removing it.
+ */
+bool check_stack_overrun(THD *thd, long margin,
+			 char *buf __attribute__((unused)))
 {
   long stack_used;
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      (long) thread_stack_min)
+      thread_stack - margin)
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
     my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));
@@ -5198,6 +5245,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
+  lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
@@ -6776,6 +6824,14 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
+    
+    /* in case of subselects, we need to set lock_type in
+     * corresponding table in list of all tables */
+    if (walk->correspondent_table)
+    {
+      target_tbl->correspondent_table= walk->correspondent_table;
+      walk->correspondent_table->lock_type= walk->lock_type;
+    }
   }
   DBUG_RETURN(FALSE);
 }
@@ -6909,6 +6965,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
 
+#ifdef NOT_NECESSARY_TO_CHECK_CREATE_TABLE_EXIST_WHEN_PREPARING_STATEMENT
+    /* This code throws an ill error for CREATE TABLE t1 SELECT * FROM t1 */
     /*
       Only do the check for PS, becasue we on execute we have to check that
       against the opened tables to ensure we don't use a table that is part
@@ -6927,6 +6985,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
         goto err;
       }
     }
+#endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
       goto err;
   }

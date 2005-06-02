@@ -34,10 +34,6 @@
 #include <stddef.h>         // ptrdiff_t
 
 
-#if defined(_MSC_VER) && defined(_CRTAPI1)
-#define TAOCRYPT_MSVCRT6
-#endif
-
 
 namespace TaoCrypt {
 
@@ -47,13 +43,13 @@ template<class T>
 class AllocatorBase
 {
 public:
-    typedef T      value_type;
-    typedef size_t size_type;
-    typedef ptrdiff_t      difference_type;
-    typedef T*       pointer;
-    typedef const T* const_pointer;
-    typedef T&       reference;
-    typedef const T& const_reference;
+    typedef T         value_type;
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+    typedef T*        pointer;
+    typedef const T*  const_pointer;
+    typedef T&        reference;
+    typedef const T&  const_reference;
 
     pointer       address(reference r) const {return (&r);}
     const_pointer address(const_reference r) const {return (&r); }
@@ -110,7 +106,7 @@ public:
     void deallocate(void* p, size_type n)
     {
         memset(p, 0, n * sizeof(T));
-        delete [] (T*)p;
+        tcArrayDelete((T*)p);
     }
 
     pointer reallocate(T* p, size_type oldSize, size_type newSize,

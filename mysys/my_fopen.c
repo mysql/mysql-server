@@ -39,13 +39,16 @@ FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
     very  well 
   */
 #ifdef __WIN__
-  if (! (Flags & O_CREAT) && my_access(FileName, F_OK))
-	  fd=0;
+  if (check_if_legal_filename(FileName))
+  {
+    errno= EACCES;
+    fd= 0;
+  }
   else
 #endif
   {
-  	make_ftype(type,Flags);
-  	fd = fopen(FileName, type);
+    make_ftype(type,Flags);
+    fd = fopen(FileName, type);
   }
   
   if (fd != 0)
