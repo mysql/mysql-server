@@ -4509,7 +4509,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
-			   system_charset_info);
+			   system_charset_info, DERIVATION_SYSCONST);
 
   Item *item;
   sys_var *var;
