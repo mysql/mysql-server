@@ -493,3 +493,47 @@ flush privileges;
 #
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 
+#
+# Bug #10964  Information Schema:Authorization check on privilege tables is improper
+#
+
+create database mysqltest;
+create table mysqltest.t1 (f1 int, f2 int);
+create table mysqltest.t2 (f1 int);
+grant select (f1) on mysqltest.t1 to user1@localhost;
+grant select on mysqltest.t2 to user2@localhost;
+grant select on mysqltest.* to user3@localhost;
+grant select on *.* to user4@localhost;
+
+connect (con1,localhost,user1,,);
+connect (con2,localhost,user2,,);
+connect (con3,localhost,user3,,);
+connect (con4,localhost,user4,,);
+connection con1;
+select * from information_schema.column_privileges;
+select * from information_schema.table_privileges;
+select * from information_schema.schema_privileges;
+select * from information_schema.user_privileges;
+show grants;
+connection con2;
+select * from information_schema.column_privileges;
+select * from information_schema.table_privileges;
+select * from information_schema.schema_privileges;
+select * from information_schema.user_privileges;
+show grants;
+connection con3;
+select * from information_schema.column_privileges;
+select * from information_schema.table_privileges;
+select * from information_schema.schema_privileges;
+select * from information_schema.user_privileges;
+show grants;
+connection con4;
+select * from information_schema.column_privileges where grantee like '%user%';
+select * from information_schema.table_privileges where grantee like '%user%';
+select * from information_schema.schema_privileges where grantee like '%user%';
+select * from information_schema.user_privileges where grantee like '%user%';
+show grants;
+connection default;
+drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
+use test;
+drop database mysqltest;
