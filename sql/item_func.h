@@ -189,13 +189,13 @@ class Item_func_numhybrid: public Item_func
 protected:
   Item_result hybrid_type;
 public:
-  Item_func_numhybrid(Item *a) :Item_func(a),hybrid_type(REAL_RESULT)
+  Item_func_numhybrid(Item *a) :Item_func(a), hybrid_type(REAL_RESULT)
   {}
   Item_func_numhybrid(Item *a,Item *b)
-    :Item_func(a,b),hybrid_type(REAL_RESULT)
+    :Item_func(a,b), hybrid_type(REAL_RESULT)
   {}
   Item_func_numhybrid(List<Item> &list)
-    :Item_func(list),hybrid_type(REAL_RESULT)
+    :Item_func(list), hybrid_type(REAL_RESULT)
   {}
 
   enum Item_result result_type () const { return hybrid_type; }
