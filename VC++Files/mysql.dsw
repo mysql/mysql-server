@@ -80,6 +80,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name zlib
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -320,6 +323,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name zlib
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -476,6 +482,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name mysqlclient
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -532,6 +541,9 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name mysqlclient
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
     End Project Dependency
 }}}
 
