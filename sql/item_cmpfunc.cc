@@ -1114,8 +1114,8 @@ Item_func_ifnull::fix_length_and_dec()
   max_length= (max(args[0]->max_length - args[0]->decimals,
                    args[1]->max_length - args[1]->decimals) +
                decimals);
-  agg_result_type(&cached_result_type, args, 2);
-  switch (cached_result_type) {
+  agg_result_type(&hybrid_type, args, 2);
+  switch (hybrid_type) {
   case STRING_RESULT:
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
     break;
@@ -1153,7 +1153,7 @@ Field *Item_func_ifnull::tmp_table_field(TABLE *table)
 }
 
 double
-Item_func_ifnull::val_real()
+Item_func_ifnull::real_op()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
@@ -1169,7 +1169,7 @@ Item_func_ifnull::val_real()
 }
 
 longlong
-Item_func_ifnull::val_int()
+Item_func_ifnull::int_op()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
@@ -1185,7 +1185,7 @@ Item_func_ifnull::val_int()
 }
 
 
-my_decimal *Item_func_ifnull::val_decimal(my_decimal *decimal_value)
+my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   my_decimal *value= args[0]->val_decimal(decimal_value);
@@ -1202,7 +1202,7 @@ my_decimal *Item_func_ifnull::val_decimal(my_decimal *decimal_value)
 
 
 String *
-Item_func_ifnull::val_str(String *str)
+Item_func_ifnull::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
@@ -1676,7 +1676,7 @@ void Item_func_case::print(String *str)
   Coalesce - return first not NULL argument.
 */
 
-String *Item_func_coalesce::val_str(String *str)
+String *Item_func_coalesce::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   null_value=0;
@@ -1690,7 +1690,7 @@ String *Item_func_coalesce::val_str(String *str)
   return 0;
 }
 
-longlong Item_func_coalesce::val_int()
+longlong Item_func_coalesce::int_op()
 {
   DBUG_ASSERT(fixed == 1);
   null_value=0;
@@ -1704,7 +1704,7 @@ longlong Item_func_coalesce::val_int()
   return 0;
 }
 
-double Item_func_coalesce::val_real()
+double Item_func_coalesce::real_op()
 {
   DBUG_ASSERT(fixed == 1);
   null_value=0;
@@ -1719,7 +1719,7 @@ double Item_func_coalesce::val_real()
 }
 
 
-my_decimal *Item_func_coalesce::val_decimal(my_decimal *decimal_value)
+my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   null_value= 0;
@@ -1736,8 +1736,8 @@ my_decimal *Item_func_coalesce::val_decimal(my_decimal *decimal_value)
 
 void Item_func_coalesce::fix_length_and_dec()
 {
-  agg_result_type(&cached_result_type, args, arg_count);
-  switch (cached_result_type) {
+  agg_result_type(&hybrid_type, args, arg_count);
+  switch (hybrid_type) {
   case STRING_RESULT:
     count_only_length();
     decimals= NOT_FIXED_DEC;
