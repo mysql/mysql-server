@@ -750,16 +750,14 @@ Remark:		Returns a new TupleId to the application.
                 The TupleId comes from SYSTAB_0 where SYSKEY_0 = TableId.
                 It is initialized to (TableId << 48) + 1 in NdbcntrMain.cpp.
 ****************************************************************************/
-#define DEBUG_TRACE(msg) \
-//  ndbout << __FILE__ << " line: " << __LINE__ << " msg: " << msg << endl
-
 Uint64
 Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
 {
   DBUG_ENTER("getAutoIncrementValue");
-  const char * internalTableName = internalizeTableName(aTableName);
+  BaseString internal_tabname(internalize_table_name(aTableName));
+
   Ndb_local_table_info *info=
-    theDictionary->get_local_table_info(internalTableName, false);
+    theDictionary->get_local_table_info(internal_tabname, false);
   if (info == 0)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl *table= info->m_table_impl;
@@ -811,7 +809,7 @@ Ndb::getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize)
 Uint64
 Ndb::readAutoIncrementValue(const char* aTableName)
 {
-  DBUG_ENTER("readtAutoIncrementValue");
+  DBUG_ENTER("readAutoIncrementValue");
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
   if (table == 0) {
     theError= theDictionary->getNdbError();
@@ -825,7 +823,7 @@ Ndb::readAutoIncrementValue(const char* aTableName)
 Uint64
 Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable)
 {
-  DBUG_ENTER("readtAutoIncrementValue");
+  DBUG_ENTER("readAutoIncrementValue");
   if (aTable == 0)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
@@ -847,62 +845,63 @@ Ndb::readTupleIdFromNdb(Uint32 aTableId)
 bool
 Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
 {
-  DEBUG_TRACE("setAutoIncrementValue " << val);
-  const char * internalTableName= internalizeTableName(aTableName);
+  DBUG_ENTER("setAutoIncrementValue");
+  BaseString internal_tabname(internalize_table_name(aTableName));
+
   Ndb_local_table_info *info=
-    theDictionary->get_local_table_info(internalTableName, false);
+    theDictionary->get_local_table_info(internal_tabname, false);
   if (info == 0) {
     theError= theDictionary->getNdbError();
-    return false;
+    DBUG_RETURN(false);
   }
   const NdbTableImpl* table= info->m_table_impl;
-  return setTupleIdInNdb(table->m_tableId, val, increase);
+  DBUG_RETURN(setTupleIdInNdb(table->m_tableId, val, increase));
 }
 
 bool
 Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, bool increase)
 {
-  DEBUG_TRACE("setAutoIncrementValue " << val);
+  DBUG_ENTER("setAutoIncrementValue");
   if (aTable == 0)
-    return ~(Uint64)0;
+    DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
-  return setTupleIdInNdb(table->m_tableId, val, increase);
+  DBUG_RETURN(setTupleIdInNdb(table->m_tableId, val, increase));
 }
 
-bool 
+bool
 Ndb::setTupleIdInNdb(const char* aTableName, Uint64 val, bool increase )
 {
-  DEBUG_TRACE("setTupleIdInNdb");
+  DBUG_ENTER("setTupleIdInNdb(const char*, ...)");
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
   if (table == 0) {
     theError= theDictionary->getNdbError();
-    return false;
+    DBUG_RETURN(false);
   }
-  return setTupleIdInNdb(table->m_tableId, val, increase);
+  DBUG_RETURN(setTupleIdInNdb(table->m_tableId, val, increase));
 }
 
 bool
 Ndb::setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase )
 {
-  DEBUG_TRACE("setTupleIdInNdb");
+  DBUG_ENTER("setTupleIdInNdb(Uint32, ...)");
   if (increase)
   {
     if (theFirstTupleId[aTableId] != theLastTupleId[aTableId])
     {
       // We have a cache sequence
       if (val <= theFirstTupleId[aTableId]+1)
-	return false;
+	DBUG_RETURN(false);
       if (val <= theLastTupleId[aTableId])
       {
 	theFirstTupleId[aTableId] = val - 1;
-	return true;
+	DBUG_RETURN(true);
       }
       // else continue;
-    }    
-    return (opTupleIdOnNdb(aTableId, val, 2) == val);
+    }
+    DBUG_RETURN((opTupleIdOnNdb(aTableId, val, 2) == val));
   }
   else
-    return (opTupleIdOnNdb(aTableId, val, 1) == val);
+    DBUG_RETURN((opTupleIdOnNdb(aTableId, val, 1) == val));
 }
 
 Uint64
@@ -1142,24 +1141,62 @@ Ndb::externalizeIndexName(const char * internalIndexName)
   return externalizeIndexName(internalIndexName, usingFullyQualifiedNames());
 }
 
-const char *
-Ndb::internalizeTableName(const char * externalTableName)
+
+const BaseString
+Ndb::internalize_table_name(const char *external_name) const
 {
+  BaseString ret;
+  DBUG_ENTER("internalize_table_name");
+  DBUG_PRINT("enter", ("external_name: %s", external_name));
+
   if (fullyQualifiedNames)
-    return theImpl->internalize_table_name(externalTableName);
+  {
+    /* Internal table name format <db>/<schema>/<table>
+       <db>/<schema> is already available in m_prefix
+       so just concat the two strings
+     */
+    ret.assfmt("%s%s",
+               theImpl->m_prefix.c_str(),
+               external_name);
+  }
   else
-    return externalTableName;
+    ret.assign(external_name);
+
+  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
+  DBUG_RETURN(ret);
 }
- 
-const char *
-Ndb::internalizeIndexName(const NdbTableImpl * table,
-                          const char * externalIndexName)
+
+
+const BaseString
+Ndb::internalize_index_name(const NdbTableImpl * table,
+                           const char * external_name) const
 {
+  BaseString ret;
+  DBUG_ENTER("internalize_index_name");
+  DBUG_PRINT("enter", ("external_name: %s, table_id: %d",
+                       external_name, table ? table->m_tableId : ~0));
+  if (!table)
+  {
+    DBUG_PRINT("error", ("!table"));
+    return ret;
+  }
+
   if (fullyQualifiedNames)
-    return theImpl->internalize_index_name(table, externalIndexName);
+  {
+    /* Internal index name format <db>/<schema>/<tabid>/<table> */
+    ret.assfmt("%s%d%c%s",
+               theImpl->m_prefix.c_str(),
+               table->m_tableId,
+               table_name_separator,
+               external_name);
+  }
   else
-    return externalIndexName;
+    ret.assign(external_name);
+
+  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
+  DBUG_RETURN(ret);
 }
+
 
 const BaseString
 Ndb::getDatabaseFromInternalName(const char * internalName)

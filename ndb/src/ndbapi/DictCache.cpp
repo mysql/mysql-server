@@ -79,11 +79,14 @@ LocalDictCache::drop(const char * name){
  * Global cache
  */
 GlobalDictCache::GlobalDictCache(){
+  DBUG_ENTER("GlobalDictCache::GlobalDictCache");
   m_tableHash.createHashTable();
   m_waitForTableCondition = NdbCondition_Create();
+  DBUG_VOID_RETURN;
 }
 
 GlobalDictCache::~GlobalDictCache(){
+  DBUG_ENTER("GlobalDictCache::~GlobalDictCache");
   NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
   while(curr != 0){
     Vector<TableVersion> * vers = curr->theData;
@@ -93,20 +96,52 @@ GlobalDictCache::~GlobalDictCache(){
 	delete (* vers)[i].m_impl;
     }
     delete curr->theData;
+    curr->theData= NULL;
     curr = m_tableHash.getNext(curr);
   }
-  
   m_tableHash.releaseHashTable();
   NdbCondition_Destroy(m_waitForTableCondition);
+  DBUG_VOID_RETURN;
 }
 
-#include <NdbOut.hpp>
+void GlobalDictCache::printCache()
+{
+  DBUG_ENTER("GlobalDictCache::printCache");
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
+  while(curr != 0){
+    DBUG_PRINT("curr", ("len: %d, hash: %d, lk: %d, str: %s",
+                        curr->len, curr->hash, curr->localkey1, curr->str));
+    if (curr->theData){
+      Vector<TableVersion> * vers = curr->theData;
+      const unsigned sz = vers->size();
+      for(unsigned i = 0; i<sz ; i++){
+        TableVersion tv= (*vers)[i];
+        DBUG_PRINT("  ", ("vers[%d]: ver: %d, refCount: %d, status: %d",
+                          sz, tv.m_version, tv.m_refCount, tv.m_status));
+        if(tv.m_impl != 0)
+        {
+          DBUG_PRINT("  ", ("m_impl: internalname: %s",
+                            tv.m_impl->m_internalName.c_str()));
+        }
+      }
+    }
+    else
+    {
+      DBUG_PRINT("  ", ("NULL"));
+    }
+    curr = m_tableHash.getNext(curr);
+  }
+  DBUG_VOID_RETURN;
+}
 
-NdbTableImpl * 
+NdbTableImpl *
 GlobalDictCache::get(const char * name)
 {
+  DBUG_ENTER("GlobalDictCache::get");
+  DBUG_PRINT("enter", ("name: %s", name));
+
   const Uint32 len = strlen(name);
-  Vector<TableVersion> * versions = 0;  
+  Vector<TableVersion> * versions = 0;
   versions = m_tableHash.getData(name, len);
   if(versions == 0){
     versions = new Vector<TableVersion>(2);
@@ -121,7 +156,7 @@ GlobalDictCache::get(const char * name)
     switch(ver->m_status){
     case OK:
       ver->m_refCount++;
-      return ver->m_impl;
+      DBUG_RETURN(ver->m_impl);
     case DROPPED:
       retreive = true; // Break loop
       break;
@@ -140,24 +175,28 @@ GlobalDictCache::get(const char * name)
   tmp.m_status = RETREIVING;
   tmp.m_refCount = 1; // The one retreiving it
   versions->push_back(tmp);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 NdbTableImpl *
 GlobalDictCache::put(const char * name, NdbTableImpl * tab)
 {
+  DBUG_ENTER("GlobalDictCache::put");
+  DBUG_PRINT("enter", ("name: %s, internal_name: %s",
+                       name, tab ? tab->m_internalName.c_str() : "tab NULL"));
+
   const Uint32 len = strlen(name);
   Vector<TableVersion> * vers = m_tableHash.getData(name, len);
   if(vers == 0){
     // Should always tried to retreive it first 
-    // and then there should be a record
+    // and thus there should be a record
     abort(); 
   }
 
   const Uint32 sz = vers->size();
   if(sz == 0){
     // Should always tried to retreive it first 
-    // and then there should be a record
+    // and thus there should be a record
     abort(); 
   }
   
@@ -170,7 +209,7 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
   }
   
   if(tab == 0){
-    // No table found in db
+    DBUG_PRINT("info", ("No table found in db"));
     vers->erase(sz - 1);
   } else {
     ver.m_impl = tab;
@@ -179,74 +218,84 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
   }
   
   NdbCondition_Broadcast(m_waitForTableCondition);
-  return tab;
+  DBUG_RETURN(tab);
 } 
 
 void
 GlobalDictCache::drop(NdbTableImpl * tab)
 {
+  DBUG_ENTER("GlobalDictCache::drop");
+  DBUG_PRINT("enter", ("internal_name: %s", tab->m_internalName.c_str()));
+
   unsigned i;
   const Uint32 len = strlen(tab->m_internalName.c_str());
   Vector<TableVersion> * vers = 
     m_tableHash.getData(tab->m_internalName.c_str(), len);
   if(vers == 0){
     // Should always tried to retreive it first 
-    // and then there should be a record
+    // and thus there should be a record
     abort(); 
   }
 
   const Uint32 sz = vers->size();
   if(sz == 0){
     // Should always tried to retreive it first 
-    // and then there should be a record
+    // and thus there should be a record
     abort(); 
   }
-  
+
   for(i = 0; i < sz; i++){
     TableVersion & ver = (* vers)[i];
     if(ver.m_impl == tab){
-      if(ver.m_refCount == 0 || ver.m_status == RETREIVING || 
+      if(ver.m_refCount == 0 || ver.m_status == RETREIVING ||
 	 ver.m_version != tab->m_version){
-	ndbout_c("Dropping with refCount=%d status=%d impl=%p",
-		 ver.m_refCount, ver.m_status, ver.m_impl);
+	DBUG_PRINT("info", ("Dropping with refCount=%d status=%d impl=%p",
+                            ver.m_refCount, ver.m_status, ver.m_impl));
 	break;
       }
-      
+      DBUG_PRINT("info", ("Found table to drop, i: %d, name: %s",
+                          i, ver.m_impl->m_internalName.c_str()));
       ver.m_refCount--;
       ver.m_status = DROPPED;
       if(ver.m_refCount == 0){
+        DBUG_PRINT("info", ("refCount is zero, deleting m_impl"))
 	delete ver.m_impl;
 	vers->erase(i);
       }
-      return;
+      DBUG_VOID_RETURN;
     }
   }
-  
+
   for(i = 0; i<sz; i++){
     TableVersion & ver = (* vers)[i];
-    ndbout_c("%d: version: %d refCount: %d status: %d impl: %p",
-	     i, ver.m_version, ver.m_refCount, ver.m_status, ver.m_impl);
+    DBUG_PRINT("info", ("%d: version: %d refCount: %d status: %d impl: %p",
+                        i, ver.m_version, ver.m_refCount,
+                        ver.m_status, ver.m_impl));
   }
   
   abort();
 }
 
 void
-GlobalDictCache::release(NdbTableImpl * tab){
+GlobalDictCache::release(NdbTableImpl * tab)
+{
+  DBUG_ENTER("GlobalDictCache::release");
+  DBUG_PRINT("enter", ("internal_name: %s", tab->m_internalName.c_str()));
+
   unsigned i;
   const Uint32 len = strlen(tab->m_internalName.c_str());
   Vector<TableVersion> * vers = 
     m_tableHash.getData(tab->m_internalName.c_str(), len);
   if(vers == 0){
     // Should always tried to retreive it first 
-    // and then there should be a record
+    // and thus there should be a record
     abort(); 
   }
 
   const Uint32 sz = vers->size();
   if(sz == 0){
     // Should always tried to retreive it first 
-    // and then there should be a record
+    // and thus there should be a record
     abort(); 
   }
   
@@ -255,20 +304,21 @@ GlobalDictCache::release(NdbTableImpl * tab){
     if(ver.m_impl == tab){
       if(ver.m_refCount == 0 || ver.m_status == RETREIVING || 
 	 ver.m_version != tab->m_version){
-	ndbout_c("Releasing with refCount=%d status=%d impl=%p",
-		 ver.m_refCount, ver.m_status, ver.m_impl);
+	DBUG_PRINT("info", ("Releasing with refCount=%d status=%d impl=%p",
+                            ver.m_refCount, ver.m_status, ver.m_impl));
 	break;
       }
       
       ver.m_refCount--;
-      return;
+      DBUG_VOID_RETURN;
     }
   }
   
   for(i = 0; i<sz; i++){
     TableVersion & ver = (* vers)[i];
-    ndbout_c("%d: version: %d refCount: %d status: %d impl: %p",
-	     i, ver.m_version, ver.m_refCount, ver.m_status, ver.m_impl);
+    DBUG_PRINT("info", ("%d: version: %d refCount: %d status: %d impl: %p",
+                        i, ver.m_version, ver.m_refCount,
+                        ver.m_status, ver.m_impl));
   }
   
   abort();
