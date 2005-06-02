@@ -76,6 +76,8 @@ public:
   };
   
 private:
+  void printCache();
+
   struct TableVersion {
     Uint32 m_version;
     Uint32 m_refCount;
