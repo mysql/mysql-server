@@ -52,7 +52,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console  /machine:IA64
-# ADD LINK32 ..\lib_release\zlib.lib  mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"../client_release/mysqlbinlog.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib  mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console  /out:"../client_release/mysqlbinlog.exe" /libpath:"..\lib_release\\" /machine:IA64
 # SUBTRACT LINK32 /debug
 
 !ELSEIF  "$(CFG)" == "mysqlbinlog - WinIA64 Debug"
@@ -78,7 +78,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug  /machine:IA64
-# ADD LINK32 ..\lib_debug\zlib.lib  mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib /nologo /subsystem:console /incremental:no /debug  /out:"../client_debug/mysqlbinlog.exe" /libpath:"..\lib_debug\\" /machine:IA64
+# ADD LINK32 ..\lib_debug\zlib.lib  mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console /incremental:no /debug  /out:"../client_debug/mysqlbinlog.exe" /libpath:"..\lib_debug\\" /machine:IA64
 
 !ELSEIF  "$(CFG)" == "mysqlbinlog - WinIA64 classic"
 
@@ -105,7 +105,7 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console  /out:"../client_release/mysqlbinlog.exe" /libpath:"..\lib_release\\" /machine:IA64
 # SUBTRACT BASE LINK32 /debug
-# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"../client_classic/mysqlbinlog.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console  /out:"../client_classic/mysqlbinlog.exe" /libpath:"..\lib_release\\" /machine:IA64
 # SUBTRACT LINK32 /debug
 
 !ENDIF 

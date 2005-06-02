@@ -22,7 +22,9 @@
 **
 *****************************************************************************/
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -444,6 +446,7 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
   while (to != end)
     *(to++)+= *(from++);
+  /* it doesn't make sense to add last_query_cost values */
 }
 
 

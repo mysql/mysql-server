@@ -17,7 +17,9 @@
 
 /* mysql_select and join optimization */
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -35,7 +37,7 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 };
 
 const key_map key_map_empty(0);
-const key_map key_map_full(~0);
+const key_map key_map_full(~(uint)0);
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, COND *conds,
@@ -233,7 +235,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   else
   {
     SELECT_LEX_UNIT *unit= &lex->unit;
-    unit->set_limit(unit->global_parameters, select_lex);
+    unit->set_limit(unit->global_parameters);
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
       every PS/SP execution new, we will not need reset this flag if 
@@ -342,7 +344,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
        setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
-                    FALSE, FALSE)) ||
+                    FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -465,13 +467,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   count_field_types(&tmp_table_param, all_fields, 0);
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
   this->group= group_list != 0;
-  row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
-	      unit_arg->select_limit_cnt);
-  /* select_limit is used to decide if we are likely to scan the whole table */
-  select_limit= unit_arg->select_limit_cnt;
-  if (having || (select_options & OPTION_FOUND_ROWS))
-    select_limit= HA_POS_ERROR;
-  do_send_rows = (unit_arg->select_limit_cnt) ? 1 : 0;
   unit= unit_arg;
 
 #ifdef RESTRICTED_GROUP
@@ -550,6 +545,13 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
+  row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
+	      unit->select_limit_cnt);
+  /* select_limit is used to decide if we are likely to scan the whole table */
+  select_limit= unit->select_limit_cnt;
+  if (having || (select_options & OPTION_FOUND_ROWS))
+    select_limit= HA_POS_ERROR;
+  do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
     thd->lex->current_select->no_error= 1;
@@ -1110,18 +1112,7 @@ int
 JOIN::reinit()
 {
   DBUG_ENTER("JOIN::reinit");
-  /* TODO move to unit reinit */
-  unit->set_limit(select_lex, select_lex);
 
-  /* conds should not be used here, it is added just for safety */
-  if (tables_list)
-  {
-    if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
-                     TRUE, FALSE))
-      DBUG_RETURN(1);
-  }
-
-  /* Reset of sum functions */
   first_record= 0;
 
   if (exec_tmp_table1)
@@ -1147,6 +1138,7 @@ JOIN::reinit()
   if (tmp_join)
     restore_tmp();
 
+  /* Reset of sum functions */
   if (sum_funcs)
   {
     Item_sum *func, **func_ptr= sum_funcs;
@@ -2825,17 +2817,14 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond_func->functype() == Item_func::NOT_FUNC)
   {
     Item *item= cond_func->arguments()[0];
-    /* 
-       At this moment all NOT before simple comparison predicates
-       are eliminated. NOT IN and NOT BETWEEN are treated similar
-       IN and BETWEEN respectively.
+    /*
+      At this moment all NOT before simple comparison predicates
+      are eliminated. NOT IN and NOT BETWEEN are treated similar
+      IN and BETWEEN respectively.
     */
     if (item->type() == Item::FUNC_ITEM &&
         ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
-    {
       add_key_fields(key_fields,and_level,item,usable_tables);
-      return;
-    }
     return;
   }
   switch (cond_func->select_optimize()) {
@@ -3799,8 +3788,7 @@ choose_plan(JOIN *join, table_map join_tables)
     Don't update last_query_cost for 'show status' command
   */
   if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
-    last_query_cost= join->best_read;
-
+    join->thd->status_var.last_query_cost= join->best_read;
   DBUG_VOID_RETURN;
 }
 
@@ -5100,7 +5088,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
-  join_tab->keys.init(~0);                      /* test everything in quick */
+  join_tab->keys.init(~(uint)0);                /* test everything in quick */
   join_tab->info=0;
   join_tab->on_expr_ref=0;
   join_tab->last_inner= 0;
@@ -12322,7 +12310,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 {
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
-  Copy_field *copy;
+  Copy_field *copy= NULL;
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
@@ -12330,7 +12318,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   uint i, border= all_fields.elements - elements;
   DBUG_ENTER("setup_copy_fields");
 
-  if (!(copy=param->copy_field= new Copy_field[param->field_count]))
+  if (param->field_count && 
+      !(copy=param->copy_field= new Copy_field[param->field_count]))
     goto err2;
 
   param->copy_funcs.empty();
@@ -12369,9 +12358,12 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
-	copy->set(tmp, item->result_field);
-	item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-	copy++;
+      if (copy)
+      {
+        copy->set(tmp, item->result_field);
+        item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
+        copy++;
+      }				
       }
     }
     else if ((pos->type() == Item::FUNC_ITEM ||
@@ -12414,7 +12406,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   DBUG_RETURN(0);
 
  err:
-  delete [] param->copy_field;			// This is never 0
+  if (copy)
+    delete [] param->copy_field;			// This is never 0
   param->copy_field=0;
 err2:
   DBUG_RETURN(TRUE);
@@ -12821,6 +12814,76 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
   ROLLUP handling
 ****************************************************************************/
 
+/*
+  Replace occurences of group by fields in an expression by ref items
+
+  SYNOPSIS
+    change_group_ref()
+    thd                  reference to the context
+    expr                 expression to make replacement
+    group_list           list of references to group by items
+    changed        out:  returns 1 if item contains a replaced field item 
+     
+  DESCRIPTION
+    The function replaces occurrences of group by fields in expr
+    by ref objects for these fields unless they are under aggregate
+    functions.
+
+  IMPLEMENTATION
+    The function recursively traverses the tree of the expr expression,
+    looks for occurrences of the group by fields that are not under
+    aggregate functions and replaces them for the corresponding ref items.
+
+  NOTES
+    This substitution is needed GROUP BY queries with ROLLUP if
+    SELECT list contains expressions over group by attributes.
+
+  EXAMPLES
+    SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
+    SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP 
+    
+  RETURN
+    0	if ok
+    1   on error
+*/
+
+static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
+                             bool *changed)
+{
+  if (expr->arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= expr->arguments(),
+         arg_end= expr->arguments()+expr->arg_count;
+         arg != arg_end; arg++)
+    {
+      Item *item= *arg;
+      if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
+      {
+        ORDER *group_tmp;
+        for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+        {
+          if (item->eq(*group_tmp->item,0))
+          {
+            Item *new_item;    
+            if(!(new_item= new Item_ref(group_tmp->item, 0, item->name)))
+              return 1;                                 // fatal_error is set
+            thd->change_item_tree(arg, new_item);
+            *changed= TRUE;
+          }
+        }
+      }
+      else if (item->type() == Item::FUNC_ITEM)
+      {
+        if (change_group_ref(thd, (Item_func *) item, group_list, changed))
+          return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+
 /* Allocate memory needed for other rollup functions */
 
 bool JOIN::rollup_init()
@@ -12865,19 +12928,31 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
-  List_iterator_fast<Item> it(fields_list);
+  List_iterator_fast<Item> it(all_fields);
   Item *item;
   while ((item= it++))
   {
     ORDER *group_tmp;
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
-      if (*group_tmp->item == item)
+      if (item->eq(*group_tmp->item,0))
         item->maybe_null= 1;
+    }
+    if (item->type() == Item::FUNC_ITEM)
+    {
+      bool changed= 0;
+      if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
+        return 1;
+      /*
+        We have to prevent creation of a field in a temporary table for
+        an expression that contains GROUP BY attributes.
+        Marking the expression item as 'with_sum_func' will ensure this.
+      */ 
+      if (changed)
+        item->with_sum_func= 1;
     }
   }
   return 0;
-
 }
   
 
@@ -12973,14 +13048,14 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	*(*func)= (Item_sum*) item;
 	(*func)++;
       }
-      else if (real_fields)
+      else 
       {
 	/* Check if this is something that is part of this group by */
 	ORDER *group_tmp;
 	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
-	  if (*group_tmp->item == item)
+          if (item->eq(*group_tmp->item,0))
 	  {
             Item_null_result *null_item;
 	    /*
@@ -13490,7 +13565,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   else
   {
     thd->lex->current_select= first;
-    unit->set_limit(unit->global_parameters, first);
+    unit->set_limit(unit->global_parameters);
     res= mysql_select(thd, &first->ref_pointer_array,
 			(TABLE_LIST*) first->table_list.first,
 			first->with_wild, first->item_list,

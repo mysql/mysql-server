@@ -17,7 +17,9 @@
 
 /* This file defines all compare functions */
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -1225,9 +1227,16 @@ Item_func_if::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null || args[2]->maybe_null;
   decimals= max(args[1]->decimals, args[2]->decimals);
-  max_length= (max(args[1]->max_length - args[1]->decimals,
+  if (decimals == NOT_FIXED_DEC)
+  {
+    max_length= max(args[1]->max_length, args[2]->max_length);
+  }
+  else
+  {
+    max_length= (max(args[1]->max_length - args[1]->decimals,
                    args[2]->max_length - args[2]->decimals) +
                decimals);
+  }
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
   bool null1=args[1]->const_item() && args[1]->null_value;
@@ -2321,7 +2330,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   */
   and_tables_cache= ~(table_map) 0;
 
-  if (check_stack_overrun(thd, buff))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error flag is set!
   /*
     The following optimization reduces the depth of an AND-OR tree.

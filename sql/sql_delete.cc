@@ -176,13 +176,24 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     if (!(select && select->skip_record())&& !thd->net.report_error )
     {
 
-      if (table->triggers)
-        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                          TRG_ACTION_BEFORE);
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                            TRG_ACTION_BEFORE, FALSE))
+      {
+        error= 1;
+        break;
+      }
 
       if (!(error=table->file->delete_row(table->record[0])))
       {
 	deleted++;
+        if (table->triggers &&
+            table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                              TRG_ACTION_AFTER, FALSE))
+        {
+          error= 1;
+          break;
+        }
 	if (!--limit && using_limit)
 	{
 	  error= -1;
@@ -203,10 +214,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
  	error= 1;
 	break;
       }
-
-      if (table->triggers)
-        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                          TRG_ACTION_AFTER);
     }
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
@@ -293,8 +300,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
 
-  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables,
-                   FALSE, FALSE) ||
+  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       setup_ftfuncs(select_lex))
     DBUG_RETURN(TRUE);
@@ -351,7 +357,7 @@ bool mysql_multi_delete_prepare(THD *thd)
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
   if (setup_tables(thd, lex->query_tables, &lex->select_lex.where,
-                   &lex->select_lex.leaf_tables, FALSE, FALSE))
+                   &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
 
 
@@ -509,9 +515,19 @@ bool multi_delete::send_data(List<Item> &values)
     if (secure_counter < 0)
     {
       /* If this is the table we are scanning */
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                            TRG_ACTION_BEFORE, FALSE))
+	DBUG_RETURN(1);
       table->status|= STATUS_DELETED;
       if (!(error=table->file->delete_row(table->record[0])))
+      {
 	deleted++;
+        if (table->triggers &&
+            table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                              TRG_ACTION_AFTER, FALSE))
+	  DBUG_RETURN(1);
+      }
       else if (!table_being_deleted->next_local ||
 	       table_being_deleted->table->file->has_transactions())
       {
@@ -614,12 +630,26 @@ int multi_delete::do_deletes(bool from_send_error)
     info.ignore_not_found_rows= 1;
     while (!(local_error=info.read_record(&info)) && !thd->killed)
     {
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                            TRG_ACTION_BEFORE, FALSE))
+      {
+        local_error= 1;
+        break;
+      }
       if ((local_error=table->file->delete_row(table->record[0])))
       {
 	table->file->print_error(local_error,MYF(0));
 	break;
       }
       deleted++;
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                            TRG_ACTION_AFTER, FALSE))
+      {
+        local_error= 1;
+        break;
+      }
     }
     end_read_record(&info);
     if (thd->killed && !local_error)
@@ -665,11 +695,11 @@ bool multi_delete::send_eof()
     Note that if we deleted nothing we don't write to the binlog (TODO:
     fix this).
   */
-  if (deleted && (error <= 0 || normal_tables))
+  if (deleted && ((error <= 0 && !local_error) || normal_tables))
   {
     if (mysql_bin_log.is_open())
     {
-      if (error <= 0)
+      if (error <= 0 && !local_error)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);

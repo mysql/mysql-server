@@ -28,7 +28,9 @@
 
 #ifdef DISABLED_UNTIL_REWRITTEN_IN_4_1
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -153,8 +155,7 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
 
 
   if (setup_tables(lex->thd, (TABLE_LIST *)select_lex->table_list.first
-                   &select_lex->where, &select_lex->leaf_tables,
-                   FALSE, FALSE) ||
+                   &select_lex->where, &select_lex->leaf_tables, FALSE) ||
       setup_fields(lex->thd, 0, (TABLE_LIST *)select_lex->table_list.first,
 		   select_lex->item_list, 1, &all_fields,1) ||
       setup_fields(lex->thd, 0, (TABLE_LIST *)select_lex->table_list.first,

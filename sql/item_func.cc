@@ -17,7 +17,9 @@
 
 /* This file defines all numerical functions */
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -300,7 +302,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (check_stack_overrun(thd, buff))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -2322,11 +2324,15 @@ void Item_func_locate::print(String *str)
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
+  if (args[0]->is_null())
+    return 0;
+
   if (cmp_type == STRING_RESULT)
   {
     String *field;
-    if (!(field=args[0]->val_str(&value)))
-      return 0;					// -1 if null ?
+    if (!(field= args[0]->val_str(&value)))
+      return 0;
     for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
@@ -2337,20 +2343,16 @@ longlong Item_func_field::val_int()
   else if (cmp_type == INT_RESULT)
   {
     longlong val= args[0]->val_int();
-    if (args[0]->is_null())
-      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_int() && ! args[i]->is_null())
- 	return (longlong) (i);
+      if (!args[i]->is_null() && val == args[i]->val_int())
+        return (longlong) (i);
     }
   }
   else if (cmp_type == DECIMAL_RESULT)
   {
     my_decimal dec_arg_buf, *dec_arg,
                dec_buf, *dec= args[0]->val_decimal(&dec_buf);
-    if (args[0]->is_null())
-      return 0;
     for (uint i=1; i < arg_count; i++)
     {
       dec_arg= args[i]->val_decimal(&dec_arg_buf);
@@ -2361,12 +2363,10 @@ longlong Item_func_field::val_int()
   else
   {
     double val= args[0]->val_real();
-    if (args[0]->is_null())
-      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_real() && ! args[i]->is_null())
- 	return (longlong) (i);
+      if (!args[i]->is_null() && val == args[i]->val_real())
+        return (longlong) (i);
     }
   }
   return 0;
@@ -2572,7 +2572,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 #endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
-  if (check_stack_overrun(thd, buff))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(TRUE);				// Fatal error flag is set!
 
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
@@ -3603,7 +3603,7 @@ longlong user_var_entry::val_int(my_bool *null_value)
   case DECIMAL_RESULT:
   {
     longlong result;
-    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 1, &result);
+    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, &result);
     return result;
   }
   case STRING_RESULT:
@@ -4509,7 +4509,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
-			   system_charset_info);
+			   system_charset_info, DERIVATION_SYSCONST);
 
   Item *item;
   sys_var *var;

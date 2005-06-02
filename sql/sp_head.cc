@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
 
@@ -564,13 +564,11 @@ sp_head::execute(THD *thd)
   Item_change_list old_change_list;
   String old_packet;
 
-
-#ifndef EMBEDDED_LIBRARY
-  if (check_stack_overrun(thd, olddb))
+  /* Use some extra margin for possible SP recursion and functions */
+  if (check_stack_overrun(thd, 4*STACK_MIN_SIZE, olddb))
   {
     DBUG_RETURN(-1);
   }
-#endif
 
   dbchanged= FALSE;
   if (m_db.length &&
@@ -1499,8 +1497,8 @@ sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
   /* QQ: Still unsure what should we return in case of error 1 or -1 ? */
   if (!value->fixed && value->fix_fields(thd, 0, &value) ||
-      trigger_field.fix_fields(thd, 0, 0) ||
-      (value->save_in_field(trigger_field.field, 0) < 0))
+      trigger_field->fix_fields(thd, 0, 0) ||
+      (value->save_in_field(trigger_field->field, 0) < 0))
     res= -1;
   *nextp= m_ip + 1;
   DBUG_RETURN(res);
@@ -1510,7 +1508,7 @@ void
 sp_instr_set_trigger_field::print(String *str)
 {
   str->append("set ", 4);
-  trigger_field.print(str);
+  trigger_field->print(str);
   str->append(":=", 2);
   value->print(str);
 }
@@ -1915,7 +1913,19 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
     else
       res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
-    c->post_open(thd, (lex_keeper ? TRUE : FALSE));
+    /*
+      Work around the fact that errors in selects are not returned properly
+      (but instead converted into a warning), so if a condition handler
+      caught, we have lost the result code.
+     */
+    if (!res)
+    {
+      uint dummy1, dummy2;
+
+      if (thd->spcont->found_handler(&dummy1, &dummy2))
+	res= -1;
+    }
+    c->post_open(thd, (lex_keeper && !res ? TRUE : FALSE));
   }
 
   DBUG_RETURN(res);

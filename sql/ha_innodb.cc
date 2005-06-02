@@ -27,7 +27,9 @@ have disables the InnoDB inlining in this file. */
     in Windows?
 */
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -5764,7 +5766,12 @@ MySQL calls this function at the start of each SQL statement inside LOCK
 TABLES. Inside LOCK TABLES the ::external_lock method does not work to
 mark SQL statement borders. Note also a special case: if a temporary table
 is created inside LOCK TABLES, MySQL has not called external_lock() at all
-on that table. */
+on that table.
+MySQL-5.0 also calls this before each statement in an execution of a stored
+procedure. To make the execution more deterministic for binlogging, MySQL-5.0
+locks all tables involved in a stored procedure with full explicit table
+locks (thd->in_lock_tables is true in ::store_lock()) before executing the
+procedure. */
 
 int
 ha_innobase::start_stmt(
@@ -6443,10 +6450,8 @@ ha_innobase::store_lock(
 		if (srv_locks_unsafe_for_binlog &&
 		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
 		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
-		    thd->lex->sql_command != SQLCOM_SELECT &&
-		    thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
-		    thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
-		    thd->lex->sql_command != SQLCOM_LOCK_TABLES) {
+		    (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+		     thd->lex->sql_command == SQLCOM_UPDATE)) {
 
 			/* In case we have innobase_locks_unsafe_for_binlog
 			option set and isolation level of the transaction
@@ -6479,7 +6484,8 @@ ha_innobase::store_lock(
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
 	 	    lock_type <= TL_WRITE) && !thd->in_lock_tables
 		    && !thd->tablespace_op
-		    && thd->lex->sql_command != SQLCOM_TRUNCATE) {
+		    && thd->lex->sql_command != SQLCOM_TRUNCATE
+                    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
       			lock_type = TL_WRITE_ALLOW_WRITE;
       		}
