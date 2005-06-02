@@ -1443,7 +1443,7 @@ bool delayed_insert::handle_inserts(void)
   if (thd.killed || table->version != refresh_version)
   {
     thd.killed=1;
-    max_rows= ~0;				// Do as much as possible
+    max_rows= ~(uint)0;				// Do as much as possible
   }
 
   /*
