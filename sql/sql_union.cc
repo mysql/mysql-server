@@ -323,7 +323,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
       if (tmp_arena)
         thd->restore_backup_item_arena(tmp_arena, &backup);
-      if (arena->is_stmt_prepare())
+      if (arena->is_stmt_prepare_or_first_sp_execute())
       {
 	/* prepare fake select to initialize it correctly */
 	init_prepare_fake_select_lex(thd);

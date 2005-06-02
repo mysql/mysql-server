@@ -1027,7 +1027,7 @@ Item_field::Item_field(THD *thd, Field *f)
     structure can go away and pop up again between subsequent executions
     of a prepared statement).
   */
-  if (thd->current_arena->is_stmt_prepare())
+  if (thd->current_arena->is_stmt_prepare_or_first_sp_execute())
   {
     if (db_name)
       orig_db_name= thd->strdup(db_name);
