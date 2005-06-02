@@ -17,6 +17,8 @@
 
 /* This file defines all numerical functions */
 
+#include <my_global.h>
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -2322,11 +2324,15 @@ void Item_func_locate::print(String *str)
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
+  if (args[0]->is_null())
+    return 0;
+
   if (cmp_type == STRING_RESULT)
   {
     String *field;
-    if (!(field=args[0]->val_str(&value)))
-      return 0;					// -1 if null ?
+    if (!(field= args[0]->val_str(&value)))
+      return 0;
     for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
@@ -2337,20 +2343,16 @@ longlong Item_func_field::val_int()
   else if (cmp_type == INT_RESULT)
   {
     longlong val= args[0]->val_int();
-    if (args[0]->is_null())
-      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_int() && ! args[i]->is_null())
- 	return (longlong) (i);
+      if (!args[i]->is_null() && val == args[i]->val_int())
+        return (longlong) (i);
     }
   }
   else if (cmp_type == DECIMAL_RESULT)
   {
     my_decimal dec_arg_buf, *dec_arg,
                dec_buf, *dec= args[0]->val_decimal(&dec_buf);
-    if (args[0]->is_null())
-      return 0;
     for (uint i=1; i < arg_count; i++)
     {
       dec_arg= args[i]->val_decimal(&dec_arg_buf);
@@ -2361,12 +2363,10 @@ longlong Item_func_field::val_int()
   else
   {
     double val= args[0]->val_real();
-    if (args[0]->is_null())
-      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_real() && ! args[i]->is_null())
- 	return (longlong) (i);
+      if (!args[i]->is_null() && val == args[i]->val_real())
+        return (longlong) (i);
     }
   }
   return 0;
