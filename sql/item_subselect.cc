@@ -22,6 +22,8 @@ SUBSELECT TODO:
      (sql_select.h/sql_select.cc)
 */
 
+#include <my_global.h>
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
