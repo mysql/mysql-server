@@ -72,7 +72,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
-  thd->master_access= ~0;
+  thd->master_access= ~(ulong)0;
   thd->priv_user = 0;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id = thread_id++;
