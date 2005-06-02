@@ -2325,9 +2325,6 @@ longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
 
-  if (args[0]->is_null())
-    return 0;
-
   if (cmp_type == STRING_RESULT)
   {
     String *field;
@@ -2343,6 +2340,8 @@ longlong Item_func_field::val_int()
   else if (cmp_type == INT_RESULT)
   {
     longlong val= args[0]->val_int();
+    if (args[0]->null_value)
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
       if (!args[i]->is_null() && val == args[i]->val_int())
@@ -2353,6 +2352,8 @@ longlong Item_func_field::val_int()
   {
     my_decimal dec_arg_buf, *dec_arg,
                dec_buf, *dec= args[0]->val_decimal(&dec_buf);
+    if (args[0]->null_value)
+      return 0;
     for (uint i=1; i < arg_count; i++)
     {
       dec_arg= args[i]->val_decimal(&dec_arg_buf);
@@ -2363,6 +2364,8 @@ longlong Item_func_field::val_int()
   else
   {
     double val= args[0]->val_real();
+    if (args[0]->null_value)
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
       if (!args[i]->is_null() && val == args[i]->val_real())
