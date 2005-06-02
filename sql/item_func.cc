@@ -817,6 +817,8 @@ String *Item_func_numhybrid::val_str(String *str)
     str->set(nr,decimals,&my_charset_bin);
     break;
   }
+  case STRING_RESULT:
+    return str_op(&str_value);
   default:
     DBUG_ASSERT(0);
   }
@@ -841,6 +843,14 @@ double Item_func_numhybrid::val_real()
     return (double)int_op();
   case REAL_RESULT:
     return real_op();
+  case STRING_RESULT:
+  {
+    char *end_not_used;
+    int err_not_used;
+    String *res= str_op(&str_value);
+    return (res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
+			     &end_not_used, &err_not_used) : 0.0);
+  }
   default:
     DBUG_ASSERT(0);
   }
@@ -865,6 +875,15 @@ longlong Item_func_numhybrid::val_int()
     return int_op();
   case REAL_RESULT:
     return (longlong)real_op();
+  case STRING_RESULT:
+  {
+    char *end_not_used;
+    int err_not_used;
+    String *res= str_op(&str_value);
+    CHARSET_INFO *cs= str_value.charset();
+    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end_not_used,
+                                           &err_not_used) : 0);
+  }
   default:
     DBUG_ASSERT(0);
   }
@@ -893,6 +912,12 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
     break;
   }
   case STRING_RESULT:
+  {
+    String *res= str_op(&str_value);
+    str2my_decimal(E_DEC_FATAL_ERROR, (char*) res->ptr(),
+                   res->length(), res->charset(), decimal_value);
+    break;
+  }  
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
