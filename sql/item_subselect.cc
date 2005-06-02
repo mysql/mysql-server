@@ -22,6 +22,8 @@ SUBSELECT TODO:
      (sql_select.h/sql_select.cc)
 */
 
+#include <my_global.h>
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -384,9 +386,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     return RES_REDUCE;
   }
   return RES_OK;
-
-err:
-  return RES_ERROR;
 }
 
 

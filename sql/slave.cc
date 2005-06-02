@@ -2818,7 +2818,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
-  thd->master_access= ~0;
+  thd->master_access= ~(ulong)0;
   thd->slave_thread = 1;
   set_slave_thread_options(thd);
   /* 
