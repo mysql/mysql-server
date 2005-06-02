@@ -115,6 +115,13 @@ set @@query_alloc_block_size=default, @@query_prealloc_size=default;
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
 show variables like '%alloc%';
 
+#
+# Bug #10904 Illegal mix of collations between
+# a system variable and a constant
+#
+SELECT @@version LIKE 'non-existent';
+SELECT @@version_compile_os LIKE 'non-existent';
+
 # The following should give errors
 
 --error 1231
