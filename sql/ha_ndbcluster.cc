@@ -6476,7 +6476,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
-            context->expect(Item::FUNC_ITEM);
             break;
           }
           case(Item_func::NE_FUNC): {
@@ -6493,7 +6492,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
-            context->expect(Item::FUNC_ITEM);
             break;
           }
           case(Item_func::LT_FUNC): {
@@ -6510,7 +6508,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
-            context->expect(Item::FUNC_ITEM);
             break;
           }
           case(Item_func::LE_FUNC): {
@@ -6527,7 +6524,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
-            context->expect(Item::FUNC_ITEM);
             break;
           }
           case(Item_func::GE_FUNC): {
@@ -6544,7 +6540,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
-            context->expect(Item::FUNC_ITEM);
             break;
           }
           case(Item_func::GT_FUNC): {
@@ -6561,7 +6556,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
-            context->expect(Item::FUNC_ITEM);
             break;
           }
           case(Item_func::LIKE_FUNC): {
