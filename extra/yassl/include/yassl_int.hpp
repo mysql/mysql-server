@@ -31,8 +31,8 @@
 #include "yassl_imp.hpp"
 #include "crypto_wrapper.hpp"
 #include "cert_wrapper.hpp"
-#include "lock.hpp"
 #include "log.hpp"
+#include "lock.hpp"
 
 
 namespace yaSSL {
@@ -122,7 +122,8 @@ public:
 
     friend sslFactory& GetSSL_Factory();        // singleton creator
 private:
-    static sslFactory instance;
+    static sslFactory instance_;
+
     sslFactory(const sslFactory&);              // hide copy
     sslFactory& operator=(const sslFactory&);   // and assign   
 };
@@ -207,9 +208,10 @@ public:
 
     friend Sessions& GetSessions(); // singleton creator
 private:
+    static Sessions instance_;
+
     Sessions(const Sessions&);              // hide copy
     Sessions& operator=(const Sessions&);   // and assign
-    static Sessions instance;
 };
 
 

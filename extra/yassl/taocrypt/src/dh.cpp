@@ -23,10 +23,8 @@
 /* dh.cpp implements Diffie-Hellman support
 */
 
-#include "runtime.hpp"
 #include "dh.hpp"
 #include "asn.hpp"
-#include <math.h>
 
 namespace TaoCrypt {
 

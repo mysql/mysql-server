@@ -3801,6 +3801,54 @@ call bug5963_2(1)|
 drop procedure bug5963_2|
 drop table t3|
 
+
+#
+# BUG#9559: Functions: Numeric Operations using -ve value gives incorrect
+#           results.
+#
+--disable_warnings
+drop function if exists bug9559|
+--enable_warnings
+create function bug9559()
+  returns int
+begin
+  set @y = -6/2;
+  return @y;
+end|
+
+select bug9559()|
+
+drop function bug9559|
+
+
+#
+# BUG#10961: Stored procedures: crash if select * from dual
+#
+--disable_warnings
+drop procedure if exists bug10961|
+--enable_warnings
+# "select * from dual" results in an error, so the cursor will not open
+create procedure bug10961()
+begin
+  declare v char;
+  declare x int;
+  declare c cursor for select * from dual;
+  declare continue handler for sqlexception select x;
+
+  set x = 1;
+  open c;
+  set x = 2;
+  fetch c into v;
+  set x = 3;
+  close c;
+end|
+
+call bug10961()|
+call bug10961()|
+
+drop procedure bug10961|
+
+
 #
 # BUG#NNNN: New bug synopsis
 #

@@ -28,6 +28,9 @@
 #define yaSSL_TYPES_HPP
 
 #include <stddef.h>
+#include <assert.h>
+#include "type_traits.hpp"
+
 
 namespace yaSSL {
 
@@ -40,7 +43,39 @@ extern new_t ys;      // pass in parameter
 void* operator new  (size_t, yaSSL::new_t);
 void* operator new[](size_t, yaSSL::new_t);
 
+void operator delete  (void*, yaSSL::new_t);
+void operator delete[](void*, yaSSL::new_t);
+
+
 namespace yaSSL {
+
+
+template<typename T>
+void ysDelete(T* ptr)
+{
+    if (ptr) ptr->~T();
+    ::operator delete(ptr, yaSSL::ys);
+}
+
+template<typename T>
+void ysArrayDelete(T* ptr)
+{
+    // can't do array placement destruction since not tracking size in
+    // allocation, only allow builtins to use array placement since they
+    // don't need destructors called
+    typedef char builtin[TaoCrypt::IsFundamentalType<T>::Yes ? 1 : -1];
+    (void)sizeof(builtin);
+
+    ::operator delete[](ptr, yaSSL::ys);
+}
+
+
+// to resolve compiler generated operator delete on base classes with
+// virtual destructors, make sure doesn't get called
+class virtual_base {
+public:
+    static void operator delete(void*) { assert(0); }
+};
 
 
 typedef unsigned char  uint8;

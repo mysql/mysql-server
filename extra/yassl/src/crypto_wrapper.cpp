@@ -61,7 +61,7 @@ struct MD5::MD5Impl {
 MD5::MD5() : pimpl_(new (ys) MD5Impl) {}
 
 
-MD5::~MD5() { delete pimpl_; }
+MD5::~MD5() { ysDelete(pimpl_); }
 
 
 MD5::MD5(const MD5& that) : Digest(), pimpl_(new (ys) 
@@ -119,11 +119,10 @@ struct SHA::SHAImpl {
 SHA::SHA() : pimpl_(new (ys) SHAImpl) {}
 
 
-SHA::~SHA() { delete pimpl_; }
+SHA::~SHA() { ysDelete(pimpl_); }
 
 
-SHA::SHA(const SHA& that) : Digest(), pimpl_(new (ys)
-                                             SHAImpl(that.pimpl_->sha_)) {}
+SHA::SHA(const SHA& that) : Digest(), pimpl_(new (ys) SHAImpl(that.pimpl_->sha_)) {}
 
 SHA& SHA::operator=(const SHA& that)
 {
@@ -177,11 +176,10 @@ struct RMD::RMDImpl {
 RMD::RMD() : pimpl_(new (ys) RMDImpl) {}
 
 
-RMD::~RMD() { delete pimpl_; }
+RMD::~RMD() { ysDelete(pimpl_); }
 
 
-RMD::RMD(const RMD& that) : Digest(), pimpl_(new (ys)
-                                             RMDImpl(that.pimpl_->rmd_)) {}
+RMD::RMD(const RMD& that) : Digest(), pimpl_(new (ys) RMDImpl(that.pimpl_->rmd_)) {}
 
 RMD& RMD::operator=(const RMD& that)
 {
@@ -238,7 +236,7 @@ HMAC_MD5::HMAC_MD5(const byte* secret, unsigned int len)
 }
 
 
-HMAC_MD5::~HMAC_MD5() { delete pimpl_; }
+HMAC_MD5::~HMAC_MD5() { ysDelete(pimpl_); }
 
 
 uint HMAC_MD5::get_digestSize() const
@@ -288,7 +286,7 @@ HMAC_SHA::HMAC_SHA(const byte* secret, unsigned int len)
 }
 
 
-HMAC_SHA::~HMAC_SHA() { delete pimpl_; }
+HMAC_SHA::~HMAC_SHA() { ysDelete(pimpl_); }
 
 
 uint HMAC_SHA::get_digestSize() const
@@ -339,7 +337,7 @@ HMAC_RMD::HMAC_RMD(const byte* secret, unsigned int len)
 }
 
 
-HMAC_RMD::~HMAC_RMD() { delete pimpl_; }
+HMAC_RMD::~HMAC_RMD() { ysDelete(pimpl_); }
 
 
 uint HMAC_RMD::get_digestSize() const
@@ -383,7 +381,7 @@ struct DES::DESImpl {
 
 DES::DES() : pimpl_(new (ys) DESImpl) {}
 
-DES::~DES() { delete pimpl_; }
+DES::~DES() { ysDelete(pimpl_); }
 
 
 void DES::set_encryptKey(const byte* k, const byte* iv)
@@ -419,7 +417,7 @@ struct DES_EDE::DES_EDEImpl {
 
 DES_EDE::DES_EDE() : pimpl_(new (ys) DES_EDEImpl) {}
 
-DES_EDE::~DES_EDE() { delete pimpl_; }
+DES_EDE::~DES_EDE() { ysDelete(pimpl_); }
 
 
 void DES_EDE::set_encryptKey(const byte* k, const byte* iv)
@@ -457,7 +455,7 @@ struct RC4::RC4Impl {
 
 RC4::RC4() : pimpl_(new (ys) RC4Impl) {}
 
-RC4::~RC4() { delete pimpl_; }
+RC4::~RC4() { ysDelete(pimpl_); }
 
 
 void RC4::set_encryptKey(const byte* k, const byte*)
@@ -499,7 +497,7 @@ struct AES::AESImpl {
 
 AES::AES(unsigned int ks) : pimpl_(new (ys) AESImpl(ks)) {}
 
-AES::~AES() { delete pimpl_; }
+AES::~AES() { ysDelete(pimpl_); }
 
 
 int AES::get_keySize() const
@@ -540,7 +538,7 @@ struct RandomPool::RandomImpl {
 
 RandomPool::RandomPool() : pimpl_(new (ys) RandomImpl) {}
 
-RandomPool::~RandomPool() { delete pimpl_; }
+RandomPool::~RandomPool() { ysDelete(pimpl_); }
 
 int RandomPool::GetError() const
 {
@@ -593,7 +591,7 @@ DSS::DSS(const byte* key, unsigned int sz, bool publicKey)
 
 DSS::~DSS()
 {
-    delete pimpl_;
+    ysDelete(pimpl_);
 }
 
 
@@ -663,7 +661,7 @@ RSA::RSA(const byte* key, unsigned int sz, bool publicKey)
 
 RSA::~RSA()
 {
-    delete pimpl_;
+    ysDelete(pimpl_);
 }
 
 
@@ -727,7 +725,7 @@ struct Integer::IntegerImpl {
 
 Integer::Integer() : pimpl_(new (ys) IntegerImpl) {}
 
-Integer::~Integer() { delete pimpl_; }
+Integer::~Integer() { ysDelete(pimpl_); }
 
 
 
@@ -759,7 +757,12 @@ struct DiffieHellman::DHImpl {
 
     DHImpl(TaoCrypt::RandomNumberGenerator& r) : ranPool_(r), publicKey_(0),
                                                privateKey_(0), agreedKey_(0) {}
-    ~DHImpl() {delete[] agreedKey_; delete[] privateKey_; delete[] publicKey_;}
+    ~DHImpl() 
+    {   
+        ysArrayDelete(agreedKey_); 
+        ysArrayDelete(privateKey_); 
+        ysArrayDelete(publicKey_);
+    }
 
     DHImpl(const DHImpl& that) : dh_(that.dh_), ranPool_(that.ranPool_),
                                  publicKey_(0), privateKey_(0), agreedKey_(0)
@@ -831,7 +834,7 @@ DiffieHellman::DiffieHellman(const Integer& p, const Integer& g,
                                                   pimpl_->publicKey_);
 }
 
-DiffieHellman::~DiffieHellman() { delete pimpl_; }
+DiffieHellman::~DiffieHellman() { ysDelete(pimpl_); }
 
 
 // Client side and view, use server that for p and g
@@ -957,7 +960,7 @@ x509* PemToDer(const char* fname, CertType type)
     Base64Decoder b64Dec(der);
 
     uint sz = der.size();
-    mySTL::auto_ptr<x509> x(new (ys) x509(sz));
+    mySTL::auto_ptr<x509> x(new (ys) x509(sz), ysDelete);
     memcpy(x->use_buffer(), der.get_buffer(), sz);
 
     fclose(file);
@@ -967,12 +970,25 @@ x509* PemToDer(const char* fname, CertType type)
 
 } // namespace
 
+
 #ifdef __GNUC__
-template class TaoCrypt::HMAC<TaoCrypt::MD5>;
-template class TaoCrypt::HMAC<TaoCrypt::SHA>;
-template class TaoCrypt::HMAC<TaoCrypt::RIPEMD160>;
-template class TaoCrypt::Mode_BASE<16>;
-template class TaoCrypt::Mode_BASE<8>;
-#endif
+namespace yaSSL {
+template void ysDelete<DiffieHellman::DHImpl>(DiffieHellman::DHImpl*);
+template void ysDelete<Integer::IntegerImpl>(Integer::IntegerImpl*);
+template void ysDelete<RSA::RSAImpl>(RSA::RSAImpl*);
+template void ysDelete<DSS::DSSImpl>(DSS::DSSImpl*);
+template void ysDelete<RandomPool::RandomImpl>(RandomPool::RandomImpl*);
+template void ysDelete<AES::AESImpl>(AES::AESImpl*);
+template void ysDelete<RC4::RC4Impl>(RC4::RC4Impl*);
+template void ysDelete<DES_EDE::DES_EDEImpl>(DES_EDE::DES_EDEImpl*);
+template void ysDelete<DES::DESImpl>(DES::DESImpl*);
+template void ysDelete<HMAC_RMD::HMAC_RMDImpl>(HMAC_RMD::HMAC_RMDImpl*);
+template void ysDelete<HMAC_SHA::HMAC_SHAImpl>(HMAC_SHA::HMAC_SHAImpl*);
+template void ysDelete<HMAC_MD5::HMAC_MD5Impl>(HMAC_MD5::HMAC_MD5Impl*);
+template void ysDelete<RMD::RMDImpl>(RMD::RMDImpl*);
+template void ysDelete<SHA::SHAImpl>(SHA::SHAImpl*);
+template void ysDelete<MD5::MD5Impl>(MD5::MD5Impl*);
+}
+#endif // __GNUC__
 
 #endif // !USE_CRYPTOPP_LIB

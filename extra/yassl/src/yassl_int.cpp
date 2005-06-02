@@ -24,7 +24,6 @@
  * draft along with type conversion functions.
  */
 
-#include "runtime.hpp"
 #include "yassl_int.hpp"
 #include "handshake.hpp"
 #include "timer.hpp"
@@ -33,25 +32,30 @@
 
 void* operator new(size_t sz, yaSSL::new_t)
 {
-    void* ptr = ::operator new(sz);
-
+    void* ptr = malloc(sz ? sz : 1);
     if (!ptr) abort();
 
     return ptr;
 }
 
-void* operator new[](size_t sz, yaSSL::new_t n)
+void* operator new[](size_t sz, yaSSL::new_t)
 {
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
-    void* ptr = ::operator new(sz);         // no ::operator new[]
-#else
-    void* ptr = ::operator new[](sz);
-#endif
-
+    void* ptr = malloc(sz ? sz : 1);
     if (!ptr) abort();
 
     return ptr;
 }
+
+void operator delete(void* ptr, yaSSL::new_t)
+{
+    if (ptr) free(ptr);
+}
+
+void operator delete[](void* ptr, yaSSL::new_t)
+{
+    if (ptr) free(ptr);
+}
+
 
 
 namespace yaSSL {
@@ -59,8 +63,8 @@ namespace yaSSL {
 
 using mySTL::min;
 
+new_t ys;   // for yaSSL library new
 
-new_t ys;   // for library new
 
 
 // convert a 32 bit integer into a 24 bit one
@@ -936,11 +940,13 @@ struct SumBuffer {
 } // namespace for locals
 using namespace yassl_int_cpp_local1;
 
+
 uint SSL::bufferedData()
 {
     return mySTL::for_each(buffers_.getData().begin(),buffers_.getData().end(),
                            SumData()).total_;
 }
+
 
 // use input buffer to fill data
 void SSL::fillData(Data& data)
@@ -962,7 +968,7 @@ void SSL::fillData(Data& data)
 
         if (readSz == frontSz) {
             buffers_.useData().pop_front();
-            delete front;
+            ysDelete(front);
         }
         if (data.get_length() == dataSz)
             break;
@@ -986,7 +992,7 @@ void SSL::flushBuffer()
         out.write(front->get_buffer(), front->get_size());
 
         buffers_.useHandShake().pop_front();
-        delete front;
+        ysDelete(front);
     }
     Send(out.get_buffer(), out.get_size());
 }
@@ -1346,18 +1352,19 @@ SSL_SESSION::~SSL_SESSION()
 }
 
 
-Sessions Sessions::instance; // simple singleton
+Sessions Sessions::instance_; // simple singleton
 
 Sessions& GetSessions()
 {
-    return Sessions::instance;
+    return Sessions::instance_;
 }
 
-sslFactory sslFactory::instance;
+
+sslFactory sslFactory::instance_; // simple singleton
 
 sslFactory& GetSSL_Factory()
 {   
-    return sslFactory::instance;
+    return sslFactory::instance_;
 }
 
 
@@ -1396,6 +1403,7 @@ struct sess_match {
 
 } // local namespace
 using namespace yassl_int_cpp_local2;
+
 
 // lookup session by id, return a copy if space provided
 SSL_SESSION* Sessions::lookup(const opaque* id, SSL_SESSION* copy)
@@ -1479,9 +1487,9 @@ SSL_CTX::SSL_CTX(SSL_METHOD* meth)
 
 SSL_CTX::~SSL_CTX()
 {
-    delete method_;
-    delete certificate_;
-    delete privateKey_;
+    ysDelete(method_);
+    ysDelete(certificate_);
+    ysDelete(privateKey_);
 
     mySTL::for_each(caList_.begin(), caList_.end(), del_ptr_zero());
 }
@@ -1687,9 +1695,9 @@ Crypto::Crypto()
 
 Crypto::~Crypto()
 {
-    delete dh_;
-    delete cipher_;
-    delete digest_;
+    ysDelete(dh_);
+    ysDelete(cipher_);
+    ysDelete(digest_);
 }
 
 
@@ -1939,7 +1947,7 @@ X509_NAME::X509_NAME(const char* n, size_t sz)
 
 X509_NAME::~X509_NAME()
 {
-    delete[] name_;
+    ysArrayDelete(name_);
 }
 
 
@@ -1952,7 +1960,7 @@ char* X509_NAME::GetName()
 X509::X509(const char* i, size_t iSz, const char* s, size_t sSz)
     : issuer_(i, iSz), subject_(s, sSz)
 {}
-
+   
 
 X509_NAME* X509::GetIssuer()
 {

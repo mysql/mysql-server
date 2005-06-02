@@ -16,7 +16,7 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 

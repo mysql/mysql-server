@@ -63,7 +63,7 @@ struct RecordLayerHeader {
 
 
 // base for all messages
-struct Message {
+struct Message : public virtual_base {
     virtual input_buffer& set(input_buffer&) =0;   
     virtual output_buffer& get(output_buffer&) const =0;
 
@@ -175,7 +175,7 @@ private:
 
 
 // Base Class for all handshake messages
-class HandShakeBase {
+class HandShakeBase : public virtual_base {
     int     length_;
 public:
     int     get_length() const;
@@ -327,7 +327,7 @@ private:
 };
 
 
-struct ServerKeyBase {
+struct ServerKeyBase : public virtual_base {
     virtual ~ServerKeyBase() {}
     virtual void build(SSL&) {}
     virtual void read(SSL&, input_buffer&) {}
@@ -342,7 +342,7 @@ struct Fortezza_Server : public ServerKeyBase {
 };
 
 
-struct SignatureBase {
+struct SignatureBase : public virtual_base {
     virtual ~SignatureBase() {}
 };
 
@@ -461,7 +461,7 @@ struct PreMasterSecret {
 };
 
 
-struct ClientKeyBase {
+struct ClientKeyBase : public virtual_base {
     virtual ~ClientKeyBase() {}
     virtual void build(SSL&) {}
     virtual void read(SSL&, input_buffer&) {}

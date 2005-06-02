@@ -3512,6 +3512,10 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->alter_info.flags|= ALTER_OPTIONS;
 	  }
+	| FORCE_SYM
+	  {
+	    Lex->alter_info.flags|= ALTER_FORCE;
+	   }
 	| order_clause
 	  {
 	    LEX *lex=Lex;
@@ -3968,7 +3972,7 @@ select_part2:
 	select_into select_lock_type;
 
 select_into:
-	opt_limit_clause {}
+	opt_order_clause opt_limit_clause {}
         | into
 	| select_from
 	| into select_from
@@ -4339,7 +4343,18 @@ simple_expr:
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| DEFAULT '(' simple_ident ')'
-	  { $$= new Item_default_value($3); }
+	  {
+	    if ($3->is_splocal())
+	    {
+	      LEX_STRING name;
+	      Item_splocal *il= static_cast<Item_splocal *>($3);
+
+	      il->my_name(&name.str, &name.length);
+	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name.str);
+	      YYABORT;
+	    }
+	    $$= new Item_default_value($3);
+	  }
 	| VALUES '(' simple_ident ')'
 	  { $$= new Item_insert_value($3); }
 	| FUNC_ARG0 '(' ')'
@@ -6507,6 +6522,11 @@ flush:
 	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
+	  if (lex->sphead && lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "FLUSH");
+	    YYABORT;
+	  }
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
           lex->no_write_to_binlog= $2;
 	}
@@ -7069,7 +7089,32 @@ simple_ident_q:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
+	| ident '.' ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->db))
+            {
+              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+              YYABORT;
+            }
+            if (my_strcasecmp(table_alias_charset, $3.str,
+                              table->table_name))
+            {
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $3.str);
+              YYABORT;
+            }
+            $$=$5;
+          }
+	| ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
+            {
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
+              YYABORT;
+            }
+            $$=$3;
+          }
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
@@ -7565,6 +7610,7 @@ sys_option_value:
           {
             /* We are in trigger and assigning value to field of new row */
             Item *it;
+            Item_trigger_field *trg_fld;
             sp_instr_set_trigger_field *i;
             if ($1)
             {
@@ -7585,17 +7631,19 @@ sys_option_value:
               it= new Item_null();
             }
 
-            if (!(i= new sp_instr_set_trigger_field(
-                lex->sphead->instructions(), lex->spcont,
-                $2.base_name, it)))
+            if (!(trg_fld= new Item_trigger_field(Item_trigger_field::NEW_ROW,
+                                                  $2.base_name.str)) ||
+                !(i= new sp_instr_set_trigger_field(
+                           lex->sphead->instructions(), lex->spcont,
+                           trg_fld, it)))
               YYABORT;
 
             /*
               Let us add this item to list of all Item_trigger_field
               objects in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
-            (byte **)&i->trigger_field.next_trg_field);
+            lex->trg_table_fields.link_in_list((byte *)trg_fld,
+                                    (byte **)&trg_fld->next_trg_field);
 
             lex->sphead->add_instr(i);
           }

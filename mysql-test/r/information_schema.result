@@ -470,7 +470,7 @@ s1
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
-character_sets	CREATE TEMPORARY TABLE `character_sets` (
+CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
   `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
@@ -479,7 +479,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
-character_sets	CREATE TEMPORARY TABLE `character_sets` (
+CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
   `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',

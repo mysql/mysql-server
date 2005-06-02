@@ -20,10 +20,10 @@
   First off, this is a play thing for me, there are a number of things wrong with it:
  *) It was designed for csv and therefor its performance is highly questionable.
  *) Indexes have not been implemented. This is because the files can be traded in
-    and out of the table directory without having to worry about rebuilding anything.
+ and out of the table directory without having to worry about rebuilding anything.
  *) NULLs and "" are treated equally (like a spreadsheet).
  *) There was in the beginning no point to anyone seeing this other then me, so there
-    is a good chance that I haven't quite documented it well.
+ is a good chance that I haven't quite documented it well.
  *) Less design, more "make it work"
 
  Now there are a few cool things with it:
@@ -38,7 +38,9 @@ TODO:
  -Brian
 */
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation        // gcc: Class implementation
 #endif
 
@@ -89,12 +91,12 @@ int get_mmap(TINA_SHARE *share, int write)
   {
     if (write)
       share->mapped_file= (byte *)mmap(NULL, share->file_stat.st_size, 
-                                        PROT_READ|PROT_WRITE, MAP_SHARED,
-                                        share->data_file, 0);
+                                       PROT_READ|PROT_WRITE, MAP_SHARED,
+                                       share->data_file, 0);
     else
       share->mapped_file= (byte *)mmap(NULL, share->file_stat.st_size, 
-                                        PROT_READ, MAP_PRIVATE,
-                                        share->data_file, 0);
+                                       PROT_READ, MAP_PRIVATE,
+                                       share->data_file, 0);
     if ((share->mapped_file ==(caddr_t)-1)) 
     {
       /*
@@ -144,9 +146,9 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
   {
     char data_file_name[FN_REFLEN];
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                          &share, sizeof(*share),
-                          &tmp_name, length+1,
-                          NullS)) 
+                         &share, sizeof(*share),
+                         &tmp_name, length+1,
+                         NullS)) 
     {
       pthread_mutex_unlock(&tina_mutex);
       return NULL;
@@ -341,7 +343,6 @@ int ha_tina::find_current_row(byte *buf)
 
   for (Field **field=table->field ; *field ; field++)
   {
-    int x;
     buffer.length(0);
     mapped_ptr++; // Increment past the first quote
     for(;mapped_ptr != end_ptr; mapped_ptr++)
@@ -746,28 +747,16 @@ int ha_tina::rnd_end()
     */
     qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set), (qsort_cmp)sort_set);
     for (ptr= chain; ptr < chain_ptr; ptr++)
-      printf("Chain %d, %d\n", (int)ptr->begin, (int)ptr->end);
-    for (ptr= chain; ptr < chain_ptr; ptr++)
     {
-      //memmove(share->mapped_file + ptr->begin, share->mapped_file
-      //+ ptr->end, length - (size_t)ptr->end);
       /* We peek a head to see if this is the last chain */
-      printf("Delete %d, %d, %d\n", (int)ptr->begin, (int)ptr->end, (int)length);
       if (ptr+1 == chain_ptr)
-      {
-        printf("Shiftina(end) %d(%d) to %d\n", (int)ptr->end, (int)(length - (size_t)ptr->end), (int)ptr->begin);
         memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
                 length - (size_t)ptr->end);
-      }
       else
-      {
-        printf("Shifting %d(%d) to %d\n", (int)ptr->end, (int)((ptr++)->begin - (size_t)ptr->end), (int)ptr->begin);
-        memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
-                (size_t)(ptr++)->begin - (size_t)ptr->end);
-      }
+        memmove((caddr_t)share->mapped_file + ptr->begin, (caddr_t)share->mapped_file + ptr->end,
+                (size_t)((ptr++)->begin - ptr->end));
       length= length - (size_t)(ptr->end - ptr->begin);
     }
-    printf("Buffer %s\n",share->mapped_file);
 
     /* Truncate the file to the new size */
     if (my_chsize(share->data_file, length, 0, MYF(MY_WME)))
@@ -850,7 +839,7 @@ int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_i
   DBUG_ENTER("ha_tina::create");
 
   if ((create_file= my_create(fn_format(name_buff,name,"",".CSV",MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
-                               O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+                              O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
     DBUG_RETURN(-1);
 
   my_close(create_file,MYF(0));

@@ -56,10 +56,11 @@ private:
 
 
 // Mode Base for block ciphers, static size
-template<int BLOCK_SIZE>
-class Mode_BASE {
+class Mode_BASE : public virtual_base {
 public:
-    Mode_BASE() {}
+    enum { MaxBlockSz = 16 };
+
+    explicit Mode_BASE(int sz) : blockSz_(sz) { assert(sz <= MaxBlockSz); }
     virtual ~Mode_BASE() {}
 
     virtual void ProcessAndXorBlock(const byte*, const byte*, byte*) const = 0;
@@ -68,10 +69,11 @@ public:
     void CBC_Encrypt(byte*, const byte*, word32);
     void CBC_Decrypt(byte*, const byte*, word32);
 
-    void SetIV(const byte* iv) { memcpy(reg_, iv, BLOCK_SIZE); }
+    void SetIV(const byte* iv) { memcpy(reg_, iv, blockSz_); }
 private:
-    byte reg_[BLOCK_SIZE];
-    byte tmp_[BLOCK_SIZE];
+    byte reg_[MaxBlockSz];
+    byte tmp_[MaxBlockSz];
+    int  blockSz_;
 
     Mode_BASE(const Mode_BASE&);            // hide copy
     Mode_BASE& operator=(const Mode_BASE&); // and assign
@@ -79,51 +81,48 @@ private:
 
 
 // ECB Process blocks
-template<int BLOCK_SIZE>
-void Mode_BASE<BLOCK_SIZE>::ECB_Process(byte* out, const byte* in, word32 sz)
+inline void Mode_BASE::ECB_Process(byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / BLOCK_SIZE;
+    word32 blocks = sz / blockSz_;
 
     while (blocks--) {
         ProcessAndXorBlock(in, 0, out);
-        out += BLOCK_SIZE;
-        in  += BLOCK_SIZE;
+        out += blockSz_;
+        in  += blockSz_;
     }
 }
 
 
 // CBC Encrypt
-template<int BLOCK_SIZE>
-void Mode_BASE<BLOCK_SIZE>::CBC_Encrypt(byte* out, const byte* in, word32 sz)
+inline void Mode_BASE::CBC_Encrypt(byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / BLOCK_SIZE;
+    word32 blocks = sz / blockSz_;
 
     while (blocks--) {
-        xorbuf(reg_, in, BLOCK_SIZE);
+        xorbuf(reg_, in, blockSz_);
         ProcessAndXorBlock(reg_, 0, reg_);
-        memcpy(out, reg_, BLOCK_SIZE);
-        out += BLOCK_SIZE;
-        in  += BLOCK_SIZE;
+        memcpy(out, reg_, blockSz_);
+        out += blockSz_;
+        in  += blockSz_;
     }
 }
 
 
 // CBC Decrypt
-template<int BLOCK_SIZE>
-void Mode_BASE<BLOCK_SIZE>::CBC_Decrypt(byte* out, const byte* in, word32 sz)
+inline void Mode_BASE::CBC_Decrypt(byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / BLOCK_SIZE;
-    byte   hold[BLOCK_SIZE];
+    word32 blocks = sz / blockSz_;
+    byte   hold[MaxBlockSz];
 
     while (blocks--) {
-        memcpy(tmp_, in, BLOCK_SIZE);
+        memcpy(tmp_, in, blockSz_);
         ProcessAndXorBlock(tmp_, 0, out);
-        xorbuf(out,  reg_, BLOCK_SIZE);
-        memcpy(hold, reg_,   BLOCK_SIZE); // swap reg_ and tmp_
-        memcpy(reg_,   tmp_, BLOCK_SIZE);
-        memcpy(tmp_, hold, BLOCK_SIZE);
-        out += BLOCK_SIZE;
-        in  += BLOCK_SIZE;
+        xorbuf(out,  reg_, blockSz_);
+        memcpy(hold, reg_,   blockSz_); // swap reg_ and tmp_
+        memcpy(reg_,   tmp_, blockSz_);
+        memcpy(tmp_, hold, blockSz_);
+        out += blockSz_;
+        in  += blockSz_;
     }
 }
 
