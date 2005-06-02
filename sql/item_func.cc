@@ -2329,6 +2329,8 @@ longlong Item_func_field::val_int()
   if (cmp_type == STRING_RESULT)
   {
     String *field;
+    if (!(field= args[0]->val_str(&value)))
+      return 0;
     for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
