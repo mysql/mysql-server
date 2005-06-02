@@ -5963,11 +5963,14 @@ ha_innobase::external_lock(
 		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
 		an InnoDB table lock if it is released immediately at the end
 		of LOCK TABLES, and InnoDB's table locks in that case cause
-		VERY easily deadlocks. */
+		VERY easily deadlocks. We do not set InnoDB table locks when
+		MySQL sets them at the start of a stored procedure call
+		(MySQL does have thd->in_lock_tables TRUE there). */
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
 
 			if (thd->in_lock_tables &&
+			    thd->lex->sql_command != SQLCOM_CALL &&
 			    thd->variables.innodb_table_locks &&
 			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
 
@@ -6478,11 +6481,21 @@ ha_innobase::store_lock(
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
+		/* Starting from 5.0.7, we weaken also the table locks
+		set at the start of a MySQL stored procedure call, just like
+		we weaken the locks set at the start of an SQL statement.
+		MySQL does set thd->in_lock_tables TRUE there, but in reality
+		we do not need table locks to make the execution of a
+		single transaction stored procedure call deterministic
+		(if it does not use a consistent read). */
+
     		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
 		TABLESPACE or TRUNCATE TABLE, then allow multiple writers */
 
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-	 	    lock_type <= TL_WRITE) && !thd->in_lock_tables
+	 	    lock_type <= TL_WRITE)
+		    && (!thd->in_lock_tables
+		        || thd->lex->sql_command == SQLCOM_CALL)
 		    && !thd->tablespace_op
 		    && thd->lex->sql_command != SQLCOM_TRUNCATE
                     && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
@@ -6496,7 +6509,10 @@ ha_innobase::store_lock(
 		to t2. Convert the lock to a normal read lock to allow
 		concurrent inserts to t2. */
       		
-		if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) {
+		if (lock_type == TL_READ_NO_INSERT
+		    && (!thd->in_lock_tables
+			|| thd->lex->sql_command == SQLCOM_CALL)) {
+
 			lock_type = TL_READ;
 		}
 		

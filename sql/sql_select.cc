@@ -5799,6 +5799,7 @@ make_join_readinfo(JOIN *join, uint options)
 	if (!table->no_keyread)
 	{
 	  if (tab->select && tab->select->quick &&
+              tab->select->quick->index != MAX_KEY && //not index_merge
 	      table->used_keys.is_set(tab->select->quick->index))
 	  {
 	    table->key_read=1;
