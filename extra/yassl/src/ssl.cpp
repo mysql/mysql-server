@@ -36,7 +36,7 @@
 #include "handshake.hpp"
 #include "yassl_int.hpp"
 #include <stdio.h>
-
+#include "runtime.hpp"
 
 namespace yaSSL {
 
