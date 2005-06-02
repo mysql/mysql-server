@@ -3941,6 +3941,8 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
 
 #ifdef __GNUC__
 template unsigned int DivideThreeWordsByTwo<unsigned int, DWord>(unsigned int*, unsigned int, unsigned int, DWord*);
+template unsigned int DivideThreeWordsByTwo<unsigned int, Word>(unsigned int*, unsigned int, unsigned int, Word*);
+template unsigned long long DivideThreeWordsByTwo<unsigned long long, DWord>(unsigned long long*, unsigned long long, unsigned long long, DWord*);
 #endif
 
 } // namespace
