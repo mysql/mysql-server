@@ -575,7 +575,7 @@ int ha_archive::write_row(byte * buf)
   written= gzwrite(share->archive_write, buf, table->reclength);
   DBUG_PRINT("ha_archive::get_row", ("Wrote %d bytes expected %d", written, table->reclength));
   share->dirty= TRUE;
-  if (written != table->reclength)
+  if (written != (z_off_t)table->reclength)
     goto error;
   /*
     We should probably mark the table as damagaged if the record is written
@@ -590,7 +590,7 @@ int ha_archive::write_row(byte * buf)
     {
       (*field)->get_ptr(&ptr);
       written= gzwrite(share->archive_write, ptr, (unsigned)size);
-      if (written != size)
+      if (written != (z_off_t)size)
         goto error;
     }
   }
@@ -613,7 +613,6 @@ error:
 int ha_archive::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_archive::rnd_init");
-  int read; // gzread() returns int, and we use this to check the header
 
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
@@ -747,7 +746,7 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   statistic_increment(ha_read_rnd_count,&LOCK_status);
   current_position= ha_get_ptr(pos, ref_length);
-  z_off_t seek= gzseek(archive, current_position, SEEK_SET);
+  (void)gzseek(archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(archive, buf));
 }

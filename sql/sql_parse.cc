@@ -561,7 +561,6 @@ bool is_update_query(enum enum_sql_command command)
 
 static void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
 {
-  bool error= 0;
   time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   DBUG_ENTER("time_out_user_resource_limits");
 
@@ -587,7 +586,6 @@ static bool check_mqh(THD *thd, uint check_command)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool error= 0;
-  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
