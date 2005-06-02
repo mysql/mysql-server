@@ -19,7 +19,6 @@
 
 #include <ndb_types.h>
 #include <kernel_types.h>
-#include <ndb_limits.h>
 #include <NdbError.hpp>
 #include <BaseString.hpp>
 #include <Vector.hpp>
@@ -309,8 +308,8 @@ public:
   int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
   int listObjects(NdbApiSignal* signal);
   
-  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames);
-  NdbTableImpl * getTable(const char * name, bool fullyQualifiedNames);
+/*  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames); */
+  NdbTableImpl * getTable(const BaseString& name, bool fullyQualifiedNames);
   NdbTableImpl * getTable(class NdbApiSignal * signal, 
 			  LinearSectionPtr ptr[3],
 			  Uint32 noOfSections, bool fullyQualifiedNames);
@@ -368,8 +367,6 @@ private:
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;
-  // Buffer used when requesting a table by name
-  UtilBuffer m_namebuf;
 };
 
 class NdbDictionaryImpl : public NdbDictionary::Dictionary {
@@ -406,13 +403,12 @@ public:
 
   int listObjects(List& list, NdbDictionary::Object::Type type);
   int listIndexes(List& list, Uint32 indexId);
-  
+
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
-  Ndb_local_table_info * get_local_table_info(const char * internalName,
-					      bool do_add_blob_tables);
+  Ndb_local_table_info* get_local_table_info(
+    const BaseString& internalTableName, bool do_add_blob_tables);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
-  NdbIndexImpl * getIndexImpl(const char * name, const char * internalName);
   NdbEventImpl * getEvent(const char * eventName);
   NdbEventImpl * getEventImpl(const char * internalName);
   
@@ -430,7 +426,9 @@ public:
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
 private:
-  Ndb_local_table_info * fetchGlobalTableImpl(const char * internalName);
+  NdbIndexImpl * getIndexImpl(const char * name,
+                              const BaseString& internalName);
+  Ndb_local_table_info * fetchGlobalTableImpl(const BaseString& internalName);
 };
 
 inline
@@ -638,26 +636,27 @@ NdbDictionaryImpl::getImpl(const NdbDictionary::Dictionary & t){
  */
 
 inline
-NdbTableImpl * 
-NdbDictionaryImpl::getTable(const char * tableName, void **data)
+NdbTableImpl *
+NdbDictionaryImpl::getTable(const char * table_name, void **data)
 {
+  const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
   Ndb_local_table_info *info=
-    get_local_table_info(m_ndb.internalizeTableName(tableName), true);
-  if (info == 0) {
+    get_local_table_info(internal_tabname, true);
+  if (info == 0)
     return 0;
-  }
-  if (data) {
+
+  if (data)
     *data= info->m_local_data;
-  }
+
   return info->m_table_impl;
 }
 
 inline
 Ndb_local_table_info * 
-NdbDictionaryImpl::get_local_table_info(const char * internalTableName,
+NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName,
 					bool do_add_blob_tables)
 {
-  Ndb_local_table_info *info= m_localHash.get(internalTableName);
+  Ndb_local_table_info *info= m_localHash.get(internalTableName.c_str());
   if (info == 0) {
     info= fetchGlobalTableImpl(internalTableName);
     if (info == 0) {
@@ -672,34 +671,35 @@ NdbDictionaryImpl::get_local_table_info(const char * internalTableName,
 
 inline
 NdbIndexImpl * 
-NdbDictionaryImpl::getIndex(const char * indexName,
-			    const char * tableName)
+NdbDictionaryImpl::getIndex(const char * index_name,
+			    const char * table_name)
 {
-  if (tableName || m_ndb.usingFullyQualifiedNames()) {
-    const char * internalIndexName = 0;
-    if (tableName) {
-      NdbTableImpl * t = getTable(tableName);
-      if (t != 0)
-        internalIndexName = m_ndb.internalizeIndexName(t, indexName);
-    } else {
-      internalIndexName =
-	m_ndb.internalizeTableName(indexName); // Index is also a table
-    }
-    if (internalIndexName) {
-      Ndb_local_table_info * info = get_local_table_info(internalIndexName,
-							 false);
-      if (info) {
-	NdbTableImpl * tab = info->m_table_impl;
+  if (table_name || m_ndb.usingFullyQualifiedNames())
+  {
+    const BaseString internal_indexname(
+      (table_name)
+      ?
+      m_ndb.internalize_index_name(getTable(table_name), index_name)
+      :
+      m_ndb.internalize_table_name(index_name)); // Index is also a table
+
+    if (internal_indexname.length())
+    {
+      Ndb_local_table_info * info=
+        get_local_table_info(internal_indexname, false);
+      if (info)
+      {
+	NdbTableImpl * tab= info->m_table_impl;
         if (tab->m_index == 0)
-          tab->m_index = getIndexImpl(indexName, internalIndexName);
+          tab->m_index= getIndexImpl(index_name, internal_indexname);
         if (tab->m_index != 0)
-          tab->m_index->m_table = tab;
+          tab->m_index->m_table= tab;
         return tab->m_index;
       }
     }
   }
 
-  m_error.code = 4243;
+  m_error.code= 4243;
   return 0;
 }
 
