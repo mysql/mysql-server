@@ -1715,7 +1715,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     Item_string *tmp;
     pthread_mutex_lock(&LOCK_global_system_variables);
     char *str= (char*) value_ptr(thd, var_type, base);
-    tmp= new Item_string(str, strlen(str), system_charset_info);
+    tmp= new Item_string(str, strlen(str),
+                         system_charset_info, DERIVATION_SYSCONST);
     pthread_mutex_unlock(&LOCK_global_system_variables);
     return tmp;
   }
