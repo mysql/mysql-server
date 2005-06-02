@@ -76,6 +76,7 @@ functions */
 #define F_EXCLUSIVE	1		/* We have only exclusive locking */
 #define F_TO_EOF	(INT_MAX32/2)	/* size for lock of all file */
 #define F_OK		0		/* parameter to access() */
+#define W_OK		2
 
 #define S_IROTH		S_IREAD		/* for my_lib */
 
