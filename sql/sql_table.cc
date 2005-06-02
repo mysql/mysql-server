@@ -3341,11 +3341,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           previous type, or the field length is less than the key part
           length, unset the key part length.
 
+          We also unset the key part length if it is the same as the
+          old field's length, so the whole new field will be used.
+
           BLOBs may have cfield->length == 0, which is why we test it before
           checking whether cfield->length < key_part_length (in chars).
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
             !Field::type_can_have_key_part(cfield->sql_type) ||
+            cfield->field->field_length == key_part_length ||
 	    (cfield->length && (cfield->length < key_part_length /
                                 key_part->field->charset()->mbmaxlen)))
 	  key_part_length= 0;			// Use whole field
