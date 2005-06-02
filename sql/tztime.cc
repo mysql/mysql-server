@@ -20,18 +20,20 @@
    (We will refer to this code as to elsie-code further.)
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 /*
   We should not include mysql_priv.h in mysql_tzinfo_to_sql utility since
   it creates unsolved link dependencies on some platforms.
 */
+
+#include <my_global.h>
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
+#pragma implementation				// gcc: Class implementation
+#endif
+
 #if !defined(TZINFO2SQL) && !defined(TESTTIME)
 #include "mysql_priv.h"
 #else
-#include <my_global.h>
 #include <my_time.h>
 #include "tztime.h"
 #include <my_sys.h>
