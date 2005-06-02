@@ -48,7 +48,7 @@ public:
   void intersect(ulonglong map2buff)
   {
     MY_BITMAP map2;
-    bitmap_init(&map2, (uchar *)&map2buff, sizeof(ulonglong)*8, 0);
+    bitmap_init(&map2, (uint32 *)&map2buff, sizeof(ulonglong)*8, 0);
     bitmap_intersect(&map, &map2);
   }
   void subtract(Bitmap& map2) { bitmap_subtract(&map, &map2.map); }
