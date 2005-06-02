@@ -25,7 +25,7 @@
 typedef struct st_bitmap
 {
   uint32 *bitmap;
-  uint bitmap_size; /* number of bits occupied by the above */
+  uint n_bits; /* number of bits occupied by the above */
   uint32 last_word_mask;
   uint32 *last_word_ptr;
   /*
@@ -41,7 +41,7 @@ typedef struct st_bitmap
 #ifdef	__cplusplus
 extern "C" {
 #endif
-extern my_bool bitmap_init(MY_BITMAP *map, uint32 *buf, uint bitmap_size, my_bool thread_safe);
+extern my_bool bitmap_init(MY_BITMAP *map, uint32 *buf, uint n_bits, my_bool thread_safe);
 extern my_bool bitmap_is_clear_all(const MY_BITMAP *map);
 extern my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern my_bool bitmap_is_set_all(const MY_BITMAP *map);
@@ -81,8 +81,8 @@ extern void bitmap_lock_xor(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_lock_invert(MY_BITMAP *map);
 #endif
 /* Fast, not thread safe, bitmap functions */
-#define no_bytes_in_map(map) ((map->bitmap_size + 7)/8)
-#define no_words_in_map(map) ((map->bitmap_size + 31)/32)
+#define no_bytes_in_map(map) (((map)->n_bits + 7)/8)
+#define no_words_in_map(map) (((map)->n_bits + 31)/32)
 #define bytes_word_aligned(bytes) (4*((bytes + 3)/4))
 #define bitmap_set_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 32] |= (1 << ((BIT) & 31)))
 #define bitmap_flip_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 32] ^= (1 << ((BIT) & 31)))
