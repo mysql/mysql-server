@@ -671,7 +671,8 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
   }
   else{
     m_output->println("result: Ok");
-    m_output->println("id: %d", backupId);
+    if (completed)
+      m_output->println("id: %d", backupId);
   }
   m_output->println("");
   DBUG_VOID_RETURN;
