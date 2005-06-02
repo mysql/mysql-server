@@ -655,7 +655,6 @@ static bool check_mqh(THD *thd, uint check_command)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool error= 0;
-  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);

@@ -602,7 +602,7 @@ int ha_archive::write_row(byte * buf)
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
-  if (written != table->s->reclength)
+  if (written != (z_off_t)table->s->reclength)
     goto error;
   /*
     We should probably mark the table as damagaged if the record is written
@@ -619,7 +619,7 @@ int ha_archive::write_row(byte * buf)
     {
       ((Field_blob*) table->field[*ptr])->get_ptr(&data_ptr);
       written= gzwrite(share->archive_write, data_ptr, (unsigned)size);
-      if (written != size)
+      if (written != (z_off_t)size)
         goto error;
     }
   }
@@ -790,7 +790,7 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
   current_position= my_get_ptr(pos, ref_length);
-  z_off_t seek= gzseek(archive, current_position, SEEK_SET);
+  (void)gzseek(archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(archive, buf));
 }
