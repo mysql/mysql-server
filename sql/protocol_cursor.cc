@@ -19,13 +19,10 @@
   The actual communction is handled by the net_xxx functions in net_serv.cc
 */
 
-#include <my_global.h>
-
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 #include <mysql.h>
 
 bool Protocol_cursor::send_fields(List<Item> *list, uint flag)

@@ -23,13 +23,10 @@
 **	 - type set is out of optimization yet
 */
 
-#include <my_global.h>
-
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 #include "procedure.h"
 #include "sql_analyse.h"
 #include <m_ctype.h>
