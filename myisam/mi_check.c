@@ -3623,6 +3623,12 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
       if (!share->state.create_time)
 	share->state.create_time=share->state.check_time;
     }
+    /*
+      When tables are locked we haven't synched the share state and the
+      real state for a while so we better do it here before synching
+      the share state to disk.
+    */
+    share->state.state= *info->state;
     if (mi_state_info_write(share->kfile,&share->state,1+2))
       goto err;
     share->changed=0;
