@@ -4064,7 +4064,6 @@ replace:
 	}
 	insert_field_spec
 	{}
-	{}
 	;
 
 insert_lock_option:

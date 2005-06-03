@@ -325,7 +325,7 @@ int quick_rm_table(enum db_type base,const char *db,
   build_table_path(path, sizeof(path), db, table_name, reg_ext);
   if (my_delete(path,MYF(0)))
     error=1; /* purecov: inspected */
-  build_table_path(path, sizeof(path), db, table_name, "");
+  *fn_ext(path)= 0;                             // Remove reg_ext
   return ha_delete_table(base,path) || error;
 }
 
@@ -1339,7 +1339,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    char tmp_table_name[NAME_LEN+1];
+    char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
     my_snprintf(tmp_table_name, sizeof(tmp_table_name), "%s%lx_%lx_%x",
 		tmp_file_prefix, current_pid, thd->thread_id,
 		thd->tmp_table++);
@@ -2622,7 +2622,7 @@ int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
         build_table_path(path, sizeof(path), table_list->db,
                          (lower_case_table_names == 2) ?
                          table_list->alias : table_list->real_name,
-                         reg_ext) != 0 ||
+                         reg_ext) == 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /* don't need to free((gptr) key_info_buffer);*/
@@ -2723,7 +2723,7 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
         build_table_path(path, sizeof(path), table_list->db,
                          (lower_case_table_names == 2) ?
                          table_list->alias : table_list->real_name,
-                         reg_ext) != 0 ||
+                         reg_ext) == 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /*don't need to free((gptr) key_numbers);*/

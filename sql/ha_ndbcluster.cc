@@ -20,13 +20,10 @@
   NDB Cluster
 */
 
-#include <my_global.h>
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                          // gcc: Class implementation
-#endif
-
 #include "mysql_priv.h"
+#ifdef USE_PRAGMA_IMPLEMENTATION
+#pragma implementation				// gcc: Class implementation
+#endif
 
 #ifdef HAVE_NDBCLUSTER_DB
 #include <my_dir.h>

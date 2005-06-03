@@ -17,13 +17,10 @@
 
 /* This file defines all numerical functions */
 
-#include <my_global.h>
-
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 #include "slave.h"				// for wait_for_master_pos
 #include <m_ctype.h>
 #include <hash.h>
@@ -1491,9 +1488,6 @@ longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
 
-  if (args[0]->null_value)
-    return 0;
-
   if (cmp_type == STRING_RESULT)
   {
     String *field;
@@ -1509,18 +1503,22 @@ longlong Item_func_field::val_int()
   else if (cmp_type == INT_RESULT)
   {
     longlong val= args[0]->val_int();
+    if (args[0]->null_value)
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (!args[i]->null_value && val == args[i]->val_int())
+      if (val == args[i]->val_int() && !args[i]->null_value)
         return (longlong) (i);
     }
   }
   else
   {
     double val= args[0]->val();
+    if (args[0]->null_value)
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (!args[i]->null_value && val == args[i]->val())
+      if (val == args[i]->val() && !args[i]->null_value)
         return (longlong) (i);
     }
   }

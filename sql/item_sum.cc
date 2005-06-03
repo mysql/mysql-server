@@ -17,13 +17,10 @@
 
 /* Sum functions (COUNT, MIN...) */
 
-#include <my_global.h>
-
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 
 Item_sum::Item_sum(List<Item> &list)
   :arg_count(list.elements)
