@@ -585,10 +585,12 @@ public:
   }
 
   /* For error printing */
-  inline void my_name(char **strp, uint *lengthp)
+  inline LEX_STRING *my_name(LEX_STRING *get_name)
   {
-    *strp= m_name.str;
-    *lengthp= m_name.length;
+    if (!get_name)
+      return &m_name;
+    (*get_name)= m_name;
+    return get_name;
   }
 
   bool is_splocal() { return 1; } /* Needed for error checking */
