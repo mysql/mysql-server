@@ -203,18 +203,6 @@ C_MODE_END
 #define BAD_MEMCPY
 #endif
 
-/* In Linux-alpha we have atomic.h if we are using gcc */
-#if defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && defined(__alpha__) && (__GNUC__ > 2 || ( __GNUC__ == 2 &&  __GNUC_MINOR__ >= 95)) && !defined(HAVE_ATOMIC_ADD)
-#define HAVE_ATOMIC_ADD
-#define HAVE_ATOMIC_SUB
-#endif
-
-/* In Linux-ia64 including atomic.h will give us an error */
-#if (defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && (defined(__ia64__)||defined(__powerpc64__))) || !defined(THREAD)
-#undef HAVE_ATOMIC_ADD
-#undef HAVE_ATOMIC_SUB
-#endif
-
 #if defined(_lint) && !defined(lint)
 #define lint
 #endif
@@ -276,16 +264,17 @@ C_MODE_END
 #include <alloca.h>
 #endif
 #ifdef HAVE_ATOMIC_ADD
-#define __SMP__
-#ifdef HAVE_LINUX_CONFIG_H
-#include <linux/config.h>	/* May define CONFIG_SMP */
-#endif
-#ifndef CONFIG_SMP
-#define CONFIG_SMP
+#if defined(__ia64__)
+#define new my_arg_new
+#define need_to_restore_new 1
 #endif
 C_MODE_START
 #include <asm/atomic.h>
 C_MODE_END
+#ifdef need_to_restore_new /* probably safer than #ifdef new */
+#undef new
+#undef need_to_restore_new
+#endif
 #endif
 #include <errno.h>				/* Recommended by debian */
 /* We need the following to go around a problem with openssl on solaris */
