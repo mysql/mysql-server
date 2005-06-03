@@ -2431,6 +2431,24 @@ mysql_execute_command(THD *thd)
     }
 #endif
     /*
+      The create-select command will open and read-lock the select table
+      and then create, open and write-lock the new table. If a global
+      read lock steps in, we get a deadlock. The write lock waits for
+      the global read lock, while the global read lock waits for the
+      select table to be closed. So we wait until the global readlock is
+      gone before starting both steps. Note that
+      wait_if_global_read_lock() sets a protection against a new global
+      read lock when it succeeds. This needs to be released by
+      start_waiting_global_read_lock(). We protect the normal CREATE
+      TABLE in the same way. That way we avoid that a new table is
+      created during a gobal read lock.
+    */
+    if (wait_if_global_read_lock(thd, 0, 1))
+    {
+      res= -1;
+      break;
+    }
+    /*
       If we are using SET CHARSET without DEFAULT, add an implicite
       DEFAULT to not confuse old users. (This may change).
     */
@@ -2493,13 +2511,16 @@ mysql_execute_command(THD *thd)
       if (!res)
 	send_ok(thd);
     }
-
     // put tables back for PS rexecuting
     tables= lex->link_first_table_back(tables, create_table,
 				       create_table_local);
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
     break;
 
-    res= 1; //error reported
 unsent_create_error:
     // put tables back for PS rexecuting
     tables= lex->link_first_table_back(tables, create_table,

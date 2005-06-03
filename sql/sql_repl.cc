@@ -81,7 +81,7 @@ static int send_file(THD *thd)
   char fname[FN_REFLEN+1];
   const char *errmsg = 0;
   int old_timeout;
-  uint packet_len;
+  unsigned long packet_len;
   char buf[IO_SIZE];				// It's safe to alloc this
   DBUG_ENTER("send_file");
 
