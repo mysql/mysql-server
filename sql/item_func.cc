@@ -695,8 +695,8 @@ String *Item_int_func::val_str(String *str)
 
 
 /*
-  Check arguments here to determine result's type for function with two
-  arguments.
+  Check arguments here to determine result's type for a numeric
+  function of two arguments.
 
   SYNOPSIS
     Item_num_op::find_num_type()
@@ -722,8 +722,9 @@ void Item_num_op::find_num_type(void)
     hybrid_type= DECIMAL_RESULT;
     result_precision();
   }
-  else if (r0 == INT_RESULT && r1 == INT_RESULT)
+  else
   {
+    DBUG_ASSERT(r0 == INT_RESULT && r1 == INT_RESULT);
     decimals= 0;
     hybrid_type=INT_RESULT;
     result_precision();
@@ -738,7 +739,9 @@ void Item_num_op::find_num_type(void)
 
 
 /*
-  Set result type of function if it (type) is depends only on first argument
+  Set result type for a numeric function of one argument
+  (can be also used by a numeric function of many arguments, if the result
+  type depends only on the first argument)
 
   SYNOPSIS
     Item_func_num1::find_num_type()
