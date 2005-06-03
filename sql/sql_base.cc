@@ -1163,7 +1163,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     MYSQL_LOCK *lock;
     /* We should always get these locks */
     thd->some_tables_deleted=0;
-    if ((lock=mysql_lock_tables(thd,tables,(uint) (tables_ptr-tables))))
+    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr-tables), 0)))
     {
       thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
     }
@@ -1644,7 +1644,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     {
       DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
-	if (!(thd->lock=mysql_lock_tables(thd,&table_list->table,1)))
+	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1, 0)))
 	  table= 0;
     }
   }
@@ -1794,7 +1794,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       if (!table->derived)
 	*(ptr++)= table->table;
     }
-    if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))
+    if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start), 0)))
       return -1;				/* purecov: inspected */
   }
   else
