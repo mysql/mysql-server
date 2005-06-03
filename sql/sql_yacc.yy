@@ -4346,11 +4346,11 @@ simple_expr:
 	  {
 	    if ($3->is_splocal())
 	    {
-	      LEX_STRING name;
+	      LEX_STRING *name;
 	      Item_splocal *il= static_cast<Item_splocal *>($3);
 
-	      il->my_name(&name.str, &name.length);
-	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name.str);
+	      name= il->my_name(NULL);
+	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name->str);
 	      YYABORT;
 	    }
 	    $$= new Item_default_value($3);
