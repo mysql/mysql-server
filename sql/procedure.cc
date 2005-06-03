@@ -17,13 +17,10 @@
 
 /* Procedures (functions with changes output of select) */
 
-#include <my_global.h>
-
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 #include "procedure.h"
 #include "sql_analyse.h"			// Includes procedure
 #ifdef USE_PROC_RANGE

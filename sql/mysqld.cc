@@ -351,6 +351,9 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_connect, *opt_init_slave,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
+const key_map key_map_empty(0);
+key_map key_map_full(0);                        // Will be initialized later
+
 const char *opt_date_time_formats[3];
 
 char *language_ptr, *default_collation_name, *default_character_set_name;
@@ -5677,6 +5680,7 @@ static void mysql_init_variables(void)
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((gptr) &com_stat, sizeof(com_stat));
+  key_map_full.set_all();
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;

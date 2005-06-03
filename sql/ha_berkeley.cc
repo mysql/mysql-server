@@ -47,13 +47,10 @@
 */
 
 
-#include <my_global.h>
-
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 #ifdef HAVE_BERKELEY_DB
 #include <m_ctype.h>
 #include <myisampack.h>

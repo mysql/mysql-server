@@ -17,13 +17,10 @@
 
 /* Handler-calling-functions */
 
-#include <my_global.h>
-
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 #include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
