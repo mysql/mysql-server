@@ -497,9 +497,9 @@ drop database mysqltest;
 select database();
 database()
 NULL
-select database();
-database()
-NULL
+select database(), user();
+database()	user()
+NULL	mysqltest_1@localhost
 use test;
 create table t1 (a int, index `primary` (a));
 ERROR 42000: Incorrect index name 'primary'
@@ -563,15 +563,6 @@ select * from t2;
 b
 1
 drop table t1,t2;
-use test;
-create table t1 (a int);
-create table t1 select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
-create table t2 union = (t1) select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
-flush tables with read lock;
-unlock tables;
-drop table t1;
 create table t1(column.name int);
 ERROR 42000: Incorrect table name 'column'
 create table t1(test.column.name int);
