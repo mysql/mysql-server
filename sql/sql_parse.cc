@@ -2509,15 +2509,14 @@ mysql_execute_command(THD *thd)
       if (!res)
 	send_ok(thd);
     }
+    // put tables back for PS rexecuting
+    tables= lex->link_first_table_back(tables, create_table,
+				       create_table_local);
     /*
       Release the protection against the global read lock and wake
       everyone, who might want to set a global read lock.
     */
     start_waiting_global_read_lock(thd);
-
-    // put tables back for PS rexecuting
-    tables= lex->link_first_table_back(tables, create_table,
-				       create_table_local);
     break;
 
 unsent_create_error:
@@ -3691,14 +3690,6 @@ error:
     if (thd->lock == thd->locked_tables)
       thd->lock= 0;
   }
-  DBUG_VOID_RETURN;
-
- error1:
-  /*
-    Release the protection against the global read lock and wake
-    everyone, who might want to set a global read lock.
-  */
-  start_waiting_global_read_lock(thd);
   DBUG_VOID_RETURN;
 }
 
