@@ -94,3 +94,15 @@ connection reader;
 reap;
 connection locker;
 drop table t1;
+
+
+#
+# BUG#9998 - MySQL client hangs on USE "database"
+
+create table t1(a int);
+lock tables t1 write;
+connection reader;
+show columns from t1;
+connection locker;
+unlock tables;
+drop table t1;
