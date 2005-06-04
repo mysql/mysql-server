@@ -61,3 +61,17 @@ drop table t1;
 # Bug #5595  NULLIF() IS NULL returns false if NULLIF() returns NULL
 #
 SELECT NULLIF(5,5) IS NULL, NULLIF(5,5) IS NOT NULL;
+
+#
+# Bug #9669 Ordering on IF function with FROM_UNIXTIME function fails
+#
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL ,
+  `date` int(10) default NULL,
+  `text` varchar(32) NOT NULL
+);
+INSERT INTO t1 VALUES (1,1110000000,'Day 1'),(2,1111000000,'Day 2'),(3,1112000000,'Day 3');
+SELECT id, IF(date IS NULL, '-', FROM_UNIXTIME(date, '%d-%m-%Y')) AS date_ord, text FROM t1 ORDER BY date_ord ASC;
+SELECT id, IF(date IS NULL, '-', FROM_UNIXTIME(date, '%d-%m-%Y')) AS date_ord, text FROM t1 ORDER BY date_ord DESC;
+DROP TABLE t1;
+

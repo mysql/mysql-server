@@ -5859,31 +5859,32 @@ int Field_str::store(double nr)
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint length;
   bool use_scientific_notation= TRUE;
+  uint char_length= field_length / charset()->mbmaxlen;
   /*
     Check fabs(nr) against longest value that can be stored in field,
     which depends on whether the value is < 1 or not, and negative or not
   */
   double anr= fabs(nr);
   int neg= (nr < 0.0) ? 1 : 0;
-  if (field_length > 4 && field_length < 32 &&
-      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) field_length-neg-2)]) /* -2 for "0." */
-                 : anr < log_10[field_length-neg]-1))
+  if (char_length > 4 && char_length < 32 &&
+      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) char_length-neg-2)]) /* -2 for "0." */
+                 : anr < log_10[char_length-neg]-1))
     use_scientific_notation= FALSE;
 
   length= (uint) my_sprintf(buff, (buff, "%-.*g",
                                    (use_scientific_notation ?
-                                    max(0, (int)field_length-neg-5) :
-                                    field_length),
+                                    max(0, (int)char_length-neg-5) :
+                                    char_length),
                                    nr));
   /*
     +1 below is because "precision" in %g above means the
     max. number of significant digits, not the output width.
     Thus the width can be larger than number of significant digits by 1
     (for decimal point)
-    the test for field_length < 5 is for extreme cases,
+    the test for char_length < 5 is for extreme cases,
     like inserting 500.0 in char(1)
   */
-  DBUG_ASSERT(field_length < 5 || length <= field_length+1);
+  DBUG_ASSERT(char_length < 5 || length <= char_length+1);
   return store((const char *) buff, length, charset());
 }
 
