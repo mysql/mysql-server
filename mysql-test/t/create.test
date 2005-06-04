@@ -403,14 +403,17 @@ drop database mysqltest;
 select database();
 
 # Connect without a database
-connect (user4,localhost,mysqltest_1,,*NO-ONE*);
-select database();
+connect (user1,localhost,mysqltest_1,,*NO-ONE*);
+connection user1;
+select database(), user();
+connection default;
+disconnect user1;
+use test;
 
 #
 # Test for Bug 856 'Naming a key "Primary" causes trouble'
 #
 
-use test;
 --error 1280
 create table t1 (a int, index `primary` (a));
 --error 1280
@@ -467,8 +470,6 @@ drop table t1,t2;
 # This tests two additional possible errors and a hang if 
 # an improper fix is present.
 #
-connection default;
-use test;
 create table t1 (a int);
 --error 1093
 create table t1 select * from t1;
@@ -490,3 +491,4 @@ create table t1(xyz.t1.name int);
 create table t1(t1.name int);
 create table t2(test.t2.name int);
 drop table t1,t2;
+

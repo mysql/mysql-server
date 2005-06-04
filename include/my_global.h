@@ -285,13 +285,6 @@ C_MODE_START int __cxa_pure_virtual() {\
 #include <alloca.h>
 #endif
 #ifdef HAVE_ATOMIC_ADD
-#define __SMP__
-#ifdef HAVE_LINUX_CONFIG_H
-#include <linux/config.h>	/* May define CONFIG_SMP */
-#endif
-#ifndef CONFIG_SMP
-#define CONFIG_SMP
-#endif
 #if defined(__ia64__)
 #define new my_arg_new
 #define need_to_restore_new 1
