@@ -696,7 +696,8 @@ public:
   virtual Type type() const;
   virtual ~Item_arena() {};
 
-  inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
+  inline bool is_stmt_prepare_or_first_sp_execute() const
+  { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline bool is_stmt_execute() const
   { return state == PREPARED || state == EXECUTED; }

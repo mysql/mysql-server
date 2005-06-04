@@ -3224,7 +3224,8 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
   if (!(*leaves))
     make_leaves_list(leaves, tables);
 
-  for (TABLE_LIST *table_list= *leaves;
+  TABLE_LIST *table_list;
+  for (table_list= *leaves;
        table_list;
        table_list= table_list->next_leaf, tablenr++)
   {
@@ -3263,7 +3264,7 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
     my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
     DBUG_RETURN(1);
   }
-  for (TABLE_LIST *table_list= tables;
+  for (table_list= tables;
        table_list;
        table_list= table_list->next_local)
   {

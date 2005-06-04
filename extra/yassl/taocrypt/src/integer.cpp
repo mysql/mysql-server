@@ -3940,7 +3940,10 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
 }
 
 #ifdef __GNUC__
-template unsigned int DivideThreeWordsByTwo<unsigned int, DWord>(unsigned int*, unsigned int, unsigned int, DWord*);
+#ifndef TAOCRYPT_NATIVE_DWORD_AVAILABLE
+template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
+#endif
+template word DivideThreeWordsByTwo<word, DWord>(word*, word, word, DWord*);
 #endif
 
 } // namespace
