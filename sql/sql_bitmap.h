@@ -28,7 +28,7 @@ template <uint default_width> class Bitmap
   uint32 buffer[(default_width+31)/32];
 public:
   Bitmap() { init(); }
-  Bitmap(Bitmap& from) { *this=from; }
+  Bitmap(const Bitmap& from) { *this=from; }
   explicit Bitmap(uint prefix_to_set) { init(prefix_to_set); }
   void init() { bitmap_init(&map, buffer, default_width, 0); }
   void init(uint prefix_to_set) { init(); set_prefix(prefix_to_set); }
@@ -61,19 +61,17 @@ public:
   my_bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
   char *print(char *buf) const
   {
-    char *s=buf; int i;
-    uchar *uchar_buffer= (uchar*)&buffer;
-    for (i=sizeof(buffer)-1; i>=0 ; i--)
+    char *s=buf;
+    const uchar *e=buffer, *b=e+sizeof(buffer)-1;
+    while (!*b && b>e)
+      b--;
+    if ((*s=_dig_vec_upper[*b >> 4]) != '0')
+        s++;
+    *s++=_dig_vec_upper[*b & 15];
+    while (--b>=e)
     {
-      if ((*s=_dig_vec_upper[uchar_buffer[i] >> 4]) != '0')
-        break;
-      if ((*s=_dig_vec_upper[uchar_buffer[i] & 15]) != '0')
-        break;
-    }
-    for (s++, i-- ; i>=0 ; i--)
-    {
-      *s++=_dig_vec_upper[uchar_buffer[i] >> 4];
-      *s++=_dig_vec_upper[uchar_buffer[i] & 15];
+      *s++=_dig_vec_upper[*b >> 4];
+      *s++=_dig_vec_upper[*b & 15];
     }
     *s=0;
     return buf;

@@ -236,6 +236,12 @@ query_prealloc_size	8192
 range_alloc_block_size	2048
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
+SELECT @@version LIKE 'non-existent';
+@@version LIKE 'non-existent'
+0
+SELECT @@version_compile_os LIKE 'non-existent';
+@@version_compile_os LIKE 'non-existent'
+0
 set big_tables=OFFF;
 ERROR 42000: Variable 'big_tables' can't be set to the value of 'OFFF'
 set big_tables="OFFF";
