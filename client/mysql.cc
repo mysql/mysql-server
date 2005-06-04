@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.10";
+const char *VER= "14.11";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1917,7 +1917,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
       time_buff[0]=0;
     if (result)
     {
-      if (!mysql_num_rows(result) && ! quick)
+      if (!mysql_num_rows(result) && ! quick && !info_flag)
       {
 	strmov(buff, "Empty set");
       }
@@ -2049,18 +2049,93 @@ com_ego(String *buffer,char *line)
   return result;
 }
 
+static char *fieldtype2str(enum enum_field_types type) {
+  switch(type) {
+    case FIELD_TYPE_BIT:         return "BIT";
+    case FIELD_TYPE_BLOB:        return "BLOB";
+    case FIELD_TYPE_DATE:        return "DATE";
+    case FIELD_TYPE_DATETIME:    return "DATETIME";
+    case FIELD_TYPE_NEWDECIMAL:  return "NEWDECIMAL";
+    case FIELD_TYPE_DECIMAL:     return "DECIMAL";
+    case FIELD_TYPE_DOUBLE:      return "DOUBLE";
+    case FIELD_TYPE_ENUM:        return "ENUM";
+    case FIELD_TYPE_FLOAT:       return "FLOAT";
+    case FIELD_TYPE_GEOMETRY:    return "GEOMETRY";
+    case FIELD_TYPE_INT24:       return "INT24";
+    case FIELD_TYPE_LONG:        return "LONG";
+    case FIELD_TYPE_LONGLONG:    return "LONGLONG";
+    case FIELD_TYPE_LONG_BLOB:   return "LONG_BLOB";
+    case FIELD_TYPE_MEDIUM_BLOB: return "MEDIUM_BLOB";
+    case FIELD_TYPE_NEWDATE:     return "NEWDATE";
+    case FIELD_TYPE_NULL:        return "NULL";
+    case FIELD_TYPE_SET:         return "SET";
+    case FIELD_TYPE_SHORT:       return "SHORT";
+    case FIELD_TYPE_STRING:      return "STRING";
+    case FIELD_TYPE_TIME:        return "TIME";
+    case FIELD_TYPE_TIMESTAMP:   return "TIMESTAMP";
+    case FIELD_TYPE_TINY:        return "TINY";
+    case FIELD_TYPE_TINY_BLOB:   return "TINY_BLOB";
+    case FIELD_TYPE_VAR_STRING:  return "VAR_STRING";
+    case FIELD_TYPE_YEAR:        return "YEAR";
+    default:                     return "?-unknown-?";
+  }
+}
+
+static char *fieldflags2str(uint f) {
+  static char buf[1024];
+  char *s=buf;
+  *s=0;
+#define ff2s_check_flag(X) \
+                if (f & X ## _FLAG) { s=strmov(s, # X " "); f &= ~ X ## _FLAG; }
+  ff2s_check_flag(NOT_NULL);
+  ff2s_check_flag(PRI_KEY);
+  ff2s_check_flag(UNIQUE_KEY);
+  ff2s_check_flag(MULTIPLE_KEY);
+  ff2s_check_flag(BLOB);
+  ff2s_check_flag(UNSIGNED);
+  ff2s_check_flag(ZEROFILL);
+  ff2s_check_flag(BINARY);
+  ff2s_check_flag(ENUM);
+  ff2s_check_flag(AUTO_INCREMENT);
+  ff2s_check_flag(TIMESTAMP);
+  ff2s_check_flag(SET);
+  ff2s_check_flag(NO_DEFAULT_VALUE);
+  ff2s_check_flag(NUM);
+  ff2s_check_flag(PART_KEY);
+  ff2s_check_flag(GROUP);
+  ff2s_check_flag(UNIQUE);
+  ff2s_check_flag(BINCMP);
+#undef ff2s_check_flag
+  if (f)
+    sprintf(s, " unknows=0x%04x", f);
+  return buf;
+}
+
 static void
 print_field_types(MYSQL_RES *result)
 {
-  MYSQL_FIELD	*field;  
+  MYSQL_FIELD   *field;
+  uint i=0;
+
   while ((field = mysql_fetch_field(result)))
   {
-    tee_fprintf(PAGER,"Catalog:    '%s'\nDatabase:   '%s'\nTable:      '%s'\nName:       '%s'\nType:       %d\nLength:     %ld\nMax length: %ld\nIs_null:    %d\nFlags:      %u\nDecimals:   %u\n\n",
-		field->catalog, field->db, field->table, field->name,
-		(int) field->type,
-		field->length, field->max_length,
-		!IS_NOT_NULL(field->flags),
-		field->flags, field->decimals);
+    tee_fprintf(PAGER, "Field %3u:  `%s`\n"
+                       "Catalog:    `%s`\n"
+                       "Database:   `%s`\n"
+                       "Table:      `%s`\n"
+                       "Org_table:  `%s`\n"
+                       "Type:       %s\n"
+                       "Collation:  %s (%u)\n"
+                       "Length:     %lu\n"
+                       "Max_length: %lu\n"
+                       "Decimals:   %u\n"
+                       "Flags:      %s\n\n",
+                ++i,
+                field->name, field->catalog, field->db, field->table,
+                field->org_table, fieldtype2str(field->type),
+                get_charset_name(field->charsetnr), field->charsetnr,
+                field->length, field->max_length, field->decimals,
+                fieldflags2str(field->flags));
   }
   tee_puts("", PAGER);
 }
@@ -2078,6 +2153,8 @@ print_table_data(MYSQL_RES *result)
   if (info_flag)
   {
     print_field_types(result);
+    if (!mysql_num_rows(result))
+      return;
     mysql_field_seek(result,0);
   }
   separator.copy("+",1,charset_info);
