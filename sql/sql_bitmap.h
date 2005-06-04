@@ -62,7 +62,7 @@ public:
   char *print(char *buf) const
   {
     char *s=buf;
-    const uchar *e=buffer, *b=e+sizeof(buffer)-1;
+    const uchar *e=(uchar *)buffer, *b=e+sizeof(buffer)-1;
     while (!*b && b>e)
       b--;
     if ((*s=_dig_vec_upper[*b >> 4]) != '0')
