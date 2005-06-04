@@ -2809,11 +2809,14 @@ my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
 {
   switch (attr_type) {
   case STMT_ATTR_UPDATE_MAX_LENGTH:
-    *(unsigned long *) value= stmt->update_max_length;
+    *(ulong*) value= stmt->update_max_length;
     break;
   case STMT_ATTR_CURSOR_TYPE:
-    *(unsigned long *) value= stmt->flags;
+    *(ulong*) value= stmt->flags;
       break;
+  case STMT_ATTR_PREFETCH_ROWS:
+    *(ulong*) value= stmt->prefetch_rows;
+    break;
   default:
     return TRUE;
   }
