@@ -345,11 +345,10 @@
 
 */
 
-#ifdef __GNUC__
+#include "mysql_priv.h"
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation                          // gcc: Class implementation
 #endif
-
-#include "mysql_priv.h"
 
 #ifdef HAVE_FEDERATED_DB
 #include "ha_federated.h"
