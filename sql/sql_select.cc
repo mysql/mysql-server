@@ -957,32 +957,35 @@ JOIN::optimize()
 #endif
 
   DBUG_EXECUTE("info",TEST_join(this););
-  /*
-    Because filesort always does a full table scan or a quick range scan
-    we must add the removed reference to the select for the table.
-    We only need to do this when we have a simple_order or simple_group
-    as in other cases the join is done before the sort.
-  */
-  if (const_tables != tables &&
-      (order || group_list) &&
-      join_tab[const_tables].type != JT_ALL &&
-      join_tab[const_tables].type != JT_FT &&
-      join_tab[const_tables].type != JT_REF_OR_NULL &&
-      (order && simple_order || group_list && simple_group))
-  {
-    if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
-      DBUG_RETURN(1);
-  }
 
-  if (!(select_options & SELECT_BIG_RESULT) &&
-      ((group_list && const_tables != tables &&
-	(!simple_group ||
-	 !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-				  unit->select_limit_cnt, 0))) ||
-       select_distinct) &&
-      tmp_table_param.quick_group && !procedure)
+  if (const_tables != tables)
   {
-    need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
+    /*
+      Because filesort always does a full table scan or a quick range scan
+      we must add the removed reference to the select for the table.
+      We only need to do this when we have a simple_order or simple_group
+      as in other cases the join is done before the sort.
+    */
+    if ((order || group_list) &&
+        join_tab[const_tables].type != JT_ALL &&
+        join_tab[const_tables].type != JT_FT &&
+        join_tab[const_tables].type != JT_REF_OR_NULL &&
+        (order && simple_order || group_list && simple_group))
+    {
+      if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
+        DBUG_RETURN(1);
+    }
+    
+    if (!(select_options & SELECT_BIG_RESULT) &&
+        ((group_list &&
+          (!simple_group ||
+           !test_if_skip_sort_order(&join_tab[const_tables], group_list,
+                                    unit->select_limit_cnt, 0))) ||
+         select_distinct) &&
+        tmp_table_param.quick_group && !procedure)
+    {
+      need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
+    }
   }
 
   tmp_having= having;
@@ -5381,6 +5384,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       JOIN_TAB *first_inner_tab= tab->first_inner; 
       table_map current_map= tab->table->map;
       bool use_quick_range=0;
+      COND *tmp;
+
       /*
 	Following force including random expression in last table condition.
 	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
@@ -5402,7 +5407,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	join->best_positions[i].records_read= rows2double(tab->quick->records);
       }
 
-      COND *tmp= NULL;
+      tmp= NULL;
       if (cond)
         tmp= make_cond_for_table(cond,used_tables,current_map);
       if (cond && !tmp && tab->quick)
@@ -13610,7 +13615,7 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   (*table)->print(thd, str);
 
   TABLE_LIST **end= table + tables->elements;
-  for(TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
+  for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
     if (curr->outer_join)

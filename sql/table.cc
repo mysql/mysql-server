@@ -2164,16 +2164,12 @@ bool st_table_list::check_single_table(st_table_list **table, table_map map,
       {
 	if (*table)
 	  return TRUE;
-	else
-        {
-	  *table= tbl;
-          tbl->check_option= view->check_option;
-        }
+        *table= tbl;
+        tbl->check_option= view->check_option;
       }
     }
-    else
-      if (tbl->check_single_table(table, map, view))
-	return TRUE;
+    else if (tbl->check_single_table(table, map, view))
+      return TRUE;
   }
   return FALSE;
 }
