@@ -19,10 +19,11 @@
   The actual communction is handled by the net_xxx functions in net_serv.cc
 */
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
