@@ -28,10 +28,11 @@
 ** dynamic functions, so this shouldn't be a real problem.
 */
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include <my_pthread.h>
 
 #ifdef HAVE_DLOPEN

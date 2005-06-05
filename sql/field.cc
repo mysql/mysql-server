@@ -19,10 +19,11 @@
 ** This file implements classes defined in field.h
 *****************************************************************************/
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include "sql_select.h"
 #include <m_ctype.h>
 #include <errno.h>

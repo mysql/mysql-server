@@ -22,10 +22,11 @@ SUBSELECT TODO:
      (sql_select.h/sql_select.cc)
 */
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include "sql_select.h"
 
 inline Item * and_items(Item* cond, Item *item)
