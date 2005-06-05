@@ -48,10 +48,11 @@
       new attribute.
 */
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include <mysql.h>
 #include "slave.h"
 #include <my_getopt.h>
