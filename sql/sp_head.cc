@@ -1904,20 +1904,20 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
   else
   {
     sp_lex_keeper *lex_keeper= c->pre_open(thd);
-
-    if (!lex_keeper)
+    if (!lex_keeper)                            // cursor already open or OOM
     {
       res= -1;
       *nextp= m_ip+1;
     }
     else
+    {
       res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
-
-    c->post_open(thd, (lex_keeper ? TRUE : FALSE));
+      c->post_open(thd, res ? FALSE : TRUE);
+    }
   }
-
   DBUG_RETURN(res);
 }
+
 
 int
 sp_instr_copen::exec_core(THD *thd, uint *nextp)

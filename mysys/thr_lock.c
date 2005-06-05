@@ -684,8 +684,10 @@ void thr_unlock(THR_LOCK_DATA *data)
     lock->read.last=data->prev;
   else if (lock_type == TL_WRITE_DELAYED && data->cond)
   {
-    /* This only happens in extreme circumstances when a 
-       write delayed lock that is waiting for a lock */
+    /*
+      This only happens in extreme circumstances when a 
+      write delayed lock that is waiting for a lock
+    */
     lock->write_wait.last=data->prev;		/* Put it on wait queue */
   }
   else

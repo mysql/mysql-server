@@ -284,7 +284,9 @@ public:
   Item(THD *thd, Item *item);
   virtual ~Item()
   {
+#ifdef EXTRA_DEBUG
     name=0;
+#endif
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void rename(char *new_name);

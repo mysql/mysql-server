@@ -1738,7 +1738,7 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 
 /* Default number of rows fetched per one COM_FETCH command. */
 
-#define DEFAULT_PREFETCH_ROWS 1UL
+#define DEFAULT_PREFETCH_ROWS (ulong) 1
 
 /*
   These functions are called by function pointer MYSQL_STMT::read_row_func.
