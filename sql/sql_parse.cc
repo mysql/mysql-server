@@ -4537,7 +4537,8 @@ unsent_create_error:
         send_ok(thd);
       break;
     }
-    if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
+    if (thd->transaction.xa_state == XA_IDLE &&
+        thd->lex->xa_opt == XA_ONE_PHASE)
     {
       int r;
       if ((r= ha_commit(thd)))
@@ -4545,8 +4546,8 @@ unsent_create_error:
       else
         send_ok(thd);
     }
-    else
-    if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
+    else if (thd->transaction.xa_state == XA_PREPARED &&
+             thd->lex->xa_opt == XA_NONE)
     {
       if (wait_if_global_read_lock(thd, 0, 0))
       {

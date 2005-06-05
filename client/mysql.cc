@@ -1657,11 +1657,12 @@ int mysql_real_query_for_lazy(const char *buf, int length)
 {
   for (uint retry=0;; retry++)
   {
+    int error;
     if (!mysql_real_query(&mysql,buf,length))
       return 0;
-    int error= put_error(&mysql);
+    error= put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
-      !opt_reconnect)
+        !opt_reconnect)
       return error;
     if (reconnect())
       return error;
@@ -2314,22 +2315,23 @@ print_table_data_vertically(MYSQL_RES *result)
   }
 }
 
+
 /* print_warnings should be called right after executing a statement */
-static void
-print_warnings()
+
+static void print_warnings()
 {
-  char query[30];
+  const char   *query;
   MYSQL_RES    *result;
   MYSQL_ROW    cur;
+  my_ulonglong num_rows;
 
   /* Get the warnings */
-  strmov(query,"show warnings");
-  mysql_real_query_for_lazy(query,strlen(query));
+  query= "show warnings";
+  mysql_real_query_for_lazy(query, strlen(query));
   mysql_store_result_for_lazy(&result);
 
   /* Bail out when no warnings */
-  my_ulonglong num_rows = mysql_num_rows(result);
-  if (num_rows == 0) 
+  if (!(num_rows= mysql_num_rows(result)))
   {
     mysql_free_result(result);
     return;
@@ -2343,13 +2345,12 @@ print_warnings()
   mysql_free_result(result);
 }
 
-static const char
-*array_value(const char **array, char key)
+
+static const char *array_value(const char **array, char key)
 {
-  int x;
-  for (x= 0; array[x]; x+= 2)
-    if (*array[x] == key)
-      return array[x + 1];
+  for (; *array; array+= 2)
+    if (**array == key)
+      return array[1];
   return 0;
 }
 
