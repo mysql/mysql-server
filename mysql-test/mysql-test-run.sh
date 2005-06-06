@@ -887,7 +887,7 @@ report_stats () {
 
     found_error=0
     # Find errors
-    for i in "^Warning:" "^Error:" "^==.* at 0x"
+    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning"
     do
       if $GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings
       then

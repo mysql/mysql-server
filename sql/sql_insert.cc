@@ -137,7 +137,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       /* it is join view => we need to find table for update */
       List_iterator_fast<Item> it(fields);
       Item *item;
-      TABLE_LIST *tbl= 0;
+      TABLE_LIST *tbl= 0;            // reset for call to check_single_table()
       table_map map= 0;
 
       while ((item= it++))
@@ -929,6 +929,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
+        if (thd->clear_next_insert_id)
+        {
+          /* Reset auto-increment cacheing if we do an update */
+          thd->clear_next_insert_id= 0;
+          thd->next_insert_id= 0;
+        }
         if ((error=table->file->update_row(table->record[1],table->record[0])))
 	{
 	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
@@ -962,6 +968,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_BEFORE, TRUE))
             goto before_trg_err;
+          if (thd->clear_next_insert_id)
+          {
+            /* Reset auto-increment cacheing if we do an update */
+            thd->clear_next_insert_id= 0;
+            thd->next_insert_id= 0;
+          }
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
             goto err;
@@ -1025,6 +1037,7 @@ ok_or_after_trg_err:
 
 err:
   info->last_errno= error;
+  thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
 
 before_trg_err:
