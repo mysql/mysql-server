@@ -17,10 +17,11 @@
 
 /* This file defines all numerical functions */
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include "slave.h"				// for wait_for_master_pos
 #include <m_ctype.h>
 #include <hash.h>

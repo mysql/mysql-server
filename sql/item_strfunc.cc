@@ -20,10 +20,11 @@
 ** (This shouldn't be needed)
 */
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include <m_ctype.h>
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
