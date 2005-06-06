@@ -262,6 +262,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   NOTES
     One can call this function either with root block initialised with
     init_alloc_root() or with a bzero()-ed block.
+    It's also safe to call this multiple times with the same mem_root.
 */
 
 void free_root(MEM_ROOT *root, myf MyFlags)
