@@ -45,10 +45,12 @@ typedef unsigned int   word32;
 
 #if defined(__GNUC__) || defined(__MWERKS__) || defined(_LONGLONG_TYPE)
     #define WORD64_AVAILABLE
+    #define WORD64_IS_DISTINCT_TYPE
     typedef unsigned long long word64;
     #define W64LIT(x) x##LL
 #elif defined(_MSC_VER) || defined(__BCPLUSPLUS__)
     #define WORD64_AVAILABLE
+    #define WORD64_IS_DISTINCT_TYPE
     typedef unsigned __int64 word64;
     #define W64LIT(x) x##ui64
 #elif defined(__DECCXX)
