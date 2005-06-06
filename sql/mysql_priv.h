@@ -1354,7 +1354,8 @@ inline void mark_as_null_row(TABLE *table)
 inline void table_case_convert(char * name, uint length)
 {
   if (lower_case_table_names)
-    my_casedn(files_charset_info, name, length);
+    files_charset_info->cset->casedn(files_charset_info,
+                                     name, length, name, length);
 }
 
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
