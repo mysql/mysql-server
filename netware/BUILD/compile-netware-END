@@ -22,6 +22,11 @@ rm -rf Makefile.in.bk
 # run auto tools
 . $path/compile-AUTOTOOLS
 
+# For NetWare there is no comp_err but comp_err.linux
+sed -e "s/comp_err/comp_err.linux/g" extra/Makefile.am > extra/Makefile.am.$$
+sed -e "s/replace comp_err.linux/replace comp_err/g" extra/Makefile.am.$$ > extra/Makefile.am
+rm extra/Makefile.am.$$
+
 # configure
 ./configure $base_configs $extra_configs
 
