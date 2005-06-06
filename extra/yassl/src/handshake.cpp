@@ -718,7 +718,7 @@ void processReply(SSL& ssl)
     mySTL::auto_ptr<input_buffer> buffered(ysDelete);
 
     for (;;) {
-        mySTL::auto_ptr<input_buffer> tmp = DoProcessReply(ssl, buffered);
+        mySTL::auto_ptr<input_buffer> tmp(DoProcessReply(ssl, buffered));
         if (tmp.get())      // had only part of a record's data, call again
             buffered = tmp;
         else
