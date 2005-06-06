@@ -33,9 +33,12 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     0,			/* strxfrm_mul  */
+    0,			/* caseup_mul   */
+    0,			/* casedn_mul   */
     0,			/* mbminlen     */
     0,			/* mbmaxlen     */
     0,			/* min_sort_ord */

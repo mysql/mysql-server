@@ -44,6 +44,9 @@ typedef struct unicase_info_st
   uint16 sort;
 } MY_UNICASE_INFO;
 
+extern MY_UNICASE_INFO *my_unicase_default[256];
+extern MY_UNICASE_INFO *my_unicase_turkish[256];
+
 #define MY_CS_ILSEQ	0
 #define MY_CS_ILUNI	0
 #define MY_CS_TOOSMALL	-1
@@ -164,8 +167,10 @@ typedef struct my_charset_handler_st
   /* Functions for case and sort convertion */
   void    (*caseup_str)(struct charset_info_st *, char *);
   void    (*casedn_str)(struct charset_info_st *, char *);
-  void    (*caseup)(struct charset_info_st *, char *, uint);
-  void    (*casedn)(struct charset_info_st *, char *, uint);
+  uint    (*caseup)(struct charset_info_st *, char *src, uint srclen,
+                                              char *dst, uint dstlen);
+  uint    (*casedn)(struct charset_info_st *, char *src, uint srclen,
+                                              char *dst, uint dstlen);
   
   /* Charset dependant snprintf() */
   int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt,
@@ -216,9 +221,12 @@ typedef struct charset_info_st
   uint16   **sort_order_big;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
+  MY_UNICASE_INFO **caseinfo;
   uchar     *state_map;
   uchar     *ident_map;
   uint      strxfrm_multiply;
+  uchar     caseup_multiply;
+  uchar     casedn_multiply;
   uint      mbminlen;
   uint      mbmaxlen;
   uint16    min_sort_char;
@@ -286,8 +294,10 @@ extern uint my_instr_simple(struct charset_info_st *,
 /* Functions for 8bit */
 extern void my_caseup_str_8bit(CHARSET_INFO *, char *);
 extern void my_casedn_str_8bit(CHARSET_INFO *, char *);
-extern void my_caseup_8bit(CHARSET_INFO *, char *, uint);
-extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
+extern uint my_caseup_8bit(CHARSET_INFO *, char *src, uint srclen,
+                                           char *dst, uint dstlen);
+extern uint my_casedn_8bit(CHARSET_INFO *, char *src, uint srclen,
+                                           char *dst, uint dstlen);
 
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 
@@ -359,8 +369,10 @@ int my_mbcharlen_8bit(CHARSET_INFO *, uint c);
 /* Functions for multibyte charsets */
 extern void my_caseup_str_mb(CHARSET_INFO *, char *);
 extern void my_casedn_str_mb(CHARSET_INFO *, char *);
-extern void my_caseup_mb(CHARSET_INFO *, char *, uint);
-extern void my_casedn_mb(CHARSET_INFO *, char *, uint);
+extern uint my_caseup_mb(CHARSET_INFO *, char *src, uint srclen,
+                                         char *dst, uint dstlen);
+extern uint my_casedn_mb(CHARSET_INFO *, char *src, uint srclen,
+                                         char *dst, uint dstlen);
 extern int my_strcasecmp_mb(CHARSET_INFO * cs,const char *, const char *);
 
 int my_wildcmp_mb(CHARSET_INFO *,
@@ -441,8 +453,6 @@ my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, uint len);
 #define my_mbcharlen(s, a)            1
 #endif
 
-#define my_caseup(s, a, l)            ((s)->cset->caseup((s), (a), (l)))
-#define my_casedn(s, a, l)            ((s)->cset->casedn((s), (a), (l)))
 #define my_caseup_str(s, a)           ((s)->cset->caseup_str((s), (a)))
 #define my_casedn_str(s, a)           ((s)->cset->casedn_str((s), (a)))
 #define my_strntol(s, a, b, c, d, e)  ((s)->cset->strntol((s),(a),(b),(c),(d),(e)))
