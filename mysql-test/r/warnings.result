@@ -181,3 +181,56 @@ drop table t1;
 set table_type=MYISAM;
 Warnings:
 Warning	1287	'table_type' is deprecated; use 'storage_engine' instead
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+update t1 set a='abc';
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 4
+Warning	1265	Data truncated for column 'a' at row 5
+Warning	1265	Data truncated for column 'a' at row 6
+Warning	1265	Data truncated for column 'a' at row 7
+Warning	1265	Data truncated for column 'a' at row 8
+Warning	1265	Data truncated for column 'a' at row 9
+Warning	1265	Data truncated for column 'a' at row 10
+show warnings limit 2, 1;
+Level	Code	Message
+Warning	1265	Data truncated for column 'a' at row 3
+show warnings limit 0, 10;
+Level	Code	Message
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 4
+Warning	1265	Data truncated for column 'a' at row 5
+Warning	1265	Data truncated for column 'a' at row 6
+Warning	1265	Data truncated for column 'a' at row 7
+Warning	1265	Data truncated for column 'a' at row 8
+Warning	1265	Data truncated for column 'a' at row 9
+Warning	1265	Data truncated for column 'a' at row 10
+show warnings limit 9, 1;
+Level	Code	Message
+Warning	1265	Data truncated for column 'a' at row 10
+show warnings limit 10, 1;
+Level	Code	Message
+show warnings limit 9, 2;
+Level	Code	Message
+Warning	1265	Data truncated for column 'a' at row 10
+show warnings limit 0, 0;
+Level	Code	Message
+show warnings limit 1;
+Level	Code	Message
+Warning	1265	Data truncated for column 'a' at row 1
+show warnings limit 0;
+Level	Code	Message
+show warnings limit 1, 0;
+Level	Code	Message
+select * from t1 limit 0;
+a
+select * from t1 limit 1, 0;
+a
+select * from t1 limit 0, 0;
+a
+drop table t1;

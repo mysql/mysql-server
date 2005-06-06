@@ -1765,12 +1765,23 @@ if test "$ac_cv_sizeof_off_t" -eq 0
 then
   AC_MSG_ERROR("MySQL needs a off_t type.")
 fi
+
+# do we need #pragma interface/#pragma implementation ?
+# yes if it's gcc 2.x, and not icc pretending to be gcc, and not cygwin
+AC_MSG_CHECKING(the need for @%:@pragma interface/implementation)
+# instead of trying to match SYSTEM_TYPE and CC_VERSION (that doesn't
+# follow any standard), we'll use well-defined preprocessor macros:
+AC_TRY_CPP([
+#if !defined(__CYGWIN__) && !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
+#error USE_PRAGMA_IMPLEMENTATION
+#endif
+],AC_MSG_RESULT(no) ,AC_MSG_RESULT(yes) ; CXXFLAGS="$CXXFLAGS -DUSE_PRAGMA_IMPLEMENTATION")
+
 # This always gives a warning. Ignore it unless you are cross compiling
 AC_C_BIGENDIAN
 #---START: Used in for client configure
 # Check base type of last arg to accept
 MYSQL_TYPE_ACCEPT
-
 #---END:
 # Figure out what type of struct rlimit to use with setrlimit
 MYSQL_TYPE_STRUCT_RLIMIT

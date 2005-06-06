@@ -2096,7 +2096,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   SYNOPSIS
     open_normal_and_derived_tables
     thd		- thread handler
-    tables	- list of tables for open&locking
+    tables	- list of tables for open
 
   RETURN
     FALSE - ok
