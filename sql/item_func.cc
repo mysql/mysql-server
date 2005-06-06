@@ -17,8 +17,6 @@
 
 /* This file defines all numerical functions */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -2373,7 +2371,7 @@ longlong Item_func_field::val_int()
       return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (!args[i]->is_null() && val == args[i]->val_int())
+      if (val == args[i]->val_int() && !args[i]->null_value)
         return (longlong) (i);
     }
   }
@@ -2386,7 +2384,7 @@ longlong Item_func_field::val_int()
     for (uint i=1; i < arg_count; i++)
     {
       dec_arg= args[i]->val_decimal(&dec_arg_buf);
-      if (!args[i]->is_null() && !my_decimal_cmp(dec_arg, dec))
+      if (!args[i]->null_value && !my_decimal_cmp(dec_arg, dec))
         return (longlong) (i);
     }
   }
@@ -2397,7 +2395,7 @@ longlong Item_func_field::val_int()
       return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (!args[i]->is_null() && val == args[i]->val_real())
+      if (val == args[i]->val() && !args[i]->null_value)
         return (longlong) (i);
     }
   }

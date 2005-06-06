@@ -17,6 +17,7 @@ sub mtr_spawn ($$$$$$);
 sub mtr_stop_mysqld_servers ($);
 sub mtr_kill_leftovers ();
 sub mtr_record_dead_children ();
+sub mtr_exit ($);
 sub sleep_until_file_created ($$$);
 
 # static in C
@@ -783,5 +784,18 @@ sub sleep_until_file_created ($$$) {
   return 0;
 }
 
+
+##############################################################################
+#
+#  When we exit, we kill off all children
+#
+##############################################################################
+
+sub mtr_exit ($) {
+  my $code= shift;
+  local $SIG{HUP} = 'IGNORE';
+  kill('HUP', -$$);
+  exit($code);
+}
 
 1;
