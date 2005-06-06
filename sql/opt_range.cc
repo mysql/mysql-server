@@ -398,7 +398,7 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree);
 static int get_index_merge_params(PARAM *param, key_map& needed_reg,
                            SEL_IMERGE *imerge, double *read_time,
                            ha_rows* imerge_rows);
-inline double get_index_only_read_time(const PARAM* param, ha_rows records,
+static double get_index_only_read_time(const PARAM* param, ha_rows records,
                                        int keynr);
 
 #ifndef DBUG_OFF
@@ -1120,6 +1120,7 @@ int QUICK_ROR_UNION_SELECT::init()
       val1  First merged select
       val2  Second merged select
 */
+
 int QUICK_ROR_UNION_SELECT::queue_cmp(void *arg, byte *val1, byte *val2)
 {
   QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
@@ -1588,7 +1589,7 @@ static int fill_used_fields_bitmap(PARAM *param)
     KEY_PART_INFO *key_part= param->table->key_info[pk].key_part;
     KEY_PART_INFO *key_part_end= key_part +
                                  param->table->key_info[pk].key_parts;
-    for(;key_part != key_part_end; ++key_part)
+    for (;key_part != key_part_end; ++key_part)
     {
       bitmap_clear_bit(&param->needed_fields, key_part->fieldnr);
     }
@@ -1752,18 +1753,20 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     double best_read_time= read_time;
 
     if (cond)
-      tree= get_mm_tree(&param,cond);
-
-    if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
     {
-      records=0L;                      /* Return -1 from this function. */
-      read_time= (double) HA_POS_ERROR;
-      goto free_mem;
+      if ((tree= get_mm_tree(&param,cond)))
+      {
+        if (tree->type == SEL_TREE::IMPOSSIBLE)
+        {
+          records=0L;                      /* Return -1 from this function. */
+          read_time= (double) HA_POS_ERROR;
+          goto free_mem;
+        }
+        if (tree->type != SEL_TREE::KEY &&
+            tree->type != SEL_TREE::KEY_SMALLER)
+          goto free_mem;
+      }
     }
-    else if (tree && tree->type != SEL_TREE::KEY &&
-                     tree->type != SEL_TREE::KEY_SMALLER)
-      goto free_mem;
-
 
     /*
       Try to construct a QUICK_GROUP_MIN_MAX_SELECT.
@@ -2254,7 +2257,7 @@ skip_to_ror_scan:
     clustered index)
 */
 
-inline double get_index_only_read_time(const PARAM* param, ha_rows records,
+static double get_index_only_read_time(const PARAM* param, ha_rows records,
                                        int keynr)
 {
   double read_time;
@@ -2300,6 +2303,7 @@ typedef struct st_ror_scan_info
       param    Parameter from test_quick_select function
       idx      Index of key in param->keys
       sel_arg  Set of intervals for a given key
+
   RETURN
     NULL - out of memory
     ROR scan structure containing a scan for {idx, sel_arg}
@@ -2312,19 +2316,20 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   uint32 *bitmap_buf;
   uint keynr;
   DBUG_ENTER("make_ror_scan");
+
   if (!(ror_scan= (ROR_SCAN_INFO*)alloc_root(param->mem_root,
                                              sizeof(ROR_SCAN_INFO))))
     DBUG_RETURN(NULL);
 
   ror_scan->idx= idx;
   ror_scan->keynr= keynr= param->real_keynr[idx];
-  ror_scan->key_rec_length= param->table->key_info[keynr].key_length +
-                            param->table->file->ref_length;
+  ror_scan->key_rec_length= (param->table->key_info[keynr].key_length +
+                             param->table->file->ref_length);
   ror_scan->sel_arg= sel_arg;
   ror_scan->records= param->table->quick_rows[keynr];
 
   if (!(bitmap_buf= (uint32*)alloc_root(param->mem_root,
-                            bytes_word_aligned(param->fields_bitmap_size))))
+                                        bytes_word_aligned(param->fields_bitmap_size))))
     DBUG_RETURN(NULL);
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf,
@@ -2335,14 +2340,10 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   KEY_PART_INFO *key_part= param->table->key_info[keynr].key_part;
   KEY_PART_INFO *key_part_end= key_part +
                                param->table->key_info[keynr].key_parts;
-  uint n_used_covered= 0;
   for (;key_part != key_part_end; ++key_part)
   {
     if (bitmap_is_set(&param->needed_fields, key_part->fieldnr))
-    {
-      n_used_covered++;
       bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr);
-    }
   }
   ror_scan->index_read_cost=
     get_index_only_read_time(param, param->table->quick_rows[ror_scan->keynr],
@@ -2363,6 +2364,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
     0 a = b
     1 a > b
 */
+
 static int cmp_ror_scan_info(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
 {
   double val1= rows2double((*a)->records) * (*a)->key_rec_length;
@@ -2386,6 +2388,7 @@ static int cmp_ror_scan_info(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
     0 a = b
     1 a > b
 */
+
 static int cmp_ror_scan_info_covering(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
 {
   if ((*a)->used_fields_covered > (*b)->used_fields_covered)
@@ -2402,6 +2405,7 @@ static int cmp_ror_scan_info_covering(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
     return 1;
   return 0;
 }
+
 
 /* Auxiliary structure for incremental ROR-intersection creation */
 typedef struct
@@ -2469,6 +2473,8 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
   dst->index_scan_costs= src->index_scan_costs;
   dst->total_cost= src->total_cost;
 }
+
+
 /*
   Get selectivity of a ROR scan wrt ROR-intersection.
 
@@ -2486,7 +2492,7 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
 
     where k_ij may be the same as any k_pq (i.e. keys may have common parts).
 
-    A full row is retrieved iff entire cond holds.
+    A full row is retrieved if entire condition holds.
 
     The recursive procedure for finding P(cond) is as follows:
 
@@ -2497,7 +2503,7 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
     Here R may still contain condition(s) equivalent to k_11=c_11.
     Nevertheless, the following holds:
 
-      P(k_11=c_11 AND R) = P(k_11=c_11) * P(R|k_11=c_11).
+      P(k_11=c_11 AND R) = P(k_11=c_11) * P(R | k_11=c_11).
 
     Mark k_11 as fixed field (and satisfied condition) F, save P(F),
     save R to be cond and proceed to recursion step.
@@ -2544,7 +2550,7 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
     ( this is result of application of option b) of the recursion step for
       parts of a single key).
     Since it is reasonable to expect that most of the fields are not marked
-    as fixed, we calcualate (3) as
+    as fixed, we calculate (3) as
 
                                   n_{i1}      n_{i_2}
     (3) = n_{max_key_part}  / (   --------- * ---------  * ....  )
@@ -2578,33 +2584,32 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   max_range.key= (byte*) key_val;
   max_range.flag= HA_READ_AFTER_KEY;
   ha_rows prev_records= info->param->table->file->records;
-  int i;
   DBUG_ENTER("ror_intersect_selectivity");
-  for(i= 0, sel_arg= scan->sel_arg; sel_arg;
-      i++, sel_arg= sel_arg->next_key_part)
+
+  for (sel_arg= scan->sel_arg; sel_arg;
+       sel_arg= sel_arg->next_key_part)
   {
     DBUG_PRINT("info",("sel_arg step"));
     cur_covered= test(bitmap_is_set(&info->covered_fields,
-                                    (key_part + i)->fieldnr));
+                                    key_part[sel_arg->part].fieldnr));
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
-      {
-        if (!tuple_arg)
-        {
-          tuple_arg= scan->sel_arg;
-          tuple_arg->store_min(key_part->length, &key_ptr, 0);
-        }
-        while (tuple_arg->next_key_part != sel_arg)
-        {
-          tuple_arg= tuple_arg->next_key_part;
-          tuple_arg->store_min(key_part->length, &key_ptr, 0);
-        }
-      }
       ha_rows records;
+      if (!tuple_arg)
+      {
+        tuple_arg= scan->sel_arg;
+        /* Here we use the length of the first key part */
+        tuple_arg->store_min(key_part->length, &key_ptr, 0);
+      }
+      while (tuple_arg->next_key_part != sel_arg)
+      {
+        tuple_arg= tuple_arg->next_key_part;
+        tuple_arg->store_min(key_part[tuple_arg->part].length, &key_ptr, 0);
+      }
       min_range.length= max_range.length= ((char*) key_ptr - (char*) key_val);
-      records= info->param->table->file->
-                 records_in_range(scan->keynr, &min_range, &max_range);
+      records= (info->param->table->file->
+                records_in_range(scan->keynr, &min_range, &max_range));
       if (cur_covered)
       {
         /* uncovered -> covered */
@@ -2631,6 +2636,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("Returning multiplier: %g", selectivity_mult));
   DBUG_RETURN(selectivity_mult);
 }
+
 
 /*
   Check if adding a ROR scan to a ROR-intersection reduces its cost of
@@ -2669,7 +2675,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
 */
 
 static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
-                       ROR_SCAN_INFO* ror_scan, bool is_cpk_scan)
+                              ROR_SCAN_INFO* ror_scan, bool is_cpk_scan)
 {
   double selectivity_mult= 1.0;
 
@@ -3225,11 +3231,11 @@ QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(PARAM *param,
 
   quick_imerge->records= records;
   quick_imerge->read_time= read_cost;
-  for(TRP_RANGE **range_scan= range_scans; range_scan != range_scans_end;
-      range_scan++)
+  for (TRP_RANGE **range_scan= range_scans; range_scan != range_scans_end;
+       range_scan++)
   {
     if (!(quick= (QUICK_RANGE_SELECT*)
-           ((*range_scan)->make_quick(param, FALSE, &quick_imerge->alloc)))||
+          ((*range_scan)->make_quick(param, FALSE, &quick_imerge->alloc)))||
         quick_imerge->push_quick_back(quick))
     {
       delete quick;
@@ -3258,7 +3264,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
                                              "creating ROR-intersect",
                                              first_scan, last_scan););
     alloc= parent_alloc? parent_alloc: &quick_intrsect->alloc;
-    for(; first_scan != last_scan;++first_scan)
+    for (; first_scan != last_scan;++first_scan)
     {
       if (!(quick= get_quick_select(param, (*first_scan)->idx,
                                     (*first_scan)->sel_arg, alloc)) ||
@@ -3300,7 +3306,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
   */
   if ((quick_roru= new QUICK_ROR_UNION_SELECT(param->thd, param->table)))
   {
-    for(scan= first_ror; scan != last_ror; scan++)
+    for (scan= first_ror; scan != last_ror; scan++)
     {
       if (!(quick= (*scan)->make_quick(param, FALSE, &quick_roru->alloc)) ||
           quick_roru->push_quick_back(quick))
@@ -4203,7 +4209,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
     clone_flag=swap_clone_flag(clone_flag);
   }
 
-  // If one of the key is MAYBE_KEY then the found region may be smaller
+  /* If one of the key is MAYBE_KEY then the found region may be smaller */
   if (key2->type == SEL_ARG::MAYBE_KEY)
   {
     if (key1->use_count > 1)
@@ -5336,8 +5342,8 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
   KEY_PART_INFO *pk_part= param->table->key_info[pk_number].key_part;
   KEY_PART_INFO *pk_part_end= pk_part +
                               param->table->key_info[pk_number].key_parts;
-  for(;(key_part!=key_part_end) && (pk_part != pk_part_end);
-      ++key_part, ++pk_part)
+  for (;(key_part!=key_part_end) && (pk_part != pk_part_end);
+       ++key_part, ++pk_part)
   {
     if ((key_part->field != pk_part->field) ||
         (key_part->length != pk_part->length))
@@ -7330,8 +7336,8 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     
   DESCRIPTION
     Test conditions (NGA1, NGA2) from get_best_group_min_max(). Namely,
-    for each keypart field NGF_i not in GROUP-BY, check that there is a constant
-    equality predicate among conds with the form (NGF_i = const_ci) or
+    for each keypart field NGF_i not in GROUP-BY, check that there is a
+    constant equality predicate among conds with the form (NGF_i = const_ci) or
     (const_ci = NGF_i).
     Thus all the NGF_i attributes must fill the 'gap' between the last group-by
     attribute and the MIN/MAX attribute in the index (if present). If these
@@ -7964,7 +7970,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
   max_used_key_length= real_prefix_len;
   if (min_max_ranges.elements > 0)
   {
-    QUICK_RANGE *cur_range= 0;
+    QUICK_RANGE *cur_range;
     if (have_min)
     { /* Check if the right-most range has a lower boundary. */
       get_dynamic(&min_max_ranges, (gptr)&cur_range,
@@ -7972,7 +7978,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
       if (!(cur_range->flag & NO_MIN_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
-        ++used_key_parts;
+        used_key_parts++;
         return;
       }
     }
@@ -7982,7 +7988,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
       if (!(cur_range->flag & NO_MAX_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
-        ++used_key_parts;
+        used_key_parts++;
         return;
       }
     }
@@ -7999,7 +8005,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
       usable key length.
     */
     max_used_key_length+= min_max_arg_len;
-    ++used_key_parts;
+    used_key_parts++;
   }
 }
 
@@ -8696,7 +8702,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
   char buff[1024];
   String tmp(buff,sizeof(buff),&my_charset_bin);
   tmp.length(0);
-  for(;start != end; start++)
+  for (;start != end; start++)
   {
     if (tmp.length())
       tmp.append(',');

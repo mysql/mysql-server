@@ -14,11 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
-
-#include "mysql_priv.h"
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"
@@ -1904,32 +1903,32 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
   else
   {
     sp_lex_keeper *lex_keeper= c->pre_open(thd);
-
-    if (!lex_keeper)
+    if (!lex_keeper)                            // cursor already open or OOM
     {
       res= -1;
       *nextp= m_ip+1;
     }
     else
-      res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
-
-    /*
-      Work around the fact that errors in selects are not returned properly
-      (but instead converted into a warning), so if a condition handler
-      caught, we have lost the result code.
-     */
-    if (!res)
     {
-      uint dummy1, dummy2;
+      res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      /*
+        Work around the fact that errors in selects are not returned properly
+        (but instead converted into a warning), so if a condition handler
+        caught, we have lost the result code.
+       */
+      if (!res)
+      {
+        uint dummy1, dummy2;
 
-      if (thd->spcont->found_handler(&dummy1, &dummy2))
-	res= -1;
+        if (thd->spcont->found_handler(&dummy1, &dummy2))
+  	  res= -1;
+      }
+      c->post_open(thd, res ? FALSE : TRUE);
     }
-    c->post_open(thd, (lex_keeper && !res ? TRUE : FALSE));
   }
-
   DBUG_RETURN(res);
 }
+
 
 int
 sp_instr_copen::exec_core(THD *thd, uint *nextp)

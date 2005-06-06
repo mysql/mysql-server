@@ -39,10 +39,11 @@
   DESCRIPTION
     This function prepares memory root for further use, sets initial size of
     chunk for memory allocation and pre-allocates first block if specified.
-    Altough error can happen during execution of this function if pre_alloc_size
-    is non-0 it won't be reported. Instead it will be reported as error in first
-    alloc_root() on this memory root.
+    Altough error can happen during execution of this function if
+    pre_alloc_size is non-0 it won't be reported. Instead it will be
+    reported as error in first alloc_root() on this memory root.
 */
+
 void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 		     uint pre_alloc_size __attribute__((unused)))
 {
@@ -71,6 +72,7 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
   DBUG_VOID_RETURN;
 }
 
+
 /*
   SYNOPSIS
     reset_root_defaults()
@@ -86,7 +88,7 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
     reuse one of existing blocks as prealloc block, or malloc new one of
     requested size. If no blocks can be reused, all unused blocks are freed
     before allocation.
- */
+*/
 
 void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
                          uint pre_alloc_size __attribute__((unused)))
@@ -260,6 +262,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   NOTES
     One can call this function either with root block initialised with
     init_alloc_root() or with a bzero()-ed block.
+    It's also safe to call this multiple times with the same mem_root.
 */
 
 void free_root(MEM_ROOT *root, myf MyFlags)

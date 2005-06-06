@@ -618,9 +618,12 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     NULL,		/* sort_order_big*/
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     4,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,			/* min_sort_char */

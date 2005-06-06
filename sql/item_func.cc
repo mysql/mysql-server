@@ -213,15 +213,16 @@ void Item_func::set_arguments(List<Item> &list)
 {
   allowed_arg_cols= 1;
   arg_count=list.elements;
-  if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
+  args= tmp_arg;                                // If 2 arguments
+  if (arg_count <= 2 || (args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
-    uint i=0;
     List_iterator_fast<Item> li(list);
     Item *item;
+    Item **save_args= args;
 
     while ((item=li++))
     {
-      args[i++]= item;
+      *(save_args++)= item;
       with_sum_func|=item->with_sum_func;
     }
   }
@@ -4724,7 +4725,6 @@ Item_func_sp::func_name() const
 Field *
 Item_func_sp::sp_result_field(void) const
 {
-  Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
 
   if (!m_sp)

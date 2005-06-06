@@ -418,7 +418,7 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     num_of_tables(num_of_tables_arg), error(0),
     do_delete(0), transactional_tables(0), normal_tables(0)
 {
-  tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
+  tempfiles= (Unique **) sql_calloc(sizeof(Unique *) * num_of_tables);
 }
 
 
@@ -448,6 +448,7 @@ multi_delete::initialize_tables(JOIN *join)
     tables_to_delete_from|= walk->table->map;
 
   walk= delete_tables;
+  delete_while_scanning= 1;
   for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
        tab < end;
        tab++)
@@ -467,10 +468,25 @@ multi_delete::initialize_tables(JOIN *join)
       else
 	normal_tables= 1;
     }
+    else if ((tab->type != JT_SYSTEM && tab->type != JT_CONST) &&
+             walk == delete_tables)
+    {
+      /*
+        We are not deleting from the table we are scanning. In this
+        case send_data() shouldn't delete any rows a we may touch
+        the rows in the deleted table many times
+      */
+      delete_while_scanning= 0;
+    }
   }
   walk= delete_tables;
   tempfiles_ptr= tempfiles;
-  for (walk= walk->next_local ;walk ;walk= walk->next_local)
+  if (delete_while_scanning)
+  {
+    table_being_deleted= delete_tables;
+    walk= walk->next_local;
+  }
+  for (;walk ;walk= walk->next_local)
   {
     TABLE *table=walk->table;
     *tempfiles_ptr++= new Unique (refpos_order_cmp,
@@ -489,12 +505,12 @@ multi_delete::~multi_delete()
        table_being_deleted;
        table_being_deleted= table_being_deleted->next_local)
   {
-    TABLE *t=table_being_deleted->table;
-    free_io_cache(t);				// Alloced by unique
-    t->no_keyread=0;
+    TABLE *table= table_being_deleted->table;
+    free_io_cache(table);                       // Alloced by unique
+    table->no_keyread=0;
   }
 
-  for (uint counter= 0; counter < num_of_tables-1; counter++)
+  for (uint counter= 0; counter < num_of_tables; counter++)
   {
     if (tempfiles[counter])
       delete tempfiles[counter];
@@ -504,14 +520,15 @@ multi_delete::~multi_delete()
 
 bool multi_delete::send_data(List<Item> &values)
 {
-  int secure_counter= -1;
+  int secure_counter= delete_while_scanning ? -1 : 0;
+  TABLE_LIST *del_table;
   DBUG_ENTER("multi_delete::send_data");
 
-  for (table_being_deleted= delete_tables;
-       table_being_deleted;
-       table_being_deleted= table_being_deleted->next_local, secure_counter++)
+  for (del_table= delete_tables;
+       del_table;
+       del_table= del_table->next_local, secure_counter++)
   {
-    TABLE *table=table_being_deleted->table;
+    TABLE *table= del_table->table;
 
     /* Check if we are using outer join and we didn't find the row */
     if (table->status & (STATUS_NULL_ROW | STATUS_DELETED))
@@ -522,7 +539,8 @@ bool multi_delete::send_data(List<Item> &values)
 
     if (secure_counter < 0)
     {
-      /* If this is the table we are scanning */
+      /* We are scanning the current table */
+      DBUG_ASSERT(del_table == table_being_deleted);
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
@@ -536,8 +554,7 @@ bool multi_delete::send_data(List<Item> &values)
                                               TRG_ACTION_AFTER, FALSE))
 	  DBUG_RETURN(1);
       }
-      else if (!table_being_deleted->next_local ||
-	       table_being_deleted->table->file->has_transactions())
+      else
       {
 	table->file->print_error(error,MYF(0));
 	DBUG_RETURN(1);
@@ -548,7 +565,7 @@ bool multi_delete::send_data(List<Item> &values)
       error=tempfiles[secure_counter]->unique_add((char*) table->file->ref);
       if (error)
       {
-	error=-1;
+	error= 1;                               // Fatal error
 	DBUG_RETURN(1);
       }
     }
@@ -571,22 +588,24 @@ void multi_delete::send_error(uint errcode,const char *err)
   /* Something already deleted so we have to invalidate cache */
   query_cache_invalidate3(thd, delete_tables, 1);
 
-  /* Below can happen when thread is killed early ... */
-  if (!table_being_deleted)
-    table_being_deleted=delete_tables;
-
   /*
     If rows from the first table only has been deleted and it is
     transactional, just do rollback.
     The same if all tables are transactional, regardless of where we are.
     In all other cases do attempt deletes ...
   */
-  if ((table_being_deleted->table->file->has_transactions() &&
-       table_being_deleted == delete_tables) || !normal_tables)
+  if ((table_being_deleted == delete_tables &&
+       table_being_deleted->table->file->has_transactions()) ||
+      !normal_tables)
     ha_rollback_stmt(thd);
   else if (do_delete)
   {
-    VOID(do_deletes(1));
+    /*
+      We have to execute the recorded do_deletes() and write info into the
+      error log
+    */
+    error= 1;
+    send_eof();
   }
   DBUG_VOID_RETURN;
 }
@@ -599,28 +618,21 @@ void multi_delete::send_error(uint errcode,const char *err)
 	1 error
 */
 
-int multi_delete::do_deletes(bool from_send_error)
+int multi_delete::do_deletes()
 {
   int local_error= 0, counter= 0, error;
   bool will_batch;
   DBUG_ENTER("do_deletes");
+  DBUG_ASSERT(do_delete);
 
-  if (from_send_error)
-  {
-    /* Found out table number for 'table_being_deleted*/
-    for (TABLE_LIST *aux= delete_tables;
-	 aux != table_being_deleted;
-	 aux= aux->next_local)
-      counter++;
-  }
-  else
-    table_being_deleted = delete_tables;
-
-  do_delete= 0;
+  do_delete= 0;                                 // Mark called
   if (!found)
     DBUG_RETURN(0);
-  for (table_being_deleted= table_being_deleted->next_local;
-       table_being_deleted;
+
+  table_being_deleted= (delete_while_scanning ? delete_tables->next_local :
+                        delete_tables);
+ 
+  for (; table_being_deleted;
        table_being_deleted= table_being_deleted->next_local, counter++)
   { 
     TABLE *table = table_being_deleted->table;
@@ -691,7 +703,7 @@ bool multi_delete::send_eof()
   thd->proc_info="deleting from reference tables";
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
-  int local_error= do_deletes(0);		// returns 0 if success
+  int local_error= do_deletes();		// returns 0 if success
 
   /* reset used flags */
   thd->proc_info="end";

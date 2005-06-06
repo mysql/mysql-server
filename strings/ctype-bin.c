@@ -208,10 +208,13 @@ static void my_case_str_bin(CHARSET_INFO *cs __attribute__((unused)),
 {
 }
 
-static void my_case_bin(CHARSET_INFO *cs __attribute__((unused)),
-			char *str __attribute__((unused)),
-			uint length __attribute__((unused)))
+static uint my_case_bin(CHARSET_INFO *cs __attribute__((unused)),
+                        char *src __attribute__((unused)),
+                        uint srclen,
+                        char *dst __attribute__((unused)),
+                        uint dstlen __attribute__((unused)))
 {
+  return srclen;
 }
 
 
@@ -526,9 +529,12 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* sort_order_big*/
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
+    my_unicase_default,         /* caseinfo     */
     NULL,			/* state_map    */
     NULL,			/* ident_map    */
     1,				/* strxfrm_multiply */
+    1,                          /* caseup_multiply  */
+    1,                          /* casedn_multiply  */
     1,				/* mbminlen      */
     1,				/* mbmaxlen      */
     0,				/* min_sort_char */

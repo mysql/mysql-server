@@ -772,9 +772,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
   Item_subselect::trans_res result= RES_ERROR;
-  DBUG_ENTER("Item_in_subselect::single_value_transformer");
-
   SELECT_LEX *select_lex= join->select_lex;
+  DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
   /*
     Check that the right part of the subselect contains no more than one
@@ -1646,7 +1645,7 @@ void subselect_uniquesubquery_engine::exclude()
 table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 {
   table_map map= 0;
-  for(; table; table= table->next_leaf)
+  for (; table; table= table->next_leaf)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)

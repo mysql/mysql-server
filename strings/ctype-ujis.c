@@ -8566,9 +8566,12 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     NULL,		/* contractions */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
@@ -8594,9 +8597,12 @@ CHARSET_INFO my_charset_ujis_bin=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */

@@ -57,40 +57,48 @@ void my_casedn_str_mb(CHARSET_INFO * cs, char *str)
   }
 }
 
-void my_caseup_mb(CHARSET_INFO * cs, char *str, uint length)
+uint my_caseup_mb(CHARSET_INFO * cs, char *src, uint srclen,
+                  char *dst __attribute__((unused)),
+                  uint dstlen __attribute__((unused)))
 {
   register uint32 l;
-  register char *end=str+length;
-  register uchar *map=cs->to_upper;
-  
-  while (str<end)
+  register char *srcend= src + srclen;
+  register uchar *map= cs->to_upper;
+
+  DBUG_ASSERT(src == dst && srclen == dstlen);
+  while (src < srcend)
   {
-    if ((l=my_ismbchar(cs, str,end)))
-      str+=l;
+    if ((l=my_ismbchar(cs, src, srcend)))
+      src+= l;
     else 
     {
-      *str=(char) map[(uchar)*str];
-      str++;
+      *src=(char) map[(uchar) *src];
+      src++;
     }
   }
+  return srclen;
 }
 
-void my_casedn_mb(CHARSET_INFO * cs, char *str, uint length)
+uint my_casedn_mb(CHARSET_INFO * cs, char *src, uint srclen,
+                  char *dst __attribute__((unused)),
+                  uint dstlen __attribute__((unused)))
 {
   register uint32 l;
-  register char *end=str+length;
+  register char *srcend= src + srclen;
   register uchar *map=cs->to_lower;
-  
-  while (str<end)
+
+  DBUG_ASSERT(src == dst && srclen == dstlen);  
+  while (src < srcend)
   {
-    if ((l=my_ismbchar(cs, str,end)))
-      str+=l;
+    if ((l= my_ismbchar(cs, src, srcend)))
+      src+= l;
     else
     {
-      *str=(char) map[(uchar)*str];
-      str++;
+      *src= (char) map[(uchar)*src];
+      src++;
     }
   }
+  return srclen;
 }
 
 int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)

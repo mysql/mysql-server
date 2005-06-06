@@ -94,7 +94,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
-#define STACK_BUFF_ALLOC	64	// For stack overrun checks
+#define STACK_BUFF_ALLOC	256	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
@@ -1357,7 +1357,8 @@ inline void mark_as_null_row(TABLE *table)
 inline void table_case_convert(char * name, uint length)
 {
   if (lower_case_table_names)
-    my_casedn(files_charset_info, name, length);
+    files_charset_info->cset->casedn(files_charset_info,
+                                     name, length, name, length);
 }
 
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
