@@ -162,3 +162,12 @@ create table t1 (a int, b time, c tinyint, d bool, e char(10), f bit(1),
 insert into t1 set a=1;
 select h from t1;
 drop table t1;
+
+#
+# Bug #10539
+#
+
+create table t1 (a bit(8)) engine=heap;
+insert into t1 values ('1111100000');
+select a+0 from t1;
+drop table t1;
