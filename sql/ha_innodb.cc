@@ -28,10 +28,11 @@ have disables the InnoDB inlining in this file. */
     in Windows?
 */
 
-#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include "mysql_priv.h"
 #include "slave.h"
 
 #ifdef HAVE_INNOBASE_DB

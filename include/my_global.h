@@ -43,14 +43,9 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
-/* Determine when to use "#pragma interface" */
-#if !defined(__CYGWIN__) && !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
+/* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #define USE_PRAGMA_INTERFACE
-#endif
-
-/* Determine when to use "#pragma implementation" */
-#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
-#define USE_PRAGMA_IMPLEMENTATION
 #endif
 
 #if defined(i386) && !defined(__i386__)
