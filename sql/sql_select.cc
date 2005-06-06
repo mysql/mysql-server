@@ -7384,6 +7384,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     }
     else
     {
+      if (!(table->prep_on_expr))
+        table->prep_on_expr= table->on_expr;
       used_tables= table->table->map;
       if (conds)
         not_null_tables= conds->not_null_tables();
