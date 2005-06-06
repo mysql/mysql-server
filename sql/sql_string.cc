@@ -16,10 +16,11 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#include <my_global.h>
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
