@@ -1319,3 +1319,13 @@ CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
 --error 1214;
 SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
 DROP TABLE t1;
+
+#
+# BUG#11039 Wrong key length in min()
+#
+
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+select min(b) from t1 where a='8';
+drop table t1;

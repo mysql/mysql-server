@@ -2401,3 +2401,12 @@ CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
 SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
 ERROR HY000: The used table type doesn't support FULLTEXT indexes
 DROP TABLE t1;
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+min(a)
+4
+select min(b) from t1 where a='8';
+min(b)
+6
+drop table t1;
