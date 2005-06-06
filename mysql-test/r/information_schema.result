@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS t0,t1,t2;
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF

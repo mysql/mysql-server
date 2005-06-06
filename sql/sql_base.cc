@@ -753,7 +753,7 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
   t_name= table->table_name;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
-  for(;;)
+  for (;;)
   {
     if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
         (!res->table || res->table != table->table) &&

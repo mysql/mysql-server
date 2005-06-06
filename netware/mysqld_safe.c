@@ -666,7 +666,6 @@ void mysql_start(int argc, char *argv[])
       if (!strnicmp(argv[i], private_options[j], strlen(private_options[j])))
       {
 	skip= TRUE;
-	consoleprintf("The argument skipped is %s\n", argv[i]);
 	break;
       }
     }
@@ -674,7 +673,6 @@ void mysql_start(int argc, char *argv[])
     if (!skip)
     {
       add_arg(&al, "%s", argv[i]);
-      consoleprintf("The final argument is %s\n", argv[i]);
     }
   }
   // spawn

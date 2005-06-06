@@ -668,7 +668,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 {
   int error;
   Field::utype type;
-  uint firstpos, null_count;
+  uint null_count;
   uchar *buff,*null_pos;
   TABLE table;
   create_field *field;

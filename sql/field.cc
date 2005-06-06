@@ -7836,7 +7836,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 
 int Field_bit::store(double nr)
 {
-  return (Field_bit::store((longlong) nr));
+  return store((longlong) nr);
 }
 
 
@@ -8019,7 +8019,8 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
       (delta == 0 && bits && (uint) (uchar) *from >= (uint) (1 << bits)))
   {
     memset(ptr, 0xff, field_length);
-    *ptr&= ((1 << bits) - 1); /* set first byte */
+    if (bits)
+      *ptr&= ((1 << bits) - 1); /* set first byte */
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
