@@ -916,6 +916,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
+        if (thd->clear_next_insert_id)
+        {
+          /* Reset auto-increment cacheing if we do an update */
+          thd->clear_next_insert_id= 0;
+          thd->next_insert_id= 0;
+        }
         if ((error=table->file->update_row(table->record[1],table->record[0])))
 	{
 	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
@@ -949,6 +955,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_BEFORE, TRUE))
             goto before_trg_err;
+          if (thd->clear_next_insert_id)
+          {
+            /* Reset auto-increment cacheing if we do an update */
+            thd->clear_next_insert_id= 0;
+            thd->next_insert_id= 0;
+          }
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
             goto err;
