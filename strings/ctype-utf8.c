@@ -172,6 +172,8 @@ static MY_UNICASE_INFO plane00[]={
   {0x00DE,0x00FE,0x00DE},  {0x0178,0x00FF,0x0059}
 };
 
+
+
 static MY_UNICASE_INFO plane01[]={
   {0x0100,0x0101,0x0041},  {0x0100,0x0101,0x0041},
   {0x0102,0x0103,0x0041},  {0x0102,0x0103,0x0041},
@@ -1482,7 +1484,7 @@ static MY_UNICASE_INFO planeFF[]={
   {0xFFFE,0xFFFE,0xFFFE},  {0xFFFF,0xFFFF,0xFFFF}
 };
 
-MY_UNICASE_INFO *uni_plane[256]={
+MY_UNICASE_INFO *my_unicase_default[256]={
  plane00, plane01, plane02, plane03, plane04, plane05,    NULL,    NULL,
     NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
     NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
@@ -1517,6 +1519,186 @@ MY_UNICASE_INFO *uni_plane[256]={
     NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, planeFF
 
 };
+
+
+/*
+  Turkish lower/upper mapping:
+  1. LOWER(0x0049 LATIN CAPITAL LETTER I) -> 
+           0x0131 LATIN SMALL   LETTER DOTLESS I
+  2. UPPER(0x0069 LATIN SMALL   LETTER I) -> 
+           0x0130 LATIN CAPITAL LETTER I WITH DOT ABOVE
+*/
+
+static MY_UNICASE_INFO turk00[]=
+{
+  {0x0000,0x0000,0x0000},  {0x0001,0x0001,0x0001},
+  {0x0002,0x0002,0x0002},  {0x0003,0x0003,0x0003},
+  {0x0004,0x0004,0x0004},  {0x0005,0x0005,0x0005},
+  {0x0006,0x0006,0x0006},  {0x0007,0x0007,0x0007},
+  {0x0008,0x0008,0x0008},  {0x0009,0x0009,0x0009},
+  {0x000A,0x000A,0x000A},  {0x000B,0x000B,0x000B},
+  {0x000C,0x000C,0x000C},  {0x000D,0x000D,0x000D},
+  {0x000E,0x000E,0x000E},  {0x000F,0x000F,0x000F},
+  {0x0010,0x0010,0x0010},  {0x0011,0x0011,0x0011},
+  {0x0012,0x0012,0x0012},  {0x0013,0x0013,0x0013},
+  {0x0014,0x0014,0x0014},  {0x0015,0x0015,0x0015},
+  {0x0016,0x0016,0x0016},  {0x0017,0x0017,0x0017},
+  {0x0018,0x0018,0x0018},  {0x0019,0x0019,0x0019},
+  {0x001A,0x001A,0x001A},  {0x001B,0x001B,0x001B},
+  {0x001C,0x001C,0x001C},  {0x001D,0x001D,0x001D},
+  {0x001E,0x001E,0x001E},  {0x001F,0x001F,0x001F},
+  {0x0020,0x0020,0x0020},  {0x0021,0x0021,0x0021},
+  {0x0022,0x0022,0x0022},  {0x0023,0x0023,0x0023},
+  {0x0024,0x0024,0x0024},  {0x0025,0x0025,0x0025},
+  {0x0026,0x0026,0x0026},  {0x0027,0x0027,0x0027},
+  {0x0028,0x0028,0x0028},  {0x0029,0x0029,0x0029},
+  {0x002A,0x002A,0x002A},  {0x002B,0x002B,0x002B},
+  {0x002C,0x002C,0x002C},  {0x002D,0x002D,0x002D},
+  {0x002E,0x002E,0x002E},  {0x002F,0x002F,0x002F},
+  {0x0030,0x0030,0x0030},  {0x0031,0x0031,0x0031},
+  {0x0032,0x0032,0x0032},  {0x0033,0x0033,0x0033},
+  {0x0034,0x0034,0x0034},  {0x0035,0x0035,0x0035},
+  {0x0036,0x0036,0x0036},  {0x0037,0x0037,0x0037},
+  {0x0038,0x0038,0x0038},  {0x0039,0x0039,0x0039},
+  {0x003A,0x003A,0x003A},  {0x003B,0x003B,0x003B},
+  {0x003C,0x003C,0x003C},  {0x003D,0x003D,0x003D},
+  {0x003E,0x003E,0x003E},  {0x003F,0x003F,0x003F},
+  {0x0040,0x0040,0x0040},  {0x0041,0x0061,0x0041},
+  {0x0042,0x0062,0x0042},  {0x0043,0x0063,0x0043},
+  {0x0044,0x0064,0x0044},  {0x0045,0x0065,0x0045},
+  {0x0046,0x0066,0x0046},  {0x0047,0x0067,0x0047},
+  {0x0048,0x0068,0x0048},  {0x0049,0x0131,0x0049},
+  {0x004A,0x006A,0x004A},  {0x004B,0x006B,0x004B},
+  {0x004C,0x006C,0x004C},  {0x004D,0x006D,0x004D},
+  {0x004E,0x006E,0x004E},  {0x004F,0x006F,0x004F},
+  {0x0050,0x0070,0x0050},  {0x0051,0x0071,0x0051},
+  {0x0052,0x0072,0x0052},  {0x0053,0x0073,0x0053},
+  {0x0054,0x0074,0x0054},  {0x0055,0x0075,0x0055},
+  {0x0056,0x0076,0x0056},  {0x0057,0x0077,0x0057},
+  {0x0058,0x0078,0x0058},  {0x0059,0x0079,0x0059},
+  {0x005A,0x007A,0x005A},  {0x005B,0x005B,0x005B},
+  {0x005C,0x005C,0x005C},  {0x005D,0x005D,0x005D},
+  {0x005E,0x005E,0x005E},  {0x005F,0x005F,0x005F},
+  {0x0060,0x0060,0x0060},  {0x0041,0x0061,0x0041},
+  {0x0042,0x0062,0x0042},  {0x0043,0x0063,0x0043},
+  {0x0044,0x0064,0x0044},  {0x0045,0x0065,0x0045},
+  {0x0046,0x0066,0x0046},  {0x0047,0x0067,0x0047},
+  {0x0048,0x0068,0x0048},  {0x0130,0x0069,0x0049},
+  {0x004A,0x006A,0x004A},  {0x004B,0x006B,0x004B},
+  {0x004C,0x006C,0x004C},  {0x004D,0x006D,0x004D},
+  {0x004E,0x006E,0x004E},  {0x004F,0x006F,0x004F},
+  {0x0050,0x0070,0x0050},  {0x0051,0x0071,0x0051},
+  {0x0052,0x0072,0x0052},  {0x0053,0x0073,0x0053},
+  {0x0054,0x0074,0x0054},  {0x0055,0x0075,0x0055},
+  {0x0056,0x0076,0x0056},  {0x0057,0x0077,0x0057},
+  {0x0058,0x0078,0x0058},  {0x0059,0x0079,0x0059},
+  {0x005A,0x007A,0x005A},  {0x007B,0x007B,0x007B},
+  {0x007C,0x007C,0x007C},  {0x007D,0x007D,0x007D},
+  {0x007E,0x007E,0x007E},  {0x007F,0x007F,0x007F},
+  {0x0080,0x0080,0x0080},  {0x0081,0x0081,0x0081},
+  {0x0082,0x0082,0x0082},  {0x0083,0x0083,0x0083},
+  {0x0084,0x0084,0x0084},  {0x0085,0x0085,0x0085},
+  {0x0086,0x0086,0x0086},  {0x0087,0x0087,0x0087},
+  {0x0088,0x0088,0x0088},  {0x0089,0x0089,0x0089},
+  {0x008A,0x008A,0x008A},  {0x008B,0x008B,0x008B},
+  {0x008C,0x008C,0x008C},  {0x008D,0x008D,0x008D},
+  {0x008E,0x008E,0x008E},  {0x008F,0x008F,0x008F},
+  {0x0090,0x0090,0x0090},  {0x0091,0x0091,0x0091},
+  {0x0092,0x0092,0x0092},  {0x0093,0x0093,0x0093},
+  {0x0094,0x0094,0x0094},  {0x0095,0x0095,0x0095},
+  {0x0096,0x0096,0x0096},  {0x0097,0x0097,0x0097},
+  {0x0098,0x0098,0x0098},  {0x0099,0x0099,0x0099},
+  {0x009A,0x009A,0x009A},  {0x009B,0x009B,0x009B},
+  {0x009C,0x009C,0x009C},  {0x009D,0x009D,0x009D},
+  {0x009E,0x009E,0x009E},  {0x009F,0x009F,0x009F},
+  {0x00A0,0x00A0,0x00A0},  {0x00A1,0x00A1,0x00A1},
+  {0x00A2,0x00A2,0x00A2},  {0x00A3,0x00A3,0x00A3},
+  {0x00A4,0x00A4,0x00A4},  {0x00A5,0x00A5,0x00A5},
+  {0x00A6,0x00A6,0x00A6},  {0x00A7,0x00A7,0x00A7},
+  {0x00A8,0x00A8,0x00A8},  {0x00A9,0x00A9,0x00A9},
+  {0x00AA,0x00AA,0x00AA},  {0x00AB,0x00AB,0x00AB},
+  {0x00AC,0x00AC,0x00AC},  {0x00AD,0x00AD,0x00AD},
+  {0x00AE,0x00AE,0x00AE},  {0x00AF,0x00AF,0x00AF},
+  {0x00B0,0x00B0,0x00B0},  {0x00B1,0x00B1,0x00B1},
+  {0x00B2,0x00B2,0x00B2},  {0x00B3,0x00B3,0x00B3},
+  {0x00B4,0x00B4,0x00B4},  {0x039C,0x00B5,0x039C},
+  {0x00B6,0x00B6,0x00B6},  {0x00B7,0x00B7,0x00B7},
+  {0x00B8,0x00B8,0x00B8},  {0x00B9,0x00B9,0x00B9},
+  {0x00BA,0x00BA,0x00BA},  {0x00BB,0x00BB,0x00BB},
+  {0x00BC,0x00BC,0x00BC},  {0x00BD,0x00BD,0x00BD},
+  {0x00BE,0x00BE,0x00BE},  {0x00BF,0x00BF,0x00BF},
+  {0x00C0,0x00E0,0x0041},  {0x00C1,0x00E1,0x0041},
+  {0x00C2,0x00E2,0x0041},  {0x00C3,0x00E3,0x0041},
+  {0x00C4,0x00E4,0x0041},  {0x00C5,0x00E5,0x0041},
+  {0x00C6,0x00E6,0x00C6},  {0x00C7,0x00E7,0x0043},
+  {0x00C8,0x00E8,0x0045},  {0x00C9,0x00E9,0x0045},
+  {0x00CA,0x00EA,0x0045},  {0x00CB,0x00EB,0x0045},
+  {0x00CC,0x00EC,0x0049},  {0x00CD,0x00ED,0x0049},
+  {0x00CE,0x00EE,0x0049},  {0x00CF,0x00EF,0x0049},
+  {0x00D0,0x00F0,0x00D0},  {0x00D1,0x00F1,0x004E},
+  {0x00D2,0x00F2,0x004F},  {0x00D3,0x00F3,0x004F},
+  {0x00D4,0x00F4,0x004F},  {0x00D5,0x00F5,0x004F},
+  {0x00D6,0x00F6,0x004F},  {0x00D7,0x00D7,0x00D7},
+  {0x00D8,0x00F8,0x00D8},  {0x00D9,0x00F9,0x0055},
+  {0x00DA,0x00FA,0x0055},  {0x00DB,0x00FB,0x0055},
+  {0x00DC,0x00FC,0x0055},  {0x00DD,0x00FD,0x0059},
+  {0x00DE,0x00FE,0x00DE},  {0x00DF,0x00DF,0x00DF},
+  {0x00C0,0x00E0,0x0041},  {0x00C1,0x00E1,0x0041},
+  {0x00C2,0x00E2,0x0041},  {0x00C3,0x00E3,0x0041},
+  {0x00C4,0x00E4,0x0041},  {0x00C5,0x00E5,0x0041},
+  {0x00C6,0x00E6,0x00C6},  {0x00C7,0x00E7,0x0043},
+  {0x00C8,0x00E8,0x0045},  {0x00C9,0x00E9,0x0045},
+  {0x00CA,0x00EA,0x0045},  {0x00CB,0x00EB,0x0045},
+  {0x00CC,0x00EC,0x0049},  {0x00CD,0x00ED,0x0049},
+  {0x00CE,0x00EE,0x0049},  {0x00CF,0x00EF,0x0049},
+  {0x00D0,0x00F0,0x00D0},  {0x00D1,0x00F1,0x004E},
+  {0x00D2,0x00F2,0x004F},  {0x00D3,0x00F3,0x004F},
+  {0x00D4,0x00F4,0x004F},  {0x00D5,0x00F5,0x004F},
+  {0x00D6,0x00F6,0x004F},  {0x00F7,0x00F7,0x00F7},
+  {0x00D8,0x00F8,0x00D8},  {0x00D9,0x00F9,0x0055},
+  {0x00DA,0x00FA,0x0055},  {0x00DB,0x00FB,0x0055},
+  {0x00DC,0x00FC,0x0055},  {0x00DD,0x00FD,0x0059},
+  {0x00DE,0x00FE,0x00DE},  {0x0178,0x00FF,0x0059}
+};
+
+
+
+MY_UNICASE_INFO *my_unicase_turkish[256]=
+{
+  turk00, plane01, plane02, plane03, plane04, plane05,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, plane1E, plane1F,
+    NULL, plane21,    NULL,    NULL, plane24,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
+    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, planeFF
+};
+
 
 
 /*
@@ -1907,20 +2089,26 @@ static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
 }
 
 
-static void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
+static uint my_caseup_utf8(CHARSET_INFO *cs, char *src, uint srclen,
+                                             char *dst, uint dstlen)
 {
   my_wc_t wc;
-  int res;
-  char *e=s+slen;
+  int srcres, dstres;
+  char *srcend= src + srclen, *dstend= dst + dstlen, *dst0= dst;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
 
-  while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
+  while ((src < srcend) &&
+         (srcres= my_utf8_uni(cs, &wc, (uchar *) src, (uchar*) srcend)) > 0)
   {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
-    if (res != my_uni_utf8(cs,wc,(uchar*)s,(uchar*)e))
+    int plane= (wc>>8) & 0xFF;
+    wc= uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
+    if ((dstres= my_uni_utf8(cs, wc, (uchar*) dst, (uchar*) dstend)) <= 0)
       break;
-    s+=res;
+    src+= srcres;
+    dst+= dstres;
   }
+  return dst - dst0;
 }
 
 static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen,
@@ -1929,6 +2117,7 @@ static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen,
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -1952,31 +2141,37 @@ static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen,
 
 static void my_caseup_str_utf8(CHARSET_INFO * cs, char * s)
 {
-  my_caseup_utf8(cs, s, strlen(s));
+  uint len= strlen(s);
+  my_caseup_utf8(cs, s, len, s, len);
 }
 
 
-static void my_casedn_utf8(CHARSET_INFO *cs, char *s, uint slen)
+static uint my_casedn_utf8(CHARSET_INFO *cs, char *src, uint srclen,
+                                             char *dst, uint dstlen)
 {
   my_wc_t wc;
-  int res;
-  char *e=s+slen;
+  int srcres, dstres;
+  char *srcend= src + srclen, *dstend= dst + dstlen, *dst0= dst;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
 
-  while ((s < e) && (res=my_utf8_uni(cs, &wc, (uchar*)s, (uchar*)e))>0)
+  while ((src < srcend) &&
+         (srcres= my_utf8_uni(cs, &wc, (uchar*) src, (uchar*)srcend)) > 0)
   {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].tolower : wc;
-    if (res != my_uni_utf8(cs, wc, (uchar*)s, (uchar*)e))
-    {
+    int plane= (wc>>8) & 0xFF;
+    wc= uni_plane[plane] ? uni_plane[plane][wc & 0xFF].tolower : wc;
+    if ((dstres= my_uni_utf8(cs, wc, (uchar*) dst, (uchar*) dstend)) <= 0)
       break;
-    }
-    s+=res;
+    src+= srcres;
+    dst+= dstres;
   }
+  return dst - dst0;
 }
 
 static void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
 {
-  my_casedn_utf8(cs, s, strlen(s));
+  uint len= strlen(s);
+  my_casedn_utf8(cs, s, len, s, len);
 }
 
 
@@ -1989,6 +2184,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
   my_wc_t s_wc,t_wc;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -2057,6 +2253,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
   int s_res, t_res, res;
   my_wc_t s_wc,t_wc;
   const uchar *se= s+slen, *te= t+tlen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= 0;
@@ -2144,6 +2341,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
 static
 int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
 {
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
   while (s[0] && t[0])
   {
     my_wc_t s_wc,t_wc;
@@ -2228,6 +2426,7 @@ int my_wildcmp_utf8(CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
                             escape,w_one,w_many,uni_plane); 
 }
@@ -2249,6 +2448,7 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
   uchar *de= dst + dstlen;
   uchar *de_beg= de - 1;
   const uchar *se = src + srclen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   while (dst < de_beg)
   {
@@ -2367,9 +2567,12 @@ CHARSET_INFO my_charset_utf8_general_ci=
     NULL,               /* sort_order_big*/
     NULL,               /* tab_to_uni   */
     NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,               /* state_map    */
     NULL,               /* ident_map    */
     1,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
     0,                  /* min_sort_char */
@@ -2395,9 +2598,12 @@ CHARSET_INFO my_charset_utf8_bin=
     NULL,               /* sort_order_big*/
     NULL,               /* tab_to_uni   */
     NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,               /* state_map    */
     NULL,               /* ident_map    */
     1,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
     0,                  /* min_sort_char */
@@ -2561,9 +2767,12 @@ CHARSET_INFO my_charset_utf8_general_cs=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
