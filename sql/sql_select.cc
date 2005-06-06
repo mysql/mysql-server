@@ -7996,7 +7996,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bool  using_unique_constraint= 0;
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
-  char	*tmpname,path[FN_REFLEN], filename[FN_REFLEN];
+  char	*tmpname,path[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
   Field **reg_field, **from_field;
