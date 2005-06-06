@@ -181,7 +181,7 @@ extern void my_large_free(gptr ptr, myf my_flags);
 #endif /* _AIX */
 #if defined(__MWERKS__)
 #undef alloca
-#define alloca __alloca
+#define alloca _alloca
 #endif /* __MWERKS__ */
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
@@ -836,7 +836,10 @@ my_bool my_gethwaddr(uchar *to);
 #define MAP_NOSYNC       0x0800
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
+
+#ifndef __NETWARE__
 #define HAVE_MMAP
+#endif
 
 int my_getpagesize(void);
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
