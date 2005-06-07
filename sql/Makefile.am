@@ -91,7 +91,6 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc rpl_filter.cc \
                         sql_union.cc sql_derived.cc \
-                        bitvector.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \

@@ -1,6 +1,7 @@
 --disable_warnings
 drop table if exists t1,v1;
 drop view if exists t1,v1;
+drop procedure if exists f1;
 --enable_warnings
 use test;
 
@@ -11,4 +12,11 @@ create table t1 (field1 INT);
 CREATE VIEW v1 AS SELECT field1 FROM t1;
 
 drop view v1;
-drop table t1
+drop table t1;
+
+#
+# Test that we can create and drop procedure without warnings
+# see bug#9993
+#
+create procedure f1() select 1;
+drop procedure f1;

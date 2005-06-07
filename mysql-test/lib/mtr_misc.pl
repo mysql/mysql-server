@@ -25,7 +25,7 @@ sub mtr_full_hostname () {
   if ( $hostname !~ /\./ )
   {
     my $address=   gethostbyname($hostname)
-      or die "Couldn't resolve $hostname : $!";
+      or mtr_error("Couldn't resolve $hostname : $!");
     my $fullname=  gethostbyaddr($address, AF_INET);
     $hostname= $fullname if $fullname; 
   }

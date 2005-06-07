@@ -24,7 +24,6 @@
  *
  */
 
-#include "runtime.hpp"
 #include "cert_wrapper.hpp"
 #include "yassl_int.hpp"
 
@@ -46,7 +45,7 @@ x509::x509(uint sz) : length_(sz), buffer_(new (ys) opaque[sz])
 
 x509::~x509() 
 { 
-    delete [] buffer_; 
+    ysArrayDelete(buffer_); 
 }
 
 
@@ -98,7 +97,7 @@ CertManager::CertManager()
 
 CertManager::~CertManager()
 {
-    delete peerX509_;
+    ysDelete(peerX509_);
 
     mySTL::for_each(signers_.begin(), signers_.end(), del_ptr_zero()) ;
 
@@ -273,13 +272,13 @@ int CertManager::SetPrivateKey(const x509& key)
     privateKey_.assign(key.get_buffer(), key.get_length());
 
     // set key type
-    if (x509* cert509 = list_.front()) {
-        TaoCrypt::Source source(cert509->get_buffer(), cert509->get_length());
-        TaoCrypt::CertDecoder cert(source, false);
-        cert.DecodeToKey();
-        if (int err = cert.GetError().What())
+    if (x509* cert = list_.front()) {
+        TaoCrypt::Source source(cert->get_buffer(), cert->get_length());
+        TaoCrypt::CertDecoder cd(source, false);
+        cd.DecodeToKey();
+        if (int err = cd.GetError().What())
             return err;
-        if (cert.GetKeyType() == TaoCrypt::RSAk)
+        if (cd.GetKeyType() == TaoCrypt::RSAk)
             keyType_ = rsa_sa_algo;
         else
             keyType_ = dsa_sa_algo;

@@ -887,7 +887,7 @@ report_stats () {
 
     found_error=0
     # Find errors
-    for i in "^Warning:" "^Error:" "^==.* at 0x"
+    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning"
     do
       if $GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings
       then
@@ -1212,8 +1212,8 @@ start_master()
            $NOT_FIRST_MASTER_EXTRA_OPTS"
   fi
 
-  CUR_MYERR=$MASTER_MYERR
-  CUR_MYSOCK=$MASTER_MYSOCK
+  CUR_MYERR=$MASTER_MYERR$1
+  CUR_MYSOCK=$MASTER_MYSOCK$1
 
   # For embedded server we collect the server flags and return
   if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then

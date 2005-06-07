@@ -133,13 +133,13 @@ Table	Op	Msg_type	Msg_text
 test.t3	analyze	status	Table is already up to date
 explain select a1, min(a2) from t1 group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	65	NULL	5	Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	5	Using index for group-by
 explain select a1, max(a2) from t1 group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	65	NULL	5	Using index for group-by
 explain select a1, min(a2), max(a2) from t1 group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	65	NULL	5	Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	5	Using index for group-by
 explain select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using index for group-by
@@ -151,13 +151,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	NULL	idx_t2_1	#	NULL	#	Using index for group-by
 explain select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	65	NULL	5	Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	5	Using index for group-by
 explain select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using index for group-by
 explain select min(a2) from t1 group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	65	NULL	5	Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	5	Using index for group-by
 explain select a2, min(c), max(c) from t1 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using index for group-by
@@ -1404,7 +1404,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	idx_t2_0,idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	#	Using where; Using index for group-by
 explain select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	idx_t2_0,idx_t2_1,idx_t2_2	idx_t2_1	146	NULL	#	Using where; Using index for group-by
+1	SIMPLE	t2	range	idx_t2_0,idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	#	Using where; Using index for group-by
 select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 a1	a2	b	min(c)	max(c)
 a	a	b	e112	h112
@@ -1838,7 +1838,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	10	Using where; Using index for group-by
 explain select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	9	Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	9	Using index for group-by
 select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
 a1	a2	b	concat(min(c), max(c))
 a	a	a	a111d111

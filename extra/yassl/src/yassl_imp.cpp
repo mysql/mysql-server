@@ -130,7 +130,7 @@ void DH_Server::build(SSL& ssl)
                        parms_.alloc_pub(pubSz));
 
     short sigSz = 0;
-    mySTL::auto_ptr<Auth> auth;
+    mySTL::auto_ptr<Auth> auth(ysDelete);
     const CertManager& cert = ssl.getCrypto().get_certManager();
     
     if (ssl.getSecurity().get_parms().sig_algo_ == rsa_sa_algo)
@@ -234,7 +234,7 @@ EncryptedPreMasterSecret::EncryptedPreMasterSecret()
 
 EncryptedPreMasterSecret::~EncryptedPreMasterSecret()
 {
-    delete[] secret_;
+    ysArrayDelete(secret_);
 }
 
 
@@ -284,7 +284,7 @@ ClientDiffieHellmanPublic::ClientDiffieHellmanPublic()
 
 ClientDiffieHellmanPublic::~ClientDiffieHellmanPublic()
 {
-    delete[] Yc_;
+    ysArrayDelete(Yc_);
 }
 
 
@@ -400,8 +400,8 @@ DH_Server::DH_Server()
 
 DH_Server::~DH_Server()
 {
-    delete[] keyMessage_;
-    delete[] signature_;
+    ysArrayDelete(keyMessage_);
+    ysArrayDelete(signature_);
 }
 
 
@@ -594,7 +594,7 @@ void HandShakeHeader::Process(input_buffer& input, SSL& ssl)
 {
     ssl.verifyState(*this);
     const HandShakeFactory& hsf = ssl.getFactory().getHandShake();
-    mySTL::auto_ptr<HandShakeBase> hs(hsf.CreateObject(type_));
+    mySTL::auto_ptr<HandShakeBase> hs(hsf.CreateObject(type_), ysDelete);
     if (!hs.get()) {
         ssl.SetError(factory_error);
         return;
@@ -1067,9 +1067,9 @@ ServerDHParams::ServerDHParams()
 
 ServerDHParams::~ServerDHParams()
 {
-    delete[] Ys_;
-    delete[] g_;
-    delete[] p_;
+    ysArrayDelete(Ys_);
+    ysArrayDelete(g_);
+    ysArrayDelete(p_);
 }
 
 
@@ -1466,7 +1466,7 @@ ServerKeyExchange::ServerKeyExchange()
 
 ServerKeyExchange::~ServerKeyExchange()
 {
-    delete server_key_;
+    ysDelete(server_key_);
 }
 
 
@@ -1647,7 +1647,7 @@ CertificateVerify::CertificateVerify() : signature_(0)
 
 CertificateVerify::~CertificateVerify()
 {
-    delete[] signature_;
+    ysArrayDelete(signature_);
 }
 
 
@@ -1657,7 +1657,7 @@ void CertificateVerify::Build(SSL& ssl)
 
     uint16 sz = 0;
     byte   len[VERIFY_HEADER];
-    mySTL::auto_ptr<byte> sig;
+    mySTL::auto_ptr<byte> sig(ysArrayDelete);
 
     // sign
     const CertManager& cert = ssl.getCrypto().get_certManager();
@@ -1796,7 +1796,7 @@ ClientKeyExchange::ClientKeyExchange()
 
 ClientKeyExchange::~ClientKeyExchange()
 {
-    delete client_key_;
+    ysDelete(client_key_);
 }
 
 
@@ -1969,7 +1969,7 @@ Connection::Connection(ProtocolVersion v, RandomPool& ran)
 
 Connection::~Connection() 
 { 
-    CleanMaster(); CleanPreMaster(); delete[] pre_master_secret_;
+    CleanMaster(); CleanPreMaster(); ysArrayDelete(pre_master_secret_);
 }
 
 
@@ -2004,7 +2004,7 @@ void Connection::CleanPreMaster()
         volatile opaque* p = pre_master_secret_;
         clean(p, pre_secret_len_, random_);
 
-        delete[] pre_master_secret_;
+        ysArrayDelete(pre_master_secret_);
         pre_master_secret_ = 0;
     }
 }
@@ -2089,30 +2089,5 @@ void InitClientKeyFactory(ClientKeyFactory& ckf)
     ckf.Register(fortezza_kea, CreateFortezzaClient);
 }
 
+
 } // namespace
-
-#ifdef __GNUC__
-namespace mySTL {
-template class mySTL::list<unsigned char*>;
-template yaSSL::del_ptr_zero mySTL::for_each(mySTL::list<unsigned char*>::iterator, mySTL::list<unsigned char*>::iterator, yaSSL::del_ptr_zero);
-template mySTL::pair<int, yaSSL::Message* (*)()>* mySTL::uninit_copy<mySTL::pair<int, yaSSL::Message* (*)()>*, mySTL::pair<int, yaSSL::Message* (*)()>*>(mySTL::pair<int, yaSSL::Message* (*)()>*, mySTL::pair<int, yaSSL::Message* (*)()>*, mySTL::pair<int, yaSSL::Message* (*)()>*);
-template mySTL::pair<int, yaSSL::HandShakeBase* (*)()>* mySTL::uninit_copy<mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*, mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*>(mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*, mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*, mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*);
-template void mySTL::destroy<mySTL::pair<int, yaSSL::Message* (*)()>*>(mySTL::pair<int, yaSSL::Message* (*)()>*, mySTL::pair<int, yaSSL::Message* (*)()>*);
-template void mySTL::destroy<mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*>(mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*, mySTL::pair<int, yaSSL::HandShakeBase* (*)()>*);
-template mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>* mySTL::uninit_copy<mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*>(mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*);
-template void mySTL::destroy<mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*>(mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ServerKeyBase* (*)()>*);
-template mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>* mySTL::uninit_copy<mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*>(mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*);
-template class mySTL::list<TaoCrypt::Signer*>;
-template class mySTL::list<yaSSL::SSL_SESSION*>;
-template class mySTL::list<yaSSL::input_buffer*>;
-template class mySTL::list<yaSSL::output_buffer*>;
-template class mySTL::list<yaSSL::x509*>;
-template void mySTL::destroy<mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*>(mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*);
-template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<TaoCrypt::Signer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<TaoCrypt::Signer*>::iterator, mySTL::list<TaoCrypt::Signer*>::iterator, yaSSL::del_ptr_zero);
-template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::SSL_SESSION*>::iterator, mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::del_ptr_zero);
-template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::input_buffer*>::iterator, mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::del_ptr_zero);
-template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::output_buffer*>::iterator, mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::del_ptr_zero);
-template yaSSL::del_ptr_zero mySTL::for_each<mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::x509*>::iterator, mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero);
-}
-#endif
-

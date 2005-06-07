@@ -443,10 +443,12 @@ public:
   /* The maximum number of decimal digits can be stored */
   uint precision;
   uint bin_size;
-  /* Constructors take max_length of the field as a parameter - not the */
-  /* precision as the number of decimal digits allowed                  */
-  /* So for example we need to count length from precision handling     */
-  /* CREATE TABLE ( DECIMAL(x,y))                                       */
+  /*
+    Constructors take max_length of the field as a parameter - not the
+    precision as the number of decimal digits allowed.
+    So for example we need to count length from precision handling
+    CREATE TABLE ( DECIMAL(x,y)) 
+  */
   Field_new_decimal(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                     uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg,

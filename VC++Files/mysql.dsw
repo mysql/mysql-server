@@ -80,6 +80,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name zlib
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -320,6 +323,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name zlib
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -476,6 +482,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name mysqlclient
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -533,30 +542,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name mysqlclient
     End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "mysqlshutdown"=".\mysqlshutdown\mysqlshutdown.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-}}}
-
-###############################################################################
-
-Project: "mysqlwatch"=".\mysqlwatch\mysqlwatch.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################

@@ -61,7 +61,7 @@ public:
   ha_archive(TABLE *table): handler(table), delayed_insert(0), bulk_insert(0)
   {
     /* Set our original buffer from pre-allocated memory */
-    buffer.set(byte_buffer, IO_SIZE, system_charset_info);
+    buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
     /* The size of the offset value we will use for position() */
     ref_length = sizeof(z_off_t);

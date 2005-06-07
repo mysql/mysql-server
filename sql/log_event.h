@@ -22,7 +22,7 @@
 #undef write  // remove pthread.h macro definition, conflict with write() class member
 #endif
 
-#if defined(__GNUC__) && !defined(MYSQL_CLIENT)
+#if defined(USE_PRAGMA_INTERFACE) && !defined(MYSQL_CLIENT)
 #pragma interface			/* gcc class implementation */
 #endif
 

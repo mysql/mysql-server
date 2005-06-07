@@ -646,4 +646,29 @@ drop procedure if exists bug10537|
 create procedure bug10537()
 load data local infile '/tmp/somefile' into table t1|
 ERROR 0A000: LOAD DATA is not allowed in stored procedures
+drop function if exists bug8409|
+create function bug8409()
+returns int
+begin
+flush tables;
+return 5;
+end|
+ERROR 0A000: FLUSH is not allowed in stored procedures
+create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890()
+begin
+end|
+ERROR 42000: Identifier name 'bug9529_90123456789012345678901234567890123456789012345678901234567890' is too long
+drop procedure if exists bug10969|
+create procedure bug10969()
+begin
+declare s1 int default 0;
+select default(s1) from t30;
+end|
+ERROR 42000: Incorrect column name 's1'
+create procedure bug10969()
+begin
+declare s1 int default 0;
+select default(t30.s1) from t30;
+end|
+drop procedure bug10969|
 drop table t1|

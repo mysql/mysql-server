@@ -667,7 +667,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   {
     tmp_keydef.keysegs=1;
     tmp_keydef.flag=		HA_UNIQUE_CHECK;
-    tmp_keydef.block_length=	myisam_block_size;
+    tmp_keydef.block_length=	(uint16)myisam_block_size;
     tmp_keydef.keylength=	MI_UNIQUE_HASH_LENGTH + pointer;
     tmp_keydef.minlength=tmp_keydef.maxlength=tmp_keydef.keylength;
     tmp_keyseg.type=		MI_UNIQUE_HASH_TYPE;

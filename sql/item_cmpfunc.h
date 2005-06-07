@@ -453,23 +453,19 @@ public:
 };
 
 
-class Item_func_coalesce :public Item_func
+class Item_func_coalesce :public Item_func_numhybrid
 {
 protected:
-  enum Item_result cached_result_type;
-  Item_func_coalesce(Item *a, Item *b)
-    :Item_func(a, b), cached_result_type(INT_RESULT)
-  {}
+  Item_func_coalesce(Item *a, Item *b) :Item_func_numhybrid(a, b) {}
 public:
-  Item_func_coalesce(List<Item> &list)
-    :Item_func(list),cached_result_type(INT_RESULT)
-  {}
-  double val_real();
-  longlong val_int();
-  String *val_str(String *);
-  my_decimal *val_decimal(my_decimal *);
+  Item_func_coalesce(List<Item> &list) :Item_func_numhybrid(list) {}
+  double real_op();
+  longlong int_op();
+  String *str_op(String *);
+  my_decimal *decimal_op(my_decimal *);
   void fix_length_and_dec();
-  enum Item_result result_type () const { return cached_result_type; }
+  void find_num_type() {}
+  enum Item_result result_type () const { return hybrid_type; }
   const char *func_name() const { return "coalesce"; }
   table_map not_null_tables() const { return 0; }
 };
@@ -482,10 +478,10 @@ protected:
   bool field_type_defined;
 public:
   Item_func_ifnull(Item *a, Item *b) :Item_func_coalesce(a,b) {}
-  double val_real();
-  longlong val_int();
-  String *val_str(String *str);
-  my_decimal *val_decimal(my_decimal *);
+  double real_op();
+  longlong int_op();
+  String *str_op(String *str);
+  my_decimal *decimal_op(my_decimal *);
   enum_field_types field_type() const;
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }

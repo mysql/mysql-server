@@ -15,12 +15,11 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef __GNUC__
-#pragma implementation        // gcc: Class implementation
+#ifdef USE_PRAGMA_IMPLEMENTATION
+#pragma implementation				// gcc: Class implementation
 #endif
 
 #include "mysql_priv.h"
-
 #ifdef HAVE_BLACKHOLE_DB
 #include "ha_blackhole.h"
 
