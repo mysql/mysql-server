@@ -133,6 +133,9 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
                              Uint32 ToutBufIndex,
                              const Operationrec * const regOperPtr)
 {
+  if(ToutBufIndex == 0)
+    return;
+
   const BlockReference recBlockref = regOperPtr->recBlockref;
   const Uint32 sig0 = regOperPtr->tcOperationPtr;
   const Uint32 sig1 = regOperPtr->transid1;

@@ -30,7 +30,8 @@ ndb_restore_SOURCES = restore/restore_main.cpp \
                       restore/consumer.cpp \
                       restore/consumer_restore.cpp \
                       restore/consumer_printer.cpp \
-                      restore/Restore.cpp
+                      restore/Restore.cpp \
+                      ../test/src/NDBT_ResultRow.cpp $(tools_common_sources)
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
