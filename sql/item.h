@@ -1118,7 +1118,7 @@ class Item_str_buff :public Item_buff
   Item *item;
   String value,tmp_value;
 public:
-  Item_str_buff(Item *arg) :item(arg),value(arg->max_length) {}
+  Item_str_buff(THD *thd, Item *arg);
   bool cmp(void);
   ~Item_str_buff();				// Deallocate String:s
 };
@@ -1385,7 +1385,7 @@ public:
 };
 
 
-extern Item_buff *new_Item_buff(Item *item);
+extern Item_buff *new_Item_buff(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern bool field_is_equal_to_item(Field *field,Item *item);
