@@ -4757,6 +4757,7 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   ulong old_client_capabilites;
   int res;
+  bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
@@ -4799,9 +4800,11 @@ Item_func_sp::execute(Item **itp)
     problem).
   */
   tmp_disable_binlog(thd); /* don't binlog the substatements */
+  thd->transaction.in_sub_stmt= TRUE;
 
   res= m_sp->execute_function(thd, args, arg_count, itp);
 
+  thd->transaction.in_sub_stmt= save_in_sub_stmt;
   reenable_binlog(thd);
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
