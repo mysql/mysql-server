@@ -888,3 +888,6 @@ NULL
 select ifnull(NULL, _utf8'string');
 ifnull(NULL, _utf8'string')
 string
+create table t1 (a varchar(255)) default character set utf8;
+insert into t1 values (1.0);
+drop table t1;

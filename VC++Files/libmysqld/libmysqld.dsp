@@ -180,6 +180,10 @@ SOURCE=..\mysys\default.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\default_modify.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\derror.cpp
 # End Source File
 # Begin Source File

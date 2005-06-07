@@ -1605,6 +1605,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
   bool haveAutoIncrement = false;
   Uint64 autoIncrementValue = 0;
+  Uint32 distKeys= 0;
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)
@@ -1616,7 +1617,9 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       }
       haveAutoIncrement = true;
       autoIncrementValue = col->m_autoIncrementInitialValue;
-     }
+    }
+    if (col->m_distributionKey)
+      distKeys++;
   }
 
   // Check max length of frm data
@@ -1649,7 +1652,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     abort();
   }
   
-  int distKeys= impl.m_noOfDistributionKeys;
+  if (distKeys == impl.m_noOfKeys)
+    distKeys= 0;
+  impl.m_noOfDistributionKeys= distKeys;
+  
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)
@@ -1661,7 +1667,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeId = i;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeDKey = col->m_distributionKey;
+    tmpAttr.AttributeDKey = distKeys ? col->m_distributionKey : 0;
 
     tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
@@ -2049,12 +2055,22 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
     return 0;
   }
 
+  /*
+   * internalName may be pointer to m_ndb.theImpl->m_internalname.c_str()
+   * and may get deallocated in next call.
+   *
+   * Passing around pointers to volatile internal members may not be
+   * optimal.  Suggest use BaseString instances passed by value.
+   */
+
+  BaseString save_me(internalName);
   NdbTableImpl* prim = getTable(tab->m_primaryTable.c_str());
   if(prim == 0){
     m_error.code = 4243;
     return 0;
   }
-  
+  internalName = save_me.c_str();
+
   /**
    * Create index impl
    */

@@ -398,7 +398,7 @@ sub main () {
     }
   }
 
-  exit(0);
+  mtr_exit(0);
 }
 
 ##############################################################################
@@ -568,7 +568,9 @@ sub command_line_setup () {
     $opt_vardir= "$glob_mysql_test_dir/var";
   }
 
-  if ( $opt_vardir !~ m,^/, )
+  # We make the path absolute, as the server will do a chdir() before usage
+  unless ( $opt_vardir =~ m,^/, or
+           ($glob_win32 and $opt_vardir =~ m,^[a-z]:/,i) )
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
@@ -1292,9 +1294,9 @@ sub install_db ($$) {
   mtr_report("Installing \u$type Databases");
 
   open(IN, $init_db_sql)
-    or error("Can't open $init_db_sql: $!");
+    or mtr_error("Can't open $init_db_sql: $!");
   open(OUT, ">", $init_db_sql_tmp)
-    or error("Can't write to $init_db_sql_tmp: $!");
+    or mtr_error("Can't write to $init_db_sql_tmp: $!");
   while (<IN>)
   {
     chomp;
@@ -1568,7 +1570,7 @@ sub report_failure_and_restart ($) {
     {
       stop_masters_slaves();
     }
-    exit(1);
+    mtr_exit(1);
   }
 
   # FIXME always terminate on failure?!
@@ -2267,5 +2269,5 @@ Options not yet described, or that I want to look into more
   with-openssl          
 
 HERE
-  exit(1);
+  mtr_exit(1);
 }

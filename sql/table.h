@@ -126,7 +126,7 @@ typedef struct st_table_share
   key_map keys_for_keyread;
   ulong   avg_row_length;		/* create information */
   ulong   raid_chunksize;
-  ulong   version, flush_version;
+  ulong   version, flush_version, mysql_version;
   ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
@@ -436,10 +436,7 @@ typedef struct st_table_list
   bool		skip_temporary;		/* this table shouldn't be temporary */
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
-#if 0
-#else
   bool          multitable_view;        /* TRUE iff this is multitable view */
-#endif
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */

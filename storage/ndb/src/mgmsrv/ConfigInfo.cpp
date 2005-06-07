@@ -1668,7 +1668,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "256K",
-    "16K",
+    "64K",
     STR_VALUE(MAX_INT_RNIL) },
 
   {
@@ -1856,7 +1856,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "1M",
-    "4K",
+    "64K",
     STR_VALUE(MAX_INT_RNIL) },
 
   {

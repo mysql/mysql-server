@@ -475,7 +475,7 @@ read_escaped_string(char *ptr, char *eol, LEX_STRING *str)
 {
   char *write_pos= str->str;
 
-  for(; ptr < eol; ptr++, write_pos++)
+  for (; ptr < eol; ptr++, write_pos++)
   {
     char c= *ptr;
     if (c == '\\')
@@ -635,7 +635,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
       File_option *parameter= parameters+first_param,
 	*parameters_end= parameters+required;
       int len= 0;
-      for(; parameter < parameters_end; parameter++)
+      for (; parameter < parameters_end; parameter++)
       {
 	len= parameter->name.length;
 	// check length

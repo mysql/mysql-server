@@ -42,7 +42,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_wcomp.c mf_wfile.c my_gethwaddr.c \
 			mf_qsort.c mf_qsort2.c mf_sort.c \
 			ptr_cmp.c mf_radix.c queues.c \
-			tree.c list.c hash.c array.c string.c typelib.c \
+			tree.c trie.c list.c hash.c array.c string.c typelib.c \
 			my_copy.c my_append.c my_lib.c \
 			my_delete.c my_rename.c my_redel.c my_tempnam.c \
 			my_chsize.c my_lread.c my_lwrite.c my_clock.c \
@@ -79,6 +79,9 @@ FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 # The CP .. RM stuff is to avoid problems with some compilers (like alpha ccc)
 # which automaticly removes the object files you use to compile a final program
 #
+
+test_bitmap$(EXEEXT): my_bitmap.c $(LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN  ./my_bitmap.c $(LDADD) $(LIBS)
 
 test_thr_alarm$(EXEEXT): thr_alarm.c $(LIBRARIES)
 	$(CP) $(srcdir)/thr_alarm.c ./test_thr_alarm.c

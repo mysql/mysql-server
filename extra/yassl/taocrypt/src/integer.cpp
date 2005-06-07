@@ -32,17 +32,15 @@
 #   pragma warning(disable: 4250 4660 4661 4786 4355)
 #endif
 
-#include "runtime.hpp"
 #include "integer.hpp"
 #include "modarith.hpp"
 #include "asn.hpp"
 #include "stdexcept.hpp"
 
-#include "algebra.cpp"
 
 
 #ifdef __DECCXX
-    #include <c_asm.h>  // for asm multiply overflow
+    #include <c_asm.h>  // for asm overflow assembly
 #endif
 
 
@@ -63,7 +61,7 @@
     #pragma message("You do not seem to have the Visual C++ Processor Pack ")
     #pragma message("installed, so use of SSE2 intrinsics will be disabled.")
 #elif defined(__GNUC__) && defined(__i386__)
-/*  #warning You do not have GCC 3.3 or later, or did not specify the -msse2 \
+/*   #warning You do not have GCC 3.3 or later, or did not specify the -msse2 \
              compiler option. Use of SSE2 intrinsics will be disabled.
 */
 #endif
@@ -130,7 +128,7 @@ void AlignedAllocator<T>::deallocate(void* p, size_type n)
         #endif
     }
     else
-        delete [] (T *)p;
+        tcArrayDelete((T *)p);
 }
 
 #endif  // SSE2
@@ -178,7 +176,7 @@ DWord() {}
             #elif defined(__DECCXX)
                 r.halfs_.high = asm("umulh %a0, %a1, %v0", a, b);
             #else
-                #error unsupported alpha compiler for asm multiply overflow
+                #error can not implement multiply overflow
             #endif
         #elif defined(__ia64__)
             r.halfs_.low = a*b;
@@ -392,6 +390,7 @@ S DivideThreeWordsByTwo(S* A, S B0, S B1, D* dummy_VC6_WorkAround = 0)
     return Q;
 }
 
+
 // do a 4 word by 2 word divide, returns 2 word quotient in Q0 and Q1
 template <class S, class D>
 inline D DivideFourWordsByTwo(S *T, const D &Al, const D &Ah, const D &B)
@@ -469,66 +468,6 @@ static inline unsigned int RoundupSize(unsigned int n)
     else return 1U << BitPrecision(n-1);
 }
 
-
-template <class T>
-static Integer StringToInteger(const T *str)
-{
-    word radix;
-
-    unsigned int length;
-    for (length = 0; str[length] != 0; length++) {}
-
-    Integer v;
-
-    if (length == 0)
-        return v;
-
-    switch (str[length-1])
-    {
-    case 'h':
-    case 'H':
-        radix=16;
-        break;
-    case 'o':
-    case 'O':
-        radix=8;
-        break;
-    case 'b':
-    case 'B':
-        radix=2;
-        break;
-    default:
-        radix=10;
-    }
-
-    if (length > 2 && str[0] == '0' && str[1] == 'x')
-        radix = 16;
-
-    for (unsigned i=0; i<length; i++)
-    {
-        word digit;
-
-        if (str[i] >= '0' && str[i] <= '9')
-            digit = str[i] - '0';
-        else if (str[i] >= 'A' && str[i] <= 'F')
-            digit = str[i] - 'A' + 10;
-        else if (str[i] >= 'a' && str[i] <= 'f')
-            digit = str[i] - 'a' + 10;
-        else
-            digit = radix;
-
-        if (digit < radix)
-        {
-            v *= radix;
-            v += digit;
-        }
-    }
-
-    if (str[0] == '-')
-        v.Negate();
-
-    return v;
-}
 
 static int Compare(const word *A, const word *B, unsigned int N)
 {
@@ -2308,85 +2247,6 @@ void RecursiveMultiplyBottom(word *R, word *T, const word *A, const word *B,
     }
 }
 
-/*
-template <class P>
-void RecursiveMultiplyTop(word *R, word *T, const word *L, const word *A,
-                          const word *B, unsigned int N, const P *dummy=0)
-{
-    assert(N>=2 && N%2==0);
-
-    if (N==4)
-    {
-        P::Multiply4(T, A, B);
-        ((dword *)R)[0] = ((dword *)T)[2];
-        ((dword *)R)[1] = ((dword *)T)[3];
-    }
-    else if (N==2)
-    {
-        P::Multiply2(T, A, B);
-        ((dword *)R)[0] = ((dword *)T)[1];
-    }
-    else
-    {
-        const unsigned int N2 = N/2;
-        int carry;
-
-        int aComp = Compare(A0, A1, N2);
-        int bComp = Compare(B0, B1, N2);
-
-        switch (2*aComp + aComp + bComp)
-        {
-        case -4:
-            P::Subtract(R0, A1, A0, N2);
-            P::Subtract(R1, B0, B1, N2);
-            RecursiveMultiply<P>(T0, T2, R0, R1, N2);
-            P::Subtract(T1, T1, R0, N2);
-            carry = -1;
-            break;
-        case -2:
-            P::Subtract(R0, A1, A0, N2);
-            P::Subtract(R1, B0, B1, N2);
-            RecursiveMultiply<P>(T0, T2, R0, R1, N2);
-            carry = 0;
-            break;
-        case 2:
-            P::Subtract(R0, A0, A1, N2);
-            P::Subtract(R1, B1, B0, N2);
-            RecursiveMultiply<P>(T0, T2, R0, R1, N2);
-            carry = 0;
-            break;
-        case 4:
-            P::Subtract(R0, A1, A0, N2);
-            P::Subtract(R1, B0, B1, N2);
-            RecursiveMultiply<P>(T0, T2, R0, R1, N2);
-            P::Subtract(T1, T1, R1, N2);
-            carry = -1;
-            break;
-        default:
-            SetWords(T0, 0, N);
-            carry = 0;
-        }
-
-        RecursiveMultiply<P>(T2, R0, A1, B1, N2);
-
-        // now T[01] holds (A1-A0)*(B0-B1), T[23] holds A1*B1
-
-        word c2 = P::Subtract(R0, L+N2, L, N2);
-        c2 += P::Subtract(R0, R0, T0, N2);
-        word t = (Compare(R0, T2, N2) == -1);
-
-        carry += t;
-        carry += Increment(R0, N2, c2+t);
-        carry += P::Add(R0, R0, T1, N2);
-        carry += P::Add(R0, R0, T3, N2);
-        assert (carry >= 0 && carry <= 2);
-
-        CopyWords(R1, T3, N2);
-        Increment(R1, N2, carry);
-    }
-}
-*/
-
 
 void RecursiveMultiplyTop(word *R, word *T, const word *L, const word *A,
                           const word *B, unsigned int N)
@@ -2739,20 +2599,6 @@ Integer::Integer(word value, unsigned int length)
 }
 
 
-Integer::Integer(const char *str)
-    : reg_(2), sign_(POSITIVE)
-{
-    *this = StringToInteger(str);
-}
-
-
-Integer::Integer(const wchar_t *str)
-    : reg_(2), sign_(POSITIVE)
-{
-    *this = StringToInteger(str);
-}
-
-
 Integer::Integer(const byte *encodedInteger, unsigned int byteCount,
                  Signedness s)
 {
@@ -2844,25 +2690,19 @@ unsigned int Integer::Encode(byte* output, unsigned int outputLen,
 }
 
 
-const Integer Integer::zero(1,2);
+const Integer Integer::zero_;
 
 const Integer &Integer::Zero()
 {
-    return zero;
+    return zero_;
 }
 
-const Integer Integer::one(1,2);
+
+const Integer Integer::one_(1,2);
 
 const Integer &Integer::One()
 {
-    return one;
-}
-
-const Integer Integer::two(1,2);
-
-const Integer &Integer::Two()
-{
-    return two;
+    return one_;
 }
 
 
@@ -3358,76 +3198,6 @@ Integer Integer::Times(const Integer &b) const
 #undef R2
 #undef R3
 
-/*
-// do a 3 word by 2 word divide, returns quotient and leaves remainder in A
-static word SubatomicDivide(word *A, word B0, word B1)
-{
-    // assert {A[2],A[1]} < {B1,B0}, so quotient can fit in a word
-    assert(A[2] < B1 || (A[2]==B1 && A[1] < B0));
-
-    dword p, u;
-    word Q;
-
-    // estimate the quotient: do a 2 word by 1 word divide
-    if (B1+1 == 0)
-        Q = A[2];
-    else
-        Q = word(MAKE_DWORD(A[1], A[2]) / (B1+1));
-
-    // now subtract Q*B from A
-    p = (dword) B0*Q;
-    u = (dword) A[0] - LOW_WORD(p);
-    A[0] = LOW_WORD(u);
-    u = (dword) A[1] - HIGH_WORD(p) - (word)(0-HIGH_WORD(u)) - (dword)B1*Q;
-    A[1] = LOW_WORD(u);
-    A[2] += HIGH_WORD(u);
-
-    // Q <= actual quotient, so fix it
-    while (A[2] || A[1] > B1 || (A[1]==B1 && A[0]>=B0))
-    {
-        u = (dword) A[0] - B0;
-        A[0] = LOW_WORD(u);
-        u = (dword) A[1] - B1 - (word)(0-HIGH_WORD(u));
-        A[1] = LOW_WORD(u);
-        A[2] += HIGH_WORD(u);
-        Q++;
-        assert(Q);	// shouldn't overflow
-    }
-
-    return Q;
-}
-*/
-
-
-/*
-// do a 4 word by 2 word divide, returns 2 word quotient in Q0 and Q1
-static inline void AtomicDivide(word *Q, const word *A, const word *B)
-{
-    if (!B[0] && !B[1]) // if divisor is 0, we assume divisor==2**(2*WORD_BITS)
-    {
-        Q[0] = A[2];
-        Q[1] = A[3];
-    }
-    else
-    {
-        word T[4];
-        T[0] = A[0]; T[1] = A[1]; T[2] = A[2]; T[3] = A[3];
-        Q[1] = SubatomicDivide(T+1, B[0], B[1]);
-        Q[0] = SubatomicDivide(T, B[0], B[1]);
-
-#ifndef NDEBUG
-        // multiply quotient and divisor and add remainder
-        // make sure it equals dividend
-        assert(!T[2] && !T[3] && (T[1] < B[1] || (T[1]==B[1] && T[0]<B[0])));
-        word P[4];
-        LowLevel::Multiply2(P, Q, B);
-        Add(P, P, T, 4);
-        assert(memcmp(P, A, 4*WORD_SIZE)==0);
-#endif
-    }
-}
-*/
-
 
 static inline void AtomicDivide(word *Q, const word *A, const word *B)
 {
@@ -3772,7 +3542,7 @@ Integer a_exp_b_mod_c(const Integer &x, const Integer& e, const Integer& m)
 
 Integer Integer::Gcd(const Integer &a, const Integer &b)
 {
-    return EuclideanDomainOf<Integer>().Gcd(a, b);
+    return EuclideanDomainOf().Gcd(a, b);
 }
 
 Integer Integer::InverseMod(const Integer &m) const
@@ -3955,7 +3725,7 @@ Integer ModularArithmetic::CascadeExponentiate(const Integer &x,
                                                     dr.ConvertIn(y), e2));
     }
     else
-        return AbstractRing<Integer>::CascadeExponentiate(x, e1, y, e2);
+        return AbstractRing::CascadeExponentiate(x, e1, y, e2);
 }
 
 void ModularArithmetic::SimultaneousExponentiate(Integer *results,
@@ -3971,7 +3741,7 @@ void ModularArithmetic::SimultaneousExponentiate(Integer *results,
             results[i] = dr.ConvertOut(results[i]);
     }
     else
-        AbstractRing<Integer>::SimultaneousExponentiate(results, base,
+        AbstractRing::SimultaneousExponentiate(results, base,
                                                     exponents, exponentsCount);
 }
 
@@ -4170,11 +3940,10 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
 }
 
 #ifdef __GNUC__
-template Integer StringToInteger<char>(char const*);
-template Integer StringToInteger<wchar_t>(wchar_t const*);
-template class EuclideanDomainOf<Integer>;
-template class AbstractEuclideanDomain<Integer>;
-template unsigned int DivideThreeWordsByTwo<unsigned int, DWord>(unsigned int*, unsigned int, unsigned int, DWord*);
+#ifndef TAOCRYPT_NATIVE_DWORD_AVAILABLE
+template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
+#endif
+template word DivideThreeWordsByTwo<word, DWord>(word*, word, word, DWord*);
 #endif
 
 } // namespace

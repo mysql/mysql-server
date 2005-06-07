@@ -446,8 +446,12 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   if (thd->locked_tables || prelocked_mode)
   {
     /*
-      TODO: It is not 100% clear whenever we should do ha_commit_stmt() for
-            sub-statements. This issue needs additional investigation.
+      Let us commit transaction for statement. Since in 5.0 we only have
+      one statement transaction and don't allow several nested statement
+      transactions this call will do nothing if we are inside of stored
+      function or trigger (i.e. statement transaction is already active and
+      does not belong to statement for which we do close_thread_tables()).
+      TODO: This should be fixed in later releases.
     */
     ha_commit_stmt(thd);
 
@@ -753,7 +757,7 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
   t_name= table->table_name;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
-  for(;;)
+  for (;;)
   {
     if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
         (!res->table || res->table != table->table) &&
@@ -1384,7 +1388,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     MYSQL_LOCK *lock;
     /* We should always get these locks */
     thd->some_tables_deleted=0;
-    if ((lock=mysql_lock_tables(thd,tables,(uint) (tables_ptr-tables))))
+    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables), 0)))
     {
       thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
     }
@@ -1607,9 +1611,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
         trying to discover the table at the same time.
       */
       if (discover_retry_count++ != 0)
-       goto err;
+        goto err;
       if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
-       goto err;
+        goto err;
 
       mysql_reset_errors(thd, 1);    // Clear warnings
       thd->clear_error();            // Clear error message
@@ -2022,7 +2026,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     {
       DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
-	if (!(thd->lock=mysql_lock_tables(thd,&table_list->table,1)))
+	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1, 0)))
 	  table= 0;
     }
   }
@@ -2096,7 +2100,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   SYNOPSIS
     open_normal_and_derived_tables
     thd		- thread handler
-    tables	- list of tables for open&locking
+    tables	- list of tables for open
 
   RETURN
     FALSE - ok
@@ -2237,7 +2241,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       thd->options|= OPTION_TABLE_LOCK;
     }
 
-    if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))
+    if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start), 0)))
     {
       if (thd->lex->requires_prelocking())
       {
@@ -3210,7 +3214,7 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 */
 
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-                  TABLE_LIST **leaves, bool refresh, bool select_insert)
+                  TABLE_LIST **leaves, bool select_insert)
 {
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
@@ -3224,7 +3228,8 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
   if (!(*leaves))
     make_leaves_list(leaves, tables);
 
-  for (TABLE_LIST *table_list= *leaves;
+  TABLE_LIST *table_list;
+  for (table_list= *leaves;
        table_list;
        table_list= table_list->next_leaf, tablenr++)
   {
@@ -3263,17 +3268,14 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
     my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
     DBUG_RETURN(1);
   }
-  if (!refresh)
+  for (table_list= tables;
+       table_list;
+       table_list= table_list->next_local)
   {
-    for (TABLE_LIST *table_list= tables;
-	 table_list;
-	 table_list= table_list->next_local)
-    {
-      if (table_list->ancestor &&
-	table_list->setup_ancestor(thd, conds,
-				   table_list->effective_with_check))
-        DBUG_RETURN(1);
-    }
+    if (table_list->ancestor &&
+        table_list->setup_ancestor(thd, conds,
+                                   table_list->effective_with_check))
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
@@ -3820,7 +3822,7 @@ err_no_arena:
     TRUE    error occured
 */
 
-bool
+static bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
             bool ignore_errors)
 {
@@ -3843,6 +3845,41 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     }
   }
   DBUG_RETURN(thd->net.report_error);
+}
+
+
+/*
+  Fill fields in list with values from the list of items and invoke
+  before triggers.
+
+  SYNOPSIS
+    fill_record_n_invoke_before_triggers()
+      thd           thread context
+      fields        Item_fields list to be filled
+      values        values to fill with
+      ignore_errors TRUE if we should ignore errors
+      triggers      object holding list of triggers to be invoked
+      event         event type for triggers to be invoked
+
+  NOTE
+    This function assumes that fields which values will be set and triggers
+    to be invoked belong to the same table, and that TABLE::record[0] and
+    record[1] buffers correspond to new and old versions of row respectively.
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+                                     List<Item> &values, bool ignore_errors,
+                                     Table_triggers_list *triggers,
+                                     enum trg_event_type event)
+{
+  return (fill_record(thd, fields, values, ignore_errors) ||
+          triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE));
 }
 
 
@@ -3879,6 +3916,41 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
       DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(thd->net.report_error);
+}
+
+
+/*
+  Fill fields in array with values from the list of items and invoke
+  before triggers.
+
+  SYNOPSIS
+    fill_record_n_invoke_before_triggers()
+      thd           thread context
+      ptr           NULL-ended array of fields to be filled
+      values        values to fill with
+      ignore_errors TRUE if we should ignore errors
+      triggers      object holding list of triggers to be invoked
+      event         event type for triggers to be invoked
+
+  NOTE
+    This function assumes that fields which values will be set and triggers
+    to be invoked belong to the same table, and that TABLE::record[0] and
+    record[1] buffers correspond to new and old versions of row respectively.
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
+                                     List<Item> &values, bool ignore_errors,
+                                     Table_triggers_list *triggers,
+                                     enum trg_event_type event)
+{
+  return (fill_record(thd, ptr, values, ignore_errors) ||
+          triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE));
 }
 
 

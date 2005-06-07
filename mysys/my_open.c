@@ -46,6 +46,16 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   DBUG_PRINT("my",("Name: '%s'  Flags: %d  MyFlags: %d",
 		   FileName, Flags, MyFlags));
 #if defined(MSDOS) || defined(__WIN__) || defined(__EMX__) || defined(OS2)
+  /* 
+    Check that we don't try to open or create a file name that may
+    cause problems for us in the future (like PRN)
+  */  
+  if (check_if_legal_filename(FileName))
+  {
+    errno= EACCES;
+    DBUG_RETURN(my_register_filename(-1, FileName, FILE_BY_OPEN,
+                                     EE_FILENOTFOUND, MyFlags));
+  }
   if (Flags & O_SHARE)
     fd = sopen((my_string) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
 	       MY_S_IREAD | MY_S_IWRITE);

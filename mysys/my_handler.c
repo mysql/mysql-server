@@ -23,7 +23,7 @@ int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
 {
   if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
-                                           b, b_length, !skip_end_space);
+                                           b, b_length, (my_bool)!skip_end_space);
   return charset_info->coll->strnncoll(charset_info, a, a_length,
                                        b, b_length, part_key);
 }

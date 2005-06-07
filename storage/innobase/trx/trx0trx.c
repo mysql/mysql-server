@@ -1926,10 +1926,6 @@ trx_recover_for_mysql(
 	ut_ad(xid_list);
 	ut_ad(len);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Starting recovery for XA transactions...\n");
-
 	/* We should set those transactions which are in the prepared state
 	to the xid_list */
 
@@ -1940,6 +1936,12 @@ trx_recover_for_mysql(
 	while (trx) {
 		if (trx->conc_state == TRX_PREPARED) {
 			xid_list[count] = trx->xid;
+
+			if (count == 0) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+"  InnoDB: Starting recovery for XA transactions...\n");
+			}
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -1964,10 +1966,12 @@ trx_recover_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
+	if (count > 0){
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
 "  InnoDB: %d transactions in prepared state after recovery\n",
-		count);
+			count);
+	}
 
 	return (count);			
 }

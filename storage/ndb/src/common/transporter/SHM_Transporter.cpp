@@ -365,3 +365,9 @@ SHM_Transporter::doSend()
     kill(m_remote_pid, g_ndb_shm_signum);
   }
 }
+
+Uint32
+SHM_Transporter::get_free_buffer() const 
+{
+  return writer->get_free_buffer();
+}

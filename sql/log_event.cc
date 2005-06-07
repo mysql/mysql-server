@@ -16,9 +16,11 @@
 
 
 #ifndef MYSQL_CLIENT
-#ifdef __GNUC__
+
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+
 #include  "mysql_priv.h"
 #include "slave.h"
 #include "rpl_filter.h"

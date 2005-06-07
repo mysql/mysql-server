@@ -45,10 +45,6 @@ extern const char **errmesg;
 
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
-extern ulong opt_tc_log_size;
-extern ulong tc_log_max_pages_used;
-extern ulong tc_log_page_size;
-extern ulong tc_log_page_waits;
 
 #define TC_HEURISTIC_RECOVER_COMMIT   1
 #define TC_HEURISTIC_RECOVER_ROLLBACK 2
@@ -636,6 +632,8 @@ typedef struct system_status_var
   ulong filesort_range_count;
   ulong filesort_rows;
   ulong filesort_scan_count;
+
+  double last_query_cost;
 } STATUS_VAR;
 
 /*
@@ -694,7 +692,8 @@ public:
   virtual Type type() const;
   virtual ~Item_arena() {};
 
-  inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
+  inline bool is_stmt_prepare_or_first_sp_execute() const
+  { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline bool is_stmt_execute() const
   { return state == PREPARED || state == EXECUTED; }
@@ -1071,6 +1070,8 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
+    /* TRUE if we are inside of trigger or stored function. */
+    bool in_sub_stmt;
     XID  xid;                           // transaction identifier
     enum xa_states xa_state;            // used by external XA only
     /*
@@ -1860,7 +1861,8 @@ class multi_delete :public select_result_interceptor
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
-  bool do_delete, transactional_tables, normal_tables;
+  bool do_delete, transactional_tables, normal_tables, delete_while_scanning;
+
 public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
@@ -1868,7 +1870,7 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_deletes (bool from_send_error);
+  int  do_deletes();
   bool send_eof();
 };
 

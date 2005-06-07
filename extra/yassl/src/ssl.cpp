@@ -32,12 +32,11 @@
 
 /*  see man pages for function descriptions */
 
-#include "runtime.hpp"
 #include "openssl/ssl.h"
 #include "handshake.hpp"
 #include "yassl_int.hpp"
 #include <stdio.h>
-
+#include "runtime.hpp"
 
 namespace yaSSL {
 
@@ -52,25 +51,25 @@ SSL_METHOD* SSLv3_method()
 
 SSL_METHOD* SSLv3_server_method()
 {
-    return new SSL_METHOD(server_end, ProtocolVersion(3,0));
+    return new (ys) SSL_METHOD(server_end, ProtocolVersion(3,0));
 }
 
 
 SSL_METHOD* SSLv3_client_method()
 {
-    return new SSL_METHOD(client_end, ProtocolVersion(3,0));
+    return new (ys) SSL_METHOD(client_end, ProtocolVersion(3,0));
 }
 
 
 SSL_METHOD* TLSv1_server_method()
 {
-    return new SSL_METHOD(server_end, ProtocolVersion(3,1));
+    return new (ys) SSL_METHOD(server_end, ProtocolVersion(3,1));
 }
 
 
 SSL_METHOD* TLSv1_client_method()
 {
-    return new SSL_METHOD(client_end, ProtocolVersion(3,1));
+    return new (ys) SSL_METHOD(client_end, ProtocolVersion(3,1));
 }
 
 
@@ -83,25 +82,25 @@ SSL_METHOD* SSLv23_server_method()
 
 SSL_CTX* SSL_CTX_new(SSL_METHOD* method)
 {
-    return new SSL_CTX(method);
+    return new (ys) SSL_CTX(method);
 }
 
 
 void SSL_CTX_free(SSL_CTX* ctx)
 {
-    delete ctx;
+    ysDelete(ctx);
 }
 
 
 SSL* SSL_new(SSL_CTX* ctx)
 {
-    return new SSL(ctx);
+    return new (ys) SSL(ctx);
 }
 
 
 void SSL_free(SSL* ssl)
 {
-    delete ssl;
+    ysDelete(ssl);
 }
 
 
@@ -638,7 +637,7 @@ void OpenSSL_add_all_algorithms()  // compatibility only
 
 DH* DH_new(void)
 {
-    DH* dh = new DH;
+    DH* dh = new (ys) DH;
     if (dh)
         dh->p = dh->g = 0;
     return dh;
@@ -647,9 +646,9 @@ DH* DH_new(void)
 
 void DH_free(DH* dh)
 {
-    delete dh->g;
-    delete dh->p;
-    delete dh;
+    ysDelete(dh->g);
+    ysDelete(dh->p);
+    ysDelete(dh);
 }
 
 
@@ -659,7 +658,7 @@ BIGNUM* BN_bin2bn(const unsigned char* num, int sz, BIGNUM* retVal)
 {
     using mySTL::auto_ptr;
     bool created = false;
-    auto_ptr<BIGNUM> bn;
+    auto_ptr<BIGNUM> bn(ysDelete);
 
     if (!retVal) {
         created = true;
@@ -712,14 +711,14 @@ const char* X509_verify_cert_error_string(long /* error */)
 const EVP_MD* EVP_md5(void)
 {
     // TODO: FIX add to some list for destruction
-    return new MD5;
+    return new (ys) MD5;
 }
 
 
 const EVP_CIPHER* EVP_des_ede3_cbc(void)
 {
     // TODO: FIX add to some list for destruction
-    return new DES_EDE;
+    return new (ys) DES_EDE;
 }
 
 

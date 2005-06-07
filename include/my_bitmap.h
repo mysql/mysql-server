@@ -24,8 +24,8 @@
 
 typedef struct st_bitmap
 {
-  uchar *bitmap;
-  uint bitmap_size; /* number of bits occupied by the above */
+  uint32 *bitmap;
+  uint n_bits; /* number of bits occupied by the above */
   uint32 last_word_mask;
   uint32 *last_word_ptr;
   /*
@@ -41,7 +41,7 @@ typedef struct st_bitmap
 #ifdef	__cplusplus
 extern "C" {
 #endif
-extern my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size, my_bool thread_safe);
+extern my_bool bitmap_init(MY_BITMAP *map, uint32 *buf, uint n_bits, my_bool thread_safe);
 extern my_bool bitmap_is_clear_all(const MY_BITMAP *map);
 extern my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern my_bool bitmap_is_set_all(const MY_BITMAP *map);
@@ -81,18 +81,53 @@ extern void bitmap_lock_xor(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_lock_invert(MY_BITMAP *map);
 #endif
 /* Fast, not thread safe, bitmap functions */
-#define no_bytes_in_map(map) ((map->bitmap_size + 7)/8)
-#define no_words_in_map(map) ((map->bitmap_size + 31)/32)
+#define no_bytes_in_map(map) (((map)->n_bits + 7)/8)
+#define no_words_in_map(map) (((map)->n_bits + 31)/32)
 #define bytes_word_aligned(bytes) (4*((bytes + 3)/4))
-#define bitmap_set_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] |= (1 << ((BIT) & 7)))
-#define bitmap_flip_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] ^= (1 << ((BIT) & 7)))
-#define bitmap_clear_bit(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] &= ~ (1 << ((BIT) & 7)))
-#define bitmap_is_set(MAP, BIT) ((MAP)->bitmap[(BIT) / 8] & (1 << ((BIT) & 7)))
+#define _bitmap_set_bit(MAP, BIT) (((uchar*)(MAP)->bitmap)[(BIT) / 8] \
+                                  |= (1 << ((BIT) & 7)))
+#define _bitmap_flip_bit(MAP, BIT) (((uchar*)(MAP)->bitmap)[(BIT) / 8] \
+                                  ^= (1 << ((BIT) & 7)))
+#define _bitmap_clear_bit(MAP, BIT) (((uchar*)(MAP)->bitmap)[(BIT) / 8] \
+                                  &= ~ (1 << ((BIT) & 7)))
+#define _bitmap_is_set(MAP, BIT) (((uchar*)(MAP)->bitmap)[(BIT) / 8] \
+                                  & (1 << ((BIT) & 7)))
+#ifndef DBUG_OFF
+inline uint32
+bitmap_set_bit(MY_BITMAP *map,uint bit)
+{
+  DBUG_ASSERT(bit < (map)->n_bits);
+  return _bitmap_set_bit(map,bit);
+}
+inline uint32
+bitmap_flip_bit(MY_BITMAP *map,uint bit)
+{
+  DBUG_ASSERT(bit < (map)->n_bits);
+  return _bitmap_flip_bit(map,bit);
+}
+inline uint32
+bitmap_clear_bit(MY_BITMAP *map,uint bit)
+{
+  DBUG_ASSERT(bit < (map)->n_bits);
+  return _bitmap_clear_bit(map,bit);
+}
+inline uint32
+bitmap_is_set(const MY_BITMAP *map,uint bit)
+{
+  DBUG_ASSERT(bit < (map)->n_bits);
+  return _bitmap_is_set(map,bit);
+}
+#else
+#define bitmap_set_bit(MAP, BIT) _bitmap_set_bit(MAP, BIT)
+#define bitmap_flip_bit(MAP, BIT) _bitmap_flip_bit(MAP, BIT)
+#define bitmap_clear_bit(MAP, BIT) _bitmap_clear_bit(MAP, BIT)
+#define bitmap_is_set(MAP, BIT) _bitmap_is_set(MAP, BIT)
+#endif
 #define bitmap_cmp(MAP1, MAP2) \
   (memcmp((MAP1)->bitmap, (MAP2)->bitmap, 4*no_words_in_map((MAP1)))==0)
 #define bitmap_clear_all(MAP) \
-  memset((MAP)->bitmap, 0, 4*no_words_in_map((MAP))); \
-  *(MAP)->last_word_ptr|= (MAP)->last_word_mask
+  { memset((MAP)->bitmap, 0, 4*no_words_in_map((MAP))); \
+  *(MAP)->last_word_ptr|= (MAP)->last_word_mask; }
 #define bitmap_set_all(MAP) \
   (memset((MAP)->bitmap, 0xFF, 4*no_words_in_map((MAP))))
 
