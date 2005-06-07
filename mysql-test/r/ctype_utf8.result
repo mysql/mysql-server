@@ -891,3 +891,14 @@ string
 create table t1 (a varchar(255)) default character set utf8;
 insert into t1 values (1.0);
 drop table t1;
+create table t1 (
+id int not null,
+city varchar(20) not null,
+key (city(7),id)
+) character set=utf8;
+insert into t1 values (1,'Durban North');
+insert into t1 values (2,'Durban');
+select * from t1 where city = 'Durban';
+id	city
+2	Durban
+drop table t1;
