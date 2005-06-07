@@ -86,7 +86,7 @@ int parse_output_and_get_value(const char *command, const char *word,
         an option value) or the whole line (if flag)
       */
       linep+= found_word_len;                     /* swallow the previous one */
-      if (flag & GET_VALUE)    /* not GET_LINE */
+      if (flag & GET_VALUE)
       {
         get_word((const char **) &linep, &found_word_len, NONSPACE);
         if (input_buffer_len <= found_word_len)
