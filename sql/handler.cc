@@ -17,8 +17,6 @@
 
 /* Handler-calling-functions */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif

@@ -2751,7 +2751,7 @@ mysql_execute_command(THD *thd)
     TABLE_LIST *select_tables= lex->query_tables;
 
     if ((res= create_table_precheck(thd, select_tables, create_table)))
-      goto unsent_create_error;
+      goto end_with_restore_list;
 
 #ifndef HAVE_READLINK
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
@@ -2761,7 +2761,7 @@ mysql_execute_command(THD *thd)
 			   create_table->table_name) ||
 	append_file_to_dir(thd, &lex->create_info.index_file_name,
 			   create_table->table_name))
-      goto unsent_create_error;
+      goto end_with_restore_list;
 #endif
     /*
       If we are using SET CHARSET without DEFAULT, add an implicit
@@ -2791,8 +2791,8 @@ mysql_execute_command(THD *thd)
     */
     if (wait_if_global_read_lock(thd, 0, 1))
     {
-      res= -1;
-      goto unsent_create_error;
+      res= 1;
+      goto end_with_restore_list;
     }
     if (select_lex->item_list.elements)		// With select
     {
@@ -2811,7 +2811,8 @@ mysql_execute_command(THD *thd)
             unique_table(create_table, select_tables))
         {
           my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
-          goto unsent_create_error1;
+          res= 1;
+          goto end_with_restart_wait;
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2824,7 +2825,8 @@ mysql_execute_command(THD *thd)
             if (unique_table(tab, select_tables))
             {
               my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
-              goto unsent_create_error1;
+              res= 1;
+              goto end_with_restart_wait;
             }
           }
         }
@@ -2867,15 +2869,8 @@ mysql_execute_command(THD *thd)
       if (!res)
 	send_ok(thd);
     }
-    /*
-      Release the protection against the global read lock and wake
-      everyone, who might want to set a global read lock.
-    */
-    start_waiting_global_read_lock(thd);
-    lex->link_first_table_back(create_table, link_to_local);
-    break;
 
-unsent_create_error1:
+end_with_restart_wait:
     /*
       Release the protection against the global read lock and wake
       everyone, who might want to set a global read lock.
@@ -2883,9 +2878,9 @@ unsent_create_error1:
     start_waiting_global_read_lock(thd);
 
     /* put tables back for PS rexecuting */
-unsent_create_error:
+end_with_restore_list:
     lex->link_first_table_back(create_table, link_to_local);
-    goto error;
+    break;
   }
   case SQLCOM_CREATE_INDEX:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -5037,7 +5032,7 @@ bool check_stack_overrun(THD *thd, long margin,
 {
   long stack_used;
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      thread_stack - margin)
+      (long) (thread_stack - margin))
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
     my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));

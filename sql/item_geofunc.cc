@@ -17,14 +17,11 @@
 
 /* This file defines all spatial functions */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
 #include "mysql_priv.h"
-
 #ifdef HAVE_SPATIAL
 #include <m_ctype.h>
 

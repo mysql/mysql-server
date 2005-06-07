@@ -17,8 +17,6 @@
 
 /* Sum functions (COUNT, MIN...) */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -2617,7 +2615,6 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
   Item_func_group_concat* grp_item= (Item_func_group_concat*)arg;
   TABLE *table= grp_item->table;
   Item **field_item, **end;
-  char *record= (char*) table->record[0] + table->s->null_bytes;
 
   for (field_item= grp_item->args, end= field_item + grp_item->arg_count_field;
        field_item < end;
@@ -2632,7 +2629,7 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
     if (field)
     {
       int res;
-      uint offset= (uint) (field->ptr - record);
+      uint offset= field->offset() - table->s->null_bytes;
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
 	return res;
     }
@@ -2651,7 +2648,6 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
   Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
   ORDER **order_item, **end;
   TABLE *table= grp_item->table;
-  char *record= (char*) table->record[0] + table->s->null_bytes;
 
   for (order_item= grp_item->order, end=order_item+ grp_item->arg_count_order;
        order_item < end;
@@ -2668,7 +2664,7 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
     if (field)
     {
       int res;
-      uint offset= (uint) (field->ptr - record);
+      uint offset= field->offset() - table->s->null_bytes;
       if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
@@ -2709,8 +2705,9 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
                   Item_func_group_concat *item)
 {
   TABLE *table= item->table;
-  char *record= (char*) table->record[0] + table->s->null_bytes;
-  String tmp((char *)table->record[1], table->s->reclength, default_charset_info), tmp2;
+  String tmp((char *)table->record[1], table->s->reclength,
+             default_charset_info);
+  String tmp2;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
 
@@ -2732,12 +2729,9 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
         because it contains both order and arg list fields.
       */
       Field *field= (*arg)->get_tmp_table_field();
-      char *save_ptr= field->ptr;
-      uint offset= (uint) (save_ptr - record);
+      uint offset= field->offset() - table->s->null_bytes;
       DBUG_ASSERT(offset < table->s->reclength);
-      field->ptr= (char *) key + offset;
-      res= field->val_str(&tmp,&tmp2);
-      field->ptr= save_ptr;
+      res= field->val_str(&tmp, (char *) key + offset);
     }
     else
       res= (*arg)->val_str(&tmp);
@@ -2919,12 +2913,8 @@ bool Item_func_group_concat::add()
     Item *show_item= args[i];
     if (!show_item->const_item())
     {
-      /*
-        Here we use real_item as we want the original field data that should
-        be written to table->record[0]
-      */
-      Field *f= show_item->real_item()->get_tmp_table_field();
-      if (f->is_null())
+      Field *f= show_item->get_tmp_table_field();
+      if (f->is_null_in_record((const uchar*) table->record[0]))
         return 0;                               // Skip row if it contains null
     }
   }

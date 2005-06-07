@@ -25,12 +25,11 @@
   it creates unsolved link dependencies on some platforms.
 */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#include <my_global.h>
 #if !defined(TZINFO2SQL) && !defined(TESTTIME)
 #include "mysql_priv.h"
 #else

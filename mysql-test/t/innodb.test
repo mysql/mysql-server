@@ -615,7 +615,6 @@ truncate table t1;
 insert into t1 values(1),(2);
 select * from t1;
 truncate table t1;
-truncate table t1;
 insert into t1 values(1),(2);
 delete from t1;
 select * from t1;
@@ -1056,8 +1055,8 @@ insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 insert t3 select * from t1;
 checksum table t1, t2, t3, t4 quick;
-checksum table t1, t2, t3;
-checksum table t1, t2, t3 extended;
+checksum table t1, t2, t3, t4;
+checksum table t1, t2, t3, t4 extended;
 #show table status;
 drop table t1,t2,t3;
 
@@ -1177,28 +1176,6 @@ show status like "binlog_cache_disk_use";
 drop table t1;
 
 #
-# range optimizer problem
-#
-
-create table t1 (x bigint unsigned not null primary key) engine=innodb;
-insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
-select * from t1;
-select count(*) from t1 where x>0;
-select count(*) from t1 where x=0;
-select count(*) from t1 where x<0;
-select count(*) from t1 where x < -16;
-select count(*) from t1 where x = -16;
-explain select count(*) from t1 where x > -16;
-
-# The following result should be (2). To be fixed when we add 'unsigned flag' to
-# Field::store(longlong)
-select count(*) from t1 where x > -16;
-select * from t1 where x > -16;
-select count(*) from t1 where x = 18446744073709551601;
-
-drop table t1;
-
-#
 # Bug #6126: Duplicate columns in keys gives misleading error message
 #
 --error 1060
@@ -1219,6 +1196,62 @@ alter table t1 add key (c1,c2,c1);
 --error 1060
 alter table t1 add key (c1,c1,c2);
 drop table t1;
+
+#
+# Bug #4082: integer truncation
+#
+
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+drop table t1;
+
+#
+# BUG#7709 test case - Boolean fulltext query against unsupported 
+#                      engines does not fail
+#
+
+CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
+--error 1214;
+SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+#
+# check null values #1
+#
+
+--disable_warnings
+CREATE TABLE t1 (a_id tinyint(4) NOT NULL default '0', PRIMARY KEY  (a_id)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (b_id tinyint(4) NOT NULL default '0',b_a tinyint(4) NOT NULL default '0', PRIMARY KEY  (b_id), KEY  (b_a), 
+                CONSTRAINT fk_b_a FOREIGN KEY (b_a) REFERENCES t1 (a_id) ON DELETE CASCADE ON UPDATE NO ACTION) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
+INSERT INTO t2 VALUES (1,1),(2,1),(3,1),(4,2),(5,2);
+SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t1 LEFT JOIN (t2) on t1.a_id = t2.b_a) GROUP BY t1.a_id ) AS xyz;
+DROP TABLE t2;
+DROP TABLE t1;
+
+#
+# range optimizer problem
+#
+
+create table t1 (x bigint unsigned not null primary key) engine=innodb;
+insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
+select * from t1;
+select count(*) from t1 where x>0;
+select count(*) from t1 where x=0;
+select count(*) from t1 where x<0;
+select count(*) from t1 where x < -16;
+select count(*) from t1 where x = -16;
+explain select count(*) from t1 where x > -16;
+
+# The following result should be (2). To be fixed when we add 'unsigned flag' to
+# Field::store(longlong)
+select count(*) from t1 where x > -16;
+select * from t1 where x > -16;
+select count(*) from t1 where x = 18446744073709551601;
+drop table t1;
+
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
@@ -1300,25 +1333,6 @@ eval set storage_engine=$default;
 # InnoDB specific varchar tests
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
-
-#
-# Bug #4082: integer truncation
-#
-
-create table t1(a int(1) , b int(1)) engine=innodb;
-insert into t1 values ('1111', '3333');
-select distinct concat(a, b) from t1;
-drop table t1;
-
-#
-# BUG#7709 test case - Boolean fulltext query against unsupported 
-#                      engines does not fail
-#
-
-CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
---error 1214;
-SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
-DROP TABLE t1;
 
 #
 # BUG#11039 Wrong key length in min()
