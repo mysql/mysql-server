@@ -33,7 +33,7 @@ int main(int argc, const char** argv){
   int _loops = 1;
   int _parallelism = 1;
   int _ver2 = 0;
-  const char* _tabname = NULL;
+  const char* _tabname = NULL, *db = 0;
   int _help = 0;
   
   struct getargs args[] = {
@@ -42,7 +42,8 @@ int main(int argc, const char** argv){
     { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
     { "ver2", '2', arg_flag, &_ver2, "Use version 2 of scanUpdateRecords", "" },
     { "ver2", '1', arg_negative_flag, &_ver2, "Use version 1 of scanUpdateRecords (default)", "" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
+    { "usage", '?', arg_flag, &_help, "Print help", "" },
+    { "database", 'd', arg_string, &db, "Database", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -63,7 +64,7 @@ int main(int argc, const char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb(&con, "TEST_DB" );
+  Ndb MyNdb( &con, db ? db : "TEST_DB" );
 
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
@@ -100,6 +101,7 @@ int main(int argc, const char** argv){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     i++;
+    //NdbSleep_MilliSleep(300);
   }
 
   return NDBT_ProgramExit(NDBT_OK);
