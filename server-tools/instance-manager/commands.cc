@@ -644,10 +644,6 @@ Set_option::Set_option(Instance_map *instance_map_arg,
     {
       strmake(option, option_arg, option_len_arg);
       strmake(option_value, option_value_arg, option_value_len_arg);
-/*    strncpy(option, option_arg, option_len_arg);
-      option[option_len_arg]= 0;
-      strncpy(option_value, option_value_arg, option_value_len_arg);
-      option_value[option_value_len_arg]= 0; */
     }
     else
     {

@@ -34,6 +34,8 @@
   don't have to synchronize between threads.
 */
 
+enum { USUAL_INSTANCE= 0, DEFAULT_SINGLE_INSTANCE };
+
 class Instance_options
 {
 public:
@@ -45,7 +47,7 @@ public:
   {}
   ~Instance_options();
   /* fills in argv */
-  int complete_initialization(const char *default_path, int only_instance);
+  int complete_initialization(const char *default_path, uint instance_type);
 
   int add_option(const char* option);
   int init(const char *instance_name_arg);
@@ -66,7 +68,7 @@ public:
   char **argv;
   /*
     Here we cache the version string, obtained from mysqld --version.
-    In the case when mysqld binary is not found we get "unknown" here.
+    In the case when mysqld binary is not found we get NULL here.
   */
   const char *mysqld_version;
   /* We need the some options, so we store them as a separate pointers */
