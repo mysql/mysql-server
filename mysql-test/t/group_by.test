@@ -522,3 +522,20 @@ insert into t1 values(3000000000);
 select * from t1;
 select min(b) from t1;
 drop table t1;
+
+#
+# Test for bug #11088: GROUP BY a BLOB colimn with COUNT(DISTINCT column1) 
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, user_id int, hostname longtext);
+
+INSERT INTO t1 VALUES
+  (1, 7, 'cache-dtc-af05.proxy.aol.com'),
+  (2, 3, 'what.ever.com'),
+  (3, 7, 'cache-dtc-af05.proxy.aol.com'),
+  (4, 7, 'cache-dtc-af05.proxy.aol.com');
+
+SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
+  WHERE hostname LIKE '%aol%'
+    GROUP BY hostname;
+
