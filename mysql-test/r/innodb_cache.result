@@ -24,7 +24,7 @@ a
 3
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 drop table t1;
 commit;
 create table t1 (a int not null) engine=innodb;
