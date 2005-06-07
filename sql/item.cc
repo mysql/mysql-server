@@ -4414,8 +4414,7 @@ bool Item_direct_ref::val_bool()
 
 bool Item_direct_ref::is_null()
 {
-  (void) (*ref)->val_int();
-  return (*ref)->null_value;
+  return (*ref)->is_null();
 }
 
 
