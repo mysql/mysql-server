@@ -2420,8 +2420,8 @@ mysql_execute_command(THD *thd)
     }
     else 
     {
-      /* So that CREATE TEMPORARY TABLE gets flushed to binlog */
-      thd->options|= (OPTION_STATUS_NO_TRANS_UPDATE);
+      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
     }
     /* Skip first table, which is the table we are creating */
     TABLE_LIST *create_table, *create_table_local;
@@ -2989,8 +2989,8 @@ unsent_create_error:
       if (thd->slave_thread)
 	lex->drop_if_exists= 1;
 
-      /* So that DROP TEMPORARY TABLE gets flushed to binlog */
-      thd->options|= (OPTION_STATUS_NO_TRANS_UPDATE);
+      /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
     }
     res= mysql_rm_table(thd,tables,lex->drop_if_exists, lex->drop_temporary);
   }
