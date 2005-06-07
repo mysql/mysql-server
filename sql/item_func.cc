@@ -2395,7 +2395,7 @@ longlong Item_func_field::val_int()
       return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val() && !args[i]->null_value)
+      if (val == args[i]->val_real() && !args[i]->null_value)
         return (longlong) (i);
     }
   }

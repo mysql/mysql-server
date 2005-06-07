@@ -5028,7 +5028,7 @@ bool check_stack_overrun(THD *thd, long margin,
 {
   long stack_used;
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      thread_stack - margin)
+      (long) (thread_stack - margin))
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
     my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));

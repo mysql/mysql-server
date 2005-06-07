@@ -13089,16 +13089,14 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	{
           if (item->eq(*group_tmp->item,0))
 	  {
-            Item_null_result *null_item;
 	    /*
 	      This is an element that is used by the GROUP BY and should be
 	      set to NULL in this level
 	    */
-            Item_null_result *null_item;
+            Item_null_result *null_item= new (thd->mem_root) Item_null_result();
+            if (!null_item)
+              return 1;
 	    item->maybe_null= 1;		// Value will be null sometimes
-            null_item= rollup.null_items[i];
-            DBUG_ASSERT(null_item->result_field == 0 ||
-                        null_item->result_field == item->get_tmp_table_field());
             null_item->result_field= item->get_tmp_table_field();
             item= null_item;
 	    break;
