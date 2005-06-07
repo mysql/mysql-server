@@ -1637,16 +1637,14 @@ t2	CREATE TABLE `t2` (
 drop table t2, t1;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	24
-Binlog_cache_use	25
+Binlog_cache_use	155
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	25
-Binlog_cache_use	26
+Binlog_cache_use	156
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1655,8 +1653,7 @@ delete from t1;
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	26
-Binlog_cache_use	27
+Binlog_cache_use	157
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
