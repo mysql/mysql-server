@@ -1350,16 +1350,12 @@ drop table t1;
 
 CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
 insert into t1 (b) values (1);
-# We shouldn't get the following error
---error 1062
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
 truncate table t1;
 insert into t1 (b) values (1);
 replace into t1 (b) values (2);
 replace into t1 (b) values (1);
-# We shouldn't get the following error
---error 1062
 replace into t1 (b) values (3);
 select * from t1;
 drop table t1;
@@ -1367,8 +1363,6 @@ drop table t1;
 create table t1 (rowid int not null auto_increment, val int not null,primary
 key (rowid), unique(val)) engine=innodb;
 replace into t1 (val) values ('1'),('2');
-# We shouldn't get the following error
---error 1062
 replace into t1 (val) values ('1'),('2');
 --error 1062
 insert into t1 (val) values ('1'),('2');
@@ -1377,13 +1371,13 @@ drop table t1;
 
 
 #
-# Test that update changes internal auto-increment value
+# Test that update does not change internal auto-increment value
 #
 
 create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
-# We shouldn't get the following error
+# We should get the following error because InnoDB does not update the counter
 --error 1062
 insert into t1 (val) values (1);
 select * from t1;
