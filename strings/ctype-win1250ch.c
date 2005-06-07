@@ -550,7 +550,7 @@ static uchar NEAR like_range_prefix_max_win1250ch[] = {
 240, 242, 242, 245, 245, 245, 245, 247, 248, 251, 251, 251, 251, 253, 254, 255,
 };
 
-#define min_sort_char '\x00'
+#define min_sort_char '\x20'
 #define max_sort_char '\xff'
 
 /*
