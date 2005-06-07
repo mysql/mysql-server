@@ -157,6 +157,7 @@ public:
 
   inline Uint32 getWriteIndex() const { return m_writeIndex;}
   inline Uint32 getBufferSize() const { return m_bufferSize;}
+  inline Uint32 get_free_buffer() const;
   
   inline void copyIndexes(SHM_Writer * standbyWriter);
 
@@ -211,6 +212,22 @@ SHM_Writer::updateWritePtr(Uint32 sz){
 
   m_writeIndex = tWriteIndex;
   * m_sharedWriteIndex = tWriteIndex;
+}
+
+inline
+Uint32
+SHM_Writer::get_free_buffer() const
+{
+  Uint32 tReadIndex  = * m_sharedReadIndex;
+  Uint32 tWriteIndex = m_writeIndex;
+  
+  Uint32 free;
+  if(tReadIndex <= tWriteIndex){
+    free = m_bufferSize + tReadIndex - tWriteIndex;
+  } else {
+    free = tReadIndex - tWriteIndex;
+  }
+  return free;
 }
  
 #endif
