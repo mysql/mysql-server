@@ -10080,7 +10080,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  join->do_send_rows= 0;
 	  if (join->unit->fake_select_lex)
-	    join->unit->fake_select_lex->select_limit= HA_POS_ERROR;
+	    join->unit->fake_select_lex->select_limit= 0;
 	  DBUG_RETURN(NESTED_LOOP_OK);
 	}
       }
@@ -12284,7 +12284,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Item_buff *tmp=new_Item_buff(*group->item);
+      Item_buff *tmp=new_Item_buff(join->thd, *group->item);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
