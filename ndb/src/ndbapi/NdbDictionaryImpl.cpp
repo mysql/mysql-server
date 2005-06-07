@@ -1605,6 +1605,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
   bool haveAutoIncrement = false;
   Uint64 autoIncrementValue = 0;
+  Uint32 distKeys= 0;
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)
@@ -1616,7 +1617,9 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       }
       haveAutoIncrement = true;
       autoIncrementValue = col->m_autoIncrementInitialValue;
-     }
+    }
+    if (col->m_distributionKey)
+      distKeys++;
   }
 
   // Check max length of frm data
@@ -1649,11 +1652,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     abort();
   }
   
-  int distKeys= impl.m_noOfDistributionKeys && 
-    impl.m_noOfDistributionKeys < impl.m_noOfKeys;
+  if (distKeys == impl.m_noOfKeys)
+    distKeys= 0;
+  impl.m_noOfDistributionKeys= distKeys;
   
-  assert(distKeys == 0 || distKeys == 1);
-
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)
@@ -1665,7 +1667,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeId = i;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeDKey = distKeys * col->m_distributionKey;
+    tmpAttr.AttributeDKey = distKeys ? col->m_distributionKey : 0;
 
     tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
