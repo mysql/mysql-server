@@ -53,6 +53,7 @@ public:
 
     if (bodies[event][time_type])
     {
+      bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
 #ifndef EMBEDDED_LIBRARY
       /* Surpress OK packets in case if we will execute statements */
       my_bool nsok= thd->net.no_send_ok;
@@ -81,7 +82,11 @@ public:
         does NOT go into binlog.
       */
       tmp_disable_binlog(thd);
+      thd->transaction.in_sub_stmt= TRUE;
+
       res= bodies[event][time_type]->execute_function(thd, 0, 0, 0);
+
+      thd->transaction.in_sub_stmt= save_in_sub_stmt;
       reenable_binlog(thd);
 
 #ifndef EMBEDDED_LIBRARY
