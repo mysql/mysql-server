@@ -1062,6 +1062,8 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
+    /* TRUE if we are inside of trigger or stored function. */
+    bool in_sub_stmt;
     XID  xid;                           // transaction identifier
     enum xa_states xa_state;            // used by external XA only
     /*
