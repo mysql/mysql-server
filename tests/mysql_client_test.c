@@ -233,7 +233,7 @@ mysql_simple_prepare(MYSQL  *mysql, const char *query)
 
 /* Connect to the server */
 
-static void client_connect()
+static void client_connect(ulong flag)
 {
   int  rc;
   myheader_r("client_connect");
@@ -251,7 +251,7 @@ static void client_connect()
 
   if (!(mysql_real_connect(mysql, opt_host, opt_user,
                            opt_password, opt_db ? opt_db:"test", opt_port,
-                           opt_unix_socket, 0)))
+                           opt_unix_socket, flag)))
   {
     opt_silent= 0;
     myerror("connection failed");
@@ -7455,12 +7455,16 @@ static void test_explain_bug()
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN, 0);
 
-  verify_prepare_field(result, 6, "key_len", "",
-                       (mysql_get_server_version(mysql) <= 50000 ?
-                        MYSQL_TYPE_LONGLONG : MYSQL_TYPE_VAR_STRING),
-                       "", "", "",
-                       (mysql_get_server_version(mysql) <= 50000 ? 3 : 4096),
-                       0);
+  if (mysql_get_server_version(mysql) <= 50000)
+  {
+    verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_LONGLONG, "",
+                         "", "", 3, 0);
+  }
+  else
+  {
+    verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
+                         "", "", NAME_LEN*MAX_KEY, 0);
+  }
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN*16, 0);
@@ -13478,6 +13482,22 @@ static void print_test_output()
 }
 
 
+static void check_mupltiquery_bug9992()
+{
+
+  MYSQL_RES* res ;
+  mysql_query(mysql,"SHOW TABLES;SHOW DATABASE;SELECT 1;");
+  
+  fprintf(stdout, "\n\n!!! check_mupltiquery_bug9992 !!!\n");
+  do
+  {
+    if (!(res= mysql_store_result(mysql)))
+      return;
+    mysql_free_result(res);
+  } while (!mysql_next_result(mysql));
+  fprintf(stdout, "\n\n!!! SUCCESS !!!\n");
+  return;
+}
 /***************************************************************************
   main routine
 ***************************************************************************/
@@ -13499,7 +13519,7 @@ int main(int argc, char **argv)
                         (char**) embedded_server_groups))
     DIE("Can't initialize MySQL server");
 
-  client_connect();       /* connect to server */
+  client_connect(0);       /* connect to server */
 
   total_time= 0;
   for (iter_count= 1; iter_count <= opt_count; iter_count++)
@@ -13543,6 +13563,10 @@ int main(int argc, char **argv)
   }
 
   client_disconnect();    /* disconnect from server */
+  
+  client_connect(CLIENT_MULTI_STATEMENTS);
+  check_mupltiquery_bug9992();
+  client_disconnect(); 
   free_defaults(defaults_argv);
   print_test_output();
 

@@ -724,3 +724,10 @@ select ifnull(a,'') from t1;
 drop table t1;
 select repeat(_utf8'+',3) as h union select NULL;
 select ifnull(NULL, _utf8'string');
+
+#
+# Bug#10714: Inserting double value into utf8 column crashes server
+#
+create table t1 (a varchar(255)) default character set utf8;
+insert into t1 values (1.0);
+drop table t1;

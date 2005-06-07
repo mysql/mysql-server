@@ -47,12 +47,15 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 		   FileName, Flags, MyFlags));
 #if defined(MSDOS) || defined(__WIN__) || defined(__EMX__) || defined(OS2)
   /* 
-    if we are not creating, then we need to use my_access to make 
-    sure  the file exists since Windows doesn't handle files like 
-    "com1.sym" very  well 
+    Check that we don't try to open or create a file name that may
+    cause problems for us in the future (like PRN)
   */  
-  if (! (Flags & O_CREAT) && my_access(FileName, F_OK))    
-	  return -1;
+  if (check_if_legal_filename(FileName))
+  {
+    errno= EACCES;
+    DBUG_RETURN(my_register_filename(-1, FileName, FILE_BY_OPEN,
+                                     EE_FILENOTFOUND, MyFlags));
+  }
   if (Flags & O_SHARE)
     fd = sopen((my_string) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
 	       MY_S_IREAD | MY_S_IWRITE);

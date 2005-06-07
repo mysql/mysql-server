@@ -214,21 +214,6 @@ SELECT GROUP_CONCAT(b ORDER BY b) FROM t1 GROUP BY a;
 DROP TABLE t1;
 
 #
-# check null values #1
-#
-
---disable_warnings
-CREATE TABLE t1 (a_id tinyint(4) NOT NULL default '0', PRIMARY KEY  (a_id)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-INSERT INTO t1 VALUES (1),(2),(3);
-CREATE TABLE t2 (b_id tinyint(4) NOT NULL default '0',b_a tinyint(4) NOT NULL default '0', PRIMARY KEY  (b_id), KEY  (b_a), 
-                CONSTRAINT fk_b_a FOREIGN KEY (b_a) REFERENCES t1 (a_id) ON DELETE CASCADE ON UPDATE NO ACTION) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
-INSERT INTO t2 VALUES (1,1),(2,1),(3,1),(4,2),(5,2);
-SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t1 LEFT JOIN (t2) on t1.a_id = t2.b_a) GROUP BY t1.a_id ) AS xyz;
-DROP TABLE t2;
-DROP TABLE t1;
-
-#
 # check null values #2
 #
 
@@ -286,18 +271,31 @@ SELECT GROUP_CONCAT(id) AS gc FROM t1 HAVING gc IS NULL;
 DROP TABLE t1;
 
 #
+# Bug #8656: Crash with group_concat on alias in outer table
+#
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2);
+select  b x, (select group_concat(x) from t2) from  t2;
+drop table t2;
+
+#
+# Bug #7405: problems with rollup
+#
+
+create table t1 (d int not null auto_increment,primary key(d), a int, b int, c int);
+insert into t1(a,b) values (1,3), (1,4), (1,2), (2,7), (1,1), (1,2), (2,3), (2,3);
+select d,a,b from t1 order by a;
+explain select a, group_concat(b) from t1 group by a with rollup;
+select a, group_concat(b) from t1 group by a with rollup;
+select a, group_concat(distinct b) from t1 group by a with rollup;
+select a, group_concat(b order by b) from t1 group by a with rollup;
+select a, group_concat(distinct b order by b) from t1 group by a with rollup;
+drop table t1;
+
+#
 # Bug #6475
 #
 create table t1 (a char(3), b char(20), primary key (a, b));
 insert into t1 values ('ABW', 'Dutch'), ('ABW', 'English');
 select group_concat(a) from t1 group by b;
 drop table t1;
-
-#
-# Bug #8656: Crash with group_concat on alias in outer table
-#
-create table r2 (a int, b int);
-insert into r2 values (1,1), (2,2);
-select  b x, (select group_concat(x) from r2) from  r2;
-drop table r2;
-

@@ -336,6 +336,7 @@ my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
   changed). False otherwise.
 */
 volatile bool mqh_used = 0;
+my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 #ifdef HAVE_INITGROUPS
@@ -348,7 +349,7 @@ uint tc_heuristic_recover= 0;
 uint volatile thread_count, thread_running;
 ulong back_log, connect_timeout, concurrency;
 ulong server_id, thd_startup_options;
-ulong table_cache_size, thread_stack, thread_stack_min, what_to_log;
+ulong table_cache_size, thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -379,6 +380,9 @@ char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+
+const key_map key_map_empty(0);
+key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
@@ -459,7 +463,7 @@ char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-static my_bool opt_do_pstack, opt_noacl, opt_bootstrap, opt_myisam_log;
+static my_bool opt_do_pstack, opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
@@ -2089,7 +2093,15 @@ static void start_signal_handler(void)
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&thr_attr,INTERRUPT_PRIOR);
+#if defined(__ia64__) || defined(__ia64)
+  /*
+    Peculiar things with ia64 platforms - it seems we only have half the
+    stack size in reality, so we have to double it here
+  */
+  pthread_attr_setstacksize(&thr_attr,thread_stack*2);
+#else
   pthread_attr_setstacksize(&thr_attr,thread_stack);
+#endif
 #endif
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -3010,23 +3022,37 @@ int main(int argc, char **argv)
   init_signals();
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
+#if defined(__ia64__) || defined(__ia64)
+  /*
+    Peculiar things with ia64 platforms - it seems we only have half the
+    stack size in reality, so we have to double it here
+  */
+  pthread_attr_setstacksize(&connection_attrib,thread_stack*2);
+#else
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
+#endif
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size= 0;
     pthread_attr_getstacksize(&connection_attrib, &stack_size);
+#if defined(__ia64__) || defined(__ia64)
+    stack_size/= 2;
+#endif
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
     if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %ld thread stack, but got %ld",
-			thread_stack, stack_size);
+			  thread_stack, stack_size);
+#if defined(__ia64__) || defined(__ia64)
+      thread_stack= stack_size*2;
+#else
       thread_stack= stack_size;
+#endif
     }
   }
 #endif
-  thread_stack_min=thread_stack - STACK_MIN_SIZE;
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
@@ -3455,7 +3481,7 @@ static void bootstrap(FILE *file)
   thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
-  thd->master_access= ~0;
+  thd->master_access= ~(ulong)0;
   thd->thread_id=thread_id++;
   thread_count++;
 
@@ -4645,9 +4671,11 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "more than one storage engine, when binary log is disabled)",
    (gptr*) &opt_tc_log_file, (gptr*) &opt_tc_log_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_MMAP
   {"log-tc-size", OPT_LOG_TC_SIZE, "Size of transaction coordinator log.",
    (gptr*) &opt_tc_log_size, (gptr*) &opt_tc_log_size, 0, GET_ULONG,
    REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ~0L, 0, TC_LOG_PAGE_SIZE, 0},
+#endif
   {"log-update", OPT_UPDATE_LOG,
    "The update log is deprecated since version 5.0, is replaced by the binary \
 log and this option justs turns on --log-bin instead.",
@@ -5789,9 +5817,11 @@ struct show_var_st status_vars[]= {
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
+#ifdef HAVE_MMAP
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
+#endif
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
@@ -5806,7 +5836,6 @@ static void print_version(void)
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
-
 
 static void usage(void)
 {
@@ -5909,7 +5938,8 @@ static void mysql_init_variables(void)
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
   opt_large_pages= 0;
-  
+  key_map_full.set_all();
+
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;
   files_charset_info= &my_charset_utf8_general_ci;

@@ -284,7 +284,9 @@ public:
   Item(THD *thd, Item *item);
   virtual ~Item()
   {
+#ifdef EXTRA_DEBUG
     name=0;
+#endif
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void rename(char *new_name);
@@ -334,6 +336,11 @@ public:
       If value is not null null_value flag will be reset to FALSE.
   */
   virtual longlong val_int()=0;
+  /*
+    This is just a shortcut to avoid the cast. You should still use
+    unsigned_flag to check the sign of the item.
+  */
+  inline ulonglong val_uint() { return (ulonglong) val_int(); }
   /*
     Return string representation of this item object.
 
@@ -582,6 +589,15 @@ public:
     : m_offset(offset), m_name(name)
   {
     Item::maybe_null= TRUE;
+  }
+
+  /* For error printing */
+  inline LEX_STRING *my_name(LEX_STRING *get_name)
+  {
+    if (!get_name)
+      return &m_name;
+    (*get_name)= m_name;
+    return get_name;
   }
 
   bool is_splocal() { return 1; } /* Needed for error checking */
@@ -969,10 +985,10 @@ public:
   longlong value;
   Item_int(int32 i,uint length=11) :value((longlong) i)
     { max_length=length; fixed= 1; }
-#ifdef HAVE_LONG_LONG
   Item_int(longlong i,uint length=21) :value(i)
     { max_length=length; fixed= 1; }
-#endif
+  Item_int(ulonglong i, uint length= 21) :value((longlong)i)
+    { max_length=length; fixed= 1; unsigned_flag= 1; }
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
     { max_length=length; name=(char*) str_arg; fixed= 1; }
   Item_int(const char *str_arg, uint length=64);
@@ -1010,9 +1026,8 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length);
+  Item_uint(uint32 i) :Item_int((ulonglong) i, 10) {}
   Item_uint(const char *str_arg, longlong i, uint length);
-  Item_uint(uint32 i) :Item_int((longlong) i, 10) 
-    { unsigned_flag= 1; }
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
@@ -1492,7 +1507,7 @@ class Item_str_buff :public Item_buff
   Item *item;
   String value,tmp_value;
 public:
-  Item_str_buff(Item *arg) :item(arg),value(arg->max_length) {}
+  Item_str_buff(THD *thd, Item *arg);
   bool cmp(void);
   ~Item_str_buff();				// Deallocate String:s
 };
@@ -1861,7 +1876,7 @@ void mark_select_range_as_dependent(THD *thd,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 
-extern Item_buff *new_Item_buff(Item *item);
+extern Item_buff *new_Item_buff(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern bool field_is_equal_to_item(Field *field,Item *item);

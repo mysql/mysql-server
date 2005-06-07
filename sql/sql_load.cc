@@ -150,7 +150,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables(thd, table_list, &unused_conds,
-		   &thd->lex->select_lex.leaf_tables, FALSE, FALSE))
+		   &thd->lex->select_lex.leaf_tables, FALSE))
      DBUG_RETURN(-1);
   if (!table_list->table ||               // do not suport join view
       !table_list->updatable ||           // and derived tables

@@ -30,7 +30,6 @@
 #define EILSEQ ENOENT
 #endif
 
-extern MY_UNICASE_INFO *uni_plane[256];
 
 static uchar ctype_ucs2[] = {
     0,
@@ -113,20 +112,26 @@ static int my_uni_ucs2(CHARSET_INFO *cs __attribute__((unused)) ,
 }
 
 
-static void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint slen)
+static uint my_caseup_ucs2(CHARSET_INFO *cs, char *src, uint srclen,
+                           char *dst __attribute__((unused)),
+                           uint dstlen __attribute__((unused)))
 {
   my_wc_t wc;
   int res;
-  char *e=s+slen;
-
-  while ((s < e) && (res=my_ucs2_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
+  char *srcend= src + srclen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  DBUG_ASSERT(src == dst && srclen == dstlen);
+  
+  while ((src < srcend) &&
+         (res= my_ucs2_uni(cs, &wc, (uchar *)src, (uchar*) srcend)) > 0)
   {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
-    if (res != my_uni_ucs2(cs,wc,(uchar*)s,(uchar*)e))
+    int plane= (wc>>8) & 0xFF;
+    wc= uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
+    if (res != my_uni_ucs2(cs, wc, (uchar*) src, (uchar*) srcend))
       break;
-    s+=res;
+    src+= res;
   }
+  return srclen;
 }
 
 
@@ -136,6 +141,7 @@ static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen,
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   while (e > s+1 && e[-1] == ' ' && e[-2] == '\0')
     e-= 2;
@@ -160,22 +166,26 @@ static void my_caseup_str_ucs2(CHARSET_INFO * cs  __attribute__((unused)),
 
 
 
-static void my_casedn_ucs2(CHARSET_INFO *cs, char *s, uint slen)
+static uint my_casedn_ucs2(CHARSET_INFO *cs, char *src, uint srclen,
+                           char *dst __attribute__((unused)),
+                           uint dstlen __attribute__((unused)))
 {
   my_wc_t wc;
   int res;
-  char *e=s+slen;
+  char *srcend= src + srclen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  DBUG_ASSERT(src == dst && srclen == dstlen);
 
-  while ((s < e) && (res=my_ucs2_uni(cs, &wc, (uchar*)s, (uchar*)e))>0)
+  while ((src < srcend) &&
+         (res= my_ucs2_uni(cs, &wc, (uchar*) src, (uchar*) srcend)) > 0)
   {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].tolower : wc;
-    if (res != my_uni_ucs2(cs, wc, (uchar*)s, (uchar*)e))
-    {
+    int plane= (wc>>8) & 0xFF;
+    wc= uni_plane[plane] ? uni_plane[plane][wc & 0xFF].tolower : wc;
+    if (res != my_uni_ucs2(cs, wc, (uchar*) src, (uchar*) srcend))
       break;
-    }
-    s+=res;
+    src+= res;
   }
+  return srclen;
 }
 
 static void my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
@@ -193,6 +203,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
   my_wc_t s_wc,t_wc;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -256,6 +267,7 @@ static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 {
   const uchar *se, *te;
   uint minlen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   /* extra safety to make sure the lengths are even numbers */
   slen&= ~1;
@@ -305,6 +317,7 @@ static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
   my_wc_t s_wc,t_wc;
   const char *se=s+len;
   const char *te=t+len;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
   
   while ( s < se && t < te )
   {
@@ -352,6 +365,7 @@ static int my_strnxfrm_ucs2(CHARSET_INFO *cs,
   int plane;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
 
   while( src < se && dst < de )
   {
@@ -1310,6 +1324,7 @@ int my_wildcmp_ucs2_ci(CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
+  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
                             escape,w_one,w_many,uni_plane); 
 }
@@ -1596,9 +1611,12 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */
@@ -1623,9 +1641,12 @@ CHARSET_INFO my_charset_ucs2_bin=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */

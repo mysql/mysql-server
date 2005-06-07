@@ -552,7 +552,7 @@ static uchar NEAR like_range_prefix_max_win1250ch[] = {
 240, 242, 242, 245, 245, 245, 245, 247, 248, 251, 251, 251, 251, 253, 254, 255,
 };
 
-#define min_sort_char '\x00'
+#define min_sort_char '\x20'
 #define max_sort_char '\xff'
 
 /*
@@ -652,9 +652,12 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   NULL,				/* sort_order_big*/
   tab_cp1250_uni,		/* tab_to_uni   */
   idx_uni_cp1250,		/* tab_from_uni */
+  my_unicase_default,           /* caseinfo     */
   NULL,				/* state_map    */
   NULL,				/* ident_map    */
   2,				/* strxfrm_multiply */
+  1,                            /* caseup_multiply  */
+  1,                            /* casedn_multiply  */
   1,				/* mbminlen  */
   1,				/* mbmaxlen  */
   0,				/* min_sort_char */

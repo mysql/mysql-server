@@ -31,30 +31,6 @@
 
 #if __GNUC__ > 2
 
-#include <stdlib.h>
-
-
-static void* operator new (size_t sz)
-{
-    return malloc (sz ? sz : 1);
-}
-
-static void* operator new[](size_t sz)
-{
-    return malloc (sz ? sz : 1);
-}
-
-static void operator delete (void* ptr)
-{
-    if (ptr) free(ptr);
-}
-
-static void operator delete[] (void* ptr)
-{
-    if (ptr) free(ptr);
-}
-
-
 extern "C" {
 #include <assert.h>
 

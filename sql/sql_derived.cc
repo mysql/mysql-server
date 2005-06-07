@@ -217,6 +217,8 @@ exit:
     queries defined. After temporary table is filled, if this is not EXPLAIN,
     then the entire unit / node is deleted. unit is deleted if UNION is used
     for derived table and node is deleted is it is a  simple SELECT.
+    If you use this function, make sure it's not called at prepare.
+    Due to evaluation of LIMIT clause it can not be used at prepared stage.
 
   RETURN
     0	ok
@@ -245,11 +247,7 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     }
     else
     {
-      unit->offset_limit_cnt= first_select->offset_limit;
-      unit->select_limit_cnt= first_select->select_limit+
-	first_select->offset_limit;
-      if (unit->select_limit_cnt < first_select->select_limit)
-	unit->select_limit_cnt= HA_POS_ERROR;
+      unit->set_limit(first_select);
       if (unit->select_limit_cnt == HA_POS_ERROR)
 	first_select->options&= ~OPTION_FOUND_ROWS;
 

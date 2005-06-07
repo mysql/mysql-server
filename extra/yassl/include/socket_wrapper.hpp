@@ -68,7 +68,7 @@ class Socket {
     socket_t socket_;                    // underlying socket descriptor
 public:
     explicit Socket(socket_t s = INVALID_SOCKET);
-    virtual ~Socket();
+    ~Socket();
 
     void     set_fd(socket_t s);
     uint     get_ready() const;

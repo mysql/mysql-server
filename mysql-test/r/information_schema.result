@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS t0,t1,t2;
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -470,7 +471,7 @@ s1
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
-character_sets	CREATE TEMPORARY TABLE `character_sets` (
+CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
   `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
@@ -479,7 +480,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
-character_sets	CREATE TEMPORARY TABLE `character_sets` (
+CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
   `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
@@ -752,3 +753,73 @@ SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHE
 table_schema	count(*)
 information_schema	15
 mysql	17
+create database mysqltest;
+create table mysqltest.t1 (f1 int, f2 int);
+create table mysqltest.t2 (f1 int);
+grant select (f1) on mysqltest.t1 to user1@localhost;
+grant select on mysqltest.t2 to user2@localhost;
+grant select on mysqltest.* to user3@localhost;
+grant select on *.* to user4@localhost;
+select * from information_schema.column_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'user1'@'localhost'	NULL	mysqltest	t1	f1	SELECT	NO
+select * from information_schema.table_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+select * from information_schema.schema_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+select * from information_schema.user_privileges;
+GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
+'user1'@'localhost'	NULL	USAGE	NO
+show grants;
+Grants for user1@localhost
+GRANT USAGE ON *.* TO 'user1'@'localhost'
+GRANT SELECT (f1) ON `mysqltest`.`t1` TO 'user1'@'localhost'
+select * from information_schema.column_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+select * from information_schema.table_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'user2'@'localhost'	NULL	mysqltest	t2	SELECT	NO
+select * from information_schema.schema_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+select * from information_schema.user_privileges;
+GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
+'user2'@'localhost'	NULL	USAGE	NO
+show grants;
+Grants for user2@localhost
+GRANT USAGE ON *.* TO 'user2'@'localhost'
+GRANT SELECT ON `mysqltest`.`t2` TO 'user2'@'localhost'
+select * from information_schema.column_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+select * from information_schema.table_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+select * from information_schema.schema_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'user3'@'localhost'	NULL	mysqltest	SELECT	NO
+select * from information_schema.user_privileges;
+GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
+'user3'@'localhost'	NULL	USAGE	NO
+show grants;
+Grants for user3@localhost
+GRANT USAGE ON *.* TO 'user3'@'localhost'
+GRANT SELECT ON `mysqltest`.* TO 'user3'@'localhost'
+select * from information_schema.column_privileges where grantee like '%user%';
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'user1'@'localhost'	NULL	mysqltest	t1	f1	SELECT	NO
+select * from information_schema.table_privileges where grantee like '%user%';
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'user2'@'localhost'	NULL	mysqltest	t2	SELECT	NO
+select * from information_schema.schema_privileges where grantee like '%user%';
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'user3'@'localhost'	NULL	mysqltest	SELECT	NO
+select * from information_schema.user_privileges where grantee like '%user%';
+GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
+'user1'@'localhost'	NULL	USAGE	NO
+'user2'@'localhost'	NULL	USAGE	NO
+'user3'@'localhost'	NULL	USAGE	NO
+'user4'@'localhost'	NULL	SELECT	NO
+show grants;
+Grants for user4@localhost
+GRANT SELECT ON *.* TO 'user4'@'localhost'
+drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
+use test;
+drop database mysqltest;
