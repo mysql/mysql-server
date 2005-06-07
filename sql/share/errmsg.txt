@@ -5356,3 +5356,5 @@ ER_EXEC_STMT_WITH_OPEN_CURSOR
 	eng "You can't execute a prepared statement which has an open cursor associated with it. Reset the statement to re-execute it."
 ER_STMT_HAS_NO_OPEN_CURSOR
 	eng "The statement (%d) has no open cursor."
+ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+        eng "Explicit or implicit commit is not allowed in stored function or trigger."

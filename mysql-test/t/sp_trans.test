@@ -4,6 +4,10 @@
 
 -- source include/have_innodb.inc
 
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
 delimiter |;
 
 #
@@ -33,6 +37,146 @@ set autocommit=1|
 select * from t1|
 drop table t1|
 drop procedure bug8850|
+
+
+#
+# BUG#10015: Crash in InnoDB if stored routines are used
+# (crash happens in auto-commit mode)
+#
+--disable_warnings
+drop function if exists bug10015_1|
+drop function if exists bug10015_2|
+drop function if exists bug10015_3|
+drop function if exists bug10015_4|
+drop function if exists bug10015_5|
+drop function if exists bug10015_6|
+drop function if exists bug10015_7|
+drop procedure if exists bug10015_8|
+--enable_warnings
+create table t1 (id int) engine=innodb|
+create table t2 (id int primary key, j int) engine=innodb|
+insert into t1 values (1),(2),(3)|
+create function bug10015_1() returns int return (select count(*) from t1)|
+select *, bug10015_1() from t1|
+drop function bug10015_1|
+# Test couple of a bit more complex cases
+create function bug10015_2() returns int 
+  begin
+    declare i, s int;
+    set i:= (select min(id) from t1);
+    set s:= (select max(id) from t1);
+    return (s - i);
+  end|
+select *, bug10015_2() from t1|
+drop function bug10015_2|
+create function bug10015_3() returns int 
+  return (select max(a.id - b.id) from t1 as a, t1 as b where a.id >= b.id)|
+select *, bug10015_3() from t1|
+drop function bug10015_3|
+create function bug10015_4(i int) returns int 
+  begin
+    declare m int;
+    set m:= (select max(id) from t2);
+    insert into t2 values (i, m);
+    return m;
+  end|
+select *, bug10015_4(id) from t1|
+select * from t2|
+drop function bug10015_4|
+# Now let us test how statement rollback works
+# This function will cause the whole stmt to be rolled back,
+# there should not be any traces left.
+create function bug10015_5(i int) returns int
+  begin
+    if (i = 5) then
+      insert into t2 values (1, 0);
+    end if;
+    return i;
+  end|
+--error 1062
+insert into t1 values (bug10015_5(4)), (bug10015_5(5))|
+select * from t1|
+drop function bug10015_5|
+# Thanks to error-handler this function should not cause rollback
+# of statement calling it. But insert statement in it should be 
+# rolled back completely and don't leave any traces in t2.
+# Unfortunately we can't implement such behavior in 5.0, so it
+# is something to be fixed in later 5.* releases (TODO).
+create function bug10015_6(i int) returns int
+  begin
+    declare continue handler for sqlexception set @error_in_func:= 1;
+    if (i = 5) then
+      insert into t2 values (4, 0), (1, 0);
+    end if;
+    return i;
+  end|
+set @error_in_func:= 0|
+insert into t1 values (bug10015_6(5)), (bug10015_6(6))|
+select @error_in_func|
+select * from t1|
+select * from t2|
+drop function bug10015_6|
+# Let us test that we don't allow any statements causing transaction
+# commit in stored functions (we test only most interesting cases here).
+# Cases which can be caught at creation time:
+--error 1422
+create function bug10015_7() returns int
+  begin
+    alter table t1 add k int;
+    return 1;
+  end|
+--error 1422
+create function bug10015_7() returns int
+  begin
+    start transaction;
+    return 1;
+  end|
+--error 1422
+create function bug10015_7() returns int
+  begin
+    drop table t1;
+    return 1;
+  end|
+# It should be OK to drop temporary table.
+create function bug10015_7() returns int
+  begin
+    drop temporary table t1;
+    return 1;
+  end|
+drop function bug10015_7|
+--error 1422
+create function bug10015_7() returns int
+  begin
+    commit;
+    return 1;
+  end|
+# Now let us test cases which we can catch only at run-time:
+create function bug10015_7() returns int
+  begin
+    call bug10015_8();
+    return 1;
+  end|
+create procedure bug10015_8() alter table t1 add k int|
+--error 1422
+select *, bug10015_7() from t1|
+drop procedure bug10015_8|
+create procedure bug10015_8() start transaction|
+--error 1422
+select *, bug10015_7() from t1|
+drop procedure bug10015_8|
+# Again it is OK to drop temporary table
+# We are surpressing warnings since they are not essential
+create procedure bug10015_8() drop temporary table if exists t1_temp|
+--disable_warnings
+select *, bug10015_7() from t1|
+--enable_warnings
+drop procedure bug10015_8|
+create procedure bug10015_8() commit|
+--error 1422
+select *, bug10015_7() from t1|
+drop procedure bug10015_8|
+drop function bug10015_7|
+drop table t1, t2|
 
 
 #
