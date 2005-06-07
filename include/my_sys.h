@@ -263,6 +263,7 @@ extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
+extern  const char *defaults_instance;
 
 extern my_bool timed_mutexes;
 
