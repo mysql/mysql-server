@@ -7,16 +7,12 @@ end|
 set autocommit=0|
 insert t1 values (2)|
 call bug8850()|
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 commit|
 select * from t1|
 a
-2
 call bug8850()|
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 set autocommit=1|
 select * from t1|
 a
-2
 drop table t1|
 drop procedure bug8850|
