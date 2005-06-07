@@ -711,3 +711,14 @@ select min(b) from t1;
 min(b)
 3000000000
 drop table t1;
+CREATE TABLE t1 (id int PRIMARY KEY, user_id int, hostname longtext);
+INSERT INTO t1 VALUES
+(1, 7, 'cache-dtc-af05.proxy.aol.com'),
+(2, 3, 'what.ever.com'),
+(3, 7, 'cache-dtc-af05.proxy.aol.com'),
+(4, 7, 'cache-dtc-af05.proxy.aol.com');
+SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
+WHERE hostname LIKE '%aol%'
+    GROUP BY hostname;
+hostname	no
+cache-dtc-af05.proxy.aol.com	1
