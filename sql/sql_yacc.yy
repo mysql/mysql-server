@@ -5607,7 +5607,7 @@ limit_option:
         | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
         | LONG_NUM     { $$= new Item_uint($1.str, $1.length); }
         | NUM           { $$= new Item_uint($1.str, $1.length); }
-
+        ;
 
 delete_limit_clause:
 	/* empty */
