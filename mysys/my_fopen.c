@@ -158,32 +158,52 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
   DBUG_RETURN(fd);
 } /* my_fdopen */
 
+/*   
+  make_ftype    
+  Make a filehandler-open-typestring from ordinary inputflags  
 
-	/* Make a filehandler-open-typestring from ordinary inputflags */
-
+  Note:  This routine attempts to find the best possible match 
+  between  a numeric option and a string option that could be 
+  fed to fopen.  There is not a 1 to 1 mapping between the two.  
+  
+  r == O_RDONLY   
+  w == O_WRONLY|O_TRUNC|O_CREAT  
+  a == O_WRONLY|O_APPEND|O_CREAT  
+  r+ == O_RDWR  
+  w+ == O_RDWR|O_TRUNC|O_CREAT  
+  a+ == O_RDWR|O_APPEND|O_CREAT
+*/
 static void make_ftype(register my_string to, register int flag)
 {
-#if FILE_BINARY					/* If we have binary-files */
+#if FILE_BINARY
+  /* If we have binary-files */  
   reg3 int org_flag=flag;
-#endif
-  flag&= ~FILE_BINARY;				/* remove binary bit */
-  if (flag == O_RDONLY)
-    *to++= 'r';
-  else if (flag == O_WRONLY)
-    *to++= 'w';
-  else
-  {						/* Add '+' after theese */
-    if (flag == O_RDWR)
+#endif  
+  flag&= ~FILE_BINARY;             /* remove binary bit */  
+  
+  /* check some possible invalid combinations */  
+  DBUG_ASSERT(flag & (O_TRUNC|O_APPEND) != O_TRUNC|O_APPEND);  
+
+  if (flag & (O_RDONLY|O_WRONLY) == O_WRONLY)    
+    *to++= (flag & O_TRUNC) ? 'w' : 'a';  
+  else if (flag & O_RDWR)          
+  {
+    /* Add '+' after theese */    
+    if (flag & O_TRUNC)      
+      *to++= 'w';    
+    else if (flag & O_APPEND)      
+      *to++= 'a';    
+    else      
       *to++= 'r';
-    else if (flag & O_APPEND)
-      *to++= 'a';
-    else
-      *to++= 'w';				/* Create file */
-    *to++= '+';
-  }
-#if FILE_BINARY					/* If we have binary-files */
-  if (org_flag & FILE_BINARY)
+    *to++= '+';  
+  }  
+  else    
+    *to++= 'r';
+
+#if FILE_BINARY            /* If we have binary-files */  
+  if (org_flag & FILE_BINARY)    
     *to++='b';
-#endif
+#endif  
   *to='\0';
 } /* make_ftype */
+
