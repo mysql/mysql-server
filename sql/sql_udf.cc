@@ -28,8 +28,8 @@
    dynamic functions, so this shouldn't be a real problem.
 */
 
-#ifdef __GNUC__
-#pragma implementation				// gcc: implement sql_udf.h
+#ifdef USE_PRAGMA_IMPLEMENTATION
+#pragma implementation				// gcc: Class implementation
 #endif
 
 #include "mysql_priv.h"

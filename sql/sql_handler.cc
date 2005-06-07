@@ -321,8 +321,8 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
     key_expr
     ha_rkey_mode
     cond
-    select_limit
-    offset_limit
+    select_limit_cnt
+    offset_limit_cnt
 
   RETURN
     FALSE ok
@@ -333,7 +333,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                    enum enum_ha_read_modes mode, char *keyname,
                    List<Item> *key_expr,
                    enum ha_rkey_function ha_rkey_mode, Item *cond,
-                   ha_rows select_limit,ha_rows offset_limit)
+                   ha_rows select_limit_cnt, ha_rows offset_limit_cnt)
 {
   TABLE_LIST    *hash_tables;
   TABLE         *table;
@@ -429,11 +429,10 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (insert_fields(thd, tables, tables->db, tables->alias, &it, 0, 0))
     goto err0;
 
-  select_limit+=offset_limit;
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 
   HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0);
   HANDLER_TABLES_HACK(thd);
 
   if (!lock)
@@ -447,7 +446,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   table->file->init_table_handle_for_HANDLER();
 
-  for (num_rows=0; num_rows < select_limit; )
+  for (num_rows=0; num_rows < select_limit_cnt; )
   {
     switch (mode) {
     case RFIRST:
@@ -535,7 +534,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     }
     if (cond && !cond->val_int())
       continue;
-    if (num_rows >= offset_limit)
+    if (num_rows >= offset_limit_cnt)
     {
       Item *item;
       protocol->prepare_for_resend();

@@ -120,6 +120,10 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
     'db', 'name' and 'type' and the first key is the primary key over the
     same fields.
   */
+  if (name->m_name.length > table->field[1]->field_length)
+  {
+    DBUG_RETURN(SP_KEY_NOT_FOUND);
+  }
   table->field[0]->store(name->m_db.str, name->m_db.length, &my_charset_bin);
   table->field[1]->store(name->m_name.str, name->m_name.length,
                          &my_charset_bin);
@@ -387,6 +391,11 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
     {
       ret= SP_GET_FIELD_FAILED;
+      goto done;
+    }
+    if (sp->m_name.length > table->field[MYSQL_PROC_FIELD_NAME]->field_length)
+    {
+      ret= SP_BAD_IDENTIFIER;
       goto done;
     }
     table->field[MYSQL_PROC_FIELD_DB]->
@@ -667,7 +676,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 
       tables is not VIEW for sure => we can pass 0 as condition
     */
-    setup_tables(thd, &tables, 0, &leaves, FALSE, FALSE);
+    setup_tables(thd, &tables, 0, &leaves, FALSE);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)

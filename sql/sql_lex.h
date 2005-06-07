@@ -445,10 +445,10 @@ public:
 
   void print(String *str);
 
-  ulong init_prepare_fake_select_lex(THD *thd);
+  void init_prepare_fake_select_lex(THD *thd);
   inline bool is_prepared() { return prepared; }
   bool change_result(select_subselect *result, select_subselect *old_result);
-  void set_limit(st_select_lex *values, st_select_lex *sl);
+  void set_limit(st_select_lex *values);
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
@@ -488,7 +488,7 @@ public:
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
   SQL_LIST *gorder_list;
-  ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
 

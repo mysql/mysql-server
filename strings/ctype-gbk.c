@@ -9994,9 +9994,12 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
@@ -10021,9 +10024,12 @@ CHARSET_INFO my_charset_gbk_bin=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */

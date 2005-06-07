@@ -557,8 +557,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables,
-                   FALSE, FALSE) ||
+  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
@@ -644,7 +643,7 @@ bool mysql_multi_update_prepare(THD *thd)
   */
 
   if (setup_tables(thd, table_list, &lex->select_lex.where,
-                   &lex->select_lex.leaf_tables, FALSE, FALSE))
+                   &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
   leaves= lex->select_lex.leaf_tables;
 
@@ -711,7 +710,7 @@ bool mysql_multi_update_prepare(THD *thd)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
   }
-  for(tl= table_list; tl; tl= tl->next_local)
+  for (tl= table_list; tl; tl= tl->next_local)
   {
     /* Check access privileges for table */
     if (!tl->derived)
@@ -764,7 +763,7 @@ bool mysql_multi_update_prepare(THD *thd)
       tbl->cleanup_items();
 
     if (setup_tables(thd, table_list, &lex->select_lex.where,
-                     &lex->select_lex.leaf_tables, FALSE, FALSE) ||
+                     &lex->select_lex.leaf_tables, FALSE) ||
         (lex->select_lex.no_wrap_view_item= 1,
          res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
          lex->select_lex.no_wrap_view_item= 0,

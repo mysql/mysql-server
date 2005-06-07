@@ -48,6 +48,7 @@ dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
 		$(distdir)/std_data $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
+	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(srcdir)/t/*.slave-mi $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include

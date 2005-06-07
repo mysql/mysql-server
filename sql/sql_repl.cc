@@ -84,7 +84,7 @@ static int send_file(THD *thd)
   char fname[FN_REFLEN+1];
   const char *errmsg = 0;
   int old_timeout;
-  uint packet_len;
+  unsigned long packet_len;
   char buf[IO_SIZE];				// It's safe to alloc this
   DBUG_ENTER("send_file");
 
@@ -1316,6 +1316,7 @@ bool mysql_show_binlog_events(THD* thd)
   if (mysql_bin_log.is_open())
   {
     LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
+    SELECT_LEX_UNIT *unit= &thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
@@ -1324,8 +1325,9 @@ bool mysql_show_binlog_events(THD* thd)
     LOG_INFO linfo;
     Log_event* ev;
 
-    limit_start= thd->lex->current_select->offset_limit;
-    limit_end= thd->lex->current_select->select_limit + limit_start;
+    unit->set_limit(thd->lex->current_select);
+    limit_start= unit->offset_limit_cnt;
+    limit_end= unit->select_limit_cnt;
 
     name= search_file_name;
     if (log_file_name)
@@ -1479,13 +1481,11 @@ bool show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
   LOG_INFO cur;
-  IO_CACHE log;
   File file;
-  const char *errmsg= 0;
-  MY_STAT stat_area;
   char fname[FN_REFLEN];
   List<Item> field_list;
   uint length;
+  int cur_dir_len;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlogs");
 
@@ -1505,34 +1505,35 @@ bool show_binlogs(THD* thd)
   index_file=mysql_bin_log.get_index_file();
 
   mysql_bin_log.get_current_log(&cur);
-  int cur_dir_len = dirname_length(cur.log_file_name);
+  cur_dir_len= dirname_length(cur.log_file_name);
 
   reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 0);
 
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)
   {
-    fname[--length] = '\0';  /* remove the newline */
+    int dir_len;
+    ulonglong file_length= 0;                   // Length if open fails
+    fname[--length] = '\0';                     // remove the newline
 
     protocol->prepare_for_resend();
-    int dir_len = dirname_length(fname);
-    protocol->store(fname + dir_len, length-dir_len, &my_charset_bin);
-    if(!(strncmp(fname+dir_len, cur.log_file_name+cur_dir_len, length-dir_len)))
+    dir_len= dirname_length(fname);
+    length-= dir_len;
+    protocol->store(fname + dir_len, length, &my_charset_bin);
+
+    if (!(strncmp(fname+dir_len, cur.log_file_name+cur_dir_len, length)))
+      file_length= cur.pos;  /* The active log, use the active position */
+    else
     {
-      /* this is the active log, use the active position */
-      protocol->store((ulonglong) cur.pos);
-    } else {
       /* this is an old log, open it and find the size */
-      if ((file=open_binlog(&log, fname+dir_len, &errmsg)) >= 0)
+      if ((file= my_open(fname+dir_len, O_RDONLY | O_SHARE | O_BINARY,
+                         MYF(0))) >= 0)
       {
-        protocol->store((ulonglong) my_b_filelength(&log));
-        end_io_cache(&log);
+        file_length= (ulonglong) my_seek(file, 0L, MY_SEEK_END, MYF(0));
         my_close(file, MYF(0));
-      } else {
-        /* the file wasn't openable, but 0 is an invalid value anyway */
-        protocol->store((ulonglong) 0);
       }
     }
+    protocol->store(file_length);
     if (protocol->write())
       goto err;
   }

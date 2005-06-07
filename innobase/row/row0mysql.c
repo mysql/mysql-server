@@ -3151,6 +3151,7 @@ row_drop_table_for_mysql(
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 	
 	while (foreign && foreign->foreign_table == table) {
+	check_next_foreign:
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
@@ -3177,6 +3178,10 @@ row_drop_table_for_mysql(
 		mutex_exit(&dict_foreign_err_mutex);
 
 		goto funct_exit;
+	}
+
+	if (foreign && trx->check_foreigns) {
+		goto check_next_foreign;
 	}
 
 	if (table->n_mysql_handles_opened > 0) {

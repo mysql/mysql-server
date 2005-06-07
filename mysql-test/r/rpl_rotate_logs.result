@@ -30,9 +30,6 @@ Log_name	File_size
 master-bin.000001	0
 master-bin.000002	0
 master-bin.000003	98
-Warnings:
-Error	29	File 'master-bin.000001' not found (Errcode: 2)
-Error	29	File 'master-bin.000002' not found (Errcode: 2)
 create table t3 select * from temp_table;
 select * from t3;
 a
@@ -48,15 +45,11 @@ show master logs;
 Log_name	File_size
 master-bin.000002	0
 master-bin.000003	407
-Warnings:
-Error	29	File 'master-bin.000002' not found (Errcode: 2)
 purge binary logs to 'master-bin.000002';
 show binary logs;
 Log_name	File_size
 master-bin.000002	0
 master-bin.000003	407
-Warnings:
-Error	29	File 'master-bin.000002' not found (Errcode: 2)
 purge master logs before now();
 show binary logs;
 Log_name	File_size
@@ -84,9 +77,6 @@ Log_name	File_size
 master-bin.000003	0
 master-bin.000004	0
 master-bin.000005	2032
-Warnings:
-Error	29	File 'master-bin.000003' not found (Errcode: 2)
-Error	29	File 'master-bin.000004' not found (Errcode: 2)
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000005	2032		

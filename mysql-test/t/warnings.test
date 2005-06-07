@@ -129,3 +129,25 @@ drop table t1;
 # Test for deprecated table_type variable
 #
 set table_type=MYISAM;
+
+#
+# Tests for show warnings limit a, b
+#
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+# should generate 10 warnings
+update t1 set a='abc';
+show warnings limit 2, 1;
+show warnings limit 0, 10;
+show warnings limit 9, 1;
+show warnings limit 10, 1;
+show warnings limit 9, 2;
+show warnings limit 0, 0;
+show warnings limit 1;
+show warnings limit 0;
+show warnings limit 1, 0;
+# make sure behaviour is consistent with select ... limit
+select * from t1 limit 0;
+select * from t1 limit 1, 0;
+select * from t1 limit 0, 0;
+drop table t1;

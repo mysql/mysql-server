@@ -1104,7 +1104,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
-  ulong host_access= ~0, db_access= 0;
+  ulong host_access= ~(ulong)0, db_access= 0;
   uint i,key_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
@@ -5064,7 +5064,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     if (replace_user_table(thd, tables[0].table,
-                           *lex_user, ~0, 1, 0, 0))
+			   *lex_user, ~(ulong)0, 1, 0, 0))
     {
       result= -1;
       continue;
@@ -5091,7 +5091,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~(ulong)0, 1))
 	  {
 	    /*
 	      Don't increment counter as replace_db_table deleted the
@@ -5125,7 +5125,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
 				  grant_table->db,
 				  grant_table->tname,
-				  ~0, 0, 1))
+				  ~(ulong)0, 0, 1))
 	  {
 	    result= -1;
 	  }
@@ -5141,7 +5141,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				      columns,
 				      grant_table->db,
 				      grant_table->tname,
-				      ~0, 1))
+				      ~(ulong)0, 1))
 	    {
 	      revoked= 1;
 	      continue;
@@ -5406,10 +5406,12 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   uint counter;
   ACL_USER *acl_user;
   ulong want_access;
-
   char buff[100];
   TABLE *table= tables->table;
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_user_privileges");
+
   for (counter=0 ; counter < acl_users.elements ; counter++)
   {
     const char *user,*host, *is_grantable="YES";
@@ -5418,6 +5420,12 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
       user= "";
     if (!(host=acl_user->host.hostname))
       host= "";
+
+    if (no_global_access &&
+        (strcmp(thd->priv_user, user) ||
+         my_strcasecmp(system_charset_info, curr_host, host)))
+      continue;
+      
     want_access= acl_user->access;
     if (!(want_access & GRANT_ACL))
       is_grantable= "NO";
@@ -5453,6 +5461,8 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   ulong want_access;
   char buff[100];
   TABLE *table= tables->table;
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_schema_privileges");
 
   for (counter=0 ; counter < acl_dbs.elements ; counter++)
@@ -5464,6 +5474,11 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
       user= "";
     if (!(host=acl_db->host.hostname))
       host= "";
+
+    if (no_global_access &&
+        (strcmp(thd->priv_user, user) ||
+         my_strcasecmp(system_charset_info, curr_host, host)))
+      continue;
 
     want_access=acl_db->access;
     if (want_access)
@@ -5501,6 +5516,8 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   uint index;
   char buff[100];
   TABLE *table= tables->table;
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_table_privileges");
 
   for (index=0 ; index < column_priv_hash.records ; index++)
@@ -5510,6 +5527,13 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
 							  index);
     if (!(user=grant_table->user))
       user= "";
+
+    if (no_global_access &&
+        (strcmp(thd->priv_user, user) ||
+         my_strcasecmp(system_charset_info, curr_host,
+                       grant_table->host.hostname)))
+      continue;
+
     ulong table_access= grant_table->privs;
     if (table_access)
     {
@@ -5554,6 +5578,8 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   uint index;
   char buff[100];
   TABLE *table= tables->table;
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_table_privileges");
 
   for (index=0 ; index < column_priv_hash.records ; index++)
@@ -5563,6 +5589,13 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
 							  index);
     if (!(user=grant_table->user))
       user= "";
+
+    if (no_global_access &&
+        (strcmp(thd->priv_user, user) ||
+         my_strcasecmp(system_charset_info, curr_host,
+                       grant_table->host.hostname)))
+      continue;
+
     ulong table_access= grant_table->cols;
     if (table_access != 0)
     {

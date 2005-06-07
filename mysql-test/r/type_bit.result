@@ -458,3 +458,11 @@ select h from t1;
 h
 a
 drop table t1;
+create table t1 (a bit(8)) engine=heap;
+insert into t1 values ('1111100000');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+select a+0 from t1;
+a+0
+255
+drop table t1;

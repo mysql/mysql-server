@@ -22,7 +22,7 @@ SUBSELECT TODO:
      (sql_select.h/sql_select.cc)
 */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -138,7 +138,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
 
-  if (check_stack_overrun(thd, (gptr)&res))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (gptr)&res))
     return TRUE;
 
   res= engine->prepare();
@@ -360,7 +360,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
         because we do not rollback this changes
         TODO: make rollback for it, or special name resolving mode in 5.0.
       */
-      !arena->is_stmt_prepare()
+      !arena->is_stmt_prepare_or_first_sp_execute()
       )
   {
 
@@ -384,9 +384,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     return RES_REDUCE;
   }
   return RES_OK;
-
-err:
-  return RES_ERROR;
 }
 
 
@@ -537,8 +534,6 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
   null_value= 0; //can't be NULL
   maybe_null= 0; //can't be NULL
   value= 0;
-  // We need only 1 row to determinate existence
-  select_lex->master_unit()->global_parameters->select_limit= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -605,6 +600,8 @@ void Item_exists_subselect::fix_length_and_dec()
    decimals= 0;
    max_length= 1;
    max_columns= engine->cols();
+  /* We need only 1 row to determine existence */
+  unit->global_parameters->select_limit= new Item_int(1);
 }
 
 double Item_exists_subselect::val_real()
@@ -773,9 +770,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
   Item_subselect::trans_res result= RES_ERROR;
-  DBUG_ENTER("Item_in_subselect::single_value_transformer");
-
   SELECT_LEX *select_lex= join->select_lex;
+  DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
   /*
     Check that the right part of the subselect contains no more than one
@@ -854,9 +850,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     else
     {
       Item_maxmin_subselect *item;
-      // remove LIMIT placed  by ALL/ANY subquery
-      select_lex->master_unit()->global_parameters->select_limit=
-	HA_POS_ERROR;
       subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
       if (upper_item)
         upper_item->set_sub_test(item);
@@ -1286,13 +1279,10 @@ subselect_single_select_engine(st_select_lex *select,
 			       select_subselect *result,
 			       Item_subselect *item)
   :subselect_engine(item, result),
-   prepared(0), optimized(0), executed(0), join(0)
+   prepared(0), optimized(0), executed(0),
+   select_lex(select), join(0)
 {
-  select_lex= select;
-  SELECT_LEX_UNIT *unit= select_lex->master_unit();
-  unit->set_limit(unit->global_parameters, select_lex);
-  unit->item= item;
-  this->select_lex= select_lex;
+  select_lex->master_unit()->item= item;
 }
 
 
@@ -1440,7 +1430,10 @@ int subselect_single_select_engine::exec()
   thd->lex->current_select= select_lex;
   if (!optimized)
   {
-    optimized=1;
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+
+    optimized= 1;
+    unit->set_limit(unit->global_parameters);
     if (join->optimize())
     {
       thd->where= save_where;
@@ -1650,7 +1643,7 @@ void subselect_uniquesubquery_engine::exclude()
 table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 {
   table_map map= 0;
-  for(; table; table= table->next_leaf)
+  for (; table; table= table->next_leaf)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)

@@ -29,7 +29,7 @@
 
 
 #include "helpers.hpp"
-#include <new>          // ::operator new and delete, placement too
+#include <stdlib.h>
 
 
 namespace mySTL {
@@ -38,13 +38,15 @@ namespace mySTL {
 
 template<typename T> 
 class list {
+
 #ifdef __SUNPRO_CC
 /*
-  Sun Forte 7 C++ v. 5.4 needs class 'node' be public to be visible to
-  the nested class 'iterator' (a non-standard behaviour).
+   Sun Forte 7 C++ v. 5.4 needs class 'node' public to be visible to
+   the nested class 'iterator' (a non-standard behaviour).
 */
 public:
 #endif
+
     struct node {
         node(T t) : prev_(0), next_(0), value_(t) {}
 
@@ -94,22 +96,22 @@ public:
             return *this;
         }
 
-        iterator& operator++(int)
+        iterator operator++(int)
         {
             iterator tmp = *this;
             current_ = current_->next_;
-            return *this;
+            return tmp;
         }
 
-        iterator& operator--(int)
+        iterator operator--(int)
         {
             iterator tmp = *this;
             current_ = current_->prev_;
-            return *this;
+            return tmp;
         }
 
         bool operator==(const iterator& other) const
-        {
+        { 
             return current_ == other.current_;
         }
 
@@ -152,7 +154,7 @@ list<T>::~list()
     for (; start; start = next_) {
         next_ = start->next_;
         destroy(start);
-        ::operator delete(start);
+        free(start);
     }
 }
 
@@ -160,7 +162,7 @@ list<T>::~list()
 template<typename T> 
 void list<T>::push_front(T t)
 {
-    void* mem = ::operator new(sizeof(node));
+    void* mem = malloc(sizeof(node));
     if (!mem) abort();
     node* add = new (mem) node(t);
 
@@ -190,7 +192,7 @@ void list<T>::pop_front()
         head_->prev_ = 0;
     }
     destroy(front);
-    ::operator delete(front);
+    free(front);
     --sz_;
 }
 
@@ -206,7 +208,7 @@ T list<T>::front() const
 template<typename T> 
 void list<T>::push_back(T t)
 {
-    void* mem = ::operator new(sizeof(node));
+    void* mem = malloc(sizeof(node));
     if (!mem) abort();
     node* add = new (mem) node(t);
 
@@ -236,7 +238,7 @@ void list<T>::pop_back()
         tail_->next_ = 0;
     }
     destroy(rear);
-    ::operator delete(rear);
+    free(rear);
     --sz_;
 }
 
@@ -280,7 +282,7 @@ bool list<T>::remove(T t)
         del->next_->prev_ = del->prev_;
 
         destroy(del);
-        ::operator delete(del);
+        free(del);
         --sz_;
     }
     return true;
@@ -303,7 +305,7 @@ bool list<T>::erase(iterator iter)
         del->next_->prev_ = del->prev_;
 
         destroy(del);
-        ::operator delete(del);
+        free(del);
         --sz_;
     }
     return true;
