@@ -370,19 +370,19 @@ int Instance_options::complete_initialization(const char *default_path,
     if (!gethostname(hostname, sizeof(hostname) - 1))
     {
       if (instance_type & DEFAULT_SINGLE_INSTANCE)
-        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name, "-",
-                 hostname, ".pid", NullS);
-      else
         strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", hostname,
                  ".pid", NullS);
+      else
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
+                 "-", hostname, ".pid", NullS);
     }
     else
     {
       if (instance_type & DEFAULT_SINGLE_INSTANCE)
-        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", "mysql",
                  ".pid", NullS);
       else
-        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", "mysql",
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
                  ".pid", NullS);
     }
 
