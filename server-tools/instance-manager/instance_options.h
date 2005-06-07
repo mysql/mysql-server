@@ -34,7 +34,8 @@
   don't have to synchronize between threads.
 */
 
-enum { USUAL_INSTANCE= 0, DEFAULT_SINGLE_INSTANCE };
+#define USUAL_INSTANCE 0
+#define DEFAULT_SINGLE_INSTANCE 1
 
 class Instance_options
 {
