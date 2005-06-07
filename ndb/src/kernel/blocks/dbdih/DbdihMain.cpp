@@ -6458,6 +6458,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   ndbrequire(noReplicas == cnoReplicas); // Only allowed
 
   if (ERROR_INSERTED(7173)) {
+    CLEAR_ERROR_INSERT_VALUE;
     addtabrefuseLab(signal, connectPtr, ZREPLERROR1);
     return;
   }
