@@ -225,21 +225,21 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   MYSQL_ERROR *err;
   SELECT_LEX *sel= &thd->lex->select_lex;
-  ha_rows offset= sel->offset_limit, limit= sel->select_limit;
+  SELECT_LEX_UNIT *unit= &thd->lex->unit;
+  ha_rows idx= 0;
   Protocol *protocol=thd->protocol;
-  
+
+  unit->set_limit(sel);
+
   List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
   while ((err= it++))
   {
     /* Skip levels that the user is not interested in */
     if (!(levels_to_show & ((ulong) 1 << err->level)))
       continue;
-    if (offset)
-    {
-      offset--;
+    if (++idx <= unit->offset_limit_cnt)
       continue;
-    }
-    if (limit-- == 0)
+    if (idx > unit->select_limit_cnt)
       break;
     protocol->prepare_for_resend();
     protocol->store(warning_level_names[err->level],

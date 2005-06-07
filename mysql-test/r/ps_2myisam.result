@@ -444,9 +444,10 @@ limit 1 ';
 execute stmt1 ;
 a	b
 1	one
-prepare stmt1 from ' select a,b from t1
-limit ? ';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 2
+prepare stmt1 from ' select a,b from t1 limit ? ';
+execute stmt1 using @arg00;
+a	b
+1	one
 set @arg00='b' ;
 set @arg01=0 ;
 set @arg02=2 ;
@@ -1381,10 +1382,8 @@ execute stmt1 ;
 select a,b from t1 where b = 'bla' ;
 a	b
 2	bla
-prepare stmt1 from 'update t1 set b=''bla''
-where a=2
-limit ?';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 3
+prepare stmt1 from 'update t1 set b=''bla'' where a=2 limit ?';
+execute stmt1 using @arg00;
 test_sequence
 ------ insert tests ------
 delete from t1 ;
