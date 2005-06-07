@@ -16,10 +16,11 @@
 
 #include <my_global.h>
 #include "parse.h"
+#include "parse_output.h"
 
 #include <stdio.h>
 #include <my_sys.h>
-#include <string.h>
+#include <m_string.h>
 
 
 /*
@@ -28,17 +29,17 @@
   SYNOPSYS
     parse_output_and_get_value()
 
-    command      the command to execue with popen.
-    word         the word to look for (usually an option name)
-    result       the buffer to store the next word (option value)
-    result_len   self-explanatory
-    get_all_line flag, which is set if we want to get all the line after
-                 the matched word.
+    command          the command to execue with popen.
+    word             the word to look for (usually an option name)
+    result           the buffer to store the next word (option value)
+    input_buffer_len self-explanatory
+    flag             this equals to GET_LINE if we want to get all the line after
+                     the matched word and GET_VALUE otherwise.
 
   DESCRIPTION
 
     Parse output of the "command". Find the "word" and return the next one
-    if get_all_line is 0. Return the rest of the parsed string otherwise.
+    if flag is GET_VALUE. Return the rest of the parsed string otherwise.
 
   RETURN
     0 - ok
@@ -46,8 +47,8 @@
 */
 
 int parse_output_and_get_value(const char *command, const char *word,
-                               char *result, size_t result_len,
-                               int get_all_line)
+                               char *result, size_t input_buffer_len,
+                               uint flag)
 {
   FILE *output;
   uint wordlen;
@@ -68,7 +69,7 @@ int parse_output_and_get_value(const char *command, const char *word,
 
   while (fgets(linebuf, sizeof(linebuf) - 1, output))
   {
-    uint lineword_len= 0;
+    uint found_word_len= 0;
     char *linep= linebuf;
 
     linebuf[sizeof(linebuf) - 1]= '\0';        /* safety */
@@ -77,26 +78,24 @@ int parse_output_and_get_value(const char *command, const char *word,
       Get the word, which might contain non-alphanumeric characters. (Usually
       these are '/', '-' and '.' in the path expressions and filenames)
     */
-    get_word((const char **) &linep, &lineword_len, NONSPACE);
+    get_word((const char **) &linep, &found_word_len, NONSPACE);
     if (!strncmp(word, linep, wordlen))
     {
       /*
-        If we have found the word, return the next one. This is usually
-        an option value.
+        If we have found the word, return the next one (this is usually
+        an option value) or the whole line (if flag)
       */
-      linep+= lineword_len;                     /* swallow the previous one */
-      if (!get_all_line)
+      linep+= found_word_len;                     /* swallow the previous one */
+      if (flag & GET_VALUE)    /* not GET_LINE */
       {
-        get_word((const char **) &linep, &lineword_len, NONSPACE);
-        if (result_len <= lineword_len)
+        get_word((const char **) &linep, &found_word_len, NONSPACE);
+        if (input_buffer_len <= found_word_len)
           goto err;
-        strncpy(result, linep, lineword_len);
-        result[lineword_len]= '\0';
+        strmake(result, linep, found_word_len);
       }
-      else
+      else         /* currently there are only two options */
       {
-        strncpy(result, linep, result_len);
-        result[result_len]= '\0'; /* safety */
+        strmake(result, linep, input_buffer_len - 1);
       }
       goto pclose;
     }
