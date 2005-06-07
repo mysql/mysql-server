@@ -17,7 +17,7 @@
 
 /* mysql_select and join optimization */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -32,9 +32,6 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery"
 };
-
-const key_map key_map_empty(0);
-const key_map key_map_full(~0);
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
 static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
@@ -64,7 +61,7 @@ static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
 static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
-			   bool *simple_order);
+			   bool change_list, bool *simple_order);
 static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    List<Item> &fields, bool send_row,
 			    uint select_options, const char *info,
@@ -611,7 +608,7 @@ JOIN::optimize()
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
-    order=remove_const(this, order,conds,&simple_order);
+    order=remove_const(this, order,conds,1, &simple_order);
     /*
       If we are using ORDER BY NULL or ORDER BY const_expression,
       return result in any order (even if we are using a GROUP BY)
@@ -679,8 +676,9 @@ JOIN::optimize()
       DBUG_RETURN(1);
   }
   simple_group= 0;
-  if (rollup.state == ROLLUP::STATE_NONE)
-    group_list= remove_const(this, group_list, conds, &simple_group);
+  group_list= remove_const(this, group_list, conds,
+                           rollup.state == ROLLUP::STATE_NONE,
+                           &simple_group);
   if (!group_list && group)
   {
     order=0;					// The output has only one row
@@ -692,7 +690,7 @@ JOIN::optimize()
   if (procedure && procedure->group)
   {
     group_list= procedure->group= remove_const(this, procedure->group, conds,
-					       &simple_group);
+					       1, &simple_group);
     calc_group_buffer(this, group_list);
   }
 
@@ -1636,8 +1634,8 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
-					 limit)) == 1)
+    if ((error= select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
+                                          limit, 0)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -3450,7 +3448,8 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
-  join_tab->keys.init(~0);                      /* test everything in quick */
+  join_tab->keys.init();
+  join_tab->keys.set_all();                     /* test everything in quick */
   join_tab->info=0;
   join_tab->on_expr=0;
   join_tab->ref.key = -1;
@@ -3682,7 +3681,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
-					join->unit->select_limit_cnt)) < 0)
+					join->unit->select_limit_cnt), 0) < 0)
             {
 	      /*
 		Before reporting "Impossible WHERE" for the whole query
@@ -3695,7 +3694,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
-                                          join->unit->select_limit_cnt)) < 0)
+                                          join->unit->select_limit_cnt),0) < 0)
 		DBUG_RETURN(1);			// Impossible WHERE
             }
             else
@@ -4198,20 +4197,39 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 
 /*
-  simple_order is set to 1 if sort_order only uses fields from head table
-  and the head table is not a LEFT JOIN table
+  Remove all constants and check if ORDER only contains simple expressions
+
+  SYNOPSIS
+   remove_const()
+   join			Join handler
+   first_order		List of SORT or GROUP order
+   cond			WHERE statement
+   change_list		Set to 1 if we should remove things from list
+			If this is not set, then only simple_order is
+                        calculated   
+   simple_order		Set to 1 if we are only using simple expressions
+
+  RETURN
+    Returns new sort order
+
+    simple_order is set to 1 if sort_order only uses fields from head table
+    and the head table is not a LEFT JOIN table
+
 */
 
 static ORDER *
-remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
+remove_const(JOIN *join,ORDER *first_order, COND *cond,
+             bool change_list, bool *simple_order)
 {
   if (join->tables == join->const_tables)
-    return 0;					// No need to sort
-  DBUG_ENTER("remove_const");
+    return change_list ? 0 : first_order;		// No need to sort
+
   ORDER *order,**prev_ptr;
   table_map first_table= join->join_tab[join->const_tables].table->map;
   table_map not_const_tables= ~join->const_table_map;
   table_map ref;
+  DBUG_ENTER("remove_const");
+
   prev_ptr= &first_order;
   *simple_order= join->join_tab[join->const_tables].on_expr ? 0 : 1;
 
@@ -4242,7 +4260,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
 	}
 	if ((ref=order_tables & (not_const_tables ^ first_table)))
 	{
-	  if (!(order_tables & first_table) && only_eq_ref_tables(join,first_order,ref))
+	  if (!(order_tables & first_table) &&
+              only_eq_ref_tables(join,first_order, ref))
 	  {
 	    DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
 	    continue;
@@ -4251,11 +4270,13 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
 	}
       }
     }
-    *prev_ptr= order;				// use this entry
+    if (change_list)
+      *prev_ptr= order;				// use this entry
     prev_ptr= &order->next;
   }
-  *prev_ptr=0;
-  if (!first_order)				// Nothing to sort/group
+  if (change_list)
+    *prev_ptr=0;
+  if (prev_ptr == &first_order)			// Nothing to sort/group
     *simple_order=1;
   DBUG_PRINT("exit",("simple_order: %d",(int) *simple_order));
   DBUG_RETURN(first_order);
@@ -6355,7 +6376,7 @@ test_if_quick_select(JOIN_TAB *tab)
   delete tab->select->quick;
   tab->select->quick=0;
   return tab->select->test_quick_select(tab->join->thd, tab->keys,
-					(table_map) 0, HA_POS_ERROR);
+					(table_map) 0, HA_POS_ERROR, 0);
 }
 
 
@@ -7350,12 +7371,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             parameres are set correctly by the range optimizer.
            */
           key_map new_ref_key_map;
-          new_ref_key_map.clear_all();  /* Force the creation of quick select */
-          new_ref_key_map.set_bit(new_ref_key); /* only for new_ref_key.      */
+          new_ref_key_map.clear_all();  // Force the creation of quick select
+          new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
           if (select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
-                                        (tab->join->select_options & OPTION_FOUND_ROWS) ?
-                                        HA_POS_ERROR : tab->join->unit->select_limit_cnt) <= 0)
+                                        (tab->join->select_options &
+                                         OPTION_FOUND_ROWS) ?
+                                        HA_POS_ERROR :
+                                        tab->join->unit->select_limit_cnt,0) <=
+              0)
             DBUG_RETURN(0);
 	}
         ref_key= new_ref_key;
@@ -8632,7 +8656,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Item_buff *tmp=new_Item_buff(*group->item);
+      Item_buff *tmp=new_Item_buff(join->thd, *group->item);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
@@ -8900,6 +8924,8 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
     for (uint i=0 ; i <= send_group_parts ;i++)
       sum_funcs_end[i]= func;
   }
+  else if (rollup.state == ROLLUP::STATE_READY)
+    DBUG_RETURN(FALSE);                         // Don't put end marker
   *func=0;					// End marker
   DBUG_RETURN(FALSE);
 }
@@ -9164,6 +9190,76 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
   ROLLUP handling
 ****************************************************************************/
 
+/*
+  Replace occurences of group by fields in an expression by ref items
+
+  SYNOPSIS
+    change_group_ref()
+    thd                  reference to the context
+    expr                 expression to make replacement
+    group_list           list of references to group by items
+    changed        out:  returns 1 if item contains a replaced field item 
+     
+  DESCRIPTION
+    The function replaces occurrences of group by fields in expr
+    by ref objects for these fields unless they are under aggregate
+    functions.
+
+  IMPLEMENTATION
+    The function recursively traverses the tree of the expr expression,
+    looks for occurrences of the group by fields that are not under
+    aggregate functions and replaces them for the corresponding ref items.
+
+  NOTES
+    This substitution is needed GROUP BY queries with ROLLUP if
+    SELECT list contains expressions over group by attributes.
+
+  EXAMPLES
+    SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
+    SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP 
+    
+  RETURN
+    0	if ok
+    1   on error
+*/
+
+static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
+                             bool *changed)
+{
+  if (expr->arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= expr->arguments(),
+         arg_end= expr->arguments()+expr->arg_count;
+         arg != arg_end; arg++)
+    {
+      Item *item= *arg;
+      if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
+      {
+        ORDER *group_tmp;
+        for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+        {
+          if (item->eq(*group_tmp->item,0))
+          {
+            Item *new_item;    
+            if(!(new_item= new Item_ref(group_tmp->item, 0, item->name)))
+              return 1;                                 // fatal_error is set
+            thd->change_item_tree(arg, new_item);
+            *changed= TRUE;
+          }
+        }
+      }
+      else if (item->type() == Item::FUNC_ITEM)
+      {
+        if (change_group_ref(thd, (Item_func *) item, group_list, changed))
+          return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+
 /* Allocate memory needed for other rollup functions */
 
 bool JOIN::rollup_init()
@@ -9208,19 +9304,31 @@ bool JOIN::rollup_init()
     for (j=0 ; j < fields_list.elements ; j++)
       rollup.fields[i].push_back(rollup.null_items[i]);
   }
-  List_iterator_fast<Item> it(fields_list);
+  List_iterator_fast<Item> it(all_fields);
   Item *item;
   while ((item= it++))
   {
     ORDER *group_tmp;
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
-      if (*group_tmp->item == item)
+      if (item->eq(*group_tmp->item,0))
         item->maybe_null= 1;
+    }
+    if (item->type() == Item::FUNC_ITEM)
+    {
+      bool changed= 0;
+      if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
+        return 1;
+      /*
+        We have to prevent creation of a field in a temporary table for
+        an expression that contains GROUP BY attributes.
+        Marking the expression item as 'with_sum_func' will ensure this.
+      */ 
+      if (changed)
+        item->with_sum_func= 1;
     }
   }
   return 0;
-
 }
   
 
@@ -9318,22 +9426,23 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	*(*func)= (Item_sum*) item;
 	(*func)++;
       }
-      else if (real_fields)
+      else 
       {
 	/* Check if this is something that is part of this group by */
 	ORDER *group_tmp;
 	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
-	  if (*group_tmp->item == item)
+          if (item->eq(*group_tmp->item,0))
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be
 	      set to NULL in this level
 	    */
+            Item_null_result *null_item;
 	    item->maybe_null= 1;		// Value will be null sometimes
-            Item_null_result *null_item= rollup.null_items[i];
-            null_item->result_field= ((Item_field *) item)->result_field;
+            null_item= rollup.null_items[i];
+            null_item->result_field= item->get_tmp_table_field();
             item= null_item;
 	    break;
 	  }
