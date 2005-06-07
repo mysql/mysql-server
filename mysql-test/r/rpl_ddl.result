@@ -50,8 +50,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 1
 SHOW BINLOG EVENTS IN 'master-bin.000001';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	#	Start	1	#	Server ver: VERSION, Binlog ver: 3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest1
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest2
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest3
@@ -59,6 +59,7 @@ master-bin.000001	#	Query	1	#	CREATE DATABASE mysqltest1
 master-bin.000001	#	Query	1	#	CREATE DATABASE mysqltest2
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO mysqltest1.t1 SET f1= 0
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=14 */
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t2 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t3 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t4 (f1 BIGINT) ENGINE= "InnoDB"
@@ -67,6 +68,7 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t6 (f1 BIGINT)
 master-bin.000001	#	Query	1	#	use `test`; CREATE INDEX my_idx6 ON mysqltest1.t6(f1)
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t7 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO mysqltest1.t7 SET f1= 0
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=24 */
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t8 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t9 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t10 (f1 BIGINT) ENGINE= "InnoDB"
@@ -86,8 +88,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 0
 SHOW BINLOG EVENTS IN 'slave-bin.000001';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.000001	#	Start	2	#	Server ver: VERSION, Binlog ver: 3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000001	#	Query	2	#	use `test`; drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9
 slave-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest1
 slave-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest2
@@ -124,8 +126,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 1
 SHOW BINLOG EVENTS IN 'master-bin.000001';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	#	Start	1	#	Server ver: VERSION, Binlog ver: 3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest1
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest2
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest3
@@ -133,6 +135,7 @@ master-bin.000001	#	Query	1	#	CREATE DATABASE mysqltest1
 master-bin.000001	#	Query	1	#	CREATE DATABASE mysqltest2
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO mysqltest1.t1 SET f1= 0
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=14 */
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t2 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t3 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t4 (f1 BIGINT) ENGINE= "InnoDB"
@@ -141,6 +144,7 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t6 (f1 BIGINT)
 master-bin.000001	#	Query	1	#	use `test`; CREATE INDEX my_idx6 ON mysqltest1.t6(f1)
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t7 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO mysqltest1.t7 SET f1= 0
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=24 */
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t8 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t9 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t10 (f1 BIGINT) ENGINE= "InnoDB"
@@ -156,15 +160,15 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t19 (f1 BIGINT
 master-bin.000001	#	Query	1	#	use `test`; CREATE TEMPORARY TABLE mysqltest1.t23 (f1 BIGINT)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000001	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 0 + 1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=49 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 1
 SHOW BINLOG EVENTS IN 'slave-bin.000001';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.000001	#	Start	2	#	Server ver: VERSION, Binlog ver: 3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000001	#	Query	2	#	use `test`; drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9
 slave-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest1
 slave-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest2
@@ -204,8 +208,8 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000001';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	#	Start	1	#	Server ver: VERSION, Binlog ver: 3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest1
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest2
 master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest3
@@ -213,6 +217,7 @@ master-bin.000001	#	Query	1	#	CREATE DATABASE mysqltest1
 master-bin.000001	#	Query	1	#	CREATE DATABASE mysqltest2
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO mysqltest1.t1 SET f1= 0
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=14 */
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t2 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t3 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t4 (f1 BIGINT) ENGINE= "InnoDB"
@@ -221,6 +226,7 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t6 (f1 BIGINT)
 master-bin.000001	#	Query	1	#	use `test`; CREATE INDEX my_idx6 ON mysqltest1.t6(f1)
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t7 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO mysqltest1.t7 SET f1= 0
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=24 */
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t8 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t9 (f1 BIGINT) ENGINE= "InnoDB"
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t10 (f1 BIGINT) ENGINE= "InnoDB"
@@ -236,7 +242,7 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE mysqltest1.t19 (f1 BIGINT
 master-bin.000001	#	Query	1	#	use `test`; CREATE TEMPORARY TABLE mysqltest1.t23 (f1 BIGINT)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000001	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 0 + 1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=49 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -245,8 +251,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000001';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.000001	#	Start	2	#	Server ver: VERSION, Binlog ver: 3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000001	#	Query	2	#	use `test`; drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9
 slave-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest1
 slave-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS mysqltest2
@@ -294,14 +300,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 2
 SHOW BINLOG EVENTS IN 'master-bin.000002';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 1
 SHOW BINLOG EVENTS IN 'slave-bin.000002';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000002	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 ROLLBACK;
@@ -309,14 +317,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 1
 SHOW BINLOG EVENTS IN 'master-bin.000002';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 1
 SHOW BINLOG EVENTS IN 'slave-bin.000002';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000002	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 ROLLBACK;
@@ -326,7 +336,8 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000002';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -335,7 +346,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000002';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000002	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 flush logs;
@@ -353,14 +365,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 2
 SHOW BINLOG EVENTS IN 'master-bin.000003';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000003	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 1
 SHOW BINLOG EVENTS IN 'slave-bin.000003';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000003	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 SET AUTOCOMMIT=1;
@@ -368,17 +382,18 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 2
 SHOW BINLOG EVENTS IN 'master-bin.000003';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000003	#	Query	1	#	use `mysqltest1`; BEGIN
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000003	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000003	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 1 + 1
-master-bin.000003	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000003	#	Xid	1	#	COMMIT /* xid=88 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 2
 SHOW BINLOG EVENTS IN 'slave-bin.000003';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000003	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000003	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 1 + 1
 
 -------- switch to master -------
@@ -389,10 +404,10 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000003';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000003	#	Query	1	#	use `mysqltest1`; BEGIN
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000003	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000003	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 1 + 1
-master-bin.000003	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000003	#	Xid	1	#	COMMIT /* xid=88 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -401,7 +416,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000003';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000003	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000003	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 1 + 1
 
 -------- switch to master -------
@@ -421,14 +437,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 3
 SHOW BINLOG EVENTS IN 'master-bin.000004';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000004	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 2
 SHOW BINLOG EVENTS IN 'slave-bin.000004';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000004	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 START TRANSACTION;
@@ -436,17 +454,19 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 3
 SHOW BINLOG EVENTS IN 'master-bin.000004';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000004	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000004	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000004	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 2 + 1
-master-bin.000004	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000004	#	Xid	1	#	COMMIT /* xid=131 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 3
 SHOW BINLOG EVENTS IN 'slave-bin.000004';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000004	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000004	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 2 + 1
 
 -------- switch to master -------
@@ -457,10 +477,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000004';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000004	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000004	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000004	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 2 + 1
-master-bin.000004	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000004	#	Xid	1	#	COMMIT /* xid=131 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -469,7 +490,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000004';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000004	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000004	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 2 + 1
 
 -------- switch to master -------
@@ -488,14 +510,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 4
 SHOW BINLOG EVENTS IN 'master-bin.000005';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000005	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 3
 SHOW BINLOG EVENTS IN 'slave-bin.000005';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000005	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 BEGIN;
@@ -503,17 +527,19 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 4
 SHOW BINLOG EVENTS IN 'master-bin.000005';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000005	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000005	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000005	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 3 + 1
-master-bin.000005	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000005	#	Xid	1	#	COMMIT /* xid=143 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 4
 SHOW BINLOG EVENTS IN 'slave-bin.000005';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000005	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000005	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 3 + 1
 
 -------- switch to master -------
@@ -524,10 +550,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000005';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000005	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000005	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000005	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 3 + 1
-master-bin.000005	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000005	#	Xid	1	#	COMMIT /* xid=143 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -536,7 +563,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000005';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000005	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000005	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 3 + 1
 
 -------- switch to master -------
@@ -555,14 +583,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
 SHOW BINLOG EVENTS IN 'master-bin.000006';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000006	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 4
 SHOW BINLOG EVENTS IN 'slave-bin.000006';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000006	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 DROP TABLE mysqltest1.t2;
@@ -570,10 +600,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
 SHOW BINLOG EVENTS IN 'master-bin.000006';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000006	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000006	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000006	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 4 + 1
-master-bin.000006	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000006	#	Xid	1	#	COMMIT /* xid=170 */
 master-bin.000006	#	Query	1	#	use `mysqltest1`; DROP TABLE mysqltest1.t2
 
 -------- switch to slave --------
@@ -581,7 +612,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
 SHOW BINLOG EVENTS IN 'slave-bin.000006';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000006	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000006	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 4 + 1
 slave-bin.000006	#	Query	1	#	use `mysqltest1`; DROP TABLE mysqltest1.t2
 
@@ -593,10 +625,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000006';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000006	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000006	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000006	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 4 + 1
-master-bin.000006	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000006	#	Xid	1	#	COMMIT /* xid=170 */
 master-bin.000006	#	Query	1	#	use `mysqltest1`; DROP TABLE mysqltest1.t2
 
 -------- switch to slave --------
@@ -606,7 +639,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000006';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000006	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000006	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 4 + 1
 slave-bin.000006	#	Query	1	#	use `mysqltest1`; DROP TABLE mysqltest1.t2
 
@@ -634,14 +668,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 6
 SHOW BINLOG EVENTS IN 'master-bin.000007';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000007	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
 SHOW BINLOG EVENTS IN 'slave-bin.000007';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000007	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 DROP TEMPORARY TABLE mysqltest1.t23;
@@ -649,14 +685,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 6
 SHOW BINLOG EVENTS IN 'master-bin.000007';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000007	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
 SHOW BINLOG EVENTS IN 'slave-bin.000007';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000007	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 ROLLBACK;
@@ -668,7 +706,8 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000007';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000007	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000007	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000007	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 5 + 1
 master-bin.000007	#	Query	1	#	use `mysqltest1`; DROP TEMPORARY TABLE mysqltest1.t23
@@ -681,7 +720,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000007';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000007	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000007	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 5 + 1
 slave-bin.000007	#	Query	1	#	use `mysqltest1`; DROP TEMPORARY TABLE mysqltest1.t23
 
@@ -709,14 +749,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 6
 SHOW BINLOG EVENTS IN 'master-bin.000008';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000008	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 6
 SHOW BINLOG EVENTS IN 'slave-bin.000008';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000008	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 RENAME TABLE mysqltest1.t3 to mysqltest1.t20;
@@ -724,10 +766,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 6
 SHOW BINLOG EVENTS IN 'master-bin.000008';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000008	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000008	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000008	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 5 + 1
-master-bin.000008	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000008	#	Xid	1	#	COMMIT /* xid=227 */
 master-bin.000008	#	Query	1	#	use `mysqltest1`; RENAME TABLE mysqltest1.t3 to mysqltest1.t20
 
 -------- switch to slave --------
@@ -735,7 +778,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 6
 SHOW BINLOG EVENTS IN 'slave-bin.000008';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000008	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000008	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 5 + 1
 slave-bin.000008	#	Query	1	#	use `mysqltest1`; RENAME TABLE mysqltest1.t3 to mysqltest1.t20
 
@@ -747,10 +791,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000008';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000008	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000008	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000008	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 5 + 1
-master-bin.000008	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000008	#	Xid	1	#	COMMIT /* xid=227 */
 master-bin.000008	#	Query	1	#	use `mysqltest1`; RENAME TABLE mysqltest1.t3 to mysqltest1.t20
 
 -------- switch to slave --------
@@ -760,7 +805,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000008';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000008	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000008	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 5 + 1
 slave-bin.000008	#	Query	1	#	use `mysqltest1`; RENAME TABLE mysqltest1.t3 to mysqltest1.t20
 
@@ -790,14 +836,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 7
 SHOW BINLOG EVENTS IN 'master-bin.000009';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000009	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 6
 SHOW BINLOG EVENTS IN 'slave-bin.000009';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000009	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 ALTER TABLE mysqltest1.t4 ADD column f2 BIGINT;
@@ -805,10 +853,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 7
 SHOW BINLOG EVENTS IN 'master-bin.000009';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000009	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000009	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000009	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 6 + 1
-master-bin.000009	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000009	#	Xid	1	#	COMMIT /* xid=256 */
 master-bin.000009	#	Query	1	#	use `mysqltest1`; ALTER TABLE mysqltest1.t4 ADD column f2 BIGINT
 
 -------- switch to slave --------
@@ -816,7 +865,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 7
 SHOW BINLOG EVENTS IN 'slave-bin.000009';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000009	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000009	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 6 + 1
 slave-bin.000009	#	Query	1	#	use `mysqltest1`; ALTER TABLE mysqltest1.t4 ADD column f2 BIGINT
 
@@ -828,10 +878,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000009';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000009	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000009	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000009	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 6 + 1
-master-bin.000009	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000009	#	Xid	1	#	COMMIT /* xid=256 */
 master-bin.000009	#	Query	1	#	use `mysqltest1`; ALTER TABLE mysqltest1.t4 ADD column f2 BIGINT
 
 -------- switch to slave --------
@@ -841,7 +892,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000009';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000009	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000009	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 6 + 1
 slave-bin.000009	#	Query	1	#	use `mysqltest1`; ALTER TABLE mysqltest1.t4 ADD column f2 BIGINT
 
@@ -873,14 +925,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
 SHOW BINLOG EVENTS IN 'master-bin.000010';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000010	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 7
 SHOW BINLOG EVENTS IN 'slave-bin.000010';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000010	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB";
@@ -888,10 +942,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
 SHOW BINLOG EVENTS IN 'master-bin.000010';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000010	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000010	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000010	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 7 + 1
-master-bin.000010	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000010	#	Xid	1	#	COMMIT /* xid=285 */
 master-bin.000010	#	Query	1	#	use `mysqltest1`; CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB"
 
 -------- switch to slave --------
@@ -899,7 +954,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
 SHOW BINLOG EVENTS IN 'slave-bin.000010';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000010	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000010	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 7 + 1
 slave-bin.000010	#	Query	1	#	use `mysqltest1`; CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB"
 
@@ -911,10 +967,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000010';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000010	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000010	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000010	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 7 + 1
-master-bin.000010	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000010	#	Xid	1	#	COMMIT /* xid=285 */
 master-bin.000010	#	Query	1	#	use `mysqltest1`; CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB"
 
 -------- switch to slave --------
@@ -924,7 +981,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000010';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000010	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000010	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 7 + 1
 slave-bin.000010	#	Query	1	#	use `mysqltest1`; CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB"
 
@@ -944,14 +1002,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 9
 SHOW BINLOG EVENTS IN 'master-bin.000011';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000011	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
 SHOW BINLOG EVENTS IN 'slave-bin.000011';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000011	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 CREATE TEMPORARY TABLE mysqltest1.t22 (f1 BIGINT);
@@ -959,14 +1019,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 9
 SHOW BINLOG EVENTS IN 'master-bin.000011';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000011	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
 SHOW BINLOG EVENTS IN 'slave-bin.000011';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000011	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 ROLLBACK;
@@ -978,7 +1040,8 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000011';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000011	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000011	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000011	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 8 + 1
 master-bin.000011	#	Query	1	#	use `mysqltest1`; CREATE TEMPORARY TABLE mysqltest1.t22 (f1 BIGINT)
@@ -991,7 +1054,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000011';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000011	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000011	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 8 + 1
 slave-bin.000011	#	Query	1	#	use `mysqltest1`; CREATE TEMPORARY TABLE mysqltest1.t22 (f1 BIGINT)
 
@@ -1011,14 +1075,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 9
 SHOW BINLOG EVENTS IN 'master-bin.000012';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000012	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 9
 SHOW BINLOG EVENTS IN 'slave-bin.000012';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000012	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 TRUNCATE TABLE mysqltest1.t7;
@@ -1026,18 +1092,21 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 9
 SHOW BINLOG EVENTS IN 'master-bin.000012';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000012	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000012	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000012	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 8 + 1
-master-bin.000012	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000012	#	Xid	1	#	COMMIT /* xid=342 */
 master-bin.000012	#	Query	1	#	use `mysqltest1`; TRUNCATE TABLE mysqltest1.t7
+master-bin.000012	#	Xid	1	#	COMMIT /* xid=363 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 9
 SHOW BINLOG EVENTS IN 'slave-bin.000012';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000012	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000012	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 8 + 1
 slave-bin.000012	#	Query	1	#	use `mysqltest1`; TRUNCATE TABLE mysqltest1.t7
 
@@ -1049,11 +1118,13 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000012';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000012	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000012	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000012	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 8 + 1
-master-bin.000012	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000012	#	Xid	1	#	COMMIT /* xid=342 */
 master-bin.000012	#	Query	1	#	use `mysqltest1`; TRUNCATE TABLE mysqltest1.t7
+master-bin.000012	#	Xid	1	#	COMMIT /* xid=363 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -1062,7 +1133,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000012';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000012	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000012	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 8 + 1
 slave-bin.000012	#	Query	1	#	use `mysqltest1`; TRUNCATE TABLE mysqltest1.t7
 
@@ -1090,14 +1162,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'master-bin.000013';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000013	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 9
 SHOW BINLOG EVENTS IN 'slave-bin.000013';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000013	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 LOCK TABLES mysqltest1.t1 WRITE, mysqltest1.t8 READ;
@@ -1105,17 +1179,19 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'master-bin.000013';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000013	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000013	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000013	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 9 + 1
-master-bin.000013	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000013	#	Xid	1	#	COMMIT /* xid=369 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'slave-bin.000013';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000013	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000013	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 9 + 1
 
 -------- switch to master -------
@@ -1126,10 +1202,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000013';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000013	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000013	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000013	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 9 + 1
-master-bin.000013	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000013	#	Xid	1	#	COMMIT /* xid=369 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -1138,7 +1215,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000013';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000013	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000013	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 9 + 1
 
 -------- switch to master -------
@@ -1158,14 +1236,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 11
 SHOW BINLOG EVENTS IN 'master-bin.000014';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000014	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'slave-bin.000014';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000014	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 UNLOCK TABLES;
@@ -1173,14 +1253,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 11
 SHOW BINLOG EVENTS IN 'master-bin.000014';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000014	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'slave-bin.000014';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000014	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 ROLLBACK;
@@ -1190,7 +1272,8 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000014';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000014	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -1199,7 +1282,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000014';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000014	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 flush logs;
@@ -1219,14 +1303,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'master-bin.000015';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000015	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'slave-bin.000015';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000015	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 UNLOCK TABLES;
@@ -1234,14 +1320,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'master-bin.000015';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000015	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'slave-bin.000015';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000015	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 ROLLBACK;
@@ -1251,7 +1339,8 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000015';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000015	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -1260,7 +1349,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is not committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000015';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000015	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 flush logs;
@@ -1279,14 +1369,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 11
 SHOW BINLOG EVENTS IN 'master-bin.000016';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000016	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 10
 SHOW BINLOG EVENTS IN 'slave-bin.000016';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000016	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 UNLOCK TABLES;
@@ -1294,17 +1386,19 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 11
 SHOW BINLOG EVENTS IN 'master-bin.000016';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000016	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000016	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000016	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 10 + 1
-master-bin.000016	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000016	#	Xid	1	#	COMMIT /* xid=462 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 11
 SHOW BINLOG EVENTS IN 'slave-bin.000016';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000016	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000016	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 10 + 1
 
 -------- switch to master -------
@@ -1315,10 +1409,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000016';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000016	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000016	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000016	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 10 + 1
-master-bin.000016	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000016	#	Xid	1	#	COMMIT /* xid=462 */
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
@@ -1327,7 +1422,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000016';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000016	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000016	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 10 + 1
 
 -------- switch to master -------
@@ -1346,14 +1442,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 12
 SHOW BINLOG EVENTS IN 'master-bin.000017';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000017	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 11
 SHOW BINLOG EVENTS IN 'slave-bin.000017';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000017	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 DROP INDEX my_idx6 ON mysqltest1.t6;
@@ -1361,10 +1459,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 12
 SHOW BINLOG EVENTS IN 'master-bin.000017';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000017	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000017	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000017	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 11 + 1
-master-bin.000017	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000017	#	Xid	1	#	COMMIT /* xid=482 */
 master-bin.000017	#	Query	1	#	use `mysqltest1`; DROP INDEX my_idx6 ON mysqltest1.t6
 
 -------- switch to slave --------
@@ -1372,7 +1471,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 12
 SHOW BINLOG EVENTS IN 'slave-bin.000017';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000017	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000017	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 11 + 1
 slave-bin.000017	#	Query	1	#	use `mysqltest1`; DROP INDEX my_idx6 ON mysqltest1.t6
 
@@ -1384,10 +1484,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000017';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000017	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000017	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000017	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 11 + 1
-master-bin.000017	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000017	#	Xid	1	#	COMMIT /* xid=482 */
 master-bin.000017	#	Query	1	#	use `mysqltest1`; DROP INDEX my_idx6 ON mysqltest1.t6
 
 -------- switch to slave --------
@@ -1397,7 +1498,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000017';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000017	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000017	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 11 + 1
 slave-bin.000017	#	Query	1	#	use `mysqltest1`; DROP INDEX my_idx6 ON mysqltest1.t6
 
@@ -1425,14 +1527,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 13
 SHOW BINLOG EVENTS IN 'master-bin.000018';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000018	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 12
 SHOW BINLOG EVENTS IN 'slave-bin.000018';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000018	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 CREATE INDEX my_idx5 ON mysqltest1.t5(f1);
@@ -1440,10 +1544,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 13
 SHOW BINLOG EVENTS IN 'master-bin.000018';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000018	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000018	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000018	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 12 + 1
-master-bin.000018	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000018	#	Xid	1	#	COMMIT /* xid=509 */
 master-bin.000018	#	Query	1	#	use `mysqltest1`; CREATE INDEX my_idx5 ON mysqltest1.t5(f1)
 
 -------- switch to slave --------
@@ -1451,7 +1556,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 13
 SHOW BINLOG EVENTS IN 'slave-bin.000018';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000018	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000018	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 12 + 1
 slave-bin.000018	#	Query	1	#	use `mysqltest1`; CREATE INDEX my_idx5 ON mysqltest1.t5(f1)
 
@@ -1463,10 +1569,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000018';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000018	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000018	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000018	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 12 + 1
-master-bin.000018	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000018	#	Xid	1	#	COMMIT /* xid=509 */
 master-bin.000018	#	Query	1	#	use `mysqltest1`; CREATE INDEX my_idx5 ON mysqltest1.t5(f1)
 
 -------- switch to slave --------
@@ -1476,7 +1583,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000018';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000018	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000018	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 12 + 1
 slave-bin.000018	#	Query	1	#	use `mysqltest1`; CREATE INDEX my_idx5 ON mysqltest1.t5(f1)
 
@@ -1506,14 +1614,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 14
 SHOW BINLOG EVENTS IN 'master-bin.000019';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000019	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 13
 SHOW BINLOG EVENTS IN 'slave-bin.000019';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000019	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 DROP DATABASE mysqltest2;
@@ -1521,10 +1631,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 14
 SHOW BINLOG EVENTS IN 'master-bin.000019';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000019	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000019	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000019	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 13 + 1
-master-bin.000019	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000019	#	Xid	1	#	COMMIT /* xid=538 */
 master-bin.000019	#	Query	1	#	DROP DATABASE mysqltest2
 
 -------- switch to slave --------
@@ -1532,7 +1643,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 14
 SHOW BINLOG EVENTS IN 'slave-bin.000019';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000019	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000019	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 13 + 1
 slave-bin.000019	#	Query	1	#	DROP DATABASE mysqltest2
 
@@ -1544,10 +1656,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000019';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000019	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000019	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000019	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 13 + 1
-master-bin.000019	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000019	#	Xid	1	#	COMMIT /* xid=538 */
 master-bin.000019	#	Query	1	#	DROP DATABASE mysqltest2
 
 -------- switch to slave --------
@@ -1557,7 +1670,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000019';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000019	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000019	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 13 + 1
 slave-bin.000019	#	Query	1	#	DROP DATABASE mysqltest2
 
@@ -1585,14 +1699,16 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 15
 SHOW BINLOG EVENTS IN 'master-bin.000020';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000020	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to slave --------
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 14
 SHOW BINLOG EVENTS IN 'slave-bin.000020';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000020	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 
 -------- switch to master -------
 CREATE DATABASE mysqltest3;
@@ -1600,10 +1716,11 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 15
 SHOW BINLOG EVENTS IN 'master-bin.000020';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000020	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000020	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000020	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 14 + 1
-master-bin.000020	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000020	#	Xid	1	#	COMMIT /* xid=567 */
 master-bin.000020	#	Query	1	#	CREATE DATABASE mysqltest3
 
 -------- switch to slave --------
@@ -1611,7 +1728,8 @@ SELECT MAX(f1) FROM t1;
 MAX(f1)
 15
 SHOW BINLOG EVENTS IN 'slave-bin.000020';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000020	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000020	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 14 + 1
 slave-bin.000020	#	Query	1	#	CREATE DATABASE mysqltest3
 
@@ -1623,10 +1741,11 @@ MAX(f1)
 
 TEST-INFO: MASTER: The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'master-bin.000020';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000020	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000020	#	Query	1	#	use `mysqltest1`; BEGIN
 master-bin.000020	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 14 + 1
-master-bin.000020	#	Query	1	#	use `mysqltest1`; COMMIT
+master-bin.000020	#	Xid	1	#	COMMIT /* xid=567 */
 master-bin.000020	#	Query	1	#	CREATE DATABASE mysqltest3
 
 -------- switch to slave --------
@@ -1636,7 +1755,8 @@ MAX(f1)
 
 TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 SHOW BINLOG EVENTS IN 'slave-bin.000020';
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000020	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000020	#	Query	1	#	use `mysqltest1`; INSERT INTO t1 SET f1= 14 + 1
 slave-bin.000020	#	Query	1	#	CREATE DATABASE mysqltest3
 

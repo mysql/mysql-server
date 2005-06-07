@@ -20,14 +20,10 @@ end|
 
 set autocommit=0|
 insert t1 values (2)|
---error 1192
 call bug8850()|
 commit|
 select * from t1|
-#
-# when CALL will be fixed to not start a transaction, the error should
-# go away
---error 1192
+
 call bug8850()|
 set autocommit=1|
 select * from t1|
