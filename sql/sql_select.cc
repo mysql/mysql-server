@@ -12281,7 +12281,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Item_buff *tmp=new_Item_buff(*group->item);
+      Item_buff *tmp=new_Item_buff(join->thd, *group->item);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
