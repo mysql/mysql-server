@@ -28,7 +28,7 @@ if test -r /proc/cpuinfo ; then
   fi
 
   # parse CPU flags
-  for flag in `$cpuinfo | grep 'flags' | sed -e 's/^flags.*: //'`; do 
+  for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //'`; do 
 	eval cpu_flag_$flag=yes
   done
 else
@@ -52,7 +52,6 @@ fi
 # detect CPU shortname as used by gcc options 
 # this list is not complete, feel free to add further entries
 cpu_arg=""
-
 case "$cpu_family--$model_name" in
   # DEC Alpha
   Alpha*EV6*)
@@ -98,9 +97,13 @@ case "$cpu_family--$model_name" in
     cpu_arg="";
     ;;
 
-  # 
+  #
+  *ppc*)
+    cpu_arg='powerpc'
+    ;;
+ 
   *powerpc*)
-    cpu_arg=`echo $model_name | sed -e"s/ppc//g"`
+    cpu_arg='powerpc'
     ;;
 
   # unknown
@@ -111,7 +114,7 @@ esac
 
 
 if test -z "$cpu_arg"; then
-  echo "BUILD/check-cpu: Oops, could not findout what kind of cpu this machine is using."
+  echo "BUILD/check-cpu: Oops, could not find out what kind of cpu this machine is using."
   check_cpu_cflags=""
   return
 fi
