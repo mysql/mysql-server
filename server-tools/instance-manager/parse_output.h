@@ -16,7 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+enum { GET_VALUE= 1, GET_LINE };
+
 int parse_output_and_get_value(const char *command, const char *word,
-                               char *result, size_t result_len);
+                               char *result, size_t input_buffer_len,
+                               uint flag);
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_OUTPUT_H */
