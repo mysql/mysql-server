@@ -53,7 +53,7 @@ inline query_id_t next_query_id() { return query_id++; }
 
 /* useful constants */
 extern const key_map key_map_empty;
-extern const key_map key_map_full;
+extern key_map key_map_full;          /* Should be threaded as const */
 extern const char *primary_key_name;
 
 #include "mysql_com.h"
@@ -94,7 +94,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
-#define STACK_BUFF_ALLOC	64	// For stack overrun checks
+#define STACK_BUFF_ALLOC	256	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
@@ -884,8 +884,7 @@ bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   List_iterator<Item> *it, bool any_privileges,
                    bool allocate_view_names);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-		  TABLE_LIST **leaves, bool refresh_only,
-                  bool select_insert);
+		  TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
@@ -1077,13 +1076,15 @@ extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
-extern ulong query_buff_size, thread_stack,thread_stack_min;
+extern ulong query_buff_size, thread_stack;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
+extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
@@ -1102,7 +1103,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
-extern my_bool sp_automatic_privileges;
+extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_routine_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
@@ -1167,8 +1168,11 @@ extern pthread_t signal_thread;
 extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
-                              bool ignore_global_read_lock= FALSE);
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count, uint flags);
+/* mysql_lock_tables() flags bits */
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
+#define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
+
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
@@ -1352,7 +1356,8 @@ inline void mark_as_null_row(TABLE *table)
 inline void table_case_convert(char * name, uint length)
 {
   if (lower_case_table_names)
-    my_casedn(files_charset_info, name, length);
+    files_charset_info->cset->casedn(files_charset_info,
+                                     name, length, name, length);
 }
 
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
@@ -1429,11 +1434,11 @@ inline int hexchar_to_int(char c)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code);
 void kill_delayed_threads(void);
-bool check_stack_overrun(THD *thd,char *dummy);
+bool check_stack_overrun(THD *thd, long margin, char *dummy);
 #else
 #define unireg_abort(exit_code) DBUG_RETURN(exit_code)
 inline void kill_delayed_threads(void) {}
-#define check_stack_overrun(A, B) 0
+#define check_stack_overrun(A, B, C) 0
 #endif
 
 #endif /* MYSQL_CLIENT */

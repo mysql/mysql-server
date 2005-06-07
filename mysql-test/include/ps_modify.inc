@@ -174,11 +174,8 @@ where a=2
 limit 1';
 execute stmt1 ;
 select a,b from t1 where b = 'bla' ;
-# currently (May 2004, Version 4.1) it is impossible
--- error 1064
-prepare stmt1 from 'update t1 set b=''bla''
-where a=2
-limit ?';
+prepare stmt1 from 'update t1 set b=''bla'' where a=2 limit ?';
+execute stmt1 using @arg00;
 
 --disable_query_log
 select '------ insert tests ------' as test_sequence ;

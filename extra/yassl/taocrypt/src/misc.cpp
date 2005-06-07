@@ -22,12 +22,71 @@
 /* based on Wei Dai's misc.cpp from CryptoPP */
 
 
-#include "runtime.hpp"
 #include "misc.hpp"
 #include <new>        // for NewHandler
 
 
+void* operator new(size_t sz, TaoCrypt::new_t)
+{
+    void* ptr = malloc(sz ? sz : 1);
+    if (!ptr) abort();
+
+    return ptr;
+}
+
+void* operator new[](size_t sz, TaoCrypt::new_t)
+{
+    void* ptr = malloc(sz ? sz : 1);
+    if (!ptr) abort();
+
+    return ptr;
+}
+
+void operator delete(void* ptr, TaoCrypt::new_t)
+{
+    if (ptr) free(ptr);
+}
+
+void operator delete[](void* ptr, TaoCrypt::new_t)
+{
+    if (ptr) free(ptr);
+}
+
+
+/* uncomment to test
+// make sure not using globals anywhere by forgetting to use overloaded
+void* operator new(size_t sz)
+{
+    assert(0);
+    return malloc(sz);
+}
+
+void operator delete(void* ptr)
+{
+    assert(0);
+}
+
+void* operator new[](size_t sz)
+{
+    assert(0);
+    return malloc(sz);
+}
+
+void operator delete[](void* ptr)
+{
+    assert(0);
+}
+*/
+
+/* namespace GCC_ABI {
+    extern "C" int __cxa_pure_virtual() { assert(0); return 0; }
+} */
+
+
 namespace TaoCrypt {
+
+
+new_t tc;   // for library new
 
 
 inline void XorWords(word* r, const word* a, unsigned int n)
@@ -90,7 +149,8 @@ unsigned long Crop(unsigned long value, unsigned int size)
 }
 
 
-#if !(defined(_MSC_VER) && (_MSC_VER < 1300))
+#if !(defined(_MSC_VER) && (_MSC_VER < 1300)) && \
+    !(defined(__HP_aCC) && (__HP_aCC <= 35700))
 using std::new_handler;
 using std::set_new_handler;
 #endif

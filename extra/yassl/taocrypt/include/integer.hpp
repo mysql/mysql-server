@@ -136,9 +136,8 @@ public:
 
         ~Integer() {}
       
-        static const Integer &Zero();
-        static const Integer &One();
-        static const Integer &Two();
+        static const Integer& Zero();
+        static const Integer& One();
 
         Integer& Ref() { return *this; }
 
@@ -252,9 +251,6 @@ private:
     friend class ModularArithmetic;
     friend class MontgomeryRepresentation;
 
-    static const Integer zero;
-    static const Integer one;
-    static const Integer two;
     Integer(word value, unsigned int length);
     int PositiveCompare(const Integer& t) const;
 
@@ -267,6 +263,9 @@ private:
                                Integer& dividend, const Integer& divisor);
     AlignedWordBlock reg_;
     Sign             sign_;
+
+    static const Integer zero_;
+    static const Integer one_;
 };
 
 inline bool operator==(const Integer& a, const Integer& b) 

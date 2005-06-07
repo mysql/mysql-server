@@ -54,7 +54,7 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /subsystem:console /map /debug  /out:"..\mysql-test\mysql_test_run_new.exe" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib bufferoverflowU.lib /nologo /subsystem:console /incremental:no /map /debug  /out:"..\mysql-test\mysql_test_run_new.exe" /machine:IA64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console /incremental:no /libpath:"..\lib_debug\" /map /debug  /out:"..\mysql-test\mysql_test_run_new.exe" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "mysql_test_run_new - WinIA64 Release"
@@ -83,7 +83,7 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /subsystem:console  /out:"..\mysql-test\mysql_test_run_new.exe" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 t kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"..\mysql-test\mysql_test_run_new.exe" /machine:IA64
+# ADD LINK32 t kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console /libpath:"..\lib_release\" /out:"..\mysql-test\mysql_test_run_new.exe" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 

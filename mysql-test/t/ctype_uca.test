@@ -455,3 +455,18 @@ drop table t1;
 
 SET collation_connection='utf8_unicode_ci';
 -- source include/ctype_filesort.inc
+
+#
+# Check UPPER/LOWER changeing length
+#
+# Result shorter than argument
+CREATE TABLE t1 (id int, a varchar(30) character set utf8);
+INSERT INTO t1 VALUES (1, _ucs2 0x01310069), (2, _ucs2 0x01310131);
+INSERT INTO t1 VALUES (3, _ucs2 0x00690069), (4, _ucs2 0x01300049);
+INSERT INTO t1 VALUES (5, _ucs2 0x01300130), (6, _ucs2 0x00490049);
+SELECT a, length(a) la, @l:=lower(a) l, length(@l) ll, @u:=upper(a) u, length(@u) lu
+FROM t1 ORDER BY id;
+ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf8 collate utf8_turkish_ci;
+SELECT a, length(a) la, @l:=lower(a) l, length(@l) ll, @u:=upper(a) u, length(@u) lu
+FROM t1 ORDER BY id;
+DROP TABLE t1;

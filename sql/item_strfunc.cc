@@ -20,7 +20,7 @@
 ** (This shouldn't be needed)
 */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -900,7 +900,7 @@ void Item_func_insert::fix_length_and_dec()
 }
 
 
-String *Item_func_lcase::val_str(String *str)
+String *Item_str_conv::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res;
@@ -910,24 +910,25 @@ String *Item_func_lcase::val_str(String *str)
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  res=copy_if_not_alloced(str,res,res->length());
-  res->casedn();
-  return res;
-}
-
-
-String *Item_func_ucase::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  String *res;
-  if (!(res=args[0]->val_str(str)))
+  if (multiply == 1)
   {
-    null_value=1; /* purecov: inspected */
-    return 0; /* purecov: inspected */
+    uint len;
+    res= copy_if_not_alloced(str,res,res->length());
+    len= converter(collation.collation, (char*) res->ptr(), res->length(),
+                                        (char*) res->ptr(), res->length());
+    DBUG_ASSERT(len <= res->length());
+    res->length(len);
   }
-  null_value=0;
-  res=copy_if_not_alloced(str,res,res->length());
-  res->caseup();
+  else
+  {
+    uint len= res->length() * multiply;
+    tmp_value.alloc(len);
+    tmp_value.set_charset(collation.collation);
+    len= converter(collation.collation, (char*) res->ptr(), res->length(),
+                                        (char*) tmp_value.ptr(), len);
+    tmp_value.length(len);
+    res= &tmp_value;
+  }
   return res;
 }
 

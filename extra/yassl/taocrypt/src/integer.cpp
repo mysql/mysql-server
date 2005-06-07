@@ -32,7 +32,6 @@
 #   pragma warning(disable: 4250 4660 4661 4786 4355)
 #endif
 
-#include "runtime.hpp"
 #include "integer.hpp"
 #include "modarith.hpp"
 #include "asn.hpp"
@@ -108,7 +107,7 @@ CPP_TYPENAME AllocatorBase<T>::pointer AlignedAllocator<T>::allocate(
         assert(IsAlignedOn(p, 16));
         return (T*)p;
     }
-    return new T[n];
+    return new (tc) T[n];
 }
 
 
@@ -129,7 +128,7 @@ void AlignedAllocator<T>::deallocate(void* p, size_type n)
         #endif
     }
     else
-        delete [] (T *)p;
+        tcArrayDelete((T *)p);
 }
 
 #endif  // SSE2
@@ -2691,25 +2690,19 @@ unsigned int Integer::Encode(byte* output, unsigned int outputLen,
 }
 
 
-const Integer Integer::zero(1,2);
+const Integer Integer::zero_;
 
 const Integer &Integer::Zero()
 {
-    return zero;
+    return zero_;
 }
 
-const Integer Integer::one(1,2);
+
+const Integer Integer::one_(1,2);
 
 const Integer &Integer::One()
 {
-    return one;
-}
-
-const Integer Integer::two(1,2);
-
-const Integer &Integer::Two()
-{
-    return two;
+    return one_;
 }
 
 
@@ -3947,10 +3940,10 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
 }
 
 #ifdef __GNUC__
-template unsigned int DivideThreeWordsByTwo<unsigned int, DWord>(unsigned int*, unsigned int, unsigned int, DWord*);
-#if defined(SSE2_INTRINSICS_AVAILABLE)
-template AlignedAllocator<unsigned int>::pointer StdReallocate<unsigned int, AlignedAllocator<unsigned int> >(AlignedAllocator<unsigned int>&, unsigned int*, AlignedAllocator<unsigned int>::size_type, AlignedAllocator<unsigned int>::size_type, bool);
+#ifndef TAOCRYPT_NATIVE_DWORD_AVAILABLE
+template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
 #endif
+template word DivideThreeWordsByTwo<word, DWord>(word*, word, word, DWord*);
 #endif
 
 } // namespace

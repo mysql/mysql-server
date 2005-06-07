@@ -128,7 +128,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       /* it is join view => we need to find table for update */
       List_iterator_fast<Item> it(fields);
       Item *item;
-      TABLE_LIST *tbl= 0;
+      TABLE_LIST *tbl= 0;            // reset for call to check_single_table()
       table_map map= 0;
 
       while ((item= it++))
@@ -699,7 +699,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
   if (setup_tables(thd, table_list, where, &thd->lex->select_lex.leaf_tables,
-		   FALSE, select_insert))
+		   select_insert))
     DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
@@ -916,6 +916,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
+        if (thd->clear_next_insert_id)
+        {
+          /* Reset auto-increment cacheing if we do an update */
+          thd->clear_next_insert_id= 0;
+          thd->next_insert_id= 0;
+        }
         if ((error=table->file->update_row(table->record[1],table->record[0])))
 	{
 	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
@@ -949,6 +955,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_BEFORE, TRUE))
             goto before_trg_err;
+          if (thd->clear_next_insert_id)
+          {
+            /* Reset auto-increment cacheing if we do an update */
+            thd->clear_next_insert_id= 0;
+            thd->next_insert_id= 0;
+          }
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
             goto err;
@@ -1012,6 +1024,7 @@ ok_or_after_trg_err:
 
 err:
   info->last_errno= error;
+  thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
 
 before_trg_err:
@@ -1081,7 +1094,7 @@ public:
   volatile bool status,dead;
   COPY_INFO info;
   I_List<delayed_row> rows;
-  uint group_count;
+  ulong group_count;
   TABLE_LIST table_list;			// Argument
 
   delayed_insert()
@@ -1211,10 +1224,13 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
         Avoid that a global read lock steps in while we are creating the
         new thread. It would block trying to open the table. Hence, the
         DI thread and this thread would wait until after the global
-        readlock is gone. If the read lock exists already, we leave with
-        no table and then switch to non-delayed insert.
+        readlock is gone. Since the insert thread needs to wait for a
+        global read lock anyway, we do it right now. Note that
+        wait_if_global_read_lock() sets a protection against a new
+        global read lock when it succeeds. This needs to be released by
+        start_waiting_global_read_lock().
       */
-      if (set_protect_against_global_read_lock())
+      if (wait_if_global_read_lock(thd, 0, 1))
         goto err;
       if (!(tmp=new delayed_insert()))
       {
@@ -1256,7 +1272,11 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
-      unset_protect_against_global_read_lock();
+      /*
+        Release the protection against the global read lock and wake
+        everyone, who might want to set a global read lock.
+      */
+      start_waiting_global_read_lock(thd);
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -1292,7 +1312,11 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 
  err1:
   thd->fatal_error();
-  unset_protect_against_global_read_lock();
+  /*
+    Release the protection against the global read lock and wake
+    everyone, who might want to set a global read lock.
+  */
+  start_waiting_global_read_lock(thd);
  err:
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(0); // Continue with normal insert
@@ -1650,7 +1674,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
         handler will close the table and finish when the outstanding
         inserts are done.
       */
-      if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1, TRUE)))
+      if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
+                                          MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK)))
       {
 	/* Fatal error */
 	di->dead= 1;
@@ -1741,7 +1766,7 @@ static void free_delayed_insert_blobs(register TABLE *table)
 bool delayed_insert::handle_inserts(void)
 {
   int error;
-  uint max_rows;
+  ulong max_rows;
   bool using_ignore=0, using_bin_log=mysql_bin_log.is_open();
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
@@ -1760,11 +1785,11 @@ bool delayed_insert::handle_inserts(void)
   }
 
   thd.proc_info="insert";
-  max_rows=delayed_insert_limit;
+  max_rows= delayed_insert_limit;
   if (thd.killed || table->s->version != refresh_version)
   {
     thd.killed= THD::KILL_CONNECTION;
-    max_rows= ~0;				// Do as much as possible
+    max_rows= ~(ulong)0;                        // Do as much as possible
   }
 
   /*

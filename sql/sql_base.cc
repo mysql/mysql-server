@@ -446,8 +446,12 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   if (thd->locked_tables || prelocked_mode)
   {
     /*
-      TODO: It is not 100% clear whenever we should do ha_commit_stmt() for
-            sub-statements. This issue needs additional investigation.
+      Let us commit transaction for statement. Since in 5.0 we only have
+      one statement transaction and don't allow several nested statement
+      transactions this call will do nothing if we are inside of stored
+      function or trigger (i.e. statement transaction is already active and
+      does not belong to statement for which we do close_thread_tables()).
+      TODO: This should be fixed in later releases.
     */
     ha_commit_stmt(thd);
 
@@ -753,7 +757,7 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
   t_name= table->table_name;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
-  for(;;)
+  for (;;)
   {
     if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
         (!res->table || res->table != table->table) &&
@@ -1384,7 +1388,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     MYSQL_LOCK *lock;
     /* We should always get these locks */
     thd->some_tables_deleted=0;
-    if ((lock=mysql_lock_tables(thd,tables,(uint) (tables_ptr-tables))))
+    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables), 0)))
     {
       thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
     }
@@ -2022,7 +2026,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     {
       DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
-	if (!(thd->lock=mysql_lock_tables(thd,&table_list->table,1)))
+	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1, 0)))
 	  table= 0;
     }
   }
@@ -2096,7 +2100,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   SYNOPSIS
     open_normal_and_derived_tables
     thd		- thread handler
-    tables	- list of tables for open&locking
+    tables	- list of tables for open
 
   RETURN
     FALSE - ok
@@ -2237,7 +2241,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       thd->options|= OPTION_TABLE_LOCK;
     }
 
-    if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))
+    if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start), 0)))
     {
       if (thd->lex->requires_prelocking())
       {
@@ -3208,7 +3212,7 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 */
 
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-                  TABLE_LIST **leaves, bool refresh, bool select_insert)
+                  TABLE_LIST **leaves, bool select_insert)
 {
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
@@ -3222,7 +3226,8 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
   if (!(*leaves))
     make_leaves_list(leaves, tables);
 
-  for (TABLE_LIST *table_list= *leaves;
+  TABLE_LIST *table_list;
+  for (table_list= *leaves;
        table_list;
        table_list= table_list->next_leaf, tablenr++)
   {
@@ -3261,17 +3266,14 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
     my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
     DBUG_RETURN(1);
   }
-  if (!refresh)
+  for (table_list= tables;
+       table_list;
+       table_list= table_list->next_local)
   {
-    for (TABLE_LIST *table_list= tables;
-	 table_list;
-	 table_list= table_list->next_local)
-    {
-      if (table_list->ancestor &&
-	table_list->setup_ancestor(thd, conds,
-				   table_list->effective_with_check))
-        DBUG_RETURN(1);
-    }
+    if (table_list->ancestor &&
+        table_list->setup_ancestor(thd, conds,
+                                   table_list->effective_with_check))
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
