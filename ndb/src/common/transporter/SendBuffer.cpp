@@ -60,7 +60,7 @@ SendBuffer::bufferSize() {
 }
 
 Uint32
-SendBuffer::bufferSizeRemaining() {
+SendBuffer::bufferSizeRemaining() const {
   return (sizeOfBuffer - dataSize);
 }
 
