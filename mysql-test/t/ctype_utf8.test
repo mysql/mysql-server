@@ -744,4 +744,5 @@ create table t1 (
 insert into t1 values (1,'Durban North');
 insert into t1 values (2,'Durban');
 select * from t1 where city = 'Durban';
+select * from t1 where city = 'Durban ';
 drop table t1;
