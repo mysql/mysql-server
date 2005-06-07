@@ -3897,20 +3897,21 @@ void Dblqh::execACCKEYCONF(Signal* signal)
    * EITHER TO THE TC BLOCK OR DIRECTLY TO THE APPLICATION. THE SCHEMA VERSION
    * IS NEEDED SINCE TWO SCHEMA VERSIONS CAN BE ACTIVE SIMULTANEOUSLY ON A 
    * TABLE.
-   * ------------------------------------------------------------------------ */
-  if (regTcPtr->operation == ZWRITE) {
-    if (signal->theData[1] > 0) {
-      /* --------------------------------------------------------------------
-       * ACC did perform an insert and thus we should indicate that the WRITE 
-       * is an INSERT otherwise it is an UPDATE.
-       * -------------------------------------------------------------------- */
-      jam();
-      regTcPtr->operation = ZINSERT;
-    } else {
-      jam();
-      tcConnectptr.p->operation = ZUPDATE;
-    }//if
+   * ----------------------------------------------------------------------- */
+  if (regTcPtr->operation == ZWRITE) 
+  {
+    Uint32 op= signal->theData[1];
+    if(likely(op == ZINSERT || op == ZUPDATE))
+    {
+      regTcPtr->operation = op;
+    }
+    else
+    {
+      warningEvent("Convering %d to ZUPDATE", op);
+      regTcPtr->operation = ZUPDATE;
+    }
   }//if
+  
   ndbrequire(localKeyFlag == 1);
   localKey2 = localKey1 & MAX_TUPLES_PER_PAGE;
   localKey1 = localKey1 >> MAX_TUPLES_BITS;
