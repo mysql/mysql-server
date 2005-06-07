@@ -667,8 +667,10 @@ int THD::send_explain_fields(select_result *result)
   CHARSET_INFO *cs= system_charset_info;
   field_list.push_back(new Item_return_int("id",3, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
-  field_list.push_back(new Item_empty_string("table", NAME_LEN, cs));
-  field_list.push_back(new Item_empty_string("type", 10, cs));
+  field_list.push_back(item= new Item_empty_string("table", NAME_LEN, cs));
+  item->maybe_null= 1;
+  field_list.push_back(item= new Item_empty_string("type", 10, cs));
+  item->maybe_null= 1;
   field_list.push_back(item=new Item_empty_string("possible_keys",
 						  NAME_LEN*MAX_KEY, cs));
   item->maybe_null=1;
@@ -680,7 +682,9 @@ int THD::send_explain_fields(select_result *result)
   field_list.push_back(item=new Item_empty_string("ref",
 						  NAME_LEN*MAX_REF_PARTS, cs));
   item->maybe_null=1;
-  field_list.push_back(new Item_return_int("rows", 10, MYSQL_TYPE_LONGLONG));
+  field_list.push_back(item= new Item_return_int("rows", 10,
+                                                 MYSQL_TYPE_LONGLONG));
+  item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
   return (result->send_fields(field_list,1));
 }
