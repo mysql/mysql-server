@@ -43,7 +43,7 @@ Item_buff::~Item_buff() {}
 */
 
 Item_str_buff::Item_str_buff(THD *thd, Item *arg)
-  :item(arg), value(min(arg->max_length, thd->variables. max_sort_length))
+  :item(arg), value(min(arg->max_length, thd->variables.max_sort_length))
 {}
 
 bool Item_str_buff::cmp(void)
