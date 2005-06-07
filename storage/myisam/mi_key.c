@@ -107,7 +107,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     if (keyseg->flag & HA_SPACE_PACK)
     {
-      end=pos+length;
+      end= pos + length;
       if (type != HA_KEYTYPE_NUM)
       {
 	while (end > pos && end[-1] == ' ')

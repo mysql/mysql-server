@@ -68,8 +68,8 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
 			       info->lastkey_length,SEARCH_BIGGER,
 			       info->s->state.key_root[inx])))
           break;
-        if (ha_key_cmp(keyinfo->seg,info->lastkey2,info->lastkey,
-		    info->last_rkey_length, SEARCH_FIND, &not_used))
+        if (ha_key_cmp(keyinfo->seg, info->lastkey, info->lastkey2,
+                       info->last_rkey_length, SEARCH_FIND, &not_used))
         {
           error=1;
           my_errno=HA_ERR_END_OF_FILE;
