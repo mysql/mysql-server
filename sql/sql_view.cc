@@ -1000,8 +1000,9 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     we do not support updatable UNIONs in VIEW, so we can check just limit of
     LEX::select_lex
   */
-  if ((!view->view && !view->belong_to_view) || thd->lex->sql_command == SQLCOM_INSERT ||
-      thd->lex->select_lex.select_limit == HA_POS_ERROR)
+  if ((!view->view && !view->belong_to_view) ||
+      thd->lex->sql_command == SQLCOM_INSERT ||
+      thd->lex->select_lex.select_limit == 0)
     DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
   table= view->table;
   if (view->belong_to_view)

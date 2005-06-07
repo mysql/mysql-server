@@ -331,6 +331,7 @@ fi
 # Save libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
+(cd ndb/src/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
 # Now clean up
 make clean
@@ -630,6 +631,8 @@ fi
 %{_libdir}/mysql/libmysqlclient_r.la
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
+%{_libdir}/mysql/libndbclient.a
+%{_libdir}/mysql/libndbclient.la
 %{_libdir}/mysql/libvio.a
 
 %files shared
@@ -662,6 +665,7 @@ fi
 * Mon Jun 06 2005 Lenz Grimmer <lenz@mysql.com>
 
 - added mysql_client_test to the "bench" subpackage (BUG 10676)
+- added the libndbclient static and shared libraries (BUG 10676)
 
 * Wed Jun 01 2005 Lenz Grimmer <lenz@mysql.com>
 
