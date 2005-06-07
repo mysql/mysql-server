@@ -972,7 +972,8 @@ static int read_lines(bool execute_commands)
           *p = '\0';
       }
 #else
-      linebuffer[0]= (char) sizeof(linebuffer);
+      /* _cgets() expects the buffer size - 3 as the first byte */
+      linebuffer[0]= (char) sizeof(linebuffer) - 3;
       line= _cgets(linebuffer);
 #endif /* __NETWARE__ */
 #else
