@@ -382,6 +382,9 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
+const key_map key_map_empty(0);
+key_map key_map_full(0);                        // Will be initialized later
+
 const char *opt_date_time_formats[3];
 
 char *mysql_data_home= mysql_real_data_home;
@@ -5933,7 +5936,8 @@ static void mysql_init_variables(void)
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
   opt_large_pages= 0;
-  
+  key_map_full.set_all();
+
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;
   files_charset_info= &my_charset_utf8_general_ci;

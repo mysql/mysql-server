@@ -7,3 +7,15 @@ SELECT a, length(a), a='', a=' ', a='  ' FROM t1;
 a	length(a)	a=''	a=' '	a='  '
 	0	1	1	1
 DROP TABLE t1;
+CREATE TABLE t1 (
+popisek varchar(30) collate cp1250_general_ci NOT NULL default '',
+PRIMARY KEY  (`popisek`)
+);
+INSERT INTO t1 VALUES ('2005-01-1');
+SELECT * FROM t1 WHERE popisek = '2005-01-1';
+popisek
+2005-01-1
+SELECT * FROM t1 WHERE popisek LIKE '2005-01-1';
+popisek
+2005-01-1
+drop table t1;

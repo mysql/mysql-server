@@ -1107,7 +1107,7 @@ public:
   volatile bool status,dead;
   COPY_INFO info;
   I_List<delayed_row> rows;
-  uint group_count;
+  ulong group_count;
   TABLE_LIST table_list;			// Argument
 
   delayed_insert()
@@ -1779,7 +1779,7 @@ static void free_delayed_insert_blobs(register TABLE *table)
 bool delayed_insert::handle_inserts(void)
 {
   int error;
-  uint max_rows;
+  ulong max_rows;
   bool using_ignore=0, using_bin_log=mysql_bin_log.is_open();
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
@@ -1798,11 +1798,11 @@ bool delayed_insert::handle_inserts(void)
   }
 
   thd.proc_info="insert";
-  max_rows=delayed_insert_limit;
+  max_rows= delayed_insert_limit;
   if (thd.killed || table->s->version != refresh_version)
   {
     thd.killed= THD::KILL_CONNECTION;
-    max_rows= ~(uint)0;				// Do as much as possible
+    max_rows= ~(ulong)0;                        // Do as much as possible
   }
 
   /*
