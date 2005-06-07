@@ -34,18 +34,21 @@
   don't have to synchronize between threads.
 */
 
+#define USUAL_INSTANCE 0
+#define DEFAULT_SINGLE_INSTANCE 1
+
 class Instance_options
 {
 public:
   Instance_options() :
-    mysqld_socket(0), mysqld_datadir(0),
+    mysqld_version(0), mysqld_socket(0), mysqld_datadir(0),
     mysqld_bind_address(0), mysqld_pid_file(0), mysqld_port(0),
     mysqld_port_val(0), mysqld_path(0), nonguarded(0), shutdown_delay(0),
     shutdown_delay_val(0), filled_default_options(0)
   {}
   ~Instance_options();
   /* fills in argv */
-  int complete_initialization(const char *default_path, int only_instance);
+  int complete_initialization(const char *default_path, uint instance_type);
 
   int add_option(const char* option);
   int init(const char *instance_name_arg);
@@ -64,6 +67,11 @@ public:
   enum { MEM_ROOT_BLOCK_SIZE= 512 };
   char pid_file_with_path[MAX_PATH_LEN];
   char **argv;
+  /*
+    Here we cache the version string, obtained from mysqld --version.
+    In the case when mysqld binary is not found we get NULL here.
+  */
+  const char *mysqld_version;
   /* We need the some options, so we store them as a separate pointers */
   const char *mysqld_socket;
   const char *mysqld_datadir;
@@ -74,6 +82,7 @@ public:
   const char *instance_name;
   uint instance_name_len;
   const char *mysqld_path;
+  uint mysqld_path_len;
   const char *nonguarded;
   const char *shutdown_delay;
   uint shutdown_delay_val;
@@ -84,6 +93,7 @@ public:
   DYNAMIC_ARRAY options_array;
 private:
   int fill_log_options();
+  int fill_instance_version();
   int add_to_argv(const char *option);
   int get_default_option(char *result, size_t result_len,
                          const char *option_name);
