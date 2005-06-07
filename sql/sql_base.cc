@@ -446,8 +446,12 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   if (thd->locked_tables || prelocked_mode)
   {
     /*
-      TODO: It is not 100% clear whenever we should do ha_commit_stmt() for
-            sub-statements. This issue needs additional investigation.
+      Let us commit transaction for statement. Since in 5.0 we only have
+      one statement transaction and don't allow several nested statement
+      transactions this call will do nothing if we are inside of stored
+      function or trigger (i.e. statement transaction is already active and
+      does not belong to statement for which we do close_thread_tables()).
+      TODO: This should be fixed in later releases.
     */
     ha_commit_stmt(thd);
 

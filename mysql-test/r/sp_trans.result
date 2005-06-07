@@ -1,3 +1,4 @@
+drop table if exists t1, t2;
 drop procedure if exists bug8850|
 create table t1 (a int) engine=innodb|
 create procedure bug8850()
@@ -20,3 +21,160 @@ a
 2
 drop table t1|
 drop procedure bug8850|
+drop function if exists bug10015_1|
+drop function if exists bug10015_2|
+drop function if exists bug10015_3|
+drop function if exists bug10015_4|
+drop function if exists bug10015_5|
+drop function if exists bug10015_6|
+drop function if exists bug10015_7|
+drop procedure if exists bug10015_8|
+create table t1 (id int) engine=innodb|
+create table t2 (id int primary key, j int) engine=innodb|
+insert into t1 values (1),(2),(3)|
+create function bug10015_1() returns int return (select count(*) from t1)|
+select *, bug10015_1() from t1|
+id	bug10015_1()
+1	3
+2	3
+3	3
+drop function bug10015_1|
+create function bug10015_2() returns int 
+begin
+declare i, s int;
+set i:= (select min(id) from t1);
+set s:= (select max(id) from t1);
+return (s - i);
+end|
+select *, bug10015_2() from t1|
+id	bug10015_2()
+1	2
+2	2
+3	2
+drop function bug10015_2|
+create function bug10015_3() returns int 
+return (select max(a.id - b.id) from t1 as a, t1 as b where a.id >= b.id)|
+select *, bug10015_3() from t1|
+id	bug10015_3()
+1	2
+2	2
+3	2
+drop function bug10015_3|
+create function bug10015_4(i int) returns int 
+begin
+declare m int;
+set m:= (select max(id) from t2);
+insert into t2 values (i, m);
+return m;
+end|
+select *, bug10015_4(id) from t1|
+id	bug10015_4(id)
+1	NULL
+2	1
+3	2
+select * from t2|
+id	j
+1	NULL
+2	1
+3	2
+drop function bug10015_4|
+create function bug10015_5(i int) returns int
+begin
+if (i = 5) then
+insert into t2 values (1, 0);
+end if;
+return i;
+end|
+insert into t1 values (bug10015_5(4)), (bug10015_5(5))|
+ERROR 23000: Duplicate entry '1' for key 1
+select * from t1|
+id
+1
+2
+3
+drop function bug10015_5|
+create function bug10015_6(i int) returns int
+begin
+declare continue handler for sqlexception set @error_in_func:= 1;
+if (i = 5) then
+insert into t2 values (4, 0), (1, 0);
+end if;
+return i;
+end|
+set @error_in_func:= 0|
+insert into t1 values (bug10015_6(5)), (bug10015_6(6))|
+select @error_in_func|
+@error_in_func
+1
+select * from t1|
+id
+1
+2
+3
+5
+6
+select * from t2|
+id	j
+1	NULL
+2	1
+3	2
+4	0
+drop function bug10015_6|
+create function bug10015_7() returns int
+begin
+alter table t1 add k int;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+create function bug10015_7() returns int
+begin
+start transaction;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+create function bug10015_7() returns int
+begin
+drop table t1;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+create function bug10015_7() returns int
+begin
+drop temporary table t1;
+return 1;
+end|
+drop function bug10015_7|
+create function bug10015_7() returns int
+begin
+commit;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+create function bug10015_7() returns int
+begin
+call bug10015_8();
+return 1;
+end|
+create procedure bug10015_8() alter table t1 add k int|
+select *, bug10015_7() from t1|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop procedure bug10015_8|
+create procedure bug10015_8() start transaction|
+select *, bug10015_7() from t1|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop procedure bug10015_8|
+create procedure bug10015_8() drop temporary table if exists t1_temp|
+select *, bug10015_7() from t1|
+id	bug10015_7()
+1	1
+2	1
+3	1
+5	1
+6	1
+drop procedure bug10015_8|
+create procedure bug10015_8() commit|
+select *, bug10015_7() from t1|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop procedure bug10015_8|
+drop function bug10015_7|
+drop table t1, t2|

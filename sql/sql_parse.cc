@@ -125,6 +125,11 @@ static bool end_active_trans(THD *thd)
 {
   int error=0;
   DBUG_ENTER("end_active_trans");
+  if (unlikely(thd->transaction.in_sub_stmt))
+  {
+    my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+    DBUG_RETURN(1);
+  }
   if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
@@ -143,6 +148,15 @@ static bool end_active_trans(THD *thd)
 static bool begin_trans(THD *thd)
 {
   int error=0;
+  /*
+    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
+        stored routines as SQL2003 suggests?
+  */
+  if (unlikely(thd->transaction.in_sub_stmt))
+  {
+    my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+    return 1;
+  }
   if (thd->locked_tables)
   {
     thd->lock=thd->locked_tables;
@@ -1338,6 +1352,15 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   int res= 0;
   DBUG_ENTER("end_trans");
 
+  /*
+    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
+        stored routines as SQL2003 suggests?
+  */
+  if (unlikely(thd->transaction.in_sub_stmt))
+  {
+    my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+    DBUG_RETURN(1);
+  }
   switch (completion) {
   case COMMIT:
     /*
