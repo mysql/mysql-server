@@ -23,13 +23,13 @@
 ** Create right type of item_buffer for an item
 */
 
-Item_buff *new_Item_buff(Item *item)
+Item_buff *new_Item_buff(THD *thd, Item *item)
 {
   if (item->type() == Item::FIELD_ITEM &&
       !(((Item_field *) item)->field->flags & BLOB_FLAG))
     return new Item_field_buff((Item_field *) item);
   if (item->result_type() == STRING_RESULT)
-    return new Item_str_buff((Item_field *) item);
+    return new Item_str_buff(thd, (Item_field *) item);
   if (item->result_type() == INT_RESULT)
     return new Item_int_buff((Item_field *) item);
   return new Item_real_buff(item);
@@ -42,12 +42,17 @@ Item_buff::~Item_buff() {}
 ** Return true if values have changed
 */
 
+Item_str_buff::Item_str_buff(THD *thd, Item *arg)
+  :item(arg), value(min(arg->max_length, thd->variables.max_sort_length))
+{}
+
 bool Item_str_buff::cmp(void)
 {
   String *res;
   bool tmp;
 
   res=item->val_str(&tmp_value);
+  res->length(min(res->length(), value.alloced_length()));
   if (null_value != item->null_value)
   {
     if ((null_value= item->null_value))

@@ -20,8 +20,8 @@
   NDB Cluster
 */
 
-#ifdef __GNUC__
-#pragma implementation                          // gcc: Class implementation
+#ifdef USE_PRAGMA_IMPLEMENTATION
+#pragma implementation				// gcc: Class implementation
 #endif
 
 #include "mysql_priv.h"

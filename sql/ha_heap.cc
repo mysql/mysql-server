@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -484,7 +484,6 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 
     for (; key_part != key_part_end; key_part++, seg++)
     {
-      uint flag=    key_part->key_type;
       Field *field= key_part->field;
       if (pos->algorithm == HA_KEY_ALG_BTREE)
 	seg->type= field->key_type();

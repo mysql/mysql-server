@@ -76,9 +76,6 @@ if [ $BASE_SYSTEM != "netware" ] ; then
 fi
 
 for i in ChangeLog \
-         Docs/manual.html \
-         Docs/manual.txt \
-         Docs/manual_toc.html \
 				 Docs/mysql.info
 do
   if [ -f $i ]

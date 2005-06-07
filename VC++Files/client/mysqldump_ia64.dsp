@@ -53,7 +53,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib /nologo /subsystem:console  /machine:IA64
-# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"../client_release/mysqldump.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console  /out:"../client_release/mysqldump.exe" /libpath:"..\lib_release\\" /machine:IA64
 
 !ELSEIF  "$(CFG)" == "mysqldump - WinIA64 Debug"
 
@@ -79,7 +79,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib /nologo /subsystem:console /debug  /machine:IA64
-# ADD LINK32 ..\lib_debug\dbug.lib ..\lib_debug\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib bufferoverflowU.lib /nologo /subsystem:console /incremental:no /debug  /out:"../client_debug/mysqldump.exe" /libpath:"..\lib_debug\\" /machine:IA64
+# ADD LINK32 ..\lib_debug\dbug.lib ..\lib_debug\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console /incremental:no /debug  /out:"../client_debug/mysqldump.exe" /libpath:"..\lib_debug\\" /machine:IA64
 
 !ELSEIF  "$(CFG)" == "mysqldump - WinIA64 classic"
 
@@ -107,7 +107,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib /nologo /subsystem:console  /out:"../client_release/mysqldump.exe" /libpath:"..\lib_release\\" /machine:IA64
-# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"../client_classic/mysqldump.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysys.lib bufferoverflowU.lib zlib.lib /nologo /subsystem:console  /out:"../client_classic/mysqldump.exe" /libpath:"..\lib_release\\" /machine:IA64
 
 !ENDIF 
 

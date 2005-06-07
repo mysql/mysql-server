@@ -561,7 +561,6 @@ bool is_update_query(enum enum_sql_command command)
 
 static void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
 {
-  bool error= 0;
   time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   DBUG_ENTER("time_out_user_resource_limits");
 
@@ -587,7 +586,6 @@ static bool check_mqh(THD *thd, uint check_command)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool error= 0;
-  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
@@ -2443,6 +2441,24 @@ mysql_execute_command(THD *thd)
       lex->create_info.default_table_charset= lex->create_info.table_charset;
       lex->create_info.table_charset= 0;
     }
+    /*
+      The create-select command will open and read-lock the select table
+      and then create, open and write-lock the new table. If a global
+      read lock steps in, we get a deadlock. The write lock waits for
+      the global read lock, while the global read lock waits for the
+      select table to be closed. So we wait until the global readlock is
+      gone before starting both steps. Note that
+      wait_if_global_read_lock() sets a protection against a new global
+      read lock when it succeeds. This needs to be released by
+      start_waiting_global_read_lock(). We protect the normal CREATE
+      TABLE in the same way. That way we avoid that a new table is
+      created during a gobal read lock.
+    */
+    if (wait_if_global_read_lock(thd, 0, 1))
+    {
+      res= -1;
+      goto unsent_create_error;
+    }
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
@@ -2493,13 +2509,12 @@ mysql_execute_command(THD *thd)
       if (!res)
 	send_ok(thd);
     }
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
 
-    // put tables back for PS rexecuting
-    tables= lex->link_first_table_back(tables, create_table,
-				       create_table_local);
-    break;
-
-    res= 1; //error reported
 unsent_create_error:
     // put tables back for PS rexecuting
     tables= lex->link_first_table_back(tables, create_table,
@@ -2823,8 +2838,8 @@ unsent_create_error:
       
     TABLE *table= tables->table;
     /* Skip first table, which is the table we are inserting in */
-    lex->select_lex.table_list.first= (byte*) first_local_table->next;
-    tables= (TABLE_LIST *) lex->select_lex.table_list.first;
+    select_lex->table_list.first= (byte*) first_local_table->next;
+    tables= (TABLE_LIST *) select_lex->table_list.first;
     first_local_table->next= 0;
     
     if (!(res= mysql_prepare_insert(thd, tables, first_local_table, 
@@ -5394,6 +5409,7 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
     1   error (message is sent to user)
     -1  error (message is not sent to user)
 */
+
 int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
 {
   DBUG_ENTER("multi_delete_precheck");

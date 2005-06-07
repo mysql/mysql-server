@@ -184,7 +184,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
   ptr[2]= tables[2].table;
-  if (!(lock=mysql_lock_tables(thd,ptr,3)))
+  if (! (lock= mysql_lock_tables(thd, ptr, 3, 0)))
   {
     sql_print_error("Fatal error: Can't lock privilege tables: %s",
 		    thd->net.last_error);
@@ -1002,7 +1002,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
-  ulong host_access= ~0,db_access= 0;
+  ulong host_access= ~(ulong)0,db_access= 0;
   uint i,key_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
@@ -2658,7 +2658,7 @@ my_bool grant_init(THD *org_thd)
   TABLE *ptr[2];				// Lock tables for quick update
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
-  if (!(lock=mysql_lock_tables(thd,ptr,2)))
+  if (! (lock= mysql_lock_tables(thd, ptr, 2, 0)))
     goto end;
 
   t_table = tables[0].table; c_table = tables[1].table;
@@ -3673,7 +3673,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     if (replace_user_table(thd, tables[0].table,
-			   *lex_user, ~0, 1, 0))
+			   *lex_user, ~(ulong)0, 1, 0))
     {
       result= -1;
       continue;
@@ -3700,7 +3700,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~(ulong)0, 1))
 	  {
 	    /*
 	      Don't increment counter as replace_db_table deleted the
@@ -3734,7 +3734,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
 				  grant_table->db,
 				  grant_table->tname,
-				  ~0, 0, 1))
+				  ~(ulong)0, 0, 1))
 	  {
 	    result= -1;
 	  }
@@ -3750,7 +3750,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				      columns,
 				      grant_table->db,
 				      grant_table->tname,
-				      ~0, 1))
+				      ~(ulong)0, 1))
 	    {
 	      revoked= 1;
 	      continue;

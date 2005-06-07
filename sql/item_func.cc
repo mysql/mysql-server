@@ -17,7 +17,7 @@
 
 /* This file defines all numerical functions */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -1488,6 +1488,7 @@ void Item_func_locate::print(String *str)
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
   if (cmp_type == STRING_RESULT)
   {
     String *field;
@@ -1503,19 +1504,23 @@ longlong Item_func_field::val_int()
   else if (cmp_type == INT_RESULT)
   {
     longlong val= args[0]->val_int();
+    if (args[0]->null_value)
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_int())
- 	return (longlong) (i);
+      if (val == args[i]->val_int() && !args[i]->null_value)
+        return (longlong) (i);
     }
   }
   else
   {
     double val= args[0]->val();
+    if (args[0]->null_value)
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val())
- 	return (longlong) (i);
+      if (val == args[i]->val() && !args[i]->null_value)
+        return (longlong) (i);
     }
   }
   return 0;
@@ -3363,7 +3368,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
-			   system_charset_info);
+			   system_charset_info, DERIVATION_SYSCONST);
 
   Item *item;
   sys_var *var;
