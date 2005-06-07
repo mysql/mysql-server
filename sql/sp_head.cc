@@ -320,7 +320,7 @@ sp_head::sp_head()
     *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
-  state= INITIALIZED;
+  state= INITIALIZED_FOR_SP;
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
@@ -1078,7 +1078,7 @@ sp_head::restore_thd_mem_root(THD *thd)
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;	// The old list
   set_item_arena(thd);          // Get new free_list and mem_root
-  state= INITIALIZED;
+  state= INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
