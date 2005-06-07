@@ -1,0 +1,344 @@
+######################## rpl_ddl.test ########################
+#                                                            #
+# DDL statements (sometimes with implicit COMMIT) executed   #
+# by the master and it's propagation into the slave          #
+#                                                            #
+##############################################################
+
+#
+# NOTE, PLEASE BE CAREFUL, WHEN MODIFYING THE TESTS !!
+#
+#      1. !All! objects to be dropped, renamed, altered ... must be created
+#         in AUTOCOMMIT= 1 mode before AUTOCOMMIT is set to 0 and the test
+#         sequences start.
+#
+#      2. Never use a test object, which was direct or indirect affected by a
+#         preceeding test sequence again.
+#         Except table d1.t1 where ONLY DML is allowed.
+#
+#         If one preceeding test sequence hits a (sometimes not good visible,
+#         because the sql error code of the statement might be 0) bug
+#         and these rules are ignored, a following test sequence might earn ugly
+#         effects like failing 'sync_slave_with_master', crashes of the slave or
+#         abort of the test case etc..
+#
+#      3. The assignment of the DDL command to be tested to $my_stmt can
+#         be a bit difficult. "'" must be avoided, because the test
+#         routine "include/rpl_stmt_seq.inc" performs a
+#         eval SELECT CONCAT('######## ','$my_stmt','  ########') as "";
+#
+
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+###############################################################
+# Some preparations
+###############################################################
+SET AUTOCOMMIT = 1;
+#
+# 1. DROP all objects, which probably already exist, but must be created here
+#
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+DROP DATABASE IF EXISTS mysqltest3;
+--enable_warnings
+#
+# 2. CREATE all objects needed
+#    working database is mysqltest1
+#    working (transactional!) is mysqltest1.t1 
+#
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE= "InnoDB";
+INSERT INTO mysqltest1.t1 SET f1= 0;
+CREATE TABLE mysqltest1.t2 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t3 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t4 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t5 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t6 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE INDEX my_idx6 ON mysqltest1.t6(f1);
+CREATE TABLE mysqltest1.t7 (f1 BIGINT) ENGINE= "InnoDB";
+INSERT INTO mysqltest1.t7 SET f1= 0;
+CREATE TABLE mysqltest1.t8 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t9 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t10 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t11 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t12 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t13 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t14 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t15 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t16 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t17 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t18 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TABLE mysqltest1.t19 (f1 BIGINT) ENGINE= "InnoDB";
+CREATE TEMPORARY TABLE mysqltest1.t23 (f1 BIGINT);
+
+#
+# 3. master sessions: never do AUTOCOMMIT
+#    slave  sessions: never do AUTOCOMMIT
+#
+SET AUTOCOMMIT = 0;
+use mysqltest1;
+sync_slave_with_master;
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SET AUTOCOMMIT = 0;
+use mysqltest1;
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+
+# We don't want to abort the whole test if one statement sent
+# to the server gets an error, because the following test
+# sequences are nearly independend of the previous statements. 
+--disable_abort_on_error
+
+###############################################################
+# Banal case: (explicit) COMMIT and ROLLBACK
+# Just for checking if the test sequence is usable
+###############################################################
+
+let $my_stmt= COMMIT;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+
+let $my_stmt= ROLLBACK;
+let $my_master_commit= false;
+let $my_slave_commit= false;
+--source include/rpl_stmt_seq.inc
+
+###############################################################
+# Cases with commands very similar to COMMIT
+###############################################################
+
+let $my_stmt= SET AUTOCOMMIT=1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SET AUTOCOMMIT=0;
+
+let $my_stmt= START TRANSACTION;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+
+let $my_stmt= BEGIN;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+
+###############################################################
+# Cases with (BASE) TABLES and (UPDATABLE) VIEWs
+###############################################################
+
+let $my_stmt= DROP TABLE mysqltest1.t2;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW TABLES LIKE 't2';
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SHOW TABLES LIKE 't2';
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+# Note: Since this test is executed with a skip-innodb slave, the
+# slave incorrectly commits the insert.  One can *not* have InnoDB on
+# master and MyISAM on slave and expect that a transactional rollback
+# after a CREATE TEMPORARY TABLE should work correctly on the slave.
+# For this to work properly the handler on the slave must be able to 
+# handle transactions (e.g. InnoDB or NDB).
+let $my_stmt= DROP TEMPORARY TABLE mysqltest1.t23;
+let $my_master_commit= false;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW TABLES LIKE 't23';
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SHOW TABLES LIKE 't23';
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+let $my_stmt= RENAME TABLE mysqltest1.t3 to mysqltest1.t20;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW TABLES LIKE 't20';
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SHOW TABLES LIKE 't20';
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+let $my_stmt= ALTER TABLE mysqltest1.t4 ADD column f2 BIGINT;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+describe mysqltest1.t4;
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+describe mysqltest1.t4;
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+let $my_stmt= CREATE TABLE mysqltest1.t21 (f1 BIGINT) ENGINE= "InnoDB";
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+
+# Note: Since this test is executed with a skip-innodb slave, the
+# slave incorrectly commits the insert.  One can *not* have InnoDB on
+# master and MyISAM on slave and expect that a transactional rollback
+# after a CREATE TEMPORARY TABLE should work correctly on the slave.
+# For this to work properly the handler on the slave must be able to 
+# handle transactions (e.g. InnoDB or NDB).
+let $my_stmt= CREATE TEMPORARY TABLE mysqltest1.t22 (f1 BIGINT);
+let $my_master_commit= false;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+
+let $my_stmt= TRUNCATE TABLE mysqltest1.t7;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SELECT * FROM mysqltest1.t7;
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SELECT * FROM mysqltest1.t7;
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+###############################################################
+# Cases with LOCK/UNLOCK
+###############################################################
+
+# MySQL insists in locking mysqltest1.t1, because rpl_stmt_seq performs an
+# INSERT into this table.
+let $my_stmt= LOCK TABLES mysqltest1.t1 WRITE, mysqltest1.t8 READ;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+UNLOCK TABLES;
+
+# No prior locking
+let $my_stmt= UNLOCK TABLES;
+let $my_master_commit= false;
+let $my_slave_commit= false;
+--source include/rpl_stmt_seq.inc
+
+# With prior read locking
+LOCK TABLES mysqltest1.t1 READ;
+let $my_stmt= UNLOCK TABLES;
+let $my_master_commit= false;
+let $my_slave_commit= false;
+--source include/rpl_stmt_seq.inc
+
+# With prior write locking
+LOCK TABLES mysqltest1.t1 WRITE, mysqltest1.t8 READ;
+let $my_stmt= UNLOCK TABLES;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+
+###############################################################
+# Cases with INDEXES
+###############################################################
+
+let $my_stmt= DROP INDEX my_idx6 ON mysqltest1.t6;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW INDEX FROM mysqltest1.t6;
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SHOW INDEX FROM mysqltest1.t6;
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+let $my_stmt= CREATE INDEX my_idx5 ON mysqltest1.t5(f1);
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW INDEX FROM mysqltest1.t5;
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SHOW INDEX FROM mysqltest1.t5;
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+###############################################################
+# Cases with DATABASE
+###############################################################
+
+let $my_stmt= DROP DATABASE mysqltest2;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW DATABASES LIKE "mysqltest2";
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SHOW DATABASES LIKE "mysqltest2";
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+let $my_stmt= CREATE DATABASE mysqltest3;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW DATABASES LIKE "mysqltest3";
+connection slave;
+--disable_query_log
+SELECT '-------- switch to slave --------' as "";
+--enable_query_log
+SHOW DATABASES LIKE "mysqltest3";
+connection master;
+--disable_query_log
+SELECT '-------- switch to master -------' as "";
+--enable_query_log
+
+###############################################################
+# Cleanup
+###############################################################
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+DROP DATABASE IF EXISTS mysqltest3;
+--enable_warnings
