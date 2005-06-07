@@ -95,7 +95,7 @@ int Instance_options::get_default_option(char *result, size_t result_len,
 
   /* +2 eats first "--" from the option string (E.g. "--datadir") */
   rc= parse_output_and_get_value(cmd.buffer, option_name + 2,
-                                   result, result_len);
+                                 result, result_len, GET_VALUE);
 
   return rc;
 err:
@@ -121,9 +121,8 @@ err:
 int Instance_options::fill_instance_version()
 {
   enum { MAX_VERSION_STRING_LENGTH= 160 };
-  enum { RETURN_LINE= 1 };
   char result[MAX_VERSION_STRING_LENGTH];
-  char version_option[]= " --version";
+  char version_option[]= " --no-defaults --version";
   int rc= 1;
   Buffer cmd(mysqld_path_len + sizeof(version_option));
 
@@ -133,7 +132,7 @@ int Instance_options::fill_instance_version()
 
   rc= parse_output_and_get_value(cmd.buffer, mysqld_path,
                                  result, MAX_VERSION_STRING_LENGTH,
-                                 RETURN_LINE);
+                                 GET_LINE);
 
   if (*result != '\0')
   {
@@ -198,8 +197,8 @@ int Instance_options::fill_log_options()
       goto err;
   }
   else           /* below is safe, as --datadir always has a value */
-    strncpy(datadir, strchr(mysqld_datadir, '=') + 1,
-            MAX_LOG_OPTION_LENGTH);
+    strmake(datadir, strchr(mysqld_datadir, '=') + 1,
+            MAX_LOG_OPTION_LENGTH - 1);
 
   if (gethostname(hostname,sizeof(hostname)-1) < 0)
     strmov(hostname, "mysql");
@@ -232,7 +231,7 @@ int Instance_options::fill_log_options()
           if ((MAX_LOG_OPTION_LENGTH - strlen(full_name)) >
               strlen(log_files->default_suffix))
           {
-            strcpy(full_name + strlen(full_name),
+            strmov(full_name + strlen(full_name),
                    log_files->default_suffix);
           }
           else
@@ -338,7 +337,7 @@ pid_t Instance_options::get_pid()
 
 
 int Instance_options::complete_initialization(const char *default_path,
-                                              int only_instance)
+                                              uint instance_type)
 {
   const char *tmp;
 
@@ -369,18 +368,23 @@ int Instance_options::complete_initialization(const char *default_path,
       found, we would like to model mysqld pid file values.
     */
     if (!gethostname(hostname, sizeof(hostname) - 1))
-      (only_instance == 0) ?
-      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name, "-",
-               hostname, ".pid", NullS):
-      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", hostname,
-               ".pid", NullS);
-
+    {
+      if (instance_type & DEFAULT_SINGLE_INSTANCE)
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name, "-",
+                 hostname, ".pid", NullS);
+      else
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", hostname,
+                 ".pid", NullS);
+    }
     else
-      (only_instance == 0) ?
-      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
-               ".pid", NullS):
-      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", "mysql",
-               ".pid", NullS);
+    {
+      if (instance_type & DEFAULT_SINGLE_INSTANCE)
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
+                 ".pid", NullS);
+      else
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", "mysql",
+                 ".pid", NullS);
+    }
 
     add_option(pidfilename);
   }
