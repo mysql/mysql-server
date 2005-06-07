@@ -4673,9 +4673,11 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "more than one storage engine, when binary log is disabled)",
    (gptr*) &opt_tc_log_file, (gptr*) &opt_tc_log_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_MMAP
   {"log-tc-size", OPT_LOG_TC_SIZE, "Size of transaction coordinator log.",
    (gptr*) &opt_tc_log_size, (gptr*) &opt_tc_log_size, 0, GET_ULONG,
    REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ~0L, 0, TC_LOG_PAGE_SIZE, 0},
+#endif
   {"log-update", OPT_UPDATE_LOG,
    "The update log is deprecated since version 5.0, is replaced by the binary \
 log and this option justs turns on --log-bin instead.",
@@ -5817,9 +5819,11 @@ struct show_var_st status_vars[]= {
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
+#ifdef HAVE_MMAP
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
+#endif
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
