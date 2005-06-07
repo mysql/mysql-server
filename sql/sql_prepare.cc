@@ -1838,7 +1838,10 @@ void init_stmt_after_parse(THD *thd, LEX *lex)
     optimisation.
   */
   for (; sl; sl= sl->next_select_in_list())
+  {
     sl->prep_where= sl->where;
+    sl->uncacheable&= ~UNCACHEABLE_PREPARE;
+  }
 
   for (TABLE_LIST *table= lex->query_tables; table; table= table->next_global)
     table->prep_on_expr= table->on_expr;
