@@ -4064,7 +4064,6 @@ replace:
 	}
 	insert_field_spec
 	{}
-	{}
 	;
 
 insert_lock_option:
@@ -5016,7 +5015,31 @@ simple_ident:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
+	| ident '.' ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->db))
+            {
+              net_printf(YYTHD, ER_WRONG_DB_NAME, $1.str);
+              YYABORT;
+            }
+            if (my_strcasecmp(table_alias_charset, $3.str, table->real_name))
+            {
+              net_printf(YYTHD, ER_WRONG_TABLE_NAME, $3.str);
+              YYABORT;
+            }
+            $$=$5;
+          }
+	| ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
+            {
+              net_printf(YYTHD, ER_WRONG_TABLE_NAME, $1.str);
+              YYABORT;
+            }
+            $$=$3;
+          }
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:

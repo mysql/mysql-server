@@ -393,6 +393,7 @@ inline double ulonglong2double(ulonglong value)
 /* #undef HAVE_CHARSET_cp850 */
 /* #undef HAVE_CHARSET_cp852 */
 /* #undef HAVE_CHARSET_cp866 */
+#define HAVE_CHARSET_cp932 1
 /* #undef HAVE_CHARSET_dec8 */
 #define HAVE_CHARSET_euckr 1
 #define HAVE_CHARSET_gb2312 1

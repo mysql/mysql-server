@@ -1176,7 +1176,8 @@ CommandInterpreter::executeShow(char* parameters)
 	api_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_NDB:
-	if (state->node_states[i].dynamic_id < master_id)
+	if (state->node_states[i].dynamic_id &&
+	    state->node_states[i].dynamic_id < master_id)
 	  master_id= state->node_states[i].dynamic_id;
 	ndb_nodes++;
 	break;

@@ -4,8 +4,10 @@
 %else
 %define release 0.glibc23
 %endif
+%define license GPL
 %define mysqld_user		mysql
 %define server_suffix -standard
+%define mysqldatadir /var/lib/mysql
 
 # We don't package all files installed into the build root by intention -
 # See BUG#998 for details.
@@ -16,11 +18,9 @@
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
-Group(pt_BR):	Aplicações/Banco_de_Dados
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-License:	GPL
+License:	%{license}
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	Lenz Grimmer <build@mysql.com>
@@ -54,11 +54,8 @@ news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
 
 %package server
-Release: %{release}
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
-Group(pt_BR):	Aplicações/Banco_de_Dados
 Requires: fileutils sh-utils
 Provides:	msqlormysql mysql-server mysql MySQL
 Obsoletes:	MySQL mysql mysql-server
@@ -88,11 +85,8 @@ If you want to access and work with the database, you have to install
 package "MySQL-client" as well!
 
 %package client
-Release: %{release}
 Summary: MySQL - Client
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Cliente
-Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: mysql-client
 Provides: mysql-client
 
@@ -101,11 +95,7 @@ This package contains the standard MySQL clients and administration tools.
 
 %{see_base}
 
-%description client -l pt_BR
-Este pacote contém os clientes padrão para o MySQL.
-
 %package ndb-storage
-Release: %{release}
 Summary:	MySQL - ndbcluster storage engine
 Group:		Applications/Databases
 
@@ -119,7 +109,6 @@ with the MySQL Max server.
 %{see_base}
 
 %package ndb-management
-Release: %{release}
 Summary:	MySQL - ndbcluster storage engine management
 Group:		Applications/Databases
 
@@ -131,7 +120,6 @@ one computer in the cluster.
 %{see_base}
 
 %package ndb-tools
-Release: %{release}
 Summary:	MySQL - ndbcluster storage engine basic tools
 Group:		Applications/Databases
 
@@ -141,7 +129,6 @@ This package contains ndbcluster storage engine basic tools.
 %{see_base}
 
 %package ndb-extra
-Release: %{release}
 Summary:	MySQL - ndbcluster storage engine extra tools
 Group:		Applications/Databases
 
@@ -152,12 +139,9 @@ They should be used with caution.
 %{see_base}
 
 %package bench
-Release: %{release}
 Requires: %{name}-client perl-DBI perl
 Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
 Provides: mysql-bench
 Obsoletes: mysql-bench
 
@@ -166,15 +150,9 @@ This package contains MySQL benchmark scripts and data.
 
 %{see_base}
 
-%description bench -l pt_BR
-Este pacote contém medições de desempenho de scripts e dados do MySQL.
-
 %package devel
-Release: %{release}
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
 Provides: mysql-devel
 Obsoletes: mysql-devel
 
@@ -184,12 +162,7 @@ necessary to develop MySQL client applications.
 
 %{see_base}
 
-%description devel -l pt_BR
-Este pacote contém os arquivos de cabeçalho (header files) e bibliotecas 
-necessárias para desenvolver aplicações clientes do MySQL. 
-
 %package shared
-Release: %{release}
 Summary: MySQL - Shared libraries
 Group: Applications/Databases
 
@@ -198,7 +171,6 @@ This package contains the shared libraries (*.so*) which certain
 languages and applications need to dynamically load and use MySQL.
 
 %package Max
-Release: %{release}
 Summary: MySQL - server with extended functionality
 Group: Applications/Databases
 Provides: mysql-Max
@@ -222,12 +194,9 @@ the standard MySQL package.
 Please note that this is a dynamically linked binary!
 
 %package embedded
-Release: %{release}
 Requires: %{name}-devel
 Summary: MySQL - embedded library
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: mysql-embedded
 
 %description embedded
@@ -271,7 +240,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --libdir=%{_libdir} \
             --sysconfdir=%{_sysconfdir} \
             --datadir=%{_datadir} \
-            --localstatedir=/var/lib/mysql \
+            --localstatedir=%{mysqldatadir} \
             --infodir=%{_infodir} \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
@@ -311,7 +280,7 @@ mkdir -p $RBR%{_libdir}/mysql
 PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
 export PATH
 
-# Build the 4.0 Max binary (includes BDB and UDFs and therefore
+# Build the Max binary (includes BDB and UDFs and therefore
 # cannot be linked statically against the patched glibc)
 
 # Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
@@ -336,8 +305,7 @@ BuildMySQL "--enable-shared \
 		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
 		--with-server-suffix='-Max'"
 
-# Save everything for debug
-# tar cf $RBR/all.tar .
+make test
 
 # Save mysqld-max
 mv sql/mysqld sql/mysqld-max
@@ -364,6 +332,9 @@ fi
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
+# Now clean up
+make clean
+
 #
 # Only link statically on our i386 build host (which has a specially
 # patched static glibc installed) - ia64 and x86_64 run glibc-2.3 (unpatched)
@@ -384,13 +355,15 @@ BuildMySQL "--disable-shared \
 		--without-openssl"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
+make test
+
 %install
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
-install -d $RBR/var/lib/mysql/mysql
+install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/{sql-bench,mysql-test}
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
@@ -442,7 +415,7 @@ then
 fi
 
 %post server
-mysql_datadir=/var/lib/mysql
+mysql_datadir=%{mysqldatadir}
 
 # Create data directory if needed
 if test ! -d $mysql_datadir; then mkdir -m755 $mysql_datadir; fi
@@ -462,17 +435,17 @@ fi
 
 # Create a MySQL user. Do not report any problems if it already
 # exists. This is redhat specific and should be handled more portable
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" mysql 2> /dev/null || true 
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" %{mysqld_user} 2> /dev/null || true 
 
 # Change permissions so that the user that will run the MySQL daemon
 # owns all database files.
-chown -R mysql $mysql_datadir
+chown -R %{mysqld_user} $mysql_datadir
 
 # Initiate databases
-mysql_install_db --rpm --user=mysql
+%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
-chown -R mysql $mysql_datadir
+chown -R %{mysqld_user} $mysql_datadir
 
 # Fix permissions for the permission database so that only the user
 # can read them.
@@ -672,9 +645,10 @@ fi
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/sql-bench
 %attr(-, root, root) %{_datadir}/mysql-test
+%attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysqlmanager
-%attr(755, root, root) %{_bindir}/mysqlmanager-pwgen
 %attr(755, root, root) %{_bindir}/mysqlmanagerc
+%attr(755, root, root) %{_bindir}/mysqlmanager-pwgen
 
 %files Max
 %defattr(-, root, root, 0755)
@@ -689,6 +663,21 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Jun 06 2005 Lenz Grimmer <lenz@mysql.com>
+
+- added mysql_client_test to the "bench" subpackage (BUG 10676)
+
+* Wed Jun 01 2005 Lenz Grimmer <lenz@mysql.com>
+
+- use "mysqldatadir" variable instead of hard-coding the path multiple times
+- use the "mysqld_user" variable on all occasions a user name is referenced
+- removed (incomplete) Brazilian translations
+- removed redundant release tags from the subpackage descriptions
+
+* Wed May 25 2005 Joerg Bruehe <joerg@mysql.com>
+
+- Added a "make clean" between separate calls to "BuildMySQL".
+
 * Wed Apr 20 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Enabled the "blackhole" storage engine for the Max RPM
