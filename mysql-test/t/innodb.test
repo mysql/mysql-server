@@ -1364,8 +1364,8 @@ create table t1 (rowid int not null auto_increment, val int not null,primary
 key (rowid), unique(val)) engine=innodb;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
-insert into t1 (val) values ('1'),('2');
 --error 1062
+insert into t1 (val) values ('1'),('2');
 select * from t1;
 drop table t1;
 
@@ -1380,6 +1380,5 @@ update t1 set a=2 where a=1;
 # We should get the following error because InnoDB does not update the counter
 --error 1062
 insert into t1 (val) values (1);
---error 1062
 select * from t1;
 drop table t1;
