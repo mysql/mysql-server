@@ -32,8 +32,6 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_explain_log \
 			mysqld_multi \
-			make_win_src_distribution \
-			make_win_binary_distribution \
 			mysql_create_system_tables
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
@@ -84,6 +82,7 @@ CLEANFILES =		@server_scripts@ \
 			mysqldumpslow \
 			mysqld_multi \
 			make_win_src_distribution \
+			make_win_binary_distribution \
 			mysql_create_system_tables
 
 DISTCLEANFILES =        mysqlbug

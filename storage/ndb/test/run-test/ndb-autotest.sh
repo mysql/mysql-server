@@ -1,10 +1,20 @@
 #!/bin/sh
+#############################################################
+# This script created by Jonas does the following	    #
+# Cleans up clones and pevious builds, pulls new clones,    #
+# builds, deploys, configures the tests and launches ATRT   #
+#############################################################
+
+###############
+#Script setup #
+##############
 
 save_args=$*
 VERSION="ndb-autotest.sh version 1.04"
 
 DATE=`date '+%Y-%m-%d'`
-export DATE
+HOST=`hostname -s`
+export DATE HOST
 
 set -e
 ulimit -Sc unlimited
@@ -14,13 +24,21 @@ echo "`date` starting: $*"
 RSYNC_RSH=ssh
 export RSYNC_RSH
 
+verbose=0
 do_clone=yes
 build=yes
 deploy=yes
+run_test=yes
+config=yes
+report=yes
 
 clone=5.0-ndb
 RUN="daily-basic daily-devel"
 conf=autotest.conf
+
+############################
+# Read command line entries#
+############################
 
 while [ "$1" ]
 do
@@ -28,13 +46,23 @@ do
                 --no-clone) do_clone="";;
                 --no-build) build="";;
                 --no-deploy) deploy="";;
-		--clone=*) clone=`echo $1 | sed s/--clone=//`;;
+                --no-test) run_test="";;
+                --no-config) config="";;
+                --no-report) report="";;
+                --verbose) verbose=`expr $verbose + 1`;;
+                --clone=*) clone=`echo $1 | sed s/--clone=//`;;
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
                 --version) echo $VERSION; exit;;
                 *) RUN=$*;;
         esac
         shift
 done
+
+#################################
+#Make sure the configfile exists#
+#if it does not exit. if it does#
+# (.) load it			# 
+#################################
 
 if [ -f $conf ]
 then
@@ -44,10 +72,46 @@ else
 	exit
 fi
 
-env
+###############################
+# Validate that all interesting
+#   variables where set in conf
+###############################
+vars="target base_dir src_clone_base install_dir build_dir hosts configure"
+if [ "$report" ]
+then
+	vars="$vars result_host result_path"
+fi
+for i in $vars
+do
+  t=`echo echo \\$$i`
+  if [ -z `eval $t` ]
+  then
+      echo "Invalid config: $conf, variable $i is not set"
+      exit
+  fi
+done
+
+###############################
+#Print out the enviroment vars#
+###############################
+
+if [ $verbose -gt 0 ]
+then
+	env
+fi
+
+####################################
+# Setup the lock file name and path#
+# Setup the clone source location  #
+####################################
 
 LOCK=$HOME/.autotest-lock
 src_clone=$src_clone_base-$clone
+
+#######################################
+# Check to see if the lock file exists#
+# If it does exit. 		      #
+#######################################
 
 if [ -f $LOCK ]
 then
@@ -55,10 +119,29 @@ then
 	exit 1
 fi
 
+#######################################
+# If the lock file does not exist then#
+# create it with date and run info    #
+#######################################
+
 echo "$DATE $RUN" > $LOCK
+
+#############################
+#If any errors here down, we#
+# trap them, and remove the #
+# Lock file before exit     #
+#############################
+
 trap "rm -f $LOCK" ERR
 
+# You can add more to this path#
+################################
+
 dst_place=${build_dir}/clone-mysql-$clone-$DATE
+
+#########################################
+# Delete source and pull down the latest#
+#########################################
 
 if [ "$do_clone" ]
 then
@@ -66,29 +149,42 @@ then
 	bk clone  $src_clone $dst_place
 fi
 
+##########################################
+# Build the source, make installs, and   #
+# create the database to be rsynced	 #
+##########################################
+
 if [ "$build" ]
 then
 	cd $dst_place
-        rm -rf $run_dir/*
-        aclocal; autoheader; autoconf; automake
-	if [ -d storage ]
+        rm -rf $install_dir/*
+	if [ -x BUILD/autorun.sh ]
 	then
-	    (cd storage/innobase; aclocal; autoheader; autoconf; automake)
-	    (cd storage/bdb/dist; sh s_all)
+	    ./BUILD/autorun.sh
 	else
-	    (cd innobase; aclocal; autoheader; autoconf; automake)
-	    (cd bdb/dist; sh s_all)
+	    aclocal; autoheader; autoconf; automake
+	    if [ -d storage ]
+	    then
+		(cd storage/innobase; aclocal; autoheader; autoconf; automake)
+		(cd storage/bdb/dist; sh s_all)
+	    else
+		(cd innobase; aclocal; autoheader; autoconf; automake)
+		(cd bdb/dist; sh s_all)
+	    fi
 	fi
-	eval $configure --prefix=$run_dir
+	eval $configure --prefix=$install_dir
 	make
 	make install
-	(cd $run_dir; ./bin/mysql_install_db)
+	(cd $install_dir; ./bin/mysql_install_db) # This will be rsynced to all
 fi
 
-###
-# check script version
-#
-script=$run_dir/mysql-test/ndb/ndb-autotest.sh
+################################
+# check script version. If the #
+# version is old, replace it   #
+# and restart		       #
+################################
+
+script=$install_dir/mysql-test/ndb/ndb-autotest.sh
 if [ -x $script ]
 then
 	$script --version > /tmp/version.$$
@@ -100,20 +196,33 @@ rm -f /tmp/version.$$
 if [ $match -eq 0 ]
 then
 	echo "Incorrect script version...restarting"
-	cp $run_dir/mysql-test/ndb/ndb-autotest.sh /tmp/at.$$.sh
-	rm -rf $run_dir $dst_place
+	cp $install_dir/mysql-test/ndb/ndb-autotest.sh /tmp/at.$$.sh
+	rm -rf $install_dir $dst_place
 	sh /tmp/at.$$.sh $save_args
 	exit
 fi
 
-# Check that all interesting files are present
-test_dir=$run_dir/mysql-test/ndb
+###############################################
+# Check that all interesting files are present#
+###############################################
+
+test_dir=$install_dir/mysql-test/ndb
 atrt=$test_dir/atrt
 html=$test_dir/make-html-reports.sh
-mkconfig=$run_dir/mysql-test/ndb/make-config.sh
+mkconfig=$install_dir/mysql-test/ndb/make-config.sh
 
-PATH=$run_dir/bin:$test_dir:$PATH
+##########################
+#Setup bin and test paths#
+##########################
+
+PATH=$install_dir/bin:$test_dir:$PATH
 export PATH
+
+###########################
+# This will filter out all#
+# the host that did not   #
+# respond. Called below   #
+###########################
 
 filter(){
 	neg=$1
@@ -125,18 +234,22 @@ filter(){
 	done
 }
 
-###
-# check ndb_cpcc fail hosts
-#
+############################
+# check ndb_cpcc fail hosts#
+############################
 ndb_cpcc $hosts | awk '{ if($1=="Failed"){ print;}}' > /tmp/failed.$DATE
 filter /tmp/failed.$DATE $hosts > /tmp/hosts.$DATE
 hosts=`cat /tmp/hosts.$DATE` 
 
+#############################
+# Push bin and test to hosts#
+#############################
+
 if [ "$deploy" ]
 then
     for i in $hosts
-      do
-      rsync -a --delete --force --ignore-errors $run_dir/ $i:$run_dir
+    do
+      rsync -a --delete --force --ignore-errors $install_dir/ $i:$install_dir
       ok=$?
       if [ $ok -ne 0 ]
 	  then
@@ -145,7 +258,6 @@ then
       fi
     done
 fi
-rm -f /tmp/build.$DATE.tgz
 
 ###
 # handle scp failed hosts
@@ -154,9 +266,11 @@ filter /tmp/failed.$DATE $hosts > /tmp/hosts.$DATE
 hosts=`cat /tmp/hosts.$DATE` 
 cat /tmp/failed.$DATE > /tmp/filter_hosts.$$
 
-###
-# functions for running atrt 
-#
+#############################
+# Function for replacing the#
+# choose host with real host#
+# names. Note $$ = PID	    #
+#############################
 choose(){
         SRC=$1
         TMP1=/tmp/choose.$$
@@ -177,16 +291,25 @@ choose(){
 }
 
 choose_conf(){
-    host=`hostname -s`
-    if [ -f $test_dir/conf-$1-$host.txt ]
-    then
+    if [ -f $test_dir/conf-$1-$HOST.txt ]
+	then
+	echo "$test_dir/conf-$1-$HOST.txt"
 	echo "$test_dir/conf-$1-$host.txt"
     elif [ -f $test_dir/conf-$1.txt ]
     then
 	echo "$test_dir/conf-$1.txt"
+    else
+	echo "Unable to find conf file looked for" 1>&2
+	echo "$testdir/conf-$1-host.txt and" 1>&2
+	echo "$testdir/conf-$1.txt" 1>&2
+	exit
     fi
 }
-
+######################################
+# Starts ATRT and gives it the right #
+# command line options. after it     #
+# Gathers results and moves them     #
+######################################
 start(){
 	rm -rf report.txt result* log.txt
 	$atrt -v -v -r -R --log-file=log.txt --testcase-file=$test_dir/$2-tests.txt &
@@ -202,17 +325,31 @@ start(){
 	cd ..
 	p2=`pwd`
 	cd ..
-	tar cfz /tmp/res.$$.tgz `basename $p2`/$DATE
-	scp /tmp/res.$$.tgz $result_host:$result_path/res.$DATE.`hostname -s`.$2.$$.tgz
-	rm -f /tmp/res.$$.tgz
+	if [ "$report" ]
+	then
+		tar cfz /tmp/res.$2.$$.tgz `basename $p2`/$DATE
+		scp /tmp/res.$2.$$.tgz \
+		    $result_host:$result_path/res.$DATE.$HOST.$2.$$.tgz
+		rm -f /tmp/res.$2.$$.tgz
+	fi
 }
 
+#########################################
+# Count how many computers we have ready#
+#########################################
+
 count_hosts(){
-    cnt=`grep "CHOOSE_host" $1 |
-      awk '{for(i=1; i<=NF;i++) if(match($i, "CHOOSE_host") > 0) print $i;}' |
-      sort | uniq | wc -l`
+    cnt=`grep "CHOOSE_host" $1 | awk '{for(i=1; i<=NF;i++) \
+    if(match($i, "CHOOSE_host") > 0) print $i;}' | sort | uniq | wc -l`
     echo $cnt
 }
+#######################################################
+# Calls: Choose                                       #
+#	 Choose_host                                  #
+#        Count_host                                   #
+#	 start                                        #
+# for each directory in the $RUN variable	      #
+#######################################################
 
 p=`pwd`
 for dir in $RUN
@@ -223,26 +360,36 @@ do
 	res_dir=$base_dir/result-$dir-mysql-$clone-$target/$DATE
 
 	mkdir -p $run_dir $res_dir
-	rm -rf $res_dir/* $run_dir/*
-	
-	conf=`choose_conf $dir`
-	count=`count_hosts $conf`
-	avail_hosts=`filter /tmp/filter_hosts.$$ $hosts`
-	avail=`echo $avail_hosts | wc -w`
-	if  [ $count -gt $avail ]
+	rm -rf $res_dir/*
+	cd $run_dir
+
+	if [ "$config" ]
 	then
+	    rm -rf $run_dir/*
+
+	    conf=`choose_conf $dir`
+	    count=`count_hosts $conf`
+	    avail_hosts=`filter /tmp/filter_hosts.$$ $hosts`
+	    avail=`echo $avail_hosts | wc -w`
+	    if  [ $count -gt $avail ]
+	    then
 		echo "Not enough hosts"
 		echo "Needs: $count available: $avail ($avail_hosts)"
 		break;
-	fi
+	    fi
 
-	run_hosts=`echo $avail_hosts|awk '{for(i=1;i<='$count';i++)print $i;}'`
-	echo $run_hosts >> /tmp/filter_hosts.$$	
+	    run_hosts=`echo $avail_hosts| \
+                       awk '{for(i=1;i<='$count';i++)print $i;}'`
+	    echo $run_hosts >> /tmp/filter_hosts.$$	
 	
-	cd $run_dir
-	choose $conf $run_hosts > d.tmp
-	$mkconfig d.tmp
-	start $dir-mysql-$clone-$target $dir $res_dir &
+	    choose $conf $run_hosts > d.tmp
+	    $mkconfig d.tmp
+	fi
+	
+	if [ "$run_test" ]
+	then
+	    start $dir-mysql-$clone-$target $dir $res_dir &
+	fi
 done
 cd $p
 rm /tmp/filter_hosts.$$

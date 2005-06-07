@@ -396,7 +396,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   else
   {
     if (table_list->schema_table)
-      protocol->store(table_list->schema_table_name, system_charset_info);
+      protocol->store(table_list->schema_table->table_name,
+                      system_charset_info);
     else
       protocol->store(table->alias, system_charset_info);
     if (store_create_info(thd, table_list, &buffer))
@@ -757,7 +758,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   else
     packet->append("CREATE TABLE ", 13);
   if (table_list->schema_table)
-    alias= table_list->schema_table_name;
+    alias= table_list->schema_table->table_name;
   else
     alias= (lower_case_table_names == 2 ? table->alias :
             share->table_name);
@@ -1264,7 +1265,7 @@ static bool show_status_array(THD *thd, const char *wild,
                                                  name_buffer, wild)))
       {
         char *value=variables->value;
-        const char *pos, *end;
+        const char *pos, *end;                  // We assign a lot of const's
         long nr;
         if (show_type == SHOW_SYS)
         {
@@ -1335,8 +1336,8 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_SLAVE_RETRIED_TRANS:
         {
           /*
-            TODO: in 5.1 with multimaster, have one such counter per line in SHOW
-            SLAVE STATUS, and have the sum over all lines here.
+            TODO: in 5.1 with multimaster, have one such counter per line in
+            SHOW SLAVE STATUS, and have the sum over all lines here.
           */
 	  pthread_mutex_lock(&LOCK_active_mi);
           pthread_mutex_lock(&active_mi->rli.data_lock);
@@ -1358,7 +1359,11 @@ static bool show_status_array(THD *thd, const char *wild,
           }
           else
           {
-            for (int i= 1; i < MAX_SLAVE_ERROR; i++)
+            /* 10 is enough assuming errors are max 4 digits */
+            int i;
+            for (i= 1;
+                 i < MAX_SLAVE_ERROR && (uint) (end-buff) < sizeof(buff)-10;
+                 i++)
             {
               if (bitmap_is_set(bitmap, i))
               {
@@ -1368,6 +1373,8 @@ static bool show_status_array(THD *thd, const char *wild,
             }
             if (end != buff)
               end--;				// Remove last ','
+            if (i < MAX_SLAVE_ERROR)
+              end= strmov((char*) end, "...");  // Couldn't show all errors
           }
           break;
         }
@@ -1382,8 +1389,9 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strend(pos);
           break;
         }
-        case SHOW_DOUBLE:
+        case SHOW_DOUBLE_STATUS:
         {
+          value= ((char *) status_var + (ulong) value);
           end= buff + sprintf(buff, "%f", *(double*) value);
           break;
         }

@@ -1138,6 +1138,11 @@ create:
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
+            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+            {
+              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+              YYABORT;
+            }
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
 	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
 							TL_OPTION_UPDATING))
@@ -3285,6 +3290,11 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->name= 0;
 	  lex->duplicates= DUP_ERROR; 
@@ -3512,6 +3522,10 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->alter_info.flags|= ALTER_OPTIONS;
 	  }
+	| FORCE_SYM
+	  {
+	    Lex->alter_info.flags|= ALTER_FORCE;
+	   }
 	| order_clause
 	  {
 	    LEX *lex=Lex;
@@ -3589,8 +3603,14 @@ slave:
 start:
 	START_SYM TRANSACTION_SYM start_transaction_opts
         {
-           Lex->sql_command = SQLCOM_BEGIN;
-           Lex->start_transaction_opt= $3;
+          LEX *lex= Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_BEGIN;
+          lex->start_transaction_opt= $3;
         }
 	;
 
@@ -3768,7 +3788,13 @@ opt_no_write_to_binlog:
 rename:
 	RENAME table_or_tables
 	{
-	   Lex->sql_command=SQLCOM_RENAME_TABLE;
+          LEX *lex= Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
+          lex->sql_command=SQLCOM_RENAME_TABLE;
 	}
 	table_to_table_list
 	{}
@@ -3968,7 +3994,7 @@ select_part2:
 	select_into select_lock_type;
 
 select_into:
-	opt_limit_clause {}
+	opt_order_clause opt_limit_clause {}
         | into
 	| select_from
 	| into select_from
@@ -4339,7 +4365,18 @@ simple_expr:
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| DEFAULT '(' simple_ident ')'
-	  { $$= new Item_default_value($3); }
+	  {
+	    if ($3->is_splocal())
+	    {
+	      LEX_STRING *name;
+	      Item_splocal *il= static_cast<Item_splocal *>($3);
+
+	      name= il->my_name(NULL);
+	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name->str);
+	      YYABORT;
+	    }
+	    $$= new Item_default_value($3);
+	  }
 	| VALUES '(' simple_ident ')'
 	  { $$= new Item_insert_value($3); }
 	| FUNC_ARG0 '(' ')'
@@ -5736,10 +5773,21 @@ drop:
 	  lex->sql_command = SQLCOM_DROP_TABLE;
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
+          if (!lex->drop_temporary && lex->sphead &&
+              lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	}
 	| DROP INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
+             if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+             {
+               my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+               YYABORT;
+             }
 	     lex->sql_command= SQLCOM_DROP_INDEX;
 	     lex->alter_info.drop_list.empty();
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
@@ -5787,6 +5835,11 @@ drop:
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
+            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+            {
+              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+              YYABORT;
+            }
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
@@ -6507,6 +6560,11 @@ flush:
 	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
+	  if (lex->sphead && lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "FLUSH");
+	    YYABORT;
+	  }
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
           lex->no_write_to_binlog= $2;
 	}
@@ -7069,7 +7127,32 @@ simple_ident_q:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
+	| ident '.' ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->db))
+            {
+              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+              YYABORT;
+            }
+            if (my_strcasecmp(table_alias_charset, $3.str,
+                              table->table_name))
+            {
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $3.str);
+              YYABORT;
+            }
+            $$=$5;
+          }
+	| ident '.' ident
+          {
+            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
+            {
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
+              YYABORT;
+            }
+            $$=$3;
+          }
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
@@ -7565,6 +7648,7 @@ sys_option_value:
           {
             /* We are in trigger and assigning value to field of new row */
             Item *it;
+            Item_trigger_field *trg_fld;
             sp_instr_set_trigger_field *i;
             if ($1)
             {
@@ -7585,17 +7669,19 @@ sys_option_value:
               it= new Item_null();
             }
 
-            if (!(i= new sp_instr_set_trigger_field(
-                lex->sphead->instructions(), lex->spcont,
-                $2.base_name, it)))
+            if (!(trg_fld= new Item_trigger_field(Item_trigger_field::NEW_ROW,
+                                                  $2.base_name.str)) ||
+                !(i= new sp_instr_set_trigger_field(
+                           lex->sphead->instructions(), lex->spcont,
+                           trg_fld, it)))
               YYABORT;
 
             /*
               Let us add this item to list of all Item_trigger_field
               objects in trigger.
             */
-            lex->trg_table_fields.link_in_list((byte *)&i->trigger_field,
-            (byte **)&i->trigger_field.next_trg_field);
+            lex->trg_table_fields.link_in_list((byte *)trg_fld,
+                                    (byte **)&trg_fld->next_trg_field);
 
             lex->sphead->add_instr(i);
           }
@@ -8316,6 +8402,11 @@ begin:
 	BEGIN_SYM  
         {
 	  LEX *lex=Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
           lex->sql_command = SQLCOM_BEGIN;
           lex->start_transaction_opt= 0;
         }
@@ -8348,6 +8439,11 @@ commit:
 	COMMIT_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	  lex->sql_command= SQLCOM_COMMIT;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;
@@ -8358,6 +8454,11 @@ rollback:
 	ROLLBACK_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	  lex->sql_command= SQLCOM_ROLLBACK;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;

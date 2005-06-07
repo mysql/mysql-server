@@ -17,7 +17,7 @@
 
 /* This file defines all time functions */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -497,7 +497,6 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 		    timestamp_type type, String *str)
 {
   char intbuff[15];
-  uint days_i;
   uint hours_i;
   uint weekday;
   ulong length;
@@ -600,8 +599,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	break;
       case 'h':
       case 'I':
-	days_i= l_time->hour/24;
-	hours_i= (l_time->hour%24 + 11)%12+1 + 24*days_i;
+	hours_i= (l_time->hour%24 + 11)%12+1;
 	length= int10_to_str(hours_i, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
@@ -622,8 +620,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	str->append_with_prefill(intbuff, length, 1, '0');
 	break;
       case 'l':
-	days_i= l_time->hour/24;
-	hours_i= (l_time->hour%24 + 11)%12+1 + 24*days_i;
+	hours_i= (l_time->hour%24 + 11)%12+1;
 	length= int10_to_str(hours_i, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 1, '0');
 	break;
@@ -3015,7 +3012,7 @@ String *Item_func_str_to_date::val_str(String *str)
 
 bool Item_func_last_day::get_date(TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime,fuzzy_date))
+  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE))
     return 1;
   uint month_idx= ltime->month-1;
   ltime->day= days_in_month[month_idx];

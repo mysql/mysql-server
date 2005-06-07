@@ -931,7 +931,6 @@ a
 1
 2
 truncate table t1;
-truncate table t1;
 insert into t1 values(1),(2);
 delete from t1;
 select * from t1;
@@ -1451,16 +1450,22 @@ test.t3	NULL
 test.t4	NULL
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist
-checksum table t1, t2, t3;
+checksum table t1, t2, t3, t4;
 Table	Checksum
 test.t1	2948697075
 test.t2	1157260244
 test.t3	1157260244
-checksum table t1, t2, t3 extended;
+test.t4	NULL
+Warnings:
+Error	1146	Table 'test.t4' doesn't exist
+checksum table t1, t2, t3, t4 extended;
 Table	Checksum
 test.t1	3092701434
 test.t2	1157260244
 test.t3	1157260244
+test.t4	NULL
+Warnings:
+Error	1146	Table 'test.t4' doesn't exist
 drop table t1,t2,t3;
 create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
 insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
@@ -1633,14 +1638,14 @@ t2	CREATE TABLE `t2` (
 drop table t2, t1;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	154
+Binlog_cache_use	153
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	155
+Binlog_cache_use	154
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1649,11 +1654,51 @@ delete from t1;
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	156
+Binlog_cache_use	155
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
 drop table t1;
+create table t1 (c char(10), index (c,c)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c'
+create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10), index (c1,c1,c2)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10), index (c2,c1,c1)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10)) engine=innodb;
+alter table t1 add key (c1,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c2,c1,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c1,c2,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c1,c1,c2);
+ERROR 42S21: Duplicate column name 'c1'
+drop table t1;
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+concat(a, b)
+11113333
+drop table t1;
+CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
+SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+DROP TABLE t1;
+CREATE TABLE t1 (a_id tinyint(4) NOT NULL default '0', PRIMARY KEY  (a_id)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (b_id tinyint(4) NOT NULL default '0',b_a tinyint(4) NOT NULL default '0', PRIMARY KEY  (b_id), KEY  (b_a), 
+CONSTRAINT fk_b_a FOREIGN KEY (b_a) REFERENCES t1 (a_id) ON DELETE CASCADE ON UPDATE NO ACTION) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1,1),(2,1),(3,1),(4,2),(5,2);
+SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t1 LEFT JOIN (t2) on t1.a_id = t2.b_a) GROUP BY t1.a_id ) AS xyz;
+a_id	b_list
+1	1,2,3
+2	4,5
+3	NULL
+DROP TABLE t2;
+DROP TABLE t1;
 create table t1 (x bigint unsigned not null primary key) engine=innodb;
 insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
 select * from t1;
@@ -1688,24 +1733,6 @@ select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
-create table t1 (c char(10), index (c,c)) engine=innodb;
-ERROR 42S21: Duplicate column name 'c'
-create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
-ERROR 42S21: Duplicate column name 'c1'
-create table t1 (c1 char(10), c2 char(10), index (c1,c1,c2)) engine=innodb;
-ERROR 42S21: Duplicate column name 'c1'
-create table t1 (c1 char(10), c2 char(10), index (c2,c1,c1)) engine=innodb;
-ERROR 42S21: Duplicate column name 'c1'
-create table t1 (c1 char(10), c2 char(10)) engine=innodb;
-alter table t1 add key (c1,c1);
-ERROR 42S21: Duplicate column name 'c1'
-alter table t1 add key (c2,c1,c1);
-ERROR 42S21: Duplicate column name 'c1'
-alter table t1 add key (c1,c2,c1);
-ERROR 42S21: Duplicate column name 'c1'
-alter table t1 add key (c1,c1,c2);
-ERROR 42S21: Duplicate column name 'c1'
-drop table t1;
 show status like "Innodb_buffer_pool_pages_total";
 Variable_name	Value
 Innodb_buffer_pool_pages_total	512
@@ -1717,7 +1744,7 @@ Variable_name	Value
 Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31709
+Innodb_rows_inserted	31718
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
@@ -2391,13 +2418,51 @@ drop table t1;
 set storage_engine=MyISAM;
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
-create table t1(a int(1) , b int(1)) engine=innodb;
-insert into t1 values ('1111', '3333');
-select distinct concat(a, b) from t1;
-concat(a, b)
-11113333
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+min(a)
+4
+select min(b) from t1 where a='8';
+min(b)
+6
 drop table t1;
-CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
-SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
-ERROR HY000: The used table type doesn't support FULLTEXT indexes
-DROP TABLE t1;
+CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
+insert into t1 (b) values (1);
+replace into t1 (b) values (2), (1), (3);
+select * from t1;
+a	b
+3	1
+2	2
+4	3
+truncate table t1;
+insert into t1 (b) values (1);
+replace into t1 (b) values (2);
+replace into t1 (b) values (1);
+replace into t1 (b) values (3);
+select * from t1;
+a	b
+3	1
+2	2
+4	3
+drop table t1;
+create table t1 (rowid int not null auto_increment, val int not null,primary
+key (rowid), unique(val)) engine=innodb;
+replace into t1 (val) values ('1'),('2');
+replace into t1 (val) values ('1'),('2');
+insert into t1 (val) values ('1'),('2');
+ERROR 23000: Duplicate entry '1' for key 2
+select * from t1;
+rowid	val
+3	1
+4	2
+drop table t1;
+create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
+insert into t1 (val) values (1);
+update t1 set a=2 where a=1;
+insert into t1 (val) values (1);
+ERROR 23000: Duplicate entry '2' for key 1
+select * from t1;
+a	val
+2	1
+drop table t1;

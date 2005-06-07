@@ -27,7 +27,7 @@ have disables the InnoDB inlining in this file. */
     in Windows?
 */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -3222,6 +3222,23 @@ no_commit:
           	}
         }
 
+        /* A REPLACE command and LOAD DATA INFILE REPLACE handle a duplicate
+        key error themselves, and we must update the autoinc counter if we are
+        performing those statements. */
+
+        if (error == DB_DUPLICATE_KEY && auto_inc_used
+            && (user_thd->lex->sql_command == SQLCOM_REPLACE
+                || user_thd->lex->sql_command == SQLCOM_REPLACE_SELECT
+                || (user_thd->lex->sql_command == SQLCOM_LOAD
+                    && user_thd->lex->duplicates == DUP_REPLACE))) {
+
+                auto_inc = table->next_number_field->val_int();
+
+                if (auto_inc != 0) {
+                        dict_table_autoinc_update(prebuilt->table, auto_inc);
+                }
+        }
+
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
 	error = convert_error_code_to_mysql(error, user_thd);
@@ -5765,7 +5782,12 @@ MySQL calls this function at the start of each SQL statement inside LOCK
 TABLES. Inside LOCK TABLES the ::external_lock method does not work to
 mark SQL statement borders. Note also a special case: if a temporary table
 is created inside LOCK TABLES, MySQL has not called external_lock() at all
-on that table. */
+on that table.
+MySQL-5.0 also calls this before each statement in an execution of a stored
+procedure. To make the execution more deterministic for binlogging, MySQL-5.0
+locks all tables involved in a stored procedure with full explicit table
+locks (thd->in_lock_tables is true in ::store_lock()) before executing the
+procedure. */
 
 int
 ha_innobase::start_stmt(
@@ -5957,11 +5979,14 @@ ha_innobase::external_lock(
 		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
 		an InnoDB table lock if it is released immediately at the end
 		of LOCK TABLES, and InnoDB's table locks in that case cause
-		VERY easily deadlocks. */
+		VERY easily deadlocks. We do not set InnoDB table locks when
+		MySQL sets them at the start of a stored procedure call
+		(MySQL does have thd->in_lock_tables TRUE there). */
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
 
 			if (thd->in_lock_tables &&
+			    thd->lex->sql_command != SQLCOM_CALL &&
 			    thd->variables.innodb_table_locks &&
 			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
 
@@ -6444,10 +6469,8 @@ ha_innobase::store_lock(
 		if (srv_locks_unsafe_for_binlog &&
 		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
 		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
-		    thd->lex->sql_command != SQLCOM_SELECT &&
-		    thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
-		    thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
-		    thd->lex->sql_command != SQLCOM_LOCK_TABLES) {
+		    (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+		     thd->lex->sql_command == SQLCOM_UPDATE)) {
 
 			/* In case we have innobase_locks_unsafe_for_binlog
 			option set and isolation level of the transaction
@@ -6474,13 +6497,24 @@ ha_innobase::store_lock(
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
+		/* Starting from 5.0.7, we weaken also the table locks
+		set at the start of a MySQL stored procedure call, just like
+		we weaken the locks set at the start of an SQL statement.
+		MySQL does set thd->in_lock_tables TRUE there, but in reality
+		we do not need table locks to make the execution of a
+		single transaction stored procedure call deterministic
+		(if it does not use a consistent read). */
+
     		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
 		TABLESPACE or TRUNCATE TABLE, then allow multiple writers */
 
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-	 	    lock_type <= TL_WRITE) && !thd->in_lock_tables
+	 	    lock_type <= TL_WRITE)
+		    && (!thd->in_lock_tables
+		        || thd->lex->sql_command == SQLCOM_CALL)
 		    && !thd->tablespace_op
-		    && thd->lex->sql_command != SQLCOM_TRUNCATE) {
+		    && thd->lex->sql_command != SQLCOM_TRUNCATE
+                    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
       			lock_type = TL_WRITE_ALLOW_WRITE;
       		}
@@ -6491,7 +6525,10 @@ ha_innobase::store_lock(
 		to t2. Convert the lock to a normal read lock to allow
 		concurrent inserts to t2. */
       		
-		if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) {
+		if (lock_type == TL_READ_NO_INSERT
+		    && (!thd->in_lock_tables
+			|| thd->lex->sql_command == SQLCOM_CALL)) {
+
 			lock_type = TL_READ;
 		}
 		

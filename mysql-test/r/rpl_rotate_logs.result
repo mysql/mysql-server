@@ -26,10 +26,10 @@ create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
 show binary logs;
-Log_name
-master-bin.000001
-master-bin.000002
-master-bin.000003
+Log_name	File_size
+master-bin.000001	0
+master-bin.000002	0
+master-bin.000003	98
 create table t3 select * from temp_table;
 select * from t3;
 a
@@ -42,18 +42,18 @@ set global sql_slave_skip_counter=1;
 start slave;
 purge master logs to 'master-bin.000002';
 show master logs;
-Log_name
-master-bin.000002
-master-bin.000003
+Log_name	File_size
+master-bin.000002	0
+master-bin.000003	407
 purge binary logs to 'master-bin.000002';
 show binary logs;
-Log_name
-master-bin.000002
-master-bin.000003
+Log_name	File_size
+master-bin.000002	0
+master-bin.000003	407
 purge master logs before now();
 show binary logs;
-Log_name
-master-bin.000003
+Log_name	File_size
+master-bin.000003	407
 insert into t2 values (65);
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
@@ -73,10 +73,10 @@ count(*)
 100
 create table t4 select * from temp_table;
 show binary logs;
-Log_name
-master-bin.000003
-master-bin.000004
-master-bin.000005
+Log_name	File_size
+master-bin.000003	0
+master-bin.000004	0
+master-bin.000005	2032
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000005	2032		

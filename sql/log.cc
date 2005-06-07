@@ -233,7 +233,8 @@ File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
   File file;
   DBUG_ENTER("open_binlog");
 
-  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
+  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY | O_SHARE, 
+                      MYF(MY_WME))) < 0)
   {
     sql_print_error("Failed to open log (file '%s', errno %d)",
                     log_file_name, my_errno);
@@ -2371,7 +2372,7 @@ void sql_print_information(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
-#ifdef HAVE_MMAP
+
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
@@ -2409,13 +2410,17 @@ void sql_print_information(const char *format, ...)
   new xid is added into it. Removing a xid from a page does not make it
   dirty - we don't sync removals to disk.
 */
+
+ulong tc_log_page_waits= 0;
+
+#ifdef HAVE_MMAP
+
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
 static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
 
 ulong opt_tc_log_size= TC_LOG_MIN_SIZE;
-ulong tc_log_max_pages_used=0, tc_log_page_size=0,
-      tc_log_page_waits=0, tc_log_cur_pages_used=0;
+ulong tc_log_max_pages_used=0, tc_log_page_size=0, tc_log_cur_pages_used=0;
 
 int TC_LOG_MMAP::open(const char *opt_name)
 {

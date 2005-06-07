@@ -27,7 +27,10 @@
 #ifndef yaSSL_TYPES_HPP
 #define yaSSL_TYPES_HPP
 
-#include<cstddef>
+#include <stddef.h>
+#include <assert.h>
+#include "type_traits.hpp"
+
 
 namespace yaSSL {
 
@@ -40,7 +43,39 @@ extern new_t ys;      // pass in parameter
 void* operator new  (size_t, yaSSL::new_t);
 void* operator new[](size_t, yaSSL::new_t);
 
+void operator delete  (void*, yaSSL::new_t);
+void operator delete[](void*, yaSSL::new_t);
+
+
 namespace yaSSL {
+
+
+template<typename T>
+void ysDelete(T* ptr)
+{
+    if (ptr) ptr->~T();
+    ::operator delete(ptr, yaSSL::ys);
+}
+
+template<typename T>
+void ysArrayDelete(T* ptr)
+{
+    // can't do array placement destruction since not tracking size in
+    // allocation, only allow builtins to use array placement since they
+    // don't need destructors called
+    typedef char builtin[TaoCrypt::IsFundamentalType<T>::Yes ? 1 : -1];
+    (void)sizeof(builtin);
+
+    ::operator delete[](ptr, yaSSL::ys);
+}
+
+
+// to resolve compiler generated operator delete on base classes with
+// virtual destructors, make sure doesn't get called
+class virtual_base {
+public:
+    static void operator delete(void*) { assert(0); }
+};
 
 
 typedef unsigned char  uint8;
@@ -129,7 +164,7 @@ enum PublicValueEncoding { implicit_encoding, explicit_encoding };
 
 enum ConnectionEnd { server_end, client_end };
 
-enum AlertLevel { warning = 1, fatal = 2, };
+enum AlertLevel { warning = 1, fatal = 2 };
 
 
 
@@ -381,7 +416,7 @@ const char* const cipher_names[128] =
     "DES-CBC3-RMD", //  TLS_RSA_WITH_3DES_EDE_CBC_RMD160     = 124
     "AES128-RMD",   //  TLS_RSA_WITH_AES_128_CBC_RMD160      = 125
     "AES256-RMD",   //  TLS_RSA_WITH_AES_256_CBC_RMD160      = 126
-    null_str, // 127
+    null_str // 127
 };
 
 // fill with MD5 pad size since biggest required

@@ -28,7 +28,7 @@ noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
-			my_aes.h my_tree.h hash.h thr_alarm.h \
+			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h md5.h \
 			mysql_version.h.in my_handler.h my_time.h decimal.h
 

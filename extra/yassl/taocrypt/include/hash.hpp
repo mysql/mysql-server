@@ -32,7 +32,7 @@ namespace TaoCrypt {
 
 
 // HASH
-class HASH {
+class HASH : public virtual_base {
 public:
     virtual ~HASH() {}
 
@@ -51,8 +51,8 @@ class HASHwithTransform : public HASH {
 public:
     HASHwithTransform(word32 digSz, word32 buffSz) 
         : digest_(new (tc) word32[digSz]), buffer_(new (tc) byte[buffSz]) {}
-    virtual ~HASHwithTransform() { delete[] buffer_; delete[] digest_; }
-
+    virtual ~HASHwithTransform() { tcArrayDelete(buffer_);
+                                   tcArrayDelete(digest_); }
     virtual ByteOrder getByteOrder()  const = 0;
     virtual word32    getPadSize()    const = 0;
 

@@ -19,7 +19,7 @@
 ** This file implements classes defined in field.h
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -5857,31 +5857,32 @@ int Field_str::store(double nr)
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint length;
   bool use_scientific_notation= TRUE;
+  uint char_length= field_length / charset()->mbmaxlen;
   /*
     Check fabs(nr) against longest value that can be stored in field,
     which depends on whether the value is < 1 or not, and negative or not
   */
   double anr= fabs(nr);
   int neg= (nr < 0.0) ? 1 : 0;
-  if (field_length > 4 && field_length < 32 &&
-      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) field_length-neg-2)]) /* -2 for "0." */
-                 : anr < log_10[field_length-neg]-1))
+  if (char_length > 4 && char_length < 32 &&
+      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) char_length-neg-2)]) /* -2 for "0." */
+                 : anr < log_10[char_length-neg]-1))
     use_scientific_notation= FALSE;
 
   length= (uint) my_sprintf(buff, (buff, "%-.*g",
                                    (use_scientific_notation ?
-                                    max(0, (int)field_length-neg-5) :
-                                    field_length),
+                                    max(0, (int)char_length-neg-5) :
+                                    char_length),
                                    nr));
   /*
     +1 below is because "precision" in %g above means the
     max. number of significant digits, not the output width.
     Thus the width can be larger than number of significant digits by 1
     (for decimal point)
-    the test for field_length < 5 is for extreme cases,
+    the test for char_length < 5 is for extreme cases,
     like inserting 500.0 in char(1)
   */
-  DBUG_ASSERT(field_length < 5 || length <= field_length+1);
+  DBUG_ASSERT(char_length < 5 || length <= char_length+1);
   return store((const char *) buff, length, charset());
 }
 
@@ -7833,7 +7834,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 
 int Field_bit::store(double nr)
 {
-  return (Field_bit::store((longlong) nr));
+  return store((longlong) nr);
 }
 
 
@@ -8016,7 +8017,8 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
       (delta == 0 && bits && (uint) (uchar) *from >= (uint) (1 << bits)))
   {
     memset(ptr, 0xff, field_length);
-    *ptr&= ((1 << bits) - 1); /* set first byte */
+    if (bits)
+      *ptr&= ((1 << bits) - 1); /* set first byte */
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }

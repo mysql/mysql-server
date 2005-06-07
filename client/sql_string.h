@@ -16,7 +16,7 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
@@ -260,8 +260,6 @@ public:
   }
   bool fill(uint32 max_length,char fill);
   void strip_sp();
-  inline void caseup() { my_caseup(str_charset,Ptr,str_length); }
-  inline void casedn() { my_casedn(str_charset,Ptr,str_length); }
   friend int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);

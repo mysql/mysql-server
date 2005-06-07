@@ -178,7 +178,7 @@ static double get_merge_many_buffs_cost(uint *buffer,
     Set initial state: first maxbuffer sequences contain max_n_elems elements
     each, last sequence contains last_n_elems elements.
   */
-  for(i = 0; i < (int)maxbuffer; i++)
+  for (i = 0; i < (int)maxbuffer; i++)
     buff_elems[i]= max_n_elems;  
   buff_elems[maxbuffer]= last_n_elems;
 

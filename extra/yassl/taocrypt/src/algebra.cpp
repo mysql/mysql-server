@@ -23,60 +23,58 @@
 
 #include "runtime.hpp"
 #include "algebra.hpp"
-#include "integer.hpp"
 #include "vector.hpp"   // mySTL::vector (simple)
 
 
 namespace TaoCrypt {
 
-template <class T> const T& AbstractGroup<T>::Double(const Element &a) const
+
+const Integer& AbstractGroup::Double(const Element &a) const
 {
     return Add(a, a);
 }
 
-template <class T> const T& AbstractGroup<T>::Subtract(const Element &a,
-                                                       const Element &b) const
+const Integer& AbstractGroup::Subtract(const Element &a, const Element &b) const
 {
     // make copy of a in case Inverse() overwrites it
     Element a1(a);
     return Add(a1, Inverse(b));
 }
 
-template <class T> T& AbstractGroup<T>::Accumulate(Element &a,
-                                                   const Element &b) const
+Integer& AbstractGroup::Accumulate(Element &a, const Element &b) const
 {
     return a = Add(a, b);
 }
 
-template <class T> T& AbstractGroup<T>::Reduce(Element &a,
-                                               const Element &b) const
+Integer& AbstractGroup::Reduce(Element &a, const Element &b) const
 {
     return a = Subtract(a, b);
 }
 
-template <class T> const T& AbstractRing<T>::Square(const Element &a) const
+const Integer& AbstractRing::Square(const Element &a) const
 {
     return Multiply(a, a);
 }
 
-template <class T> const T& AbstractRing<T>::Divide(const Element &a,
-                                                    const Element &b) const
+
+const Integer& AbstractRing::Divide(const Element &a, const Element &b) const
 {
     // make copy of a in case MultiplicativeInverse() overwrites it
     Element a1(a);
     return Multiply(a1, MultiplicativeInverse(b));
 }
 
-template <class T> const T& AbstractEuclideanDomain<T>::Mod(const Element &a,
-                                                        const Element &b) const
+
+const Integer& AbstractEuclideanDomain::Mod(const Element &a,
+                                            const Element &b) const
 {
     Element q;
     DivisionAlgorithm(result, q, a, b);
     return result;
 }
 
-template <class T> const T& AbstractEuclideanDomain<T>::Gcd(const Element &a,
-                                                        const Element &b) const
+const Integer& AbstractEuclideanDomain::Gcd(const Element &a,
+                                            const Element &b) const
 {
     Element g[3]={b, a};
     unsigned int i0=0, i1=1, i2=2;
@@ -90,45 +88,17 @@ template <class T> const T& AbstractEuclideanDomain<T>::Gcd(const Element &a,
     return result = g[i0];
 }
 
-template <class T> const typename 
-    QuotientRing<T>::Element& QuotientRing<T>::MultiplicativeInverse(
-        const Element &a) const
-{
-    Element g[3]={m_modulus, a};
-#ifdef __BCPLUSPLUS__
-    // BC++50 workaround          
-    Element v[3];
-    v[0]=m_domain.Identity();
-    v[1]=m_domain.MultiplicativeIdentity();
-#else
-    Element v[3]={m_domain.Identity(), m_domain.MultiplicativeIdentity()};
-#endif
-    Element y;
-    unsigned int i0=0, i1=1, i2=2;
 
-    while (!Equal(g[i1], Identity()))
-    {
-        // y = g[i0] / g[i1];
-        // g[i2] = g[i0] % g[i1];
-        m_domain.DivisionAlgorithm(g[i2], y, g[i0], g[i1]);
-        // v[i2] = v[i0] - (v[i1] * y);
-        v[i2] = m_domain.Subtract(v[i0], m_domain.Multiply(v[i1], y));
-        unsigned int t = i0; i0 = i1; i1 = i2; i2 = t;
-    }
-
-    return m_domain.IsUnit(g[i0]) ? m_domain.Divide(v[i0], g[i0]) : 
-        m_domain.Identity();
-}
-
-template <class T> T AbstractGroup<T>::ScalarMultiply(const Element &base,
-                                                 const Integer &exponent) const
+Integer AbstractGroup::ScalarMultiply(const Element &base,
+                                      const Integer &exponent) const
 {
     Element result;
     SimultaneousMultiply(&result, base, &exponent, 1);
     return result;
 }
 
-template <class T> T AbstractGroup<T>::CascadeScalarMultiply(const Element &x,
+
+Integer AbstractGroup::CascadeScalarMultiply(const Element &x,
                   const Integer &e1, const Element &y, const Integer &e2) const
 {
     const unsigned expLen = max(e1.BitCount(), e2.BitCount());
@@ -258,8 +228,8 @@ struct WindowSlider
     bool fastNegate, negateNext, firstTime, finished;
 };
 
-template <class T>
-void AbstractGroup<T>::SimultaneousMultiply(T *results, const T &base,
+
+void AbstractGroup::SimultaneousMultiply(Integer *results, const Integer &base,
                           const Integer *expBegin, unsigned int expCount) const
 {
     mySTL::vector<mySTL::vector<Element> > buckets(expCount);
@@ -321,34 +291,37 @@ void AbstractGroup<T>::SimultaneousMultiply(T *results, const T &base,
     }
 }
 
-template <class T> T AbstractRing<T>::Exponentiate(const Element &base,
-                                                 const Integer &exponent) const
+Integer AbstractRing::Exponentiate(const Element &base,
+                                   const Integer &exponent) const
 {
     Element result;
     SimultaneousExponentiate(&result, base, &exponent, 1);
     return result;
 }
 
-template <class T> T AbstractRing<T>::CascadeExponentiate(const Element &x,
+
+Integer AbstractRing::CascadeExponentiate(const Element &x,
                   const Integer &e1, const Element &y, const Integer &e2) const
 {
-    return MultiplicativeGroup().AbstractGroup<T>::CascadeScalarMultiply(
+    return MultiplicativeGroup().AbstractGroup::CascadeScalarMultiply(
                 x, e1, y, e2);
 }
 
-template <class Element, class Iterator> Element GeneralCascadeExponentiation(
-               const AbstractRing<Element> &ring, Iterator begin, Iterator end)
-{
-    return GeneralCascadeMultiplication<Element>(ring.MultiplicativeGroup(),
-                                                 begin, end);
-}
 
-template <class T>
-void AbstractRing<T>::SimultaneousExponentiate(T *results, const T &base,
+void AbstractRing::SimultaneousExponentiate(Integer *results,
+                                            const Integer &base,
                          const Integer *exponents, unsigned int expCount) const
 {
-    MultiplicativeGroup().AbstractGroup<T>::SimultaneousMultiply(results, base,
+    MultiplicativeGroup().AbstractGroup::SimultaneousMultiply(results, base,
                                                           exponents, expCount);
 }
 
+
 } // namespace
+
+#ifdef __GNUC__
+namespace mySTL {
+template TaoCrypt::WindowSlider* uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
+template void destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
+}
+#endif

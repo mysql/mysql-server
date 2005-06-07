@@ -86,29 +86,24 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 # To make it easy for the end user to use the embedded library we
 # generate a total libmysqld.a from all library files,
 
+# note - InnoDB libraries have circular dependencies, so in INC_LIB
+# few libraries are present two times. Metrowerks linker doesn't like
+# it at all. Traditional ar has no problems with it, but still there's no
+# need to add the same file twice to the library, so 'sort -u' save us
+# some time and spares unnecessary work.
+
 libmysqld.a:	libmysqld_int.a $(INC_LIB)
 if DARWIN_MWCC
-	mwld -lib -o $@ libmysqld_int.a `ls -1 $(INC_LIB) | sort -u`
+	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u`
 else
 		if test "$(host_os)" = "netware" ; \
 		then \
 		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \
 		else \
-		  if test ! -d tmp ; then mkdir tmp ; fi ; \
-		  rm -f $@ libmysqld_int2.a tmp/*.o tmp/*.a ; \
-		  cp $(INC_LIB) tmp ; \
-		  cp libmysqld_int.a libmysqld_int2.a ; \
-		  cd tmp ; \
-		  for file in *.a ; do \
-		    bfile=`basename $$file .a` ; \
-		    $(AR) x $$file; \
-		    for obj in *.o ; do mv $$obj $${bfile}_$$obj ; done ; \
-		    $(AR) q ../libmysqld_int2.a *.o ; \
-		    rm -f *.o ; \
-		  done ; \
-		  cd .. ; \
-		  mv libmysqld_int2.a libmysqld.a ; \
-		  rm -f tmp/* ; \
+		  for arc in ./libmysqld_int.a $(INC_LIB); do \
+		    arpath=`echo $$arc|sed 's|[^/]*$$||'`; \
+		    $(AR) t $$arc|sed "s|^|$$arpath|"; \
+		  done | sort -u | xargs $(AR) cq libmysqld.a ; \
 		  $(RANLIB) libmysqld.a	; \
 		fi
 endif

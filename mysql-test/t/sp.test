@@ -3801,6 +3801,98 @@ call bug5963_2(1)|
 drop procedure bug5963_2|
 drop table t3|
 
+
+#
+# BUG#9559: Functions: Numeric Operations using -ve value gives incorrect
+#           results.
+#
+--disable_warnings
+drop function if exists bug9559|
+--enable_warnings
+create function bug9559()
+  returns int
+begin
+  set @y = -6/2;
+  return @y;
+end|
+
+select bug9559()|
+
+drop function bug9559|
+
+
+#
+# BUG#10961: Stored procedures: crash if select * from dual
+#
+--disable_warnings
+drop procedure if exists bug10961|
+--enable_warnings
+# "select * from dual" results in an error, so the cursor will not open
+create procedure bug10961()
+begin
+  declare v char;
+  declare x int;
+  declare c cursor for select * from dual;
+  declare continue handler for sqlexception select x;
+
+  set x = 1;
+  open c;
+  set x = 2;
+  fetch c into v;
+  set x = 3;
+  close c;
+end|
+
+call bug10961()|
+call bug10961()|
+
+drop procedure bug10961|
+
+#
+# BUG #6866: Second call of a stored procedure using a view with on expressions
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug6866|
+--enable_warnings
+
+DROP VIEW IF EXISTS tv|
+DROP TABLE IF EXISTS tt1,tt2,tt3|
+
+CREATE TABLE tt1 (a1 int, a2 int, a3 int, data varchar(10))|
+CREATE TABLE tt2 (a2 int, data2 varchar(10))|
+CREATE TABLE tt3 (a3 int, data3 varchar(10))|
+
+INSERT INTO tt1 VALUES (1, 1, 4, 'xx')|
+
+INSERT INTO tt2 VALUES (1, 'a')|
+INSERT INTO tt2 VALUES (2, 'b')|
+INSERT INTO tt2 VALUES (3, 'c')|
+
+INSERT INTO tt3 VALUES (4, 'd')|
+INSERT INTO tt3 VALUES (5, 'e')|
+INSERT INTO tt3 VALUES (6, 'f')|
+
+CREATE VIEW tv AS
+SELECT tt1.*, tt2.data2, tt3.data3
+  FROM tt1 INNER JOIN tt2 ON tt1.a2 = tt2.a2
+         LEFT JOIN tt3 ON tt1.a3 = tt3.a3
+    ORDER BY tt1.a1, tt2.a2, tt3.a3|
+
+CREATE PROCEDURE bug6866 (_a1 int)
+BEGIN
+SELECT * FROM tv WHERE a1 = _a1;
+END|
+
+CALL bug6866(1)|
+CALL bug6866(1)|
+CALL bug6866(1)|
+
+DROP PROCEDURE bug6866;
+
+DROP VIEW tv|
+DROP TABLE tt1, tt2, tt3|
+
 #
 # BUG#NNNN: New bug synopsis
 #

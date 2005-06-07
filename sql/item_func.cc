@@ -17,7 +17,7 @@
 
 /* This file defines all numerical functions */
 
-#ifdef __GNUC__
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
 
@@ -211,15 +211,16 @@ void Item_func::set_arguments(List<Item> &list)
 {
   allowed_arg_cols= 1;
   arg_count=list.elements;
-  if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
+  args= tmp_arg;                                // If 2 arguments
+  if (arg_count <= 2 || (args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
-    uint i=0;
     List_iterator_fast<Item> li(list);
     Item *item;
+    Item **save_args= args;
 
     while ((item=li++))
     {
-      args[i++]= item;
+      *(save_args++)= item;
       with_sum_func|=item->with_sum_func;
     }
   }
@@ -300,7 +301,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (check_stack_overrun(thd, buff))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -693,8 +694,8 @@ String *Item_int_func::val_str(String *str)
 
 
 /*
-  Check arguments here to determine result's type for function with two
-  arguments.
+  Check arguments here to determine result's type for a numeric
+  function of two arguments.
 
   SYNOPSIS
     Item_num_op::find_num_type()
@@ -720,8 +721,9 @@ void Item_num_op::find_num_type(void)
     hybrid_type= DECIMAL_RESULT;
     result_precision();
   }
-  else if (r0 == INT_RESULT && r1 == INT_RESULT)
+  else
   {
+    DBUG_ASSERT(r0 == INT_RESULT && r1 == INT_RESULT);
     decimals= 0;
     hybrid_type=INT_RESULT;
     result_precision();
@@ -736,7 +738,9 @@ void Item_num_op::find_num_type(void)
 
 
 /*
-  Set result type of function if it (type) is depends only on first argument
+  Set result type for a numeric function of one argument
+  (can be also used by a numeric function of many arguments, if the result
+  type depends only on the first argument)
 
   SYNOPSIS
     Item_func_num1::find_num_type()
@@ -815,6 +819,8 @@ String *Item_func_numhybrid::val_str(String *str)
     str->set(nr,decimals,&my_charset_bin);
     break;
   }
+  case STRING_RESULT:
+    return str_op(&str_value);
   default:
     DBUG_ASSERT(0);
   }
@@ -839,6 +845,14 @@ double Item_func_numhybrid::val_real()
     return (double)int_op();
   case REAL_RESULT:
     return real_op();
+  case STRING_RESULT:
+  {
+    char *end_not_used;
+    int err_not_used;
+    String *res= str_op(&str_value);
+    return (res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
+			     &end_not_used, &err_not_used) : 0.0);
+  }
   default:
     DBUG_ASSERT(0);
   }
@@ -863,6 +877,15 @@ longlong Item_func_numhybrid::val_int()
     return int_op();
   case REAL_RESULT:
     return (longlong)real_op();
+  case STRING_RESULT:
+  {
+    char *end_not_used;
+    int err_not_used;
+    String *res= str_op(&str_value);
+    CHARSET_INFO *cs= str_value.charset();
+    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end_not_used,
+                                           &err_not_used) : 0);
+  }
   default:
     DBUG_ASSERT(0);
   }
@@ -891,6 +914,12 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
     break;
   }
   case STRING_RESULT:
+  {
+    String *res= str_op(&str_value);
+    str2my_decimal(E_DEC_FATAL_ERROR, (char*) res->ptr(),
+                   res->length(), res->charset(), decimal_value);
+    break;
+  }  
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
@@ -2322,11 +2351,12 @@ void Item_func_locate::print(String *str)
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
   if (cmp_type == STRING_RESULT)
   {
     String *field;
-    if (!(field=args[0]->val_str(&value)))
-      return 0;					// -1 if null ?
+    if (!(field= args[0]->val_str(&value)))
+      return 0;
     for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
@@ -2337,36 +2367,36 @@ longlong Item_func_field::val_int()
   else if (cmp_type == INT_RESULT)
   {
     longlong val= args[0]->val_int();
-    if (args[0]->is_null())
+    if (args[0]->null_value)
       return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_int() && ! args[i]->is_null())
- 	return (longlong) (i);
+      if (val == args[i]->val_int() && !args[i]->null_value)
+        return (longlong) (i);
     }
   }
   else if (cmp_type == DECIMAL_RESULT)
   {
     my_decimal dec_arg_buf, *dec_arg,
                dec_buf, *dec= args[0]->val_decimal(&dec_buf);
-    if (args[0]->is_null())
+    if (args[0]->null_value)
       return 0;
     for (uint i=1; i < arg_count; i++)
     {
       dec_arg= args[i]->val_decimal(&dec_arg_buf);
-      if (!args[i]->is_null() && !my_decimal_cmp(dec_arg, dec))
+      if (!args[i]->null_value && !my_decimal_cmp(dec_arg, dec))
         return (longlong) (i);
     }
   }
   else
   {
     double val= args[0]->val_real();
-    if (args[0]->is_null())
+    if (args[0]->null_value)
       return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_real() && ! args[i]->is_null())
- 	return (longlong) (i);
+      if (val == args[i]->val_real() && !args[i]->null_value)
+        return (longlong) (i);
     }
   }
   return 0;
@@ -2572,7 +2602,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 #endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
-  if (check_stack_overrun(thd, buff))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(TRUE);				// Fatal error flag is set!
 
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
@@ -3603,7 +3633,7 @@ longlong user_var_entry::val_int(my_bool *null_value)
   case DECIMAL_RESULT:
   {
     longlong result;
-    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 1, &result);
+    my_decimal2int(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, &result);
     return result;
   }
   case STRING_RESULT:
@@ -4509,7 +4539,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
-			   system_charset_info);
+			   system_charset_info, DERIVATION_SYSCONST);
 
   Item *item;
   sys_var *var;
@@ -4693,7 +4723,6 @@ Item_func_sp::func_name() const
 Field *
 Item_func_sp::sp_result_field(void) const
 {
-  Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
 
   if (!m_sp)
@@ -4757,6 +4786,7 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   ulong old_client_capabilites;
   int res;
+  bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
@@ -4799,9 +4829,11 @@ Item_func_sp::execute(Item **itp)
     problem).
   */
   tmp_disable_binlog(thd); /* don't binlog the substatements */
+  thd->transaction.in_sub_stmt= TRUE;
 
   res= m_sp->execute_function(thd, args, arg_count, itp);
 
+  thd->transaction.in_sub_stmt= save_in_sub_stmt;
   reenable_binlog(thd);
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||

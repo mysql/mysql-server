@@ -1736,7 +1736,7 @@ innobase_shutdown_for_mysql(void)
 "  InnoDB: MySQL has requested a very fast shutdown without flushing "
 "the InnoDB buffer pool to data files. At the next mysqld startup "
 "InnoDB will do a crash recovery!\n");
-	  	}
+	}
 
 #ifdef __NETWARE__
 	if(!panic_shutdown)
@@ -1758,8 +1758,9 @@ innobase_shutdown_for_mysql(void)
         to die; all which counts is that we flushed the log; a 'very fast'
         shutdown is essentially a crash. */
 
-        if (srv_fast_shutdown)
-          return((int) DB_SUCCESS);
+	if (srv_fast_shutdown == 2) {
+		return(DB_SUCCESS);
+	}
 
 	/* All threads end up waiting for certain events. Put those events
 	to the signaled state. Then the threads will exit themselves in
