@@ -2457,6 +2457,17 @@ rowid	val
 1	1
 2	2
 drop table t1;
+create table t1 (rowid int not null auto_increment, val int not null,primary
+key (rowid), unique(val)) engine=innodb;
+replace into t1 (val) values ('1'),('2');
+replace into t1 (val) values ('1'),('2');
+insert into t1 (val) values ('1'),('2');
+ERROR 23000: Duplicate entry '1' for key 2
+select * from t1;
+rowid	val
+3	1
+4	2
+drop table t1;
 create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
