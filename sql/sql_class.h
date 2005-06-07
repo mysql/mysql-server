@@ -665,8 +665,8 @@ public:
 #endif
   enum enum_state 
   {
-    INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
-    ERROR= -1
+    INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
+    CONVENTIONAL_EXECUTION= 3, EXECUTED= 4, ERROR= -1
   };
   
   enum_state state;
@@ -695,6 +695,7 @@ public:
   virtual Type type() const;
   virtual ~Item_arena() {};
 
+  inline bool is_stmt_prepare() const { return state == INITIALIZED; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }

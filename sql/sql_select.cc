@@ -10051,7 +10051,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  join->do_send_rows= 0;
 	  if (join->unit->fake_select_lex)
-	    join->unit->fake_select_lex->select_limit= HA_POS_ERROR;
+	    join->unit->fake_select_lex->select_limit= 0;
 	  DBUG_RETURN(NESTED_LOOP_OK);
 	}
       }
