@@ -3291,10 +3291,9 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *aux_tables=
       (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-    uint table_count;
     multi_delete *result;
 
-    if ((res= multi_delete_precheck(thd, all_tables, &table_count)))
+    if ((res= multi_delete_precheck(thd, all_tables)))
       break;
 
     /* condition will be TRUE on SP re-excuting */
@@ -3311,7 +3310,7 @@ end_with_restore_list:
       goto error;
 
     if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
-							  table_count)))
+							  lex->table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
 			select_lex->get_table_list(),
@@ -6801,22 +6800,18 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     multi_delete_precheck()
     thd			Thread handler
     tables		Global/local table list
-    table_count		Pointer to table counter
 
   RETURN VALUE
     FALSE OK
     TRUE  error
 */
 
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
+bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
     (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-  TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_precheck");
-
-  *table_count= 0;
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
@@ -6830,9 +6825,35 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
     DBUG_RETURN(TRUE);
   }
-  for (target_tbl= aux_tables; target_tbl; target_tbl= target_tbl->next_local)
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Link tables in auxilary table list of multi-delete with corresponding
+  elements in main table list, and set proper locks for them.
+
+  SYNOPSIS
+    multi_delete_set_locks_and_link_aux_tables()
+      lex - pointer to LEX representing multi-delete
+
+  RETURN VALUE
+    FALSE - success
+    TRUE  - error
+*/
+
+bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
+{
+  TABLE_LIST *tables= (TABLE_LIST*)lex->select_lex.table_list.first;
+  TABLE_LIST *target_tbl;
+  DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
+
+  lex->table_count= 0;
+
+  for (target_tbl= (TABLE_LIST *)lex->auxilliary_table_list.first;
+       target_tbl; target_tbl= target_tbl->next_local)
   {
-    (*table_count)++;
+    lex->table_count++;
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk;
     for (walk= tables; walk; walk= walk->next_local)
@@ -6850,14 +6871,6 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
-    
-    /* in case of subselects, we need to set lock_type in
-     * corresponding table in list of all tables */
-    if (walk->correspondent_table)
-    {
-      target_tbl->correspondent_table= walk->correspondent_table;
-      walk->correspondent_table->lock_type= walk->lock_type;
-    }
   }
   DBUG_RETURN(FALSE);
 }
