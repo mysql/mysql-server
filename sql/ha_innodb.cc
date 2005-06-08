@@ -5719,7 +5719,7 @@ ha_innobase::external_lock(
 
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt,
-							NULL, LOCK_TABLE_EXP);
+							NULL, 0);
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
@@ -5739,9 +5739,6 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 	auto_inc_counter_for_this_stat = 0;
-	if (trx->n_lock_table_exp) {
-		row_unlock_tables_for_mysql(trx);
-	}
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -5783,7 +5780,7 @@ user issued query LOCK TABLES..WHERE ENGINE = InnoDB. */
 int
 ha_innobase::transactional_table_lock(
 /*==================================*/
-			        /* out: 0 */
+			        /* out: error code */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
@@ -5847,8 +5844,7 @@ ha_innobase::transactional_table_lock(
 	if (thd->in_lock_tables && thd->variables.innodb_table_locks) {
 		ulint	error = DB_SUCCESS;
 
-		error = row_lock_table_for_mysql(prebuilt,NULL,
-						LOCK_TABLE_TRANSACTIONAL);
+		error = row_lock_table_for_mysql(prebuilt, NULL, 0);
 
 		if (error != DB_SUCCESS) {
 			error = convert_error_code_to_mysql(error, user_thd);

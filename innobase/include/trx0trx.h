@@ -497,13 +497,6 @@ struct trx_struct{
 					in the lock list trx_locks */
 	ibool		trx_create_lock;/* this is TRUE if we have created a
 					new lock for a record accessed */
-	ulint		n_lock_table_exp;/* number of explicit table locks
-					(LOCK TABLES) reserved by the
-					transaction, stored in trx_locks */
-	ulint		n_lock_table_transactional;
-					/* number of transactional table locks
-					(LOCK TABLES..WHERE ENGINE) reserved by
-					the transaction, stored in trx_locks */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)
