@@ -361,6 +361,7 @@ private:
   const RestoreMetaData & m_metaData;
 
   Uint32 m_count;  
+  Uint32 m_last_gci;
   LogEntry m_logEntry;
 public:
   RestoreLogIterator(const RestoreMetaData &);

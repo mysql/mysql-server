@@ -25,7 +25,6 @@
 #include "TransporterFacade.hpp"
 #include "API.hpp"
 #include "NdbBlob.hpp"
-#include <ndb_limits.h>
 
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/TcIndx.hpp>
@@ -1287,10 +1286,9 @@ NdbTransaction::getNdbIndexOperation(const char* anIndexName,
     {
       // This unique index is defined from SQL level
       static const char* uniqueSuffix= "$unique";
-      char uniqueIndexName[MAX_TAB_NAME_SIZE];
-
-      strxnmov(uniqueIndexName, MAX_TAB_NAME_SIZE, anIndexName, uniqueSuffix, NullS);
-      index = theNdb->theDictionary->getIndex(uniqueIndexName,
+      BaseString uniqueIndexName(anIndexName);
+      uniqueIndexName.append(uniqueSuffix);
+      index = theNdb->theDictionary->getIndex(uniqueIndexName.c_str(),
 					      aTableName);      
     }
     else
