@@ -512,7 +512,14 @@ BackupRestore::logEntry(const LogEntry & tup)
 	   << " Exiting...";
     exit(-1);
   }
+
+  if (check != 0) 
+  {
+    err << "Error defining op: " << trans->getNdbError() << endl;
+    exit(-1);
+  } // if
   
+  Bitmask<4096> keys;
   for (Uint32 i= 0; i < tup.size(); i++) 
   {
     const AttributeS * attr = tup[i];
@@ -525,9 +532,21 @@ BackupRestore::logEntry(const LogEntry & tup)
 
     const Uint32 length = (size / 8) * arraySize;
     if (attr->Desc->m_column->getPrimaryKey())
-      op->equal(attr->Desc->attrId, dataPtr, length);
+    {
+      if(!keys.get(attr->Desc->attrId))
+      {
+	keys.set(attr->Desc->attrId);
+	check= op->equal(attr->Desc->attrId, dataPtr, length);
+      }
+    }
     else
-      op->setValue(attr->Desc->attrId, dataPtr, length);
+      check= op->setValue(attr->Desc->attrId, dataPtr, length);
+    
+    if (check != 0) 
+    {
+      err << "Error defining op: " << trans->getNdbError() << endl;
+      exit(-1);
+    } // if
   }
   
   const int ret = trans->execute(Commit);
@@ -536,18 +555,25 @@ BackupRestore::logEntry(const LogEntry & tup)
     // Both insert update and delete can fail during log running
     // and it's ok
     // TODO: check that the error is either tuple exists or tuple does not exist?
+    bool ok= false;
+    NdbError errobj= trans->getNdbError();
     switch(tup.m_type)
     {
     case LogEntry::LE_INSERT:
+      if(errobj.status == NdbError::PermanentError &&
+	 errobj.classification == NdbError::ConstraintViolation)
+	ok= true;
       break;
     case LogEntry::LE_UPDATE:
-      break;
     case LogEntry::LE_DELETE:
+      if(errobj.status == NdbError::PermanentError &&
+	 errobj.classification == NdbError::NoDataFound)
+	ok= true;
       break;
     }
-    if (false)
+    if (!ok)
     {
-      err << "execute failed: " << trans->getNdbError() << endl;
+      err << "execute failed: " << errobj << endl;
       exit(-1);
     }
   }
