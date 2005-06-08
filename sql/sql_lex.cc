@@ -1760,6 +1760,7 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
   ulonglong select_limit_val;
 
+  DBUG_ASSERT(! thd->current_arena->is_stmt_prepare());
   select_limit_val= sl->select_limit ? sl->select_limit->val_uint() :
                                        HA_POS_ERROR;
   offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
