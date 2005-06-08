@@ -601,7 +601,7 @@ void Item_exists_subselect::fix_length_and_dec()
    max_length= 1;
    max_columns= engine->cols();
   /* We need only 1 row to determine existence */
-  unit->global_parameters->select_limit= new Item_int(1);
+  unit->global_parameters->select_limit= new Item_int((int32) 1);
 }
 
 double Item_exists_subselect::val_real()
