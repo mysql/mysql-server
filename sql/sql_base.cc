@@ -42,7 +42,6 @@ static my_bool open_new_frm(const char *path, const char *alias,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static void relink_tables_for_multidelete(THD *thd);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -2089,7 +2088,6 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  relink_tables_for_multidelete(thd);
   DBUG_RETURN(0);
 }
 
@@ -2119,33 +2117,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
   if (open_tables(thd, &tables, &counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  relink_tables_for_multidelete(thd);           // Not really needed, but
   DBUG_RETURN(0);
-}
-
-
-/*
-  Let us propagate pointers to open tables from global table list
-  to table lists for multi-delete
-*/
-
-static void relink_tables_for_multidelete(THD *thd)
-{
-  if (thd->lex->all_selects_list->next_select_in_list())
-  {
-    for (SELECT_LEX *sl= thd->lex->all_selects_list;
-	 sl;
-	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= (TABLE_LIST *) sl->table_list.first;
-           cursor;
-           cursor=cursor->next_local)
-      {
-        if (cursor->correspondent_table)
-          cursor->table= cursor->correspondent_table->table;
-      }
-    }
-  }
 }
 
 
