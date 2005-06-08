@@ -5169,26 +5169,28 @@ bool
 mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex;
-  THD *thd;
+  THD *thd= lex->thd;
   DBUG_ENTER("mysql_new_select");
 
-  if (!(select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+  if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
     DBUG_RETURN(1);
-  select_lex->select_number= ++lex->thd->select_number;
+  select_lex->select_number= ++thd->select_number;
   select_lex->init_query();
   select_lex->init_select();
   select_lex->parent_lex= lex;
+  if (thd->current_arena->is_stmt_prepare())
+    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
     lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
-    if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
+    if (!(unit= new (thd->mem_root) SELECT_LEX_UNIT()))
       DBUG_RETURN(1);
 
     unit->init_query();
     unit->init_select();
-    unit->thd= lex->thd;
+    unit->thd= thd;
     unit->include_down(lex->current_select);
     unit->link_next= 0;
     unit->link_prev= 0;
@@ -5212,7 +5214,7 @@ mysql_new_select(LEX *lex, bool move_down)
 	as far as we included SELECT_LEX for UNION unit should have
 	fake SELECT_LEX for UNION processing
       */
-      if (!(fake= unit->fake_select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+      if (!(fake= unit->fake_select_lex= new (thd->mem_root) SELECT_LEX()))
         DBUG_RETURN(1);
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
