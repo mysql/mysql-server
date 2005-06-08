@@ -1668,22 +1668,36 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 
 String *Item_func_format::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
-  double nr= args[0]->val_real();
-  uint32 length,str_length,dec;
+  uint32 length, str_length ,dec;
   int diff;
-  if ((null_value=args[0]->null_value))
-    return 0; /* purecov: inspected */
-  nr= my_double_round(nr, decimals, FALSE);
+  DBUG_ASSERT(fixed == 1);
   dec= decimals ? decimals+1 : 0;
-  /* Here default_charset() is right as this is not an automatic conversion */
-  str->set(nr,decimals, default_charset());
-  if (isnan(nr))
-    return str;
-  str_length=str->length();
-  if (nr < 0)
-    str_length--;				// Don't count sign
 
+  if (args[0]->result_type() == DECIMAL_RESULT ||
+      args[0]->result_type() == INT_RESULT)
+  {
+    my_decimal dec_val, rnd_dec, *res;
+    res= args[0]->val_decimal(&dec_val);
+    my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, &rnd_dec);
+    my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
+    str_length= str->length();
+    if (rnd_dec.sign())
+      str_length--;
+  }
+  else
+  {
+    double nr= args[0]->val_real();
+    if ((null_value=args[0]->null_value))
+      return 0; /* purecov: inspected */
+    nr= my_double_round(nr, decimals, FALSE);
+    /* Here default_charset() is right as this is not an automatic conversion */
+    str->set(nr,decimals, default_charset());
+    if (isnan(nr))
+      return str;
+    str_length=str->length();
+    if (nr < 0)
+      str_length--;				// Don't count sign
+  }
   /* We need this test to handle 'nan' values */
   if (str_length >= dec+4)
   {
