@@ -925,3 +925,24 @@ DROP TABLE t1;
 
 select abs(10/0);
 select abs(NULL);
+
+#
+# Bug #9894 (negative to unsigned column)
+#
+set @@sql_mode='traditional';
+create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
+--error 1264
+insert into t1 values(1,-1,-1);
+drop table t1;
+
+#
+# Bug #8425 (insufficient precision of the division)
+#
+set @@div_precision_increment=15;
+create table t1 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
+insert into t1 values (1,0.0123456789012345678912345,0.0123456789012345678912345);
+select col2/9999999999 from t1 where col1=1;
+select 9999999999/col2 from t1 where col1=1;
+select 77777777/7777777;
+drop table t1;
+
