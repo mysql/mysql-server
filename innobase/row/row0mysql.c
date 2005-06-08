@@ -971,25 +971,6 @@ run_again:
 }
 
 /*************************************************************************
-Unlocks all table locks explicitly requested by trx (with LOCK TABLES,
-lock type LOCK_TABLE_EXP). */
-
-void		  	
-row_unlock_tables_for_mysql(
-/*========================*/
-	trx_t*	trx)	/* in: transaction */
-{
-	if (!trx->n_lock_table_exp) {
-
-		return;
-	}
-
-	mutex_enter(&kernel_mutex);
-	lock_release_tables_off_kernel(trx);
-	mutex_exit(&kernel_mutex);
-}
-
-/*************************************************************************
 Sets a table lock on the table mentioned in prebuilt. */
 
 int
@@ -1000,9 +981,10 @@ row_lock_table_for_mysql(
 					table handle */
 	dict_table_t*	table,		/* in: table to lock, or NULL
 					if prebuilt->table should be
-					locked or a
+					locked as
 					prebuilt->select_lock_type */
-	ulint		mode)		/* in: lock mode of table */
+	ulint		mode)		/* in: lock mode of table
+					(ignored if table==NULL) */
 {
 	trx_t*		trx 		= prebuilt->trx;
 	que_thr_t*	thr;
@@ -1038,14 +1020,8 @@ run_again:
 	if (table) {
 		err = lock_table(0, table, mode, thr);
 	} else {
-		if (mode == LOCK_TABLE_TRANSACTIONAL) {
-			err = lock_table(LOCK_TABLE_TRANSACTIONAL, 
-					prebuilt->table,
-					prebuilt->select_lock_type, thr);
-		} else {
-			err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
-					prebuilt->select_lock_type, thr);
-		}
+		err = lock_table(0, prebuilt->table,
+				prebuilt->select_lock_type, thr);
 	}
 
 	trx->error_state = err;
