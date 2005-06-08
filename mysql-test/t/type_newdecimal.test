@@ -934,10 +934,12 @@ create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (2
 --error 1264
 insert into t1 values(1,-1,-1);
 drop table t1;
+set sql_mode='';
 
 #
 # Bug #8425 (insufficient precision of the division)
 #
+set @sav_dpi= @@div_precision_increment;
 set @@div_precision_increment=15;
 create table t1 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
 insert into t1 values (1,0.0123456789012345678912345,0.0123456789012345678912345);
@@ -945,4 +947,13 @@ select col2/9999999999 from t1 where col1=1;
 select 9999999999/col2 from t1 where col1=1;
 select 77777777/7777777;
 drop table t1;
+set div_precision_increment= @sav_dpi;
 
+#
+# Bug #10896 (0.00 > -0.00)
+#
+create table t1 (a decimal(4,2));
+insert into t1 values (0.00);
+select * from t1 where a > -0.00;
+select * from t1 where a = -0.00;
+drop table t1;
