@@ -773,9 +773,11 @@ NdbDictionary::Dictionary::getTable(const char * name) const
 
 void
 NdbDictionary::Dictionary::invalidateTable(const char * name){
+  DBUG_ENTER("NdbDictionaryImpl::invalidateTable");
   NdbTableImpl * t = m_impl.getTable(name);
   if(t)
     m_impl.invalidateObject(* t);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -811,11 +813,13 @@ NdbDictionary::Dictionary::getIndex(const char * indexName,
 void
 NdbDictionary::Dictionary::invalidateIndex(const char * indexName,
                                            const char * tableName){
+  DBUG_ENTER("NdbDictionaryImpl::invalidateIndex");
   NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
   if(i) {
     assert(i->m_table != 0);
     m_impl.invalidateObject(* i->m_table);
   }
+  DBUG_VOID_RETURN;
 }
 
 void

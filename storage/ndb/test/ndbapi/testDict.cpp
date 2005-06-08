@@ -1009,10 +1009,10 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
 struct ErrorCodes { int error_id; bool crash;};
 ErrorCodes
 NF_codes[] = {
-  {6003, true},
-  {6004, true},
+  {6003, true}
+  ,{6004, true}
   //,6005, true,
-  {7173, false}
+  //{7173, false}
 };
 
 int
@@ -1031,17 +1031,6 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
 
   int result = NDBT_OK;
 
-  /**
-   * Need to run LCP at high rate otherwise
-   * packed replicas become "to many"
-   */
-  int val = DumpStateOrd::DihMinTimeBetweenLCP;
-  if(restarter.dumpStateAllNodes(&val, 1) != 0){
-    do { CHECK(0); } while(0);
-    g_err << "Failed to set LCP to min value" << endl;
-    return NDBT_FAILED;
-  }
-  
   const int loops = ctx->getNumLoops();
   for (int l = 0; l < loops && result == NDBT_OK ; l++){
     const int sz = sizeof(NF_codes)/sizeof(NF_codes[0]);
@@ -1064,7 +1053,7 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
       
       CHECK2(dict->createTable(* pTab) == 0,
 	     "failed to create table");
-
+      
       if (crash) {
         CHECK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
 	    "waitNodesNoStart failed");
@@ -1088,9 +1077,6 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
 	  CHECK2(restarter.waitClusterStarted() == 0,
 	       "waitClusterStarted failed");
         }
-      
-        CHECK2(restarter.dumpStateOneNode(nodeId, &val, 1) == 0,
-	     "Failed to set LCP to min value");
       }
     }
   }
