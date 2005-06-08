@@ -226,7 +226,7 @@ $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     $BASE/mysql-test/std_data
 $CP mysql-test/t/*.test mysql-test/t/*.disabled mysql-test/t/*.opt \
-    mysql-test/t/*.slave-mi mysql-test/t/*.sh $BASE/mysql-test/t
+    mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
 $CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
 
