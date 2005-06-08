@@ -6132,10 +6132,17 @@ single_multi:
 	| table_wild_list
 	  { mysql_init_multi_delete(Lex); }
           FROM join_table_list where_clause
+          { 
+            if (multi_delete_set_locks_and_link_aux_tables(Lex))
+              YYABORT;
+          }
 	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
 	  USING join_table_list where_clause
-	  {}
+          { 
+            if (multi_delete_set_locks_and_link_aux_tables(Lex))
+              YYABORT;
+          }
 	;
 
 table_wild_list:
