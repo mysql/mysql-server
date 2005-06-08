@@ -919,6 +919,11 @@ deallocate:
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "DEALLOCATE");
+            YYABORT;
+          }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
@@ -937,6 +942,11 @@ prepare:
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "PREPARE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_PREPARE;
@@ -967,6 +977,11 @@ execute:
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "EXECUTE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_EXECUTE;
