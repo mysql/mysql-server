@@ -264,13 +264,7 @@ C_MODE_START int __cxa_pure_virtual() {\
 # endif
 #endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_UNISTD_H
-#if defined(HAVE_OPENSSL) && !defined(__FreeBSD__) && !defined(NeXT) && !defined(__OpenBSD__)
-#define crypt unistd_crypt
-#endif
 #include <unistd.h>
-#ifdef HAVE_OPENSSL
-#undef crypt
-#endif
 #endif
 #if defined(__cplusplus) && defined(NO_CPLUSPLUS_ALLOCA)
 #undef HAVE_ALLOCA
