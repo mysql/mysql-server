@@ -480,7 +480,7 @@ bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
+bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
 bool mysql_multi_update_prepare(THD *thd);
 bool mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
@@ -575,6 +575,7 @@ void mysql_init_query(THD *thd, uchar *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
+bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);

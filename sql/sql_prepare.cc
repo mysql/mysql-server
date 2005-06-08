@@ -1448,8 +1448,7 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
   if (add_item_to_list(stmt->thd, new Item_null()))
     return -1;
 
-  uint fake_counter;
-  if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
+  if ((res= multi_delete_precheck(stmt->thd, tables)))
     return res;
   if ((res= select_like_stmt_test_with_open_n_lock(stmt, tables,
                                                    &mysql_multi_delete_prepare,
