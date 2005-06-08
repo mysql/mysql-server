@@ -119,7 +119,7 @@ a
 99.99
 99.99
 99.99
-99.99
+0.00
 0.00
 0.00
 0.00
@@ -891,3 +891,8 @@ NULL
 select abs(NULL);
 abs(NULL)
 NULL
+set @@sql_mode='traditional';
+create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
+insert into t1 values(1,-1,-1);
+ERROR 22003: Out of range value adjusted for column 'd2' at row 1
+drop table t1;

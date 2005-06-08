@@ -2446,7 +2446,7 @@ int Field_new_decimal::store(longlong nr)
   int err;
 
   if ((err= int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                           nr, unsigned_flag, &decimal_value)))
+                           nr, false, &decimal_value)))
   {
     if (check_overflow(err))
       set_value_on_overflow(&decimal_value, decimal_value.sign());
