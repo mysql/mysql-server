@@ -7985,7 +7985,7 @@ handler:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
-	  lex->current_select->select_limit= new Item_int(1);
+	  lex->current_select->select_limit= new Item_int((int32) 1);
 	  lex->current_select->offset_limit= 0;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
