@@ -188,7 +188,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_NODE_HOST, &hostname)) continue;
       if( strlen(hostname) == 0 ) continue;
       if(iter.get(CFG_MGM_PORT, &port)) continue;
-      connect_string.appfmt("%s%s:port",separator,hostname,port);
+      connect_string.appfmt("%s%s:%u",separator,hostname,port);
       separator= ",";
     }
     NdbMgmHandle h= ndb_mgm_create_handle();
