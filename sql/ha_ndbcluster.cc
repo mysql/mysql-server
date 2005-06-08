@@ -4308,13 +4308,15 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   len= tab->getFrmLength();  
   if (len == 0 || tab->getFrmData() == NULL)
   {
-    DBUG_PRINT("No frm data found",
-               ("Table is probably created via NdbApi")); 
-    DBUG_RETURN(2);
+    DBUG_PRINT("error", ("No frm data found."));
+    DBUG_RETURN(1);
   }
   
   if (unpackfrm(&data, &len, tab->getFrmData()))
-    DBUG_RETURN(3);
+  {
+    DBUG_PRINT("error", ("Could not unpack table"));
+    DBUG_RETURN(1);
+  }
 
   *frmlen= len;
   *frmblob= data;
@@ -4327,13 +4329,13 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
    
  */
 
-int ndbcluster_table_exists(THD* thd, const char *db, const char *name)
+int ndbcluster_table_exists_in_engine(THD* thd, const char *db, const char *name)
 {
   uint len;
   const void* data;
   const NDBTAB* tab;
   Ndb* ndb;
-  DBUG_ENTER("ndbcluster_table_exists");
+  DBUG_ENTER("ndbcluster_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
   if (!(ndb= check_ndb_in_thd(thd)))
@@ -4512,7 +4514,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
-    if (ndbcluster_table_exists(thd, db, file_name) == 0)    
+    if (ndbcluster_table_exists_in_engine(thd, db, file_name) == 0)    
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name));     
       it.remove();
@@ -4563,7 +4565,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   while ((file_name=it2++))
   {  
     DBUG_PRINT("info", ("Table %s need discovery", name));
-    if (ha_create_table_from_engine(thd, db, file_name, TRUE) == 0)
+    if (ha_create_table_from_engine(thd, db, file_name) == 0)
       files->push_back(thd->strdup(file_name)); 
   }
 
@@ -4639,11 +4641,8 @@ bool ndbcluster_init()
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
 
   ndbcluster_inited= 1;
-#ifdef USE_DISCOVER_ON_STARTUP
-  if (ndb_discover_tables() != 0)
-    goto ndbcluster_init_error;    
-#endif
   DBUG_RETURN(FALSE);
+
  ndbcluster_init_error:
   ndbcluster_end();
   DBUG_RETURN(TRUE);
