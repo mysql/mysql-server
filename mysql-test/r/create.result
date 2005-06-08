@@ -434,7 +434,7 @@ d	date	YES		NULL
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
 g	time	YES		NULL	
-h	varbinary(23)	NO			
+h	longblob	NO			
 dd	time	YES		NULL	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
