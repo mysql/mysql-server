@@ -1668,7 +1668,7 @@ void Dbacc::initOpRec(Signal* signal)
 void Dbacc::sendAcckeyconf(Signal* signal) 
 {
   signal->theData[0] = operationRecPtr.p->userptr;
-  signal->theData[1] = operationRecPtr.p->insertIsDone;
+  signal->theData[1] = operationRecPtr.p->operation;
   signal->theData[2] = operationRecPtr.p->fid;
   signal->theData[3] = operationRecPtr.p->localdata[0];
   signal->theData[4] = operationRecPtr.p->localdata[1];
@@ -1754,6 +1754,11 @@ void Dbacc::execACCKEYREQ(Signal* signal)
     case ZWRITE:
     case ZSCAN_OP:
       if (!tgeLocked){
+	if(operationRecPtr.p->operation == ZWRITE)
+	{
+	  jam();
+	  operationRecPtr.p->operation = ZUPDATE;
+	}
         sendAcckeyconf(signal);
         if (operationRecPtr.p->dirtyRead == ZFALSE) {
 	  /*---------------------------------------------------------------*/
@@ -2279,6 +2284,12 @@ Uint32 Dbacc::placeWriteInLockQueue(Signal* signal)
     return ZWRITE_ERROR;
   }//if
 
+  if(operationRecPtr.p->operation == ZWRITE)
+  {
+    operationRecPtr.p->operation = 
+      (mlpqOperPtr.p->operation == ZDELETE) ? ZINSERT : ZUPDATE;
+  }
+  
   operationRecPtr.p->localdata[0] = queOperPtr.p->localdata[0];
   operationRecPtr.p->localdata[1] = queOperPtr.p->localdata[1];
   operationRecPtr.p->prevParallelQue = mlpqOperPtr.i;
