@@ -1676,13 +1676,30 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
     ptr.p->masterData.sendCounter= 0;
     ptr.p->masterData.gsn = GSN_BACKUP_FRAGMENT_REQ;
     nextFragment(signal, ptr);
+    return;
   } else {
     jam();
-    CRASH_INSERTION((10009));
-    ptr.p->stopGCP = gcp;
-    sendDropTrig(signal, ptr); // regular dropping of triggers
-  }//if
+    if(gcp >= ptr.p->startGCP + 3)
+    {
+      CRASH_INSERTION((10009));
+      ptr.p->stopGCP = gcp;
+      sendDropTrig(signal, ptr); // regular dropping of triggers
+      return;
+    }//if
+    
+    /**
+     * Make sure that we got entire stopGCP 
+     */
+    WaitGCPReq * req = (WaitGCPReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = ptr.i;
+    req->requestType = WaitGCPReq::CompleteForceStart;
+    sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal, 
+	       WaitGCPReq::SignalLength,JBB);
+    return;
+  }
 }
+
 /*****************************************************************************
  * 
  * Master functionallity - Backup fragment
