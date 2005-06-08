@@ -172,6 +172,10 @@ SOURCE="..\sql-common\client.c"
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\charset.c
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-latin1.c"
 # End Source File
 # Begin Source File
