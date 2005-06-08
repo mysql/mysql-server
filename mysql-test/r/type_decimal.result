@@ -414,8 +414,8 @@ Warning	1264	Out of range value adjusted for column 'a' at row 2
 Warning	1264	Out of range value adjusted for column 'a' at row 7
 select * from t1;
 a
-9999999999
-9999999999
+0
+0
 1
 1
 1
@@ -430,8 +430,8 @@ Warning	1264	Out of range value adjusted for column 'a' at row 2
 Warning	1264	Out of range value adjusted for column 'a' at row 7
 select * from t1;
 a
-9999999999
-9999999999
+0000000000
+0000000000
 0000000001
 0000000001
 0000000001
@@ -446,8 +446,8 @@ Warning	1264	Out of range value adjusted for column 'a' at row 2
 Warning	1264	Out of range value adjusted for column 'a' at row 7
 select * from t1;
 a
-9999999999
-9999999999
+0000000000
+0000000000
 0000000001
 0000000001
 0000000001
