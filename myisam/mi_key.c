@@ -107,8 +107,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     if (keyseg->flag & HA_SPACE_PACK)
     {
-      FIX_LENGTH(cs, pos, length, char_length);
-      end= pos + char_length;
+      end= pos + length;
       if (type != HA_KEYTYPE_NUM)
       {
 	while (end > pos && end[-1] == ' ')
@@ -119,7 +118,8 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 	while (pos < end && pos[0] == ' ')
 	  pos++;
       }
-      char_length= (uint) (end - pos);
+      length=(uint) (end-pos);
+      FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((byte*) key,(byte*) pos,(size_t) char_length);
       key+=char_length;
