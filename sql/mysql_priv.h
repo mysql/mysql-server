@@ -340,6 +340,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define UNCACHEABLE_SIDEEFFECT	4
 // forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
+/* Don't evaluate subqueries in prepare even if they're not correlated */
+#define UNCACHEABLE_PREPARE    16
 
 #ifdef EXTRA_DEBUG
 /*
