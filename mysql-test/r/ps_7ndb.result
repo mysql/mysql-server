@@ -442,9 +442,10 @@ limit 1 ';
 execute stmt1 ;
 a	b
 1	one
-prepare stmt1 from ' select a,b from t1
-limit ? ';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 2
+prepare stmt1 from ' select a,b from t1 limit ? ';
+execute stmt1 using @arg00;
+a	b
+3	three
 set @arg00='b' ;
 set @arg01=0 ;
 set @arg02=2 ;
