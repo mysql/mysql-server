@@ -332,3 +332,11 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES ('1',1,0);
 SELECT DISTINCT html,SUM(rout)/(SUM(rin)+1) as 'prod' FROM t1 GROUP BY rin;
 drop table t1;
+
+#
+# Bug 9784 DISTINCT IFNULL truncates data
+#
+create table t1 (id int, dsc varchar(50));
+insert into t1 values (1, "line number one"), (2, "line number two"), (3, "line number three");
+select distinct id, IFNULL(dsc, '-') from t1;
+drop table t1;
