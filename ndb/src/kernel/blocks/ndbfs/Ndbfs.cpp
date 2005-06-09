@@ -247,10 +247,10 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   AsyncFile* openFile = theOpenFiles.find(filePointer);
 
   const NewVARIABLE *myBaseAddrRef = &getBat(blockNumber)[fsRWReq->varIndex];
-  unsigned int tPageSize;
-  unsigned int tClusterSize;
-  unsigned int tNRR;
-  unsigned int tPageOffset;
+  UintPtr tPageSize;
+  UintPtr tClusterSize;
+  UintPtr tNRR;
+  UintPtr tPageOffset;
   char*        tWA;
   FsRef::NdbfsErrorCodeType errorCode;
 
@@ -294,8 +294,8 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
     jam();
     for (unsigned int i = 0; i < fsRWReq->numberOfPages; i++) {
       jam();
-      const Uint32 varIndex = fsRWReq->data.listOfPair[i].varIndex;
-      const Uint32 fileOffset = fsRWReq->data.listOfPair[i].fileOffset;
+      const UintPtr varIndex = fsRWReq->data.listOfPair[i].varIndex;
+      const UintPtr fileOffset = fsRWReq->data.listOfPair[i].fileOffset;
       if (varIndex >= tNRR) {
         jam();
         errorCode = FsRef::fsErrInvalidParameters;
@@ -316,8 +316,8 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       errorCode = FsRef::fsErrInvalidParameters;
       goto error;
     }//if
-    const Uint32 varIndex = fsRWReq->data.arrayOfPages.varIndex;
-    const Uint32 fileOffset = fsRWReq->data.arrayOfPages.fileOffset;
+    const UintPtr varIndex = fsRWReq->data.arrayOfPages.varIndex;
+    const UintPtr fileOffset = fsRWReq->data.arrayOfPages.fileOffset;
     
     request->par.readWrite.pages[0].offset = fileOffset * tPageSize;
     request->par.readWrite.pages[0].size = tPageSize * fsRWReq->numberOfPages;
@@ -334,7 +334,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
     
     for (unsigned int i = 0; i < fsRWReq->numberOfPages; i++) {
       jam();
-      Uint32 varIndex = fsRWReq->data.listOfMemPages.varIndex[i];
+      UintPtr varIndex = fsRWReq->data.listOfMemPages.varIndex[i];
 
       if (varIndex >= tNRR) {
         jam();
