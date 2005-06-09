@@ -42,8 +42,8 @@ RSC=rc.exe
 # PROP Output_Dir ".\debug"
 # PROP Intermediate_Dir ".\debug"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MTd /I "../extra" /I "../include" /I "../regex" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_WINDOWS" /D "_MBCS" /Fp".\debug/mysqltest.pch" /Fo".\debug/" /Fd".\debug/" /GZ /FD /c /GX 
-# ADD CPP /nologo /MTd /I "../extra" /I "../include" /I "../regex" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_WINDOWS" /D "_MBCS" /Fp".\debug/mysqltest.pch" /Fo".\debug/" /Fd".\debug/" /GZ /FD /c /GX 
+# ADD BASE CPP /nologo /MTd /I "../extra" /I "../include" /I "../regex" /I "../extra/yassl/include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_WINDOWS" /D "_MBCS" /Fp".\debug/mysqltest.pch" /Fo".\debug/" /Fd".\debug/" /GZ /FD /c /GX 
+# ADD CPP /nologo /MTd /I "../extra" /I "../include" /I "../regex" /I "../extra/yassl/include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_WINDOWS" /D "_MBCS" /Fp".\debug/mysqltest.pch" /Fo".\debug/" /Fd".\debug/" /GZ /FD /c /GX 
 # ADD BASE MTL /nologo /tlb".\debug\mysqltest.tlb" /win32 
 # ADD MTL /nologo /tlb".\debug\mysqltest.tlb" /win32 
 # ADD BASE RSC /l 1033 /d "_DEBUG" 
@@ -67,8 +67,8 @@ LINK32=link.exe
 # PROP Output_Dir ".\classic"
 # PROP Intermediate_Dir ".\classic"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /FD /c /GX 
-# ADD CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /FD /c /GX 
+# ADD BASE CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../extra/yassl/include" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /FD /c /GX 
+# ADD CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../extra/yassl/include" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /FD /c /GX 
 # ADD BASE MTL /nologo /tlb".\classic\mysqltest.tlb" /win32 
 # ADD MTL /nologo /tlb".\classic\mysqltest.tlb" /win32 
 # ADD BASE RSC /l 1033 /d "NDEBUG" 
@@ -92,8 +92,8 @@ LINK32=link.exe
 # PROP Output_Dir ".\release"
 # PROP Intermediate_Dir ".\release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /FD /c /GX 
-# ADD CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /FD /c /GX 
+# ADD BASE CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../extra/yassl/include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /FD /c /GX 
+# ADD CPP /nologo /MT /I "../extra" /I "../include" /I "../regex" /I "../extra/yassl/include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /FD /c /GX 
 # ADD BASE MTL /nologo /tlb".\release\mysqltest.tlb" /win32 
 # ADD MTL /nologo /tlb".\release\mysqltest.tlb" /win32 
 # ADD BASE RSC /l 1033 /d "NDEBUG" 
