@@ -896,6 +896,14 @@ create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (2
 insert into t1 values(1,-1,-1);
 ERROR 22003: Out of range value adjusted for column 'd2' at row 1
 drop table t1;
+create table t1 (col1 decimal(5,2), col2 numeric(5,2));
+insert into t1 values (999.999,999.999);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+insert into t1 values (-999.999,-999.999);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+select * from t1;
+col1	col2
+drop table t1;
 set sql_mode='';
 set @sav_dpi= @@div_precision_increment;
 set @@div_precision_increment=15;
