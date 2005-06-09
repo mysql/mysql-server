@@ -1402,8 +1402,6 @@ static bool mysql_test_multiupdate(Prepared_statement *stmt,
 static bool mysql_test_multidelete(Prepared_statement *stmt,
                                   TABLE_LIST *tables)
 {
-  uint fake_counter;
-
   stmt->thd->lex->current_select= &stmt->thd->lex->select_lex;
   if (add_item_to_list(stmt->thd, new Item_null()))
   {
@@ -1411,7 +1409,7 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
     goto error;
   }
 
-  if (multi_delete_precheck(stmt->thd, tables, &fake_counter) ||
+  if (multi_delete_precheck(stmt->thd, tables) ||
       select_like_stmt_test_with_open_n_lock(stmt, tables,
                                              &mysql_multi_delete_prepare,
                                              OPTION_SETUP_TABLES_DONE))
