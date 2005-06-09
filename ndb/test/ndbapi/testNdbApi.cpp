@@ -1281,6 +1281,102 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const Uint32 max= 5;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  Ndb* pNdb = new Ndb("TEST_DB");
+  if (pNdb == NULL){
+    ndbout << "pNdb == NULL" << endl;      
+    return NDBT_FAILED;  
+  }
+  if (pNdb->init(max)){
+    ERR(pNdb->getNdbError());
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+  
+  NdbConnection* pCon = pNdb->startTransaction();
+  if (pCon == NULL){
+    pNdb->closeTransaction(pCon);  
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  Uint32 i;
+  Vector<NdbResultSet*> scans;
+  for(i = 0; i<10*max; i++)
+  {
+    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+    if (pOp == NULL){
+      ERR(pCon->getNdbError());
+      pNdb->closeTransaction(pCon);  
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    
+    NdbResultSet* rs;
+    if ((rs= pOp->readTuples()) == 0){
+      pNdb->closeTransaction(pCon);
+      ERR(pOp->getNdbError());
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    scans.push_back(rs);
+  }
+
+  // Dont' call any equal or setValues
+
+  // Execute should not work
+  int check = pCon->execute(NoCommit);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+  }
+  
+  for(i= 0; i<scans.size(); i++)
+  {
+    NdbResultSet* pOp= scans[i];
+    while((check= pOp->nextResult()) == 0);
+    if(check != 1)
+    {
+      ERR(pOp->getOperation()->getNdbError());
+      pNdb->closeTransaction(pCon);
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+  }
+  
+  pNdb->closeTransaction(pCon);  
+
+  Vector<NdbConnection*> cons;
+  for(i= 0; i<10*max; i++)
+  {
+    pCon= pNdb->startTransaction();
+    if(pCon)
+      cons.push_back(pCon);
+    else
+      break;
+  }
+  
+  for(i= 0; i<cons.size(); i++)
+  {
+    cons[i]->close();
+  }
+  
+  if(cons.size() != max)
+  {
+    result= NDBT_FAILED;
+  }
+  
+  delete pNdb;
+  
+  return result;
+}
+
+template class Vector<NdbResultSet*>;
 
 
 NDBT_TESTSUITE(testNdbApi);
@@ -1361,6 +1457,12 @@ TESTCASE("Bug_11133",
 	 "Test ReadEx-Delete-Write\n"){ 
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug_11133);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Scan_4006", 
+	 "Check that getNdbScanOperation does not get 4006\n"){ 
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runScan_4006);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);
