@@ -1876,7 +1876,8 @@ void Item_func_round::fix_length_and_dec()
     max_length= float_length(decimals);
     break;
   case INT_RESULT:
-    if (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
+    if ((decimals_to_set==0) &&
+        (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)))
     {
       /* Here we can keep INT_RESULT */
       hybrid_type= INT_RESULT;
@@ -1890,18 +1891,12 @@ void Item_func_round::fix_length_and_dec()
     hybrid_type= DECIMAL_RESULT;
     int decimals_delta= args[0]->decimals - decimals_to_set;
     int precision= args[0]->decimal_precision();
-    if (decimals_delta > 0)
-    {
-      int length_increase= truncate ? 0:1;
-      precision-= decimals_delta - length_increase;
-      decimals= decimals_to_set;
-    }
-    else
-      /* Decimals to set is bigger that the original scale */
-      /* we keep original decimals value                   */
-      decimals= args[0]->decimals;
+    int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
+
+    precision-= decimals_delta - length_increase;
+    decimals= decimals_to_set;
     max_length= my_decimal_precision_to_length(precision, decimals,
-                                              unsigned_flag);
+                                               unsigned_flag);
     break;
   }
   default:
