@@ -515,7 +515,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 				   share->base.max_key_length),
 		       &info.lastkey,share->base.max_key_length*3+1,
 		       &info.first_mbr_key, share->base.max_key_length,
-		       &info.filename,strlen(org_name)+1,
+		       &info.filename,strlen(name)+1,
 		       &info.rtree_recursion_state,have_rtree ? 1024 : 0,
 		       NullS))
     goto err;
@@ -524,7 +524,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   if (!have_rtree)
     info.rtree_recursion_state= NULL;
 
-  strmov(info.filename,org_name);
+  strmov(info.filename,name);
   memcpy(info.blobs,share->blobs,sizeof(MI_BLOB)*share->base.blobs);
   info.lastkey2=info.lastkey+share->base.max_key_length;
 
