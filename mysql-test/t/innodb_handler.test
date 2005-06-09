@@ -69,6 +69,16 @@ handler t2 read next;
 handler t2 read last;
 handler t2 close;
 
+handler t1 open;
+handler t1 read a next; # this used to crash as a bug#5373
+handler t1 read a next;
+handler t1 close;
+
+handler t1 open;
+handler t1 read a prev; # this used to crash as a bug#5373
+handler t1 read a prev;
+handler t1 close;
+
 handler t1 open as t2;
 handler t2 read first;
 alter table t1 engine=innodb;
