@@ -94,7 +94,6 @@ Ndb::createConIdleList(int aNrOfCon)
     }
     tNdbCon->Status(NdbConnection::NotConnected);
   }
-  theNoOfAllocatedTransactions = aNrOfCon;
   return aNrOfCon; 
 }
 
@@ -194,14 +193,8 @@ Ndb::getNdbCon()
 {
   NdbConnection*        tNdbCon;
   if ( theConIdleList == NULL ) {
-    if (theNoOfAllocatedTransactions < theMaxNoOfTransactions) {
-      tNdbCon = new NdbConnection(this);
-      if (tNdbCon == NULL) {
-        return NULL;
-      }//if
-      theNoOfAllocatedTransactions++;
-    } else {
-      ndbout << "theNoOfAllocatedTransactions = " << theNoOfAllocatedTransactions << " theMaxNoOfTransactions = " << theMaxNoOfTransactions << endl;
+    tNdbCon = new NdbConnection(this);
+    if (tNdbCon == NULL) {
       return NULL;
     }//if
     tNdbCon->next(NULL);

@@ -41,7 +41,7 @@ static const int parallelism= 240;
 
 // Default value for max number of transactions
 // createable against NDB from this handler
-static const int max_transactions= 256;
+static const int max_transactions= 2;
 
 static const char *ha_ndb_ext=".ndb";
 
