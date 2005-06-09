@@ -132,6 +132,22 @@ a	b
 handler t2 read last;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 handler t2 close;
+handler t1 open;
+handler t1 read a next;
+a	b
+14	aaa
+handler t1 read a next;
+a	b
+15	bbb
+handler t1 close;
+handler t1 open;
+handler t1 read a prev;
+a	b
+22	iii
+handler t1 read a prev;
+a	b
+21	hhh
+handler t1 close;
 handler t1 open as t2;
 handler t2 read first;
 a	b
