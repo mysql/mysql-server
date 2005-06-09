@@ -188,7 +188,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     ACL_HOST host;
     update_hostname(&host.host,get_field(&mem, table->field[0]));
     host.db=	 get_field(&mem, table->field[1]);
-    if (lower_case_table_names)
+    if (lower_case_table_names && host.db)
     {
       /*
         convert db to lower case and give a warning if the db wasn't
@@ -210,7 +210,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       sql_print_warning("'host' entry '%s|%s' "
 		      "ignored in --skip-name-resolve mode.",
-		      host.host.hostname, host.db, host.host.hostname);
+		      host.host.hostname, host.db?host.db:"");
       continue;
     }
 #ifndef TO_BE_REMOVED
@@ -278,7 +278,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       sql_print_warning("'user' entry '%s@%s' "
                         "ignored in --skip-name-resolve mode.",
-		      user.user, user.host.hostname, user.host.hostname);
+		      user.user, user.host.hostname);
       continue;
     }
 
@@ -414,7 +414,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       sql_print_warning("'db' entry '%s %s@%s' "
 		        "ignored in --skip-name-resolve mode.",
-		        db.db, db.user, db.host.hostname, db.host.hostname);
+		        db.db, db.user, db.host.hostname);
       continue;
     }
     db.access=get_access(table,3);
@@ -3232,7 +3232,7 @@ my_bool grant_init(THD *org_thd)
           sql_print_warning("'procs_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
                             mem_check->tname, mem_check->user,
-                            mem_check->host, mem_check->host);
+                            mem_check->host);
 	  continue;
 	}
       }
