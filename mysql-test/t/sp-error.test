@@ -965,3 +965,24 @@ drop procedure bug10969|
 drop table t1|
 
 delimiter ;|
+
+#
+# Bug#10975, #10605, #7115: Dynamic SQL by means of
+# PREPARE/EXECUTE/DEALLOCATE is not supported yet.
+# Check that an error message is returned.
+#
+prepare stmt from "select 1";
+--error ER_SP_BADSTATEMENT
+create procedure p() deallocate prepare stmt; 
+--error ER_SP_BADSTATEMENT
+create function f() returns int begin deallocate prepare stmt;
+--error ER_SP_BADSTATEMENT
+create procedure p() prepare stmt from "select 1";
+--error ER_SP_BADSTATEMENT
+create function f() returns int begin prepare stmt from "select 1";
+--error ER_SP_BADSTATEMENT
+create procedure p() execute stmt; 
+--error ER_SP_BADSTATEMENT
+create function f() returns int begin execute stmt;
+deallocate prepare stmt;
+
