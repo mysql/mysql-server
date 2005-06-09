@@ -83,6 +83,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name mysys
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name yassl
+    End Project Dependency
 }}}
 
 ###############################################################################
