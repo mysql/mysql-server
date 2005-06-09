@@ -1806,11 +1806,12 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $opt_with_openssl )
   {
-    mtr_add_arg($args, "%s--ssl-ca=%s/SSL/cacert.pem", $prefix, $glob_basedir);
-    mtr_add_arg($args, "%s--ssl-cert=%s/SSL/server-cert.pem", $prefix,
-                $glob_basedir);
-    mtr_add_arg($args, "%s--ssl-key=%s/SSL/server-key.pem", $prefix,
-                $glob_basedir);
+    mtr_add_arg($args, "%s--ssl-ca=%s/std_data/cacert.pem", $prefix,
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "%s--ssl-cert=%s/std_data/server-cert.pem", $prefix,
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "%s--ssl-key=%s/std_data/server-key.pem", $prefix,
+                $glob_mysql_test_dir);
   }
 
   if ( $opt_warnings )
@@ -2148,9 +2149,12 @@ sub run_mysqltest ($$) {
 
   if ( $opt_with_openssl )
   {
-    mtr_add_arg($args, "--ssl-ca=%s/SSL/cacert.pem", $glob_basedir);
-    mtr_add_arg($args, "--ssl-cert=%s/SSL/client-cert.pem", $glob_basedir);
-    mtr_add_arg($args, "--ssl-key=%s/SSL/client-key.pem", $glob_basedir);
+    mtr_add_arg($args, "--ssl-ca=%s/std_data/cacert.pem",
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "--ssl-cert=%s/std_data/client-cert.pem",
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "--ssl-key=%s/std_data/client-key.pem",
+                $glob_mysql_test_dir);
   }
 
   mtr_add_arg($args, "-R");
