@@ -138,6 +138,8 @@ t1	CREATE TABLE `t1` (
   `min_num` decimal(7,6) default '0.000001'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1 ;
+set @@SQL_MODE=NULL;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of 'NULL'
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
 show local variables like 'SQL_MODE';
 Variable_name	Value
