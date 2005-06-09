@@ -125,6 +125,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name zlib
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name yassl
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -305,6 +308,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name mysqlclient
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -440,6 +446,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name innobase
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name yassl
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -466,6 +475,9 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name mysqlclient
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
     End Project Dependency
 }}}
 
@@ -545,6 +557,33 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name mysys
     End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "yassl"=".\extra\yassl\yassl.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name taocrypt
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "taocrypt"=".\extra\yassl\taocrypt\taocrypt.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
 }}}
 
 ###############################################################################
@@ -656,6 +695,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name zlib
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name yassl
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -721,6 +763,9 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name regex
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name yassl
     End Project Dependency
 }}}
 
