@@ -37,3 +37,26 @@ drop table t1;
 drop table t2;
 # bug#5367
 ##########
+
+###
+# bug#11205
+create table t1 (p int not null primary key, u int not null) engine=ndb;
+insert into t1 values (1,1),(2,2),(3,3);
+
+create table t2 as 
+select t1.*
+from t1 as t1, t1 as t2, t1 as t3, t1 as t4, t1 as t5, t1 as t6, t1 as t7, t1 as t8
+where t1.u = t2.u
+  and t2.u = t3.u
+  and t3.u = t4.u
+  and t4.u = t5.u
+  and t5.u = t6.u
+  and t6.u = t7.u
+  and t7.u = t8.u;
+
+select * from t2 order by 1;
+
+drop table t1;
+drop table t2;
+
+
