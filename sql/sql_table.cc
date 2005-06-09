@@ -2589,28 +2589,33 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char *db= table->db;
   char *table_name= table->table_name;
-  char *src_db= thd->db;
+  char *src_db;
   char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
+  src_db= table_ident->db.str ? table_ident->db.str : thd->db;
 
   /*
     Validate the source table
   */
   if (table_ident->table.length > NAME_LEN ||
       (table_ident->table.length &&
-       check_table_name(src_table,table_ident->table.length)) ||
-      table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
+       check_table_name(src_table,table_ident->table.length)))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(TRUE);
   }
+  if (!src_db || check_db_name(src_db))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
+    DBUG_RETURN(-1);
+  }
 
   bzero((gptr)&src_tables_list, sizeof(src_tables_list));
-  src_tables_list.db= table_ident->db.str ? table_ident->db.str : thd->db;
-  src_tables_list.table_name= table_ident->table.str;
+  src_tables_list.db= src_db;
+  src_tables_list.table_name= src_table;
 
   if (lock_and_wait_for_table_name(thd, &src_tables_list))
     goto err;
