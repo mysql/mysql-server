@@ -934,6 +934,13 @@ create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (2
 --error 1264
 insert into t1 values(1,-1,-1);
 drop table t1;
+create table t1 (col1 decimal(5,2), col2 numeric(5,2));
+--error 1264
+insert into t1 values (999.999,999.999);
+--error 1264
+insert into t1 values (-999.999,-999.999);
+select * from t1;
+drop table t1;
 set sql_mode='';
 
 #
