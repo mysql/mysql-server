@@ -1274,7 +1274,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   const Uint32 max= 5;
   const NdbDictionary::Table* pTab = ctx->getTab();
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -1293,7 +1293,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   Uint32 i;
-  Vector<NdbResultSet*> scans;
+  Vector<NdbScanOperation*> scans;
   for(i = 0; i<10*max; i++)
   {
     NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
@@ -1304,14 +1304,13 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
     
-    NdbResultSet* rs;
-    if ((rs= pOp->readTuples()) == 0){
+    if (pOp->readTuples() != 0){
       pNdb->closeTransaction(pCon);
       ERR(pOp->getNdbError());
       delete pNdb;
       return NDBT_FAILED;
     }
-    scans.push_back(rs);
+    scans.push_back(pOp);
   }
 
   // Dont' call any equal or setValues
@@ -1326,11 +1325,11 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   
   for(i= 0; i<scans.size(); i++)
   {
-    NdbResultSet* pOp= scans[i];
+    NdbScanOperation* pOp= scans[i];
     while((check= pOp->nextResult()) == 0);
     if(check != 1)
     {
-      ERR(pOp->getOperation()->getNdbError());
+      ERR(pOp->getNdbError());
       pNdb->closeTransaction(pCon);
       delete pNdb;
       return NDBT_FAILED;
@@ -1364,7 +1363,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-template class Vector<NdbResultSet*>;
+template class Vector<NdbScanOperation*>;
 
 
 NDBT_TESTSUITE(testNdbApi);
