@@ -3106,7 +3106,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     /* Since NDB does not currently have table locks
        this is treated as a ordinary lock */
 
-    if ((lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
          lock_type <= TL_WRITE) && !thd->in_lock_tables)      
       lock_type= TL_WRITE_ALLOW_WRITE;
     
