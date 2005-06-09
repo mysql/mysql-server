@@ -185,11 +185,11 @@ static void make_ftype(register my_string to, register int flag)
   DBUG_ASSERT(flag & (O_TRUNC|O_APPEND) != O_TRUNC|O_APPEND);  
 
   if (flag & (O_RDONLY|O_WRONLY) == O_WRONLY)    
-    *to++= (flag & O_TRUNC) ? 'w' : 'a';  
+    *to++= (flag & O_APPEND) ? 'a' : 'w';  
   else if (flag & O_RDWR)          
   {
     /* Add '+' after theese */    
-    if (flag & O_TRUNC)      
+    if (flag & (O_TRUNC | O_CREAT))      
       *to++= 'w';    
     else if (flag & O_APPEND)      
       *to++= 'a';    
