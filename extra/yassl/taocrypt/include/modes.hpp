@@ -71,7 +71,7 @@ public:
 
     void SetIV(const byte* iv) { memcpy(reg_, iv, blockSz_); }
 private:
-    byte reg_[MaxBlockSz];
+    byte __attribute__ ((aligned (sizeof(word32)))) reg_[MaxBlockSz];
     byte tmp_[MaxBlockSz];
     int  blockSz_;
 
