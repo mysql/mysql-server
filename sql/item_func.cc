@@ -4728,6 +4728,7 @@ Item_func_sp::func_name() const
 Field *
 Item_func_sp::sp_result_field(void) const
 {
+  Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
 
   if (!m_sp)
