@@ -4698,6 +4698,16 @@ Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
 
+void
+Item_func_sp::cleanup()
+{
+  if (result_field)
+  {
+    delete result_field;
+    result_field= NULL;
+  }
+  Item_func::cleanup();
+}
 
 const char *
 Item_func_sp::func_name() const
@@ -4746,7 +4756,8 @@ Item_func_sp::sp_result_field(void) const
     share->table_cache_key = empty_name;
     share->table_name = empty_name;
   }
-  DBUG_RETURN(m_sp->make_field(max_length, name, dummy_table));
+  field= m_sp->make_field(max_length, name, dummy_table);
+  DBUG_RETURN(field);
 }
 
 
