@@ -55,27 +55,13 @@ void operator delete[](void* ptr, TaoCrypt::new_t)
 
 /* uncomment to test
 // make sure not using globals anywhere by forgetting to use overloaded
-void* operator new(size_t sz)
-{
-    assert(0);
-    return malloc(sz);
-}
+void* operator new(size_t sz);
 
-void operator delete(void* ptr)
-{
-    assert(0);
-}
+void operator delete(void* ptr);
 
-void* operator new[](size_t sz)
-{
-    assert(0);
-    return malloc(sz);
-}
+void* operator new[](size_t sz);
 
-void operator delete[](void* ptr)
-{
-    assert(0);
-}
+void operator delete[](void* ptr);
 */
 
 /* namespace GCC_ABI {

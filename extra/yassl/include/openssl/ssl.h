@@ -34,6 +34,7 @@ namespace yaSSL {
 extern "C" {
 #endif
 
+#undef X509_NAME   /* wincrypt.h clash */
 
 #if defined(__cplusplus) && !defined(YASSL_MYSQL_COMPATIBLE)
     class SSL;
