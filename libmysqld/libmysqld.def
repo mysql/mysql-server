@@ -113,6 +113,7 @@ EXPORTS
 	my_charset_latin1
 	init_alloc_root
 	my_progname
+	get_charset_name
 	get_charset_by_csname
 	print_defaults
 	find_type
