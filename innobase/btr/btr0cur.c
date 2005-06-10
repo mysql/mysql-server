@@ -36,11 +36,11 @@ Created 10/16/1994 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 
+#ifdef UNIV_DEBUG
 /* If the following is set to TRUE, this module prints a lot of
 trace information of individual record operations */
 ibool	btr_cur_print_record_ops = FALSE;
-
-ulint	btr_cur_rnd	= 0;
+#endif /* UNIV_DEBUG */
 
 ulint	btr_cur_n_non_sea	= 0;
 ulint	btr_cur_n_sea		= 0;
@@ -880,6 +880,7 @@ btr_cur_ins_lock_and_undo(
 	return(DB_SUCCESS);
 }
 
+#ifdef UNIV_DEBUG
 /*****************************************************************
 Report information about a transaction. */
 static
@@ -897,6 +898,7 @@ btr_cur_trx_report(
 	dict_index_name_print(stderr, trx, index);
 	putc('\n', stderr);
 }
+#endif /* UNIV_DEBUG */
 
 /*****************************************************************
 Tries to perform an insert to a page in an index tree, next to cursor.
@@ -946,12 +948,13 @@ btr_cur_optimistic_insert(
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
 		dict_index_name_print(stderr, thr_get_trx(thr), index);
 	}
-	
+#ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
 		btr_cur_trx_report(thr_get_trx(thr), index, "insert into ");
 		dtuple_print(stderr, entry);
 	}
-	
+#endif /* UNIV_DEBUG */
+
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
@@ -1437,11 +1440,12 @@ btr_cur_update_in_place(
 	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
 	trx = thr_get_trx(thr);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-
+#ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
 		btr_cur_trx_report(trx, index, "update ");
 		rec_print_new(stderr, rec, offsets);
 	}
+#endif /* UNIV_DEBUG */
 
 	/* Do lock checking and undo logging */
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
@@ -1553,10 +1557,12 @@ btr_cur_optimistic_update(
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
+#ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
 		btr_cur_trx_report(thr_get_trx(thr), index, "update ");
 		rec_print_new(stderr, rec, offsets);
 	}
+#endif /* UNIV_DEBUG */
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
@@ -2133,10 +2139,12 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
+#ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
 		btr_cur_trx_report(thr_get_trx(thr), index, "del mark ");
 		rec_print_new(stderr, rec, offsets);
 	}
+#endif /* UNIV_DEBUG */
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
@@ -2284,11 +2292,13 @@ btr_cur_del_mark_set_sec_rec(
 
 	rec = btr_cur_get_rec(cursor);
 
+#ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
 		btr_cur_trx_report(thr_get_trx(thr), cursor->index,
 				"del mark ");
 		rec_print(stderr, rec, cursor->index);
 	}
+#endif /* UNIV_DEBUG */
 
 	err = lock_sec_rec_modify_check_and_lock(flags, rec, cursor->index,
 									thr);
