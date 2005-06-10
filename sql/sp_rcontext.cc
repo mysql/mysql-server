@@ -32,6 +32,7 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
     m_hfound(-1), m_ccount(0)
 {
+  callers_mem_root= NULL;
   in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
