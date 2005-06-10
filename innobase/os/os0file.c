@@ -133,17 +133,17 @@ os_event_t*	os_aio_segment_wait_events	= NULL;
 
 /* The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. */
-os_aio_array_t*	os_aio_read_array	= NULL;
-os_aio_array_t*	os_aio_write_array	= NULL;
-os_aio_array_t*	os_aio_ibuf_array	= NULL;
-os_aio_array_t*	os_aio_log_array	= NULL;
-os_aio_array_t*	os_aio_sync_array	= NULL;
+static os_aio_array_t*	os_aio_read_array	= NULL;
+static os_aio_array_t*	os_aio_write_array	= NULL;
+static os_aio_array_t*	os_aio_ibuf_array	= NULL;
+static os_aio_array_t*	os_aio_log_array	= NULL;
+static os_aio_array_t*	os_aio_sync_array	= NULL;
 
-ulint	os_aio_n_segments	= ULINT_UNDEFINED;
+static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
 /* If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
-ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
 
 ulint	os_n_file_reads		= 0;
 ulint	os_bytes_read_since_printout = 0;
@@ -158,7 +158,7 @@ ibool	os_has_said_disk_full	= FALSE;
 
 /* The mutex protecting the following counts of pending pread and pwrite
 operations */
-os_mutex_t os_file_count_mutex;
+static os_mutex_t os_file_count_mutex;
 ulint	os_file_n_pending_preads  = 0;
 ulint	os_file_n_pending_pwrites = 0;
 
@@ -4182,6 +4182,7 @@ os_aio_refresh_stats(void)
 	os_last_printout = time(NULL);
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
@@ -4241,3 +4242,4 @@ os_aio_all_slots_free(void)
 
 	return(FALSE);
 }
+#endif /* UNIV_DEBUG */
