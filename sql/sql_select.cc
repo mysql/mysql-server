@@ -1705,10 +1705,11 @@ Cursor::init_from_thd(THD *thd)
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
 
-    We can't just change the thd->mem_root here as we want to keep the things
-    that is already allocated in thd->mem_root for Cursor::fetch()
+    We can't just change the thd->mem_root here as we want to keep the
+    things that are already allocated in thd->mem_root for Cursor::fetch()
   */
   main_mem_root=  *thd->mem_root;
+  state= thd->current_arena->state;
   /* Allocate new memory root for thd */
   init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1731,24 +1732,6 @@ Cursor::init_from_thd(THD *thd)
     What problems can we have with it if cursor is open?
     TODO: must be fixed because of the prelocked mode.
   */
-  /*
-    TODO: grab thd->free_list here?
-  */
-}
-
-
-void
-Cursor::init_thd(THD *thd)
-{
-  DBUG_ASSERT(thd->derived_tables == 0);
-  thd->derived_tables= derived_tables;
-
-  DBUG_ASSERT(thd->open_tables == 0);
-  thd->open_tables= open_tables;
-
-  DBUG_ASSERT(thd->lock== 0);
-  thd->lock= lock;
-  thd->query_id= query_id;
 }
 
 
@@ -1824,6 +1807,13 @@ Cursor::fetch(ulong num_rows)
   DBUG_ENTER("Cursor::fetch");
   DBUG_PRINT("enter",("rows: %lu", num_rows));
 
+  DBUG_ASSERT(thd->derived_tables == 0 && thd->open_tables == 0 &&
+              thd->lock == 0);
+
+  thd->derived_tables= derived_tables;
+  thd->open_tables= open_tables;
+  thd->lock= lock;
+  thd->query_id= query_id;
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
 
@@ -1842,6 +1832,9 @@ Cursor::fetch(ulong num_rows)
 #endif
 
   thd->restore_backup_item_arena(this, &thd->stmt_backup);
+  DBUG_ASSERT(thd->free_list == 0);
+  reset_thd(thd);
+
   if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
     /* Fetch limit worked, possibly more rows are there */
@@ -1882,8 +1875,8 @@ Cursor::close()
     join->cleanup();
     delete join;
   }
-  /* XXX: Another hack: closing tables used in the cursor */
   {
+    /* XXX: Another hack: closing tables used in the cursor */
     DBUG_ASSERT(lock || open_tables || derived_tables);
 
     TABLE *tmp_derived_tables= thd->derived_tables;
