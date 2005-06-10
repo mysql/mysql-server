@@ -23,7 +23,6 @@
 
 #include "runtime.hpp"
 #include "aes.hpp"
-#include "stdexcept.hpp"
 
 
 namespace TaoCrypt {
