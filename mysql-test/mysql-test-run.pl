@@ -204,7 +204,7 @@ our $opt_bench= 0;
 our $opt_small_bench= 0;
 our $opt_big_test= 0;            # Send --big-test to mysqltest
 
-our $opt_extra_mysqld_opt;       # FIXME not handled
+our @opt_extra_mysqld_opt;
 
 our $opt_compress;
 our $opt_current_test;
@@ -500,7 +500,7 @@ sub command_line_setup () {
              'record'                   => \$opt_record,
 
              # ???
-             'mysqld=s'                 => \$opt_extra_mysqld_opt,
+             'mysqld=s'                 => \@opt_extra_mysqld_opt,
 
              # Run test on running server
              'extern'                   => \$opt_extern,
@@ -953,13 +953,25 @@ sub environment_setup () {
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
+  $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
   $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
+
+  if ( $glob_cygwin_perl )
+  {
+    foreach my $key ('MYSQL_TEST_WINDIR','MASTER_MYSOCK')
+    {
+      $ENV{$key}= `cygpath -w $ENV{$key}`;
+      $ENV{$key} =~ s,\\,\\\\,g;
+      chomp($ENV{$key});
+    }
+  }
 }
 
 
@@ -1850,7 +1862,7 @@ sub mysqld_arguments ($$$$$) {
     }
   }
 
-  foreach my $arg ( @$extra_opt )
+  foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
   {
     mtr_add_arg($args, "%s%s", $prefix, $arg);
   }

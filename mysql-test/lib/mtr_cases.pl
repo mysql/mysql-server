@@ -171,8 +171,8 @@ sub collect_one_test_case($$$$$) {
   my $slave_sh=        "$testdir/$tname-slave.sh";
   my $disabled=        "$testdir/$tname.disabled";
 
-  $tinfo->{'master_opt'}= [];
-  $tinfo->{'slave_opt'}=  [];
+  $tinfo->{'master_opt'}= ["--default-time-zone=+3:00"];
+  $tinfo->{'slave_opt'}=  ["--default-time-zone=+3:00"];
   $tinfo->{'slave_mi'}=   [];
 
   if ( -f $master_opt_file )
@@ -180,9 +180,9 @@ sub collect_one_test_case($$$$$) {
     $tinfo->{'master_restart'}= 1;    # We think so for now
     # This is a dirty hack from old mysql-test-run, we use the opt file
     # to flag other things as well, it is not a opt list at all
-    my $extra_master_opt= mtr_get_opts_from_file($master_opt_file);
+    $tinfo->{'master_opt'}= mtr_get_opts_from_file($master_opt_file);
 
-    foreach my $opt (@$extra_master_opt)
+    foreach my $opt (@{$tinfo->{'master_opt'}})
     {
       my $value;
 
@@ -191,7 +191,7 @@ sub collect_one_test_case($$$$$) {
       if ( defined $value )
       {
         $tinfo->{'timezone'}= $value;
-        $extra_master_opt= [];
+        $tinfo->{'master_opt'}= [];
         $tinfo->{'master_restart'}= 0;
         last;
       }
@@ -206,13 +206,11 @@ sub collect_one_test_case($$$$$) {
         {
           $tinfo->{'result_file'}.= $::opt_result_ext;
         }
-        $extra_master_opt= [];
+        $tinfo->{'master_opt'}= [];
         $tinfo->{'master_restart'}= 0;
         last;
       }
     }
-
-    $tinfo->{'master_opt'}= $extra_master_opt;
   }
 
   if ( -f $slave_opt_file )
