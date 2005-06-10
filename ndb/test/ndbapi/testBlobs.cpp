@@ -1542,11 +1542,11 @@ testperf()
     }
     if (n != 0) {
       CHK(g_con->execute(Commit) == 0);
+      g_ndb->closeTransaction(g_con); g_con = 0;
       n = 0;
     }
     g_bh1 = 0;
     g_opr = 0;
-    g_con = 0;
   }
   // pk read char (one trans)
   {
@@ -1570,7 +1570,7 @@ testperf()
     t1.off(g_opt.m_rowsperf);
     DBG(t1.time());
     g_opr = 0;
-    g_con = 0;
+    g_ndb->closeTransaction(g_con); g_con = 0;
   }
   // pk read text (one trans)
   {
@@ -1595,7 +1595,7 @@ testperf()
     CHK(g_con->execute(Commit) == 0);
     t2.off(g_opt.m_rowsperf);
     DBG(t2.time());
-    g_opr = 0;
+    g_ndb->closeTransaction(g_con); g_opr = 0;
     g_con = 0;
   }
   // pk read overhead
@@ -1628,7 +1628,7 @@ testperf()
     CHK(n == g_opt.m_rowsperf);
     t1.off(g_opt.m_rowsperf);
     DBG(t1.time());
-    g_ops = 0;
+    g_ndb->closeTransaction(g_con); g_ops = 0;
     g_con = 0;
   }
   // scan read text
@@ -1661,7 +1661,7 @@ testperf()
     DBG(t2.time());
     g_bh1 = 0;
     g_ops = 0;
-    g_con = 0;
+    g_ndb->closeTransaction(g_con); g_con = 0;
   }
   // scan read overhead
   DBG("scan read overhead: " << t2.over(t1));
