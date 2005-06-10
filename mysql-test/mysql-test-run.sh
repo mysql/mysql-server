@@ -1793,6 +1793,11 @@ then
   $ECHO "Installing Test Databases"
   mysql_install_db
 
+  if [ -n "$1" -a `expr "X$*" : '.*ndb'` -eq 0 ]
+  then
+    USE_NDBCLUSTER=""
+  fi
+
   start_manager
 
 # Do not automagically start daemons if we are in gdb or running only one test
