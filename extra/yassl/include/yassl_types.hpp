@@ -71,7 +71,7 @@ void ysArrayDelete(T* ptr)
 
 
 // to resolve compiler generated operator delete on base classes with
-// virtual destructors, make sure doesn't get called
+// virtual destructors (when on stack), make sure doesn't get called
 class virtual_base {
 public:
     static void operator delete(void*) { assert(0); }

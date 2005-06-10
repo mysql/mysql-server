@@ -24,6 +24,7 @@
  * with SSL types and sockets
  */
 
+#include <string.h>             // memcpy
 #include "buffer.hpp"
 #include "yassl_types.hpp"
 
