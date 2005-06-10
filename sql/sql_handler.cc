@@ -413,8 +413,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                 cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1)))
     goto err0;
 
-  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
-
   if (keyname)
   {
     if ((keyno=find_type(keyname, &table->s->keynames, 1+2)-1)<0)
@@ -422,8 +420,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), keyname, tables->alias);
       goto err0;
     }
-    table->file->ha_index_or_rnd_end();
-    table->file->ha_index_init(keyno);
   }
 
   if (insert_fields(thd, tables, tables->db, tables->alias, &it, 0, 0))
@@ -449,9 +445,22 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   for (num_rows=0; num_rows < select_limit_cnt; )
   {
     switch (mode) {
+    case RNEXT:
+      if (table->file->inited != handler::NONE)
+      {
+        error=keyname ?
+	  table->file->index_next(table->record[0]) :
+	  table->file->rnd_next(table->record[0]);
+        break;
+      }
+      /* else fall through */
     case RFIRST:
       if (keyname)
+      {
+        table->file->ha_index_or_rnd_end();
+        table->file->ha_index_init(keyno);
         error= table->file->index_first(table->record[0]);
+      }
       else
       {
         table->file->ha_index_or_rnd_end();
@@ -460,19 +469,20 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       mode=RNEXT;
       break;
-    case RLAST:
-      DBUG_ASSERT(keyname != 0);
-      error= table->file->index_last(table->record[0]);
-      mode=RPREV;
-      break;
-    case RNEXT:
-      error= (keyname ?
-              table->file->index_next(table->record[0]) :
-              table->file->rnd_next(table->record[0]));
-      break;
     case RPREV:
       DBUG_ASSERT(keyname != 0);
-      error= table->file->index_prev(table->record[0]);
+      if (table->file->inited != handler::NONE)
+      {
+        error=table->file->index_prev(table->record[0]);
+        break;
+      }
+      /* else fall through */
+    case RLAST:
+      DBUG_ASSERT(keyname != 0);
+      table->file->ha_index_or_rnd_end();
+      table->file->ha_index_init(keyno);
+      error= table->file->index_last(table->record[0]);
+      mode=RPREV;
       break;
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
@@ -508,6 +518,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
 	goto err;
+      table->file->ha_index_or_rnd_end();
+      table->file->ha_index_init(keyno);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
       error= table->file->index_read(table->record[0],
 				  key,key_len,ha_rkey_mode);

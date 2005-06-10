@@ -386,8 +386,6 @@ public:
   /* Temporary implementation as now we replace THD state by value */
   /* Save THD state into cursor */
   void init_from_thd(THD *thd);
-  /* Restore THD from cursor to continue cursor execution */
-  void init_thd(THD *thd);
   /* bzero cursor state in THD */
   void reset_thd(THD *thd);
 
