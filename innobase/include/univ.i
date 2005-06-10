@@ -181,7 +181,7 @@ management to ensure correct alignment for doubles etc. */
 /* Another basic type we use is unsigned long integer which should be equal to
 the word size of the machine, that is on a 32-bit platform 32 bits, and on a
 64-bit platform 64 bits. We also give the printf format for the type as a
-macro PRULINT. */
+macro ULINTPF. */
 
 #ifdef _WIN64
 typedef unsigned __int64	ulint;
@@ -243,19 +243,29 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
+/* Some macros to improve branch prediction and reduce cache misses */
 #if defined(__GNUC__) && (__GNUC__ > 2)
-# define UNIV_EXPECT(expr,value) __builtin_expect(expr, value)
-# define UNIV_LIKELY_NULL(expr) __builtin_expect((ulint) expr, 0)
+/* Tell the compiler that 'expr' probably evaluates to 'constant'. */
+# define UNIV_EXPECT(expr,constant) __builtin_expect(expr, constant)
+/* Tell the compiler that a pointer is likely to be NULL */
+# define UNIV_LIKELY_NULL(ptr) __builtin_expect((ulint) ptr, 0)
+/* Minimize cache-miss latency by moving data at addr into a cache before
+it is read. */
 # define UNIV_PREFETCH_R(addr) __builtin_prefetch(addr, 0, 3)
+/* Minimize cache-miss latency by moving data at addr into a cache before
+it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
 #else
+/* Dummy versions of the macros */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
 # define UNIV_PREFETCH_R(addr) ((void) 0)
 # define UNIV_PREFETCH_RW(addr) ((void) 0)
 #endif
-#define UNIV_LIKELY(expr) UNIV_EXPECT(expr, TRUE)
-#define UNIV_UNLIKELY(expr) UNIV_EXPECT(expr, FALSE)
+/* Tell the compiler that cond is likely to hold */
+#define UNIV_LIKELY(cond) UNIV_EXPECT(cond, TRUE)
+/* Tell the compiler that cond is unlikely to hold */
+#define UNIV_UNLIKELY(cond) UNIV_EXPECT(cond, FALSE)
 
 #include <stdio.h>
 #include "ut0dbg.h"
