@@ -83,7 +83,7 @@ struct os_aio_slot_struct{
 					made and only the slot message
 					needs to be passed to the caller
 					of os_aio_simulated_handle */
-	void*		message1;	/* message which is given by the */
+	fil_node_t*	message1;	/* message which is given by the */
 	void*		message2;	/* the requester of an aio operation
 					and which can be used to identify
 					which pending aio operation was
@@ -3025,7 +3025,7 @@ os_aio_array_reserve_slot(
 				/* out: pointer to slot */
 	ulint		type,	/* in: OS_FILE_READ or OS_FILE_WRITE */
 	os_aio_array_t*	array,	/* in: aio array */
-	void*		message1,/* in: message to be passed along with
+	fil_node_t*	message1,/* in: message to be passed along with
 				the aio operation */
 	void*		message2,/* in: message to be passed along with
 				the aio operation */
@@ -3287,7 +3287,7 @@ os_aio(
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
 	ulint		n,	/* in: number of bytes to read or write */
-	void*		message1,/* in: messages for the aio handler (these
+	fil_node_t*	message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
 				are ignored */
@@ -3472,7 +3472,7 @@ os_aio_windows_handle(
 				ignored */
 	ulint	pos,		/* this parameter is used only in sync aio:
 				wait for the aio slot at this position */  
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -3563,7 +3563,7 @@ os_aio_posix_handle(
 /*================*/
 				/* out: TRUE if the aio operation succeeded */
 	ulint	array_no,	/* in: array number 0 - 3 */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -3644,7 +3644,7 @@ os_aio_simulated_handle(
 				i/o thread, segment 1 the log i/o thread,
 				then follow the non-ibuf read threads, and as
 				the last are the non-ibuf write threads */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
