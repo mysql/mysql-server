@@ -605,7 +605,7 @@ os_file_opendir(
 
 	lpFindFileData = ut_malloc(sizeof(WIN32_FIND_DATA));
 
-	dir = FindFirstFile(path, lpFindFileData);
+	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
 
 	ut_free(lpFindFileData);
 
@@ -686,15 +686,15 @@ next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
 	if (ret) {
-	        ut_a(strlen(lpFindFileData->cFileName) < OS_FILE_MAX_PATH);
+	        ut_a(strlen((char *) lpFindFileData->cFileName) < OS_FILE_MAX_PATH);
 
-		if (strcmp(lpFindFileData->cFileName, ".") == 0
-		    || strcmp(lpFindFileData->cFileName, "..") == 0) {
+		if (strcmp((char *) lpFindFileData->cFileName, ".") == 0
+		    || strcmp((char *) lpFindFileData->cFileName, "..") == 0) {
 
 		        goto next_file;
 		}
 
-		strcpy(info->name, lpFindFileData->cFileName);
+		strcpy(info->name, (char *) lpFindFileData->cFileName);
 
 		info->size = (ib_longlong)(lpFindFileData->nFileSizeLow)
 		     + (((ib_longlong)(lpFindFileData->nFileSizeHigh)) << 32);
@@ -830,7 +830,7 @@ os_file_create_directory(
 #ifdef __WIN__
 	BOOL	rcode;
     
-	rcode = CreateDirectory(pathname, NULL);
+	rcode = CreateDirectory((LPCTSTR) pathname, NULL);
 	if (!(rcode != 0 ||
 	   (GetLastError() == ERROR_ALREADY_EXISTS && !fail_if_exists))) {
 		/* failure */
@@ -914,7 +914,7 @@ try_again:
 		ut_error;
 	}
 
-	file = CreateFile(name,
+	file = CreateFile((LPCTSTR) name,
 			access,
 			FILE_SHARE_READ | FILE_SHARE_WRITE,
 					/* file can be read ansd written also
@@ -1053,7 +1053,7 @@ os_file_create_simple_no_error_handling(
 		ut_error;
 	}
 
-	file = CreateFile(name,
+	file = CreateFile((LPCTSTR) name,
 			access,
 			share_mode,
 			NULL,	/* default security attributes */
@@ -1200,7 +1200,7 @@ try_again:
 		ut_error;
 	}
 
-	file = CreateFile(name,
+	file = CreateFile((LPCTSTR) name,
 			GENERIC_READ | GENERIC_WRITE, /* read and write
 							access */
 			share_mode,     /* File can be read also by other
