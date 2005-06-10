@@ -25,6 +25,17 @@
 #ifndef TAO_CRYPT_INTEGER_HPP
 #define TAO_CRYPT_INTEGER_HPP
 
+
+#ifdef _MSC_VER
+    // 4250: dominance
+    // 4660: explicitly instantiating a class already implicitly instantiated
+    // 4661: no suitable definition provided for explicit template request
+    // 4786: identifer was truncated in debug information
+    // 4355: 'this' : used in base member initializer list
+#   pragma warning(disable: 4250 4660 4661 4786 4355)
+#endif
+
+
 #include "misc.hpp"
 #include "block.hpp"
 #include "random.hpp"

@@ -27,7 +27,6 @@
 
 #include "integer.hpp"
 #include "random.hpp"
-#include "stdexcept.hpp"
 
 
 namespace TaoCrypt {
