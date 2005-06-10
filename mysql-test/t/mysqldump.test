@@ -543,3 +543,18 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
+
+#
+# Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
+#
+
+CREATE DATABASE mysqldump_test_db;
+USE mysqldump_test_db;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db t1 t2
+DROP TABLE t1, t2;
+DROP DATABASE mysqldump_test_db;
