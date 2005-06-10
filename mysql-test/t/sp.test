@@ -372,12 +372,13 @@ call sub1("sub1a", (select 7))|
 call sub1("sub1b", (select max(i) from t2))|
 call sub1("sub1c", (select i,d from t2 limit 1))|
 call sub1("sub1d", (select 1 from (select 1) a))|
-call sub2("sub2");
+call sub2("sub2")|
 select * from t1|
 select sub3((select max(i) from t2))|
 drop procedure sub1|
 drop procedure sub2|
 drop function sub3|
+delete from t1|
 delete from t2|
 
 # Basic tests of the flow control constructs
