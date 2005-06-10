@@ -492,3 +492,14 @@ create table t1(t1.name int);
 create table t2(test.t2.name int);
 drop table t1,t2;
 
+#
+# Bug#11028: Crash on create table like
+#
+create database mysqltest;
+use mysqltest;
+drop database mysqltest;
+--error 1102
+create table test.t1 like x;
+--disable_warnings
+drop table if exists test.t1;
+--enable_warnings

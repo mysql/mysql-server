@@ -224,3 +224,12 @@ insert t1 (a) values (1);
 insert t1 (a) values (1);
 select * from t1;                                                               
 drop table t1;
+
+#
+# Bug #10566: Verify that we can create a prefixed key with length > 255
+#
+create table t1 (c char(255), primary key(c(90)));
+insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+--error 1062
+insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+drop table t1;
