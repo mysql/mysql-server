@@ -33,7 +33,6 @@
 
 #include "vector.hpp"
 #include "pair.hpp"
-#include "yassl_error.hpp"
 
 
 
