@@ -262,7 +262,25 @@ static void movelink(HASH_LINK *array,uint find,uint next_link,uint newlink)
   return;
 }
 
-	/* Compare a key in a record to a whole key. Return 0 if identical */
+/*
+  Compare a key in a record to a whole key. Return 0 if identical
+
+  SYNOPSIS
+    hashcmp()
+    hash   hash table
+    pos    position of hash record to use in comparison
+    key    key for comparison
+    length length of key
+
+  NOTES:
+    If length is 0, comparison is done using the length of the
+    record being compared against.
+
+  RETURN
+    < 0  key of record <  key
+    = 0  key of record == key
+    > 0  key of record >  key
+ */
 
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
 {
@@ -270,7 +288,7 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
   byte *rec_key= (byte*) hash_key(hash,pos->data,&rec_keylength,1);
   return ((length && length != rec_keylength) ||
 	  my_strnncoll(hash->charset, (uchar*) rec_key, rec_keylength,
-		       (uchar*) key, length));
+		       (uchar*) key, rec_keylength));
 }
 
 
