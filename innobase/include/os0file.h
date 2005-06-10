@@ -688,6 +688,8 @@ Refreshes the statistics used to print per-second averages. */
 void
 os_aio_refresh_stats(void);
 /*======================*/
+
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
@@ -695,6 +697,7 @@ no pending io operations. */
 ibool
 os_aio_all_slots_free(void);
 /*=======================*/
+#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 This function returns information about the specified file */
