@@ -1546,18 +1546,30 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
       *buf1=1;
       to->intg++;
     }
+    /* Here we  check 999.9 -> 1000 case when we need to increase intg */
+    else
+    {
+      int first_dig= to->intg % DIG_PER_DEC1;
+      /* first_dig==0 should be handled above in the 'if' */
+      if (first_dig && (*buf1 >= powers10[first_dig]))
+        to->intg++;
+    }
   }
   else
   {
-    while (unlikely(*buf1 == 0) && buf1 >= to->buf)
-      buf1--;
-    if (buf1 < to->buf)
+    for (;;)
     {
-      decimal_make_zero(to);
-      return E_DEC_OK;
+      if (likely(*buf1))
+        break;
+      if (buf1-- == to->buf)
+      {
+        decimal_make_zero(to);
+        return E_DEC_OK;
+      }
     }
   }
-  if (scale<0) scale=0;
+  if (scale<0)
+    scale=0;
 
 done:
   to->frac=scale;
@@ -1727,11 +1739,14 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     while (buf1 <=end1 && buf2 <= end2 && *buf1 == *buf2)
       buf1++, buf2++;
     if (buf1 <= end1)
+    {
       if (buf2 <= end2)
         carry= *buf2 > *buf1;
       else
         carry= 0;
+    }
     else
+    {
       if (buf2 <= end2)
         carry=1;
       else /* short-circuit everything: from1 == from2 */
@@ -1741,6 +1756,7 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
         decimal_make_zero(to);
         return E_DEC_OK;
       }
+    }
   }
 
   if (to == 0) /* decimal_cmp() */
@@ -1937,10 +1953,18 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
   {
     dec1 *buf= to->buf;
     dec1 *end= to->buf + intg0 + frac0;
-    for (; (buf<end) && !*buf; buf++);
-    if (buf == end)
-      /* So we got decimal zero */
-      decimal_make_zero(to);
+    DBUG_ASSERT(buf != end);
+    for (;;)
+    {
+      if (*buf)
+        break;
+      if (++buf == end)
+      {
+        /* We got decimal zero */
+        decimal_make_zero(to);
+        break;
+      }
+    }
   }
   return error;
 }

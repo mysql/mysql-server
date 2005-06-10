@@ -15,12 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -2248,9 +2245,8 @@ bool Item_param::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       SELECT_LEX_UNIT::item set only for subqueries, so test of it presence
       can be barrier to stop before derived table SELECT or very outer SELECT
     */
-    for(;
-        cursel->master_unit()->item;
-        cursel= cursel->outer_select())
+    for (; cursel->master_unit()->item;
+         cursel= cursel->outer_select())
     {
       Item_subselect *subselect_item= cursel->master_unit()->item;
       subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
@@ -2530,9 +2526,8 @@ void mark_select_range_as_dependent(THD *thd,
     resolving)
   */
   SELECT_LEX *previous_select= current_sel;
-  for(;
-      previous_select->outer_select() != last_select;
-      previous_select= previous_select->outer_select())
+  for (; previous_select->outer_select() != last_select;
+       previous_select= previous_select->outer_select())
   {
     Item_subselect *prev_subselect_item=
       previous_select->master_unit()->item;
@@ -4419,8 +4414,7 @@ bool Item_direct_ref::val_bool()
 
 bool Item_direct_ref::is_null()
 {
-  (void) (*ref)->val_int();
-  return (*ref)->null_value;
+  return (*ref)->is_null();
 }
 
 

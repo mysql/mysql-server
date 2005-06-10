@@ -19,8 +19,6 @@
 ** This file implements classes defined in field.h
 *****************************************************************************/
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -983,6 +981,39 @@ Item_result Field::result_merge_type(enum_field_types field_type)
 /*****************************************************************************
   Static help functions
 *****************************************************************************/
+
+
+/*
+  Check whether a field type can be partially indexed by a key
+
+  This is a static method, rather than a virtual function, because we need
+  to check the type of a non-Field in mysql_alter_table().
+
+  SYNOPSIS
+   type_can_have_key_part()
+   type                 field type
+
+  RETURN
+    TRUE  Type can have a prefixed key
+    FALSE Type can not have a prefixed key
+*/
+
+bool Field::type_can_have_key_part(enum enum_field_types type)
+{
+  switch (type) {
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
 
 /*
   Numeric fields base class constructor
@@ -2448,7 +2479,7 @@ int Field_new_decimal::store(longlong nr)
   int err;
 
   if ((err= int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                           nr, unsigned_flag, &decimal_value)))
+                           nr, false, &decimal_value)))
   {
     if (check_overflow(err))
       set_value_on_overflow(&decimal_value, decimal_value.sign());
@@ -7835,7 +7866,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 
 int Field_bit::store(double nr)
 {
-  return (Field_bit::store((longlong) nr));
+  return store((longlong) nr);
 }
 
 
@@ -8018,7 +8049,8 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
       (delta == 0 && bits && (uint) (uchar) *from >= (uint) (1 << bits)))
   {
     memset(ptr, 0xff, field_length);
-    *ptr&= ((1 << bits) - 1); /* set first byte */
+    if (bits)
+      *ptr&= ((1 << bits) - 1); /* set first byte */
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }

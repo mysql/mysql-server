@@ -1265,7 +1265,7 @@ static bool show_status_array(THD *thd, const char *wild,
                                                  name_buffer, wild)))
       {
         char *value=variables->value;
-        const char *pos, *end;
+        const char *pos, *end;                  // We assign a lot of const's
         long nr;
         if (show_type == SHOW_SYS)
         {
@@ -1336,8 +1336,8 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_SLAVE_RETRIED_TRANS:
         {
           /*
-            TODO: in 5.1 with multimaster, have one such counter per line in SHOW
-            SLAVE STATUS, and have the sum over all lines here.
+            TODO: in 5.1 with multimaster, have one such counter per line in
+            SHOW SLAVE STATUS, and have the sum over all lines here.
           */
 	  pthread_mutex_lock(&LOCK_active_mi);
           pthread_mutex_lock(&active_mi->rli.data_lock);
@@ -1359,7 +1359,11 @@ static bool show_status_array(THD *thd, const char *wild,
           }
           else
           {
-            for (int i= 1; i < MAX_SLAVE_ERROR; i++)
+            /* 10 is enough assuming errors are max 4 digits */
+            int i;
+            for (i= 1;
+                 i < MAX_SLAVE_ERROR && (uint) (end-buff) < sizeof(buff)-10;
+                 i++)
             {
               if (bitmap_is_set(bitmap, i))
               {
@@ -1369,6 +1373,8 @@ static bool show_status_array(THD *thd, const char *wild,
             }
             if (end != buff)
               end--;				// Remove last ','
+            if (i < MAX_SLAVE_ERROR)
+              end= strmov((char*) end, "...");  // Couldn't show all errors
           }
           break;
         }

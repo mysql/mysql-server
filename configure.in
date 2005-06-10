@@ -6,7 +6,7 @@ AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.0.7-beta)
+AM_INIT_AUTOMAKE(mysql, 5.0.8-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -17,7 +17,7 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=7
+NDB_VERSION_BUILD=8
 NDB_VERSION_STATUS="beta"
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -442,33 +442,33 @@ PS=$ac_cv_path_PS
 # Linux style
 if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS p \$\$PID | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 # Solaris
 elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 # BSD style
 elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
 # SysV style
 elif $PS -ef 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
 elif $PS $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 else
   case $SYSTEM_TYPE in
     *freebsd*)
-      FIND_PROC="$PS p \$\$PID | grep \$\$MYSQLD > /dev/null"
+      FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
       ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware*)
       FIND_PROC=
@@ -1765,12 +1765,23 @@ if test "$ac_cv_sizeof_off_t" -eq 0
 then
   AC_MSG_ERROR("MySQL needs a off_t type.")
 fi
+
+# do we need #pragma interface/#pragma implementation ?
+# yes if it's gcc 2.x, and not icc pretending to be gcc, and not cygwin
+AC_MSG_CHECKING(the need for @%:@pragma interface/implementation)
+# instead of trying to match SYSTEM_TYPE and CC_VERSION (that doesn't
+# follow any standard), we'll use well-defined preprocessor macros:
+AC_TRY_CPP([
+#if !defined(__CYGWIN__) && !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
+#error USE_PRAGMA_IMPLEMENTATION
+#endif
+],AC_MSG_RESULT(no) ,AC_MSG_RESULT(yes) ; CXXFLAGS="$CXXFLAGS -DUSE_PRAGMA_IMPLEMENTATION")
+
 # This always gives a warning. Ignore it unless you are cross compiling
 AC_C_BIGENDIAN
 #---START: Used in for client configure
 # Check base type of last arg to accept
 MYSQL_TYPE_ACCEPT
-
 #---END:
 # Figure out what type of struct rlimit to use with setrlimit
 MYSQL_TYPE_STRUCT_RLIMIT

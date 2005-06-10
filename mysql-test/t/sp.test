@@ -3268,12 +3268,6 @@ drop procedure bug8762|
 #
 # BUG#5240: Stored procedure crash if function has cursor declaration
 #
-# The following test case fails in --ps-protocol mode due to some bugs
-# in algorithm which calculates list of tables to be locked for queries
-# using Stored Functions. It is disabled until Dmitri fixes this.
-#
---disable_ps_protocol
-
 --disable_warnings
 drop function if exists bug5240|
 --enable_warnings
@@ -3292,8 +3286,6 @@ delete from t1|
 insert into t1 values ("answer", 42)|
 select id, bug5240() from t1|
 drop function bug5240|
-
---enable_ps_protocol
 
 #
 # BUG#5278: Stored procedure packets out of order if SET PASSWORD.
@@ -3849,6 +3841,50 @@ call bug10961()|
 
 drop procedure bug10961|
 
+#
+# BUG #6866: Second call of a stored procedure using a view with on expressions
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug6866|
+--enable_warnings
+
+DROP VIEW IF EXISTS tv|
+DROP TABLE IF EXISTS tt1,tt2,tt3|
+
+CREATE TABLE tt1 (a1 int, a2 int, a3 int, data varchar(10))|
+CREATE TABLE tt2 (a2 int, data2 varchar(10))|
+CREATE TABLE tt3 (a3 int, data3 varchar(10))|
+
+INSERT INTO tt1 VALUES (1, 1, 4, 'xx')|
+
+INSERT INTO tt2 VALUES (1, 'a')|
+INSERT INTO tt2 VALUES (2, 'b')|
+INSERT INTO tt2 VALUES (3, 'c')|
+
+INSERT INTO tt3 VALUES (4, 'd')|
+INSERT INTO tt3 VALUES (5, 'e')|
+INSERT INTO tt3 VALUES (6, 'f')|
+
+CREATE VIEW tv AS
+SELECT tt1.*, tt2.data2, tt3.data3
+  FROM tt1 INNER JOIN tt2 ON tt1.a2 = tt2.a2
+         LEFT JOIN tt3 ON tt1.a3 = tt3.a3
+    ORDER BY tt1.a1, tt2.a2, tt3.a3|
+
+CREATE PROCEDURE bug6866 (_a1 int)
+BEGIN
+SELECT * FROM tv WHERE a1 = _a1;
+END|
+
+CALL bug6866(1)|
+CALL bug6866(1)|
+CALL bug6866(1)|
+
+DROP PROCEDURE bug6866;
+
+DROP VIEW tv|
+DROP TABLE tt1, tt2, tt3|
 
 #
 # BUG#NNNN: New bug synopsis

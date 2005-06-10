@@ -434,7 +434,7 @@ d	date	YES		NULL
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
 g	time	YES		NULL	
-h	varbinary(23)	NO			
+h	longblob	NO			
 dd	time	YES		NULL	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
@@ -513,9 +513,9 @@ drop database mysqltest;
 select database();
 database()
 NULL
-select database();
-database()
-NULL
+select database(), user();
+database()	user()
+NULL	mysqltest_1@localhost
 use test;
 create table t1 (a int, index `primary` (a));
 ERROR 42000: Incorrect index name 'primary'
@@ -579,7 +579,6 @@ select * from t2;
 b
 1
 drop table t1,t2;
-use test;
 create table t1 (a int);
 create table t1 select * from t1;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
@@ -597,3 +596,9 @@ ERROR 42000: Incorrect database name 'xyz'
 create table t1(t1.name int);
 create table t2(test.t2.name int);
 drop table t1,t2;
+create database mysqltest;
+use mysqltest;
+drop database mysqltest;
+create table test.t1 like x;
+ERROR 42000: Incorrect database name 'NULL'
+drop table if exists test.t1;

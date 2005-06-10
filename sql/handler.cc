@@ -17,8 +17,6 @@
 
 /* Handler-calling-functions */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -597,6 +595,27 @@ int ha_commit_trans(THD *thd, bool all)
   handlerton **ht= trans->ht;
   my_xid xid= thd->transaction.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
+
+  if (thd->transaction.in_sub_stmt)
+  {
+    /*
+      Since we don't support nested statement transactions in 5.0,
+      we can't commit or rollback stmt transactions while we are inside
+      stored functions or triggers. So we simply do nothing now.
+      TODO: This should be fixed in later ( >= 5.1) releases.
+    */
+    if (!all)
+      DBUG_RETURN(0);
+    /*
+      We assume that all statements which commit or rollback main transaction
+      are prohibited inside of stored functions or triggers. So they should
+      bail out with error even before ha_commit_trans() call. To be 100% safe
+      let us throw error in non-debug builds.
+    */
+    DBUG_ASSERT(0);
+    my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+    DBUG_RETURN(2);
+  }
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
@@ -691,6 +710,19 @@ int ha_rollback_trans(THD *thd, bool all)
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   bool is_real_trans=all || thd->transaction.all.nht == 0;
   DBUG_ENTER("ha_rollback_trans");
+  if (thd->transaction.in_sub_stmt)
+  {
+    /*
+      If we are inside stored function or trigger we should not commit or
+      rollback current statement transaction. See comment in ha_commit_trans()
+      call for more information.
+    */
+    if (!all)
+      DBUG_RETURN(0);
+    DBUG_ASSERT(0);
+    my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+    DBUG_RETURN(1);
+  }
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {

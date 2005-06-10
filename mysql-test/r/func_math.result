@@ -130,3 +130,19 @@ Warnings:
 Note	1003	select degrees(pi()) AS `degrees(pi())`,radians(360) AS `radians(360)`
 select rand(rand);
 ERROR 42S22: Unknown column 'rand' in 'field list'
+create table t1 (col1 int, col2 decimal(60,30));
+insert into t1 values(1,1234567890.12345);
+select format(col2,7) from t1;
+format(col2,7)
+1,234,567,890.1234500
+select format(col2,8) from t1;
+format(col2,8)
+1,234,567,890.12345000
+insert into t1 values(7,1234567890123456.12345);
+select format(col2,6) from t1 where col1=7;
+format(col2,6)
+1,234,567,890,123,456.123450
+drop table t1;
+select round(150, 2);
+round(150, 2)
+150.00

@@ -246,6 +246,7 @@ typedef struct
 
 static char *subst_env_var(const char *cmd);
 static FILE *my_popen(const char *cmd, const char *mode);
+#undef popen
 #define popen(A,B) my_popen((A),(B))
 #endif /* __NETWARE__ */
 
@@ -2587,13 +2588,13 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
       {
 	if (i)
 	  dynstr_append_mem(ds, "\t", 1);
-	replace_dynstr_append_mem(ds, val, len);
+	replace_dynstr_append_mem(ds, val, (int)len);
       }
       else
       {
 	dynstr_append(ds, fields[i].name);
 	dynstr_append_mem(ds, "\t", 1);
-	replace_dynstr_append_mem(ds, val, len);
+	replace_dynstr_append_mem(ds, val, (int)len);
 	dynstr_append_mem(ds, "\n", 1);
       }
     }
@@ -2960,7 +2961,7 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
   int error= 0;             /* Function return code if "goto end;" */
   int err;                  /* Temporary storage of return code from calls */
   int query_len, got_error_on_execute;
-  uint num_rows;
+  ulonglong num_rows;
   char *query;
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   DYNAMIC_STRING *ds;
@@ -3215,13 +3216,13 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
           {
             if (col_idx)                      /* No tab before first col */
               dynstr_append_mem(ds, "\t", 1);
-            replace_dynstr_append_mem(ds, val, len);
+            replace_dynstr_append_mem(ds, val, (int)len);
           }
           else
           {
             dynstr_append(ds, field[col_idx].name);
             dynstr_append_mem(ds, "\t", 1);
-            replace_dynstr_append_mem(ds, val, len);
+            replace_dynstr_append_mem(ds, val, (int)len);
             dynstr_append_mem(ds, "\n", 1);
           }
         }

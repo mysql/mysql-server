@@ -42,7 +42,6 @@ static my_bool open_new_frm(const char *path, const char *alias,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static void relink_tables_for_multidelete(THD *thd);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -446,8 +445,12 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   if (thd->locked_tables || prelocked_mode)
   {
     /*
-      TODO: It is not 100% clear whenever we should do ha_commit_stmt() for
-            sub-statements. This issue needs additional investigation.
+      Let us commit transaction for statement. Since in 5.0 we only have
+      one statement transaction and don't allow several nested statement
+      transactions this call will do nothing if we are inside of stored
+      function or trigger (i.e. statement transaction is already active and
+      does not belong to statement for which we do close_thread_tables()).
+      TODO: This should be fixed in later releases.
     */
     ha_commit_stmt(thd);
 
@@ -753,7 +756,7 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
   t_name= table->table_name;
 
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
-  for(;;)
+  for (;;)
   {
     if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
         (!res->table || res->table != table->table) &&
@@ -2085,7 +2088,6 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  relink_tables_for_multidelete(thd);
   DBUG_RETURN(0);
 }
 
@@ -2096,7 +2098,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   SYNOPSIS
     open_normal_and_derived_tables
     thd		- thread handler
-    tables	- list of tables for open&locking
+    tables	- list of tables for open
 
   RETURN
     FALSE - ok
@@ -2115,33 +2117,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
   if (open_tables(thd, &tables, &counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  relink_tables_for_multidelete(thd);           // Not really needed, but
   DBUG_RETURN(0);
-}
-
-
-/*
-  Let us propagate pointers to open tables from global table list
-  to table lists for multi-delete
-*/
-
-static void relink_tables_for_multidelete(THD *thd)
-{
-  if (thd->lex->all_selects_list->next_select_in_list())
-  {
-    for (SELECT_LEX *sl= thd->lex->all_selects_list;
-	 sl;
-	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= (TABLE_LIST *) sl->table_list.first;
-           cursor;
-           cursor=cursor->next_local)
-      {
-        if (cursor->correspondent_table)
-          cursor->table= cursor->correspondent_table->table;
-      }
-    }
-  }
 }
 
 
