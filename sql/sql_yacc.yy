@@ -5108,11 +5108,11 @@ derived_table_list:
 
 join_table:
         table_ref normal_join table_ref { TEST_ASSERT($1 && ($$=$3)); }
-	| table_ref STRAIGHT_JOIN table_ref
+	| table_ref STRAIGHT_JOIN table_factor
 	  { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref ON expr
 	  { TEST_ASSERT($1 && ($$=$3)); add_join_on($3,$5); }
-        | table_ref STRAIGHT_JOIN table_ref ON expr
+        | table_ref STRAIGHT_JOIN table_factor ON expr
           { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; add_join_on($3,$5); }
 	| table_ref normal_join table_ref
 	  USING
