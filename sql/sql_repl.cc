@@ -84,7 +84,7 @@ static int send_file(THD *thd)
   char fname[FN_REFLEN+1];
   const char *errmsg = 0;
   int old_timeout;
-  uint packet_len;
+  unsigned long packet_len;
   char buf[IO_SIZE];				// It's safe to alloc this
   DBUG_ENTER("send_file");
 
@@ -1316,6 +1316,7 @@ bool mysql_show_binlog_events(THD* thd)
   if (mysql_bin_log.is_open())
   {
     LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
+    SELECT_LEX_UNIT *unit= &thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
@@ -1324,8 +1325,9 @@ bool mysql_show_binlog_events(THD* thd)
     LOG_INFO linfo;
     Log_event* ev;
 
-    limit_start= thd->lex->current_select->offset_limit;
-    limit_end= thd->lex->current_select->select_limit + limit_start;
+    unit->set_limit(thd->lex->current_select);
+    limit_start= unit->offset_limit_cnt;
+    limit_end= unit->select_limit_cnt;
 
     name= search_file_name;
     if (log_file_name)

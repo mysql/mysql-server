@@ -27,8 +27,6 @@ have disables the InnoDB inlining in this file. */
     in Windows?
 */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -3221,6 +3219,23 @@ no_commit:
 
             		dict_table_autoinc_update(prebuilt->table, auto_inc);
           	}
+        }
+
+        /* A REPLACE command and LOAD DATA INFILE REPLACE handle a duplicate
+        key error themselves, and we must update the autoinc counter if we are
+        performing those statements. */
+
+        if (error == DB_DUPLICATE_KEY && auto_inc_used
+            && (user_thd->lex->sql_command == SQLCOM_REPLACE
+                || user_thd->lex->sql_command == SQLCOM_REPLACE_SELECT
+                || (user_thd->lex->sql_command == SQLCOM_LOAD
+                    && user_thd->lex->duplicates == DUP_REPLACE))) {
+
+                auto_inc = table->next_number_field->val_int();
+
+                if (auto_inc != 0) {
+                        dict_table_autoinc_update(prebuilt->table, auto_inc);
+                }
         }
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);

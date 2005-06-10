@@ -48,8 +48,6 @@
       new attribute.
 */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -1618,7 +1616,10 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   if (var->value->result_type() == STRING_RESULT)
   {
     if (!(res= var->value->val_str(&str)))
+    {
+      strmake(buff, "NULL", 4);
       goto err;
+    }
     var->save_result.ulong_value= ((ulong)
 				   find_set(enum_names, res->c_ptr(),
 					    res->length(),

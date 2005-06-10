@@ -346,7 +346,7 @@ int quick_rm_table(enum db_type base,const char *db,
   build_table_path(path, sizeof(path), db, table_name, reg_ext);
   if (my_delete(path,MYF(0)))
     error=1; /* purecov: inspected */
-  build_table_path(path, sizeof(path), db, table_name, "");
+  *fn_ext(path)= 0;                             // Remove reg_ext
   return ha_delete_table(current_thd, base, path, table_name, 0) || error;
 }
 
@@ -1556,7 +1556,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    char tmp_table_name[NAME_LEN+1];
+    char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
     my_snprintf(tmp_table_name, sizeof(tmp_table_name), "%s%lx_%lx_%x",
 		tmp_file_prefix, current_pid, thd->thread_id,
 		thd->tmp_table++);
@@ -2589,28 +2589,33 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char *db= table->db;
   char *table_name= table->table_name;
-  char *src_db= thd->db;
+  char *src_db;
   char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
+  src_db= table_ident->db.str ? table_ident->db.str : thd->db;
 
   /*
     Validate the source table
   */
   if (table_ident->table.length > NAME_LEN ||
       (table_ident->table.length &&
-       check_table_name(src_table,table_ident->table.length)) ||
-      table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
+       check_table_name(src_table,table_ident->table.length)))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(TRUE);
   }
+  if (!src_db || check_db_name(src_db))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
+    DBUG_RETURN(-1);
+  }
 
   bzero((gptr)&src_tables_list, sizeof(src_tables_list));
-  src_tables_list.db= table_ident->db.str ? table_ident->db.str : thd->db;
-  src_tables_list.table_name= table_ident->table.str;
+  src_tables_list.db= src_db;
+  src_tables_list.table_name= src_table;
 
   if (lock_and_wait_for_table_name(thd, &src_tables_list))
     goto err;
@@ -2909,7 +2914,7 @@ int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
         build_table_path(path, sizeof(path), table_list->db,
                          (lower_case_table_names == 2) ?
                          table_list->alias : table_list->table_name,
-                         reg_ext) != 0 ||
+                         reg_ext) == 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /* don't need to free((gptr) key_info_buffer);*/
@@ -3010,7 +3015,7 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
         build_table_path(path, sizeof(path), table_list->db,
                          (lower_case_table_names == 2) ?
                          table_list->alias : table_list->table_name,
-                         reg_ext) != 0 ||
+                         reg_ext) == 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /*don't need to free((gptr) key_numbers);*/
@@ -3393,12 +3398,25 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	continue;				// Field is removed
       uint key_part_length=key_part->length;
       if (cfield->field)			// Not new field
-      {						// Check if sub key
-	if (cfield->field->type() != FIELD_TYPE_BLOB &&
-	    (cfield->field->pack_length() == key_part_length ||
-	     cfield->length <= key_part_length /
-			       key_part->field->charset()->mbmaxlen))
-	  key_part_length=0;			// Use whole field
+      {
+        /*
+          If the field can't have only a part used in a key according to its
+          new type, or should not be used partially according to its
+          previous type, or the field length is less than the key part
+          length, unset the key part length.
+
+          We also unset the key part length if it is the same as the
+          old field's length, so the whole new field will be used.
+
+          BLOBs may have cfield->length == 0, which is why we test it before
+          checking whether cfield->length < key_part_length (in chars).
+         */
+        if (!Field::type_can_have_key_part(cfield->field->type()) ||
+            !Field::type_can_have_key_part(cfield->sql_type) ||
+            cfield->field->field_length == key_part_length ||
+	    (cfield->length && (cfield->length < key_part_length /
+                                key_part->field->charset()->mbmaxlen)))
+	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
       key_parts.push_back(new key_part_spec(cfield->field_name,

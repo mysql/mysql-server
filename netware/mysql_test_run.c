@@ -1162,6 +1162,8 @@ void setup(char *file)
   setenv("MYSQL_TCP_PORT", "3306", 1);
   snprintf(file_path, PATH_MAX*2, "%s/mysql_client_test --no-defaults --testcase--user=root --port=%u ", bin_dir, master_port); 
   setenv("MYSQL_CLIENT_TEST",file_path,1);
+  snprintf(file_path, PATH_MAX*2, "%s/mysql --no-defaults --user=root --port=%u ", bin_dir, master_port);
+  setenv("MYSQL",file_path,1); 
 }
 
 /******************************************************************************

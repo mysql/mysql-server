@@ -710,7 +710,7 @@ bool mysql_multi_update_prepare(THD *thd)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
   }
-  for(tl= table_list; tl; tl= tl->next_local)
+  for (tl= table_list; tl; tl= tl->next_local)
   {
     /* Check access privileges for table */
     if (!tl->derived)

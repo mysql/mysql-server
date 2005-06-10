@@ -35,7 +35,8 @@ testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run.sh mysql-test-run.pl install_test_db.sh valgrind.supp
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
 test_SCRIPTS = 		mysql-test-run install_test_db 
-test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
+test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem \
+	std_data/server-cert.pem std_data/server-key.pem 
 CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
 INCLUDES =		-I$(srcdir)/../include -I../include -I..
@@ -48,6 +49,7 @@ dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
 		$(distdir)/std_data $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
+	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(srcdir)/t/*.slave-mi $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
@@ -69,6 +71,7 @@ install-data-local:
 		$(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
+	$(INSTALL_DATA) $(srcdir)/t/*.sql $(DESTDIR)$(testdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t

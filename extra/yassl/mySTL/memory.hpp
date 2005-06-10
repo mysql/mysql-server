@@ -37,16 +37,18 @@
 namespace mySTL {
 
 
-template<typename T, typename Deletor = void (*) (T*)>
+template<typename T>
 struct auto_ptr_ref {
+    typedef void (*Deletor)(T*);
     T*      ptr_;
     Deletor del_;
     auto_ptr_ref(T* p, Deletor d) : ptr_(p), del_(d) {}
 };
 
 
-template<typename T, typename Deletor = void (*) (T*)>
+template<typename T>
 class auto_ptr {
+    typedef void (*Deletor)(T*);
     T*       ptr_;
     Deletor  del_;
 

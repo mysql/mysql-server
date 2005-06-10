@@ -911,7 +911,9 @@ DROP TABLE t1;
 # Bug #10465
 #
 
+--disable_warnings
 CREATE TABLE t1 (GRADE DECIMAL(4) NOT NULL, PRIMARY KEY (GRADE)) ENGINE=INNODB;
+--enable_warnings
 INSERT INTO t1 (GRADE) VALUES (151),(252),(343);
 SELECT GRADE  FROM t1 WHERE GRADE > 160 AND GRADE < 300;
 SELECT GRADE  FROM t1 WHERE GRADE= 151;
@@ -923,3 +925,42 @@ DROP TABLE t1;
 
 select abs(10/0);
 select abs(NULL);
+
+#
+# Bug #9894 (negative to unsigned column)
+#
+set @@sql_mode='traditional';
+create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
+--error 1264
+insert into t1 values(1,-1,-1);
+drop table t1;
+create table t1 (col1 decimal(5,2), col2 numeric(5,2));
+--error 1264
+insert into t1 values (999.999,999.999);
+--error 1264
+insert into t1 values (-999.999,-999.999);
+select * from t1;
+drop table t1;
+set sql_mode='';
+
+#
+# Bug #8425 (insufficient precision of the division)
+#
+set @sav_dpi= @@div_precision_increment;
+set @@div_precision_increment=15;
+create table t1 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
+insert into t1 values (1,0.0123456789012345678912345,0.0123456789012345678912345);
+select col2/9999999999 from t1 where col1=1;
+select 9999999999/col2 from t1 where col1=1;
+select 77777777/7777777;
+drop table t1;
+set div_precision_increment= @sav_dpi;
+
+#
+# Bug #10896 (0.00 > -0.00)
+#
+create table t1 (a decimal(4,2));
+insert into t1 values (0.00);
+select * from t1 where a > -0.00;
+select * from t1 where a = -0.00;
+drop table t1;

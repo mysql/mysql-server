@@ -381,6 +381,9 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
+const key_map key_map_empty(0);
+key_map key_map_full(0);                        // Will be initialized later
+
 const char *opt_date_time_formats[3];
 
 char *mysql_data_home= mysql_real_data_home;
@@ -4668,9 +4671,11 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "more than one storage engine, when binary log is disabled)",
    (gptr*) &opt_tc_log_file, (gptr*) &opt_tc_log_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_MMAP
   {"log-tc-size", OPT_LOG_TC_SIZE, "Size of transaction coordinator log.",
    (gptr*) &opt_tc_log_size, (gptr*) &opt_tc_log_size, 0, GET_ULONG,
    REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ~0L, 0, TC_LOG_PAGE_SIZE, 0},
+#endif
   {"log-update", OPT_UPDATE_LOG,
    "The update log is deprecated since version 5.0, is replaced by the binary \
 log and this option justs turns on --log-bin instead.",
@@ -5369,7 +5374,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
    6, 2, 8, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
-   "Depricated option",
+   "Deprecated option",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_extra_sort_file_size,
    0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
@@ -5812,9 +5817,11 @@ struct show_var_st status_vars[]= {
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
+#ifdef HAVE_MMAP
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
+#endif
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
@@ -5931,7 +5938,8 @@ static void mysql_init_variables(void)
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
   opt_large_pages= 0;
-  
+  key_map_full.set_all();
+
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;
   files_charset_info= &my_charset_utf8_general_ci;

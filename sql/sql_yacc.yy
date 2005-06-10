@@ -721,7 +721,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	signed_literal now_or_signed_literal opt_escape
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
-        field_or_var
+        field_or_var limit_option
 
 %type <item_num>
 	NUM_literal
@@ -919,6 +919,11 @@ deallocate:
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "DEALLOCATE");
+            YYABORT;
+          }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
@@ -937,6 +942,11 @@ prepare:
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "PREPARE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_PREPARE;
@@ -967,6 +977,11 @@ execute:
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "EXECUTE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_EXECUTE;
@@ -1138,6 +1153,11 @@ create:
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
+            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+            {
+              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+              YYABORT;
+            }
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
 	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
 							TL_OPTION_UPDATING))
@@ -3285,6 +3305,11 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->name= 0;
 	  lex->duplicates= DUP_ERROR; 
@@ -3593,8 +3618,14 @@ slave:
 start:
 	START_SYM TRANSACTION_SYM start_transaction_opts
         {
-           Lex->sql_command = SQLCOM_BEGIN;
-           Lex->start_transaction_opt= $3;
+          LEX *lex= Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_BEGIN;
+          lex->start_transaction_opt= $3;
         }
 	;
 
@@ -3772,7 +3803,13 @@ opt_no_write_to_binlog:
 rename:
 	RENAME table_or_tables
 	{
-	   Lex->sql_command=SQLCOM_RENAME_TABLE;
+          LEX *lex= Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
+          lex->sql_command=SQLCOM_RENAME_TABLE;
 	}
 	table_to_table_list
 	{}
@@ -5071,10 +5108,12 @@ derived_table_list:
 
 join_table:
         table_ref normal_join table_ref { TEST_ASSERT($1 && ($$=$3)); }
-	| table_ref STRAIGHT_JOIN table_factor
-	  {  TEST_ASSERT($1 && ($$=$3)); $3->straight=1; }
+	| table_ref STRAIGHT_JOIN table_ref
+	  { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref ON expr
 	  { TEST_ASSERT($1 && ($$=$3)); add_join_on($3,$5); }
+        | table_ref STRAIGHT_JOIN table_ref ON expr
+          { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; add_join_on($3,$5); }
 	| table_ref normal_join table_ref
 	  USING
 	  {
@@ -5542,8 +5581,8 @@ opt_limit_clause_init:
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX *sel= lex->current_select;
-          sel->offset_limit= 0L;
-          sel->select_limit= HA_POS_ERROR;
+          sel->offset_limit= 0;
+          sel->select_limit= 0;
 	}
 	| limit_clause {}
 	;
@@ -5558,21 +5597,21 @@ limit_clause:
 	;
 
 limit_options:
-	ulong_num
+	limit_option
 	  {
             SELECT_LEX *sel= Select;
             sel->select_limit= $1;
-            sel->offset_limit= 0L;
+            sel->offset_limit= 0;
 	    sel->explicit_limit= 1;
 	  }
-	| ulong_num ',' ulong_num
+	| limit_option ',' limit_option
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $3;
 	    sel->offset_limit= $1;
 	    sel->explicit_limit= 1;
 	  }
-	| ulong_num OFFSET_SYM ulong_num
+	| limit_option OFFSET_SYM limit_option
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $1;
@@ -5580,18 +5619,23 @@ limit_options:
 	    sel->explicit_limit= 1;
 	  }
 	;
-
+limit_option:
+        param_marker
+        | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
+        | LONG_NUM     { $$= new Item_uint($1.str, $1.length); }
+        | NUM           { $$= new Item_uint($1.str, $1.length); }
+        ;
 
 delete_limit_clause:
 	/* empty */
 	{
 	  LEX *lex=Lex;
-	  lex->current_select->select_limit= HA_POS_ERROR;
+	  lex->current_select->select_limit= 0;
 	}
-	| LIMIT ulonglong_num
+	| LIMIT limit_option
 	{
 	  SELECT_LEX *sel= Select;
-	  sel->select_limit= (ha_rows) $2;
+	  sel->select_limit= $2;
 	  sel->explicit_limit= 1;
 	};
 
@@ -5751,10 +5795,21 @@ drop:
 	  lex->sql_command = SQLCOM_DROP_TABLE;
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
+          if (!lex->drop_temporary && lex->sphead &&
+              lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	}
 	| DROP INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
+             if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+             {
+               my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+               YYABORT;
+             }
 	     lex->sql_command= SQLCOM_DROP_INDEX;
 	     lex->alter_info.drop_list.empty();
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
@@ -5802,6 +5857,11 @@ drop:
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
+            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+            {
+              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+              YYABORT;
+            }
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
@@ -6089,10 +6149,17 @@ single_multi:
 	| table_wild_list
 	  { mysql_init_multi_delete(Lex); }
           FROM join_table_list where_clause
+          { 
+            if (multi_delete_set_locks_and_link_aux_tables(Lex))
+              YYABORT;
+          }
 	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
 	  USING join_table_list where_clause
-	  {}
+          { 
+            if (multi_delete_set_locks_and_link_aux_tables(Lex))
+              YYABORT;
+          }
 	;
 
 table_wild_list:
@@ -7942,8 +8009,8 @@ handler:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
-	  lex->current_select->select_limit= 1;
-	  lex->current_select->offset_limit= 0L;
+	  lex->current_select->select_limit= new Item_int((int32) 1);
+	  lex->current_select->offset_limit= 0;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
         }
@@ -8364,6 +8431,11 @@ begin:
 	BEGIN_SYM  
         {
 	  LEX *lex=Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
           lex->sql_command = SQLCOM_BEGIN;
           lex->start_transaction_opt= 0;
         }
@@ -8396,6 +8468,11 @@ commit:
 	COMMIT_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	  lex->sql_command= SQLCOM_COMMIT;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;
@@ -8406,6 +8483,11 @@ rollback:
 	ROLLBACK_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
+          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+          {
+            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+            YYABORT;
+          }
 	  lex->sql_command= SQLCOM_ROLLBACK;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;

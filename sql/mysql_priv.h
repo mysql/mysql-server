@@ -53,7 +53,7 @@ inline query_id_t next_query_id() { return query_id++; }
 
 /* useful constants */
 extern const key_map key_map_empty;
-extern const key_map key_map_full;
+extern key_map key_map_full;          /* Should be threaded as const */
 extern const char *primary_key_name;
 
 #include "mysql_com.h"
@@ -94,7 +94,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
-#define STACK_BUFF_ALLOC	64	// For stack overrun checks
+#define STACK_BUFF_ALLOC	256	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
@@ -336,6 +336,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define UNCACHEABLE_SIDEEFFECT	4
 // forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
+/* Don't evaluate subqueries in prepare even if they're not correlated */
+#define UNCACHEABLE_PREPARE    16
 
 #ifdef EXTRA_DEBUG
 /*
@@ -480,7 +482,7 @@ bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
+bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
 bool mysql_multi_update_prepare(THD *thd);
 bool mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
@@ -575,6 +577,7 @@ void mysql_init_query(THD *thd, uchar *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
+bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
@@ -831,7 +834,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
-void reset_stmt_for_execute(THD *thd, LEX *lex);
+void reinit_stmt_before_use(THD *thd, LEX *lex);
 void init_stmt_after_parse(THD*, LEX*);
 
 /* sql_handler.cc */
@@ -1083,6 +1086,8 @@ extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
+extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
@@ -1354,7 +1359,8 @@ inline void mark_as_null_row(TABLE *table)
 inline void table_case_convert(char * name, uint length)
 {
   if (lower_case_table_names)
-    my_casedn(files_charset_info, name, length);
+    files_charset_info->cset->casedn(files_charset_info,
+                                     name, length, name, length);
 }
 
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)

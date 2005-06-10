@@ -43,14 +43,9 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
-/* Determine when to use "#pragma interface" */
-#if !defined(__CYGWIN__) && !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
+/* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
+#ifdef USE_PRAGMA_IMPLEMENTATION
 #define USE_PRAGMA_INTERFACE
-#endif
-
-/* Determine when to use "#pragma implementation" */
-#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ < 3)
-#define USE_PRAGMA_IMPLEMENTATION
 #endif
 
 #if defined(i386) && !defined(__i386__)
@@ -290,13 +285,7 @@ C_MODE_END
 # endif
 #endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_UNISTD_H
-#if defined(HAVE_OPENSSL) && !defined(__FreeBSD__) && !defined(NeXT) && !defined(__OpenBSD__) && !defined(__APPLE__)
-#define crypt unistd_crypt
-#endif
 #include <unistd.h>
-#ifdef HAVE_OPENSSL
-#undef crypt
-#endif
 #endif
 #if defined(__cplusplus) && defined(NO_CPLUSPLUS_ALLOCA)
 #undef HAVE_ALLOCA
@@ -306,13 +295,6 @@ C_MODE_END
 #include <alloca.h>
 #endif
 #ifdef HAVE_ATOMIC_ADD
-#define __SMP__
-#ifdef HAVE_LINUX_CONFIG_H
-#include <linux/config.h>	/* May define CONFIG_SMP */
-#endif
-#ifndef CONFIG_SMP
-#define CONFIG_SMP
-#endif
 #if defined(__ia64__)
 #define new my_arg_new
 #define need_to_restore_new 1

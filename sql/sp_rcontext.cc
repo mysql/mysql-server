@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
@@ -22,7 +23,6 @@
 #undef SAFEMALLOC				/* Problems with threads */
 #endif
 
-#include "mysql_priv.h"
 #include "mysql.h"
 #include "sp_head.h"
 #include "sp_rcontext.h"
@@ -169,8 +169,22 @@ sp_rcontext::pop_cursors(uint count)
  *
  */
 
-// We have split this in two to make it easy for sp_instr_copen
-// to reuse the sp_instr::exec_stmt() code.
+/*
+  pre_open cursor
+
+  SYNOPSIS
+    pre_open()
+    THD		Thread handler
+
+  NOTES
+    We have to open cursor in two steps to make it easy for sp_instr_copen
+    to reuse the sp_instr::exec_stmt() code.
+    If this function returns 0, post_open should not be called
+
+  RETURN
+   0  ERROR
+*/
+
 sp_lex_keeper*
 sp_cursor::pre_open(THD *thd)
 {
@@ -180,31 +194,30 @@ sp_cursor::pre_open(THD *thd)
                MYF(0));
     return NULL;
   }
-
-  bzero((char *)&m_mem_root, sizeof(m_mem_root));
   init_alloc_root(&m_mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   if ((m_prot= new Protocol_cursor(thd, &m_mem_root)) == NULL)
     return NULL;
 
-  m_oprot= thd->protocol;	// Save the original protocol
-  thd->protocol= m_prot;
-
+  /* Save for execution. Will be restored in post_open */
+  m_oprot= thd->protocol;
   m_nseof= thd->net.no_send_eof;
+
+  /* Change protocol for execution */
+  thd->protocol= m_prot;
   thd->net.no_send_eof= TRUE;
   return m_lex_keeper;
 }
+
 
 void
 sp_cursor::post_open(THD *thd, my_bool was_opened)
 {
   thd->net.no_send_eof= m_nseof; // Restore the originals
   thd->protocol= m_oprot;
-  if (was_opened)
-  {
-    m_isopen= was_opened;
+  if ((m_isopen= was_opened))
     m_current_row= m_prot->data;
-  }
 }
+
 
 int
 sp_cursor::close(THD *thd)
@@ -218,6 +231,7 @@ sp_cursor::close(THD *thd)
   return 0;
 }
 
+
 void
 sp_cursor::destroy()
 {
@@ -226,7 +240,6 @@ sp_cursor::destroy()
     delete m_prot;
     m_prot= NULL;
     free_root(&m_mem_root, MYF(0));
-    bzero((char *)&m_mem_root, sizeof(m_mem_root));
   }
   m_isopen= FALSE;
 }
