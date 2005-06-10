@@ -272,7 +272,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "USE_SYMDIR" /D "HAVE_DLOPEN" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /I "../extra/yassl/include" /D "__NT__" /D "DBUG_OFF" /D "NDEBUG" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D LICENSE=Commercial /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D MYSQL_SERVER_SUFFIX=-pro-nt" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../zlib" /I "../extra/yassl/include" /D "__NT__" /D "DBUG_OFF" /D "NDEBUG" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D LICENSE=Commercial /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D MYSQL_SERVER_SUFFIX=-pro-nt /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
