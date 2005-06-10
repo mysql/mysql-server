@@ -20,40 +20,40 @@ add_procs(){
 }
 
 add_proc (){
-	dir=""
-	conf=""
 	case $type in
 	mgm)
-		dir="ndb_mgmd"
-		conf="[ndb_mgmd]\nId: $node_id\nHostName: $2\n"
+		echo "$proc_no.ndb_mgmd" >> $dir_file
+		echo "[ndb_mgmd]"        >> $config_file
+		echo "Id: $node_id"      >> $config_file
+		echo "HostName: $2"      >> $config_file
 		node_id=`expr $node_id + 1`
 		;;
 	api)
-		dir="ndb_api"
-		conf="[api]\nId: $node_id\nHostName: $2\n"
+		echo "$proc_no.ndb_api" >> $dir_file
+                echo "[api]"            >> $config_file
+                echo "Id: $node_id"     >> $config_file
+                echo "HostName: $2"     >> $config_file
 		node_id=`expr $node_id + 1`
 		;;
 	ndb)
-		dir="ndbd"
-		conf="[ndbd]\nId: $node_id\nHostName: $2\n"
+		echo "$proc_no.ndbd" >> $dir_file
+                echo "[ndbd]"        >> $config_file
+                echo "Id: $node_id"  >> $config_file
+                echo "HostName: $2"  >> $config_file
 		node_id=`expr $node_id + 1`
 		;;
 	mysqld)
-		dir="mysqld"
-		conf="[mysqld]\nId: $node_id\nHostName: $2\n"
+		echo "$proc_no.mysqld" >> $dir_file
+                echo "[ndb_mgmd]"      >> $config_file
+                echo "Id: $node_id"    >> $config_file
+                echo "HostName: $2"    >> $config_file
 		node_id=`expr $node_id + 1`
 		;;
 	mysql)
-		dir="mysql"
+		echo "$proc_no.mysql" >> $dir_file
 		;;
 	esac
-	dir="$proc_no.$dir"
 	proc_no=`expr $proc_no + 1`
-	echo -e $dir >> $dir_file
-	if [ "$conf" ]
-	then
-		echo -e $conf >> $config_file
-	fi
 }
 
 
