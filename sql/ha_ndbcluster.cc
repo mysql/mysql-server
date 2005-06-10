@@ -6399,6 +6399,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                   case(REAL_RESULT):
                     context->expect_only(Item::REAL_ITEM);
                     context->expect(Item::DECIMAL_ITEM);
+                    context->expect(Item::INT_ITEM);
                     break;
                   case(INT_RESULT):
                     context->expect_only(Item::INT_ITEM);
@@ -6407,6 +6408,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                   case(DECIMAL_RESULT):
                     context->expect_only(Item::DECIMAL_ITEM);
                     context->expect(Item::REAL_ITEM);
+                    context->expect(Item::INT_ITEM);
                     break;
                   default:
                     break;
@@ -6809,6 +6811,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
               context->expect_only_field_result(INT_RESULT);
+              context->expect_field_result(REAL_RESULT);
+              context->expect_field_result(DECIMAL_RESULT);
             }
             else
             {
