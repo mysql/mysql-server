@@ -13,7 +13,7 @@ save_args=$*
 VERSION="ndb-autotest.sh version 1.04"
 
 DATE=`date '+%Y-%m-%d'`
-HOST=`hostname -s`
+HOST=`hostname`
 export DATE HOST
 
 set -e
@@ -330,7 +330,10 @@ start(){
 		tar cfz /tmp/res.$2.$$.tgz `basename $p2`/$DATE
 		scp /tmp/res.$2.$$.tgz \
 		    $result_host:$result_path/res.$DATE.$HOST.$2.$$.tgz
-		rm -f /tmp/res.$2.$$.tgz
+		if [ $? -eq 0 ]
+		then
+		    rm -f /tmp/res.$2.$$.tgz
+		fi
 	fi
 }
 

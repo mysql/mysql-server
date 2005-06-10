@@ -1355,7 +1355,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
            implemented at the same time as ability not to store LEX for
            instruction if it is not really used.
   */
-  reset_stmt_for_execute(thd, m_lex);
+  reinit_stmt_before_use(thd, m_lex);
 
   /*
     If requested check whenever we have access to tables in LEX's table list
