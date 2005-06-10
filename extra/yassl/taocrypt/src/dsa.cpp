@@ -24,7 +24,6 @@
 #include "sha.hpp"
 #include "asn.hpp"
 #include "modarith.hpp"
-#include "stdexcept.hpp"
 
 
 namespace TaoCrypt {
