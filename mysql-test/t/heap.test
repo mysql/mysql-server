@@ -426,3 +426,12 @@ drop table t1;
 --error 1075
 create table t1 (a int not null, b int not null auto_increment,
   primary key(a, b)) engine=heap;
+
+#
+# Bug #10566: Verify that we can create a prefixed key with length > 255
+#
+create table t1 (c char(255), primary key(c(90)));
+insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+--error 1062
+insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+drop table t1;
