@@ -17,8 +17,6 @@
 
 /* mysql_select and join optimization */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -35,9 +33,6 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "ref_or_null","unique_subquery","index_subquery",
                               "index_merge"
 };
-
-const key_map key_map_empty(0);
-const key_map key_map_full(~(uint)0);
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, COND *conds,
@@ -88,7 +83,7 @@ static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
 static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
-			   bool *simple_order);
+			   bool change_list, bool *simple_order);
 static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    List<Item> &fields, bool send_row,
 			    uint select_options, const char *info,
@@ -749,7 +744,7 @@ JOIN::optimize()
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
-    order=remove_const(this, order,conds,&simple_order);
+    order=remove_const(this, order,conds,1, &simple_order);
     /*
       If we are using ORDER BY NULL or ORDER BY const_expression,
       return result in any order (even if we are using a GROUP BY)
@@ -817,8 +812,9 @@ JOIN::optimize()
       DBUG_RETURN(1);
   }
   simple_group= 0;
-  if (rollup.state == ROLLUP::STATE_NONE)
-    group_list= remove_const(this, group_list, conds, &simple_group);
+  group_list= remove_const(this, group_list, conds,
+                           rollup.state == ROLLUP::STATE_NONE,
+                           &simple_group);
   if (!group_list && group)
   {
     order=0;					// The output has only one row
@@ -830,7 +826,7 @@ JOIN::optimize()
   if (procedure && procedure->group)
   {
     group_list= procedure->group= remove_const(this, procedure->group, conds,
-					       &simple_group);
+					       1, &simple_group);
     calc_group_buffer(this, group_list);
   }
 
@@ -957,32 +953,35 @@ JOIN::optimize()
 #endif
 
   DBUG_EXECUTE("info",TEST_join(this););
-  /*
-    Because filesort always does a full table scan or a quick range scan
-    we must add the removed reference to the select for the table.
-    We only need to do this when we have a simple_order or simple_group
-    as in other cases the join is done before the sort.
-  */
-  if (const_tables != tables &&
-      (order || group_list) &&
-      join_tab[const_tables].type != JT_ALL &&
-      join_tab[const_tables].type != JT_FT &&
-      join_tab[const_tables].type != JT_REF_OR_NULL &&
-      (order && simple_order || group_list && simple_group))
-  {
-    if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
-      DBUG_RETURN(1);
-  }
 
-  if (!(select_options & SELECT_BIG_RESULT) &&
-      ((group_list && const_tables != tables &&
-	(!simple_group ||
-	 !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-				  unit->select_limit_cnt, 0))) ||
-       select_distinct) &&
-      tmp_table_param.quick_group && !procedure)
+  if (const_tables != tables)
   {
-    need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
+    /*
+      Because filesort always does a full table scan or a quick range scan
+      we must add the removed reference to the select for the table.
+      We only need to do this when we have a simple_order or simple_group
+      as in other cases the join is done before the sort.
+    */
+    if ((order || group_list) &&
+        join_tab[const_tables].type != JT_ALL &&
+        join_tab[const_tables].type != JT_FT &&
+        join_tab[const_tables].type != JT_REF_OR_NULL &&
+        (order && simple_order || group_list && simple_group))
+    {
+      if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
+        DBUG_RETURN(1);
+    }
+    
+    if (!(select_options & SELECT_BIG_RESULT) &&
+        ((group_list &&
+          (!simple_group ||
+           !test_if_skip_sort_order(&join_tab[const_tables], group_list,
+                                    unit->select_limit_cnt, 0))) ||
+         select_distinct) &&
+        tmp_table_param.quick_group && !procedure)
+    {
+      need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
+    }
   }
 
   tmp_having= having;
@@ -1710,10 +1709,11 @@ Cursor::init_from_thd(THD *thd)
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
 
-    We can't just change the thd->mem_root here as we want to keep the things
-    that is already allocated in thd->mem_root for Cursor::fetch()
+    We can't just change the thd->mem_root here as we want to keep the
+    things that are already allocated in thd->mem_root for Cursor::fetch()
   */
   main_mem_root=  *thd->mem_root;
+  state= thd->current_arena->state;
   /* Allocate new memory root for thd */
   init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1736,24 +1736,6 @@ Cursor::init_from_thd(THD *thd)
     What problems can we have with it if cursor is open?
     TODO: must be fixed because of the prelocked mode.
   */
-  /*
-    TODO: grab thd->free_list here?
-  */
-}
-
-
-void
-Cursor::init_thd(THD *thd)
-{
-  DBUG_ASSERT(thd->derived_tables == 0);
-  thd->derived_tables= derived_tables;
-
-  DBUG_ASSERT(thd->open_tables == 0);
-  thd->open_tables= open_tables;
-
-  DBUG_ASSERT(thd->lock== 0);
-  thd->lock= lock;
-  thd->query_id= query_id;
 }
 
 
@@ -1829,6 +1811,13 @@ Cursor::fetch(ulong num_rows)
   DBUG_ENTER("Cursor::fetch");
   DBUG_PRINT("enter",("rows: %lu", num_rows));
 
+  DBUG_ASSERT(thd->derived_tables == 0 && thd->open_tables == 0 &&
+              thd->lock == 0);
+
+  thd->derived_tables= derived_tables;
+  thd->open_tables= open_tables;
+  thd->lock= lock;
+  thd->query_id= query_id;
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
 
@@ -1847,6 +1836,9 @@ Cursor::fetch(ulong num_rows)
 #endif
 
   thd->restore_backup_item_arena(this, &thd->stmt_backup);
+  DBUG_ASSERT(thd->free_list == 0);
+  reset_thd(thd);
+
   if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
     /* Fetch limit worked, possibly more rows are there */
@@ -1887,8 +1879,8 @@ Cursor::close()
     join->cleanup();
     delete join;
   }
-  /* XXX: Another hack: closing tables used in the cursor */
   {
+    /* XXX: Another hack: closing tables used in the cursor */
     DBUG_ASSERT(lock || open_tables || derived_tables);
 
     TABLE *tmp_derived_tables= thd->derived_tables;
@@ -2085,8 +2077,8 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
-					 limit)) == 1)
+    if ((error= select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
+                                          limit, 0)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -5088,7 +5080,8 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
-  join_tab->keys.init(~(uint)0);                /* test everything in quick */
+  join_tab->keys.init();
+  join_tab->keys.set_all();                     /* test everything in quick */
   join_tab->info=0;
   join_tab->on_expr_ref=0;
   join_tab->last_inner= 0;
@@ -5381,6 +5374,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       JOIN_TAB *first_inner_tab= tab->first_inner; 
       table_map current_map= tab->table->map;
       bool use_quick_range=0;
+      COND *tmp;
+
       /*
 	Following force including random expression in last table condition.
 	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
@@ -5402,7 +5397,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	join->best_positions[i].records_read= rows2double(tab->quick->records);
       }
 
-      COND *tmp= NULL;
+      tmp= NULL;
       if (cond)
         tmp= make_cond_for_table(cond,used_tables,current_map);
       if (cond && !tmp && tab->quick)
@@ -5535,7 +5530,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
-					join->unit->select_limit_cnt)) < 0)
+					join->unit->select_limit_cnt), 0) < 0)
             {
 	      /*
 		Before reporting "Impossible WHERE" for the whole query
@@ -5548,7 +5543,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
-                                          join->unit->select_limit_cnt)) < 0)
+                                          join->unit->select_limit_cnt),0) < 0)
 		DBUG_RETURN(1);			// Impossible WHERE
             }
             else
@@ -6117,20 +6112,39 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 
 /*
-  simple_order is set to 1 if sort_order only uses fields from head table
-  and the head table is not a LEFT JOIN table
+  Remove all constants and check if ORDER only contains simple expressions
+
+  SYNOPSIS
+   remove_const()
+   join			Join handler
+   first_order		List of SORT or GROUP order
+   cond			WHERE statement
+   change_list		Set to 1 if we should remove things from list
+			If this is not set, then only simple_order is
+                        calculated   
+   simple_order		Set to 1 if we are only using simple expressions
+
+  RETURN
+    Returns new sort order
+
+    simple_order is set to 1 if sort_order only uses fields from head table
+    and the head table is not a LEFT JOIN table
+
 */
 
 static ORDER *
-remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
+remove_const(JOIN *join,ORDER *first_order, COND *cond,
+             bool change_list, bool *simple_order)
 {
   if (join->tables == join->const_tables)
-    return 0;					// No need to sort
-  DBUG_ENTER("remove_const");
+    return change_list ? 0 : first_order;		// No need to sort
+
   ORDER *order,**prev_ptr;
   table_map first_table= join->join_tab[join->const_tables].table->map;
   table_map not_const_tables= ~join->const_table_map;
   table_map ref;
+  DBUG_ENTER("remove_const");
+
   prev_ptr= &first_order;
   *simple_order= *join->join_tab[join->const_tables].on_expr_ref ? 0 : 1;
 
@@ -6161,7 +6175,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
 	}
 	if ((ref=order_tables & (not_const_tables ^ first_table)))
 	{
-	  if (!(order_tables & first_table) && only_eq_ref_tables(join,first_order,ref))
+	  if (!(order_tables & first_table) &&
+              only_eq_ref_tables(join,first_order, ref))
 	  {
 	    DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
 	    continue;
@@ -6170,11 +6185,13 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
 	}
       }
     }
-    *prev_ptr= order;				// use this entry
+    if (change_list)
+      *prev_ptr= order;				// use this entry
     prev_ptr= &order->next;
   }
-  *prev_ptr=0;
-  if (!first_order)				// Nothing to sort/group
+  if (change_list)
+    *prev_ptr=0;
+  if (prev_ptr == &first_order)			// Nothing to sort/group
     *simple_order=1;
   DBUG_PRINT("exit",("simple_order: %d",(int) *simple_order));
   DBUG_RETURN(first_order);
@@ -7379,6 +7396,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     }
     else
     {
+      if (!(table->prep_on_expr))
+        table->prep_on_expr= table->on_expr;
       used_tables= table->table->map;
       if (conds)
         not_null_tables= conds->not_null_tables();
@@ -7989,7 +8008,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bool  using_unique_constraint= 0;
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
-  char	*tmpname,path[FN_REFLEN], filename[FN_REFLEN];
+  char	*tmpname,path[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
   Field **reg_field, **from_field;
@@ -9822,7 +9841,7 @@ test_if_quick_select(JOIN_TAB *tab)
   delete tab->select->quick;
   tab->select->quick=0;
   return tab->select->test_quick_select(tab->join->thd, tab->keys,
-					(table_map) 0, HA_POS_ERROR);
+					(table_map) 0, HA_POS_ERROR, 0);
 }
 
 
@@ -10051,7 +10070,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  join->do_send_rows= 0;
 	  if (join->unit->fake_select_lex)
-	    join->unit->fake_select_lex->select_limit= HA_POS_ERROR;
+	    join->unit->fake_select_lex->select_limit= 0;
 	  DBUG_RETURN(NESTED_LOOP_OK);
 	}
       }
@@ -10858,12 +10877,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             parameres are set correctly by the range optimizer.
            */
           key_map new_ref_key_map;
-          new_ref_key_map.clear_all();  /* Force the creation of quick select */
-          new_ref_key_map.set_bit(new_ref_key); /* only for new_ref_key.      */
+          new_ref_key_map.clear_all();  // Force the creation of quick select
+          new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
           if (select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
-                                        (tab->join->select_options & OPTION_FOUND_ROWS) ?
-                                        HA_POS_ERROR : tab->join->unit->select_limit_cnt) <= 0)
+                                        (tab->join->select_options &
+                                         OPTION_FOUND_ROWS) ?
+                                        HA_POS_ERROR :
+                                        tab->join->unit->select_limit_cnt,0) <=
+              0)
             DBUG_RETURN(0);
 	}
         ref_key= new_ref_key;
@@ -12252,7 +12274,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Item_buff *tmp=new_Item_buff(*group->item);
+      Item_buff *tmp=new_Item_buff(join->thd, *group->item);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
@@ -12521,6 +12543,8 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
     for (uint i=0 ; i <= send_group_parts ;i++)
       sum_funcs_end[i]= func;
   }
+  else if (rollup.state == ROLLUP::STATE_READY)
+    DBUG_RETURN(FALSE);                         // Don't put end marker
   *func=0;					// End marker
   DBUG_RETURN(FALSE);
 }
@@ -13058,17 +13082,15 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	{
           if (item->eq(*group_tmp->item,0))
 	  {
-            Item_null_result *null_item;
 	    /*
 	      This is an element that is used by the GROUP BY and should be
 	      set to NULL in this level
 	    */
+            Item_null_result *null_item= new (thd->mem_root) Item_null_result();
+            if (!null_item)
+              return 1;
 	    item->maybe_null= 1;		// Value will be null sometimes
-            null_item= rollup.null_items[i];
-            DBUG_ASSERT(null_item->result_field == 0 ||
-                        null_item->result_field ==
-                        ((Item_field *) item)->result_field);
-            null_item->result_field= ((Item_field *) item)->result_field;
+            null_item->result_field= item->get_tmp_table_field();
             item= null_item;
 	    break;
 	  }
@@ -13610,7 +13632,7 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   (*table)->print(thd, str);
 
   TABLE_LIST **end= table + tables->elements;
-  for(TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
+  for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
     if (curr->outer_join)

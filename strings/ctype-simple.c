@@ -201,18 +201,28 @@ void my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
     str++;
 }
 
-void my_caseup_8bit(CHARSET_INFO * cs, char *str, uint length)
+uint my_caseup_8bit(CHARSET_INFO * cs, char *src, uint srclen,
+                    char *dst __attribute__((unused)),
+                    uint dstlen __attribute__((unused)))
 {
-  register uchar *map=cs->to_upper;
-  for ( ; length>0 ; length--, str++)
-    *str= (char) map[(uchar)*str];
+  uint srclen0= srclen;
+  register uchar *map= cs->to_upper;
+  DBUG_ASSERT(src == dst && srclen == dstlen);
+  for ( ; srclen > 0 ; srclen--, src++)
+    *src= (char) map[(uchar) *src];
+  return srclen0;
 }
 
-void my_casedn_8bit(CHARSET_INFO * cs, char *str, uint length)
+uint my_casedn_8bit(CHARSET_INFO * cs, char *src, uint srclen,
+                    char *dst __attribute__((unused)),
+                    uint dstlen __attribute__((unused)))
 {
+  uint srclen0= srclen;
   register uchar *map=cs->to_lower;
-  for ( ; length>0 ; length--, str++)
-    *str= (char) map[(uchar) *str];
+  DBUG_ASSERT(src == dst && srclen == dstlen);
+  for ( ; srclen > 0 ; srclen--, src++)
+    *src= (char) map[(uchar) *src];
+  return srclen0;
 }
 
 int my_strcasecmp_8bit(CHARSET_INFO * cs,const char *s, const char *t)
@@ -1303,6 +1313,8 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(uint))
 
 static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(uint))
 {
+  cs->caseup_multiply= 1;
+  cs->casedn_multiply= 1;
   return create_fromuni(cs, alloc);
 }
 

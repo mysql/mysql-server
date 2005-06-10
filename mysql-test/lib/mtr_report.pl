@@ -268,7 +268,8 @@ sub mtr_warning (@) {
 }
 
 sub mtr_error (@) {
-  die "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
+  print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
+  mtr_exit(1);
 }
 
 sub mtr_debug (@) {

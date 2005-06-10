@@ -2370,7 +2370,7 @@ void sql_print_information(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
-#ifdef HAVE_MMAP
+
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
@@ -2408,13 +2408,17 @@ void sql_print_information(const char *format, ...)
   new xid is added into it. Removing a xid from a page does not make it
   dirty - we don't sync removals to disk.
 */
+
+ulong tc_log_page_waits= 0;
+
+#ifdef HAVE_MMAP
+
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
 static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
 
 ulong opt_tc_log_size= TC_LOG_MIN_SIZE;
-ulong tc_log_max_pages_used=0, tc_log_page_size=0,
-      tc_log_page_waits=0, tc_log_cur_pages_used=0;
+ulong tc_log_max_pages_used=0, tc_log_page_size=0, tc_log_cur_pages_used=0;
 
 int TC_LOG_MMAP::open(const char *opt_name)
 {

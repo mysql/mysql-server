@@ -14,11 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
-
-#include "mysql_priv.h"
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"
@@ -320,7 +319,7 @@ sp_head::sp_head()
     *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
-  state= INITIALIZED;
+  state= INITIALIZED_FOR_SP;
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
@@ -1165,7 +1164,7 @@ sp_head::restore_thd_mem_root(THD *thd)
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;	// The old list
   set_item_arena(thd);          // Get new free_list and mem_root
-  state= INITIALIZED;
+  state= INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
@@ -1443,7 +1442,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
            implemented at the same time as ability not to store LEX for
            instruction if it is not really used.
   */
-  reset_stmt_for_execute(thd, m_lex);
+  reinit_stmt_before_use(thd, m_lex);
 
   /*
     If requested check whenever we have access to tables in LEX's table list
@@ -1991,32 +1990,32 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
   else
   {
     sp_lex_keeper *lex_keeper= c->pre_open(thd);
-
-    if (!lex_keeper)
+    if (!lex_keeper)                            // cursor already open or OOM
     {
       res= -1;
       *nextp= m_ip+1;
     }
     else
-      res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
-
-    /*
-      Work around the fact that errors in selects are not returned properly
-      (but instead converted into a warning), so if a condition handler
-      caught, we have lost the result code.
-     */
-    if (!res)
     {
-      uint dummy1, dummy2;
+      res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      /*
+        Work around the fact that errors in selects are not returned properly
+        (but instead converted into a warning), so if a condition handler
+        caught, we have lost the result code.
+       */
+      if (!res)
+      {
+        uint dummy1, dummy2;
 
-      if (thd->spcont->found_handler(&dummy1, &dummy2))
-	res= -1;
+        if (thd->spcont->found_handler(&dummy1, &dummy2))
+  	  res= -1;
+      }
+      c->post_open(thd, res ? FALSE : TRUE);
     }
-    c->post_open(thd, (lex_keeper && !res ? TRUE : FALSE));
   }
-
   DBUG_RETURN(res);
 }
+
 
 int
 sp_instr_copen::exec_core(THD *thd, uint *nextp)

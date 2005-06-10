@@ -128,7 +128,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       /* it is join view => we need to find table for update */
       List_iterator_fast<Item> it(fields);
       Item *item;
-      TABLE_LIST *tbl= 0;
+      TABLE_LIST *tbl= 0;            // reset for call to check_single_table()
       table_map map= 0;
 
       while ((item= it++))
@@ -916,6 +916,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
+        if (thd->clear_next_insert_id)
+        {
+          /* Reset auto-increment cacheing if we do an update */
+          thd->clear_next_insert_id= 0;
+          thd->next_insert_id= 0;
+        }
         if ((error=table->file->update_row(table->record[1],table->record[0])))
 	{
 	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
@@ -949,6 +955,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_BEFORE, TRUE))
             goto before_trg_err;
+          if (thd->clear_next_insert_id)
+          {
+            /* Reset auto-increment cacheing if we do an update */
+            thd->clear_next_insert_id= 0;
+            thd->next_insert_id= 0;
+          }
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
             goto err;
@@ -1012,6 +1024,7 @@ ok_or_after_trg_err:
 
 err:
   info->last_errno= error;
+  thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
 
 before_trg_err:
@@ -1081,7 +1094,7 @@ public:
   volatile bool status,dead;
   COPY_INFO info;
   I_List<delayed_row> rows;
-  uint group_count;
+  ulong group_count;
   TABLE_LIST table_list;			// Argument
 
   delayed_insert()
@@ -1753,7 +1766,7 @@ static void free_delayed_insert_blobs(register TABLE *table)
 bool delayed_insert::handle_inserts(void)
 {
   int error;
-  uint max_rows;
+  ulong max_rows;
   bool using_ignore=0, using_bin_log=mysql_bin_log.is_open();
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
@@ -1772,11 +1785,11 @@ bool delayed_insert::handle_inserts(void)
   }
 
   thd.proc_info="insert";
-  max_rows=delayed_insert_limit;
+  max_rows= delayed_insert_limit;
   if (thd.killed || table->s->version != refresh_version)
   {
     thd.killed= THD::KILL_CONNECTION;
-    max_rows= ~(uint)0;				// Do as much as possible
+    max_rows= ~(ulong)0;                        // Do as much as possible
   }
 
   /*

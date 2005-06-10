@@ -17,8 +17,6 @@
 
 /* This file defines all numerical functions */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -213,15 +211,16 @@ void Item_func::set_arguments(List<Item> &list)
 {
   allowed_arg_cols= 1;
   arg_count=list.elements;
-  if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
+  args= tmp_arg;                                // If 2 arguments
+  if (arg_count <= 2 || (args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
-    uint i=0;
     List_iterator_fast<Item> li(list);
     Item *item;
+    Item **save_args= args;
 
     while ((item=li++))
     {
-      args[i++]= item;
+      *(save_args++)= item;
       with_sum_func|=item->with_sum_func;
     }
   }
@@ -1877,7 +1876,8 @@ void Item_func_round::fix_length_and_dec()
     max_length= float_length(decimals);
     break;
   case INT_RESULT:
-    if (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
+    if ((decimals_to_set==0) &&
+        (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)))
     {
       /* Here we can keep INT_RESULT */
       hybrid_type= INT_RESULT;
@@ -1891,18 +1891,12 @@ void Item_func_round::fix_length_and_dec()
     hybrid_type= DECIMAL_RESULT;
     int decimals_delta= args[0]->decimals - decimals_to_set;
     int precision= args[0]->decimal_precision();
-    if (decimals_delta > 0)
-    {
-      int length_increase= truncate ? 0:1;
-      precision-= decimals_delta - length_increase;
-      decimals= decimals_to_set;
-    }
-    else
-      /* Decimals to set is bigger that the original scale */
-      /* we keep original decimals value                   */
-      decimals= args[0]->decimals;
+    int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
+
+    precision-= decimals_delta - length_increase;
+    decimals= decimals_to_set;
     max_length= my_decimal_precision_to_length(precision, decimals,
-                                              unsigned_flag);
+                                               unsigned_flag);
     break;
   }
   default:
@@ -2372,7 +2366,7 @@ longlong Item_func_field::val_int()
       return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (!args[i]->is_null() && val == args[i]->val_int())
+      if (val == args[i]->val_int() && !args[i]->null_value)
         return (longlong) (i);
     }
   }
@@ -2385,7 +2379,7 @@ longlong Item_func_field::val_int()
     for (uint i=1; i < arg_count; i++)
     {
       dec_arg= args[i]->val_decimal(&dec_arg_buf);
-      if (!args[i]->is_null() && !my_decimal_cmp(dec_arg, dec))
+      if (!args[i]->null_value && !my_decimal_cmp(dec_arg, dec))
         return (longlong) (i);
     }
   }
@@ -2396,7 +2390,7 @@ longlong Item_func_field::val_int()
       return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (!args[i]->is_null() && val == args[i]->val_real())
+      if (val == args[i]->val_real() && !args[i]->null_value)
         return (longlong) (i);
     }
   }
@@ -4734,7 +4728,6 @@ Item_func_sp::func_name() const
 Field *
 Item_func_sp::sp_result_field(void) const
 {
-  Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
 
   if (!m_sp)
@@ -4799,6 +4792,7 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   ulong old_client_capabilites;
   int res;
+  bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
@@ -4841,9 +4835,11 @@ Item_func_sp::execute(Item **itp)
     problem).
   */
   tmp_disable_binlog(thd); /* don't binlog the substatements */
+  thd->transaction.in_sub_stmt= TRUE;
 
   res= m_sp->execute_function(thd, args, arg_count, itp);
 
+  thd->transaction.in_sub_stmt= save_in_sub_stmt;
   reenable_binlog(thd);
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||

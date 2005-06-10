@@ -321,8 +321,8 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
     key_expr
     ha_rkey_mode
     cond
-    select_limit
-    offset_limit
+    select_limit_cnt
+    offset_limit_cnt
 
   RETURN
     FALSE ok
@@ -333,7 +333,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                    enum enum_ha_read_modes mode, char *keyname,
                    List<Item> *key_expr,
                    enum ha_rkey_function ha_rkey_mode, Item *cond,
-                   ha_rows select_limit,ha_rows offset_limit)
+                   ha_rows select_limit_cnt, ha_rows offset_limit_cnt)
 {
   TABLE_LIST    *hash_tables;
   TABLE         *table;
@@ -413,8 +413,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                 cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1)))
     goto err0;
 
-  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
-
   if (keyname)
   {
     if ((keyno=find_type(keyname, &table->s->keynames, 1+2)-1)<0)
@@ -422,14 +420,11 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), keyname, tables->alias);
       goto err0;
     }
-    table->file->ha_index_or_rnd_end();
-    table->file->ha_index_init(keyno);
   }
 
   if (insert_fields(thd, tables, tables->db, tables->alias, &it, 0, 0))
     goto err0;
 
-  select_limit+=offset_limit;
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 
   HANDLER_TABLES_HACK(thd);
@@ -447,12 +442,25 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   table->file->init_table_handle_for_HANDLER();
 
-  for (num_rows=0; num_rows < select_limit; )
+  for (num_rows=0; num_rows < select_limit_cnt; )
   {
     switch (mode) {
+    case RNEXT:
+      if (table->file->inited != handler::NONE)
+      {
+        error=keyname ?
+	  table->file->index_next(table->record[0]) :
+	  table->file->rnd_next(table->record[0]);
+        break;
+      }
+      /* else fall through */
     case RFIRST:
       if (keyname)
+      {
+        table->file->ha_index_or_rnd_end();
+        table->file->ha_index_init(keyno);
         error= table->file->index_first(table->record[0]);
+      }
       else
       {
         table->file->ha_index_or_rnd_end();
@@ -461,19 +469,20 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       mode=RNEXT;
       break;
-    case RLAST:
-      DBUG_ASSERT(keyname != 0);
-      error= table->file->index_last(table->record[0]);
-      mode=RPREV;
-      break;
-    case RNEXT:
-      error= (keyname ?
-              table->file->index_next(table->record[0]) :
-              table->file->rnd_next(table->record[0]));
-      break;
     case RPREV:
       DBUG_ASSERT(keyname != 0);
-      error= table->file->index_prev(table->record[0]);
+      if (table->file->inited != handler::NONE)
+      {
+        error=table->file->index_prev(table->record[0]);
+        break;
+      }
+      /* else fall through */
+    case RLAST:
+      DBUG_ASSERT(keyname != 0);
+      table->file->ha_index_or_rnd_end();
+      table->file->ha_index_init(keyno);
+      error= table->file->index_last(table->record[0]);
+      mode=RPREV;
       break;
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
@@ -509,6 +518,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
 	goto err;
+      table->file->ha_index_or_rnd_end();
+      table->file->ha_index_init(keyno);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
       error= table->file->index_read(table->record[0],
 				  key,key_len,ha_rkey_mode);
@@ -535,7 +546,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     }
     if (cond && !cond->val_int())
       continue;
-    if (num_rows >= offset_limit)
+    if (num_rows >= offset_limit_cnt)
     {
       Item *item;
       protocol->prepare_for_resend();

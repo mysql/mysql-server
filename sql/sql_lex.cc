@@ -1138,8 +1138,9 @@ void st_select_lex::init_select()
   order_list.elements= 0;
   order_list.first= 0;
   order_list.next= (byte**) &order_list.first;
-  select_limit= HA_POS_ERROR;
-  offset_limit= 0;
+  /* Set limit and offset to default values */
+  select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
+  offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
 }
 
@@ -1363,7 +1364,7 @@ ulong st_select_lex_node::get_table_join_options()
 */
 bool st_select_lex::test_limit()
 {
-  if (select_limit != HA_POS_ERROR)
+  if (select_limit != 0)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
              "LIMIT & IN/ALL/ANY/SOME subquery");
@@ -1551,24 +1552,20 @@ void st_select_lex::print_limit(THD *thd, String *str)
        item->substype() == Item_subselect::IN_SUBS ||
        item->substype() == Item_subselect::ALL_SUBS))
   {
-    DBUG_ASSERT(!item->fixed || select_limit == 1L && offset_limit == 0L);
+    DBUG_ASSERT(!item->fixed ||
+                select_limit->val_int() == LL(1) && offset_limit == 0);
     return;
   }
 
   if (explicit_limit)
   {
     str->append(" limit ", 7);
-    char buff[20];
-    // latin1 is good enough for numbers
-    String st(buff, sizeof(buff),  &my_charset_latin1);
-    st.set((ulonglong)select_limit, &my_charset_latin1);
-    str->append(st);
     if (offset_limit)
     {
+      offset_limit->print(str);
       str->append(',');
-      st.set((ulonglong)select_limit, &my_charset_latin1);
-      str->append(st);
     }
+    select_limit->print(str);
   }
 }
 
@@ -1619,7 +1616,7 @@ bool st_lex::can_be_merged()
           select_lex.with_sum_func == 0 &&
 	  select_lex.table_list.elements >= 1 &&
 	  !(select_lex.options & SELECT_DISTINCT) &&
-          select_lex.select_limit == HA_POS_ERROR);
+          select_lex.select_limit == 0);
 }
 
 
@@ -1756,11 +1753,16 @@ bool st_lex::need_correct_ident()
     values	- SELECT_LEX with initial values for counters
 */
 
-void st_select_lex_unit::set_limit(SELECT_LEX *values)
+void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
-  offset_limit_cnt= values->offset_limit;
-  select_limit_cnt= values->select_limit+values->offset_limit;
-  if (select_limit_cnt < values->select_limit)
+  ulonglong select_limit_val;
+
+  DBUG_ASSERT(! thd->current_arena->is_stmt_prepare());
+  select_limit_val= sl->select_limit ? sl->select_limit->val_uint() :
+                                       HA_POS_ERROR;
+  offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
+  select_limit_cnt= select_limit_val + offset_limit_cnt;
+  if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
 }
 

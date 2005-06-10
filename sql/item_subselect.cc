@@ -22,8 +22,6 @@ SUBSELECT TODO:
      (sql_select.h/sql_select.cc)
 */
 
-#include <my_global.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -602,8 +600,8 @@ void Item_exists_subselect::fix_length_and_dec()
    decimals= 0;
    max_length= 1;
    max_columns= engine->cols();
-   /* We need only 1 row to determinate existence */
-  unit->global_parameters->select_limit= 1;
+  /* We need only 1 row to determine existence */
+  unit->global_parameters->select_limit= new Item_int((int32) 1);
 }
 
 double Item_exists_subselect::val_real()
@@ -772,9 +770,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
   Item_subselect::trans_res result= RES_ERROR;
-  DBUG_ENTER("Item_in_subselect::single_value_transformer");
-
   SELECT_LEX *select_lex= join->select_lex;
+  DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
   /*
     Check that the right part of the subselect contains no more than one
@@ -1646,7 +1643,7 @@ void subselect_uniquesubquery_engine::exclude()
 table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 {
   table_map map= 0;
-  for(; table; table= table->next_leaf)
+  for (; table; table= table->next_leaf)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)

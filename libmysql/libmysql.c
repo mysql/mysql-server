@@ -1738,7 +1738,7 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 
 /* Default number of rows fetched per one COM_FETCH command. */
 
-#define DEFAULT_PREFETCH_ROWS 1UL
+#define DEFAULT_PREFETCH_ROWS (ulong) 1
 
 /*
   These functions are called by function pointer MYSQL_STMT::read_row_func.
@@ -2809,11 +2809,14 @@ my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
 {
   switch (attr_type) {
   case STMT_ATTR_UPDATE_MAX_LENGTH:
-    *(unsigned long *) value= stmt->update_max_length;
+    *(ulong*) value= stmt->update_max_length;
     break;
   case STMT_ATTR_CURSOR_TYPE:
-    *(unsigned long *) value= stmt->flags;
+    *(ulong*) value= stmt->flags;
       break;
+  case STMT_ATTR_PREFETCH_ROWS:
+    *(ulong*) value= stmt->prefetch_rows;
+    break;
   default:
     return TRUE;
   }

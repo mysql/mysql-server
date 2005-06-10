@@ -119,7 +119,7 @@ a
 99.99
 99.99
 99.99
-99.99
+0.00
 0.00
 0.00
 0.00
@@ -891,3 +891,40 @@ NULL
 select abs(NULL);
 abs(NULL)
 NULL
+set @@sql_mode='traditional';
+create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
+insert into t1 values(1,-1,-1);
+ERROR 22003: Out of range value adjusted for column 'd2' at row 1
+drop table t1;
+create table t1 (col1 decimal(5,2), col2 numeric(5,2));
+insert into t1 values (999.999,999.999);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+insert into t1 values (-999.999,-999.999);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+select * from t1;
+col1	col2
+drop table t1;
+set sql_mode='';
+set @sav_dpi= @@div_precision_increment;
+set @@div_precision_increment=15;
+create table t1 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
+insert into t1 values (1,0.0123456789012345678912345,0.0123456789012345678912345);
+select col2/9999999999 from t1 where col1=1;
+col2/9999999999
+0.000000000001234567890246913578
+select 9999999999/col2 from t1 where col1=1;
+9999999999/col2
+810000007209.000065537105051
+select 77777777/7777777;
+77777777/7777777
+10.000000900000090
+drop table t1;
+set div_precision_increment= @sav_dpi;
+create table t1 (a decimal(4,2));
+insert into t1 values (0.00);
+select * from t1 where a > -0.00;
+a
+select * from t1 where a = -0.00;
+a
+0.00
+drop table t1;
