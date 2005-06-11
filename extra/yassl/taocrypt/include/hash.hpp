@@ -49,20 +49,20 @@ public:
 // HASH with Transform
 class HASHwithTransform : public HASH {
 public:
-    HASHwithTransform(word32 digSz, word32 buffSz) 
-        : digest_(new (tc) word32[digSz]), buffer_(new (tc) byte[buffSz]) {}
-    virtual ~HASHwithTransform() { tcArrayDelete(buffer_);
-                                   tcArrayDelete(digest_); }
+    HASHwithTransform(word32 digSz, word32 buffSz);
+    virtual ~HASHwithTransform() {}
     virtual ByteOrder getByteOrder()  const = 0;
     virtual word32    getPadSize()    const = 0;
 
     virtual void Update(const byte*, word32);
     virtual void Final(byte*);
+
+    enum { MaxDigestSz = 5, MaxBufferSz = 64 };
 protected:
     word32  buffLen_;
     word32  length_;    // in Bits
-    word32* digest_;
-    byte*   buffer_;
+    word32  digest_[MaxDigestSz];
+    word32  buffer_[MaxBufferSz / sizeof(word32)];
 
     virtual void Transform() = 0;
 };
