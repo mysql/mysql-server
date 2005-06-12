@@ -14,22 +14,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+if HAVE_YASSL
+  yassl_dummy_link_fix= $(top_srcdir)/extra/yassl/src/dummy.cpp
+else
+  yassl_dummy_link_fix=
+endif
 INCLUDES=		-I$(top_srcdir)/include $(openssl_includes)
 LDADD=			@CLIENT_EXTRA_LDFLAGS@ $(openssl_libs) 
 pkglib_LIBRARIES=	libvio.a
 noinst_PROGRAMS	=	test-ssl test-sslserver test-sslclient
 noinst_HEADERS=	vio_priv.h
-test_ssl_SOURCES=	test-ssl.c $(top_srcdir)/extra/yassl/src/dummy.cpp
+test_ssl_SOURCES=	test-ssl.c $(yassl_dummy_link_fix)
 test_ssl_LDADD=   	@CLIENT_EXTRA_LDFLAGS@ ../dbug/libdbug.a libvio.a \
 			../mysys/libmysys.a ../strings/libmystrings.a \
 			$(openssl_libs)
-test_sslserver_SOURCES= test-sslserver.c \
-                        $(top_srcdir)/extra/yassl/src/dummy.cpp
+test_sslserver_SOURCES= test-sslserver.c $(yassl_dummy_link_fix)
 test_sslserver_LDADD=   @CLIENT_EXTRA_LDFLAGS@	../dbug/libdbug.a libvio.a \
 			../mysys/libmysys.a ../strings/libmystrings.a \
 			$(openssl_libs)
-test_sslclient_SOURCES= test-sslclient.c \
-                        $(top_srcdir)/extra/yassl/src/dummy.cpp
+test_sslclient_SOURCES= test-sslclient.c $(yassl_dummy_link_fix)
 test_sslclient_LDADD=   @CLIENT_EXTRA_LDFLAGS@	../dbug/libdbug.a libvio.a \
 			../mysys/libmysys.a ../strings/libmystrings.a \
 			$(openssl_libs)
