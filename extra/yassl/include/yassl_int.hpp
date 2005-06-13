@@ -29,6 +29,7 @@
 #define yaSSL_INT_HPP
 
 #include "yassl_imp.hpp"
+#include "yassl_error.hpp"
 #include "crypto_wrapper.hpp"
 #include "cert_wrapper.hpp"
 #include "log.hpp"
@@ -128,6 +129,8 @@ private:
     sslFactory& operator=(const sslFactory&);   // and assign   
 };
 
+
+#undef X509_NAME  // wincrypt.h clash
 
 // openSSL X509 names
 class X509_NAME {

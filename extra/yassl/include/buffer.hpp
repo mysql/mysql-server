@@ -29,7 +29,6 @@
 
 #include <assert.h>             // assert
 #include "yassl_types.hpp"      // ysDelete
-#include "yassl_error.hpp"      // Error
 #include "memory.hpp"           // mySTL::auto_ptr
 #include "algorithm.hpp"        // mySTL::swap
 

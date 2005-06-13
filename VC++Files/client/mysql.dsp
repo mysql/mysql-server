@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "NDEBUG" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /I "../extra/yassl/include" /D "NDEBUG" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /FD /c
 # SUBTRACT CPP /WX /Fr /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -52,7 +52,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 mysqlclient.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib zlib.lib /nologo /subsystem:console /debug /machine:I386 /out:"../client_release/mysql.exe" /libpath:"..\lib_release\\"
+# ADD LINK32 mysqlclient.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib zlib.lib ..\extra\yassl\Release\yassl.lib /nologo /subsystem:console /debug /machine:I386 /out:"../client_release/mysql.exe" /libpath:"..\lib_release\\"
 # SUBTRACT LINK32 /incremental:yes
 
 !ELSEIF  "$(CFG)" == "mysql - Win32 Debug"
@@ -69,7 +69,7 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../" /I "../extra/yassl/include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /FD /c
 # SUBTRACT CPP /Fr /YX
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
@@ -78,7 +78,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 mysqlclient.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib zlib.lib /nologo /subsystem:console /incremental:no /debug /machine:I386 /out:"../client_debug/mysql.exe" /pdbtype:sept /libpath:"..\lib_debug\\"
+# ADD LINK32 mysqlclient.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib zlib.lib ..\extra\yassl\Debug\yassl.lib /nologo /subsystem:console /incremental:no /debug /machine:I386 /out:"../client_debug/mysql.exe" /pdbtype:sept /libpath:"..\lib_debug\\"
 
 !ELSEIF  "$(CFG)" == "mysql - Win32 classic"
 
@@ -94,9 +94,9 @@ LINK32=xilink6.exe
 # PROP Intermediate_Dir "classic"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /WX /O2 /I "../include" /I "../" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# ADD BASE CPP /nologo /G6 /MT /W3 /WX /O2 /I "../include" /I "../" /I "../extra/yassl/include" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /WX /O2 /I "../include" /I "../" /D "_CONSOLE" /D "_WINDOWS" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /WX /O2 /I "../include" /I "../" /I "../extra/yassl/include" /D "_CONSOLE" /D "_WINDOWS" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -106,7 +106,7 @@ BSC32=bscmake.exe
 LINK32=xilink6.exe
 # ADD BASE LINK32 mysqlclient.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /out:"../client_release/mysql.exe" /libpath:"..\lib_release\\"
 # SUBTRACT BASE LINK32 /incremental:yes
-# ADD LINK32 mysqlclient.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib zlib.lib /nologo /subsystem:console /debug /machine:I386 /out:"../client_classic/mysql.exe" /libpath:"..\lib_release\\"
+# ADD LINK32 mysqlclient.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib zlib.lib ..\extra\yassl\Release\yassl.lib /nologo /subsystem:console /debug /machine:I386 /out:"../client_classic/mysql.exe" /libpath:"..\lib_release\\"
 # SUBTRACT LINK32 /incremental:yes
 
 !ENDIF
