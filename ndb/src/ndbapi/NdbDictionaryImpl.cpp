@@ -1004,6 +1004,11 @@ NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
     return 0;
   }
 
+  // avoid alignment problem and memory overrun
+  Uint32 name_buf[(MAX_TAB_NAME_SIZE + 3) / 4];
+  strncpy((char*)name_buf, name, sizeof(name_buf)); // strncpy null-pads
+  name = (char*)name_buf;
+
   req->senderRef = m_reference;
   req->senderData = 0;
   req->requestType = 
@@ -1015,7 +1020,7 @@ NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
   tSignal.theLength = GetTabInfoReq::SignalLength;
   LinearSectionPtr ptr[1];
   ptr[0].p  = (Uint32*)name;
-  ptr[0].sz = strLen;
+  ptr[0].sz = (strLen + 3) / 4;
   
   return getTable(&tSignal, ptr, 1, fullyQualifiedNames);
 }
