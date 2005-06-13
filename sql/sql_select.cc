@@ -11635,9 +11635,9 @@ store_record_in_cache(JOIN_CACHE *cache)
 	     end > str && end[-1] == ' ' ;
 	     end--) ;
 	length=(uint) (end-str);
-	memcpy(pos+1,str,length);
-	*pos=(uchar) length;
-	pos+=length+1;
+	memcpy(pos+sizeof(uint), str, length);
+	*((uint *) pos)= length;
+	pos+= length+sizeof(uint);
       }
       else
       {
@@ -11700,9 +11700,9 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (copy->strip)
       {
-	memcpy(copy->str,pos+1,length=(uint) *pos);
-	memset(copy->str+length,' ',copy->length-length);
-	pos+=1+length;
+	memcpy(copy->str, pos+sizeof(uint), length= *((uint *) pos));
+	memset(copy->str+length, ' ', copy->length-length);
+	pos+= sizeof(uint)+length;
       }
       else
       {
