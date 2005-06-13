@@ -721,7 +721,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	signed_literal now_or_signed_literal opt_escape
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
-        field_or_var
+        field_or_var limit_option
 
 %type <item_num>
 	NUM_literal
@@ -919,6 +919,11 @@ deallocate:
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "DEALLOCATE");
+            YYABORT;
+          }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
@@ -937,6 +942,11 @@ prepare:
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "PREPARE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_PREPARE;
@@ -967,6 +977,11 @@ execute:
           if (thd->command == COM_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          if (lex->sphead)
+          {
+            my_error(ER_SP_BADSTATEMENT, MYF(0), "EXECUTE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_EXECUTE;
@@ -5564,8 +5579,8 @@ opt_limit_clause_init:
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX *sel= lex->current_select;
-          sel->offset_limit= 0L;
-          sel->select_limit= HA_POS_ERROR;
+          sel->offset_limit= 0;
+          sel->select_limit= 0;
 	}
 	| limit_clause {}
 	;
@@ -5580,21 +5595,21 @@ limit_clause:
 	;
 
 limit_options:
-	ulong_num
+	limit_option
 	  {
             SELECT_LEX *sel= Select;
             sel->select_limit= $1;
-            sel->offset_limit= 0L;
+            sel->offset_limit= 0;
 	    sel->explicit_limit= 1;
 	  }
-	| ulong_num ',' ulong_num
+	| limit_option ',' limit_option
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $3;
 	    sel->offset_limit= $1;
 	    sel->explicit_limit= 1;
 	  }
-	| ulong_num OFFSET_SYM ulong_num
+	| limit_option OFFSET_SYM limit_option
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $1;
@@ -5602,18 +5617,23 @@ limit_options:
 	    sel->explicit_limit= 1;
 	  }
 	;
-
+limit_option:
+        param_marker
+        | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
+        | LONG_NUM     { $$= new Item_uint($1.str, $1.length); }
+        | NUM           { $$= new Item_uint($1.str, $1.length); }
+        ;
 
 delete_limit_clause:
 	/* empty */
 	{
 	  LEX *lex=Lex;
-	  lex->current_select->select_limit= HA_POS_ERROR;
+	  lex->current_select->select_limit= 0;
 	}
-	| LIMIT ulonglong_num
+	| LIMIT limit_option
 	{
 	  SELECT_LEX *sel= Select;
-	  sel->select_limit= (ha_rows) $2;
+	  sel->select_limit= $2;
 	  sel->explicit_limit= 1;
 	};
 
@@ -6127,10 +6147,17 @@ single_multi:
 	| table_wild_list
 	  { mysql_init_multi_delete(Lex); }
           FROM join_table_list where_clause
+          { 
+            if (multi_delete_set_locks_and_link_aux_tables(Lex))
+              YYABORT;
+          }
 	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
 	  USING join_table_list where_clause
-	  {}
+          { 
+            if (multi_delete_set_locks_and_link_aux_tables(Lex))
+              YYABORT;
+          }
 	;
 
 table_wild_list:
@@ -7980,8 +8007,8 @@ handler:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
-	  lex->current_select->select_limit= 1;
-	  lex->current_select->offset_limit= 0L;
+	  lex->current_select->select_limit= new Item_int((int32) 1);
+	  lex->current_select->offset_limit= 0;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
         }
