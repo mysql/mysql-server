@@ -1037,6 +1037,334 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  HugoOperations hugoOps(*pTab);
+
+  Ndb* pNdb = GETNDB(step);
+  Uint32 lm;
+
+  NdbConnection* pCon = pNdb->startTransaction();
+  if (pCon == NULL){
+    pNdb->closeTransaction(pCon);  
+    return NDBT_FAILED;
+  }
+  
+  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
+  if (pOp == NULL){
+    ERR(pCon->getNdbError());
+    pNdb->closeTransaction(pCon);  
+    return NDBT_FAILED;
+  }
+  
+  if (pOp->readTuple(NdbOperation::LM_Exclusive) != 0){
+    pNdb->closeTransaction(pCon);
+    ERR(pOp->getNdbError());
+    return NDBT_FAILED;
+  }
+      
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() != true){
+      if (pOp->getValue(pTab->getColumn(a)->getName()) == NULL) {
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  int check = pCon->execute(NoCommit);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+    result = NDBT_FAILED;
+  }
+  
+  pOp = pCon->getNdbOperation(pTab->getName());
+  if (pOp == NULL){
+    ERR(pCon->getNdbError());
+    pNdb->closeTransaction(pCon);  
+    return NDBT_FAILED;
+  }
+  
+  if (pOp->deleteTuple() != 0){
+    pNdb->closeTransaction(pCon);
+    ERR(pOp->getNdbError());
+    return NDBT_FAILED;
+  }
+      
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+
+  check = pCon->execute(NoCommit);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+    result = NDBT_FAILED;
+  }
+
+  pOp = pCon->getNdbOperation(pTab->getName());
+  if (pOp == NULL){
+    ERR(pCon->getNdbError());
+    pNdb->closeTransaction(pCon);  
+    return NDBT_FAILED;
+  }
+  
+  if (pOp->writeTuple() != 0){
+    pNdb->closeTransaction(pCon);
+    ERR(pOp->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() != true){
+      if(hugoOps.setValueForAttr(pOp, a, 1, 1) != 0)
+      {
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  check = pCon->execute(NoCommit);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+    result = NDBT_FAILED;
+  }
+
+  pOp = pCon->getNdbOperation(pTab->getName());
+  if (pOp == NULL){
+    ERR(pCon->getNdbError());
+    pNdb->closeTransaction(pCon);  
+    return NDBT_FAILED;
+  }
+  
+  if (pOp->writeTuple() != 0){
+    pNdb->closeTransaction(pCon);
+    ERR(pOp->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() != true){
+      if(hugoOps.setValueForAttr(pOp, a, 1, 1) != 0)
+      {
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  check = pCon->execute(NoCommit);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+    result = NDBT_FAILED;
+  }
+  
+  check = pCon->execute(Rollback);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+    result = NDBT_FAILED;
+  }
+  
+  pCon->close();
+
+  pCon = pNdb->startTransaction();
+  if (pCon == NULL){
+    pNdb->closeTransaction(pCon);  
+    return NDBT_FAILED;
+  }
+
+  pOp = pCon->getNdbOperation(pTab->getName());
+  if (pOp == NULL){
+    ERR(pCon->getNdbError());
+    pNdb->closeTransaction(pCon);  
+    return NDBT_FAILED;
+  }
+  
+  if (pOp->writeTuple() != 0){
+    pNdb->closeTransaction(pCon);
+    ERR(pOp->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() != true){
+      if(hugoOps.setValueForAttr(pOp, a, 1, 1) != 0)
+      {
+	ERR(pCon->getNdbError());
+	pNdb->closeTransaction(pCon);
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  check = pCon->execute(Commit);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+    result = NDBT_FAILED;
+  }
+  
+  return result;
+}
+
+int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const Uint32 max= 5;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+  if (pNdb == NULL){
+    ndbout << "pNdb == NULL" << endl;      
+    return NDBT_FAILED;  
+  }
+  if (pNdb->init(max)){
+    ERR(pNdb->getNdbError());
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+  
+  NdbConnection* pCon = pNdb->startTransaction();
+  if (pCon == NULL){
+    pNdb->closeTransaction(pCon);  
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  Uint32 i;
+  Vector<NdbScanOperation*> scans;
+  for(i = 0; i<10*max; i++)
+  {
+    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+    if (pOp == NULL){
+      ERR(pCon->getNdbError());
+      pNdb->closeTransaction(pCon);  
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    
+    if (pOp->readTuples() != 0){
+      pNdb->closeTransaction(pCon);
+      ERR(pOp->getNdbError());
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    scans.push_back(pOp);
+  }
+
+  // Dont' call any equal or setValues
+
+  // Execute should not work
+  int check = pCon->execute(NoCommit);
+  if (check == 0){
+    ndbout << "execute worked" << endl;
+  } else {
+    ERR(pCon->getNdbError());
+  }
+  
+  for(i= 0; i<scans.size(); i++)
+  {
+    NdbScanOperation* pOp= scans[i];
+    while((check= pOp->nextResult()) == 0);
+    if(check != 1)
+    {
+      ERR(pOp->getNdbError());
+      pNdb->closeTransaction(pCon);
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+  }
+  
+  pNdb->closeTransaction(pCon);  
+
+  Vector<NdbConnection*> cons;
+  for(i= 0; i<10*max; i++)
+  {
+    pCon= pNdb->startTransaction();
+    if(pCon)
+      cons.push_back(pCon);
+    else
+      break;
+  }
+  
+  for(i= 0; i<cons.size(); i++)
+  {
+    cons[i]->close();
+  }
+  
+  if(cons.size() != max)
+  {
+    result= NDBT_FAILED;
+  }
+  
+  delete pNdb;
+  
+  return result;
+}
+
+template class Vector<NdbScanOperation*>;
+
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -1110,6 +1438,18 @@ TESTCASE("ReadWithoutGetValue",
 	 "Test that it's possible to perform read wo/ getvalue's\n"){ 
   INITIALIZER(runLoadTable);
   INITIALIZER(runReadWithoutGetValue);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug_11133", 
+	 "Test ReadEx-Delete-Write\n"){ 
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug_11133);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Scan_4006", 
+	 "Check that getNdbScanOperation does not get 4006\n"){ 
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runScan_4006);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);

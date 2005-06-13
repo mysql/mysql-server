@@ -41,7 +41,7 @@ static const int parallelism= 0;
 
 // Default value for max number of transactions
 // createable against NDB from this handler
-static const int max_transactions= 256;
+static const int max_transactions= 2;
 
 static const char *ha_ndb_ext=".ndb";
 
@@ -4611,7 +4611,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   List_iterator_fast<char> it2(create_list);
   while ((file_name=it2++))
   {  
-    DBUG_PRINT("info", ("Table %s need discovery", name));
+    DBUG_PRINT("info", ("Table %s need discovery", file_name));
     if (ha_create_table_from_engine(thd, db, file_name, TRUE) == 0)
       files->push_back(thd->strdup(file_name)); 
   }

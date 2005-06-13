@@ -3267,12 +3267,6 @@ drop procedure bug8762|
 #
 # BUG#5240: Stored procedure crash if function has cursor declaration
 #
-# The following test case fails in --ps-protocol mode due to some bugs
-# in algorithm which calculates list of tables to be locked for queries
-# using Stored Functions. It is disabled until Dmitri fixes this.
-#
---disable_ps_protocol
-
 --disable_warnings
 drop function if exists bug5240|
 --enable_warnings
@@ -3291,8 +3285,6 @@ delete from t1|
 insert into t1 values ("answer", 42)|
 select id, bug5240() from t1|
 drop function bug5240|
-
---enable_ps_protocol
 
 #
 # BUG#5278: Stored procedure packets out of order if SET PASSWORD.

@@ -84,6 +84,32 @@ reap;
 drop procedure bug9486;
 drop table t1, t2;
 
+#
+# BUG#11158: Can't perform multi-delete in stored procedure
+#
+--disable_warnings
+drop procedure if exists bug11158;
+--enable_warnings
+create procedure bug11158() delete t1 from t1, t2 where t1.id = t2.id;
+create table t1 (id int, j int);
+insert into t1 values (1, 1), (2, 2);
+create table t2 (id int);
+insert into t2 values (1);
+# Procedure should work and cause proper effect (delete only first row)
+call bug11158();
+select * from t1;
+# Also let us test that we obtain only read (and thus non exclusive) lock
+# for table from which we are not going to delete rows.
+connection con2root;
+lock tables t2 read;
+connection con1root;
+call bug11158();
+connection con2root;
+unlock tables;
+connection con1root;
+# Clean-up
+drop procedure bug11158;
+drop table t1, t2;
 
 #
 # BUG#NNNN: New bug synopsis

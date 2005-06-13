@@ -304,6 +304,7 @@ public:
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
       UNCACHEABLE_EXPLAIN
+      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
@@ -489,7 +490,7 @@ public:
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
   SQL_LIST *gorder_list;
-  ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
 
@@ -751,7 +752,12 @@ typedef struct st_lex
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt, start_transaction_opt;
-  uint table_count; /* used when usual update transformed in multiupdate */
+  /*
+    In LEX representing update which were transformed to multi-update
+    stores total number of tables. For LEX representing multi-delete
+    holds number of tables from which we will delete records.
+  */
+  uint table_count;
   uint8 describe;
   uint8 derived_tables;
   uint8 create_view_algorithm;
