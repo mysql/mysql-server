@@ -108,3 +108,16 @@ id	date_ord	text
 2	16-03-2005	Day 2
 1	05-03-2005	Day 1
 DROP TABLE t1;
+CREATE TABLE t1 (a CHAR(10));
+INSERT INTO t1 VALUES ('aaa'), (NULL), (''), ('bbb');
+SELECT a, NULLIF(a,'') FROM t1;
+a	NULLIF(a,'')
+aaa	aaa
+NULL	NULL
+	NULL
+bbb	bbb
+SELECT a, NULLIF(a,'') FROM t1 WHERE NULLIF(a,'') IS NULL;
+a	NULLIF(a,'')
+NULL	NULL
+	NULL
+DROP TABLE t1;
