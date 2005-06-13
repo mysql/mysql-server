@@ -1308,13 +1308,7 @@ public:
   virtual ~Item_func_sp()
   {}
 
-  void cleanup()
-  {
-    if (result_field)
-      delete result_field;
-    Item_func::cleanup();
-    result_field= NULL;
-  }
+  void cleanup();
 
   const char *func_name() const;
 
@@ -1330,7 +1324,7 @@ public:
   {
     if (execute(&result_field))
       return (longlong) 0;
-    return result_field->val_int();   
+    return result_field->val_int();
   }
 
   double val_real()

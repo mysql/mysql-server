@@ -29,6 +29,8 @@
 
 
 #include <string.h>  // strncpy
+#include <assert.h>  // assert
+#include <stdlib.h>  // size_t
 
 
 namespace mySTL {
@@ -37,9 +39,15 @@ namespace mySTL {
 class exception {
 public:
     exception() {}
-    virtual ~exception() {}
+    virtual ~exception() {}   // to shut up compiler warnings
 
     virtual const char* what() const { return ""; }
+
+    // for compiler generated call, never used
+    static void operator delete(void*) { assert(0); }
+private:
+    // don't allow dynamic creation of exceptions
+    static void* operator new(size_t);
 };
 
 
