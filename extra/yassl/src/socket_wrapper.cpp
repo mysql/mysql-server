@@ -27,7 +27,6 @@
 
 
 #include "socket_wrapper.hpp"
-#include "yassl_error.hpp"
 
 #ifndef WIN32
     #include <errno.h>

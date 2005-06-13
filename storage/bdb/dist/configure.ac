@@ -161,7 +161,8 @@ bsdi*)	optimize_def="-O2";;
 freebsd*)
 	optimize_def="-O2"
 	CPPFLAGS="$CPPFLAGS -D_THREAD_SAFE"
-	LDFLAGS="$LDFLAGS -pthread";;
+	#LDFLAGS="$LDFLAGS -pthread"
+        ;;
 hpux*)	CPPFLAGS="$CPPFLAGS -D_REENTRANT";;
 irix*)	optimize_def="-O2"
 	CPPFLAGS="$CPPFLAGS -D_SGI_MP_SOURCE";;

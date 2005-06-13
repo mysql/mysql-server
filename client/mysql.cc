@@ -953,6 +953,7 @@ static int read_lines(bool execute_commands)
 {
 #if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
   char linebuffer[254];
+  String buffer;
 #endif
   char	*line;
   char	in_string=0;
@@ -994,8 +995,24 @@ static int read_lines(bool execute_commands)
           *p = '\0';
       }
 #else
-      linebuffer[0]= (char) sizeof(linebuffer);
-      line= _cgets(linebuffer);
+      buffer.length(0);
+      /* _cgets() expects the buffer size - 3 as the first byte */
+      linebuffer[0]= (char) sizeof(linebuffer) - 3;
+      do
+      {
+        line= _cgets(linebuffer);
+        buffer.append(line, (unsigned char)linebuffer[1]);
+      /*
+        If _cgets() gets an input line that is linebuffer[0] bytes
+        long, the next call to _cgets() will return immediately with
+        linebuffer[1] == 0, and it does the same thing for input that
+        is linebuffer[0]-1 bytes long. So it appears that even though
+        _cgets() replaces the newline (which is two bytes on Window) with
+        a nil, it still needs the space in the linebuffer for it. This is,
+        naturally, undocumented.
+       */
+      } while (linebuffer[0] <= linebuffer[1] + 1);
+      line= buffer.c_ptr();
 #endif /* __NETWARE__ */
 #else
       if (opt_outfile)
@@ -1052,6 +1069,9 @@ static int read_lines(bool execute_commands)
 	status.exit_status=0;
     }
   }
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+  buffer.free();
+#endif
   return status.exit_status;
 }
 
