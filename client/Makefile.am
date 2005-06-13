@@ -16,6 +16,11 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
+if HAVE_YASSL
+  yassl_dummy_link_fix= $(top_srcdir)/extra/yassl/src/dummy.cpp
+else
+  yassl_dummy_link_fix=
+endif
 #AUTOMAKE_OPTIONS =              nostdinc
 INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 				$(openssl_includes) -I$(top_builddir)/include
@@ -30,12 +35,17 @@ noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
-mysqltest_SOURCES=		mysqltest.c $(top_srcdir)/mysys/my_getsystime.c
+mysqltest_SOURCES=              mysqltest.c $(top_srcdir)/mysys/my_getsystime.c \
+                                $(yassl_dummy_link_fix)
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c $(top_srcdir)/mysys/my_new.cc
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
-mysqltestmanagerc_SOURCES =   mysqlmanagerc.c 
 mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c 
+mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
+mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
+mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
+mysqldump_SOURCES=              mysqldump.c $(yassl_dummy_link_fix)
+mysqlimport_SOURCES=            mysqlimport.c $(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 
