@@ -480,12 +480,20 @@ buf_pool_is_block(
 /*==============*/
 			/* out: TRUE if pointer to block */
 	void*	ptr);	/* in: pointer to memory */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer pool data structure. */
 
 ibool
 buf_validate(void);
 /*==============*/
+/*************************************************************************
+Prints info of the buffer pool data structure. */
+
+void
+buf_print(void);
+/*============*/
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Prints a page to stderr. */
 
@@ -493,12 +501,6 @@ void
 buf_page_print(
 /*===========*/
 	byte*	read_buf);	/* in: a database page */
-/*************************************************************************
-Prints info of the buffer pool data structure. */
-
-void
-buf_print(void);
-/*============*/
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 

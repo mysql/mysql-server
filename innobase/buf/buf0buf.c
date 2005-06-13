@@ -1947,6 +1947,7 @@ buf_pool_invalidate(void)
 	mutex_exit(&(buf_pool->mutex));
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer buf_pool data structure. */
 
@@ -2146,6 +2147,7 @@ buf_print(void)
 
 	ut_a(buf_validate());
 }	
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
