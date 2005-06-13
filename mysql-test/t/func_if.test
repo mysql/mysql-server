@@ -60,21 +60,6 @@ drop table t1;
 # Bug #5595  NULLIF() IS NULL returns false if NULLIF() returns NULL
 #
 SELECT NULLIF(5,5) IS NULL, NULLIF(5,5) IS NOT NULL;
-#
-# Test to check evaluation of MULLIF when the first argument is NULL
-# (motivated by the Bug 11142)
-#
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (a CHAR(10));
-INSERT INTO t1 VALUES ('aaa'), (NULL), (''), ('bbb');
-SELECT a, NULLIF(a,'') FROM t1;
-SELECT a, NULLIF(a,'') FROM t1 WHERE NULLIF(a,'') IS NULL;
-
-DROP TABLE t1;
 
 #
 # Test for bug #11142: evaluation of NULLIF when the first argument is NULL
