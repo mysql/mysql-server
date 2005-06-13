@@ -1345,11 +1345,11 @@ void setup(char *file __attribute__((unused)))
 #endif /* HAVE_OPENSSL */
 
   /* OpenSSL paths */
-  snprintf(ca_cert, FN_REFLEN, "%s/SSL/cacert.pem", base_dir);
-  snprintf(server_cert, FN_REFLEN, "%s/SSL/server-cert.pem", base_dir);
-  snprintf(server_key, FN_REFLEN, "%s/SSL/server-key.pem", base_dir);
-  snprintf(client_cert, FN_REFLEN, "%s/SSL/client-cert.pem", base_dir);
-  snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
+  snprintf(ca_cert, FN_REFLEN, "%s/std_data/cacert.pem", mysql_test_dir);
+  snprintf(server_cert, FN_REFLEN, "%s/std_data/server-cert.pem", mysql_test_dir);
+  snprintf(server_key, FN_REFLEN, "%s/std_data/server-key.pem", mysql_test_dir);
+  snprintf(client_cert, FN_REFLEN, "%s/std_data/client-cert.pem", mysql_test_dir);
+  snprintf(client_key, FN_REFLEN, "%s/std_data/client-key.pem", mysql_test_dir);
 
   /* setup files */
   snprintf(mysqld_file, FN_REFLEN, "%s/mysqld", bin_dir);
@@ -1378,11 +1378,11 @@ void setup(char *file __attribute__((unused)))
 #endif /* HAVE_OPENSSL */
 
   /* OpenSSL paths */
-  snprintf(ca_cert, FN_REFLEN, "%s/SSL/cacert.pem", base_dir);
-  snprintf(server_cert, FN_REFLEN, "%s/SSL/server-cert.pem", base_dir);
-  snprintf(server_key, FN_REFLEN, "%s/SSL/server-key.pem", base_dir);
-  snprintf(client_cert, FN_REFLEN, "%s/SSL/client-cert.pem", base_dir);
-  snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
+  snprintf(ca_cert, FN_REFLEN, "%s/std_data/cacert.pem", mysql_test_dir);
+  snprintf(server_cert, FN_REFLEN, "%s/std_data/server-cert.pem", mysql_test_dir);
+  snprintf(server_key, FN_REFLEN, "%s/std_data/server-key.pem", mysql_test_dir);
+  snprintf(client_cert, FN_REFLEN, "%s/std_data/client-cert.pem", mysql_test_dir);
+  snprintf(client_key, FN_REFLEN, "%s/std_data/client-key.pem", mysql_test_dir);
 
   /* setup files */
 #ifdef _DEBUG 
@@ -1411,11 +1411,11 @@ void setup(char *file __attribute__((unused)))
 #endif /* HAVE_OPENSSL */
 
   /* OpenSSL paths */
-  snprintf(ca_cert, FN_REFLEN, "%s/SSL/cacert.pem", base_dir);
-  snprintf(server_cert, FN_REFLEN, "%s/SSL/server-cert.pem", base_dir);
-  snprintf(server_key, FN_REFLEN, "%s/SSL/server-key.pem", base_dir);
-  snprintf(client_cert, FN_REFLEN, "%s/SSL/client-cert.pem", base_dir);
-  snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
+  snprintf(ca_cert, FN_REFLEN, "%s/std_data/cacert.pem", mysql_test_dir);
+  snprintf(server_cert, FN_REFLEN, "%s/std_data/server-cert.pem", mysql_test_dir);
+  snprintf(server_key, FN_REFLEN, "%s/std_data/server-key.pem", mysql_test_dir);
+  snprintf(client_cert, FN_REFLEN, "%s/std_data/client-cert.pem", mysql_test_dir);
+  snprintf(client_key, FN_REFLEN, "%s/std_data/client-key.pem", mysql_test_dir);
 
   /* setup files */
   snprintf(mysqld_file, FN_REFLEN, "%s/sql/mysqld", base_dir);

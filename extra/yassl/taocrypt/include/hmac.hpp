@@ -37,18 +37,31 @@ class HMAC {
 public:
     enum { IPAD = 0x36, OPAD = 0x5C };
 
-    HMAC() { Init(); }
+    HMAC() : ipad_(reinterpret_cast<byte*>(&ip_)), 
+             opad_(reinterpret_cast<byte*>(&op_)),
+             innerHash_(reinterpret_cast<byte*>(&innerH_)) 
+    { 
+        Init(); 
+    }
     void Update(const byte*, word32);
     void Final(byte*);
     void Init();
 
     void SetKey(const byte*, word32);
 private:
-    byte ipad_[T::BLOCK_SIZE];
-    byte opad_[T::BLOCK_SIZE];
-    byte innerHash_[T::DIGEST_SIZE];
-    bool innerHashKeyed_;
-    T    mac_;
+    byte* ipad_;
+    byte* opad_;
+    byte* innerHash_;
+    bool  innerHashKeyed_;
+    T     mac_;
+
+    // MSVC 6 HACK, gives compiler error if calculated in array
+    enum { BSIZE = T::BLOCK_SIZE  / sizeof(word32),
+           DSIZE = T::DIGEST_SIZE / sizeof(word32) };
+
+    word32 ip_[BSIZE];          // align ipad_ on word32
+    word32 op_[BSIZE];          // align opad_ on word32
+    word32 innerH_[DSIZE];      // align innerHash_ on word32
 
     void KeyInnerHash();
 

@@ -1616,7 +1616,7 @@ private:
   Uint32                theNoOfPreparedTransactions;
   Uint32                theNoOfSentTransactions;
   Uint32                theNoOfCompletedTransactions;
-  Uint32                theNoOfAllocatedTransactions;
+  Uint32                theRemainingStartTransactions;
   Uint32                theMaxNoOfTransactions;
   Uint32                theMinNoOfEventsToWakeUp;
 

@@ -47,6 +47,7 @@ class sp_rcontext : public Sql_alloc
 
  public:
 
+  MEM_ROOT *callers_mem_root;	// Used to store result fields
   bool in_handler;
 
   sp_rcontext(uint fsize, uint hmax, uint cmax);

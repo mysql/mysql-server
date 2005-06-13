@@ -66,7 +66,7 @@ done
 
 if [ -f $conf ]
 then
-	. $conf
+	. ./$conf
 else
 	echo "Can't find config file: $conf"
 	exit
@@ -131,8 +131,10 @@ echo "$DATE $RUN" > $LOCK
 # trap them, and remove the #
 # Lock file before exit     #
 #############################
-
-trap "rm -f $LOCK" ERR
+if [ `uname -s` != "SunOS" ]
+then
+	trap "rm -f $LOCK" ERR
+fi
 
 # You can add more to this path#
 ################################
@@ -191,7 +193,7 @@ then
 else
 	echo $VERSION > /tmp/version.$$
 fi	
-match=`grep -c "$VERSION" /tmp/version.$$`
+match=`grep -c "$VERSION" /tmp/version.$$ | xargs echo`
 rm -f /tmp/version.$$
 if [ $match -eq 0 ]
 then
@@ -229,7 +231,7 @@ filter(){
 	shift
 	while [ $# -gt 0 ]
 	do
-		if [ `grep -c $1 $neg` -eq 0 ] ; then echo $1; fi
+		if [ `grep -c $1 $neg | xargs echo` -eq 0 ] ; then echo $1; fi
 		shift
 	done
 }
@@ -294,13 +296,12 @@ choose_conf(){
     if [ -f $test_dir/conf-$1-$HOST.txt ]
 	then
 	echo "$test_dir/conf-$1-$HOST.txt"
-	echo "$test_dir/conf-$1-$host.txt"
     elif [ -f $test_dir/conf-$1.txt ]
     then
 	echo "$test_dir/conf-$1.txt"
     else
 	echo "Unable to find conf file looked for" 1>&2
-	echo "$testdir/conf-$1-host.txt and" 1>&2
+	echo "$testdir/conf-$1-$HOST.txt and" 1>&2
 	echo "$testdir/conf-$1.txt" 1>&2
 	exit
     fi
@@ -343,7 +344,7 @@ start(){
 
 count_hosts(){
     cnt=`grep "CHOOSE_host" $1 | awk '{for(i=1; i<=NF;i++) \
-    if(match($i, "CHOOSE_host") > 0) print $i;}' | sort | uniq | wc -l`
+    if(index($i, "CHOOSE_host") > 0) print $i;}' | sort | uniq | wc -l`
     echo $cnt
 }
 #######################################################

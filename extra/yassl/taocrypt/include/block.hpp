@@ -28,7 +28,6 @@
 #define TAO_CRYPT_BLOCK_HPP
 
 #include "algorithm.hpp"    // mySTL::swap
-#include "stdexcept.hpp"    // mySTL::runtime_error
 #include "misc.hpp"
 #include <string.h>         // memcpy
 #include <stddef.h>         // ptrdiff_t

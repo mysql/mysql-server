@@ -107,12 +107,10 @@ Ndb::init(int aMaxNoOfTransactions)
     goto error_handler;
   }
   
-  tMaxNoOfTransactions = aMaxNoOfTransactions * 3;
-  if (tMaxNoOfTransactions > 1024) {
-    tMaxNoOfTransactions = 1024;
-  }//if
+
+  tMaxNoOfTransactions = aMaxNoOfTransactions;
   theMaxNoOfTransactions = tMaxNoOfTransactions;
-  
+  theRemainingStartTransactions= tMaxNoOfTransactions;  
   thePreparedTransactionsArray = new NdbTransaction* [tMaxNoOfTransactions];
   theSentTransactionsArray = new NdbTransaction* [tMaxNoOfTransactions];
   theCompletedTransactionsArray = new NdbTransaction* [tMaxNoOfTransactions];

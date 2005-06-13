@@ -425,12 +425,20 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   DBUG_ENTER("Ndb::startTransactionLocal");
   DBUG_PRINT("enter", ("nodeid: %d", nodeId));
 
+  if(unlikely(theRemainingStartTransactions == 0))
+  {
+    theError.code = 4006;
+    DBUG_RETURN(0);
+  }
+  
   NdbTransaction* tConnection;
   Uint64 tFirstTransId = theFirstTransId;
   tConnection = doConnect(nodeId);
   if (tConnection == NULL) {
     DBUG_RETURN(NULL);
   }//if
+
+  theRemainingStartTransactions--;
   NdbTransaction* tConNext = theTransactionList;
   tConnection->init();
   theTransactionList = tConnection;        // into a transaction list.
@@ -481,6 +489,7 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
   CHECK_STATUS_MACRO_VOID;
   
   tCon = theTransactionList;
+  theRemainingStartTransactions++;
   
   DBUG_PRINT("info",("close trans: 0x%x transid: 0x%llx",
 		     aConnection, aConnection->getTransactionId()));

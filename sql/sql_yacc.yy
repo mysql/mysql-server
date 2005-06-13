@@ -4029,7 +4029,7 @@ select_options:
 	/* empty*/
 	| select_option_list
 	  {
-	    if (Select->options & SELECT_DISTINCT && Select->options2 & SELECT_ALL)
+	    if (Select->options & SELECT_DISTINCT && Select->options & SELECT_ALL)
 	    {
 	      my_error(ER_WRONG_USAGE, MYF(0), "ALL", "DISTINCT");
               YYABORT;
@@ -4069,7 +4069,7 @@ select_option:
 	  {
 	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 	  }
-	| ALL		    { Select->options2|= SELECT_ALL; }
+	| ALL		    { Select->options|= SELECT_ALL; }
 	;
 
 select_lock_type:
@@ -5108,11 +5108,11 @@ derived_table_list:
 
 join_table:
         table_ref normal_join table_ref { TEST_ASSERT($1 && ($$=$3)); }
-	| table_ref STRAIGHT_JOIN table_ref
+	| table_ref STRAIGHT_JOIN table_factor
 	  { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref ON expr
 	  { TEST_ASSERT($1 && ($$=$3)); add_join_on($3,$5); }
-        | table_ref STRAIGHT_JOIN table_ref ON expr
+        | table_ref STRAIGHT_JOIN table_factor ON expr
           { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; add_join_on($3,$5); }
 	| table_ref normal_join table_ref
 	  USING
