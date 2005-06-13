@@ -4029,7 +4029,7 @@ select_options:
 	/* empty*/
 	| select_option_list
 	  {
-	    if (Select->options & SELECT_DISTINCT && Select->options2 & SELECT_ALL)
+	    if (Select->options & SELECT_DISTINCT && Select->options & SELECT_ALL)
 	    {
 	      my_error(ER_WRONG_USAGE, MYF(0), "ALL", "DISTINCT");
               YYABORT;
@@ -4069,7 +4069,7 @@ select_option:
 	  {
 	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 	  }
-	| ALL		    { Select->options2|= SELECT_ALL; }
+	| ALL		    { Select->options|= SELECT_ALL; }
 	;
 
 select_lock_type:
