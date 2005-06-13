@@ -2130,7 +2130,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     for (; ptr<end; ptr++)
     {
       MYSQL_RES *res;
-      if (mysql_real_query(mysql,*ptr, strlen(*ptr)))
+      if (mysql_real_query(mysql,*ptr, (ulong) strlen(*ptr)))
 	goto error;
       if (mysql->fields)
       {
