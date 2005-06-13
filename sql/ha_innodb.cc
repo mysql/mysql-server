@@ -1041,7 +1041,7 @@ mysql_get_identifier_quote_char(
 		return(EOF);
 	}
 	return(get_quote_char_for_identifier((THD*) trx->mysql_thd,
-						name, namelen));
+						name, (int) namelen));
 }
 
 /**************************************************************************
@@ -2022,7 +2022,7 @@ innobase_rollback_to_savepoint(
 
         longlong2str((ulonglong)savepoint, name, 36);
 
-        error = trx_rollback_to_savepoint_for_mysql(trx, name,
+        error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -2051,7 +2051,7 @@ innobase_release_savepoint(
 
         longlong2str((ulonglong)savepoint, name, 36);
 
-	error = trx_release_savepoint_for_mysql(trx, name);
+	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -2092,7 +2092,7 @@ innobase_savepoint(
         char name[64];
         longlong2str((ulonglong)savepoint,name,36);
 
-        error = trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
+        error = (int) trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -2663,7 +2663,7 @@ innobase_read_from_2_little_endian(
 			/* out: value */
 	const mysql_byte*	buf)	/* in: from where to read */
 {
-	return((ulint)(buf[0]) + 256 * ((ulint)(buf[1])));
+	return (uint) ((ulint)(buf[0]) + 256 * ((ulint)(buf[1])));
 }
 
 /***********************************************************************
@@ -3743,7 +3743,7 @@ ha_innobase::index_read(
 		match_mode = ROW_SEL_EXACT_PREFIX;
 	}
 
-	last_match_mode = match_mode;
+	last_match_mode = (uint) match_mode;
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -3763,7 +3763,7 @@ ha_innobase::index_read(
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
 	} else {
-		error = convert_error_code_to_mysql(ret, user_thd);
+		error = convert_error_code_to_mysql((int) ret, user_thd);
 		table->status = STATUS_NOT_FOUND;
 	}
 
@@ -3915,7 +3915,7 @@ ha_innobase::general_fetch(
 		error = HA_ERR_END_OF_FILE;
 		table->status = STATUS_NOT_FOUND;
 	} else {
-		error = convert_error_code_to_mysql(ret, user_thd);
+		error = convert_error_code_to_mysql((int) ret, user_thd);
 		table->status = STATUS_NOT_FOUND;
 	}
 
@@ -4864,7 +4864,7 @@ innobase_drop_database(
 	}
 
 	ptr++;
-	namebuf = my_malloc(len + 2, MYF(0));
+	namebuf = my_malloc((uint) len + 2, MYF(0));
 
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
@@ -5430,7 +5430,7 @@ ha_innobase::update_table_comment(
 				info on foreign keys */
         const char*	comment)/* in: table comment defined by user */
 {
-	uint	length			= strlen(comment);
+	uint	length			= (uint) strlen(comment);
 	char*				str;
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
 
@@ -5482,7 +5482,7 @@ ha_innobase::update_table_comment(
 				*pos++ = ' ';
 			}
 			rewind(file);
-			flen = fread(pos, 1, flen, file);
+			flen = (uint) fread(pos, 1, flen, file);
 			pos[flen] = 0;
 		}
 
@@ -5545,7 +5545,7 @@ ha_innobase::get_foreign_key_create_info(void)
 
 		if (str) {
 			rewind(file);
-			flen = fread(str, 1, flen, file);
+			flen = (uint) fread(str, 1, flen, file);
 			str[flen] = 0;
 		}
 
@@ -5585,8 +5585,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
     while (tmp_buff[i] != '/')
       i++;
     tmp_buff+= i + 1;
-    f_key_info.forein_id= make_lex_string(thd, 0,
-                                          tmp_buff, strlen(tmp_buff), 1);
+    f_key_info.forein_id= make_lex_string(thd, 0, tmp_buff,
+                                          (uint) strlen(tmp_buff), 1);
     tmp_buff= foreign->referenced_table_name;
     i= 0;
     while (tmp_buff[i] != '/')
@@ -5594,16 +5594,16 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
     f_key_info.referenced_db= make_lex_string(thd, 0,
                                               tmp_buff, i, 1);
     tmp_buff+= i + 1;
-    f_key_info.referenced_table= make_lex_string(thd, 0,
-                                               tmp_buff, strlen(tmp_buff), 1);
+    f_key_info.referenced_table= make_lex_string(thd, 0, tmp_buff, 
+                                               (uint) strlen(tmp_buff), 1);
 
     for (i= 0;;)
     {
       tmp_buff= foreign->foreign_col_names[i];
-      name= make_lex_string(thd, name, tmp_buff, strlen(tmp_buff), 1);
+      name= make_lex_string(thd, name, tmp_buff, (uint) strlen(tmp_buff), 1);
       f_key_info.foreign_fields.push_back(name);
       tmp_buff= foreign->referenced_col_names[i];
-      name= make_lex_string(thd, name, tmp_buff, strlen(tmp_buff), 1);
+      name= make_lex_string(thd, name, tmp_buff, (uint) strlen(tmp_buff), 1);
       f_key_info.referenced_fields.push_back(name);
       if (++i >= foreign->n_fields)
         break;
@@ -5995,8 +5995,8 @@ ha_innobase::external_lock(
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
-						error, user_thd);
-					DBUG_RETURN(error);
+						(int) error, user_thd);
+					DBUG_RETURN((int) error);
 				}
 			}
 
@@ -6123,8 +6123,8 @@ ha_innobase::transactional_table_lock(
 						LOCK_TABLE_TRANSACTIONAL);
 
 		if (error != DB_SUCCESS) {
-			error = convert_error_code_to_mysql(error, user_thd);
-			DBUG_RETURN(error);
+			error = convert_error_code_to_mysql((int) error, user_thd);
+			DBUG_RETURN((int) error);
 		}
 
 		if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -6214,22 +6214,22 @@ innodb_show_status(
 	rewind(srv_monitor_file);
 	if (flen < MAX_STATUS_SIZE) {
 		/* Display the entire output. */
-		flen = fread(str, 1, flen, srv_monitor_file);
+		flen = (long) fread(str, 1, flen, srv_monitor_file);
 	} else if (trx_list_end < (ulint) flen
 			&& trx_list_start < trx_list_end
 			&& trx_list_start + (flen - trx_list_end)
 			< MAX_STATUS_SIZE - sizeof truncated_msg - 1) {
 		/* Omit the beginning of the list of active transactions. */
-		long	len = fread(str, 1, trx_list_start, srv_monitor_file);
+		long len = (long) fread(str, 1, trx_list_start, srv_monitor_file);
 		memcpy(str + len, truncated_msg, sizeof truncated_msg - 1);
 		len += sizeof truncated_msg - 1;
 		usable_len = (MAX_STATUS_SIZE - 1) - len;
 		fseek(srv_monitor_file, flen - usable_len, SEEK_SET);
-		len += fread(str + len, 1, usable_len, srv_monitor_file);
+		len += (long) fread(str + len, 1, usable_len, srv_monitor_file);
 		flen = len;
 	} else {
 		/* Omit the end of the output. */
-		flen = fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
+		flen = (long) fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
 	}
 
 	mutex_exit_noninline(&srv_monitor_file_mutex);
@@ -6791,7 +6791,7 @@ innobase_get_at_most_n_mbchars(
 	ulint n_chars;		/* number of characters in prefix */
 	CHARSET_INFO* charset;	/* charset used in the field */
 
-	charset = get_charset(charset_id, MYF(MY_WME));
+	charset = get_charset((uint) charset_id, MYF(MY_WME));
 
 	ut_ad(charset);
 	ut_ad(charset->mbmaxlen);
@@ -6825,7 +6825,7 @@ innobase_get_at_most_n_mbchars(
 		whole string. */
 
 		char_length = my_charpos(charset, str,
-						str + data_len, n_chars);
+						str + data_len, (int) n_chars);
 		if (char_length > data_len) {
 			char_length = data_len;
 		}		
@@ -6948,7 +6948,7 @@ innobase_xa_prepare(
 
                 ut_ad(trx->active_trans);
 
-		error = trx_prepare_for_mysql(trx);
+		error = (int) trx_prepare_for_mysql(trx);
 	} else {
 	        /* We just mark the SQL statement ended and do not do a
 		transaction prepare */
