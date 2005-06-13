@@ -1932,7 +1932,7 @@ static uchar to_upper_utf8[] = {
 static inline int bincmp(const uchar *s, const uchar *se,
                          const uchar *t, const uchar *te)
 {
-  int slen=se-s, tlen=te-t;
+  int slen= (int) (se-s), tlen= (int) (te-t);
   int len=min(slen,tlen);
   int cmp= memcmp(s,t,len);
   return cmp ? cmp : slen-tlen;
@@ -2108,7 +2108,7 @@ static uint my_caseup_utf8(CHARSET_INFO *cs, char *src, uint srclen,
     src+= srcres;
     dst+= dstres;
   }
-  return dst - dst0;
+  return (uint) (dst - dst0);
 }
 
 static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen,
@@ -2141,7 +2141,7 @@ static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen,
 
 static void my_caseup_str_utf8(CHARSET_INFO * cs, char * s)
 {
-  uint len= strlen(s);
+  uint len= (uint) strlen(s);
   my_caseup_utf8(cs, s, len, s, len);
 }
 
@@ -2165,12 +2165,12 @@ static uint my_casedn_utf8(CHARSET_INFO *cs, char *src, uint srclen,
     src+= srcres;
     dst+= dstres;
   }
-  return dst - dst0;
+  return (uint) (dst - dst0);
 }
 
 static void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
 {
-  uint len= strlen(s);
+  uint len= (uint) strlen(s);
   my_casedn_utf8(cs, s, len, s, len);
 }
 
@@ -2210,7 +2210,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return t_is_prefix ? t-te : ((se-s) - (te-t));
+  return (int) (t_is_prefix ? t-te : ((se-s) - (te-t)));
 }
 
 
@@ -2284,8 +2284,8 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
     t+=t_res;
   }
 
-  slen= se-s;
-  tlen= te-t;
+  slen= (uint) (se-s);
+  tlen= (uint) (te-t);
   res= 0;
 
   if (slen != tlen)

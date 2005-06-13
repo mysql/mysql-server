@@ -7527,7 +7527,7 @@ static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
 {
   char tail[30];
   size_t len= lexem->end - lexem->prev;
-  strmake (tail, lexem->prev, min(len, sizeof(tail)-1));
+  strmake (tail, lexem->prev, (uint) min(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
   my_snprintf(errstr,errsize-1,"%s at '%s'", txt, tail);
 }
@@ -7769,7 +7769,7 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
       continue;
     }
   }
-  return (size_t) nitems;
+  return (int) nitems;
 }
 
 #define MY_MAX_COLL_RULE 128
