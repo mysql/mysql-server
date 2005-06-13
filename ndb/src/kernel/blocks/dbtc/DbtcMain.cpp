@@ -763,11 +763,14 @@ Dbtc::set_timeout_value(Uint32 timeOut)
 void
 Dbtc::set_appl_timeout_value(Uint32 timeOut)
 {
-  timeOut /= 10;
-  if (timeOut < ctimeOutValue) {
-    jam();
-    c_appl_timeout_value = ctimeOutValue;
-  }//if
+  if (timeOut)
+  {
+    timeOut /= 10;
+    if (timeOut < ctimeOutValue) {
+      jam();
+      c_appl_timeout_value = ctimeOutValue;
+    }//if
+  }
   c_appl_timeout_value = timeOut;
 }
 
@@ -6286,7 +6289,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
       particular state we will use the application timeout parameter rather
       than the shorter Deadlock detection timeout.
       */
-      if ((ctcTimer - getApiConTimer(apiConnectptr.i)) <= c_appl_timeout_value) {
+      if (c_appl_timeout_value == 0 ||
+          (ctcTimer - getApiConTimer(apiConnectptr.i)) <= c_appl_timeout_value) {
         jam();
         return;
       }//if
