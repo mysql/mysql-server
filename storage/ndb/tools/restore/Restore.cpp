@@ -765,6 +765,7 @@ RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
   setLogFile(md, 0);
 
   m_count = 0;
+  m_last_gci = 0;
 }
 
 const LogEntry *
@@ -772,7 +773,6 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   // Read record length
   typedef BackupFormat::LogFile::LogEntry LogE;
 
-  Uint32 gcp= 0;
   LogE * logE= 0;
   Uint32 len= ~0;
   const Uint32 stopGCP = m_metaData.getStopGCP();
@@ -802,10 +802,10 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     
     if(hasGcp){
       len--;
-      gcp = ntohl(logE->Data[len-2]);
+      m_last_gci = ntohl(logE->Data[len-2]);
     }
-  } while(gcp > stopGCP + 1);
-
+  } while(m_last_gci > stopGCP + 1);
+  
   m_logEntry.m_table = m_metaData.getTable(logE->TableId);
   switch(logE->TriggerEvent){
   case TriggerEvent::TE_INSERT:

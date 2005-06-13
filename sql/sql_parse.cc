@@ -2378,7 +2378,8 @@ mysql_execute_command(THD *thd)
     {
       SELECT_LEX *param= lex->unit.global_parameters;
       if (!param->explicit_limit)
-	param->select_limit= thd->variables.select_limit;
+	param->select_limit=
+          new Item_int((ulonglong)thd->variables.select_limit);
     }
 
     select_result *result=lex->result;
@@ -3168,13 +3169,15 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+    DBUG_ASSERT(select_lex->offset_limit == 0);
+    unit->set_limit(select_lex);
     res= (result= mysql_update(thd, all_tables,
                                select_lex->item_list,
                                lex->value_list,
                                select_lex->where,
                                select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-                               select_lex->select_limit,
+                               unit->select_limit_cnt,
                                lex->duplicates, lex->ignore));
     /* mysql_update return 2 if we need to switch to multi-update */
     if (result != 2)
@@ -3280,9 +3283,11 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= delete_precheck(thd, all_tables)))
       break;
+    DBUG_ASSERT(select_lex->offset_limit == 0);
+    unit->set_limit(select_lex);
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
-                       select_lex->select_limit, select_lex->options);
+                       unit->select_limit_cnt, select_lex->options);
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -3290,10 +3295,9 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *aux_tables=
       (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-    uint table_count;
     multi_delete *result;
 
-    if ((res= multi_delete_precheck(thd, all_tables, &table_count)))
+    if ((res= multi_delete_precheck(thd, all_tables)))
       break;
 
     /* condition will be TRUE on SP re-excuting */
@@ -3310,7 +3314,7 @@ end_with_restore_list:
       goto error;
 
     if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
-							  table_count)))
+							  lex->table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
 			select_lex->get_table_list(),
@@ -3869,9 +3873,10 @@ end_with_restore_list:
     */
     if (check_db_used(thd, all_tables))
       goto error;
+    unit->set_limit(select_lex);
     res= mysql_ha_read(thd, first_table, lex->ha_read_mode, lex->ident.str,
                        lex->insert_list, lex->ha_rkey_mode, select_lex->where,
-                       select_lex->select_limit, select_lex->offset_limit);
+                       unit->select_limit_cnt, unit->offset_limit_cnt);
     break;
 
   case SQLCOM_BEGIN:
@@ -5153,7 +5158,6 @@ mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex= lex->current_select;
   select_lex->init_select();
-  select_lex->select_limit= HA_POS_ERROR;
   lex->orig_sql_command= SQLCOM_END;
   lex->wild= 0;
   if (select_lex == &lex->select_lex)
@@ -5168,25 +5172,28 @@ bool
 mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex;
+  THD *thd= lex->thd;
   DBUG_ENTER("mysql_new_select");
 
-  if (!(select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+  if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
     DBUG_RETURN(1);
-  select_lex->select_number= ++lex->thd->select_number;
+  select_lex->select_number= ++thd->select_number;
   select_lex->init_query();
   select_lex->init_select();
   select_lex->parent_lex= lex;
+  if (thd->current_arena->is_stmt_prepare())
+    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
     lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
-    if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
+    if (!(unit= new (thd->mem_root) SELECT_LEX_UNIT()))
       DBUG_RETURN(1);
 
     unit->init_query();
     unit->init_select();
-    unit->thd= lex->thd;
+    unit->thd= thd;
     unit->include_down(lex->current_select);
     unit->link_next= 0;
     unit->link_prev= 0;
@@ -5210,14 +5217,14 @@ mysql_new_select(LEX *lex, bool move_down)
 	as far as we included SELECT_LEX for UNION unit should have
 	fake SELECT_LEX for UNION processing
       */
-      if (!(fake= unit->fake_select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+      if (!(fake= unit->fake_select_lex= new (thd->mem_root) SELECT_LEX()))
         DBUG_RETURN(1);
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
-      fake->select_limit= HA_POS_ERROR;
+      fake->select_limit= 0;
     }
   }
 
@@ -5265,8 +5272,8 @@ void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command=  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select_lex.select_limit= lex->unit.select_limit_cnt=
-    HA_POS_ERROR;
+  lex->select_lex.select_limit= 0;
+  lex->unit.select_limit_cnt= HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
   lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
   lex->query_tables= 0;
@@ -6780,8 +6787,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 
   if (select_lex->order_list.elements)
     msg= "ORDER BY";
-  else if (select_lex->select_limit && select_lex->select_limit !=
-	   HA_POS_ERROR)
+  else if (select_lex->select_limit)
     msg= "LIMIT";
   if (msg)
   {
@@ -6798,22 +6804,18 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     multi_delete_precheck()
     thd			Thread handler
     tables		Global/local table list
-    table_count		Pointer to table counter
 
   RETURN VALUE
     FALSE OK
     TRUE  error
 */
 
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
+bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
     (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-  TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_precheck");
-
-  *table_count= 0;
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
@@ -6827,9 +6829,35 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
     DBUG_RETURN(TRUE);
   }
-  for (target_tbl= aux_tables; target_tbl; target_tbl= target_tbl->next_local)
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Link tables in auxilary table list of multi-delete with corresponding
+  elements in main table list, and set proper locks for them.
+
+  SYNOPSIS
+    multi_delete_set_locks_and_link_aux_tables()
+      lex - pointer to LEX representing multi-delete
+
+  RETURN VALUE
+    FALSE - success
+    TRUE  - error
+*/
+
+bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
+{
+  TABLE_LIST *tables= (TABLE_LIST*)lex->select_lex.table_list.first;
+  TABLE_LIST *target_tbl;
+  DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
+
+  lex->table_count= 0;
+
+  for (target_tbl= (TABLE_LIST *)lex->auxilliary_table_list.first;
+       target_tbl; target_tbl= target_tbl->next_local)
   {
-    (*table_count)++;
+    lex->table_count++;
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk;
     for (walk= tables; walk; walk= walk->next_local)
@@ -6847,14 +6875,6 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
-    
-    /* in case of subselects, we need to set lock_type in
-     * corresponding table in list of all tables */
-    if (walk->correspondent_table)
-    {
-      target_tbl->correspondent_table= walk->correspondent_table;
-      walk->correspondent_table->lock_type= walk->lock_type;
-    }
   }
   DBUG_RETURN(FALSE);
 }

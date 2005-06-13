@@ -290,6 +290,11 @@ int int2my_decimal(uint mask, longlong i, my_bool unsigned_flag, my_decimal *d)
 inline
 void my_decimal_neg(decimal_t *arg)
 {
+  if (decimal_is_zero(arg))
+  {
+    arg->sign= 0;
+    return;
+  }
   decimal_neg(arg);
 }
 

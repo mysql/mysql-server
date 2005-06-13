@@ -746,9 +746,15 @@ sub record_log_pos {
 	my ($file,$position) = get_row( $dbh, "show master status" );
 	die "master status is undefined" if !defined $file || !defined $position;
 	
-	my ($master_host, undef, undef, undef, $log_file, $log_pos ) 
-	    = get_row( $dbh, "show slave status" );
-	
+	my $row_hash = get_row_hash( $dbh, "show slave status" );
+	my ($master_host, $log_file, $log_pos ); 
+	if ( $dbh->{mysql_serverinfo} =~ /^3\.23/ ) {
+	    ($master_host, $log_file, $log_pos ) 
+	      = @{$row_hash}{ qw / Master_Host Log_File Pos / };
+	} else {
+	    ($master_host, $log_file, $log_pos ) 
+	      = @{$row_hash}{ qw / Master_Host Master_Log_File Read_Master_Log_Pos / };
+	}
 	my $hostname = hostname();
 	
 	$dbh->do( qq{ replace into $table_name 
@@ -771,6 +777,14 @@ sub get_row {
   my $sth = $dbh->prepare($sql);
   $sth->execute;
   return $sth->fetchrow_array();
+}
+
+sub get_row_hash {
+  my ( $dbh, $sql ) = @_;
+
+  my $sth = $dbh->prepare($sql);
+  $sth->execute;
+  return $sth->fetchrow_hashref();
 }
 
 sub scan_raid_dir {

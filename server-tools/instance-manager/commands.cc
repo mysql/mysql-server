@@ -203,15 +203,14 @@ int Show_instance_status::execute(struct st_net *net,
     if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     if (instance->is_running())
-    {
       store_to_string(&send_buff, (char*) "online", &position);
-      store_to_string(&send_buff, "unknown", &position);
-    }
     else
-    {
       store_to_string(&send_buff, (char*) "offline", &position);
+
+    if (instance->options.mysqld_version)
+      store_to_string(&send_buff, instance->options.mysqld_version, &position);
+    else
       store_to_string(&send_buff, (char*) "unknown", &position);
-    }
 
 
     if (send_buff.is_error() ||
@@ -645,10 +644,6 @@ Set_option::Set_option(Instance_map *instance_map_arg,
     {
       strmake(option, option_arg, option_len_arg);
       strmake(option_value, option_value_arg, option_value_len_arg);
-/*    strncpy(option, option_arg, option_len_arg);
-      option[option_len_arg]= 0;
-      strncpy(option_value, option_value_arg, option_value_len_arg);
-      option_value[option_value_len_arg]= 0; */
     }
     else
     {

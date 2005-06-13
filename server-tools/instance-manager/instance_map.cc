@@ -202,14 +202,14 @@ int Instance_map::complete_initialization()
       hash_free should handle it's deletion => goto err, not
       err_instance.
     */
-    if (instance->complete_initialization(this, mysqld_path, 1))
+    if (instance->complete_initialization(this, mysqld_path, DEFAULT_SINGLE_INSTANCE))
       goto err;
   }
   else
     while (i < hash.records)
     {
       instance= (Instance *) hash_element(&hash, i);
-      if (instance->complete_initialization(this, mysqld_path))
+      if (instance->complete_initialization(this, mysqld_path, USUAL_INSTANCE))
         goto err;
       i++;
     }
