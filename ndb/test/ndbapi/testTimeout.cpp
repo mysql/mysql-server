@@ -22,14 +22,14 @@
 #include <NdbConfig.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 
-#define TIMEOUT 3000
-
+#define TIMEOUT (Uint32)3000
 Uint32 g_org_timeout = 3000;
 
 int
 setTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
-  
+  int timeout = ctx->getProperty("TransactionInactiveTimeout",TIMEOUT);
+
   NdbConfig conf(GETNDB(step)->getNodeId()+1);
   unsigned int nodeId = conf.getMasterNodeId();
   if (!conf.getProperty(nodeId,
@@ -39,7 +39,7 @@ setTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
-  int val[] = { DumpStateOrd::TcSetApplTransactionTimeout, TIMEOUT };
+  int val[] = { DumpStateOrd::TcSetApplTransactionTimeout, timeout };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
   }
@@ -94,9 +94,11 @@ int runTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
   unsigned int nodeId = conf.getMasterNodeId();
   int stepNo = step->getStepNo();
 
-  int minSleep = (int)(TIMEOUT * 1.5);
-  int maxSleep = TIMEOUT * 2;
-  ndbout << "TransactionInactiveTimeout="<< TIMEOUT
+  int timeout = ctx->getProperty("TransactionInactiveTimeout",TIMEOUT);
+
+  int minSleep = (int)(timeout * 1.5);
+  int maxSleep = timeout * 2;
+  ndbout << "TransactionInactiveTimeout="<< timeout
 	 << ", minSleep="<<minSleep
 	 << ", maxSleep="<<maxSleep<<endl;
 
@@ -134,8 +136,10 @@ int runTimeoutTrans2(NDBT_Context* ctx, NDBT_Step* step){
   int mul2 = ctx->getProperty("Op2", (Uint32)0);
   int records = ctx->getNumRecords();
 
-  int minSleep = (int)(TIMEOUT * 1.5);
-  int maxSleep = TIMEOUT * 2;
+  int timeout = ctx->getProperty("TransactionInactiveTimeout",TIMEOUT);
+
+  int minSleep = (int)(timeout * 1.5);
+  int maxSleep = timeout * 2;
   
   HugoOperations hugoOps(*ctx->getTab());
   Ndb* pNdb = GETNDB(step);
@@ -148,7 +152,7 @@ int runTimeoutTrans2(NDBT_Context* ctx, NDBT_Step* step){
     op1 = (op1 % 5);
     op2 = (op2 % 5);
 
-    ndbout << stepNo << ": TransactionInactiveTimeout="<< TIMEOUT
+    ndbout << stepNo << ": TransactionInactiveTimeout="<< timeout
 	   << ", minSleep="<<minSleep
 	   << ", maxSleep="<<maxSleep
 	   << ", op1=" << op1
@@ -250,8 +254,10 @@ int runDontTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int stepNo = step->getStepNo();
 
-  int maxSleep = (int)(TIMEOUT * 0.5);
-  ndbout << "TransactionInactiveTimeout="<< TIMEOUT
+  int timeout = ctx->getProperty("TransactionInactiveTimeout",TIMEOUT);
+
+  int maxSleep = (int)(timeout * 0.5);
+  ndbout << "TransactionInactiveTimeout="<< timeout
 	 << ", maxSleep="<<maxSleep<<endl;
 
 
@@ -278,6 +284,51 @@ int runDontTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
     hugoOps.closeTransaction(pNdb);
   }
     
+  return result;
+}
+
+int runDeadlockTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int stepNo = step->getStepNo();
+
+  Uint32 deadlock_timeout;
+  NdbConfig conf(GETNDB(step)->getNodeId()+1);
+  unsigned int nodeId = conf.getMasterNodeId();
+  if (!conf.getProperty(nodeId,
+                        NODE_TYPE_DB,
+                        CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT,
+                        &deadlock_timeout)){
+    return NDBT_FAILED;
+  }
+
+
+  int do_sleep = (int)(deadlock_timeout * 0.5);
+
+
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  for (int l = 0; l < loops && result == NDBT_OK; l++){
+
+    do{
+      // Commit transaction
+      CHECK(hugoOps.startTransaction(pNdb) == 0);
+      CHECK(hugoOps.pkReadRecord(pNdb, stepNo) == 0);
+      CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+
+      int sleep = deadlock_timeout * 1.5 + myRandom48(do_sleep);
+      ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
+      NdbSleep_MilliSleep(sleep);
+
+      // Expect that transaction has NOT timed-out
+      CHECK(hugoOps.execute_Commit(pNdb) == 0);
+
+    } while(false);
+
+    hugoOps.closeTransaction(pNdb);
+  }
+
   return result;
 }
 
@@ -331,6 +382,17 @@ TESTCASE("DontTimeoutTransaction",
   INITIALIZER(runLoadTable);
   INITIALIZER(setTransactionTimeout);
   STEPS(runDontTimeoutTrans, 1); 
+  FINALIZER(resetTransactionTimeout);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug11290",
+         "Setting TransactionInactiveTimeout to 0(zero) "\
+         "should result in infinite timeout, and not as "\
+         "was the bug, a timeout that is equal to the deadlock timeout"){
+  TC_PROPERTY("TransactionInactiveTimeout",(Uint32)0);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(setTransactionTimeout);
+  STEPS(runDeadlockTimeoutTrans, 1);
   FINALIZER(resetTransactionTimeout);
   FINALIZER(runClearTable);
 }
