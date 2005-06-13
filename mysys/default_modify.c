@@ -58,8 +58,8 @@ int modify_defaults_file(const char *file_location, const char *option,
   if (my_fstat(fileno(cnf_file), &file_stat, MYF(0)))
     goto err;
 
-  optlen= strlen(option);
-  optval_len= strlen(option_value);
+  optlen= (uint) strlen(option);
+  optval_len= (uint) strlen(option_value);
 
   /*
     Reserve space to read the contents of the file and some more
@@ -79,7 +79,7 @@ int modify_defaults_file(const char *file_location, const char *option,
 					FN_REFLEN), MYF(MY_WME))))
     goto malloc_err;
 
-  sect_len= strlen(section_name);
+  sect_len= (uint) strlen(section_name);
 
   for (dst_ptr= file_buffer; fgets(linebuff, BUFF_SIZE, cnf_file); )
   {

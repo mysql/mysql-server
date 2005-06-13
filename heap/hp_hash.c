@@ -778,7 +778,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
     key+= seg->length;
   }
   memcpy(key, &recpos, sizeof(byte*));
-  return key - start_key;
+  return (uint) (key - start_key);
 }
 
 
@@ -844,7 +844,7 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
     key+= seg->length;
     k_len-= seg->length;
   }
-  return key - start_key;
+  return (uint) (key - start_key);
 }
 
 
@@ -866,7 +866,7 @@ uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key)
       continue;
     key+= seg->length;
   }
-  return key - start_key;
+  return (uint) (key - start_key);
 }
                   
 
@@ -886,7 +886,7 @@ uint hp_rb_var_key_length(HP_KEYDEF *keydef, const byte *key)
     }
     key+= length;
   }
-  return key - start_key;
+  return (uint) (key - start_key);
 }
 
 
