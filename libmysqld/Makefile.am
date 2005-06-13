@@ -96,6 +96,7 @@ libmysqld.a:	libmysqld_int.a $(INC_LIB)
 if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u`
 else
+		-rm -f libmysqld.a
 		if test "$(host_os)" = "netware" ; \
 		then \
 		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \

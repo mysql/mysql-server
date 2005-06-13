@@ -1656,6 +1656,17 @@ static bool init_param_array(Prepared_statement *stmt)
   return FALSE;
 }
 
+
+/* Cleanup PS after execute/prepare and restore THD state */
+
+static void cleanup_stmt_and_thd_after_use(Statement *stmt, THD *thd)
+{
+  stmt->lex->unit.cleanup();
+  cleanup_items(stmt->free_list);
+  thd->rollback_item_tree_changes();
+  thd->cleanup_after_query();
+}
+
 /*
   Given a query string with parameter markers, create a Prepared Statement
   from it and send PS info back to the client.
@@ -1760,12 +1771,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     thd->lex->sphead= NULL;
   }
   lex_end(lex);
-  lex->unit.cleanup();
   close_thread_tables(thd);
+  cleanup_stmt_and_thd_after_use(stmt, thd);
   thd->restore_backup_statement(stmt, &thd->stmt_backup);
-  cleanup_items(stmt->free_list);
-  thd->rollback_item_tree_changes();
-  thd->cleanup_after_query();
   thd->current_arena= thd;
 
   if (error)
@@ -1808,10 +1816,10 @@ void init_stmt_after_parse(THD *thd, LEX *lex)
 
 /* Reinit prepared statement/stored procedure before execution */
 
-void reset_stmt_for_execute(THD *thd, LEX *lex)
+void reinit_stmt_before_use(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
-  DBUG_ENTER("reset_stmt_for_execute");
+  DBUG_ENTER("reinit_stmt_before_use");
 
   if (lex->empty_field_list_on_rset)
   {
@@ -2007,7 +2015,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
   thd->current_arena= stmt;
-  reset_stmt_for_execute(thd, stmt->lex);
+  reinit_stmt_before_use(thd, stmt->lex);
   /* From now cursors assume that thd->mem_root is clean */
   if (expanded_query.length() &&
       alloc_query(thd, (char *)expanded_query.ptr(),
@@ -2031,17 +2039,18 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   if (cursor && cursor->is_open())
   {
+    /*
+      It's safer if we grab THD state after mysql_execute_command is
+      finished and not in Cursor::open(), because currently the call to
+      Cursor::open is buried deep in JOIN::exec of the top level join.
+    */
     cursor->init_from_thd(thd);
-    cursor->state= stmt->state;
   }
   else
   {
-    thd->lex->unit.cleanup();
-    cleanup_items(stmt->free_list);
+    close_thread_tables(thd);
+    cleanup_stmt_and_thd_after_use(stmt, thd);
     reset_stmt_params(stmt);
-    close_thread_tables(thd);                   /* to close derived tables */
-    thd->rollback_item_tree_changes();
-    thd->cleanup_after_query();
   }
 
   thd->set_statement(&thd->stmt_backup);
@@ -2119,7 +2128,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
 {
   DBUG_ENTER("execute_stmt");
 
-  reset_stmt_for_execute(thd, stmt->lex);
+  reinit_stmt_before_use(thd, stmt->lex);
 
   if (expanded_query->length() &&
       alloc_query(thd, (char *)expanded_query->ptr(),
@@ -2141,14 +2150,11 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  thd->lex->unit.cleanup();
-  thd->current_arena= thd;
-  cleanup_items(stmt->free_list);
-  thd->rollback_item_tree_changes();
-  reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
+  cleanup_stmt_and_thd_after_use(stmt, thd);
+  reset_stmt_params(stmt);
   thd->set_statement(&thd->stmt_backup);
-  thd->cleanup_after_query();
+  thd->current_arena= thd;
 
   if (stmt->state == Item_arena::PREPARED)
     stmt->state= Item_arena::EXECUTED;
@@ -2171,7 +2177,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   /* assume there is always place for 8-16 bytes */
   ulong stmt_id= uint4korr(packet);
   ulong num_rows= uint4korr(packet+4);
-  Statement *stmt;
+  Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_fetch");
 
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
@@ -2185,7 +2191,6 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   thd->current_arena= stmt;
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
-  stmt->cursor->init_thd(thd);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
@@ -2197,10 +2202,15 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  /* Restore THD state */
-  stmt->cursor->reset_thd(thd);
   thd->restore_backup_statement(stmt, &thd->stmt_backup);
   thd->current_arena= thd;
+
+  if (!stmt->cursor->is_open())
+  {
+    /* We're done with the fetch: reset PS for next execution */
+    cleanup_stmt_and_thd_after_use(stmt, thd);
+    reset_stmt_params(stmt);
+  }
 
   DBUG_VOID_RETURN;
 }
