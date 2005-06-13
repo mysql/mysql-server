@@ -60,7 +60,12 @@ class Mode_BASE : public virtual_base {
 public:
     enum { MaxBlockSz = 16 };
 
-    explicit Mode_BASE(int sz) : blockSz_(sz) { assert(sz <= MaxBlockSz); }
+    explicit Mode_BASE(int sz) 
+        : blockSz_(sz), reg_(reinterpret_cast<byte*>(r_)),
+                        tmp_(reinterpret_cast<byte*>(t_))
+    { 
+        assert(sz <= MaxBlockSz);
+    }
     virtual ~Mode_BASE() {}
 
     virtual void ProcessAndXorBlock(const byte*, const byte*, byte*) const = 0;
@@ -71,9 +76,13 @@ public:
 
     void SetIV(const byte* iv) { memcpy(reg_, iv, blockSz_); }
 private:
-    byte reg_[MaxBlockSz];
-    byte tmp_[MaxBlockSz];
-    int  blockSz_;
+    int   blockSz_;
+    byte* reg_;
+    byte* tmp_;
+
+    word32 r_[MaxBlockSz / sizeof(word32)];  // align reg_ on word32
+    word32 t_[MaxBlockSz / sizeof(word32)];  // align tmp_ on word32
+
 
     Mode_BASE(const Mode_BASE&);            // hide copy
     Mode_BASE& operator=(const Mode_BASE&); // and assign

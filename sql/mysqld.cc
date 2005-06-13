@@ -3098,6 +3098,11 @@ You should consider changing lower_case_table_names to 1 or 2",
     lower_case_table_names= 0;
   }
 
+  /* Reset table_alias_charset, now that lower_case_table_names is set. */
+  table_alias_charset= (lower_case_table_names ?
+			files_charset_info :
+			&my_charset_bin);
+
   select_thread=pthread_self();
   select_thread_in_use=1;
   init_ssl();
@@ -6771,9 +6776,6 @@ static void get_options(int argc,char **argv)
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
-  table_alias_charset= (lower_case_table_names ?
-			files_charset_info :
-			&my_charset_bin);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;

@@ -1876,7 +1876,8 @@ void Item_func_round::fix_length_and_dec()
     max_length= float_length(decimals);
     break;
   case INT_RESULT:
-    if (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
+    if ((decimals_to_set==0) &&
+        (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)))
     {
       /* Here we can keep INT_RESULT */
       hybrid_type= INT_RESULT;
@@ -1890,18 +1891,12 @@ void Item_func_round::fix_length_and_dec()
     hybrid_type= DECIMAL_RESULT;
     int decimals_delta= args[0]->decimals - decimals_to_set;
     int precision= args[0]->decimal_precision();
-    if (decimals_delta > 0)
-    {
-      int length_increase= truncate ? 0:1;
-      precision-= decimals_delta - length_increase;
-      decimals= decimals_to_set;
-    }
-    else
-      /* Decimals to set is bigger that the original scale */
-      /* we keep original decimals value                   */
-      decimals= args[0]->decimals;
+    int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
+
+    precision-= decimals_delta - length_increase;
+    decimals= decimals_to_set;
     max_length= my_decimal_precision_to_length(precision, decimals,
-                                              unsigned_flag);
+                                               unsigned_flag);
     break;
   }
   default:
@@ -4697,6 +4692,16 @@ Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
 
+void
+Item_func_sp::cleanup()
+{
+  if (result_field)
+  {
+    delete result_field;
+    result_field= NULL;
+  }
+  Item_func::cleanup();
+}
 
 const char *
 Item_func_sp::func_name() const
@@ -4723,6 +4728,7 @@ Item_func_sp::func_name() const
 Field *
 Item_func_sp::sp_result_field(void) const
 {
+  Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
 
   if (!m_sp)
@@ -4744,7 +4750,8 @@ Item_func_sp::sp_result_field(void) const
     share->table_cache_key = empty_name;
     share->table_name = empty_name;
   }
-  DBUG_RETURN(m_sp->make_field(max_length, name, dummy_table));
+  field= m_sp->make_field(max_length, name, dummy_table);
+  DBUG_RETURN(field);
 }
 
 

@@ -80,6 +80,11 @@ create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 drop table t1 ;
 
+#
+# Bug #10732: Set SQL_MODE to NULL gives garbled error message
+#
+--error 1231
+set @@SQL_MODE=NULL;
 
 #
 # test for 
