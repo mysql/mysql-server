@@ -352,11 +352,11 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
 {
   if (m_logLevels[LL_ON] && m_logLevels[logLevel])
   {
+    char buf[MAX_LOG_MESSAGE_SIZE];
+    BaseString::vsnprintf(buf, sizeof(buf), pMsg, ap);
     LogHandler* pHandler = NULL;
     while ( (pHandler = m_pHandlerList->next()) != NULL)
     {
-      char buf[MAX_LOG_MESSAGE_SIZE];
-      BaseString::vsnprintf(buf, sizeof(buf), pMsg, ap);
       pHandler->append(m_pCategory, logLevel, buf);
     }
   }
