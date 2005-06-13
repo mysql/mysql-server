@@ -2768,6 +2768,20 @@ mysql_execute_command(THD *thd)
 
   case SQLCOM_CREATE_TABLE:
   {
+    /* If CREATE TABLE of non-temporary table, do implicit commit */
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      if (end_active_trans(thd))
+      {
+	res= -1;
+	break;
+      }
+    }
+    else 
+    {
+      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+    }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     bool link_to_local;
     // Skip first table, which is the table we are creating
@@ -3262,6 +3276,11 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_TRUNCATE:
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_one_table_access(thd, DELETE_ACL, all_tables))
       goto error;
@@ -3355,6 +3374,9 @@ end_with_restore_list:
       */
       if (thd->slave_thread)
 	lex->drop_if_exists= 1;
+
+      /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
     }
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
@@ -3493,6 +3515,11 @@ end_with_restore_list:
     break;
   case SQLCOM_CREATE_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     char *alias;
     if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
@@ -3523,6 +3550,11 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     if (check_db_name(lex->name))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
