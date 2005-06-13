@@ -89,15 +89,18 @@ int
 NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
 {
   m_transConnection = myConnection;
-  //NdbTransaction* aScanConnection = theNdb->startTransaction(myConnection);
+  //NdbConnection* aScanConnection = theNdb->startTransaction(myConnection);
+  theNdb->theRemainingStartTransactions++; // will be checked in hupp...
   NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
   if (!aScanConnection){
+    theNdb->theRemainingStartTransactions--;
     setErrorCodeAbort(theNdb->getNdbError().code);
     return -1;
   }
 
   // NOTE! The hupped trans becomes the owner of the operation
   if(NdbOperation::init(tab, aScanConnection) != 0){
+    theNdb->theRemainingStartTransactions--;
     return -1;
   }
   
@@ -675,6 +678,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   
   tCon->theScanningOp = 0;
   theNdb->closeTransaction(tCon);
+  theNdb->theRemainingStartTransactions--;
   DBUG_VOID_RETURN;
 }
 

@@ -301,12 +301,11 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     cb->connection = m_ndb->startTransaction();
     if (cb->connection == NULL) 
     {
-      /*
-	if (errorHandler(cb)) 
-	{
+      if (errorHandler(cb)) 
+      {
+	m_ndb->sendPollNdb(3000, 1);
 	continue;
-	}
-      */
+      }
       exitHandler();
     } // if
     
@@ -423,9 +422,17 @@ void BackupRestore::cback(int result, restore_callback_t *cb)
  */
 bool BackupRestore::errorHandler(restore_callback_t *cb) 
 {
-  NdbError error= cb->connection->getNdbError();
-  m_ndb->closeTransaction(cb->connection);
-  cb->connection= 0;
+  NdbError error;
+  if(cb->connection)
+  {
+    error= cb->connection->getNdbError();
+    m_ndb->closeTransaction(cb->connection);
+    cb->connection= 0;
+  }
+  else
+  {
+    error= m_ndb->getNdbError();
+  } 
 
   Uint32 sleepTime = 100 + cb->retries * 300;
   
@@ -440,6 +447,7 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
     break;
     
   case NdbError::TemporaryError:
+    err << "Temporary error: " << error << endl;
     NdbSleep_MilliSleep(sleepTime);
     return true;
     // RETRY
