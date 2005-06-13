@@ -1920,7 +1920,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 	int_digits_added_zeros=0;
       }
     }
-    tmp_uint= (tmp_dec+(int_digits_end-int_digits_from)+
+    tmp_uint= (uint) (tmp_dec+(int_digits_end-int_digits_from)+
                (uint)(frac_digits_from-int_digits_tail_from)+
                int_digits_added_zeros);
   }
@@ -7734,9 +7734,9 @@ bool Field_enum::eq_def(Field *field)
   for (uint i=0 ; i < from_lib->count ; i++)
     if (my_strnncoll(field_charset,
                      (const uchar*)typelib->type_names[i],
-                     strlen(typelib->type_names[i]),
+                     (uint) strlen(typelib->type_names[i]),
                      (const uchar*)from_lib->type_names[i],
-                     strlen(from_lib->type_names[i])))
+                     (uint) strlen(from_lib->type_names[i])))
       return 0;
   return 1;
 }
@@ -8594,7 +8594,8 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     char str_nr[22];
     char *str_end= longlong10_to_str(nr, str_nr, -10);
-    make_truncated_value_warning(table->in_use, str_nr, str_end - str_nr, 
+    make_truncated_value_warning(table->in_use, str_nr, 
+                                 (uint) (str_end - str_nr), 
                                  ts_type, field_name);
   }
 }
