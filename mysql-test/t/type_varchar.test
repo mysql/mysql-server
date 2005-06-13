@@ -118,3 +118,15 @@ insert into t2 values (22), (22);
 select t1.a, t1.b, min(t1.b) from t1 inner join t2 ON t2.a = t1.a 
   group by t1.b, t1.a;
 drop table t1, t2;
+
+#
+# Bug #10543: convert varchar with index to text
+#
+create table t1 (f1 varchar(65500));
+create index index1 on t1(f1(10));
+show create table t1;
+alter table t1 modify f1 varchar(255);
+show create table t1;
+alter table t1 modify f1 tinytext;
+show create table t1;
+drop table t1;
