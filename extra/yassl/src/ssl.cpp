@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include "runtime.hpp"
 
+
 namespace yaSSL {
 
 using mySTL::min;

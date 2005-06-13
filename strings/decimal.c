@@ -1546,6 +1546,14 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
       *buf1=1;
       to->intg++;
     }
+    /* Here we  check 999.9 -> 1000 case when we need to increase intg */
+    else
+    {
+      int first_dig= to->intg % DIG_PER_DEC1;
+      /* first_dig==0 should be handled above in the 'if' */
+      if (first_dig && (*buf1 >= powers10[first_dig]))
+        to->intg++;
+    }
   }
   else
   {

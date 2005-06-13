@@ -218,62 +218,75 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 #define TEST_NO_STACKTRACE	512
 #define TEST_SIGINT		1024	/* Allow sigint on threads */
-#define TEST_SYNCHRONIZATION	2048	/* get server to do sleep in some 
-                                                                       places */
+#define TEST_SYNCHRONIZATION    2048    /* get server to do sleep in
+                                           some places */
 #endif
 
-/* 
+/*
    This is included in the server and in the client.
    Options for select set by the yacc parser (stored in lex->options).
-   None of the 32 defines below should have its value changed, or this will
-   break replication.
+
+   XXX:
+   log_event.h defines OPTIONS_WRITTEN_TO_BIN_LOG to specify what THD
+   options list are written into binlog. These options can NOT change their
+   values, or it will break replication between version.
+
+   context is encoded as following:
+   SELECT - SELECT_LEX_NODE::options
+   THD    - THD::options
+   intern - neither. used only as
+            func(..., select_node->options | thd->options | OPTION_XXX, ...)
+
+   TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT		(1L << 0)
-#define SELECT_STRAIGHT_JOIN	(1L << 1)
-#define SELECT_DESCRIBE		(1L << 2)
-#define SELECT_SMALL_RESULT	(1L << 3)
-#define SELECT_BIG_RESULT	(1L << 4)
-#define OPTION_FOUND_ROWS	(1L << 5)
-#define OPTION_TO_QUERY_CACHE   (1L << 6)
-#define SELECT_NO_JOIN_CACHE	(1L << 7)       /* Intern */
-#define OPTION_BIG_TABLES       (1L << 8)       /* for SQL OPTION */
-#define OPTION_BIG_SELECTS      (1L << 9)       /* for SQL OPTION */
-#define OPTION_LOG_OFF          (1L << 10)
-#define OPTION_UPDATE_LOG       (1L << 11)      /* update log flag */
-#define TMP_TABLE_ALL_COLUMNS   (1L << 12)
-#define OPTION_WARNINGS         (1L << 13)
-#define OPTION_AUTO_IS_NULL     (1L << 14)
-#define OPTION_FOUND_COMMENT    (1L << 15)
-#define OPTION_SAFE_UPDATES     (1L << 16)
-#define OPTION_BUFFER_RESULT    (1L << 17)
-#define OPTION_BIN_LOG          (1L << 18)
-#define OPTION_NOT_AUTOCOMMIT   (1L << 19)
-#define OPTION_BEGIN            (1L << 20)
-#define OPTION_TABLE_LOCK       (1L << 21)
-#define OPTION_QUICK            (1L << 22)
-#define OPTION_QUOTE_SHOW_CREATE (1L << 23)
-#define OPTION_INTERNAL_SUBTRANSACTIONS (1L << 24)
+#define SELECT_DISTINCT         (1L << 0)       // SELECT, user
+#define SELECT_STRAIGHT_JOIN    (1L << 1)       // SELECT, user
+#define SELECT_DESCRIBE         (1L << 2)       // SELECT, user
+#define SELECT_SMALL_RESULT     (1L << 3)       // SELECT, user
+#define SELECT_BIG_RESULT       (1L << 4)       // SELECT, user
+#define OPTION_FOUND_ROWS       (1L << 5)       // SELECT, user
+#define OPTION_TO_QUERY_CACHE   (1L << 6)       // SELECT, user
+#define SELECT_NO_JOIN_CACHE    (1L << 7)       // intern
+#define OPTION_BIG_TABLES       (1L << 8)       // THD, user
+#define OPTION_BIG_SELECTS      (1L << 9)       // THD, user
+#define OPTION_LOG_OFF          (1L << 10)      // THD, user
+#define OPTION_UPDATE_LOG       (1L << 11)      // THD, user, unused
+#define TMP_TABLE_ALL_COLUMNS   (1L << 12)      // SELECT, intern
+#define OPTION_WARNINGS         (1L << 13)      // THD, user
+#define OPTION_AUTO_IS_NULL     (1L << 14)      // THD, user, binlog
+#define OPTION_FOUND_COMMENT    (1L << 15)      // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES     (1L << 16)      // THD, user
+#define OPTION_BUFFER_RESULT    (1L << 17)      // SELECT, user
+#define OPTION_BIN_LOG          (1L << 18)      // THD, user
+#define OPTION_NOT_AUTOCOMMIT   (1L << 19)      // THD, user
+#define OPTION_BEGIN            (1L << 20)      // THD, intern
+#define OPTION_TABLE_LOCK       (1L << 21)      // THD, intern
+#define OPTION_QUICK            (1L << 22)      // SELECT (for DELETE)
+#define OPTION_QUOTE_SHOW_CREATE (1L << 23)     // THD, user
+
+/* Thr following is used to detect a conflict with DISTINCT
+   in the user query has requested */
+#define SELECT_ALL              (1L << 24)      // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25)
+#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25) // THD, intern
 
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26)
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26) // THD, user, binlog
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
-#define SELECT_NO_UNLOCK                (1L << 28)
-#define OPTION_SCHEMA_TABLE             (1L << 29)
+#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27) // THD, user, binlog
+#define SELECT_NO_UNLOCK                (1L << 28) // SELECT, intern
+#define OPTION_SCHEMA_TABLE             (1L << 29) // SELECT, intern
 /* Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE        (1L << 30)
-/* Thr following is used to detect a conflict with DISTINCT
-   in the user query has requested */
-#define SELECT_ALL			(ULL(1) << 32)
+#define OPTION_SETUP_TABLES_DONE        (1L << 30) // intern
+/* If not set then the thread will ignore all warnings with level notes. */
+#define OPTION_SQL_NOTES                (1L << 31) // THD, user
 
-/* 
-  Maximum length of time zone name that we support 
+/*
+  Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
 */
 #define MAX_TIME_ZONE_NAME_LENGTH 72
@@ -281,13 +294,10 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
 
-/* If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (1L << 31)
-
 /* Bits for different SQL modes modes (including ANSI mode) */
-#define MODE_REAL_AS_FLOAT      	1
-#define MODE_PIPES_AS_CONCAT    	2
-#define MODE_ANSI_QUOTES        	4
+#define MODE_REAL_AS_FLOAT              1
+#define MODE_PIPES_AS_CONCAT            2
+#define MODE_ANSI_QUOTES                4
 #define MODE_IGNORE_SPACE		8
 #define MODE_NOT_USED			16
 #define MODE_ONLY_FULL_GROUP_BY		32
@@ -834,7 +844,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
-void reset_stmt_for_execute(THD *thd, LEX *lex);
+void reinit_stmt_before_use(THD *thd, LEX *lex);
 void init_stmt_after_parse(THD*, LEX*);
 
 /* sql_handler.cc */
