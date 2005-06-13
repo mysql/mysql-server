@@ -300,7 +300,7 @@ UNIV_INLINE
 ulint
 rec_offs_comp(
 /*==========*/
-				/* out: TRUE if compact format */
+				/* out: nonzero if compact format */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**********************************************************
 Returns nonzero if the extern bit is set in nth field of rec. */
