@@ -48,3 +48,9 @@ Test  'go' command g
 a
 1
 drop table t1;
+create table t1(a int);
+lock tables t1 write;
+database()
+test
+unlock tables;
+drop table t1;
