@@ -13156,14 +13156,24 @@ static void test_bug11111()
   char		buf[2][20];
   long		len[2];
   int i;
+  int rc;
   const char * query = "SELECT DISTINCT f1,ff2 FROM v1";
+  myheader("test_bug11111");
 
-  mysql_query(mysql, "drop table if exists t1, t2, v1");
-  mysql_query(mysql, "create table t1 (f1 int, f2 int)");
-  mysql_query(mysql, "create table t2 (ff1 int, ff2 int)");
-  mysql_query(mysql, "create view v1 as select * from t1, t2 where f1=ff1");
-  mysql_query(mysql, "insert into t1 values (1,1), (2,2), (3,3)");
-  mysql_query(mysql, "insert into t2 values (1,1), (2,2), (3,3)");
+  rc= mysql_query(mysql, "drop table if exists t1, t2, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "drop view if exists t1, t2, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (f1 int, f2 int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t2 (ff1 int, ff2 int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create view v1 as select * from t1, t2 where f1=ff1");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1,1), (2,2), (3,3)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (1,1), (2,2), (3,3)");
+  myquery(rc);
 
   stmt = mysql_stmt_init(mysql);
 
@@ -13176,15 +13186,19 @@ static void test_bug11111()
     bind[i].buffer= (gptr *)&buf[i];
     bind[i].buffer_length= 20;
     bind[i].length= &len[i];
-  } 
+  }
 
   if (mysql_stmt_bind_result(stmt, bind))
     printf("Error: %s\n", mysql_stmt_error(stmt));
 
   mysql_stmt_fetch(stmt);
-  DIE_UNLESS(!strcmp(buf[1],"1"));	
+  printf("return: %s", buf[1]);
+  DIE_UNLESS(!strcmp(buf[1],"1"));
   mysql_stmt_close(stmt);
-  mysql_query(mysql, "drop table t1, t2, v1");
+  rc= mysql_query(mysql, "drop view v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "drop table t1, t2");
+  myquery(rc);
 }
 
 /*

@@ -7954,7 +7954,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                        convert_blob_length);
   }
   case Item::REF_ITEM:
-    if ( ((Item_ref*)item)->real_item()->type() == Item::FIELD_ITEM)
+    if ( item->real_item()->type() == Item::FIELD_ITEM)
     {
       Item_field *field= (Item_field*) *((Item_ref*)item)->ref;
       Field *new_field= create_tmp_field_from_field(thd, 
