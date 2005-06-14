@@ -879,11 +879,11 @@ longlong Item_func_numhybrid::val_int()
     return (longlong)real_op();
   case STRING_RESULT:
   {
-    char *end_not_used;
     int err_not_used;
     String *res= str_op(&str_value);
+    char *end= (char*) res->ptr() + res->length();
     CHARSET_INFO *cs= str_value.charset();
-    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end_not_used,
+    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end,
                                            &err_not_used) : 0);
   }
   default:
