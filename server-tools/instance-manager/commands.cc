@@ -316,7 +316,10 @@ int Show_instance_options::execute(struct st_net *net, ulong connection_id)
         *option_value= '=';
       }
       else
+      {
         store_to_string(&send_buff, tmp_option + 2, &position);
+        store_to_string(&send_buff, "", &position);
+      }
 
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
