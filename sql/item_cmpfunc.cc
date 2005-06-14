@@ -2794,10 +2794,11 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
       if (canDoTurboBM)
       {
         pattern     = first + 1;
-        pattern_len = len - 2;
+        pattern_len = (int) len - 2;
         DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
-        int *suff = (int*) thd->alloc(sizeof(int)*((pattern_len + 1)*2+
-                                      alphabet_size));
+        int *suff = (int*) thd->alloc((int) (sizeof(int)*
+                                      ((pattern_len + 1)*2+
+                                      alphabet_size)));
         bmGs      = suff + pattern_len + 1;
         bmBc      = bmGs + pattern_len + 1;
         turboBM_compute_good_suffix_shifts(suff);
