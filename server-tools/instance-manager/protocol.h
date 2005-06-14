@@ -41,10 +41,10 @@ int send_fields(struct st_net *net, LIST *fields);
 
 char *net_store_length(char *pkg, uint length);
 
-int store_to_string(Buffer *buf, const char *string, uint *position);
+int store_to_protocol_packet(Buffer *buf, const char *string, uint *position);
 
-int store_to_string(Buffer *buf, const char *string, uint *position,
-                    uint string_len);
+int store_to_protocol_packet(Buffer *buf, const char *string, uint *position,
+                             uint string_len);
 
 int send_eof(struct st_net *net);
 
