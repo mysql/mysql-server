@@ -348,7 +348,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
                       table_list->table_name));
 
   /* Only one table for now, but VIEW can involve several tables */
-  if (open_and_lock_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list))
   {
     DBUG_RETURN(TRUE);
   }
@@ -540,8 +540,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
-  table_list->lock_type= TL_UNLOCK;
-  if (open_and_lock_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list))
     DBUG_VOID_RETURN;
   table= table_list->table;
 
@@ -1945,7 +1944,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     bool res;
 
     lex->all_selects_list= lsel;
-    res= open_and_lock_tables(thd, show_table_list);
+    res= open_normal_and_derived_tables(thd, show_table_list);
     if (schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
                                     show_table_list->alias))
@@ -2050,7 +2049,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             show_table_list->lock_type= lock_type;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
-            res= open_and_lock_tables(thd, show_table_list);
+            res= open_normal_and_derived_tables(thd, show_table_list);
             if (schema_table->process_table(thd, show_table_list, table,
                                             res, base_name,
                                             show_table_list->alias))
