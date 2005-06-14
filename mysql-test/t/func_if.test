@@ -75,3 +75,15 @@ SELECT id, IF(date IS NULL, '-', FROM_UNIXTIME(date, '%d-%m-%Y')) AS date_ord, t
 SELECT id, IF(date IS NULL, '-', FROM_UNIXTIME(date, '%d-%m-%Y')) AS date_ord, text FROM t1 ORDER BY date_ord DESC;
 DROP TABLE t1;
 
+
+#
+# Test for bug #11142: evaluation of NULLIF when the first argument is NULL
+#
+
+CREATE TABLE t1 (a CHAR(10));
+INSERT INTO t1 VALUES ('aaa'), (NULL), (''), ('bbb');
+
+SELECT a, NULLIF(a,'') FROM t1;
+SELECT a, NULLIF(a,'') FROM t1 WHERE NULLIF(a,'') IS NULL;
+
+DROP TABLE t1;
