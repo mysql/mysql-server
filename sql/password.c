@@ -146,7 +146,7 @@ void hash_password(ulong *result, const char *password, uint password_len)
 void make_scrambled_password_323(char *to, const char *password)
 {
   ulong hash_res[2];
-  hash_password(hash_res, password, strlen(password));
+  hash_password(hash_res, password, (uint) strlen(password));
   sprintf(to, "%08lx%08lx", hash_res[0], hash_res[1]);
 }
 
@@ -172,7 +172,7 @@ void scramble_323(char *to, const char *message, const char *password)
   {
     char extra, *to_start=to;
     const char *message_end= message + SCRAMBLE_LENGTH_323;
-    hash_password(hash_pass,password, strlen(password));
+    hash_password(hash_pass,password, (uint) strlen(password));
     hash_password(hash_message, message, SCRAMBLE_LENGTH_323);
     randominit(&rand_st,hash_pass[0] ^ hash_message[0],
                hash_pass[1] ^ hash_message[1]);
@@ -394,7 +394,7 @@ make_scrambled_password(char *to, const char *password)
 
   sha1_reset(&sha1_context);
   /* stage 1: hash password */
-  sha1_input(&sha1_context, (uint8 *) password, strlen(password));
+  sha1_input(&sha1_context, (uint8 *) password, (uint) strlen(password));
   sha1_result(&sha1_context, (uint8 *) to);
   /* stage 2: hash stage1 output */
   sha1_reset(&sha1_context);
@@ -433,7 +433,7 @@ scramble(char *to, const char *message, const char *password)
 
   sha1_reset(&sha1_context);
   /* stage 1: hash password */
-  sha1_input(&sha1_context, (uint8 *) password, strlen(password));
+  sha1_input(&sha1_context, (uint8 *) password, (uint) strlen(password));
   sha1_result(&sha1_context, hash_stage1);
   /* stage 2: hash stage 1; note that hash_stage2 is stored in the database */
   sha1_reset(&sha1_context);

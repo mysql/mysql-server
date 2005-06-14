@@ -472,7 +472,7 @@ static void digits_bounds(decimal_t *from, int *start_result, int *end_result)
   else
   {
     i= DIG_PER_DEC1 - 1;
-    start= (buf_beg - from->buf) * DIG_PER_DEC1;
+    start= (int) ((buf_beg - from->buf) * DIG_PER_DEC1);
   }
   if (buf_beg < end)
     for (; *buf_beg < powers10[i--]; start++) ;
@@ -484,13 +484,13 @@ static void digits_bounds(decimal_t *from, int *start_result, int *end_result)
   /* find non-zero decimal digit from the end */
   if (buf_end == end - 1 && from->frac)
   {
-    stop= ((buf_end - from->buf) * DIG_PER_DEC1 +
-           (i= ((from->frac - 1) % DIG_PER_DEC1 + 1)));
+    stop= (int) (((buf_end - from->buf) * DIG_PER_DEC1 +
+           (i= ((from->frac - 1) % DIG_PER_DEC1 + 1))));
     i= DIG_PER_DEC1 - i + 1;
   }
   else
   {
-    stop= (buf_end - from->buf + 1) * DIG_PER_DEC1;
+    stop= (int) ((buf_end - from->buf + 1) * DIG_PER_DEC1);
     i= 1;
   }
   for (; *buf_end % powers10[i++] == 0; stop--);
@@ -794,13 +794,13 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
   s1=s;
   while (s < end_of_string && my_isdigit(&my_charset_latin1, *s))
     s++;
-  intg=s-s1;
+  intg= (int) (s-s1);
   if (s < end_of_string && *s=='.')
   {
     endp= s+1;
     while (endp < end_of_string && my_isdigit(&my_charset_latin1, *endp))
       endp++;
-    frac= endp - s - 1;
+    frac= (int) (endp - s - 1);
   }
   else
   {
@@ -1715,14 +1715,14 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     while (buf1 < stop1 && *buf1 == 0)
       buf1++;
     start1=buf1;
-    intg1=stop1-buf1;
+    intg1= (int) (stop1-buf1);
   }
   if (unlikely(*buf2 == 0))
   {
     while (buf2 < stop2 && *buf2 == 0)
       buf2++;
     start2=buf2;
-    intg2=stop2-buf2;
+    intg2= (int) (stop2-buf2);
   }
   if (intg2 > intg1)
     carry=1;
@@ -1734,8 +1734,8 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
       end1--;
     while (unlikely((buf2 <= end2) && (*end2 == 0)))
       end2--;
-    frac1= (end1 - stop1) + 1;
-    frac2= (end2 - stop2) + 1;
+    frac1= (int) (end1 - stop1) + 1;
+    frac2= (int) (end2 - stop2) + 1;
     while (buf1 <=end1 && buf2 <= end2 && *buf1 == *buf2)
       buf1++, buf2++;
     if (buf1 <= end1)
@@ -2086,7 +2086,7 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   /* removing end zeroes */
   while (*stop2 == 0 && stop2 >= start2)
     stop2--;
-  len2= stop2++ - start2;
+  len2= (int) (stop2++ - start2);
 
   /*
     calculating norm2 (normalized *start2) - we need *start2 to be large
@@ -2173,7 +2173,7 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
     if (dcarry)
       *--start1=dcarry;
     buf0=to->buf;
-    intg0=ROUND_UP(prec1-frac1)-(start1-tmp1);
+    intg0=(int) (ROUND_UP(prec1-frac1)-(start1-tmp1));
     frac0=ROUND_UP(to->frac);
     error=E_DEC_OK;
     if (unlikely(frac0==0 && intg0==0))
