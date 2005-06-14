@@ -1160,12 +1160,13 @@ btr_page_get_split_rec_to_right(
 		next_rec = page_rec_get_next(insert_point);
 
 		if (page_rec_is_supremum(next_rec)) {
-		split_at_new:
+split_at_new:
 			/* Split at the new record to insert */
 	     		*split_rec = NULL;
 		} else {
 			rec_t*	next_next_rec = page_rec_get_next(next_rec);
 			if (page_rec_is_supremum(next_next_rec)) {
+
 				goto split_at_new;
 			}
 
@@ -1274,6 +1275,7 @@ btr_page_get_sure_split_rec(
 
 				if (rec == ins_rec) {
 					rec = NULL;
+
 					goto func_exit;
 				} else if (rec == NULL) {
 					next_rec = page_rec_get_next(ins_rec);
@@ -1286,7 +1288,7 @@ btr_page_get_sure_split_rec(
 				}
                     	}
 
-		func_exit:
+func_exit:
 			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
