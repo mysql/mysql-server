@@ -7612,8 +7612,8 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   *records= num_groups;
 
   DBUG_PRINT("info",
-             ("records=%u, keys/block=%u, keys/group=%u, records=%u, blocks=%u",
-              table_records, keys_per_block, keys_per_group, records,
+             ("table rows=%u, keys/block=%u, keys/group=%u, result rows=%u, blocks=%u",
+              table_records, keys_per_block, keys_per_group, *records,
               num_blocks));
   DBUG_VOID_RETURN;
 }
@@ -8120,6 +8120,15 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       DBUG_ASSERT((have_max && !have_min) ||
                   (have_max && have_min && (max_res == 0)));
     }
+    /*
+      If this is a just a GROUP BY or DISTINCT without MIN or MAX and there
+      are equality predicates for the key parts after the group, find the
+      first sub-group with the extended prefix.
+    */
+    if (!have_min && !have_max && key_infix_len > 0)
+      result= file->index_read(record, group_prefix, real_prefix_len,
+                               HA_READ_KEY_EXACT);
+
     result= have_min ? min_res : have_max ? max_res : result;
   }
   while (result == HA_ERR_KEY_NOT_FOUND && is_last_prefix != 0);
@@ -8146,9 +8155,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
     QUICK_GROUP_MIN_MAX_SELECT::next_min()
 
   DESCRIPTION
-    Load the prefix of the next group into group_prefix and find the minimal
-    key within this group such that the key satisfies the query conditions and
-    NULL semantics. The found key is loaded into this->record.
+    Find the minimal key within this group such that the key satisfies the query
+    conditions and NULL semantics. The found key is loaded into this->record.
 
   IMPLEMENTATION
     Depending on the values of min_max_ranges.elements, key_infix_len, and
@@ -8232,9 +8240,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     QUICK_GROUP_MIN_MAX_SELECT::next_max()
 
   DESCRIPTION
-    If there was no previous next_min call to determine the next group prefix,
-    then load the next prefix into group_prefix, then lookup the maximal key of
-    the group, and store it into this->record.
+    Lookup the maximal key of the group, and store it into this->record.
 
   RETURN
     0                    on success
