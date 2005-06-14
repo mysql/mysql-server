@@ -482,7 +482,6 @@ select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
-
 --
 -- DISTINCT queries
 --
@@ -525,6 +524,7 @@ where exists ( select * from t2 where a1 = t_00.a1 );
 select distinct a1,a1 from t1;
 select distinct a2,a1,a2,a1 from t1;
 select distinct t1.a1,t2.a1 from t1,t2;
+
 
 --
 -- DISTINCT queries with GROUP-BY
@@ -640,6 +640,17 @@ explain select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 explain select a1,a2,count(a2) from t1 group by a1,a2,b;
 explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
+
+#
+# BUG#11044: DISTINCT or GROUP BY queries with equality predicates instead of MIN/MAX.
+#
+
+explain select a1 from t1 where a2 = 'b' group by a1;
+select a1 from t1 where a2 = 'b' group by a1;
+
+explain select distinct a1 from t1 where a2 = 'b';
+select distinct a1 from t1 where a2 = 'b';
+
 
 drop table t1;
 drop table t2;
