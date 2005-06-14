@@ -15,13 +15,18 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 # Process this file with automake to create Makefile.in
 
+if HAVE_YASSL
+  yassl_dummy_link_fix= $(top_srcdir)/extra/yassl/src/dummy.cpp
+else
+  yassl_dummy_link_fix=
+endif
 INCLUDES=-I$(top_srcdir)/include $(openssl_includes) \
 	-I$(top_builddir)/include
 LDADD=  @CLIENT_EXTRA_LDFLAGS@ \
         $(top_builddir)/libmysql_r/libmysqlclient_r.la \
         @openssl_libs@ @ZLIB_LIBS@ 
 bin_PROGRAMS=		mysqltestmanager
-mysqltestmanager_SOURCES=	mysqlmanager.c
+mysqltestmanager_SOURCES=	mysqlmanager.c $(yassl_dummy_link_fix)
 mysqltestmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 DEF=			-DUNDEF_THREADS_HACK
 
