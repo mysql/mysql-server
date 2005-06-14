@@ -4454,16 +4454,14 @@ bool Item_default_value::fix_fields(THD *thd,
   }
   if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return TRUE;
-  
-  if (arg->type() == REF_ITEM)
+
+  arg= arg->real_item();
+  if (arg->type() != FIELD_ITEM)
   {
-    Item_ref *ref= (Item_ref *)arg;
-    if (ref->ref[0]->type() != FIELD_ITEM)
-    {
-      return TRUE;
-    }
-    arg= ref->ref[0];
+    my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), arg->name);
+    return TRUE;
   }
+
   field_arg= (Item_field *)arg;
   if (field_arg->field->flags & NO_DEFAULT_VALUE_FLAG)
   {
