@@ -4443,6 +4443,7 @@ bool Item_default_value::fix_fields(THD *thd,
 				    struct st_table_list *table_list,
 				    Item **items)
 {
+  Item *real_arg;
   Item_field *field_arg;
   Field *def_field;
   DBUG_ASSERT(fixed == 0);
@@ -4455,14 +4456,14 @@ bool Item_default_value::fix_fields(THD *thd,
   if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return TRUE;
 
-  arg= arg->real_item();
-  if (arg->type() != FIELD_ITEM)
+  real_arg= arg->real_item();
+  if (real_arg->type() != FIELD_ITEM)
   {
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), arg->name);
     return TRUE;
   }
 
-  field_arg= (Item_field *)arg;
+  field_arg= (Item_field *)real_arg;
   if (field_arg->field->flags & NO_DEFAULT_VALUE_FLAG)
   {
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
