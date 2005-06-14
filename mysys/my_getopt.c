@@ -180,7 +180,7 @@ int handle_options(int *argc, char ***argv,
 	}
 	opt_str= check_struct_option(cur_arg, key_name);
 	optend= strcend(opt_str, '=');
-	length= optend - opt_str;
+	length= (uint) (optend - opt_str);
 	if (*optend == '=')
 	  optend++;
 	else
@@ -323,7 +323,7 @@ int handle_options(int *argc, char ***argv,
 	  return EXIT_NO_ARGUMENT_ALLOWED;
 	}
 	value= optp->var_type & GET_ASK_ADDR ?
-	  (*getopt_get_addr)(key_name, strlen(key_name), optp) : optp->value;
+	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp) : optp->value;
   
 	if (optp->arg_type == NO_ARG)
 	{
@@ -519,7 +519,7 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   */
   if (end - ptr > 1)
   {
-    uint len= ptr - cur_arg;
+    uint len= (uint) (ptr - cur_arg);
     set_if_smaller(len, FN_REFLEN-1);
     strmake(key_name, cur_arg, len);
     return ++ptr;
@@ -833,7 +833,7 @@ void my_print_help(const struct my_option *options)
     if (strlen(optp->name))
     {
       printf("--%s", optp->name);
-      col+= 2 + strlen(optp->name);
+      col+= 2 + (uint) strlen(optp->name);
       if ((optp->var_type & GET_TYPE_MASK) == GET_STR ||
 	  (optp->var_type & GET_TYPE_MASK) == GET_STR_ALLOC)
       {
@@ -904,7 +904,7 @@ void my_print_variables(const struct my_option *options)
     if (value)
     {
       printf("%s", optp->name);
-      length= strlen(optp->name);
+      length= (uint) strlen(optp->name);
       for (; length < name_space; length++)
 	putchar(' ');
       switch ((optp->var_type & GET_TYPE_MASK)) {
