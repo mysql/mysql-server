@@ -7957,6 +7957,19 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                        modify_item ? (Item_field*) item : NULL,
                                        convert_blob_length);
   }
+  case Item::REF_ITEM:
+    if ( ((Item_ref*)item)->real_item()->type() == Item::FIELD_ITEM)
+    {
+      Item_field *field= (Item_field*) *((Item_ref*)item)->ref;
+      Field *new_field= create_tmp_field_from_field(thd, 
+                               (*from_field= field->field),
+                               item->name, table,
+                               NULL,
+                               convert_blob_length);
+      if (modify_item)
+        item->set_result_field(new_field);
+      return new_field;
+    }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
@@ -7968,7 +7981,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REAL_ITEM:
   case Item::DECIMAL_ITEM:
   case Item::STRING_ITEM:
-  case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
