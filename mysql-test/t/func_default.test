@@ -21,8 +21,9 @@ drop table t1;
 #
 # Bug #11314 (HAVING DEFAULT() hangs)
 #
-CREATE TABLE t1 (s varchar(20), id int(11));
+CREATE TABLE t1 (id int(11), s varchar(20));
 INSERT INTO t1 VALUES (1, 'one'), (2, 'two'), (3, 'three');
+--error 1364
 SELECT s, 32 AS mi FROM t1 GROUP BY s HAVING DEFAULT(mi) IS NULL;
 DROP TABLE t1;
 
