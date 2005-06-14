@@ -545,8 +545,6 @@ btr_search_check_guess(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	rec_t*		rec;
-	rec_t*		prev_rec;
-	rec_t*		next_rec;
 	ulint		n_unique;
 	ulint		match;
 	ulint		bytes;
@@ -609,6 +607,7 @@ btr_search_check_guess(
 	bytes = 0;
 
 	if ((mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE)) {
+		rec_t*	prev_rec;
 
 		ut_ad(!page_rec_is_infimum(rec));
 		
@@ -617,6 +616,7 @@ btr_search_check_guess(
 		if (page_rec_is_infimum(prev_rec)) {
 			success = btr_page_get_prev(
 				buf_frame_align(prev_rec), mtr) == FIL_NULL;
+
 			goto exit_func;
 		}
 
@@ -631,32 +631,34 @@ btr_search_check_guess(
 		}
 
 		goto exit_func;
-	}
-		
-	ut_ad(!page_rec_is_supremum(rec));
+	} else {
+		rec_t*	next_rec;
+
+		ut_ad(!page_rec_is_supremum(rec));
 	
-	next_rec = page_rec_get_next(rec);
+		next_rec = page_rec_get_next(rec);
 
-	if (page_rec_is_supremum(next_rec)) {
-		if (btr_page_get_next(buf_frame_align(next_rec), mtr)
-							== FIL_NULL) {
+		if (page_rec_is_supremum(next_rec)) {
+			if (btr_page_get_next(
+				buf_frame_align(next_rec), mtr) == FIL_NULL) {
 
-			cursor->up_match = 0;
-			success = TRUE;
+				cursor->up_match = 0;
+				success = TRUE;
+			}
+
+			goto exit_func;
 		}
 
-		goto exit_func;
-	}
-
-	offsets = rec_get_offsets(next_rec, cursor->index, offsets,
+		offsets = rec_get_offsets(next_rec, cursor->index, offsets,
 						n_unique, &heap);
-	cmp = page_cmp_dtuple_rec_with_match(tuple, next_rec,
-					offsets, &match, &bytes);
-	if (mode == PAGE_CUR_LE) {
-		success = cmp == -1;
-		cursor->up_match = match;
-	} else {
-		success = cmp != 1;
+		cmp = page_cmp_dtuple_rec_with_match(tuple, next_rec,
+						offsets, &match, &bytes);
+		if (mode == PAGE_CUR_LE) {
+			success = cmp == -1;
+			cursor->up_match = match;
+		} else {
+			success = cmp != 1;
+		}
 	}
 exit_func:
 	if (UNIV_LIKELY_NULL(heap)) {

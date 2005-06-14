@@ -1381,6 +1381,7 @@ btr_cur_parse_update_in_place(
 	ptr = row_upd_index_parse(ptr, end_ptr, heap, &update);
 
 	if (!ptr || !page) {
+
 		goto func_exit;
 	}
 

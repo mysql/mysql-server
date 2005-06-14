@@ -205,15 +205,15 @@ btr_pcur_restore_position(
 	ulint		old_mode;
 	mem_heap_t*	heap;
 
-	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
-			|| cursor->pos_state == BTR_PCUR_IS_POSITIONED);
-	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)) {
+	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
+	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
+			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
 		ut_print_buf(stderr, (const byte*)cursor, sizeof(btr_pcur_t));
 		if (cursor->trx_if_known) {
 			trx_print(stderr, cursor->trx_if_known);
 		}
 		
-		ut_a(0);
+		ut_error;
 	}
 
 	if (UNIV_UNLIKELY(cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
@@ -233,8 +233,8 @@ btr_pcur_restore_position(
 		return(FALSE);
 	}
 	
-	ut_ad(cursor->old_rec);
-	ut_ad(cursor->old_n_fields);
+	ut_a(cursor->old_rec);
+	ut_a(cursor->old_n_fields);
 
 	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
 
