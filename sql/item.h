@@ -1352,12 +1352,9 @@ public:
   {
     (*ref)->save_in_field(result_field, no_conversions);
   }
-  Item *real_item() {
-    Item *item= this;
-    do
-      item= *((Item_ref *)item)->ref;
-    while (item->type() == Item::REF_ITEM);
-    return item;
+  Item *real_item()
+  {
+    return (*ref)->real_item();
   }
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }
