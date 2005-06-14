@@ -1161,9 +1161,7 @@ Item_func_nullif::val_str(String *str)
 bool
 Item_func_nullif::is_null()
 {
-  if (!cmp.compare())
-    return (null_value=1);
-  return 0;
+  return (null_value= (!cmp.compare() ? 1 : args[0]->null_value)); 
 }
 
 /*
