@@ -669,6 +669,8 @@ sub mtr_mysqladmin_shutdown () {
     last;                               # If we got here, we are done
   }
 
+  sleep(5) if $::glob_win32;            # FIXME next startup fails if no sleep
+
   return $res;
 }
 
