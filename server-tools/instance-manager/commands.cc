@@ -40,7 +40,7 @@
   DESCRIPTION
 
   Function to add a string to the buffer. It is different from
-  store_to_string, which is used in the protocol.cc. The last
+  store_to_protocol_packet, which is used in the protocol.cc. The last
   one also stores the length of the string in a special way.
   This is required for MySQL client/server protocol support only.
 
@@ -104,11 +104,12 @@ int Show_instances::execute(struct st_net *net, ulong connection_id)
     while ((instance= iterator.next()))
     {
       position= 0;
-      store_to_string(&send_buff, instance->options.instance_name, &position);
+      store_to_protocol_packet(&send_buff, instance->options.instance_name,
+                               &position);
       if (instance->is_running())
-        store_to_string(&send_buff, (char*) "online", &position);
+        store_to_protocol_packet(&send_buff, (char*) "online", &position);
       else
-        store_to_string(&send_buff, (char*) "offline", &position);
+        store_to_protocol_packet(&send_buff, (char*) "offline", &position);
       if (my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
@@ -199,18 +200,19 @@ int Show_instance_status::execute(struct st_net *net,
   {
     Instance *instance;
 
-    store_to_string(&send_buff, (char*) instance_name, &position);
+    store_to_protocol_packet(&send_buff, (char*) instance_name, &position);
     if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     if (instance->is_running())
-      store_to_string(&send_buff, (char*) "online", &position);
+      store_to_protocol_packet(&send_buff, (char*) "online", &position);
     else
-      store_to_string(&send_buff, (char*) "offline", &position);
+      store_to_protocol_packet(&send_buff, (char*) "offline", &position);
 
     if (instance->options.mysqld_version)
-      store_to_string(&send_buff, instance->options.mysqld_version, &position);
+      store_to_protocol_packet(&send_buff, instance->options.mysqld_version,
+                               &position);
     else
-      store_to_string(&send_buff, (char*) "unknown", &position);
+      store_to_protocol_packet(&send_buff, (char*) "unknown", &position);
 
 
     if (send_buff.is_error() ||
@@ -272,17 +274,17 @@ int Show_instance_options::execute(struct st_net *net, ulong connection_id)
 
     if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
-    store_to_string(&send_buff, (char*) "instance_name", &position);
-    store_to_string(&send_buff, (char*) instance_name, &position);
+    store_to_protocol_packet(&send_buff, (char*) "instance_name", &position);
+    store_to_protocol_packet(&send_buff, (char*) instance_name, &position);
     if (my_net_write(net, send_buff.buffer, (uint) position))
       goto err;
     if ((instance->options.mysqld_path))
     {
       position= 0;
-      store_to_string(&send_buff, (char*) "mysqld-path", &position);
-      store_to_string(&send_buff,
-                     (char*) instance->options.mysqld_path,
-                     &position);
+      store_to_protocol_packet(&send_buff, (char*) "mysqld-path", &position);
+      store_to_protocol_packet(&send_buff,
+                               (char*) instance->options.mysqld_path,
+                               &position);
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
@@ -291,8 +293,8 @@ int Show_instance_options::execute(struct st_net *net, ulong connection_id)
     if ((instance->options.nonguarded))
     {
       position= 0;
-      store_to_string(&send_buff, (char*) "nonguarded", &position);
-      store_to_string(&send_buff, "", &position);
+      store_to_protocol_packet(&send_buff, (char*) "nonguarded", &position);
+      store_to_protocol_packet(&send_buff, "", &position);
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
@@ -310,13 +312,16 @@ int Show_instance_options::execute(struct st_net *net, ulong connection_id)
       if (option_value != NULL)
       {
         *option_value= 0;
-        store_to_string(&send_buff, tmp_option + 2, &position);
-        store_to_string(&send_buff, option_value + 1, &position);
+        store_to_protocol_packet(&send_buff, tmp_option + 2, &position);
+        store_to_protocol_packet(&send_buff, option_value + 1, &position);
         /* join name and the value into the same option again */
         *option_value= '=';
       }
       else
-        store_to_string(&send_buff, tmp_option + 2, &position);
+      {
+        store_to_protocol_packet(&send_buff, tmp_option + 2, &position);
+        store_to_protocol_packet(&send_buff, "", &position);
+      }
 
       if (send_buff.is_error() ||
           my_net_write(net, send_buff.buffer, (uint) position))
@@ -478,7 +483,7 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
       char *bf= (char*) malloc(sizeof(char)*buff_size);
       if ((read_len= my_read(fd, bf, buff_size, MYF(0))) < 0)
         return ER_READ_FILE;
-      store_to_string(&send_buff, (char*) bf, &position, read_len);
+      store_to_protocol_packet(&send_buff, (char*) bf, &position, read_len);
       close(fd);
     }
     else
@@ -593,19 +598,19 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
 
         position= 0;
         /* store the type of the log in the send buffer */
-        store_to_string(&send_buff, log_files->name, &position);
+        store_to_protocol_packet(&send_buff, log_files->name, &position);
         if (stat(log_files->value, &file_stat))
         {
-          store_to_string(&send_buff, "", &position);
-          store_to_string(&send_buff, (char*) "0", &position);
+          store_to_protocol_packet(&send_buff, "", &position);
+          store_to_protocol_packet(&send_buff, (char*) "0", &position);
         }
         else if (S_ISREG(file_stat.st_mode))
         {
-          store_to_string(&send_buff,
-                          (char*) log_files->value,
-                          &position);
+          store_to_protocol_packet(&send_buff,
+                                   (char*) log_files->value,
+                                   &position);
           int10_to_str(file_stat.st_size, buff, 10);
-          store_to_string(&send_buff, (char*) buff, &position);
+          store_to_protocol_packet(&send_buff, (char*) buff, &position);
         }
 
         if (my_net_write(net, send_buff.buffer, (uint) position))
