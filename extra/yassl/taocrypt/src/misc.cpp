@@ -136,7 +136,7 @@ unsigned long Crop(unsigned long value, unsigned int size)
 
 
 #if !(defined(_MSC_VER) && (_MSC_VER < 1300)) && \
-    !(defined(__HP_aCC) && (__HP_aCC <= 35700))
+    !(defined(__HP_aCC) && (__HP_aCC <= 36300))
 using std::new_handler;
 using std::set_new_handler;
 #endif
