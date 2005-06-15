@@ -489,6 +489,7 @@ recv_find_max_checkpoint(
 			log_group_read_checkpoint_info(group, field);
 
 			if (!recv_check_cp_is_consistent(buf)) {
+#ifdef UNIV_DEBUG
 				if (log_debug_writes) {
 					fprintf(stderr, 
 	    "InnoDB: Checkpoint in group %lu at %lu invalid, %lu\n",
@@ -498,7 +499,7 @@ recv_find_max_checkpoint(
 					      + LOG_CHECKPOINT_CHECKSUM_1));
 
 				}
-
+#endif /* UNIV_DEBUG */
 				goto not_consistent;
 			}
 
@@ -511,13 +512,15 @@ recv_find_max_checkpoint(
 			checkpoint_no =
 				mach_read_from_8(buf + LOG_CHECKPOINT_NO);
 
+#ifdef UNIV_DEBUG
 			if (log_debug_writes) {
 				fprintf(stderr, 
 			"InnoDB: Checkpoint number %lu found in group %lu\n",
 				(ulong) ut_dulint_get_low(checkpoint_no),
 				(ulong) group->id);
 			}
-				
+#endif /* UNIV_DEBUG */
+
 			if (ut_dulint_cmp(checkpoint_no, max_no) >= 0) {
 				*max_group = group;
 				*max_field = field;
@@ -1198,6 +1201,7 @@ recv_recover_page(
 				start_lsn = recv->start_lsn;
 			}
 
+#ifdef UNIV_DEBUG
 			if (log_debug_writes) {
 				fprintf(stderr, 
      "InnoDB: Applying log rec type %lu len %lu to space %lu page no %lu\n",
@@ -1205,6 +1209,7 @@ recv_recover_page(
 					(ulong) recv_addr->space,
 					(ulong) recv_addr->page_no);
 			}
+#endif /* UNIV_DEBUG */
 
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 						buf + recv->len, page, &mtr);
@@ -2025,12 +2030,14 @@ loop:
 		recv_sys->recovered_offset += len;
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
+#ifdef UNIV_DEBUG
 		if (log_debug_writes) {
 			fprintf(stderr, 
 "InnoDB: Parsed a single log rec type %lu len %lu space %lu page no %lu\n",
 				(ulong) type, (ulong) len, (ulong) space,
 				(ulong) page_no);
 		}
+#endif /* UNIV_DEBUG */
 
 		if (type == MLOG_DUMMY_RECORD) {
 			/* Do nothing */
@@ -2113,13 +2120,15 @@ loop:
 							body, ptr + len);
 #endif /* UNIV_LOG_REPLICATE */
 			}
-			
+
+#ifdef UNIV_DEBUG
 			if (log_debug_writes) {
 				fprintf(stderr, 
 "InnoDB: Parsed a multi log rec type %lu len %lu space %lu page no %lu\n",
 				(ulong) type, (ulong) len, (ulong) space,
 				(ulong) page_no);
 			}
+#endif /* UNIV_DEBUG */
 
 			total_len += len;
 			n_recs++;
@@ -2526,6 +2535,7 @@ recv_group_scan_log_recs(
 		start_lsn = end_lsn;
 	}
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
 	"InnoDB: Scanned group %lu up to log sequence number %lu %lu\n",
@@ -2533,6 +2543,7 @@ recv_group_scan_log_recs(
 				(ulong) ut_dulint_get_high(*group_scanned_lsn),
 				(ulong) ut_dulint_get_low(*group_scanned_lsn));
 	}
+#endif /* UNIV_DEBUG */
 }
 
 /************************************************************
@@ -2918,10 +2929,12 @@ recv_recovery_from_checkpoint_finish(void)
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
 		"InnoDB: Log records applied to the database\n");
 	}
+#endif /* UNIV_DEBUG */
 
 	if (recv_needed_recovery) {
 		trx_sys_print_mysql_master_log_pos();
@@ -3258,6 +3271,7 @@ ask_again:
 			break;
 		}
 	
+#ifdef UNIV_DEBUG
 		if (log_debug_writes) {
 			fprintf(stderr, 
 "InnoDB: Archive read starting at lsn %lu %lu, len %lu from file %s\n",
@@ -3265,6 +3279,7 @@ ask_again:
 					(ulong) ut_dulint_get_low(start_lsn),
 					(ulong) len, name);
 		}
+#endif /* UNIV_DEBUG */
 
 		fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE,
 			group->archive_space_id, read_offset / UNIV_PAGE_SIZE,
