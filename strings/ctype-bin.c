@@ -433,7 +433,7 @@ skip:
         if (nmatch > 0)
 	{
 	  match[0].beg= 0;
-	  match[0].end= str- (const uchar*)b-1;
+	  match[0].end= (uint) (str- (const uchar*)b-1);
 	  match[0].mblen= match[0].end;
 
 	  if (nmatch > 1)

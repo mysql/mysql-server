@@ -53,7 +53,7 @@ void *my_mmap(void *addr, size_t len, int prot,
   flProtect|=SEC_COMMIT;
 
   hFileMap=CreateFileMapping(hFile, &mmap_security_attributes,
-                             PAGE_READWRITE, 0, len, NULL);
+                             PAGE_READWRITE, 0, (DWORD) len, NULL);
   if (hFileMap == 0)
     return MAP_FAILED;
 
