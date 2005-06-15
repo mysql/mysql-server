@@ -161,7 +161,7 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
   }
 
   THD *thd= current_thd;
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   bool res= FALSE;
   /*
     In case we're in statement prepare, create conversion item

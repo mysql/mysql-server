@@ -104,7 +104,7 @@ public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
   void setup_set_params();
-  virtual Item_arena::Type type() const;
+  virtual Query_arena::Type type() const;
 };
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt,
@@ -132,7 +132,7 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
 {
   Statement *stmt= thd->stmt_map.find(id);
 
-  if (stmt == 0 || stmt->type() != Item_arena::PREPARED_STATEMENT)
+  if (stmt == 0 || stmt->type() != Query_arena::PREPARED_STATEMENT)
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf), llstr(id, llbuf),
@@ -1786,7 +1786,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   {
     stmt->setup_set_params();
     init_stmt_after_parse(thd, stmt->lex);
-    stmt->state= Item_arena::PREPARED;
+    stmt->state= Query_arena::PREPARED;
   }
   DBUG_RETURN(!stmt);
 }
@@ -1956,7 +1956,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   DBUG_PRINT("exec_query:", ("%s", stmt->query));
 
   /* Check if we got an error when sending long data */
-  if (stmt->state == Item_arena::ERROR)
+  if (stmt->state == Query_arena::ERROR)
   {
     my_message(stmt->last_errno, stmt->last_error, MYF(0));
     DBUG_VOID_RETURN;
@@ -2156,8 +2156,8 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   thd->set_statement(&thd->stmt_backup);
   thd->current_arena= thd;
 
-  if (stmt->state == Item_arena::PREPARED)
-    stmt->state= Item_arena::EXECUTED;
+  if (stmt->state == Query_arena::PREPARED)
+    stmt->state= Query_arena::EXECUTED;
   DBUG_VOID_RETURN;
 }
 
@@ -2246,7 +2246,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   if (stmt->cursor && stmt->cursor->is_open())
     stmt->cursor->close();
 
-  stmt->state= Item_arena::PREPARED;
+  stmt->state= Query_arena::PREPARED;
 
   /*
     Clear parameters from data which could be set by
@@ -2334,7 +2334,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
-    stmt->state= Item_arena::ERROR;
+    stmt->state= Query_arena::ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysql_stmt_send_long_data");
@@ -2350,7 +2350,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param->set_longdata(thd->extra_data, thd->extra_length))
 #endif
   {
-    stmt->state= Item_arena::ERROR;
+    stmt->state= Query_arena::ERROR;
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
@@ -2401,7 +2401,7 @@ Prepared_statement::~Prepared_statement()
 }
 
 
-Item_arena::Type Prepared_statement::type() const
+Query_arena::Type Prepared_statement::type() const
 {
   return PREPARED_STATEMENT;
 }
