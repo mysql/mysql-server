@@ -2158,7 +2158,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
-      if (!table->file->records)
+      if (!table->file->records && !embedding)
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
 	set_position(join,const_count++,s,(KEYUSE*) 0);
