@@ -698,4 +698,16 @@ SELECT * FROM v1 WHERE EMPNUM < 10;
 
 DROP TABLE t1,t2;
 
+#
+# Test for bug #11285: false Item_equal on expression in outer join
+# 
+
+CREATE TABLE t1 (c11 int);
+CREATE TABLE t2 (c21 int);
+INSERT INTO t1 VALUES (30), (40), (50);
+INSERT INTO t2 VALUES (300), (400), (500);
+
+SELECT * FROM t1 LEFT JOIN t2 ON (c11=c21 AND c21=30) WHERE c11=40;
+
+DROP TABLE t1, t2;
 
