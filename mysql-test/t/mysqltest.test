@@ -299,19 +299,21 @@ select 'aaa\\','aa''a',"aa""a";
 
 
 #
-# Check of include/show_msg.inc
+# Check of include/show_msg.inc and include/show_msg80.inc
 #
 
 # The message contains in most cases a string with the default character set
-SET @message = 'Here comes a message';
+let $message= Here comes a message;
 --source include/show_msg.inc
 
 # The message could also contain a string with character set utf8
-SET @message = USER();
+let $message= `SELECT USER()`;
 --source include/show_msg.inc
 
 # The message contains more then 80 characters on multiple lines
-SET @message = 'Here comes a very very long message that is longer then 80 characters
-on multiple lines';
+let $message= 
+"Here comes a very very long message that
+    - is longer then 80 characters    and
+    - consists of several lines";
 --source include/show_msg80.inc
 
