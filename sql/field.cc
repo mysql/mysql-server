@@ -5956,14 +5956,6 @@ longlong Field_string::val_int(void)
 }
 
 
-my_decimal *Field_longstr::val_decimal(my_decimal *decimal_value)
-{
-  str2my_decimal(E_DEC_FATAL_ERROR, ptr, field_length, charset(),
-                 decimal_value);
-  return decimal_value;
-}
-
-
 String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 			      String *val_ptr)
 {
@@ -5972,6 +5964,14 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
   DBUG_ASSERT(table->in_use == current_thd);
   val_ptr->set((const char*) ptr, length, field_charset);
   return val_ptr;
+}
+
+
+my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
+{
+  str2my_decimal(E_DEC_FATAL_ERROR, ptr, field_length, charset(),
+                 decimal_value);
+  return decimal_value;
 }
 
 
@@ -6285,6 +6285,15 @@ String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
   uint length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   val_ptr->set((const char*) ptr+length_bytes, length, field_charset);
   return val_ptr;
+}
+
+
+my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
+{
+  uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+  str2my_decimal(E_DEC_FATAL_ERROR, ptr+length_bytes, length, charset(),
+                 decimal_value);
+  return decimal_value;
 }
 
 
@@ -6903,6 +6912,18 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
   else
     val_ptr->set((const char*) blob,get_length(ptr),charset());
   return val_ptr;
+}
+
+
+my_decimal *Field_blob::val_decimal(my_decimal *decimal_value)
+{
+  char *blob;
+  memcpy_fixed(&blob, ptr+packlength, sizeof(char*));
+  if (!blob)
+    blob= "";
+  str2my_decimal(E_DEC_FATAL_ERROR, blob, get_length(ptr), charset(),
+                 decimal_value);
+  return decimal_value;
 }
 
 

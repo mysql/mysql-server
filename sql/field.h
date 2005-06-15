@@ -381,7 +381,6 @@ public:
                field_name_arg, table_arg, charset)
     {}
 
-  my_decimal *val_decimal(my_decimal *);
   int store_decimal(const my_decimal *d);
 };
 
@@ -993,6 +992,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
@@ -1051,6 +1051,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void get_key_image(char *buff,uint length, imagetype type);
@@ -1106,6 +1107,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);
