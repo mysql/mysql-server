@@ -466,7 +466,7 @@ void ha_myisammrg::append_create_info(String *packet)
   MYRG_TABLE *open_table,*first;
 
   current_db= table->s->db;
-  db_length=  strlen(current_db);
+  db_length= (uint) strlen(current_db);
 
   for (first=open_table=file->open_tables ;
        open_table != file->end_table ;
