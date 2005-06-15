@@ -1926,7 +1926,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
       (check_opt_type == VIEW_CHECK_CASCADED &&
        ancestor->check_option))
   {
-    Item_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->current_arena, backup;
     TABLE_LIST *tbl= this;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
@@ -2016,7 +2016,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   /* full text function moving to current select */
   if (view->select_lex.ftfunc_list->elements)
   {
-    Item_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->current_arena, backup;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
     else
