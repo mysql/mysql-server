@@ -52,7 +52,7 @@ const LEX_STRING null_lex_str={0,0};
 		      ER_WARN_DEPRECATED_SYNTAX,                    \
 		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B));
 
-#define TEST_ASSERT(A)                  \
+#define YYERROR_UNLESS(A)                  \
   if (!(A))                             \
   {					\
     yyerror(ER(ER_SYNTAX_ERROR));	\
@@ -5094,7 +5094,7 @@ table_ref:
         ;
 
 join_table_list:
-	derived_table_list		{ TEST_ASSERT($$=$1); }
+	derived_table_list		{ YYERROR_UNLESS($$=$1); }
 	;
 
 /* Warning - may return NULL in case of incomplete SELECT */
@@ -5102,41 +5102,41 @@ derived_table_list:
         table_ref { $$=$1; }
         | derived_table_list ',' table_ref
           {
-            TEST_ASSERT($1 && ($$=$3));
+            YYERROR_UNLESS($1 && ($$=$3));
           }
         ;
 
 join_table:
-        table_ref normal_join table_ref { TEST_ASSERT($1 && ($$=$3)); }
+        table_ref normal_join table_ref { YYERROR_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
-	  { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; }
+	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref ON expr
-	  { TEST_ASSERT($1 && ($$=$3)); add_join_on($3,$5); }
+	  { YYERROR_UNLESS($1 && ($$=$3)); add_join_on($3,$5); }
         | table_ref STRAIGHT_JOIN table_factor ON expr
-          { TEST_ASSERT($1 && ($$=$3)); $3->straight=1; add_join_on($3,$5); }
+          { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; add_join_on($3,$5); }
 	| table_ref normal_join table_ref
 	  USING
 	  {
 	    SELECT_LEX *sel= Select;
-            TEST_ASSERT($1 && $3);
+            YYERROR_UNLESS($1 && $3);
             sel->save_names_for_using_list($1, $3);
 	  }
 	  '(' using_list ')'
 	  { add_join_on($3,$7); $$=$3; }
 
 	| table_ref LEFT opt_outer JOIN_SYM table_ref ON expr
-	  { TEST_ASSERT($1 && $5); add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
+	  { YYERROR_UNLESS($1 && $5); add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
-            TEST_ASSERT($1 && $5);
+            YYERROR_UNLESS($1 && $5);
             sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
-            TEST_ASSERT($1 && $6);
+            YYERROR_UNLESS($1 && $6);
 	    add_join_natural($1,$6);
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
@@ -5144,7 +5144,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref ON expr
           {
 	    LEX *lex= Lex;
-            TEST_ASSERT($1 && $5);
+            YYERROR_UNLESS($1 && $5);
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
             add_join_on($$, $7);
@@ -5152,7 +5152,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
-            TEST_ASSERT($1 && $5);
+            YYERROR_UNLESS($1 && $5);
             sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
@@ -5164,14 +5164,14 @@ join_table:
           }
 	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
-            TEST_ASSERT($1 && $6);
+            YYERROR_UNLESS($1 && $6);
 	    add_join_natural($6,$1);
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
 	  }
 	| table_ref NATURAL JOIN_SYM table_factor
-	  { TEST_ASSERT($1 && ($$=$4)); add_join_natural($1,$4); };
+	  { YYERROR_UNLESS($1 && ($$=$4)); add_join_natural($1,$4); };
 
 
 normal_join:
@@ -5200,7 +5200,7 @@ table_factor:
           sel->add_joined_table($$);
 	}
 	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref ON expr '}'
-	  { TEST_ASSERT($3 && $7); add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
+	  { YYERROR_UNLESS($3 && $7); add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
 	| select_derived_init get_select_lex select_derived2
           {
             LEX *lex= Lex;
@@ -8731,21 +8731,21 @@ xa: XA_SYM begin_or_start xid opt_join_or_resume
 
 xid: text_string
      {
-       TEST_ASSERT($1->length() <= MAXGTRIDSIZE);
+       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set(1L, $1->ptr(), $1->length(), 0, 0);
      }
      | text_string ',' text_string
      {
-       TEST_ASSERT($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set(1L, $1->ptr(), $1->length(), $3->ptr(), $3->length());
      }
      | text_string ',' text_string ',' ulong_num
      {
-       TEST_ASSERT($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+       YYERROR_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
        if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
          YYABORT;
        Lex->xid->set($5, $1->ptr(), $1->length(), $3->ptr(), $3->length());

@@ -1478,14 +1478,14 @@ void select_dumpvar::cleanup()
   Create arena for already constructed THD.
 
   SYNOPSYS
-    Item_arena()
+    Query_arena()
       thd - thread for which arena is created
 
   DESCRIPTION
     Create arena for already existing THD using its variables as parameters
     for memory root initialization.
 */
-Item_arena::Item_arena(THD* thd)
+Query_arena::Query_arena(THD* thd)
   :free_list(0), mem_root(&main_mem_root),
    state(INITIALIZED)
 {
@@ -1499,7 +1499,7 @@ Item_arena::Item_arena(THD* thd)
   Create arena and optionally initialize memory root.
 
   SYNOPSYS
-    Item_arena()
+    Query_arena()
       init_mem_root - whenever we need to initialize memory root
 
   DESCRIPTION
@@ -1511,7 +1511,7 @@ Item_arena::Item_arena(THD* thd)
     its memory root in THD::init_for_queries() before execution of real
     statements.
 */
-Item_arena::Item_arena(bool init_mem_root)
+Query_arena::Query_arena(bool init_mem_root)
   :free_list(0), mem_root(&main_mem_root),
   state(CONVENTIONAL_EXECUTION)
 {
@@ -1520,7 +1520,7 @@ Item_arena::Item_arena(bool init_mem_root)
 }
 
 
-Item_arena::Type Item_arena::type() const
+Query_arena::Type Query_arena::type() const
 {
   DBUG_ASSERT(0); /* Should never be called */
   return STATEMENT;
@@ -1532,7 +1532,7 @@ Item_arena::Type Item_arena::type() const
 */
 
 Statement::Statement(THD *thd)
-  :Item_arena(thd),
+  :Query_arena(thd),
   id(++thd->statement_id_counter),
   set_query_id(1),
   allow_sum_func(0),
@@ -1551,7 +1551,7 @@ Statement::Statement(THD *thd)
 */
 
 Statement::Statement()
-  :Item_arena((bool)TRUE),
+  :Query_arena((bool)TRUE),
   id(0),
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
@@ -1563,7 +1563,7 @@ Statement::Statement()
 }
 
 
-Item_arena::Type Statement::type() const
+Query_arena::Type Statement::type() const
 {
   return STATEMENT;
 }
@@ -1611,9 +1611,9 @@ void THD::end_statement()
 }
 
 
-void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
+void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Item_arena::set_n_backup_item_arena");
+  DBUG_ENTER("Query_arena::set_n_backup_item_arena");
   DBUG_ASSERT(backup_arena == 0);
   backup->set_item_arena(this);
   set_item_arena(set);
@@ -1624,9 +1624,9 @@ void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 }
 
 
-void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
+void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Item_arena::restore_backup_item_arena");
+  DBUG_ENTER("Query_arena::restore_backup_item_arena");
   set->set_item_arena(this);
   set_item_arena(backup);
 #ifndef DBUG_OFF
@@ -1635,7 +1635,7 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 #ifdef NOT_NEEDED_NOW
   /*
     Reset backup mem_root to avoid its freeing.
-    Since Item_arena's mem_root is freed only when it is part of Statement
+    Since Query_arena's mem_root is freed only when it is part of Statement
     we need this only if we use some Statement's arena as backup storage.
     But we do this only with THD::stmt_backup and this Statement is specially
     handled in this respect. So this code is not really needed now.
@@ -1645,7 +1645,7 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
   DBUG_VOID_RETURN;
 }
 
-void Item_arena::set_item_arena(Item_arena *set)
+void Query_arena::set_item_arena(Query_arena *set)
 {
   mem_root=  set->mem_root;
   free_list= set->free_list;

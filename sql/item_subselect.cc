@@ -340,7 +340,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     return RES_OK;
 
   SELECT_LEX *select_lex= join->select_lex;
-  Item_arena *arena= thd->current_arena;
+  Query_arena *arena= thd->current_arena;
  
   if (!select_lex->master_unit()->first_select()->next_select() &&
       !select_lex->table_list.elements &&
@@ -1164,7 +1164,7 @@ Item_in_subselect::select_transformer(JOIN *join)
 Item_subselect::trans_res
 Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 {
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   SELECT_LEX *current= thd->lex->current_select, *up;
   const char *save_where= thd->where;
   Item_subselect::trans_res res= RES_ERROR;
