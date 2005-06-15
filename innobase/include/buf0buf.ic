@@ -11,10 +11,11 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 #include "mtr0mtr.h"
 
+#ifdef UNIV_DEBUG
 extern ulint		buf_dbg_counter; /* This is used to insert validation
 					operations in execution in the
 					debug version */
-					
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool

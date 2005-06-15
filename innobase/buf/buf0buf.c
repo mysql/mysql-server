@@ -223,13 +223,14 @@ in the free list to the frames.
 
 buf_pool_t*	buf_pool = NULL; /* The buffer buf_pool of the database */
 
+#ifdef UNIV_DEBUG
 ulint		buf_dbg_counter	= 0; /* This is used to insert validation
 					operations in excution in the
 					debug version */
 ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					the program prints info whenever
 					read-ahead or flush occurs */
-
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
@@ -1739,10 +1740,12 @@ buf_page_create(
 
 	/* If we get here, the page was not in buf_pool: init it there */
 
+#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Creating space %lu page %lu to buffer\n",
 			(ulong) space, (ulong) offset);
 	}
+#endif /* UNIV_DEBUG */
 
 	block = free_block;
 	
@@ -1893,9 +1896,11 @@ buf_page_io_complete(
 
 		rw_lock_x_unlock_gen(&(block->lock), BUF_IO_READ);
 
+#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fputs("Has read ", stderr);
 		}
+#endif /* UNIV_DEBUG */
 	} else {
 		ut_ad(io_type == BUF_IO_WRITE);
 
@@ -1908,17 +1913,21 @@ buf_page_io_complete(
 
 		buf_pool->n_pages_written++;
 
+#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fputs("Has written ", stderr);
 		}
+#endif /* UNIV_DEBUG */
 	}
 	
 	mutex_exit(&(buf_pool->mutex));
 
+#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "page space %lu page no %lu\n",
 			(ulong) block->space, (ulong) block->offset);
 	}
+#endif /* UNIV_DEBUG */
 }
 
 /*************************************************************************

@@ -56,9 +56,11 @@ Created 11/5/1995 Heikki Tuuri
 #define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
 extern buf_pool_t* 	buf_pool; 	/* The buffer pool of the database */
+#ifdef UNIV_DEBUG
 extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
+#endif /* UNIV_DEBUG */
 extern ulint srv_buf_pool_write_requests; /* variable to count write request
                                           issued */
 
