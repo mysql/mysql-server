@@ -539,3 +539,26 @@ SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
   WHERE hostname LIKE '%aol%'
     GROUP BY hostname;
 
+#
+# Bug#11211: Ambiguous column reference in GROUP BY.
+#
+
+drop table if exists t1, t2;
+create table t1 (c1 char(3), c2 char(3));
+create table t2 (c3 char(3), c4 char(3));
+insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
+insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
+
+# query with ambiguous column reference 'c2'
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by c2;
+
+show warnings;
+
+# this query has no ambiguity
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by t1.c1;
+
+show warnings;
+
+drop table t1, t2;

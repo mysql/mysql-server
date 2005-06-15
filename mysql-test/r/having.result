@@ -304,6 +304,7 @@ s1
 0
 0
 Warnings:
+Warning	1052	Column 's1' in group statement is ambiguous
 Warning	1052	Column 's1' in having clause is ambiguous
 select s1*0 from t1 group by s1 having s1 = 0;
 s1*0
