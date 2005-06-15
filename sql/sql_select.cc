@@ -7064,7 +7064,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
       while ((item_equal= it++))
       {
-        eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
       }
     }
   }
