@@ -271,14 +271,12 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 
       If we're not using dynamic ports, we don't do anything.
     */
-    if((int)server_port<0)
-      server_port= -server_port;
 
     conf.localNodeId    = nodeId;
     conf.remoteNodeId   = remoteNodeId;
     conf.checksum       = checksum;
     conf.signalId       = sendSignalId;
-    conf.port           = server_port;
+    conf.s_port         = server_port;
     conf.localHostName  = localHostName;
     conf.remoteHostName = remoteHostName;
 
@@ -350,7 +348,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if (!iter.get(CFG_TCP_PROXY, &proxy)) {
 	if (strlen(proxy) > 0 && nodeId2 == nodeId) {
 	  // TODO handle host:port
-	  conf.port = atoi(proxy);
+	  conf.s_port = atoi(proxy);
 	}
       }
       

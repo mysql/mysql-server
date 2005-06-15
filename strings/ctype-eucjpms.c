@@ -8403,14 +8403,14 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
 
     chbeg= (char *) b++;
     if (b >= (uchar *) end)         /* need more bytes */
-      return chbeg - beg;           /* unexpected EOL  */
+      return (uint) (chbeg - beg);  /* unexpected EOL  */
 
     if (ch == 0x8E)                 /* [x8E][xA0-xDF] */
     {
       if (*b >= 0xA0 && *b <= 0xDF)
         continue;
       *error=1;
-      return chbeg - beg;           /* invalid sequence */
+      return (uint) (chbeg - beg);  /* invalid sequence */
     }
 
     if (ch == 0x8F)                 /* [x8F][xA1-xFE][xA1-xFE] */
@@ -8419,7 +8419,7 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
       if (b >= (uchar*) end)
       {
         *error= 1;
-        return chbeg - beg;         /* unexpected EOL */
+        return (uint)(chbeg - beg); /* unexpected EOL */
       }
     }
 
@@ -8427,9 +8427,9 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
         *b >= 0xA1 && *b <= 0xFE)   /* [xA1-xFE][xA1-xFE] */
       continue;
     *error=1;
-    return chbeg - beg;             /* invalid sequence */
+    return (uint) (chbeg - beg);    /* invalid sequence */
   }
-  return b - (uchar *) beg;
+  return (uint) (b - (uchar *) beg);
 }
 
 

@@ -377,6 +377,10 @@ public:
     return (uint)m_lex->sql_command;
   }
 
+  void disable_query_cache()
+  {
+    m_lex->safe_to_cache_query= 0;
+  }
 private:
 
   LEX *m_lex;
