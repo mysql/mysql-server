@@ -1563,7 +1563,13 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
         break;
       if (buf1-- == to->buf)
       {
-        decimal_make_zero(to);
+        /* making 'zero' with the proper scale */
+        dec1 *p0= to->buf + frac0 + 1;
+        to->intg=1;
+        to->frac= max(scale, 0);
+        to->sign= 0;
+        for (buf1= to->buf; buf1<p0; buf1++)
+          *buf1= 0;
         return E_DEC_OK;
       }
     }
