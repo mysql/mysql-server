@@ -3003,6 +3003,8 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef	__WIN__
+/* Before performing any socket operation (like retrieving hostname */
+/* in init_common_variables we have to call WSAStartup              */
   if (!opt_disable_networking)
   {
     WSADATA WsaData;
