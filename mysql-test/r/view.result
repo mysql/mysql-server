@@ -550,7 +550,7 @@ create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
 show create view v1;
 View	Create View
-v1	CREATE VIEW "test"."v1" AS select `test`.`t1`.`a*b` AS `a*b` from `test`.`t1`
+v1	CREATE VIEW "test"."v1" AS select "test"."t1"."a*b" AS "a*b" from "test"."t1"
 drop view v1;
 drop table t1;
 set sql_mode=default;
@@ -760,7 +760,7 @@ a	b
 1	1
 show create view v3;
 View	Create View
-v3	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
+v3	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`test`.`v1` join `test`.`v2`) where (`v1`.`col1` = `v2`.`col1`)
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
