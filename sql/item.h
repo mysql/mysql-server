@@ -1352,7 +1352,10 @@ public:
   {
     (*ref)->save_in_field(result_field, no_conversions);
   }
-  Item *real_item() { return *ref; }
+  Item *real_item()
+  {
+    return (*ref)->real_item();
+  }
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }
   void print(String *str);

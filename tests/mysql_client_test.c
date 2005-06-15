@@ -13146,6 +13146,62 @@ static void test_bug9643()
 }
 
 /*
+  Bug#11111: fetch from view returns wrong data
+*/
+
+static void test_bug11111()
+{
+  MYSQL_STMT 	*stmt;
+  MYSQL_BIND	bind[2];
+  char		buf[2][20];
+  long		len[2];
+  int i;
+  int rc;
+  const char * query = "SELECT DISTINCT f1,ff2 FROM v1";
+  myheader("test_bug11111");
+
+  rc= mysql_query(mysql, "drop table if exists t1, t2, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "drop view if exists t1, t2, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (f1 int, f2 int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t2 (ff1 int, ff2 int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create view v1 as select * from t1, t2 where f1=ff1");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1,1), (2,2), (3,3)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (1,1), (2,2), (3,3)");
+  myquery(rc);
+
+  stmt = mysql_stmt_init(mysql);
+
+  mysql_stmt_prepare(stmt, query, strlen(query));
+  mysql_stmt_execute(stmt);
+
+  for (i=0; i < 2; i++) {
+    memset(&bind[i], '\0', sizeof(MYSQL_BIND));
+    bind[i].buffer_type= MYSQL_TYPE_STRING;
+    bind[i].buffer= (gptr *)&buf[i];
+    bind[i].buffer_length= 20;
+    bind[i].length= &len[i];
+  }
+
+  if (mysql_stmt_bind_result(stmt, bind))
+    printf("Error: %s\n", mysql_stmt_error(stmt));
+
+  mysql_stmt_fetch(stmt);
+  printf("return: %s", buf[1]);
+  DIE_UNLESS(!strcmp(buf[1],"1"));
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop view v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "drop table t1, t2");
+  myquery(rc);
+}
+
+/*
   Check that proper cleanups are done for prepared statement when
   fetching thorugh a cursor.
 */
@@ -13439,6 +13495,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9478", test_bug9478 },
   { "test_bug9643", test_bug9643 },
   { "test_bug10729", test_bug10729 },
+  { "test_bug11111", test_bug11111 },
   { 0, 0 }
 };
 
