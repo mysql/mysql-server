@@ -146,3 +146,9 @@ drop table t1;
 select round(150, 2);
 round(150, 2)
 150.00
+select ceil(0.09);
+ceil(0.09)
+1
+select ceil(0.000000000000000009);
+ceil(0.000000000000000009)
+1

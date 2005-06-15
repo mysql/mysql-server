@@ -1490,11 +1490,31 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
   buf1+=intg0+frac0-1;
   if (scale == frac0*DIG_PER_DEC1)
   {
+    int do_inc= FALSE;
     DBUG_ASSERT(frac0+intg0 >= 0);
-    x=buf0[1]/DIG_MASK;
-    if (x > round_digit ||
-        (round_digit == 5 && x == 5 && (mode == HALF_UP ||
-             (frac0+intg0 > 0 && *buf0 & 1))))
+    switch (round_digit)
+    {
+    case 0:
+    {
+      dec1 *p0= buf0 + (frac1-frac0);
+      for (; p0 > buf0; p0--)
+        if (*p0)
+        {
+          do_inc= TRUE;
+          break;
+        };
+      break;
+    }
+    case 5:
+    {
+      x= buf0[1]/DIG_MASK;
+      do_inc= (x>5) || ((x == 5) &&
+                        (mode == HALF_UP || (frac0+intg0 > 0 && *buf0 & 1)));
+      break;
+    };
+    default:;
+    };
+    if (do_inc)
     {
       if (frac0+intg0>0)
         (*buf1)++;
@@ -1509,6 +1529,7 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
   }
   else
   {
+    /* TODO - fix this code as it won't work for CEILING mode */
     int pos=frac0*DIG_PER_DEC1-scale-1;
     DBUG_ASSERT(frac0+intg0 > 0);
     x=*buf1 / powers10[pos];
