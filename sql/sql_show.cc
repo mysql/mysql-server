@@ -347,6 +347,9 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->table_name));
 
+  /* We want to preserve the tree for views. */
+  thd->lex->view_prepare_mode= TRUE;
+
   /* Only one table for now, but VIEW can involve several tables */
   if (open_normal_and_derived_tables(thd, table_list))
   {
@@ -1061,7 +1064,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   buff->append('.');
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
   buff->append(" AS ", 4);
-  buff->append(table->query.str, table->query.length);
+
+  /*
+    We can't just use table->query, because our SQL_MODE may trigger
+    a different syntax, like when ANSI_QUOTES is defined.
+  */
+  table->view->unit.print(buff);
+
   if (table->with_check != VIEW_CHECK_NONE)
   {
     if (table->with_check == VIEW_CHECK_LOCAL)
