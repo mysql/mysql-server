@@ -168,3 +168,20 @@ create table t1(s1 time);
 insert into t1 values ('11:11:11');
 select cast(s1 as decimal(7,2)) from t1;
 drop table t1;
+
+#
+# Test for bug #11283: field conversion from varchar, and text types to decimal
+#
+
+CREATE TABLE t1 (v varchar(10), tt tinytext, t text,
+                 mt mediumtext, lt longtext);
+INSERT INTO t1 VALUES ('1.01', '2.02', '3.03', '4.04', '5.05');
+
+SELECT CAST(v AS DECIMAL), CAST(tt AS DECIMAL), CAST(t AS DECIMAL),
+       CAST(mt AS DECIMAL), CAST(lt AS DECIMAL) from t1;
+
+DROP TABLE t1;
+# Bug @10237 (CAST(NULL DECIMAL) crashes server)
+#
+select cast(NULL as decimal(6)) as t1;
+

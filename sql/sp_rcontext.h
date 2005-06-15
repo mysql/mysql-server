@@ -203,11 +203,7 @@ class sp_cursor : public Sql_alloc
 {
 public:
 
-  sp_cursor(sp_lex_keeper *lex_keeper)
-    : m_lex_keeper(lex_keeper), m_prot(NULL), m_isopen(0), m_current_row(NULL)
-  {
-    /* Empty */
-  }
+  sp_cursor(sp_lex_keeper *lex_keeper);
 
   virtual ~sp_cursor()
   {

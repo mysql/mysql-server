@@ -84,3 +84,10 @@ drop table t1;
 # Bug #10083 (round doesn't increase decimals)
 #
 select round(150, 2);
+
+#
+# Bug @10632 (Ceiling function returns wrong answer)
+#
+select ceil(0.09);
+select ceil(0.000000000000000009);
+
