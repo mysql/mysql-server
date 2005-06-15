@@ -58,7 +58,7 @@ int net_send_ok(struct st_net *net, unsigned long connection_id,
   if (message != NULL)
   {
     buff.reserve(position, 9 + strlen(message));
-    store_to_string(&buff, message, &position);
+    store_to_protocol_packet(&buff, message, &position);
   }
 
   return my_net_write(net, buff.buffer, position) || net_flush(net);
@@ -117,8 +117,8 @@ char *net_store_length(char *pkg, uint length)
 }
 
 
-int store_to_string(Buffer *buf, const char *string, uint *position,
-                    uint string_len)
+int store_to_protocol_packet(Buffer *buf, const char *string, uint *position,
+                             uint string_len)
 {
   uint currpos;
 
@@ -137,12 +137,12 @@ err:
 }
 
 
-int store_to_string(Buffer *buf, const char *string, uint *position)
+int store_to_protocol_packet(Buffer *buf, const char *string, uint *position)
 {
   uint string_len;
 
   string_len= strlen(string);
-  return store_to_string(buf, string, position, string_len);
+  return store_to_protocol_packet(buf, string, position, string_len);
 }
 
 
@@ -176,21 +176,28 @@ int send_fields(struct st_net *net, LIST *fields)
     position= 0;
     field= (NAME_WITH_LENGTH *) tmp->data;
 
-    store_to_string(&send_buff, (char*) "", &position); /* catalog name */
-    store_to_string(&send_buff, (char*) "", &position); /* db name */
-    store_to_string(&send_buff, (char*) "", &position); /* table name */
-    store_to_string(&send_buff, (char*) "", &position); /* table name alias */
-    store_to_string(&send_buff, field->name, &position); /* column name */
-    store_to_string(&send_buff, field->name, &position); /* column name alias */
+    store_to_protocol_packet(&send_buff,
+                             (char*) "", &position);    /* catalog name */
+    store_to_protocol_packet(&send_buff,
+                             (char*) "", &position);    /* db name */
+    store_to_protocol_packet(&send_buff,
+                             (char*) "", &position);    /* table name */
+    store_to_protocol_packet(&send_buff,
+                             (char*) "", &position);    /* table name alias */
+    store_to_protocol_packet(&send_buff,
+                             field->name, &position);   /* column name */
+    store_to_protocol_packet(&send_buff,
+                             field->name, &position);   /* column name alias */
     send_buff.reserve(position, 12);
     if (send_buff.is_error())
       goto err;
     send_buff.buffer[position++]= 12;
-    int2store(send_buff.buffer + position, 1); /* charsetnr */
-    int4store(send_buff.buffer + position + 2, field->length); /* field length */
-    send_buff.buffer[position+6]= FIELD_TYPE_STRING; /* type */
-    int2store(send_buff.buffer + position + 7, 0); /* flags */
-    send_buff.buffer[position + 9]= (char) 0; /* decimals */
+    int2store(send_buff.buffer + position, 1);          /* charsetnr */
+    int4store(send_buff.buffer + position + 2,
+              field->length);                           /* field length */
+    send_buff.buffer[position+6]= FIELD_TYPE_STRING;    /* type */
+    int2store(send_buff.buffer + position + 7, 0);      /* flags */
+    send_buff.buffer[position + 9]= (char) 0;           /* decimals */
     send_buff.buffer[position + 10]= 0;
     send_buff.buffer[position + 11]= 0;
     position+= 12;
