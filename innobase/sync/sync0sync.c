@@ -1136,8 +1136,12 @@ sync_thread_add_level(
 	} else if (level == SYNC_DICT_HEADER) {
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_HEADER));
 	} else if (level == SYNC_DICT) {
+#ifdef UNIV_DEBUG
 		ut_a(buf_debug_prints
 		     || sync_thread_levels_g(array, SYNC_DICT));
+#else /* UNIV_DEBUG */
+		ut_a(sync_thread_levels_g(array, SYNC_DICT));
+#endif /* UNIV_DEBUG */
 	} else {
 		ut_error;
 	}
