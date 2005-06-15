@@ -1276,19 +1276,6 @@ static void server_init(void)
   int	arg=1;
   DBUG_ENTER("server_init");
 
-#ifdef	__WIN__
-  if (!opt_disable_networking)
-  {
-    WSADATA WsaData;
-    if (SOCKET_ERROR == WSAStartup (0x0101, &WsaData))
-    {
-      /* errors are not read yet, so we use test here */
-      my_message(ER_WSAS_FAILED, "WSAStartup Failed", MYF(0));
-      unireg_abort(1);
-    }
-  }
-#endif /* __WIN__ */
-
   set_ports();
 
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
@@ -3014,6 +3001,21 @@ int main(int argc, char **argv)
     exit(1);
   }
 #endif
+
+#ifdef	__WIN__
+/* Before performing any socket operation (like retrieving hostname */
+/* in init_common_variables we have to call WSAStartup              */
+  if (!opt_disable_networking)
+  {
+    WSADATA WsaData;
+    if (SOCKET_ERROR == WSAStartup (0x0101, &WsaData))
+    {
+      /* errors are not read yet, so we use test here */
+      my_message(ER_WSAS_FAILED, "WSAStartup Failed", MYF(0));
+      unireg_abort(1);
+    }
+  }
+#endif /* __WIN__ */
 
   if (init_common_variables(MYSQL_CONFIG_NAME,
 			    argc, argv, load_default_groups))

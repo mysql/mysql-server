@@ -601,7 +601,7 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
       info->error=          info->share->active->error;
       info->read_end=       info->share->active->read_end;
       info->pos_in_file=    info->share->active->pos_in_file;
-      len= (info->error == -1 ? -1 : info->read_end-info->buffer);
+      len= (int) (info->error == -1 ? -1 : info->read_end-info->buffer);
     }
     info->read_pos=info->buffer;
     info->seek_not_done=0;
