@@ -344,3 +344,6 @@ select cast(s1 as decimal(7,2)) from t1;
 cast(s1 as decimal(7,2))
 111111.00
 drop table t1;
+select cast(NULL as decimal(6)) as t1;
+t1
+NULL
