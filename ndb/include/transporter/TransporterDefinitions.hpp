@@ -56,7 +56,7 @@ const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*MAX_SECTION_SIZE);
  * information specific to a transporter type.
  */
 struct TransporterConfiguration {
-  Uint32 port;
+  Int32 s_port; // negative port number implies dynamic port
   const char *remoteHostName;
   const char *localHostName;
   NodeId remoteNodeId;
