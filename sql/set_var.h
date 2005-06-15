@@ -786,7 +786,8 @@ public:
     if (value_arg && value_arg->type() == Item::FIELD_ITEM)
     {
       Item_field *item= (Item_field*) value_arg;
-      if (!(value=new Item_string(item->field_name, strlen(item->field_name),
+      if (!(value=new Item_string(item->field_name, 
+                  (uint) strlen(item->field_name),
 				  item->collation.collation)))
 	value=value_arg;			/* Give error message later */
     }

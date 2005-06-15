@@ -60,7 +60,7 @@ int heap_update(HP_INFO *info, const byte *old, const byte *heap_new)
  err:
   if (my_errno == HA_ERR_FOUND_DUPP_KEY)
   {
-    info->errkey = keydef - share->keydef;
+    info->errkey = (int) (keydef - share->keydef);
     if (keydef->algorithm == HA_KEY_ALG_BTREE)
     {
       /* we don't need to delete non-inserted key from rb-tree */

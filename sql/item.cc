@@ -307,7 +307,7 @@ void *Item::operator new(size_t size, Item *reuse, uint *rsize)
     return (void *)reuse;
   }
   if (rsize)
-    (*rsize)= size;
+    (*rsize)= (uint) size;
   return (void *)sql_alloc((uint)size);
 }
 
@@ -382,7 +382,7 @@ void Item::print_item_w_name(String *str)
   {
     THD *thd= current_thd;
     str->append(" AS ", 4);
-    append_identifier(thd, str, name, strlen(name));
+    append_identifier(thd, str, name, (uint) strlen(name));
   }
 }
 
@@ -1132,27 +1132,27 @@ void Item_ident::print(String *str)
   if (!table_name || !field_name)
   {
     const char *nm= field_name ? field_name : name ? name : "tmp_field";
-    append_identifier(thd, str, nm, strlen(nm));
+    append_identifier(thd, str, nm, (uint) strlen(nm));
     return;
   }
   if (db_name && db_name[0] && !alias_name_used)
   {
-    append_identifier(thd, str, d_name, strlen(d_name));
+    append_identifier(thd, str, d_name, (uint) strlen(d_name));
     str->append('.');
-    append_identifier(thd, str, t_name, strlen(t_name));
+    append_identifier(thd, str, t_name, (uint) strlen(t_name));
     str->append('.');
-    append_identifier(thd, str, field_name, strlen(field_name));
+    append_identifier(thd, str, field_name, (uint) strlen(field_name));
   }
   else
   {
     if (table_name[0])
     {
-      append_identifier(thd, str, t_name, strlen(t_name));
+      append_identifier(thd, str, t_name, (uint) strlen(t_name));
       str->append('.');
-      append_identifier(thd, str, field_name, strlen(field_name));
+      append_identifier(thd, str, field_name, (uint) strlen(field_name));
     }
     else
-      append_identifier(thd, str, field_name, strlen(field_name));
+      append_identifier(thd, str, field_name, (uint) strlen(field_name));
   }
 }
 
@@ -2179,7 +2179,7 @@ const String *Item_param::query_val_str(String* str) const
       ptr+= escape_string_for_mysql(str_value.charset(), ptr, 0,
                                     str_value.ptr(), str_value.length());
       *ptr++= '\'';
-      str->length(ptr - buf);
+      str->length((uint32) (ptr - buf));
       break;
     }
   case NULL_VALUE:
@@ -4596,7 +4596,8 @@ void Item_trigger_field::setup_field(THD *thd, TABLE *table)
     Try to find field by its name and if it will be found
     set field_idx properly.
   */
-  (void)find_field_in_real_table(thd, table, field_name, strlen(field_name),
+  (void)find_field_in_real_table(thd, table, field_name,
+                                 (uint) strlen(field_name),
                                  0, 0, &field_idx);
   thd->set_query_id= save_set_query_id;
   triggers= table->triggers;

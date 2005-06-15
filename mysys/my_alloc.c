@@ -333,7 +333,7 @@ void set_prealloc_root(MEM_ROOT *root, char *ptr)
 
 char *strdup_root(MEM_ROOT *root,const char *str)
 {
-  return strmake_root(root, str, strlen(str));
+  return strmake_root(root, str, (uint) strlen(str));
 }
 
 char *strmake_root(MEM_ROOT *root,const char *str, uint len)
