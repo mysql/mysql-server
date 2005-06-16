@@ -365,7 +365,7 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
 {
   if (b.m_nullable && urandom(10) == 0) {
     v.m_len = 0;
-    delete v.m_val;
+    delete [] v.m_val;
     v.m_val = 0;
     v.m_buf = new char [1];
   } else {
@@ -375,7 +375,7 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
       v.m_len = urandom(b.m_inline);
     else
       v.m_len = urandom(b.m_inline + g_opt.m_parts * b.m_partsize + 1);
-    delete v.m_val;
+    delete [] v.m_val;
     v.m_val = new char [v.m_len + 1];
     for (unsigned i = 0; i < v.m_len; i++)
       v.m_val[i] = 'a' + urandom(25);
@@ -1445,6 +1445,7 @@ testperf()
   if (! testcase('p'))
     return 0;
   DBG("=== perf test ===");
+  g_bh1 = g_bh2 = 0;
   g_ndb = new Ndb(g_ncc, "TEST_DB");
   CHK(g_ndb->init() == 0);
   CHK(g_ndb->waitUntilReady() == 0);
