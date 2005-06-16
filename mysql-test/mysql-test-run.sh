@@ -170,7 +170,8 @@ cd ..
 BASEDIR=`pwd`
 cd $CWD
 MYSQL_TEST_DIR=$BASEDIR/mysql-test
-export MYSQL_TEST_DIR
+MYSQL_TEST_WINDIR=$MYSQL_TEST_DIR
+export MYSQL_TEST_DIR MYSQL_TEST_WINDIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
 

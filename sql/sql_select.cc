@@ -812,9 +812,14 @@ JOIN::optimize()
       DBUG_RETURN(1);
   }
   simple_group= 0;
-  group_list= remove_const(this, group_list, conds,
-                           rollup.state == ROLLUP::STATE_NONE,
-                           &simple_group);
+  {
+    ORDER *old_group_list;
+    group_list= remove_const(this, (old_group_list= group_list), conds,
+                             rollup.state == ROLLUP::STATE_NONE,
+			     &simple_group);
+    if (old_group_list && !group_list)
+      select_distinct= 0;
+  }
   if (!group_list && group)
   {
     order=0;					// The output has only one row
