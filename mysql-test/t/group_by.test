@@ -546,7 +546,6 @@ DROP TABLE t1;
 # Bug#11211: Ambiguous column reference in GROUP BY.
 #
 
-drop table if exists t1, t2;
 create table t1 (c1 char(3), c2 char(3));
 create table t2 (c3 char(3), c4 char(3));
 insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
