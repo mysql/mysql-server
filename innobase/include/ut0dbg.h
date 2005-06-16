@@ -36,12 +36,8 @@ ut_dbg_assertion_failed(
 On NetWare, have a graceful exit rather than a segfault to avoid abends. */
 extern ibool	panic_shutdown;
 /* Abort the execution. */
-# define UT_DBG_PANIC				\
-	if (!panic_shutdown){			\
-		panic_shutdown = TRUE;		\
-		innobase_shutdown_for_mysql();	\
-	}					\
-	exit(1)
+void ut_dbg_panic(void);
+# define UT_DBG_PANIC ut_dbg_panic()
 /* Stop threads in ut_a(). */
 # define UT_DBG_STOP	while (0)	/* We do not do this on NetWare */
 #else /* __NETWARE__ */
