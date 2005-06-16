@@ -59,7 +59,21 @@ ut_dbg_assertion_failed(
 	ut_dbg_stop_threads = TRUE;
 }
 
-#ifndef __NETWARE__
+#ifdef __NETWARE__
+/*****************************************************************
+Shut down MySQL/InnoDB after assertion failure. */
+
+void
+ut_dbg_panic(void)
+/*==============*/
+{
+	if (!panic_shutdown) {
+		panic_shutdown = TRUE;
+		innobase_shutdown_for_mysql();
+	}
+	exit(1);
+}
+#else /* __NETWARE__ */
 /*****************************************************************
 Stop a thread after assertion failure. */
 
