@@ -1716,7 +1716,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     However, it seems handy if com_stmt_prepare is increased always,
     no matter what kind of prepare is processed.
   */
-  statistic_increment(com_stmt_prepare, &LOCK_status);
+  statistic_increment(thd->status_var.com_stmt_prepare, &LOCK_status);
 
   if (stmt == 0)
     DBUG_RETURN(TRUE);
@@ -1962,7 +1962,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
-  statistic_increment(com_stmt_execute, &LOCK_status);
+  statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute")))
     DBUG_VOID_RETURN;
 
@@ -2092,7 +2092,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
 
   DBUG_ASSERT(thd->free_list == NULL);
   /* See comment for statistic_increment in mysql_stmt_prepare */
-  statistic_increment(com_stmt_execute, &LOCK_status);
+  statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);
 
   if (!(stmt= (Prepared_statement*)thd->stmt_map.find_by_name(stmt_name)))
   {
@@ -2202,7 +2202,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_fetch");
 
-  statistic_increment(com_stmt_fetch, &LOCK_status);
+  statistic_increment(thd->status_var.com_stmt_fetch, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
     DBUG_VOID_RETURN;
 
@@ -2263,7 +2263,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_reset");
 
-  statistic_increment(com_stmt_reset, &LOCK_status);
+  statistic_increment(thd->status_var.com_stmt_reset, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
 
@@ -2298,7 +2298,7 @@ void mysql_stmt_free(THD *thd, char *packet)
 
   DBUG_ENTER("mysql_stmt_free");
 
-  statistic_increment(com_stmt_close, &LOCK_status);
+  statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
     DBUG_VOID_RETURN;
 
@@ -2337,7 +2337,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   DBUG_ENTER("mysql_stmt_get_longdata");
 
-  statistic_increment(com_stmt_send_long_data, &LOCK_status);
+  statistic_increment(thd->status_var.com_stmt_send_long_data, &LOCK_status);
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if ((ulong) (packet_end - packet) < MYSQL_LONG_DATA_HEADER)
@@ -2418,7 +2418,6 @@ void Prepared_statement::setup_set_params()
 #endif
   }
 }
-
 
 
 Prepared_statement::~Prepared_statement()
