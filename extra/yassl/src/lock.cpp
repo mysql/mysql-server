@@ -29,7 +29,7 @@ namespace yaSSL {
 
 
 #ifdef MULTI_THREADED
-    #ifdef WIN32
+    #ifdef _WIN32
         
         Mutex::Mutex()
         {
@@ -54,7 +54,7 @@ namespace yaSSL {
             LeaveCriticalSection(&mutex_.cs_); 
         }
             
-    #else  // WIN32
+    #else  // _WIN32
         
         Mutex::Mutex()
         {
@@ -80,7 +80,7 @@ namespace yaSSL {
         }
          
 
-    #endif // WIN32
+    #endif // _WIN32
 #endif // MULTI_THREADED
 
 

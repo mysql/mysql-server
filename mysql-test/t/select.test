@@ -2271,3 +2271,8 @@ EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
 
 DROP TABLE t1,t2;
 
+#
+# Bug #10650
+#
+
+select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
