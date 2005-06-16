@@ -139,8 +139,6 @@ ConfigRetriever::getConfig(NdbMgmHandle m_handle){
     return 0;
   }
 
-  ndb_mgm_disconnect(m_handle);
-
   return conf;
 }
 
