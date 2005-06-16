@@ -2645,6 +2645,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
     restore_record(table, s->default_values);
     if (!wild || !wild[0] || !wild_compare(sp_name, wild, 0))
     {
+      int enum_idx= proc_table->field[5]->val_int();
       table->field[3]->store(sp_name, strlen(sp_name), cs);
       get_field(thd->mem_root, proc_table->field[3], &tmp_string);
       table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
@@ -2666,10 +2667,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       table->field[10]->store("SQL", 3, cs);
       get_field(thd->mem_root, proc_table->field[6], &tmp_string);
       table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      if (proc_table->field[5]->val_int() == SP_CONTAINS_SQL)
-      {
-        table->field[12]->store("CONTAINS SQL", 12 , cs);
-      }
+      table->field[12]->store(sp_data_access_name[enum_idx].str, 
+                              sp_data_access_name[enum_idx].length , cs);
       get_field(thd->mem_root, proc_table->field[7], &tmp_string);
       table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
       bzero((char *)&time, sizeof(time));
