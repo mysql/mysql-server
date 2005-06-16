@@ -31,7 +31,7 @@ namespace yaSSL {
 
 
 #ifdef MULTI_THREADED
-    #ifdef WIN32
+    #ifdef _WIN32
         #include <windows.h>
 
         class Mutex {
@@ -50,7 +50,7 @@ namespace yaSSL {
                 ~Lock();
             };
         };
-    #else  // WIN32
+    #else  // _WIN32
         #include <pthread.h>
 
         class Mutex {
@@ -71,7 +71,7 @@ namespace yaSSL {
             };
         };
 
-    #endif // WIN32
+    #endif // _WIN32
 #else  // MULTI_THREADED (WE'RE SINGLE)
 
     class Mutex {
