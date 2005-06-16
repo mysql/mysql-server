@@ -752,3 +752,21 @@ EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
 SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
 
 DROP TABLE t1,t2,t3;
+
+#
+# Test for bug #11284: empty table in a nested left join
+# 
+
+CREATE TABLE t1 (c11 int);
+CREATE TABLE t2 (c21 int);
+CREATE TABLE t3 (c31 int);
+
+INSERT INTO t1 VALUES (4), (5);
+
+SELECT * FROM t1 LEFT JOIN t2 ON c11=c21;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON c11=c21;
+
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON c21=c31) ON c11=c21;
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON c21=c31) ON c11=c21;
+
+DROP TABLE t1,t2,t3;

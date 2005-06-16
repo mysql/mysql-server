@@ -344,3 +344,14 @@ select cast(s1 as decimal(7,2)) from t1;
 cast(s1 as decimal(7,2))
 111111.00
 drop table t1;
+CREATE TABLE t1 (v varchar(10), tt tinytext, t text,
+mt mediumtext, lt longtext);
+INSERT INTO t1 VALUES ('1.01', '2.02', '3.03', '4.04', '5.05');
+SELECT CAST(v AS DECIMAL), CAST(tt AS DECIMAL), CAST(t AS DECIMAL),
+CAST(mt AS DECIMAL), CAST(lt AS DECIMAL) from t1;
+CAST(v AS DECIMAL)	CAST(tt AS DECIMAL)	CAST(t AS DECIMAL)	CAST(mt AS DECIMAL)	CAST(lt AS DECIMAL)
+1.01	2.02	3.03	4.04	5.05
+DROP TABLE t1;
+select cast(NULL as decimal(6)) as t1;
+t1
+NULL

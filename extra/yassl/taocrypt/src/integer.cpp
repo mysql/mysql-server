@@ -23,6 +23,7 @@
 
 /* based on Wei Dai's integer.cpp from CryptoPP */
 
+#include "runtime.hpp"
 #include "integer.hpp"
 #include "modarith.hpp"
 #include "asn.hpp"
@@ -31,6 +32,21 @@
 
 #ifdef __DECCXX
     #include <c_asm.h>  // for asm overflow assembly
+#endif
+
+
+#if defined(_MSC_VER) && defined(_WIN64)  // 64 bit X overflow intrinsic
+    #ifdef __ia64__
+        #define myUMULH __UMULH
+    #elif  __x86_64__
+        #define myUMULH __umulh
+    #else
+        #error unknown 64bit windows
+    #endif
+
+extern "C" word myUMULH(word, word); 
+
+#pragma intrinsic (myUMULH)
 #endif
 
 
@@ -73,16 +89,15 @@ CPP_TYPENAME AllocatorBase<T>::pointer AlignedAllocator<T>::allocate(
     {
         void* p;
     #ifdef TAOCRYPT_MM_MALLOC_AVAILABLE
-        while (!(p = _mm_malloc(sizeof(T)*n, 16)))
+        p = _mm_malloc(sizeof(T)*n, 16);
     #elif defined(TAOCRYPT_MEMALIGN_AVAILABLE)
-        while (!(p = memalign(16, sizeof(T)*n)))
+        p = memalign(16, sizeof(T)*n);
     #elif defined(TAOCRYPT_MALLOC_ALIGNMENT_IS_16)
-        while (!(p = malloc(sizeof(T)*n)))
+        p = malloc(sizeof(T)*n);
     #else
-        while (!(p = (byte *)malloc(sizeof(T)*n + 8)))
+        p = (byte *)malloc(sizeof(T)*n + 8);
         // assume malloc alignment is at least 8
     #endif
-        CallNewHandler();
 
     #ifdef TAOCRYPT_NO_ALIGNED_ALLOC
         assert(m_pBlock == 0);
@@ -156,8 +171,14 @@ DWord() {}
     static DWord Multiply(word a, word b)
     {
         DWord r;
+
         #ifdef TAOCRYPT_NATIVE_DWORD_AVAILABLE
             r.whole_ = (dword)a * b;
+
+        #elif defined(_MSC_VER)
+            r.halfs_.low = a*b;
+            r.halfs_.high = myUMULH(a,b);
+
         #elif defined(__alpha__)
             r.halfs_.low = a*b;
             #ifdef __GNUC__
@@ -166,22 +187,27 @@ DWord() {}
             #elif defined(__DECCXX)
                 r.halfs_.high = asm("umulh %a0, %a1, %v0", a, b);
             #else
-                #error can not implement multiply overflow
+                #error unknown alpha compiler
             #endif
+
         #elif defined(__ia64__)
             r.halfs_.low = a*b;
             __asm__("xmpy.hu %0=%1,%2" : "=f" (r.halfs_.high)
                 : "f" (a), "f" (b));
+
         #elif defined(_ARCH_PPC64)
             r.halfs_.low = a*b;
             __asm__("mulhdu %0,%1,%2" : "=r" (r.halfs_.high)
                 : "r" (a), "r" (b) : "cc");
+
         #elif defined(__x86_64__)
             __asm__("mulq %3" : "=d" (r.halfs_.high), "=a" (r.halfs_.low) :
                 "a" (a), "rm" (b) : "cc");
+
         #elif defined(__mips64)
             __asm__("dmultu %2,%3" : "=h" (r.halfs_.high), "=l" (r.halfs_.low)
                 : "r" (a), "r" (b));
+
         #elif defined(_M_IX86)
             // for testing
             word64 t = (word64)a * b;
@@ -190,6 +216,7 @@ DWord() {}
         #else
             #error can not implement DWord
         #endif
+
         return r;
     }
 
@@ -3935,6 +3962,7 @@ template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
 #endif
 template word DivideThreeWordsByTwo<word, DWord>(word*, word, word, DWord*);
 #endif
+
 
 } // namespace
 

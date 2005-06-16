@@ -542,3 +542,18 @@ connection default;
 drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
 use test;
 drop database mysqltest;
+
+#
+# Bug #11055 information_schema: routines.sql_data_access has wrong value
+#
+create procedure p1 () modifies sql data set @a = 5;
+create procedure p2 () set @a = 5;
+select sql_data_access from information_schema.routines
+where specific_name like 'p%';
+drop procedure p1;
+drop procedure p2;
+
+#
+# Bug #9434 SHOW CREATE DATABASE information_schema;
+#
+show create database information_schema;
