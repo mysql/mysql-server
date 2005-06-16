@@ -1376,8 +1376,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       */
       if (discover_retry_count++ != 0)
         goto err;
-      if (ha_table_exists_in_engine(thd, db, name) &&
-          ha_create_table_from_engine(thd, db, name))
+      if (ha_create_table_from_engine(thd, db, name) > 0)
       {
         /* Give right error message */
         thd->clear_error();
