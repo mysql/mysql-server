@@ -159,3 +159,8 @@ root@localhost
     - is longer then 80 characters    and
     - consists of several lines"
 --------------------------------------------------------------------------------
+
+. Here comes a very very long message that
+.      - is longer then 80 characters    and
+.      - consists of several lines
+--------------------------------------------------------------------------------
