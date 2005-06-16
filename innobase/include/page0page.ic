@@ -597,7 +597,7 @@ page_rec_set_next(
 
 	if (next) {
 		ut_ad(!page_rec_is_infimum(next));
-		ut_a(page == ut_align_down(next, UNIV_PAGE_SIZE));
+		ut_ad(page == ut_align_down(next, UNIV_PAGE_SIZE));
 		offs = (ulint) (next - page);
 	} else {
 		offs = 0;
@@ -624,7 +624,7 @@ page_rec_get_prev(
 
 	ut_ad(page_rec_check(rec));	
 
-	page = buf_frame_align(rec);
+	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	ut_ad(!page_rec_is_infimum(rec));
 
