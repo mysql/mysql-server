@@ -253,6 +253,8 @@ let $my_slave_commit= false;
 --source include/rpl_stmt_seq.inc
 
 # With prior read locking
+# Note that this test generate an error since the rpl_stmt_seq.inc
+# tries to insert into t1.
 LOCK TABLES mysqltest1.t1 READ;
 let $my_stmt= UNLOCK TABLES;
 let $my_master_commit= false;
