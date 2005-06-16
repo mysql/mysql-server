@@ -832,3 +832,6 @@ MODIFIES SQL DATA
 CONTAINS SQL
 drop procedure p1;
 drop procedure p2;
+show create database information_schema;
+Database	Create Database
+information_schema	CREATE DATABASE `information_schema` /*!40100 DEFAULT CHARACTER SET utf8 */
