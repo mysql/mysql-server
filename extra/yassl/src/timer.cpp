@@ -27,7 +27,7 @@
 
 namespace yaSSL {
 
-#ifdef WIN32
+#ifdef _WIN32
 
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
@@ -54,7 +54,7 @@ namespace yaSSL {
         return static_cast<uint>(timer());
     }
 
-#else // WIN32
+#else // _WIN32
 
     #include <sys/time.h>
 
@@ -77,5 +77,5 @@ namespace yaSSL {
     }
 
 
-#endif // WIN32
+#endif // _WIN32
 } // namespace yaSSL

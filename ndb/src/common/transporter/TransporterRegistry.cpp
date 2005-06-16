@@ -1208,7 +1208,7 @@ TransporterRegistry::report_connect(NodeId node_id)
 void
 TransporterRegistry::report_disconnect(NodeId node_id, int errnum)
 {
-  DBUG_ENTER("TransporterRegistry::report_connect");
+  DBUG_ENTER("TransporterRegistry::report_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTED",node_id));
   performStates[node_id] = DISCONNECTED;
   reportDisconnect(callbackObj, node_id, errnum);

@@ -101,6 +101,12 @@ int main(int argc, char** argv)
      */
     catchsigs(true);
 
+    /**
+     * We no longer need the mgm connection in this process
+     * (as we are the angel, not ndb)
+     */
+    theConfig->closeConfiguration();
+
     int status = 0;
     while(waitpid(child, &status, 0) != child);
     if(WIFEXITED(status)){
