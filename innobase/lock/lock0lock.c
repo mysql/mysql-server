@@ -1304,16 +1304,10 @@ lock_rec_get_first(
 
 	lock = lock_rec_get_first_on_page(rec);
 	if (UNIV_LIKELY_NULL(lock)) {
-		if (page_rec_is_comp(rec)) {
-			while (lock && !lock_rec_get_nth_bit(lock,
-					rec_get_heap_no(rec, TRUE))) {
-				lock = lock_rec_get_next_on_page(lock);
-			}
-		} else {
-			while (lock && !lock_rec_get_nth_bit(lock,
-					rec_get_heap_no(rec, FALSE))) {
-				lock = lock_rec_get_next_on_page(lock);
-			}
+		ulint	heap_no = rec_get_heap_no(rec, page_rec_is_comp(rec));
+
+		while (lock && !lock_rec_get_nth_bit(lock, heap_no)) {
+			lock = lock_rec_get_next_on_page(lock);
 		}
 	}
 
