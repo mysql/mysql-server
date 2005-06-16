@@ -2273,7 +2273,7 @@ AC_ARG_WITH([mysqlmanager],
   [if test "x${withval}" != "xno"; then
     tools_dirs="$tools_dirs server-tools"
    fi],
-  [if test "x${with_server}" == "xyes"; then
+  [if test "x${with_server}" = "xyes"; then
      tools_dirs="$tools_dirs server-tools"
    fi]
 )
