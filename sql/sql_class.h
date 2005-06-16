@@ -647,7 +647,7 @@ typedef struct system_status_var
   variable in system_status_var
 */
 
-#define last_system_status_var filesort_scan_count
+#define last_system_status_var com_stmt_close
 
 
 void free_tmp_table(THD *thd, TABLE *entry);

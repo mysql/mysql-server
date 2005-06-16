@@ -2523,7 +2523,7 @@ mysql_execute_command(THD *thd)
                         lex->prepared_stmt_name.length,
                         lex->prepared_stmt_name.str));
     /* We account deallocate in the same manner as mysql_stmt_close */
-    statistic_increment(com_stmt_close, &LOCK_status);
+    statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
     if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
     {
       thd->stmt_map.erase(stmt);
