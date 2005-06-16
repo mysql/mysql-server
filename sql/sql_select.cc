@@ -2154,7 +2154,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
-      if (!table->file->records)
+      if (!table->file->records && !embedding)
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
 	set_position(join,const_count++,s,(KEYUSE*) 0);
@@ -7060,7 +7060,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
       while ((item_equal= it++))
       {
-        eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
       }
     }
   }

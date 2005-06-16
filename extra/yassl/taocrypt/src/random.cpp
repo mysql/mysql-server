@@ -26,7 +26,7 @@
 
 #include "random.hpp"
 
-#if defined(WIN32)
+#if defined(_WIN32)
     #define _WIN32_WINNT 0x0400
     #include <windows.h>
     #include <wincrypt.h>
@@ -34,7 +34,7 @@
     #include <errno.h>
     #include <fcntl.h>
     #include <unistd.h>
-#endif // WIN32
+#endif // _WIN32
 
 namespace TaoCrypt {
 
@@ -64,7 +64,7 @@ byte RandomNumberGenerator::GenerateByte()
 }
 
 
-#if defined(WIN32)
+#if defined(_WIN32)
 
 OS_Seed::OS_Seed()
 {
@@ -87,7 +87,7 @@ void OS_Seed::GenerateSeed(byte* output, word32 sz)
 }
 
 
-#else // WIN32
+#else // _WIN32
 
 
 OS_Seed::OS_Seed() 
@@ -122,7 +122,7 @@ void OS_Seed::GenerateSeed(byte* output, word32 sz)
     }
 }
 
-#endif // WIN32
+#endif // _WIN32
 
 
 

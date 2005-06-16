@@ -1022,7 +1022,8 @@ longlong Item_func_unsigned::val_int()
 String *Item_decimal_typecast::val_str(String *str)
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
-  my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, &tmp_buf);
+  if (null_value)
+    return NULL;
   my_decimal2string(E_DEC_FATAL_ERROR, &tmp_buf, 0, 0, 0, str);
   return str;
 }
@@ -1032,6 +1033,8 @@ double Item_decimal_typecast::val_real()
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   double res;
+  if (null_value)
+    return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, tmp, &res);
   return res;
 }
@@ -1041,6 +1044,8 @@ longlong Item_decimal_typecast::val_int()
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   longlong res;
+  if (null_value)
+    return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, tmp, unsigned_flag, &res);
   return res;
 }
@@ -1049,6 +1054,8 @@ longlong Item_decimal_typecast::val_int()
 my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
+  if ((null_value= args[0]->null_value))
+    return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
   return dec;
 }
