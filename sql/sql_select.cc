@@ -812,9 +812,14 @@ JOIN::optimize()
       DBUG_RETURN(1);
   }
   simple_group= 0;
-  group_list= remove_const(this, group_list, conds,
-                           rollup.state == ROLLUP::STATE_NONE,
-                           &simple_group);
+  {
+    ORDER *old_group_list;
+    group_list= remove_const(this, (old_group_list= group_list), conds,
+                             rollup.state == ROLLUP::STATE_NONE,
+			     &simple_group);
+    if (old_group_list && !group_list)
+      select_distinct= 0;
+  }
   if (!group_list && group)
   {
     order=0;					// The output has only one row
@@ -11647,9 +11652,9 @@ store_record_in_cache(JOIN_CACHE *cache)
 	     end > str && end[-1] == ' ' ;
 	     end--) ;
 	length=(uint) (end-str);
-	memcpy(pos+sizeof(uint), str, length);
-	*((uint *) pos)= length;
-	pos+= length+sizeof(uint);
+	memcpy(pos+sizeof(length), str, length);
+	memcpy_fixed(pos, &length, sizeof(length));
+	pos+= length+sizeof(length);
       }
       else
       {
@@ -11712,9 +11717,10 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (copy->strip)
       {
-	memcpy(copy->str, pos+sizeof(uint), length= *((uint *) pos));
+        memcpy_fixed(&length, pos, sizeof(length));
+	memcpy(copy->str, pos+sizeof(length), length);
 	memset(copy->str+length, ' ', copy->length-length);
-	pos+= sizeof(uint)+length;
+	pos+= sizeof(length)+length;
       }
       else
       {
