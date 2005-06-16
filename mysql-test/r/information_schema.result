@@ -823,3 +823,12 @@ GRANT SELECT ON *.* TO 'user4'@'localhost'
 drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
 use test;
 drop database mysqltest;
+create procedure p1 () modifies sql data set @a = 5;
+create procedure p2 () set @a = 5;
+select sql_data_access from information_schema.routines
+where specific_name like 'p%';
+sql_data_access
+MODIFIES SQL DATA
+CONTAINS SQL
+drop procedure p1;
+drop procedure p2;
