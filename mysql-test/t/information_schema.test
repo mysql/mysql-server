@@ -552,3 +552,8 @@ select sql_data_access from information_schema.routines
 where specific_name like 'p%';
 drop procedure p1;
 drop procedure p2;
+
+#
+# Bug #9434 SHOW CREATE DATABASE information_schema;
+#
+show create database information_schema;

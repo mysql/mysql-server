@@ -448,25 +448,32 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(TRUE);
   }
 #endif
-
-  (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
-  length=unpack_dirname(path,path);		// Convert if not unix
-  found_libchar= 0;
-  if (length && path[length-1] == FN_LIBCHAR)
+  if (!my_strcasecmp(system_charset_info, dbname,
+                     information_schema_name.str))
   {
-    found_libchar= 1;
-    path[length-1]=0;				// remove ending '\'
+    dbname= information_schema_name.str;
+    create.default_table_charset= system_charset_info;
   }
-  if (access(path,F_OK))
+  else
   {
-    my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-    DBUG_RETURN(TRUE);
+    (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
+    length=unpack_dirname(path,path);		// Convert if not unix
+    found_libchar= 0;
+    if (length && path[length-1] == FN_LIBCHAR)
+    {
+      found_libchar= 1;
+      path[length-1]=0;				// remove ending '\'
+    }
+    if (access(path,F_OK))
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
+      DBUG_RETURN(TRUE);
+    }
+    if (found_libchar)
+      path[length-1]= FN_LIBCHAR;
+    strmov(path+length, MY_DB_OPT_FILE);
+    load_db_opt(thd, path, &create);
   }
-  if (found_libchar)
-    path[length-1]= FN_LIBCHAR;
-  strmov(path+length, MY_DB_OPT_FILE);
-  load_db_opt(thd, path, &create);
-
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));
   field_list.push_back(new Item_empty_string("Create Database",1024));
