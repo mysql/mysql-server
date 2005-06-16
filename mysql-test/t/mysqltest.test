@@ -311,9 +311,17 @@ let $message= `SELECT USER()`;
 --source include/show_msg.inc
 
 # The message contains more then 80 characters on multiple lines
+# and is kept between double quotes.
 let $message= 
 "Here comes a very very long message that
     - is longer then 80 characters    and
     - consists of several lines";
+--source include/show_msg80.inc
+
+# The message contains more then 80 characters on multiple lines
+# and uses the auxiliary character "." at the beginning of the message lines.
+let $message= . Here comes a very very long message that
+              .      - is longer then 80 characters    and
+              .      - consists of several lines;
 --source include/show_msg80.inc
 
