@@ -12,10 +12,9 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1;
-commit;
 set autocommit=1;
-begin;
 create table t1 (a int not null) engine=bdb;
+begin;
 insert into t1 values (1),(2),(3);
 select * from t1;
 a
@@ -26,7 +25,6 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1;
-commit;
 create table t1 (a int not null) engine=bdb;
 create table t2 (a int not null) engine=bdb;
 create table t3 (a int not null) engine=bdb;
