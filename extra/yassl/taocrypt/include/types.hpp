@@ -80,16 +80,14 @@ typedef unsigned int   word32;
 #else
     #define TAOCRYPT_NATIVE_DWORD_AVAILABLE
     #ifdef WORD64_AVAILABLE
-            #define TAOCRYPT_SLOW_WORD64 
-            // define this if your CPU is not64-bit to use alternative code
-            // that avoids word64
-            typedef word16 hword;
-            typedef word32 word;
-            typedef word64 dword;
+        #define TAOCRYPT_SLOW_WORD64 
+        typedef word16 hword;
+        typedef word32 word;
+        typedef word64 dword;
     #else
-            typedef byte   hword;
-            typedef word16 word;
-            typedef word32 dword;
+        typedef byte   hword;
+        typedef word16 word;
+        typedef word32 dword;
     #endif
 #endif
 

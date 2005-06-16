@@ -138,7 +138,7 @@ ConfigRetriever::getConfig(NdbMgmHandle m_handle){
     setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
     return 0;
   }
-  
+
   return conf;
 }
 
