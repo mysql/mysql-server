@@ -294,6 +294,7 @@ my_bool opt_sync_bdb_logs, opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
+my_bool opt_log_slow_admin_statements= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_innodb_safe_binlog= 0;
 volatile bool mqh_used = 0;
@@ -4196,7 +4197,8 @@ enum options_mysqld
   OPT_TIME_FORMAT,
   OPT_DATETIME_FORMAT,
   OPT_LOG_QUERIES_NOT_USING_INDEXES,
-  OPT_DEFAULT_TIME_ZONE
+  OPT_DEFAULT_TIME_ZONE,
+  OPT_LOG_SLOW_ADMIN_STATEMENTS
 };
 
 
@@ -4456,7 +4458,7 @@ Disable with --skip-isam.",
    "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.", 
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
-   "Log queries that are executed without benefit of any index.",
+   "Log queries that are executed without benefit of any index to the slow log if it is open.",
    (gptr*) &opt_log_queries_not_using_indexes, (gptr*) &opt_log_queries_not_using_indexes,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-short-format", OPT_SHORT_LOG_FORMAT,
@@ -4467,8 +4469,13 @@ Disable with --skip-isam.",
    "Tells the slave to log the updates from the slave thread to the binary log. You will need to turn it on if you plan to daisy-chain the slaves.",
    (gptr*) &opt_log_slave_updates, (gptr*) &opt_log_slave_updates, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-slow-admin-statements", OPT_LOG_SLOW_ADMIN_STATEMENTS,
+   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to the slow log if it is open.",
+   (gptr*) &opt_log_slow_admin_statements,
+   (gptr*) &opt_log_slow_admin_statements,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slow-queries", OPT_SLOW_QUERY_LOG,
-   "Log slow queries to this log file. Defaults logging to hostname-slow.log file.",
+    "Log slow queries to this log file. Defaults logging to hostname-slow.log file. Must be enabled to activate other slow log options.",
    (gptr*) &opt_slow_logname, (gptr*) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"log-update", OPT_UPDATE_LOG,
@@ -6084,6 +6091,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
     break;
+  case (int) OPT_LOG_SLOW_ADMIN_STATEMENTS:
+    opt_log_slow_admin_statements= 1;
+    break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
@@ -6443,6 +6453,9 @@ static void get_options(int argc,char **argv)
   if (opt_bdb)
     sql_print_warning("this binary does not contain BDB storage engine");
 #endif
+  if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
+      !opt_slow_log)
+    sql_print_warning("options --log-slow-admin-statements and --log-queries-not-using-indexes have no effect if --log-slow-queries is not set");
 
   /*
     Check that the default storage engine is actually available.
