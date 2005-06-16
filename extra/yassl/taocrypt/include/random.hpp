@@ -42,7 +42,7 @@ public:
     void   GenerateSeed(byte*, word32 sz);
     Error  GetError() const { return error_; }
 private:
-#if defined(WIN32)
+#if defined(_WIN32)
     #if defined(_WIN64)
         typedef unsigned __int64 ProviderHandle;
         // type HCRYPTPROV, avoid #include <windows.h>

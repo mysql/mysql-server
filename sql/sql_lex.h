@@ -114,6 +114,14 @@ enum enum_sp_data_access
   SP_MODIFIES_SQL_DATA
 };
 
+const LEX_STRING sp_data_access_name[]=
+{
+  { (char*) STRING_WITH_LEN("") },
+  { (char*) STRING_WITH_LEN("CONTAINS SQL") },
+  { (char*) STRING_WITH_LEN("NO SQL") },
+  { (char*) STRING_WITH_LEN("READS SQL DATA") },
+  { (char*) STRING_WITH_LEN("MODIFIES SQL DATA") }
+};
 
 #define DERIVED_SUBQUERY	1
 #define DERIVED_VIEW		2

@@ -30,14 +30,9 @@
 #include "types.hpp"
 #include "type_traits.hpp"
 
-/*
-namespace GCC_ABI {
-    extern "C" int __cxa_pure_virtual();
-} */
+
 
 namespace TaoCrypt {
-
-// using GCC_ABI::__cxa_pure_virtual;
 
 // library allocation
 struct new_t {};      // TaoCrypt New type
@@ -75,7 +70,7 @@ void tcArrayDelete(T* ptr)
 
 
 // to resolve compiler generated operator delete on base classes with
-// virtual destructors, make sure doesn't get called
+// virtual destructors (when on stack), make sure doesn't get called
 class virtual_base {
 public:
     static void operator delete(void*) { assert(0); }
@@ -741,8 +736,6 @@ inline T1 SaturatingSubtract(T1 a, T2 b)
 unsigned int  BytePrecision(unsigned long value);
 unsigned int  BitPrecision(unsigned long);
 unsigned long Crop(unsigned long value, unsigned int size);
-
-void CallNewHandler();
 
 
 
