@@ -1340,8 +1340,9 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   if found, write the frm file to disk.
 
   RETURN VALUES:
+  -1 : Table did not exists
    0 : Table created ok
-   1 : Table could not be created
+   > 0 : Error, table existed but could not be created
 
 */
 
@@ -1361,10 +1362,10 @@ int ha_create_table_from_engine(THD* thd,
 
   bzero((char*) &create_info,sizeof(create_info));
 
-  if(ha_discover(thd, db, name, &frmblob, &frmlen))
+  if(error= ha_discover(thd, db, name, &frmblob, &frmlen))
   {
     // Table could not be discovered and thus not created
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   }
 
   /*
@@ -1377,11 +1378,11 @@ int ha_create_table_from_engine(THD* thd,
   if (writefrm(path, frmblob, frmlen))
   {
     my_free((char*) frmblob, MYF(MY_ALLOW_ZERO_PTR));
-    DBUG_RETURN(1);
+    DBUG_RETURN(2);
   }
 
   if (openfrm(path,"",0,(uint) READ_ALL, 0, &table))
-    DBUG_RETURN(1);
+    DBUG_RETURN(3);
 
   update_create_info_from_table(&create_info, &table);
   create_info.table_options|= HA_CREATE_FROM_ENGINE;
@@ -1506,14 +1507,15 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
   Try to discover one table from handler(s)
 
   RETURN
-    0    ok. In this case *frmblob and *frmlen are set
-    >=1  error.  frmblob and frmlen may not be set
+   -1  : Table did not exists
+    0  : OK. In this case *frmblob and *frmlen are set
+    >0 : error.  frmblob and frmlen may not be set
 */
 
 int ha_discover(THD *thd, const char *db, const char *name,
 		const void **frmblob, uint *frmlen)
 {
-  int error= 1; // Table does not exist in any handler
+  int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 #ifdef HAVE_NDBCLUSTER_DB

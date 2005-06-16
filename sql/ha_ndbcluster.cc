@@ -4300,7 +4300,7 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   {    
     const NdbError err= dict->getNdbError();
     if (err.code == 709)
-      DBUG_RETURN(1);
+      DBUG_RETURN(-1);
     ERR_RETURN(err);
   }
   DBUG_PRINT("info", ("Found table %s", tab->getName()));
