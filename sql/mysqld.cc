@@ -316,6 +316,8 @@ ulong slave_net_timeout, slave_trans_retries;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong com_stat[(uint) SQLCOM_END], com_other;
+ulong com_stmt_prepare, com_stmt_execute, com_stmt_send_long_data;
+ulong com_stmt_close, com_stmt_reset;
 ulong bytes_sent, bytes_received, net_big_packet_count;
 ulong refresh_version, flush_version;	/* Increments on each reload */
 ulong query_id, long_query_count;
@@ -5474,6 +5476,11 @@ struct show_var_st status_vars[]= {
   {"Com_show_warnings",        (char*) (com_stat+(uint) SQLCOM_SHOW_WARNS),SHOW_LONG},
   {"Com_slave_start",	       (char*) (com_stat+(uint) SQLCOM_SLAVE_START),SHOW_LONG},
   {"Com_slave_stop",	       (char*) (com_stat+(uint) SQLCOM_SLAVE_STOP),SHOW_LONG},
+  {"Com_stmt_prepare",         (char*) &com_stmt_prepare, SHOW_LONG},
+  {"Com_stmt_execute",         (char*) &com_stmt_execute, SHOW_LONG},
+  {"Com_stmt_send_long_data",  (char*) &com_stmt_send_long_data, SHOW_LONG},
+  {"Com_stmt_reset",           (char*) &com_stmt_reset, SHOW_LONG},
+  {"Com_stmt_close",           (char*) &com_stmt_close, SHOW_LONG},
   {"Com_truncate",	       (char*) (com_stat+(uint) SQLCOM_TRUNCATE),SHOW_LONG},
   {"Com_unlock_tables",	       (char*) (com_stat+(uint) SQLCOM_UNLOCK_TABLES),SHOW_LONG},
   {"Com_update",	       (char*) (com_stat+(uint) SQLCOM_UPDATE),SHOW_LONG},

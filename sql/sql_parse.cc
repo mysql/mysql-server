@@ -59,7 +59,6 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
-static void log_slow_query(THD *thd);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1515,7 +1514,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
       ulong length= (ulong)(packet_end-packet);
 
-      log_slow_query(thd);
+      log_slow_statement(thd);
 
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -1827,7 +1826,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->is_fatal_error)
     send_error(thd,0);				// End of memory ?
 
-  log_slow_query(thd);
+  log_slow_statement(thd);
 
   thd->proc_info="cleaning up";
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
@@ -1843,7 +1842,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 }
 
 
-static void log_slow_query(THD *thd)
+void log_slow_statement(THD *thd)
 {
   time_t start_of_query=thd->start_time;
   thd->end_time();				// Set start time
@@ -2193,6 +2192,8 @@ mysql_execute_command(THD *thd)
     DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
                         lex->prepared_stmt_name.length,
                         lex->prepared_stmt_name.str));
+    /* We account deallocate in the same manner as mysql_stmt_close */
+    statistic_increment(com_stmt_close, &LOCK_status);
     if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
     {
       thd->stmt_map.erase(stmt);
