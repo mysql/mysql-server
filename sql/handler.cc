@@ -165,11 +165,21 @@ my_bool ha_storage_engine_is_enabled(enum db_type database_type)
 
 	/* Use other database handler if databasehandler is not incompiled */
 
-enum db_type ha_checktype(enum db_type database_type)
+enum db_type ha_checktype(THD *thd, enum db_type database_type,
+                          bool no_substitute, bool report_error)
 {
-  THD *thd;
   if (ha_storage_engine_is_enabled(database_type))
     return database_type;
+
+  if (no_substitute)
+  {
+    if (report_error)
+    {
+      const char *engine_name= ha_get_storage_engine(database_type);
+      my_error(ER_FEATURE_DISABLED,MYF(0),engine_name,engine_name);
+    }
+    return DB_TYPE_UNKNOWN;
+  }
 
   switch (database_type) {
 #ifndef NO_HASH
@@ -182,7 +192,6 @@ enum db_type ha_checktype(enum db_type database_type)
     break;
   }
   
-  thd= current_thd;
   return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
           (enum db_type) thd->variables.table_type :
           ((enum db_type) global_system_variables.table_type !=
