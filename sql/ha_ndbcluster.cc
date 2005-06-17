@@ -435,8 +435,13 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
 		      err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
-    m_dupkey= table->primary_key;
-  
+  {
+    if (m_rows_to_insert == 1)
+      m_dupkey= table->primary_key;
+    else
+      // We are batching inserts, offending key is not available
+      m_dupkey= (uint) -1;
+  }
   DBUG_RETURN(res);
 }
 
