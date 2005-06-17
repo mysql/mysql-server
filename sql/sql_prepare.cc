@@ -19,9 +19,9 @@ This file contains the implementation of prepare and executes.
 
 Prepare:
 
-  - Server gets the query from client with command 'COM_PREPARE';
+  - Server gets the query from client with command 'COM_STMT_PREPARE';
     in the following format:
-    [COM_PREPARE:1] [query]
+    [COM_STMT_PREPARE:1] [query]
   - Parse the query and recognize any parameter markers '?' and
     store its information list in lex->param_list
   - Allocate a new statement for this prepare; and keep this in
@@ -37,10 +37,10 @@ Prepare:
 
 Prepare-execute:
 
-  - Server gets the command 'COM_EXECUTE' to execute the
+  - Server gets the command 'COM_STMT_EXECUTE' to execute the
     previously prepared query. If there is any param markers; then client
     will send the data in the following format:
-    [COM_EXECUTE:1]
+    [COM_STMT_EXECUTE:1]
     [STMT_ID:4]
     [NULL_BITS:(param_count+7)/8)]
     [TYPES_SUPPLIED_BY_CLIENT(0/1):1]
@@ -55,9 +55,10 @@ Prepare-execute:
 
 Long data handling:
 
-  - Server gets the long data in pieces with command type 'COM_LONG_DATA'.
+  - Server gets the long data in pieces with command type
+    'COM_STMT_SEND_LONG_DATA'.
   - The packet recieved will have the format as:
-    [COM_LONG_DATA:1][STMT_ID:4][parameter_number:2][data]
+    [COM_STMT_SEND_LONG_DATA:1][STMT_ID:4][parameter_number:2][data]
   - data from the packet is appended to long data value buffer for this
     placeholder.
   - It's up to the client to check for read data ended. The server doesn't
@@ -2117,7 +2118,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
   }
-  thd->command= COM_EXECUTE; /* For nice messages in general log */
+  thd->command= COM_STMT_EXECUTE; /* For nice messages in general log */
   execute_stmt(thd, stmt, &expanded_query);
   DBUG_VOID_RETURN;
 }
@@ -2185,7 +2186,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
 
 
 /*
-  COM_FETCH handler: fetches requested amount of rows from cursor
+  COM_STMT_FETCH handler: fetches requested amount of rows from cursor
 
   SYNOPSIS
     mysql_stmt_fetch()
@@ -2290,13 +2291,13 @@ void mysql_stmt_reset(THD *thd, char *packet)
   Note: we don't send any reply to that command.
 */
 
-void mysql_stmt_free(THD *thd, char *packet)
+void mysql_stmt_close(THD *thd, char *packet)
 {
   /* There is always space for 4 bytes in packet buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
 
-  DBUG_ENTER("mysql_stmt_free");
+  DBUG_ENTER("mysql_stmt_close");
 
   statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))

@@ -967,7 +967,7 @@ int yylex(void *arg, void *yythd)
       {
         THD* thd= (THD*)yythd;
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            (thd->command != COM_PREPARE))
+            (thd->command != COM_STMT_PREPARE))
         {
 	  lex->safe_to_cache_query= 0;
           lex->found_semicolon=(char*) lex->ptr;
