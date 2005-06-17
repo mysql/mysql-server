@@ -90,5 +90,5 @@ drop user drop_user@localhost;
 prepare stmt4 from ' show full processlist ';
 execute stmt4;
 Id	User	Host	db	Command	Time	State	Info
-number	root	localhost	test	Query	time	NULL	show full processlist
+number	root	localhost	test	Execute	time	NULL	show full processlist
 deallocate prepare stmt4;
