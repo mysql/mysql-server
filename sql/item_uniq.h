@@ -30,6 +30,7 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); return 0.0; }
   void fix_length_and_dec() { decimals=0; max_length=6; }
   void print(String *str) { str->append("0.0", 3); }
+  const char *func_name() const { return "unique_users"; }
 };
 
 
@@ -58,4 +59,5 @@ public:
   }
   void print(String *str) { str->append("0.0", 3); }
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
+  const char *func_name() const { return "sum_unique_users"; }
 };
