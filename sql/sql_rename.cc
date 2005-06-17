@@ -164,7 +164,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 	    ren_table->db, old_alias,
 	    reg_ext);
     unpack_filename(name, name);
-    if ((table_type=get_table_type(name)) == DB_TYPE_UNKNOWN)
+    if ((table_type=get_table_type(thd, name)) == DB_TYPE_UNKNOWN)
     {
       my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
       if (!skip_error)
