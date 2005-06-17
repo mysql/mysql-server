@@ -2476,7 +2476,6 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   int old_row_exists= 1;
   int error=0;
   ulong store_proc_rights;
-  byte *key;
   DBUG_ENTER("replace_routine_table");
 
   if (!initialized)
@@ -3216,7 +3215,6 @@ my_bool grant_init(THD *org_thd)
     do
     {
       GRANT_NAME *mem_check;
-      longlong proc_type;
       HASH *hash;
       if (!(mem_check=new GRANT_NAME(p_table)))
       {
