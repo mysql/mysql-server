@@ -41,7 +41,7 @@ static const int parallelism= 0;
 
 // Default value for max number of transactions
 // createable against NDB from this handler
-static const int max_transactions= 2;
+static const int max_transactions= 3; // should really be 2 but there is a transaction to much allocated when loch table is used
 
 static const char *ha_ndb_ext=".ndb";
 
