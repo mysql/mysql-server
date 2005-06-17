@@ -3022,7 +3022,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
   Item *item;
   List_iterator<Item> it(fields);
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   DBUG_ENTER("setup_wild");
 
   /*
@@ -3306,7 +3306,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     any_privileges	0 If we should ensure that we have SELECT privileges
 		          for all columns
                         1 If any privilege is ok
-    allocate_view_names if true view names will be copied to current Item_arena
+    allocate_view_names if true view names will be copied to current Query_arena
                         memory (made for SP/PS)
   RETURN
     0	ok
@@ -3566,7 +3566,7 @@ err:
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Item_arena *arena= thd->current_arena, backup;
+  Query_arena *arena= thd->current_arena, backup;
   bool save_wrapper= thd->lex->current_select->no_wrap_view_item;
   TABLE_LIST *table= NULL;	// For HP compilers
   DBUG_ENTER("setup_conds");

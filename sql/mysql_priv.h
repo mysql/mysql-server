@@ -559,8 +559,6 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
-#define prepare_execute(A) ((A)->command == COM_EXECUTE)
-
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -842,7 +840,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
 void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_free(THD *thd, char *packet);
+void mysql_stmt_close(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);

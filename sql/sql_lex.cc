@@ -967,7 +967,7 @@ int yylex(void *arg, void *yythd)
       {
         THD* thd= (THD*)yythd;
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            (thd->command != COM_PREPARE))
+            (thd->command != COM_STMT_PREPARE))
         {
 	  lex->safe_to_cache_query= 0;
           lex->found_semicolon=(char*) lex->ptr;
@@ -1484,8 +1484,8 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Item_arena *arena= thd->current_arena;
-  return (ref_pointer_array= 
+  Query_arena *arena= thd->current_arena;
+  return (ref_pointer_array=
           (Item **)arena->alloc(sizeof(Item*) *
                                 (item_list.elements +
                                  select_n_having_items +

@@ -19,9 +19,9 @@ This file contains the implementation of prepare and executes.
 
 Prepare:
 
-  - Server gets the query from client with command 'COM_PREPARE';
+  - Server gets the query from client with command 'COM_STMT_PREPARE';
     in the following format:
-    [COM_PREPARE:1] [query]
+    [COM_STMT_PREPARE:1] [query]
   - Parse the query and recognize any parameter markers '?' and
     store its information list in lex->param_list
   - Allocate a new statement for this prepare; and keep this in
@@ -37,10 +37,10 @@ Prepare:
 
 Prepare-execute:
 
-  - Server gets the command 'COM_EXECUTE' to execute the
+  - Server gets the command 'COM_STMT_EXECUTE' to execute the
     previously prepared query. If there is any param markers; then client
     will send the data in the following format:
-    [COM_EXECUTE:1]
+    [COM_STMT_EXECUTE:1]
     [STMT_ID:4]
     [NULL_BITS:(param_count+7)/8)]
     [TYPES_SUPPLIED_BY_CLIENT(0/1):1]
@@ -55,9 +55,10 @@ Prepare-execute:
 
 Long data handling:
 
-  - Server gets the long data in pieces with command type 'COM_LONG_DATA'.
+  - Server gets the long data in pieces with command type
+    'COM_STMT_SEND_LONG_DATA'.
   - The packet recieved will have the format as:
-    [COM_LONG_DATA:1][STMT_ID:4][parameter_number:2][data]
+    [COM_STMT_SEND_LONG_DATA:1][STMT_ID:4][parameter_number:2][data]
   - data from the packet is appended to long data value buffer for this
     placeholder.
   - It's up to the client to check for read data ended. The server doesn't
@@ -104,7 +105,7 @@ public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
   void setup_set_params();
-  virtual Item_arena::Type type() const;
+  virtual Query_arena::Type type() const;
 };
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt,
@@ -132,7 +133,7 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
 {
   Statement *stmt= thd->stmt_map.find(id);
 
-  if (stmt == 0 || stmt->type() != Item_arena::PREPARED_STATEMENT)
+  if (stmt == 0 || stmt->type() != Query_arena::PREPARED_STATEMENT)
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf), llstr(id, llbuf),
@@ -1798,7 +1799,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   {
     stmt->setup_set_params();
     init_stmt_after_parse(thd, stmt->lex);
-    stmt->state= Item_arena::PREPARED;
+    stmt->state= Query_arena::PREPARED;
   }
   DBUG_RETURN(!stmt);
 }
@@ -1969,7 +1970,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   DBUG_PRINT("exec_query:", ("%s", stmt->query));
 
   /* Check if we got an error when sending long data */
-  if (stmt->state == Item_arena::ERROR)
+  if (stmt->state == Query_arena::ERROR)
   {
     my_message(stmt->last_errno, stmt->last_error, MYF(0));
     DBUG_VOID_RETURN;
@@ -2117,7 +2118,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
   }
-  thd->command= COM_EXECUTE; /* For nice messages in general log */
+  thd->command= COM_STMT_EXECUTE; /* For nice messages in general log */
   execute_stmt(thd, stmt, &expanded_query);
   DBUG_VOID_RETURN;
 }
@@ -2178,14 +2179,14 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   thd->set_statement(&thd->stmt_backup);
   thd->current_arena= thd;
 
-  if (stmt->state == Item_arena::PREPARED)
-    stmt->state= Item_arena::EXECUTED;
+  if (stmt->state == Query_arena::PREPARED)
+    stmt->state= Query_arena::EXECUTED;
   DBUG_VOID_RETURN;
 }
 
 
 /*
-  COM_FETCH handler: fetches requested amount of rows from cursor
+  COM_STMT_FETCH handler: fetches requested amount of rows from cursor
 
   SYNOPSIS
     mysql_stmt_fetch()
@@ -2270,7 +2271,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   if (stmt->cursor && stmt->cursor->is_open())
     stmt->cursor->close();
 
-  stmt->state= Item_arena::PREPARED;
+  stmt->state= Query_arena::PREPARED;
 
   /*
     Clear parameters from data which could be set by
@@ -2290,13 +2291,13 @@ void mysql_stmt_reset(THD *thd, char *packet)
   Note: we don't send any reply to that command.
 */
 
-void mysql_stmt_free(THD *thd, char *packet)
+void mysql_stmt_close(THD *thd, char *packet)
 {
   /* There is always space for 4 bytes in packet buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
 
-  DBUG_ENTER("mysql_stmt_free");
+  DBUG_ENTER("mysql_stmt_close");
 
   statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
@@ -2360,7 +2361,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
-    stmt->state= Item_arena::ERROR;
+    stmt->state= Query_arena::ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysql_stmt_send_long_data");
@@ -2376,7 +2377,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param->set_longdata(thd->extra_data, thd->extra_length))
 #endif
   {
-    stmt->state= Item_arena::ERROR;
+    stmt->state= Query_arena::ERROR;
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
@@ -2429,7 +2430,7 @@ Prepared_statement::~Prepared_statement()
 }
 
 
-Item_arena::Type Prepared_statement::type() const
+Query_arena::Type Prepared_statement::type() const
 {
   return PREPARED_STATEMENT;
 }
