@@ -745,8 +745,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
                 error.
               */
 	      keyinfo->key_length-= (key_part->length - field->key_length());
-	      key_part->store_length-= (key_part->length - field->key_length());
-              key_part->length= field->key_length();
+	      key_part->store_length-= (uint16)(key_part->length -
+                                                field->key_length());
+              key_part->length= (uint16)field->key_length();
               sql_print_error("Found wrong key definition in %s; Please do \"ALTER TABLE '%s' FORCE \" to fix it!", name, share->table_name);
               push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                                   ER_CRASHED_ON_USAGE,
