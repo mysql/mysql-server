@@ -292,7 +292,25 @@ waiting, in its lock queue. Solution: We can copy the locks as gap type
 locks, so that also the waiting locks are transformed to granted gap type
 locks on the inserted record. */
 
+/* LOCK COMPATIBILITY MATRIX
+ *    IS IX S  X  AI
+ * IS +  +  +  -  +
+ * IX +  +  -  -  +
+ * S  +  -  +  -  -
+ * X  -  -  -  -  -
+ * AI +  +  -  -  -
+ *
+ * Note that for rows, InnoDB only acquires S or X locks.
+ * For tables, InnoDB normally acquires IS or IX locks.
+ * S or X table locks are only acquired for LOCK TABLES.
+ * Auto-increment (AI) locks are needed because of
+ * statement-level MySQL binlog.
+ * See also lock_mode_compatible().
+ */
+
+#ifdef UNIV_DEBUG
 ibool	lock_print_waits	= FALSE;
+#endif /* UNIV_DEBUG */
 
 /* The lock system */
 lock_sys_t*	lock_sys	= NULL;
@@ -1842,11 +1860,13 @@ lock_rec_enqueue_waiting(
 
 	ut_a(que_thr_stop(thr));
 
+#ifdef UNIV_DEBUG
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu in index ",
 			(ulong) ut_dulint_get_low(trx->id));
 		ut_print_name(stderr, trx, index->name);
 	}
+#endif /* UNIV_DEBUG */
 	
 	return(DB_LOCK_WAIT);	
 }
@@ -2204,10 +2224,12 @@ lock_grant(
                 lock->trx->auto_inc_lock = lock;
         }
 
+#ifdef UNIV_DEBUG
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu ends\n",
 		       (ulong) ut_dulint_get_low(lock->trx->id));
 	}
+#endif /* UNIV_DEBUG */
 
 	/* If we are resolving a deadlock by choosing another transaction
 	as a victim, then our original transaction may not be in the
@@ -3303,11 +3325,11 @@ lock_deadlock_recursive(
 				} else {
 					lock_table_print(ef, start->wait_lock);
 				}
-
+#ifdef UNIV_DEBUG
 				if (lock_print_waits) {
 					fputs("Deadlock detected\n", stderr);
 				}
-
+#endif /* UNIV_DEBUG */
 				if (ut_dulint_cmp(wait_lock->trx->undo_no,
 							start->undo_no) >= 0) {
 					/* Our recursion starting point
