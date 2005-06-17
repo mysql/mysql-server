@@ -9,6 +9,3 @@
 #  Don't use any TAB characters for whitespace.
 #
 ##############################################################################
-bdb_cache : fails in 5.0 as well as hell
-kill : fails, unsure of status in 5.0
-
