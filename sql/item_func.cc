@@ -1061,6 +1061,14 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 }
 
 
+void Item_decimal_typecast::print(String *str)
+{
+  str->append("cast(", 5);
+  args[0]->print(str);
+  str->append(" as decimal)", 12);
+}
+
+
 double Item_func_plus::real_op()
 {
   double value= args[0]->val_real() + args[1]->val_real();
@@ -4111,7 +4119,7 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
     return 1;					// Same item is same.
   /* Check if other type is also a get_user_var() object */
   if (item->type() != FUNC_ITEM ||
-      ((Item_func*) item)->func_name() != func_name())
+      ((Item_func*) item)->functype() != functype())
     return 0;
   Item_func_get_user_var *other=(Item_func_get_user_var*) item;
   return (name.length == other->name.length &&

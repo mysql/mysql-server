@@ -54,7 +54,8 @@ public:
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
-                  GUSERVAR_FUNC};
+                  GUSERVAR_FUNC, COLLATE_FUNC,
+                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -123,7 +124,17 @@ public:
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
-  virtual const char *func_name() const { return "?"; }
+  /*
+    This method is used for debug purposes to print the name of an
+    item to the debug log. The second use of this method is as
+    a helper function of print(), where it is applicable.
+    To suit both goals it should return a meaningful,
+    distinguishable and sintactically correct string.  This method
+    should not be used for runtime type identification, use enum
+    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
+    instead.
+  */
+  virtual const char *func_name() const= 0;
   virtual bool const_item() const { return const_item_cache; }
   inline Item **arguments() const { return args; }
   void set_arguments(List<Item> &list);
@@ -306,6 +317,8 @@ public:
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
   void fix_length_and_dec() {};
+  const char *func_name() const { return "decimal_typecast"; }
+  void print(String *);
 };
 
 
@@ -506,7 +519,7 @@ public:
 
 class Item_func_acos :public Item_dec_func
 {
- public:
+public:
   Item_func_acos(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "acos"; }
@@ -514,7 +527,7 @@ class Item_func_acos :public Item_dec_func
 
 class Item_func_asin :public Item_dec_func
 {
- public:
+public:
   Item_func_asin(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "asin"; }
@@ -522,7 +535,7 @@ class Item_func_asin :public Item_dec_func
 
 class Item_func_atan :public Item_dec_func
 {
- public:
+public:
   Item_func_atan(Item *a) :Item_dec_func(a) {}
   Item_func_atan(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val_real();
@@ -531,7 +544,7 @@ class Item_func_atan :public Item_dec_func
 
 class Item_func_cos :public Item_dec_func
 {
- public:
+public:
   Item_func_cos(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "cos"; }
@@ -539,7 +552,7 @@ class Item_func_cos :public Item_dec_func
 
 class Item_func_sin :public Item_dec_func
 {
- public:
+public:
   Item_func_sin(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "sin"; }
@@ -547,7 +560,7 @@ class Item_func_sin :public Item_dec_func
 
 class Item_func_tan :public Item_dec_func
 {
- public:
+public:
   Item_func_tan(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "tan"; }
@@ -634,7 +647,7 @@ class Item_func_units :public Item_real_func
 {
   char *name;
   double mul,add;
- public:
+public:
   Item_func_units(char *name_arg,Item *a,double mul_arg,double add_arg)
     :Item_real_func(a),name(name_arg),mul(mul_arg),add(add_arg) {}
   double val_real();
@@ -853,7 +866,7 @@ public:
 class Item_func_benchmark :public Item_int_func
 {
   ulong loop_count;
- public:
+public:
   Item_func_benchmark(ulong loop_count_arg,Item *expr)
     :Item_int_func(expr), loop_count(loop_count_arg)
   {}
@@ -868,7 +881,7 @@ class Item_func_benchmark :public Item_int_func
 
 class Item_udf_func :public Item_func
 {
- protected:
+protected:
   udf_handler udf;
 
 public:
@@ -1046,7 +1059,7 @@ class Item_func_get_lock :public Item_int_func
 class Item_func_release_lock :public Item_int_func
 {
   String value;
- public:
+public:
   Item_func_release_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
@@ -1058,7 +1071,7 @@ class Item_func_release_lock :public Item_int_func
 class Item_master_pos_wait :public Item_int_func
 {
   String value;
- public:
+public:
   Item_master_pos_wait(Item *a,Item *b) :Item_int_func(a,b) {}
   Item_master_pos_wait(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   longlong val_int();
