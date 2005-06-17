@@ -632,6 +632,13 @@ typedef struct system_status_var
   ulong filesort_range_count;
   ulong filesort_rows;
   ulong filesort_scan_count;
+  /* Ppepared statements and binary protocol */
+  ulong com_stmt_prepare;
+  ulong com_stmt_execute;
+  ulong com_stmt_send_long_data;
+  ulong com_stmt_fetch;
+  ulong com_stmt_reset;
+  ulong com_stmt_close;
 
   double last_query_cost;
 } STATUS_VAR;
@@ -641,7 +648,7 @@ typedef struct system_status_var
   variable in system_status_var
 */
 
-#define last_system_status_var filesort_scan_count
+#define last_system_status_var com_stmt_close
 
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -1194,7 +1201,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
-  bool       slow_command;
+  bool       enable_slow_log;   /* enable slow log for current statement */
   bool	     no_trans_update, abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
