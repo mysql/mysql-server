@@ -7,7 +7,7 @@
 ###############################################################
 # Debug options : To debug this test script
 ###############################################################
-let $showbinlog= 0;
+let $show_binlog= 0;
 let $manipulate= 1;
 
 ######## The typical test sequence
