@@ -1481,7 +1481,7 @@ public:
 		       str_value.length(), &end_not_used, &err_not_used));
   }
   longlong val_int()
-  { 
+  {
     int err;
     return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),10, (char**) 0,&err); 
   }
@@ -1496,62 +1496,62 @@ public:
 };
 
 
-class Item_buff :public Sql_alloc
+class Cached_item :public Sql_alloc
 {
 public:
   my_bool null_value;
-  Item_buff() :null_value(0) {}
+  Cached_item() :null_value(0) {}
   virtual bool cmp(void)=0;
-  virtual ~Item_buff(); /*line -e1509 */
+  virtual ~Cached_item(); /*line -e1509 */
 };
 
-class Item_str_buff :public Item_buff
+class Cached_item_str :public Cached_item
 {
   Item *item;
   String value,tmp_value;
 public:
-  Item_str_buff(THD *thd, Item *arg);
+  Cached_item_str(THD *thd, Item *arg);
   bool cmp(void);
-  ~Item_str_buff();				// Deallocate String:s
+  ~Cached_item_str();                           // Deallocate String:s
 };
 
 
-class Item_real_buff :public Item_buff
+class Cached_item_real :public Cached_item
 {
   Item *item;
   double value;
 public:
-  Item_real_buff(Item *item_par) :item(item_par),value(0.0) {}
+  Cached_item_real(Item *item_par) :item(item_par),value(0.0) {}
   bool cmp(void);
 };
 
-class Item_int_buff :public Item_buff
+class Cached_item_int :public Cached_item
 {
   Item *item;
   longlong value;
 public:
-  Item_int_buff(Item *item_par) :item(item_par),value(0) {}
+  Cached_item_int(Item *item_par) :item(item_par),value(0) {}
   bool cmp(void);
 };
 
 
-class Item_decimal_buff :public Item_buff
+class Cached_item_decimal :public Cached_item
 {
   Item *item;
   my_decimal value;
 public:
-  Item_decimal_buff(Item *item_par);
+  Cached_item_decimal(Item *item_par);
   bool cmp(void);
 };
 
-class Item_field_buff :public Item_buff
+class Cached_item_field :public Cached_item
 {
   char *buff;
   Field *field;
   uint length;
 
 public:
-  Item_field_buff(Item_field *item)
+  Cached_item_field(Item_field *item)
   {
     field=item->field;
     buff= (char*) sql_calloc(length=field->pack_length());
@@ -1573,7 +1573,7 @@ public:
   void print(String *str);
   int save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
-  
+
   bool walk(Item_processor processor, byte *args)
   {
     return arg->walk(processor, args) ||
@@ -1879,7 +1879,7 @@ void mark_select_range_as_dependent(THD *thd,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 
-extern Item_buff *new_Item_buff(THD *thd, Item *item);
+extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern bool field_is_equal_to_item(Field *field,Item *item);

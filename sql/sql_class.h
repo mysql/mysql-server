@@ -654,7 +654,7 @@ typedef struct system_status_var
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
-class Item_arena
+class Query_arena
 {
 public:
   /*
@@ -667,12 +667,12 @@ public:
 #ifndef DBUG_OFF
   bool backup_arena;
 #endif
-  enum enum_state 
+  enum enum_state
   {
     INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
     CONVENTIONAL_EXECUTION= 3, EXECUTED= 4, ERROR= -1
   };
-  
+
   enum_state state;
 
   /* We build without RTTI, so dynamic_cast can't be used. */
@@ -682,22 +682,22 @@ public:
   };
 
   /*
-    This constructor is used only when Item_arena is created as
-    backup storage for another instance of Item_arena.
+    This constructor is used only when Query_arena is created as
+    backup storage for another instance of Query_arena.
   */
-  Item_arena() {};
+  Query_arena() {};
   /*
     Create arena for already constructed THD using its variables as
     parameters for memory root initialization.
   */
-  Item_arena(THD *thd);
+  Query_arena(THD *thd);
   /*
     Create arena and optionally init memory root with minimal values.
-    Particularly used if Item_arena is part of Statement.
+    Particularly used if Query_arena is part of Statement.
   */
-  Item_arena(bool init_mem_root);
+  Query_arena(bool init_mem_root);
   virtual Type type() const;
-  virtual ~Item_arena() {};
+  virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == INITIALIZED; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
@@ -729,9 +729,9 @@ public:
     return ptr;
   }
 
-  void set_n_backup_item_arena(Item_arena *set, Item_arena *backup);
-  void restore_backup_item_arena(Item_arena *set, Item_arena *backup);
-  void set_item_arena(Item_arena *set);
+  void set_n_backup_item_arena(Query_arena *set, Query_arena *backup);
+  void restore_backup_item_arena(Query_arena *set, Query_arena *backup);
+  void set_item_arena(Query_arena *set);
 };
 
 
@@ -751,7 +751,7 @@ class Cursor;
   be used explicitly.
 */
 
-class Statement: public Item_arena
+class Statement: public Query_arena
 {
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
@@ -1054,7 +1054,7 @@ public:
 #endif
   struct st_my_thread_var *mysys_var;
   /*
-    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    Type of current query: COM_STMT_PREPARE, COM_QUERY, etc. Set from
     first byte of the packet in do_command()
   */
   enum enum_server_command command;
@@ -1122,9 +1122,9 @@ public:
   Item_change_list change_list;
 
   /*
-    Current prepared Item_arena if there one, or 0
+    Current prepared Query_arena if there one, or 0
   */
-  Item_arena *current_arena;
+  Query_arena *current_arena;
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -1346,13 +1346,9 @@ public:
     return 0;
 #endif
   }
-  inline bool only_prepare()
-  {
-    return command == COM_PREPARE;
-  }
   inline bool fill_derived_tables()
   {
-    return !only_prepare() && !lex->only_view_structure();
+    return !current_arena->is_stmt_prepare() && !lex->only_view_structure();
   }
   inline gptr trans_alloc(unsigned int size)
   {
@@ -1385,13 +1381,13 @@ public:
   inline void fatal_error()
   {
     is_fatal_error= 1;
-    net.report_error= 1; 
+    net.report_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
-  inline Item_arena *change_arena_if_needed(Item_arena *backup)
+  inline Query_arena *change_arena_if_needed(Query_arena *backup)
   {
     /*
       use new arena if we are in a prepared statements and we have not
