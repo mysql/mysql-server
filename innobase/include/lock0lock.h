@@ -19,7 +19,9 @@ Created 5/7/1996 Heikki Tuuri
 #include "read0types.h"
 #include "hash0hash.h"
 
+#ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
+#endif /* UNIV_DEBUG */
 /* Buffer for storing information about the most recent deadlock error */
 extern FILE*	lock_latest_err_file;
 
