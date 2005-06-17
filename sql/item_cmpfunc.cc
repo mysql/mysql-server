@@ -649,7 +649,7 @@ bool Item_in_optimizer::fix_left(THD *thd,
     If it is preparation PS only then we do not know values of parameters =>
     cant't get there values and do not need that values.
   */
-  if (!thd->only_prepare())
+  if (!thd->current_arena->is_stmt_prepare())
     cache->store(args[0]);
   if (cache->cols() == 1)
   {
