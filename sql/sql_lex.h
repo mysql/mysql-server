@@ -304,7 +304,7 @@ protected:
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
 
-  ulonglong options;
+  ulong options;
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT

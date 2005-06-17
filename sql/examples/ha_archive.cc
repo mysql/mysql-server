@@ -259,7 +259,7 @@ error:
   This method reads the header of a meta file and returns whether or not it was successful.
   *rows will contain the current number of rows in the data file upon success.
 */
-int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
+int ha_archive::read_meta_file(File meta_file, ha_rows *rows)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   ulonglong check_point;
@@ -273,7 +273,7 @@ int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
   /*
     Parse out the meta data, we ignore version at the moment
   */
-  *rows= uint8korr(meta_buffer + 2);
+  *rows= (ha_rows)uint8korr(meta_buffer + 2);
   check_point= uint8korr(meta_buffer + 10);
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
@@ -296,7 +296,7 @@ int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
   By setting dirty you say whether or not the file represents the actual state of the data file.
   Upon ::open() we set to dirty, and upon ::close() we set to clean.
 */
-int ha_archive::write_meta_file(File meta_file, ulonglong rows, bool dirty)
+int ha_archive::write_meta_file(File meta_file, ha_rows rows, bool dirty)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   ulonglong check_point= 0; //Reserved for the future
@@ -787,7 +787,7 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
-  current_position= my_get_ptr(pos, ref_length);
+  current_position= (z_off_t)my_get_ptr(pos, ref_length);
   (void)gzseek(archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(archive, buf));
@@ -801,7 +801,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc;
   byte *buf; 
-  ulonglong rows_recorded= 0;
+  ha_rows rows_recorded= 0;
   gzFile rebuild_file; // Archive file we are working with 
   File meta_file; // Meta file we use 
   char data_file_name[FN_REFLEN];
