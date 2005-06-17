@@ -1569,3 +1569,21 @@ drop procedure p1;
 drop view v1;
 drop table t1;
 
+#
+# using sum(distinct ) & avg(distinct ) in views (BUG#7015)
+#
+create table t1 (s1 int);
+create view  v1 as select sum(distinct s1) from t1;
+select * from v1;
+drop view v1;
+create view  v1 as select avg(distinct s1) from t1;
+select * from v1;
+drop view v1;
+drop table t1;
+
+#
+# using cast(... as decimal) in views (BUG#11387);
+#
+create view v1 as select cast(1 as decimal);
+select * from v1;
+drop view v1;

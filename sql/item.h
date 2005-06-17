@@ -468,6 +468,18 @@ public:
   */
   virtual bool const_during_execution() const 
   { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
+  /*
+    This is an essential method for correct functioning of VIEWS.
+    To save a view in an .frm file we need its unequivocal
+    definition in SQL that takes into account sql_mode and
+    environmental settings.  Currently such definition is restored
+    by traversing through the parsed tree of a view and
+    print()'ing SQL syntax of every node to a String buffer. This
+    method is used to print the SQL definition of an item. The
+    second use of this method is for EXPLAIN EXTENDED, to print
+    the SQL of a query after all optimizations of the parsed tree
+    have been done.
+  */
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
   void print_item_w_name(String *);
   virtual void update_used_tables() {}
