@@ -1046,7 +1046,7 @@ public:
 #endif
   struct st_my_thread_var *mysys_var;
   /*
-    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    Type of current query: COM_STMT_PREPARE, COM_QUERY, etc. Set from
     first byte of the packet in do_command()
   */
   enum enum_server_command command;
@@ -1338,13 +1338,9 @@ public:
     return 0;
 #endif
   }
-  inline bool only_prepare()
-  {
-    return command == COM_PREPARE;
-  }
   inline bool fill_derived_tables()
   {
-    return !only_prepare() && !lex->only_view_structure();
+    return !current_arena->is_stmt_prepare() && !lex->only_view_structure();
   }
   inline gptr trans_alloc(unsigned int size)
   {

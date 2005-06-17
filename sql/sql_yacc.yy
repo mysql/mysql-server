@@ -914,7 +914,7 @@ deallocate:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_PREPARE)
+          if (thd->command == COM_STMT_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
@@ -939,7 +939,7 @@ prepare:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_PREPARE)
+          if (thd->command == COM_STMT_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
@@ -974,7 +974,7 @@ execute:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_PREPARE)
+          if (thd->command == COM_STMT_PREPARE)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
@@ -6902,7 +6902,7 @@ param_marker:
         {
           THD *thd=YYTHD;
 	  LEX *lex= thd->lex;
-          if (thd->command == COM_PREPARE)
+          if (thd->command == COM_STMT_PREPARE)
           {
             Item_param *item= new Item_param((uint) (lex->tok_start -
                                                      (uchar *) thd->query));
