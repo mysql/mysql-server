@@ -138,7 +138,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
-static int test_if_group_changed(List<Item_buff> &list);
+static int test_if_group_changed(List<Cached_item> &list);
 static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
@@ -582,7 +582,7 @@ JOIN::optimize()
       MEMROOT for prepared statements and stored procedures.
     */
 
-    Item_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->current_arena, backup;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
     else
@@ -12312,7 +12312,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Item_buff *tmp=new_Item_buff(join->thd, *group->item);
+      Cached_item *tmp=new_Cached_item(join->thd, *group->item);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
@@ -12323,12 +12323,12 @@ alloc_group_fields(JOIN *join,ORDER *group)
 
 
 static int
-test_if_group_changed(List<Item_buff> &list)
+test_if_group_changed(List<Cached_item> &list)
 {
   DBUG_ENTER("test_if_group_changed");
-  List_iterator<Item_buff> li(list);
+  List_iterator<Cached_item> li(list);
   int idx= -1,i;
-  Item_buff *buff;
+  Cached_item *buff;
 
   for (i=(int) list.elements-1 ; (buff=li++) ; i--)
   {

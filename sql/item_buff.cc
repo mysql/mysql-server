@@ -20,23 +20,23 @@
 #include "mysql_priv.h"
 
 /*
-** Create right type of item_buffer for an item
+** Create right type of Cached_item for an item
 */
 
-Item_buff *new_Item_buff(THD *thd, Item *item)
+Cached_item *new_Cached_item(THD *thd, Item *item)
 {
   if (item->type() == Item::FIELD_ITEM &&
       !(((Item_field *) item)->field->flags & BLOB_FLAG))
-    return new Item_field_buff((Item_field *) item);
+    return new Cached_item_field((Item_field *) item);
   switch (item->result_type()) {
   case STRING_RESULT:
-    return new Item_str_buff(thd, (Item_field *) item);
+    return new Cached_item_str(thd, (Item_field *) item);
   case INT_RESULT:
-    return new Item_int_buff((Item_field *) item);
+    return new Cached_item_int((Item_field *) item);
   case REAL_RESULT:
-    return new Item_real_buff(item);
+    return new Cached_item_real(item);
   case DECIMAL_RESULT:
-    return new Item_decimal_buff(item);
+    return new Cached_item_decimal(item);
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
@@ -44,18 +44,18 @@ Item_buff *new_Item_buff(THD *thd, Item *item)
   }
 }
 
-Item_buff::~Item_buff() {}
+Cached_item::~Cached_item() {}
 
 /*
 ** Compare with old value and replace value with new value
 ** Return true if values have changed
 */
 
-Item_str_buff::Item_str_buff(THD *thd, Item *arg)
+Cached_item_str::Cached_item_str(THD *thd, Item *arg)
   :item(arg), value(min(arg->max_length, thd->variables.max_sort_length))
 {}
 
-bool Item_str_buff::cmp(void)
+bool Cached_item_str::cmp(void)
 {
   String *res;
   bool tmp;
@@ -77,12 +77,12 @@ bool Item_str_buff::cmp(void)
   return tmp;
 }
 
-Item_str_buff::~Item_str_buff()
+Cached_item_str::~Cached_item_str()
 {
   item=0;					// Safety
 }
 
-bool Item_real_buff::cmp(void)
+bool Cached_item_real::cmp(void)
 {
   double nr= item->val_real();
   if (null_value != item->null_value || nr != value)
@@ -94,7 +94,7 @@ bool Item_real_buff::cmp(void)
   return FALSE;
 }
 
-bool Item_int_buff::cmp(void)
+bool Cached_item_int::cmp(void)
 {
   longlong nr=item->val_int();
   if (null_value != item->null_value || nr != value)
@@ -107,7 +107,7 @@ bool Item_int_buff::cmp(void)
 }
 
 
-bool Item_field_buff::cmp(void)
+bool Cached_item_field::cmp(void)
 {
   bool tmp= field->cmp(buff) != 0;		// This is not a blob!
   if (tmp)
@@ -121,14 +121,14 @@ bool Item_field_buff::cmp(void)
 }
 
 
-Item_decimal_buff::Item_decimal_buff(Item *it)
+Cached_item_decimal::Cached_item_decimal(Item *it)
   :item(it)
 {
   my_decimal_set_zero(&value);
 }
 
 
-bool Item_decimal_buff::cmp()
+bool Cached_item_decimal::cmp()
 {
   my_decimal tmp;
   my_decimal *ptmp= item->val_decimal(&tmp);
@@ -147,6 +147,6 @@ bool Item_decimal_buff::cmp()
 *****************************************************************************/
 
 #ifdef __GNUC__
-template class List<Item_buff>;
-template class List_iterator<Item_buff>;
+template class List<Cached_item>;
+template class List_iterator<Cached_item>;
 #endif

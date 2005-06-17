@@ -13040,7 +13040,7 @@ static void test_bug9478()
       int4store(buff, stmt->stmt_id);
       buff[4]= 0;                               /* Flag */
       int4store(buff+5, 1);                     /* Return 1 row */
-      rc= ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff,
+      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_EXECUTE, buff,
                                                sizeof(buff), 0,0,1) ||
            (*mysql->methods->read_query_result)(mysql));
       DIE_UNLESS(rc);

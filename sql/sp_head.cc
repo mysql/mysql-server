@@ -310,12 +310,12 @@ sp_head::operator delete(void *ptr, size_t size)
 
 
 sp_head::sp_head()
-  :Item_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
+  :Query_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
    m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
-  extern byte 
+  extern byte
     *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
@@ -574,7 +574,7 @@ sp_head::execute(THD *thd)
   sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
-  Item_arena *old_arena;
+  Query_arena *old_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
   LEX *old_lex;
@@ -2312,7 +2312,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
                                        TABLE_LIST ***query_tables_last_ptr)
 {
   uint i;
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   bool result= FALSE;
   DBUG_ENTER("sp_head::add_used_tables_to_table_list");
 
