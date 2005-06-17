@@ -1634,32 +1634,32 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     break;
   }
-  case COM_EXECUTE:
+  case COM_STMT_EXECUTE:
   {
     mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
-  case COM_FETCH:
+  case COM_STMT_FETCH:
   {
     mysql_stmt_fetch(thd, packet, packet_length);
     break;
   }
-  case COM_LONG_DATA:
+  case COM_STMT_SEND_LONG_DATA:
   {
     mysql_stmt_get_longdata(thd, packet, packet_length);
     break;
   }
-  case COM_PREPARE:
+  case COM_STMT_PREPARE:
   {
     mysql_stmt_prepare(thd, packet, packet_length, 0);
     break;
   }
-  case COM_CLOSE_STMT:
+  case COM_STMT_CLOSE:
   {
-    mysql_stmt_free(thd, packet);
+    mysql_stmt_close(thd, packet);
     break;
   }
-  case COM_RESET_STMT:
+  case COM_STMT_RESET:
   {
     mysql_stmt_reset(thd, packet);
     break;
@@ -2199,7 +2199,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 /*
   Read query from packet and store in thd->query
-  Used in COM_QUERY and COM_PREPARE
+  Used in COM_QUERY and COM_STMT_PREPARE
 
   DESCRIPTION
     Sets the following THD variables:
@@ -2501,7 +2501,7 @@ mysql_execute_command(THD *thd)
                           lex->prepared_stmt_name.str,
                           query_len, query_str));
     }
-    thd->command= COM_PREPARE;
+    thd->command= COM_STMT_PREPARE;
     if (!(res= mysql_stmt_prepare(thd, query_str, query_len + 1,
                                   &lex->prepared_stmt_name)))
       send_ok(thd, 0L, 0L, "Statement prepared");
