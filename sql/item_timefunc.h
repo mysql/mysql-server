@@ -637,6 +637,7 @@ class Item_extract :public Item_int_func
   Item_extract(interval_type type_arg, Item *a)
     :Item_int_func(a), int_type(type_arg) {}
   longlong val_int();
+  enum Functype functype() const { return EXTRACT_FUNC; }
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
@@ -689,6 +690,7 @@ class Item_char_typecast :public Item_typecast
 public:
   Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
     :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "cast_as_char"; }
   const char* cast_type() const { return "char"; };
@@ -790,6 +792,7 @@ public:
     return (new Field_string(max_length, maybe_null, name, t_arg, &my_charset_bin));
   }
   void print(String *str);
+  const char *func_name() const { return "add_time"; }
 };
 
 class Item_func_timediff :public Item_str_func
