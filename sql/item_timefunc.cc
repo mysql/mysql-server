@@ -2158,7 +2158,7 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const
   if (this == item)
     return 1;
   if (item->type() != FUNC_ITEM ||
-      func_name() != ((Item_func*)item)->func_name())
+      functype() != ((Item_func*)item)->functype())
     return 0;
 
   Item_extract* ie= (Item_extract*)item;
@@ -2176,7 +2176,7 @@ bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
   if (this == item)
     return 1;
   if (item->type() != FUNC_ITEM ||
-      func_name() != ((Item_func*)item)->func_name())
+      functype() != ((Item_func*)item)->functype())
     return 0;
 
   Item_char_typecast *cast= (Item_char_typecast*)item;
