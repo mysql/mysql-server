@@ -5,12 +5,9 @@ extra/yassl/src/Makefile)
 
 AC_DEFUN([MYSQL_CHECK_YASSL], [
   AC_MSG_CHECKING(for yaSSL)
-  AC_ARG_WITH([yassl],
-              [  --with-yassl          Include the yaSSL support],
-              [yassl=yes],
-              [yassl=no])
+  AC_ARG_WITH([yassl], [  --with-yassl          Include the yaSSL support],,)
 
-  if test "$yassl" = "yes"
+  if test "$with_yassl" = "yes"
   then
     if test "$openssl" != "no"
     then
@@ -30,5 +27,5 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
   AC_SUBST(openssl_libs)
   AC_SUBST(openssl_includes)
   AC_SUBST(yassl_dir)
-  AM_CONDITIONAL([HAVE_YASSL], [ test "$yassl" = "yes" ])
+  AM_CONDITIONAL([HAVE_YASSL], [ test "with_yassl" = "yes" ])
 ])
