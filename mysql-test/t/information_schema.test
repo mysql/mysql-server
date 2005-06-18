@@ -483,13 +483,14 @@ drop table t1;
 # Bug#10261  INFORMATION_SCHEMA.COLUMNS, incomplete result for non root user
 #
 
-create user mysqltest_4@localhost;
+grant select on test.* to mysqltest_4@localhost;
 connect (user4,localhost,mysqltest_4,,);
 connection user4;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 connection default;
 delete from mysql.user where user='mysqltest_4';
+delete from mysql.db where user='mysqltest_4';
 flush privileges;
 
 #
@@ -510,9 +511,9 @@ grant select on mysqltest.t2 to user2@localhost;
 grant select on mysqltest.* to user3@localhost;
 grant select on *.* to user4@localhost;
 
-connect (con1,localhost,user1,,);
-connect (con2,localhost,user2,,);
-connect (con3,localhost,user3,,);
+connect (con1,localhost,user1,,mysqltest);
+connect (con2,localhost,user2,,mysqltest);
+connect (con3,localhost,user3,,mysqltest);
 connect (con4,localhost,user4,,);
 connection con1;
 select * from information_schema.column_privileges;
