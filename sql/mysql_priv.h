@@ -325,6 +325,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
+#define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -1229,7 +1230,7 @@ int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int closefrm(TABLE *table);
-db_type get_table_type(const char *name);
+db_type get_table_type(THD *thd, const char *name);
 int read_string(File file, gptr *to, uint length);
 void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
@@ -1286,7 +1287,7 @@ ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
 void append_unescaped(String *res, const char *pos, uint length);
-int create_frm(char *name,uint reclength,uchar *fileinfo,
+int create_frm(THD *thd, char *name,uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
