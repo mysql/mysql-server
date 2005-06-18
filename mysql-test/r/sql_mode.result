@@ -402,4 +402,22 @@ a\b	a\"b	a'\b	a'\"b
 SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
 a\b	a\'b	a"\b	a"\'b
 a\b	a\'b	a"\b	a"\'b
+set session sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create table t1 (a int) engine=isam;
+ERROR HY000: The 'ISAM' feature is disabled; you need MySQL built with 'ISAM' to have it working
+show create table t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+set session sql_mode = '';
+create table t1 (a int) engine=isam;
+Warnings:
+Warning	1266	Using storage engine MyISAM for table 't1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
