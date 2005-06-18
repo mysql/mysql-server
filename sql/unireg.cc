@@ -113,7 +113,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   }
   reclength=uint2korr(forminfo+266);
 
-  if ((file=create_frm(file_name, reclength, fileinfo,
+  if ((file=create_frm(thd, file_name, reclength, fileinfo,
 		       create_info, keys)) < 0)
   {
     my_free((gptr) screen_buff,MYF(0));
