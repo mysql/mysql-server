@@ -13266,6 +13266,59 @@ static void test_bug10729()
   myquery(rc);
 }
 
+
+/*
+  Check that mysql_next_result works properly in case when one of
+  the statements used in a multi-statement query is erroneous
+*/
+
+static void test_bug9992()
+{
+  MYSQL *mysql1;
+  MYSQL_RES* res ;
+  int   rc;
+
+  myheader("test_bug9992");
+
+  if (!opt_silent)
+    printf("Establishing a connection with option CLIENT_MULTI_STATEMENTS..\n");
+
+  mysql1= mysql_init(NULL);
+
+  if (!mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          CLIENT_MULTI_STATEMENTS))
+  {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+
+
+  /* Sic: SHOW DATABASE is incorrect syntax. */
+  rc= mysql_query(mysql1, "SHOW TABLES; SHOW DATABASE; SELECT 1;");
+
+  if (rc)
+  {
+    fprintf(stderr, "[%d] %s\n", mysql_errno(mysql1), mysql_error(mysql1));
+    DIE_UNLESS(0);
+  }
+
+  if (!opt_silent)
+    printf("Testing mysql_store_result/mysql_next_result..\n");
+
+  res= mysql_store_result(mysql1);
+  DIE_UNLESS(res);
+  mysql_free_result(res);
+  rc= mysql_next_result(mysql1);
+  DIE_UNLESS(rc == 1);                         /* Got errors, as expected */
+
+  if (!opt_silent)
+    fprintf(stdout, "Got error, sa expected:\n [%d] %s\n",
+            mysql_errno(mysql1), mysql_error(mysql1));
+
+  mysql_close(mysql1);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -13500,6 +13553,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9643", test_bug9643 },
   { "test_bug10729", test_bug10729 },
   { "test_bug11111", test_bug11111 },
+  { "test_bug9992", test_bug9992 },
   { 0, 0 }
 };
 
@@ -13604,23 +13658,6 @@ static void print_test_output()
   }
 }
 
-
-static void check_mupltiquery_bug9992()
-{
-
-  MYSQL_RES* res ;
-  mysql_query(mysql,"SHOW TABLES;SHOW DATABASE;SELECT 1;");
-  
-  fprintf(stdout, "\n\n!!! check_mupltiquery_bug9992 !!!\n");
-  do
-  {
-    if (!(res= mysql_store_result(mysql)))
-      return;
-    mysql_free_result(res);
-  } while (!mysql_next_result(mysql));
-  fprintf(stdout, "\n\n!!! SUCCESS !!!\n");
-  return;
-}
 /***************************************************************************
   main routine
 ***************************************************************************/
@@ -13686,10 +13723,7 @@ int main(int argc, char **argv)
   }
 
   client_disconnect();    /* disconnect from server */
-  
-  client_connect(CLIENT_MULTI_STATEMENTS);
-  check_mupltiquery_bug9992();
-  client_disconnect(); 
+
   free_defaults(defaults_argv);
   print_test_output();
 
