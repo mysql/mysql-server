@@ -126,16 +126,6 @@ sub collect_one_test_case($$$$$) {
     return;
   }
 
-  # FIXME temporary solution, we have a hard coded list of test cases to
-  # skip if we are using the embedded server
-
-  if ( $::glob_use_embedded_server and
-       mtr_match_any_exact($tname,\@::skip_if_embedded_server) )
-  {
-    $tinfo->{'skip'}= 1;
-    return;
-  }
-
   # ----------------------------------------------------------------------
   # Collect information about test case
   # ----------------------------------------------------------------------
