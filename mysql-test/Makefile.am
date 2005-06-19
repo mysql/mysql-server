@@ -88,9 +88,16 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/lib/init_db.sql $(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 
-std_data/%.pem:
+std_data/client-key.pem:
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-
+std_data/client-cert.pem:
+	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
+std_data/cacert.pem:
+	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
+std_data/server-cert.pem:
+	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
+std_data/server-key.pem:
+	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
 
 SUFFIXES = .sh
 
