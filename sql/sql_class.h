@@ -916,7 +916,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
-  bool       slow_command;
+  bool       enable_slow_log;   /* enable slow log for current statement */
   my_bool    volatile killed;
 
   /*

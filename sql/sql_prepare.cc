@@ -820,7 +820,8 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   DBUG_ENTER("insert_params_from_vars");
 
   List_iterator<LEX_STRING> var_it(varnames);
-  String str;
+  String buf;
+  const String *val;
   uint32 length= 0;
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
     DBUG_RETURN(1);
@@ -831,32 +832,35 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     varname= var_it++;
     if (get_var_with_binlog(stmt->thd, *varname, &entry))
         DBUG_RETURN(1);
-    DBUG_ASSERT(entry);
 
     if (param->set_from_user_var(stmt->thd, entry))
       DBUG_RETURN(1);
     /* Insert @'escaped-varname' instead of parameter in the query */
-    char *buf, *ptr;
-    str.length(0);
-    if (str.reserve(entry->name.length*2+3))
-      DBUG_RETURN(1);
+    if (entry)
+    {
+      char *begin, *ptr;
+      buf.length(0);
+      if (buf.reserve(entry->name.length*2+3))
+        DBUG_RETURN(1);
 
-    buf= str.c_ptr_quick();
-    ptr= buf;
-    *ptr++= '@';
-    *ptr++= '\'';
-    ptr+=
-      escape_string_for_mysql(&my_charset_utf8_general_ci,
-                              ptr, entry->name.str, entry->name.length);
-    *ptr++= '\'';
-    str.length(ptr - buf);
+      begin= ptr= buf.c_ptr_quick();
+      *ptr++= '@';
+      *ptr++= '\'';
+      ptr+= escape_string_for_mysql(&my_charset_utf8_general_ci,
+                                    ptr, entry->name.str, entry->name.length);
+      *ptr++= '\'';
+      buf.length(ptr - begin);
+      val= &buf;
+    }
+    else
+      val= &my_null_string;
 
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
 
-    if (query->replace(param->pos_in_query+length, 1, str))
+    if (query->replace(param->pos_in_query+length, 1, *val))
       DBUG_RETURN(1);
-    length+= str.length()-1;
+    length+= val->length()-1;
   }
   DBUG_RETURN(0);
 }
@@ -1558,6 +1562,13 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 
   DBUG_PRINT("prep_query", ("%s", packet));
 
+  /*
+    If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
+    However, it seems handy if com_stmt_prepare is increased always,
+    no matter what kind of prepare is processed.
+  */
+  statistic_increment(com_stmt_prepare, &LOCK_status);
+
   if (stmt == 0)
   {
     send_error(thd, ER_OUT_OF_RESOURCES);
@@ -1596,7 +1607,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     DBUG_RETURN(1);
   }
 
-  mysql_log.write(thd, COM_PREPARE, "[%lu] %s", stmt->id, packet);
+  mysql_log.write(thd, thd->command, "[%lu] %s", stmt->id, packet);
 
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
@@ -1763,6 +1774,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
+  statistic_increment(com_stmt_execute, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute",
                                       SEND_ERROR)))
     DBUG_VOID_RETURN;
@@ -1796,9 +1808,6 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
-  mysql_log.write(thd, COM_EXECUTE, "[%lu] %s", stmt->id,
-                  expanded_query.length() ? expanded_query.c_ptr() :
-                                            stmt->query);
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   execute_stmt(thd, stmt, &expanded_query, TRUE);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
@@ -1827,6 +1836,8 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
   String expanded_query;
   DBUG_ENTER("mysql_sql_stmt_execute");
 
+  /* See comment for statistics_increment in mysql_stmt_prepare */
+  statistic_increment(com_stmt_execute, &LOCK_status);
   if (!(stmt= (Prepared_statement*)thd->stmt_map.find_by_name(stmt_name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_name->length,
@@ -1853,6 +1864,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     send_error(thd);
   }
+  thd->command= COM_EXECUTE; /* For nice messages in general log */
   execute_stmt(thd, stmt, &expanded_query, FALSE);
   DBUG_VOID_RETURN;
 }
@@ -1887,6 +1899,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
     my_error(ER_OUTOFMEMORY, 0, expanded_query->length());
     DBUG_VOID_RETURN;
   }
+  mysql_log.write(thd, thd->command, "[%lu] %s", stmt->id, thd->query);
   /*
     At first execution of prepared statement we will perform logical
     transformations of the query tree (i.e. negations elimination).
@@ -1900,6 +1913,14 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   thd->lex->unit.cleanup();
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
+  /*
+    'start_time' is set in dispatch_command, but THD::query will
+    be freed when we return from this function. So let's log the slow
+    query here.
+  */
+  log_slow_statement(thd);
+  /* Prevent from second logging in the end of dispatch_command */
+  thd->enable_slow_log= FALSE;
 
   /* Free Items that were created during this execution of the PS. */
   free_items(thd->free_list);
@@ -1941,6 +1962,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   
   DBUG_ENTER("mysql_stmt_reset");
 
+  statistic_increment(com_stmt_reset, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset",
                                       SEND_ERROR)))
     DBUG_VOID_RETURN;
@@ -1973,6 +1995,7 @@ void mysql_stmt_free(THD *thd, char *packet)
 
   DBUG_ENTER("mysql_stmt_free");
 
+  statistic_increment(com_stmt_close, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close",
                                       DONT_SEND_ERROR)))
     DBUG_VOID_RETURN;
@@ -2012,6 +2035,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   
   DBUG_ENTER("mysql_stmt_get_longdata");
 
+  statistic_increment(com_stmt_send_long_data, &LOCK_status);
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if ((ulong) (packet_end - packet) < MYSQL_LONG_DATA_HEADER)
@@ -2068,10 +2092,12 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   *last_error= '\0';
 }
 
+
 void Prepared_statement::setup_set_params()
 {
   /* Setup binary logging */
-  if (mysql_bin_log.is_open() && is_update_query(lex->sql_command))
+  if (mysql_bin_log.is_open() && is_update_query(lex->sql_command) ||
+      mysql_log.is_open() || mysql_slow_log.is_open())
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
@@ -2090,6 +2116,7 @@ void Prepared_statement::setup_set_params()
 #endif
   }
 }
+
 
 Prepared_statement::~Prepared_statement()
 {
