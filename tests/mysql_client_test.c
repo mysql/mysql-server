@@ -13151,13 +13151,14 @@ static void test_bug9643()
 
 static void test_bug11111()
 {
-  MYSQL_STMT 	*stmt;
-  MYSQL_BIND	bind[2];
-  char		buf[2][20];
-  long		len[2];
+  MYSQL_STMT    *stmt;
+  MYSQL_BIND    bind[2];
+  char          buf[2][20];
+  ulong         len[2];
   int i;
   int rc;
-  const char * query = "SELECT DISTINCT f1,ff2 FROM v1";
+  const char *query= "SELECT DISTINCT f1,ff2 FROM v1";
+
   myheader("test_bug11111");
 
   rc= mysql_query(mysql, "drop table if exists t1, t2, v1");
@@ -13175,24 +13176,27 @@ static void test_bug11111()
   rc= mysql_query(mysql, "insert into t2 values (1,1), (2,2), (3,3)");
   myquery(rc);
 
-  stmt = mysql_stmt_init(mysql);
+  stmt= mysql_stmt_init(mysql);
 
   mysql_stmt_prepare(stmt, query, strlen(query));
   mysql_stmt_execute(stmt);
 
-  for (i=0; i < 2; i++) {
-    memset(&bind[i], '\0', sizeof(MYSQL_BIND));
+  bzero(bind, sizeof(bind));
+  for (i=0; i < 2; i++)
+  {
     bind[i].buffer_type= MYSQL_TYPE_STRING;
     bind[i].buffer= (gptr *)&buf[i];
     bind[i].buffer_length= 20;
     bind[i].length= &len[i];
   }
 
-  if (mysql_stmt_bind_result(stmt, bind))
-    printf("Error: %s\n", mysql_stmt_error(stmt));
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
 
-  mysql_stmt_fetch(stmt);
-  printf("return: %s", buf[1]);
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  if (!opt_silent)
+    printf("return: %s", buf[1]);
   DIE_UNLESS(!strcmp(buf[1],"1"));
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "drop view v1");
