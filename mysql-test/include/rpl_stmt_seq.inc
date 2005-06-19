@@ -4,6 +4,12 @@
 # the $variables is extreme sensitive. 
 #
 
+###############################################################
+# Debug options : To debug this test script
+###############################################################
+let $showbinlog= 0;
+let $manipulate= 1;
+
 ######## The typical test sequence
 # 1. INSERT without commit
 #    check table content of master and slave
@@ -52,9 +58,12 @@ let $MAX= `SELECT MAX(f1) FROM t1` ;
 eval INSERT INTO t1 SET f1= $MAX + 1;
 # results before DDL(to be tested)
 SELECT MAX(f1) FROM t1;
+if ($show_binlog)
+{
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+}
 sync_slave_with_master;
 
 connection slave;
@@ -63,9 +72,12 @@ SELECT '-------- switch to slave --------' as "";
 --enable_query_log
 # results before DDL(to be tested)
 SELECT MAX(f1) FROM t1;
+if ($show_binlog)
+{
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+}
 
 ###############################################################
 # command to be tested
@@ -79,9 +91,12 @@ eval $my_stmt;
 let $my_stmt= ERROR: YOU FORGOT TO FILL IN THE STATEMENT;
 # results after DDL(to be tested)
 SELECT MAX(f1) FROM t1;
+if ($show_binlog)
+{
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+}
 sync_slave_with_master;
 
 connection slave;
@@ -90,9 +105,12 @@ SELECT '-------- switch to slave --------' as "";
 --enable_query_log
 # results after DDL(to be tested)
 SELECT MAX(f1) FROM t1;
+if ($show_binlog)
+{
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+}
 
 ###############################################################
 # ROLLBACK
@@ -114,9 +132,12 @@ eval SELECT CONCAT(CONCAT('TEST-INFO: MASTER: The INSERT is ',
                 ' (Failed)')) AS "" 
                FROM mysqltest1.t1;
 --enable_query_log
+if ($show_binlog)
+{
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'master-bin.$_log_num_s';
+}
 sync_slave_with_master;
 
 connection slave;
@@ -133,16 +154,17 @@ eval SELECT CONCAT(CONCAT('TEST-INFO: SLAVE:  The INSERT is ',
                 ' (Failed)')) AS "" 
                FROM mysqltest1.t1;
 --enable_query_log
+if ($show_binlog)
+{
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
+}
 
 ###############################################################
 # Manipulate binlog
 ###############################################################
-#let $manipulate= 0;
-let $manipulate= 1;
-while ($manipulate)
+if ($manipulate)
 {
 #### Manipulate the binary logs,
 # so that the output of SHOW BINLOG EVENTS IN <current log>
@@ -171,7 +193,6 @@ flush logs;
 # sleep 1;
 # eval SHOW BINLOG EVENTS IN 'slave-bin.$_log_num_s';
 inc $_log_num_n;
-let $manipulate= 0;
 }
 
 connection master;
