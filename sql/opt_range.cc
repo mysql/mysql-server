@@ -8918,7 +8918,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 ** Instantiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<QUICK_RANGE>;
 template class List_iterator<QUICK_RANGE>;
 #endif

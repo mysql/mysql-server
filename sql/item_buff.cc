@@ -146,7 +146,7 @@ bool Item_decimal_buff::cmp()
 ** Instansiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<Item_buff>;
 template class List_iterator<Item_buff>;
 #endif

@@ -3406,7 +3406,7 @@ bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
   Used templates
 ****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<set_var_base>;
 template class List_iterator_fast<set_var_base>;
 template class I_List_iterator<NAMED_LIST>;

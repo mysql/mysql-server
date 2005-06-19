@@ -7072,7 +7072,7 @@ static void create_pid_file()
   Instantiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 /* Used templates */
 template class I_List<THD>;
 template class I_List_iterator<THD>;
