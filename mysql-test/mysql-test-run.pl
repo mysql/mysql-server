@@ -100,31 +100,6 @@ require "lib/mtr_misc.pl";
 
 $Devel::Trace::TRACE= 1;
 
-my @skip_if_embedded_server=
-  (
-   "alter_table",
-   "bdb-deadlock",
-   "connect",
-   "flush_block_commit",
-   "grant2",
-   "grant_cache",
-   "grant",
-   "init_connect",
-   "innodb-deadlock",
-   "innodb-lock",
-   "mix_innodb_myisam_binlog",
-   "mysqlbinlog2",
-   "mysqlbinlog",
-   "mysqldump",
-   "mysql_protocols",
-   "ps_1general",
-   "rename",
-   "show_check",
-   "system_mysql_db_fix",
-   "user_var",
-   "variables",
- );
-
 # Used by gcov
 our @mysqld_src_dirs=
   (
@@ -196,6 +171,7 @@ our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
 our $exe_mysqld;
 our $exe_mysqldump;              # Called from test case
+our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
 our $exe_slave_mysqld;
@@ -241,6 +217,7 @@ our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
 
 our $opt_no_manager;            # Does nothing now, we never use manager
+our $opt_manager_port;          # Does nothing now, we never use manager
 
 our $opt_old_master;
 
@@ -495,6 +472,7 @@ sub command_line_setup () {
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
              'ndbcluster_port=i'        => \$opt_ndbcluster_port,
+             'manager-port'             => \$opt_manager_port,
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -823,6 +801,14 @@ sub executable_setup () {
     {
       $exe_mysqldump=  "$glob_basedir/client/mysqldump";
     }
+    if ( -f "$glob_basedir/client/.libs/mysqlshow" )
+    {
+      $exe_mysqlshow=  "$glob_basedir/client/.libs/mysqlshow";
+    }
+    else
+    {
+      $exe_mysqlshow=  "$glob_basedir/client/mysqlshow";
+    }
     if ( -f "$glob_basedir/client/.libs/mysqlbinlog" )
     {
       $exe_mysqlbinlog=  "$glob_basedir/client/.libs/mysqlbinlog";
@@ -850,6 +836,7 @@ sub executable_setup () {
     $path_client_bindir=    "$glob_basedir/bin";
     $exe_mysqltest=         "$path_client_bindir/mysqltest";
     $exe_mysqldump=         "$path_client_bindir/mysqldump";
+    $exe_mysqlshow=         "$path_client_bindir/mysqlshow";
     $exe_mysqlbinlog=       "$path_client_bindir/mysqlbinlog";
     $exe_mysqladmin=        "$path_client_bindir/mysqladmin";
     $exe_mysql=             "$path_client_bindir/mysql";
@@ -1821,11 +1808,12 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $opt_with_openssl )
   {
-    mtr_add_arg($args, "%s--ssl-ca=%s/SSL/cacert.pem", $prefix, $glob_basedir);
-    mtr_add_arg($args, "%s--ssl-cert=%s/SSL/server-cert.pem", $prefix,
-                $glob_basedir);
-    mtr_add_arg($args, "%s--ssl-key=%s/SSL/server-key.pem", $prefix,
-                $glob_basedir);
+    mtr_add_arg($args, "%s--ssl-ca=%s/std_data/cacert.pem", $prefix,
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "%s--ssl-cert=%s/std_data/server-cert.pem", $prefix,
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "%s--ssl-key=%s/std_data/server-key.pem", $prefix,
+                $glob_mysql_test_dir);
   }
 
   if ( $opt_warnings )
@@ -2058,6 +2046,14 @@ sub run_mysqltest ($$) {
       " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
   }
 
+  my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
+                         "--socket=$master->[0]->{'path_mysock'} --password=";
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlshow .=
+      " --debug=d:t:A,$opt_vardir/log/mysqlshow.trace";
+  }
+
   my $cmdline_mysqlbinlog=
     "$exe_mysqlbinlog --no-defaults --local-load=$opt_tmpdir";
 
@@ -2090,6 +2086,7 @@ sub run_mysqltest ($$) {
 
   $ENV{'MYSQL'}=                    $cmdline_mysql;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
+  $ENV{'MYSQL_SHOW'}=               $cmdline_mysqlshow;
   $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
   $ENV{'MYSQL_CLIENT_TEST'}=        $cmdline_mysql_client_test;
@@ -2163,9 +2160,12 @@ sub run_mysqltest ($$) {
 
   if ( $opt_with_openssl )
   {
-    mtr_add_arg($args, "--ssl-ca=%s/SSL/cacert.pem", $glob_basedir);
-    mtr_add_arg($args, "--ssl-cert=%s/SSL/client-cert.pem", $glob_basedir);
-    mtr_add_arg($args, "--ssl-key=%s/SSL/client-key.pem", $glob_basedir);
+    mtr_add_arg($args, "--ssl-ca=%s/std_data/cacert.pem",
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "--ssl-cert=%s/std_data/client-cert.pem",
+                $glob_mysql_test_dir);
+    mtr_add_arg($args, "--ssl-key=%s/std_data/client-key.pem",
+                $glob_mysql_test_dir);
   }
 
   mtr_add_arg($args, "-R");
