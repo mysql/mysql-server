@@ -153,10 +153,6 @@ static char TMPDIR[FN_REFLEN];
 static char delimiter[MAX_DELIMITER]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
 
-static int *cur_block, *block_stack_end;
-static int block_stack[BLOCK_STACK_DEPTH];
-
-static int block_ok_stack[BLOCK_STACK_DEPTH];
 static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
 static const char *charset_name= "latin1"; /* Default character set name */
 
@@ -210,8 +206,6 @@ MYSQL_RES *last_result=0;
 
 PARSER parser;
 MASTER_POS master_pos;
-int *block_ok; /* set to 0 if the current block should not be executed */
-int false_block_depth = 0;
 /* if set, all results are concated and compared against this file */
 const char *result_file = 0;
 
@@ -281,6 +275,7 @@ Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
 Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
 Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
+Q_IF,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -368,8 +363,19 @@ const char *command_names[]=
   "enable_ps_protocol",
   "disable_reconnect",
   "enable_reconnect",
+  "if",
   0
 };
+
+/* Block stack */
+typedef struct
+{
+  int                 line; /* Start line of block */
+  my_bool             ok;   /* Should block be executed */
+  enum enum_commands  cmd;  /* Command owning the block */
+} BLOCK;
+static BLOCK block_stack[BLOCK_STACK_DEPTH];
+static BLOCK *cur_block, *block_stack_end;
 
 TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
@@ -1723,36 +1729,54 @@ int do_connect(struct st_query* q)
 
 int do_done(struct st_query* q)
 {
+  /* Dummy statement to eliminate compiler warning */
   q->type = Q_END_BLOCK;
+
+  /* Check if empty block stack */
   if (cur_block == block_stack)
     die("Stray '}' - end of block before beginning");
-  if (*block_ok--)
+
+  /* Test if inner block has been executed */
+  if (cur_block->ok && cur_block->cmd == Q_WHILE)
   {
-    parser.current_line = *--cur_block;
+    /* Pop block from stack, re-execute outer block */
+    cur_block--;
+    parser.current_line = cur_block->line;
   }
   else
   {
-    ++parser.current_line;
-    --cur_block;
+    /* Pop block from stack, goto next line */
+    cur_block--;
+    parser.current_line++;
   }
   return 0;
 }
 
-int do_while(struct st_query* q)
+
+int do_block(enum enum_commands cmd, struct st_query* q)
 {
   char* p=q->first_argument;
   const char* expr_start, *expr_end;
   VAR v;
+
+  /* Check stack overflow */
   if (cur_block == block_stack_end)
     die("Nesting too deeply");
-  if (!*block_ok)
+
+  /* Set way to find outer block again, increase line counter */
+  cur_block->line= parser.current_line++;
+
+  /* If this block is ignored */
+  if (!cur_block->ok)
   {
-    ++false_block_depth;
-    *++block_ok = 0;
-    *cur_block++ = parser.current_line++;
+    /* Inner block should be ignored too */
+    cur_block++;
+    cur_block->cmd= cmd;
+    cur_block->ok= FALSE;
     return 0;
   }
 
+  /* Parse and evaluate test expression */
   expr_start = strchr(p, '(');
   if (!expr_start)
     die("missing '(' in while");
@@ -1761,14 +1785,12 @@ int do_while(struct st_query* q)
     die("missing ')' in while");
   var_init(&v,0,0,0,0);
   eval_expr(&v, ++expr_start, &expr_end);
-  *cur_block++ = parser.current_line++;
-  if (!v.int_val)
-  {
-    *++block_ok = 0;
-    false_block_depth++;
-  }
-  else
-    *++block_ok = 1;
+
+  /* Define inner block */
+  cur_block++;
+  cur_block->cmd= cmd;
+  cur_block->ok= (v.int_val ? TRUE : FALSE);
+
   var_free(&v);
   return 0;
 }
@@ -3404,12 +3426,13 @@ int main(int argc, char **argv)
   lineno   = lineno_stack;
   my_init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
 		     INIT_Q_LINES);
+
   memset(block_stack, 0, sizeof(block_stack));
-  block_stack_end = block_stack + BLOCK_STACK_DEPTH;
-  memset(block_ok_stack, 0, sizeof(block_stack));
-  cur_block = block_stack;
-  block_ok = block_ok_stack;
-  *block_ok = 1;
+  block_stack_end= block_stack + BLOCK_STACK_DEPTH;
+  cur_block= block_stack;
+  cur_block->ok= TRUE; /* Outer block should always be executed */
+  cur_block->cmd= Q_UNKNOWN;
+
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
   if (mysql_server_init(embedded_server_arg_count,
@@ -3461,7 +3484,7 @@ int main(int argc, char **argv)
     int current_line_inc = 1, processed = 0;
     if (q->type == Q_UNKNOWN || q->type == Q_COMMENT_WITH_COMMAND)
       get_query_type(q);
-    if (*block_ok)
+    if (cur_block->ok)
     {
       processed = 1;
       switch (q->type) {
@@ -3657,7 +3680,8 @@ int main(int argc, char **argv)
     {
       current_line_inc = 0;
       switch (q->type) {
-      case Q_WHILE: do_while(q); break;
+      case Q_WHILE: do_block(Q_WHILE, q); break;
+      case Q_IF: do_block(Q_IF, q); break;
       case Q_END_BLOCK: do_done(q); break;
       default: current_line_inc = 1; break;
       }
