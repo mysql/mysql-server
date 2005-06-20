@@ -540,13 +540,12 @@ bool ha_ndbcluster::get_error_message(int error,
 }
 
 
+#ifndef DBUG_OFF
 /*
   Check if type is supported by NDB.
-  TODO Use this once in open(), not in every operation
-
 */
 
-static inline bool ndb_supported_type(enum_field_types type)
+static bool ndb_supported_type(enum_field_types type)
 {
   switch (type) {
   case MYSQL_TYPE_TINY:        
@@ -581,6 +580,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   }
   return FALSE;
 }
+#endif /* !DBUG_OFF */
 
 
 /*
@@ -610,15 +610,10 @@ int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
                        pack_len));
   DBUG_DUMP("key", (char*)field_ptr, pack_len);
   
-  if (ndb_supported_type(field->type()))
-  {
-    if (! (field->flags & BLOB_FLAG))
-      // Common implementation for most field types
-      DBUG_RETURN(ndb_op->equal(fieldnr, (char*) field_ptr, pack_len) != 0);
-  }
-  // Unhandled field types
-  DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-  DBUG_RETURN(2);
+  DBUG_ASSERT(ndb_supported_type(field->type()));
+  DBUG_ASSERT(! (field->flags & BLOB_FLAG));
+  // Common implementation for most field types
+  DBUG_RETURN(ndb_op->equal(fieldnr, (char*) field_ptr, pack_len) != 0);
 }
 
 
@@ -637,7 +632,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
                        pack_len, field->is_null()?"Y":"N"));
   DBUG_DUMP("value", (char*) field_ptr, pack_len);
 
-  if (ndb_supported_type(field->type()))
+  DBUG_ASSERT(ndb_supported_type(field->type()));
   {
     // ndb currently does not support size 0
     uint32 empty_field;
@@ -715,9 +710,6 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
     }
     DBUG_RETURN(1);
   }
-  // Unhandled field types
-  DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-  DBUG_RETURN(2);
 }
 
 
@@ -812,9 +804,8 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 
   if (field != NULL)
   {
-    DBUG_ASSERT(buf);
-    if (ndb_supported_type(field->type()))
-    {
+      DBUG_ASSERT(buf);
+      DBUG_ASSERT(ndb_supported_type(field->type()));
       DBUG_ASSERT(field->ptr != NULL);
       if (! (field->flags & BLOB_FLAG))
       { 
@@ -845,10 +836,6 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
         DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
       DBUG_RETURN(1);
-    }
-    // Unhandled field types
-    DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-    DBUG_RETURN(2);
   }
 
   // Used for hidden key only
