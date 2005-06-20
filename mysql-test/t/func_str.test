@@ -128,7 +128,7 @@ CREATE TABLE t1 (
   program int(10) unsigned default NULL,
   bugdesc text,
   created datetime default NULL,
-  modified timestamp(14) NOT NULL,
+  modified timestamp NOT NULL,
   bugstatus int(10) unsigned default NULL,
   submitter int(10) unsigned default NULL
 ) ENGINE=MyISAM;
