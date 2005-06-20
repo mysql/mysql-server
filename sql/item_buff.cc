@@ -146,7 +146,7 @@ bool Cached_item_decimal::cmp()
 ** Instansiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<Cached_item>;
 template class List_iterator<Cached_item>;
 #endif
