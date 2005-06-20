@@ -1578,10 +1578,21 @@ bool delayed_insert::handle_inserts(void)
 int
 select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
+  int res;
+  LEX *lex= thd->lex;
+  SELECT_LEX *lex_current_select_save= lex->current_select;
   DBUG_ENTER("select_insert::prepare");
 
   unit= u;
-  if (check_insert_fields(thd, table, *fields, values))
+  /*
+    Since table in which we are going to insert is added to the first
+    select, LEX::current_select should point to the first select while
+    we are fixing fields from insert list.
+  */
+  lex->current_select= &lex->select_lex;
+  res= check_insert_fields(thd, table, *fields, values);
+  lex->current_select= lex_current_select_save;
+  if (res)
     DBUG_RETURN(1);
 
   restore_record(table,default_values);			// Get empty record
