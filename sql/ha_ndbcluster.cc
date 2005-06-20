@@ -3083,7 +3083,13 @@ double ha_ndbcluster::scan_time()
   DBUG_RETURN(res);
 }
 
-
+/*
+  Convert MySQL table locks into locks supported by Ndb Cluster.
+  Note that MySQL Cluster does currently not support distributed
+  table locks, so to be safe one should set cluster in Single
+  User Mode, before relying on table locks when updating tables
+  from several MySQL servers
+*/
 THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
                                           THR_LOCK_DATA **to,
                                           enum thr_lock_type lock_type)
