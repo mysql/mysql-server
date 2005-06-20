@@ -2297,7 +2297,7 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
     return 0;
   Item_func *item_func=(Item_func*) item;
   if (arg_count != item_func->arg_count ||
-      func_name() != item_func->func_name())
+      functype() != item_func->functype())
     return 0;
   Item_func_set_collation *item_func_sc=(Item_func_set_collation*) item;
   if (collation.collation != item_func_sc->collation.collation)
