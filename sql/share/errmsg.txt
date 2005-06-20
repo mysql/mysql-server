@@ -5021,7 +5021,7 @@ ER_NON_UPDATABLE_TABLE
 	por "A tabela destino %-.100s do %s nЦo И atualizАvel"
 	rus "Таблица %-.100s в %s не может изменятся"
 	spa "La tabla destino %-.100s del %s no es actualizable"
-	swe "Tabel %-.100s anvДnd med '%s' Дr inte uppdateringsbar"
+	swe "Tabell %-.100s anvДnd med '%s' Дr inte uppdateringsbar"
 	ukr "Таблиця %-.100s у %s не може оновлюватись"
 ER_FEATURE_DISABLED  
 	eng "The '%s' feature is disabled; you need MySQL built with '%s' to have it working"
