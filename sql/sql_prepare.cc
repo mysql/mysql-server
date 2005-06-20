@@ -2209,7 +2209,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   if (!stmt->cursor || !stmt->cursor->is_open())
   {
-    my_error(ER_STMT_HAS_NO_OPEN_CURSOR, MYF(0));
+    my_error(ER_STMT_HAS_NO_OPEN_CURSOR, MYF(0), stmt_id);
     DBUG_VOID_RETURN;
   }
 
