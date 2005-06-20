@@ -1102,7 +1102,7 @@ public:
   char *query;
 };
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List<thread_info>;
 #endif
 
@@ -3879,7 +3879,7 @@ ST_SCHEMA_TABLE schema_tables[]=
 };
 
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List_iterator_fast<char>;
 template class List<char>;
 #endif
