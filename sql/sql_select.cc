@@ -28,6 +28,8 @@
 #include <hash.h>
 #include <ft_global.h>
 
+typedef uint32 cache_rec_length_type;
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery"
@@ -8067,7 +8069,7 @@ used_blob_length(CACHE_FIELD **ptr)
 static bool
 store_record_in_cache(JOIN_CACHE *cache)
 {
-  ulong length;
+  cache_rec_length_type length;
   uchar *pos;
   CACHE_FIELD *copy,*end_field;
   bool last_record;
@@ -8112,9 +8114,9 @@ store_record_in_cache(JOIN_CACHE *cache)
 	     end > str && end[-1] == ' ' ;
 	     end--) ;
 	length=(uint) (end-str);
-	memcpy(pos+sizeof(uint), str, length);
-	*((uint *) pos)= length;
-	pos+= length+sizeof(uint);
+	memcpy(pos+sizeof(length), str, length);
+	memcpy_fixed(pos, &length, sizeof(length));
+	pos+= length+sizeof(length);
       }
       else
       {
@@ -8148,7 +8150,7 @@ static void
 read_cached_record(JOIN_TAB *tab)
 {
   uchar *pos;
-  uint length;
+  cache_rec_length_type length;
   bool last_record;
   CACHE_FIELD *copy,*end_field;
 
@@ -8177,9 +8179,10 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (copy->strip)
       {
-	memcpy(copy->str, pos+sizeof(uint), length= *((uint *) pos));
+        memcpy_fixed(&length, pos, sizeof(length));
+	memcpy(copy->str, pos+sizeof(length), length);
 	memset(copy->str+length, ' ', copy->length-length);
-	pos+= sizeof(uint)+length;
+	pos+= sizeof(length)+length;
       }
       else
       {
