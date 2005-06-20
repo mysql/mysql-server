@@ -5464,9 +5464,9 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
        In other words, for declarations such as TIMESTAMP(2), TIMESTAMP(4),
        and so on, the display width is ignored.
     */
-    String str;
-    str.append("TIMESTAMP");
-    str.append("(");
+    char buff[32];
+    String str(buff,(uint32) sizeof(buff), system_charset_info);
+    str.append("TIMESTAMP(");
     str.append(length);
     str.append(")");
     push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
