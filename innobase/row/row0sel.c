@@ -630,6 +630,8 @@ row_sel_get_clust_rec(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
+	*out_rec = NULL;
+
 	offsets = rec_get_offsets(rec,
 				btr_pcur_get_btr_cur(&plan->pcur)->index,
 				offsets, ULINT_UNDEFINED, &heap);
@@ -662,8 +664,6 @@ row_sel_get_clust_rec(
 		the clustered index record. In that case we know that the
 		clustered index record did not exist in the read view of
 		trx. */
-
-		clust_rec = NULL;
 
 		goto func_exit;
 	}
@@ -733,7 +733,6 @@ row_sel_get_clust_rec(
 		if ((old_vers || rec_get_deleted_flag(rec, plan->table->comp))
 		    && !row_sel_sec_rec_is_for_clust_rec(rec, plan->index,
 							clust_rec, index)) {
-			clust_rec = NULL;
 			goto func_exit;
 		}
 	}
@@ -742,8 +741,8 @@ row_sel_get_clust_rec(
 
 	row_sel_fetch_columns(index, clust_rec, offsets,
 					UT_LIST_GET_FIRST(plan->columns));
-func_exit:
 	*out_rec = clust_rec;
+func_exit:
 	err = DB_SUCCESS;
 err_exit:
 	if (UNIV_LIKELY_NULL(heap)) {

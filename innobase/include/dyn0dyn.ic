@@ -324,10 +324,9 @@ void
 dyn_push_string(
 /*============*/
 	dyn_array_t*	arr,	/* in: dyn array */
-	byte*		str,	/* in: string to write */
+	const byte*	str,	/* in: string to write */
 	ulint		len)	/* in: string length */
 {
-	byte*	ptr;
 	ulint	n_copied;
 
 	while (len > 0) {
@@ -337,9 +336,7 @@ dyn_push_string(
 			n_copied = len;
 		}			
 
-		ptr = (byte*) dyn_array_push(arr, n_copied);
-
-		ut_memcpy(ptr, str, n_copied);
+		memcpy(dyn_array_push(arr, n_copied), str, n_copied);
 		
 		str += n_copied;
 		len -= n_copied;
