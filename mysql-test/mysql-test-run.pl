@@ -840,7 +840,7 @@ sub executable_setup () {
     $exe_mysqlbinlog=       "$path_client_bindir/mysqlbinlog";
     $exe_mysqladmin=        "$path_client_bindir/mysqladmin";
     $exe_mysql=             "$path_client_bindir/mysql";
-    $exe_mysql_fix_system_tables= "$glob_basedir/scripts/mysql_fix_privilege_tables";
+    $exe_mysql_fix_system_tables= "$path_client_bindir/mysql_fix_privilege_tables";
 
     if ( -d "$glob_basedir/share/mysql/english" )
     {
