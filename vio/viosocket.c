@@ -425,6 +425,7 @@ int vio_close_pipe(Vio * vio)
 
 
 void vio_ignore_timeout(Vio *vio __attribute__((unused)),
+			uint which __attribute__((unused)),
 			uint timeout __attribute__((unused)))
 {
 }
