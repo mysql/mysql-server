@@ -1866,7 +1866,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   if (cols)
   {
     int key_len;
-    col_privs->field[0]->store(host.hostname,(uint) strlen(host.hostname),
+    col_privs->field[0]->store(host.hostname,
+                               host.hostname ? (uint) strlen(host.hostname) : 0,
                                &my_charset_latin1);
     col_privs->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
     col_privs->field[2]->store(user,(uint) strlen(user), &my_charset_latin1);
