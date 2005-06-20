@@ -264,6 +264,7 @@ our $opt_warnings;
 
 our $opt_udiff;
 
+our $opt_skip_ndbcluster;
 our $opt_with_ndbcluster;
 our $opt_with_openssl;
 
@@ -463,6 +464,7 @@ sub command_line_setup () {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster'          => \$opt_with_ndbcluster,
+             'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
@@ -660,6 +662,11 @@ sub command_line_setup () {
   else
   {
     $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
+  }
+
+  if ( $opt_skip_ndbcluster )
+  {
+    $opt_with_ndbcluster= 0;
   }
 
   # FIXME
@@ -1019,11 +1026,6 @@ sub kill_and_cleanup () {
   kill_running_server ();
 
   mtr_report("Removing Stale Files");
-
-  if ( -l $opt_vardir and ! unlink($opt_vardir) )
-  {
-    mtr_error("Can't remove soft link \"$opt_vardir\"");
-  }
 
   rmtree("$opt_vardir/log");
   rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
@@ -1719,6 +1721,11 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
+
+    if ( $opt_skip_ndbcluster )
+    {
+      mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
+    }
   }
 
   if ( $type eq 'slave' )
@@ -1860,19 +1867,11 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--rpl-recovery-rank=1", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=master", $prefix);
   }
-  else
+  elsif ( $type eq 'master' )
   {
     mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
-
-    if ( $type eq 'master' )
-    {
-      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
-    }
-    if ( $type eq 'slave' )
-    {
-      mtr_add_arg($args, "%s--log=%s", $prefix, $slave->[0]->{'path_mylog'});
-    }
+    mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
   }
 
   return $args;
