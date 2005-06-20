@@ -338,7 +338,7 @@ insert into t2 values (3, 1, 'xxbuz');
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
 t1_id	name	t2_id	t1_id	name
 1	data1	1	1	xxfoo
-select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
+select * from t2 where match name against ('*a*b*c*d*e*f*' in boolean mode);
 t2_id	t1_id	name
 drop table t1,t2;
 create table t1 (a text, fulltext key (a));
