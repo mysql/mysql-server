@@ -1715,7 +1715,7 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--server-id=1", $prefix);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:50M", $prefix);
+    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
@@ -1802,6 +1802,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
 
   if ( $opt_with_openssl )
   {
