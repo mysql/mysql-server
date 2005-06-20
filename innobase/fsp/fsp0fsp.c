@@ -2325,7 +2325,6 @@ fseg_alloc_free_page_low(
 	dulint		seg_id;
 	ulint		used;
 	ulint		reserved;
-	fil_addr_t	first;
 	xdes_t*		descr;		/* extent of the hinted page */
 	ulint		ret_page;	/* the allocated page offset, FIL_NULL
 					if could not be allocated */
@@ -2428,6 +2427,8 @@ fseg_alloc_free_page_low(
 	} else if (reserved - used > 0) {
 		/* 5. We take any unused page from the segment
 		==============================================*/
+		fil_addr_t	first;
+
 		if (flst_get_len(seg_inode + FSEG_NOT_FULL, mtr) > 0) {
 			first = flst_get_first(seg_inode + FSEG_NOT_FULL,
 									mtr);
@@ -2435,6 +2436,7 @@ fseg_alloc_free_page_low(
 			first = flst_get_first(seg_inode + FSEG_FREE, mtr);
 		} else {
 			ut_error;
+			return(FIL_NULL);
 		}
 
 		ret_descr = xdes_lst_get_descriptor(space, first, mtr);

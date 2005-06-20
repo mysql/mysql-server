@@ -23,9 +23,9 @@ Catenates n bytes to the mtr log. */
 void
 mlog_catenate_string(
 /*=================*/
-	mtr_t*	mtr,	/* in: mtr */
-	byte*	str,	/* in: string to write */
-	ulint	len)	/* in: string length */
+	mtr_t*		mtr,	/* in: mtr */
+	const byte*	str,	/* in: string to write */
+	ulint		len)	/* in: string length */
 {
 	dyn_array_t*	mlog;
 
@@ -302,14 +302,15 @@ corresponding log record to the mini-transaction log. */
 void
 mlog_write_string(
 /*==============*/
-	byte*	ptr,	/* in: pointer where to write */
-	byte*	str,	/* in: string to write */
-	ulint	len,	/* in: string length */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	byte*		ptr,	/* in: pointer where to write */
+	const byte*	str,	/* in: string to write */
+	ulint		len,	/* in: string length */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
-	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
+	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
 	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;

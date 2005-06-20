@@ -543,7 +543,7 @@ recv_find_max_checkpoint(
 "InnoDB: to create the InnoDB data files, but log file creation failed.\n"
 "InnoDB: If that is the case, please refer to\n"
 "InnoDB: http://dev.mysql.com/doc/mysql/en/Error_creating_InnoDB.html\n");
-
+		*max_field = 0;
 		return(DB_ERROR);
 	}
 
@@ -1818,25 +1818,25 @@ recv_parse_log_rec(
 
 	new_ptr = mlog_parse_initial_log_record(ptr, end_ptr, type, space,
 								page_no);
-	if (!new_ptr) {
+	*body = new_ptr;
+
+	if (UNIV_UNLIKELY(!new_ptr)) {
 
 	        return(0);
 	}
 
 	/* Check that page_no is sensible */
 
-	if (*page_no > 0x8FFFFFFFUL) {
+	if (UNIV_UNLIKELY(*page_no > 0x8FFFFFFFUL)) {
 
 		recv_sys->found_corrupt_log = TRUE;
 
 		return(0);
 	}
 
-	*body = new_ptr;
-
 	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
 								NULL, NULL);
-	if (new_ptr == NULL) {
+	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);
 	}
