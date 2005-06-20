@@ -1011,7 +1011,8 @@ static int read_lines(bool execute_commands)
         a nil, it still needs the space in the linebuffer for it. This is,
         naturally, undocumented.
        */
-      } while (linebuffer[0] <= linebuffer[1] + 1);
+      } while ((unsigned char)linebuffer[0] <=
+               (unsigned char)linebuffer[1] + 1);
       line= buffer.c_ptr();
 #endif /* __NETWARE__ */
 #else
