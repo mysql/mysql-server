@@ -424,8 +424,6 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
-#define prepare_execute(A) ((A)->command == COM_EXECUTE)
-
 int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -462,6 +460,7 @@ void mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 
 bool table_cache_init(void);
@@ -899,6 +898,8 @@ extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
+extern ulong com_stmt_prepare, com_stmt_execute, com_stmt_send_long_data;
+extern ulong com_stmt_reset, com_stmt_close;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog;
@@ -918,6 +919,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
+extern my_bool opt_log_slow_admin_statements;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
