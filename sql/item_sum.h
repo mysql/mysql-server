@@ -81,7 +81,22 @@ public:
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
-  virtual const char *func_name() const { return "?"; }
+  /*
+    This method is used for debug purposes to print the name of an
+    item to the debug log. The second use of this method is as
+    a helper function of print(), where it is applicable.
+    To suit both goals it should return a meaningful,
+    distinguishable and sintactically correct string.  This method
+    should not be used for runtime type identification, use enum
+    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
+    instead.
+
+    NOTE: for Items inherited from Item_sum, func_name() return part of
+    function name till first argument (including '(') to make difference in
+    names for functions with 'distinct' clause and without 'distinct' and
+    also to make printing of items inherited from Item_sum uniform.
+  */
+  virtual const char *func_name() const= 0;
   virtual Item *result_item(Field *field)
     { return new Item_field(field);}
   table_map used_tables() const { return ~(table_map) 0; } /* Not used */
@@ -159,7 +174,7 @@ public:
   void reset_field();
   void update_field();
   void no_rows_in_result() {}
-  const char *func_name() const { return "sum"; }
+  const char *func_name() const { return "sum("; }
   Item *copy_or_same(THD* thd);
 };
 
@@ -200,7 +215,6 @@ public:
   enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
   void reset_field() {} // not used
   void update_field() {} // not used
-  const char *func_name() const { return "sum_distinct"; }
   virtual void no_rows_in_result() {}
   void fix_length_and_dec();
   enum Item_result result_type () const { return val.traits->type(); }
@@ -224,7 +238,7 @@ public:
   Item_sum_sum_distinct(Item *item_arg) :Item_sum_distinct(item_arg) {}
 
   enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
-  const char *func_name() const { return "sum_distinct"; }
+  const char *func_name() const { return "sum(distinct "; }
   Item *copy_or_same(THD* thd) { return new Item_sum_sum_distinct(thd, this); }
 };
 
@@ -243,7 +257,7 @@ public:
   void fix_length_and_dec();
   virtual void calculate_val_and_count();
   enum Sumfunctype sum_func () const { return AVG_DISTINCT_FUNC; }
-  const char *func_name() const { return "avg_distinct"; }
+  const char *func_name() const { return "avg(distinct "; }
   Item *copy_or_same(THD* thd) { return new Item_sum_avg_distinct(thd, this); }
 };
 
@@ -272,7 +286,7 @@ class Item_sum_count :public Item_sum_int
   void reset_field();
   void cleanup();
   void update_field();
-  const char *func_name() const { return "count"; }
+  const char *func_name() const { return "count("; }
   Item *copy_or_same(THD* thd);
 };
 
@@ -326,12 +340,11 @@ public:
   longlong val_int();
   void reset_field() { return ;}		// Never called
   void update_field() { return ; }		// Never called
-  const char *func_name() const { return "count_distinct"; }
+  const char *func_name() const { return "count(distinct "; }
   bool setup(THD *thd);
   void make_unique();
   Item *copy_or_same(THD* thd);
   void no_rows_in_result() {}
-  void print(String *str);
 };
 
 
@@ -389,7 +402,7 @@ public:
   Item *result_item(Field *field)
   { return new Item_avg_field(hybrid_type, this); }
   void no_rows_in_result() {}
-  const char *func_name() const { return "avg"; }
+  const char *func_name() const { return "avg("; }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
 };
@@ -466,7 +479,7 @@ public:
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
   void no_rows_in_result() {}
-  const char *func_name() const { return "variance"; }
+  const char *func_name() const { return "variance("; }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
   enum Item_result result_type () const { return hybrid_type; }
@@ -501,7 +514,7 @@ class Item_sum_std :public Item_sum_variance
   double val_real();
   Item *result_item(Field *field)
     { return new Item_std_field(this); }
-  const char *func_name() const { return "std"; }
+  const char *func_name() const { return "std("; }
   Item *copy_or_same(THD* thd);
   enum Item_result result_type () const { return REAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE;}
@@ -565,7 +578,7 @@ public:
   enum Sumfunctype sum_func () const {return MIN_FUNC;}
 
   bool add();
-  const char *func_name() const { return "min"; }
+  const char *func_name() const { return "min("; }
   Item *copy_or_same(THD* thd);
 };
 
@@ -578,7 +591,7 @@ public:
   enum Sumfunctype sum_func () const {return MAX_FUNC;}
 
   bool add();
-  const char *func_name() const { return "max"; }
+  const char *func_name() const { return "max("; }
   Item *copy_or_same(THD* thd);
 };
 
@@ -609,7 +622,7 @@ public:
   Item_sum_or(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_or(THD *thd, Item_sum_or *item) :Item_sum_bit(thd, item) {}
   bool add();
-  const char *func_name() const { return "bit_or"; }
+  const char *func_name() const { return "bit_or("; }
   Item *copy_or_same(THD* thd);
 };
 
@@ -620,7 +633,7 @@ class Item_sum_and :public Item_sum_bit
   Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ULONGLONG_MAX) {}
   Item_sum_and(THD *thd, Item_sum_and *item) :Item_sum_bit(thd, item) {}
   bool add();
-  const char *func_name() const { return "bit_and"; }
+  const char *func_name() const { return "bit_and("; }
   Item *copy_or_same(THD* thd);
 };
 
@@ -630,7 +643,7 @@ class Item_sum_xor :public Item_sum_bit
   Item_sum_xor(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_xor(THD *thd, Item_sum_xor *item) :Item_sum_bit(thd, item) {}
   bool add();
-  const char *func_name() const { return "bit_xor"; }
+  const char *func_name() const { return "bit_xor("; }
   Item *copy_or_same(THD* thd);
 };
 
@@ -668,6 +681,7 @@ public:
   void reset_field() {};
   void update_field() {};
   void cleanup();
+  void print(String *str);
 };
 
 

@@ -21,7 +21,7 @@ set b = 8;
 insert into t1 values (b);
 insert into t1 values (unix_timestamp());
 end|
-ERROR HY000: This routine is declared to be non-deterministic and to modify data and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)
+ERROR HY000: This routine has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)
 show binlog events from 98|
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	create database if not exists mysqltest1
@@ -84,7 +84,7 @@ not deterministic
 reads sql data
 select * from mysqltest1.t1
 alter procedure foo2 contains sql;
-ERROR HY000: This routine is declared to be non-deterministic and to modify data and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)
+ERROR HY000: This routine has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)
 drop table t1;
 create table t1 (a int);
 create table t2 like t1;
@@ -97,7 +97,7 @@ grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
 create procedure foo4()
 deterministic
 insert into t1 values (10);
-ERROR HY000: You do not have SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)
+ERROR HY000: You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)
 set global log_bin_trust_routine_creators=1;
 create procedure foo4()
 deterministic
@@ -109,7 +109,7 @@ call foo4();
 Got one of the listed errors
 show warnings;
 Level	Code	Message
-Warning	1417	A routine failed and is declared to modify data and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
+Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
 call foo3();
 show warnings;
 Level	Code	Message
@@ -117,7 +117,7 @@ call foo4();
 Got one of the listed errors
 show warnings;
 Level	Code	Message
-Warning	1417	A routine failed and is declared to modify data and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
+Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
 alter procedure foo4 sql security invoker;
 call foo4();
 show warnings;
