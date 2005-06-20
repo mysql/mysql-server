@@ -86,7 +86,6 @@ void Item_sum::make_field(Send_field *tmp_field)
 void Item_sum::print(String *str)
 {
   str->append(func_name());
-  str->append('(');
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (i)
@@ -2425,13 +2424,6 @@ longlong Item_sum_count_distinct::val_int()
 }
 
 
-void Item_sum_count_distinct::print(String *str)
-{
-  str->append("count(distinct ", 15);
-  args[0]->print(str);
-  str->append(')');
-}
-
 /****************************************************************************
 ** Functions to handle dynamic loadable aggregates
 ** Original source by: Alexis Mikhailov <root@medinf.chuvashia.su>
@@ -2463,6 +2455,20 @@ void Item_udf_sum::cleanup()
   */
   udf.cleanup();
   Item_sum::cleanup();
+}
+
+
+void Item_udf_sum::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+  for (uint i=0 ; i < arg_count ; i++)
+  {
+    if (i)
+      str->append(',');
+    args[i]->print(str);
+  }
+  str->append(')');
 }
 
 

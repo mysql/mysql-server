@@ -573,6 +573,7 @@ public:
     max_length=args[0]->max_length;
   }
   void print(String *str);
+  const char *func_name() const { return "cast_as_binary"; }
 };
 
 
@@ -648,6 +649,7 @@ public:
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "collate"; }
+  enum Functype func_type() const { return COLLATE_FUNC; }
   void print(String *str);
   Item_field *filed_for_view_update()
   {
