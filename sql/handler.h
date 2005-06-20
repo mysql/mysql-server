@@ -547,8 +547,7 @@ enum db_type ha_checktype(enum db_type database_type);
 my_bool ha_storage_engine_is_enabled(enum db_type database_type);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
-int ha_create_table_from_engine(THD* thd, const char *db, const char *name,
-				bool create_if_found);
+int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
@@ -574,6 +573,6 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 		const void** frmblob, uint* frmlen);
 int ha_find_files(THD *thd,const char *db,const char *path,
 		  const char *wild, bool dir,List<char>* files);
-int ha_table_exists(THD* thd, const char* db, const char* name);
+int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 TYPELIB *ha_known_exts(void);
 int ha_start_consistent_snapshot(THD *thd);
