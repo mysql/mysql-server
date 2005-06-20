@@ -569,3 +569,15 @@ select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
 
 deallocate prepare stmt;
 drop table t1, t2;
+
+#
+# Bug#11060 "Server crashes on calling stored procedure with INSERT SELECT
+# UNION SELECT" aka "Server crashes on re-execution of prepared INSERT ...
+# SELECT with UNION".
+#
+create table t1 (id int);
+prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop table t1;
