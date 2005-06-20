@@ -2375,11 +2375,11 @@ void select_create::abort()
   Instansiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List_iterator_fast<List_item>;
 #ifndef EMBEDDED_LIBRARY
 template class I_List<delayed_insert>;
 template class I_List_iterator<delayed_insert>;
 template class I_List<delayed_row>;
 #endif /* EMBEDDED_LIBRARY */
-#endif /* __GNUC__ */
+#endif /* EXPLICIT_TEMPLATE_INSTANTIATION */
