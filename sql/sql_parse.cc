@@ -5458,6 +5458,23 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     DBUG_RETURN(1);
   }
 
+  if (type == FIELD_TYPE_TIMESTAMP && length)
+  {
+    /* Display widths are no longer supported for TIMSTAMP as of MySQL 4.1.
+       In other words, for declarations such as TIMESTAMP(2), TIMESTAMP(4),
+       and so on, the display width is ignored.
+    */
+    String str;
+    str.append("TIMESTAMP");
+    str.append("(");
+    str.append(length);
+    str.append(")");
+    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER(ER_WARN_DEPRECATED_SYNTAX),
+                        str.c_ptr(), "TIMESTAMP");
+  }
+
   if (!(new_field= new_create_field(thd, field_name, type, length, decimals,
 		type_modifier, default_value, on_update_value,
 		comment, change, interval_list, cs, uint_geom_type)))
