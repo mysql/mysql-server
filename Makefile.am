@@ -100,12 +100,13 @@ tags:
 # Test installation
 
 test:
-	cd mysql-test; ./mysql-test-run && ./mysql-test-run --ps-protocol
+	cd mysql-test; \
+	perl mysql-test-run.pl && perl mysql-test-run.pl --ps-protocol
 
 test-force:
 	cd mysql-test; \
-	./mysql-test-run --force ;\
-	./mysql-test-run --ps-protocol --force
+	perl mysql-test-run.pl --force ;\
+	perl mysql-test-run.pl --ps-protocol --force
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
