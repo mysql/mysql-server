@@ -111,8 +111,8 @@ DEFS =			-DMYSQL_SERVER \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			@DEFS@
-# Don't put lex_hash.h in BUILT_SOURCES as this will give infinite recursion
-BUILT_SOURCES =		sql_yacc.cc sql_yacc.h
+
+BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
 EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
 DISTCLEANFILES =        lex_hash.h
 AM_YFLAGS =		-d
@@ -131,9 +131,6 @@ link_sources: mysql_tzinfo_to_sql.cc
 	rm -f my_time.c
 	@LN_CP_F@ ../sql-common/my_time.c my_time.c
 
-gen_lex_hash.o:		gen_lex_hash.cc lex.h
-			$(CXXCOMPILE) -c $(INCLUDES) $<
-
 mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
 			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
 
@@ -148,12 +145,8 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
-lex_hash.h:	lex.h gen_lex_hash.cc sql_yacc.h
-		$(MAKE) gen_lex_hash$(EXEEXT)
+lex_hash.h:	gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
-
-# Hack to ensure that lex_hash.h is built early
-sql_lex.o:	lex_hash.h
 
 # For testing of udf_example.so;  Works on platforms with gcc
 # (This is not part of our build process but only provided as an example)
