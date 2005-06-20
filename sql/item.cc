@@ -5392,7 +5392,7 @@ void Item_result_field::cleanup()
 ** Instantiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<Item>;
 template class List_iterator<Item>;
 template class List_iterator_fast<Item>;

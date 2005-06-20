@@ -971,7 +971,7 @@ x509* PemToDer(const char* fname, CertType type)
 } // namespace
 
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 namespace yaSSL {
 template void ysDelete<DiffieHellman::DHImpl>(DiffieHellman::DHImpl*);
 template void ysDelete<Integer::IntegerImpl>(Integer::IntegerImpl*);
@@ -989,6 +989,6 @@ template void ysDelete<RMD::RMDImpl>(RMD::RMDImpl*);
 template void ysDelete<SHA::SHAImpl>(SHA::SHAImpl*);
 template void ysDelete<MD5::MD5Impl>(MD5::MD5Impl*);
 }
-#endif // __GNUC__
+#endif // EXPLICIT_TEMPLATE_INSTANTIATION
 
 #endif // !USE_CRYPTOPP_LIB

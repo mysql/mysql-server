@@ -445,9 +445,9 @@ sub command_line_setup () {
   # These are defaults for things that are set on the command line
 
   $opt_suite=        "main";    # Special default suite
-  my $opt_master_myport=   9306;
-  my $opt_slave_myport=    9308;
-  $opt_ndbcluster_port= 9350;
+  my $opt_master_myport= 9306;
+  my $opt_slave_myport=  9308;
+  $opt_ndbcluster_port=  9350;
 
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -458,7 +458,7 @@ sub command_line_setup () {
              'ps-protocol'              => \$opt_ps_protocol,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
-             'no-manager'               => \$opt_no_manager,
+             'no-manager'               => \$opt_no_manager, # Currently not used
 
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
@@ -472,7 +472,7 @@ sub command_line_setup () {
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
              'ndbcluster_port=i'        => \$opt_ndbcluster_port,
-             'manager-port'             => \$opt_manager_port,
+             'manager-port=i'           => \$opt_manager_port, # Currently not used
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -840,7 +840,7 @@ sub executable_setup () {
     $exe_mysqlbinlog=       "$path_client_bindir/mysqlbinlog";
     $exe_mysqladmin=        "$path_client_bindir/mysqladmin";
     $exe_mysql=             "$path_client_bindir/mysql";
-    $exe_mysql_fix_system_tables= "$path_client_bindir/scripts/mysql_fix_privilege_tables";
+    $exe_mysql_fix_system_tables= "$path_client_bindir/mysql_fix_privilege_tables";
 
     if ( -d "$glob_basedir/share/mysql/english" )
     {
@@ -1715,7 +1715,7 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--server-id=1", $prefix);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:50M", $prefix);
+    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
@@ -1802,6 +1802,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
 
   if ( $opt_with_openssl )
   {
@@ -2216,7 +2217,8 @@ Options that specify ports
 
   master_port=PORT      Specify the port number used by the first master
   slave_port=PORT       Specify the port number used by the first slave
-  ndbcluster_port=i     Specify the port number used by cluster FIXME
+  ndbcluster_port=PORT  Specify the port number used by cluster
+  manager-port=PORT     Specify the port number used by manager (currently not used)
 
 Options for test case authoring
 
