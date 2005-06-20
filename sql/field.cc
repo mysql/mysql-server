@@ -38,7 +38,7 @@
   Instansiate templates and static variables
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<create_field>;
 template class List_iterator<create_field>;
 #endif
