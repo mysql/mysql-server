@@ -25,6 +25,7 @@
 #endif
 
 #define NOT_FIXED_DEC			31
+#define DATETIME_DEC                     6
 
 class Send_field;
 class Protocol;
@@ -941,6 +942,7 @@ public:
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
   enum Item_result cmp_type () const { return INT_RESULT; }
+  uint decimals() const { return DATETIME_DEC; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
