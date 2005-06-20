@@ -1743,3 +1743,8 @@ select * from v1;
 cast(1 as decimal)
 1.00
 drop view v1;
+create view v1 as SELECT TIME_FORMAT(SEC_TO_TIME(3600),'%H:%i') as t;
+select * from v1;
+t
+01:00
+drop view v1;
