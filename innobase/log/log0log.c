@@ -2038,8 +2038,6 @@ log_checkpoint_margin(void)
 	ulint	checkpoint_age;
 	ulint	advance;
 	dulint	oldest_lsn;
-	dulint	new_oldest;
-	ibool	do_preflush;
 	ibool	sync;
 	ibool	checkpoint_sync;
 	ibool	do_checkpoint;
@@ -2047,7 +2045,6 @@ log_checkpoint_margin(void)
 loop:
 	sync = FALSE;
 	checkpoint_sync = FALSE;
-	do_preflush = FALSE;
 	do_checkpoint = FALSE;
 
 	mutex_enter(&(log->mutex));
@@ -2067,21 +2064,13 @@ loop:
 		/* A flush is urgent: we have to do a synchronous preflush */
 
 		sync = TRUE;
-	
-		advance = 2 * (age - log->max_modified_age_sync);
-
-		new_oldest = ut_dulint_add(oldest_lsn, advance);
-
-		do_preflush = TRUE;
-
+		advance = 2 * (age - log->max_modified_age_async);
 	} else if (age > log->max_modified_age_async) {
 
 		/* A flush is not urgent: we do an asynchronous preflush */
 		advance = age - log->max_modified_age_async;
-
-		new_oldest = ut_dulint_add(oldest_lsn, advance);
-
-		do_preflush = TRUE;
+	} else {
+		advance = 0;
 	}
 
 	checkpoint_age = ut_dulint_minus(log->lsn, log->last_checkpoint_lsn);
@@ -2105,7 +2094,9 @@ loop:
 	
 	mutex_exit(&(log->mutex));
 
-	if (do_preflush) {
+	if (advance) {
+		dulint	new_oldest = ut_dulint_add(oldest_lsn, advance);
+
 		success = log_preflush_pool_modified_pages(new_oldest, sync);
 
 		/* If the flush succeeded, this thread has done its part
