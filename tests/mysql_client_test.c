@@ -12995,6 +12995,19 @@ static void test_bug9478()
     rc= mysql_stmt_fetch(stmt);
     DIE_UNLESS(rc == MYSQL_NO_DATA);
 
+    {
+      char buff[8];
+      /* Fill in the fethc packet */
+      int4store(buff, stmt->stmt_id);
+      buff[4]= 1;                               /* prefetch rows */
+      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH, buff,
+                                               sizeof(buff), 0,0,1) ||
+           (*mysql->methods->read_query_result)(mysql));
+      DIE_UNLESS(rc);
+      if (!opt_silent && i == 0)
+        printf("Got error (as expected): %s\n", mysql_error(mysql));
+    }
+
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
 
@@ -13039,7 +13052,7 @@ static void test_bug9478()
       /* Fill in the execute packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 0;                               /* Flag */
-      int4store(buff+5, 1);                     /* Return 1 row */
+      int4store(buff+5, 1);                     /* Reserved for array bind */
       rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_EXECUTE, buff,
                                                sizeof(buff), 0,0,1) ||
            (*mysql->methods->read_query_result)(mysql));
