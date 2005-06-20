@@ -3090,6 +3090,7 @@ double ha_ndbcluster::scan_time()
   User Mode, before relying on table locks when updating tables
   from several MySQL servers
 */
+
 THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
                                           THR_LOCK_DATA **to,
                                           enum thr_lock_type lock_type)
