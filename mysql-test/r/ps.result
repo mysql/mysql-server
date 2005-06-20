@@ -675,3 +675,9 @@ a
 10
 drop table t1;
 deallocate prepare stmt;
+create table t1 (id int);
+prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop table t1;
