@@ -41,10 +41,10 @@ corresponding log record to the mini-transaction log. */
 void
 mlog_write_string(
 /*==============*/
-	byte*	ptr,	/* in: pointer where to write */
-	byte*	str,	/* in: string to write */
-	ulint	len,	/* in: string length */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+	byte*		ptr,	/* in: pointer where to write */
+	const byte*	str,	/* in: string to write */
+	ulint		len,	/* in: string length */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /************************************************************
 Writes initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. */
@@ -85,9 +85,9 @@ Catenates n bytes to the mtr log. */
 void
 mlog_catenate_string(
 /*=================*/
-	mtr_t*	mtr,	/* in: mtr */
-	byte*	str,	/* in: string to write */
-	ulint	len);	/* in: string length */
+	mtr_t*		mtr,	/* in: mtr */
+	const byte*	str,	/* in: string to write */
+	ulint		len);	/* in: string length */
 /************************************************************
 Catenates a compressed ulint to mlog. */
 UNIV_INLINE

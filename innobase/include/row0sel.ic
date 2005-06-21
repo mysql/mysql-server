@@ -75,7 +75,7 @@ open_step(
 		}
 	}
 			
-	if (err != DB_SUCCESS) {
+	if (UNIV_EXPECT(err, DB_SUCCESS) != DB_SUCCESS) {
 		/* SQL error detected */
 		fprintf(stderr, "SQL error %lu\n", (ulong) err);
 
