@@ -543,3 +543,96 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
+
+#
+# Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
+#
+
+CREATE DATABASE mysqldump_test_db;
+USE mysqldump_test_db;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db t1 t2
+DROP TABLE t1, t2;
+DROP DATABASE mysqldump_test_db;
+
+#
+#  Testing with tables and databases that don't exists
+#  or contains illegal characters
+# (Bug #9358 mysqldump crashes if tablename starts with \)
+#
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1(a varchar(30) primary key, b int not null);
+create table t2(a varchar(30) primary key, b int not null);
+create table t3(a varchar(30) primary key, b int not null);
+
+--disable_query_log
+select '------ Testing with illegal table names ------' as test_sequence ;
+--enable_query_log
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "\d-2-1.sql" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\t1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
+ 
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t\1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments  mysqldump_test_db  "t\\1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t/1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T%1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T'1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_"
+
+--disable_query_log
+select '------ Testing with illegal database names ------' as test_sequence ;
+--enable_query_log
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 2
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_d 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 2
+--exec $MYSQL_DUMP --compact --skip-comments "mysqld\ump_test_db" 2>&1
+
+drop table t1, t2, t3;
+drop database mysqldump_test_db;
+
+
