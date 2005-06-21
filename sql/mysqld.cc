@@ -5238,7 +5238,7 @@ log and this option does nothing anymore.",
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 8, 1, 1000, 0, 1, 0},
+   0, GET_LONG, REQUIRED_ARG, 20, 1, 1000, 0, 1, 0},
   {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
    "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
     " disable a sleep",

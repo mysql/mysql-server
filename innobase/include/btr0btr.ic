@@ -200,10 +200,10 @@ btr_node_ptr_get_child_page_no(
 	
 	page_no = mach_read_from_4(field);
 
-	if (page_no == 0) {
+	if (UNIV_UNLIKELY(page_no == 0)) {
 		fprintf(stderr,
 "InnoDB: a nonsensical page number 0 in a node ptr record at offset %lu\n",
-		       (unsigned long)(rec - buf_frame_align(rec)));
+			(ulong) ut_align_offset(rec, UNIV_PAGE_SIZE));
 		buf_page_print(buf_frame_align(rec));
 	}
 

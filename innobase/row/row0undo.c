@@ -190,7 +190,7 @@ row_undo_search_clust_to_pcur(
 
 	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(ret);

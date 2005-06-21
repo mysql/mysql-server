@@ -66,15 +66,6 @@ dict_hdr_get_new_id(
 	dict_hdr = dict_hdr_get(&mtr);
 
 	id = mtr_read_dulint(dict_hdr + type, &mtr); 
-
-	/* Add some dummy code here because otherwise pgcc seems to
-	compile wrong */
-
-	if (0 == ut_dulint_cmp(id, ut_dulint_max)) {
-		/* TO DO: remove this code, or make it conditional */
-		ut_dbg_null_ptr = 0;
-	}
-
 	id = ut_dulint_add(id, 1);
 	
 	mlog_write_dulint(dict_hdr + type, id, &mtr); 
