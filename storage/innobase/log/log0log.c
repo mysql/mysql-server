@@ -2064,7 +2064,7 @@ loop:
 		/* A flush is urgent: we have to do a synchronous preflush */
 
 		sync = TRUE;
-		advance = 2 * (age - log->max_modified_age_async);
+		advance = 2 * (age - log->max_modified_age_sync);
 	} else if (age > log->max_modified_age_async) {
 
 		/* A flush is not urgent: we do an asynchronous preflush */
