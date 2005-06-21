@@ -682,6 +682,7 @@ sp_head::execute(THD *thd)
 
   cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
+  state= EXECUTED;
 
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
