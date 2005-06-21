@@ -422,7 +422,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     }
   }
 
-  if (insert_fields(thd, tables, tables->db, tables->alias, &it, 0, 0))
+  if (insert_fields(thd, tables, tables->db, tables->alias, &it, 0))
     goto err0;
 
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
