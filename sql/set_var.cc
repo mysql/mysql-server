@@ -1516,7 +1516,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   {
     if (!(res= var->value->val_str(&str)))
     {
-      strmake(buff, "NULL", 4);
+      strmov(buff, "NULL");
       goto err;
     }
     var->save_result.ulong_value= ((ulong)
