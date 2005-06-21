@@ -1625,11 +1625,22 @@ bool select_insert::send_data(List<Item> &values)
   store_values(values);
   error=thd->net.report_error || write_record(table,&info);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-  if (!error && table->next_number_field)       // Clear for next record
+
+  if (!error)
   {
-    table->next_number_field->reset();
-    if (! last_insert_id && thd->insert_id_used)
-      last_insert_id=thd->insert_id();
+    /*
+    Restore fields of the record since it is possible that they were
+    changed by ON DUPLICATE KEY UPDATE clause.
+    */
+    if (info.handle_duplicates == DUP_UPDATE)
+      restore_record(table, default_values);
+
+    if (table->next_number_field)       // Clear for next record
+    {
+      table->next_number_field->reset();
+      if (! last_insert_id && thd->insert_id_used)
+        last_insert_id=thd->insert_id();
+    }
   }
   DBUG_RETURN(error);
 }
