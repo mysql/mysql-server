@@ -218,7 +218,7 @@ extern long innobase_log_file_size, innobase_log_buffer_size;
 extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
 extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
-extern long innobase_force_recovery, innobase_thread_concurrency;
+extern long innobase_force_recovery;
 extern long innobase_open_files;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
