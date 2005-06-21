@@ -110,7 +110,7 @@ row_mysql_store_col_in_innobase_format(
 					necessarily the length of the actual
 					payload data; if the column is a true
 					VARCHAR then this is irrelevant */
-	ibool		comp);		/* in: TRUE = compact format */
+	ulint		comp);		/* in: nonzero=compact format */
 /********************************************************************
 Handles user errors and lock waits detected by the database engine. */
 
@@ -172,14 +172,6 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in the MySQL
 					table handle */
 /*************************************************************************
-Unlocks all table locks explicitly requested by trx (with LOCK TABLES,
-lock type LOCK_TABLE_EXP). */
-
-void		  	
-row_unlock_tables_for_mysql(
-/*========================*/
-	trx_t*	trx);	/* in: transaction */
-/*************************************************************************
 Sets a table lock on the table mentioned in prebuilt. */
 
 int
@@ -190,9 +182,10 @@ row_lock_table_for_mysql(
 					table handle */
 	dict_table_t*	table,		/* in: table to lock, or NULL
 					if prebuilt->table should be
-					locked as LOCK_TABLE_EXP |
+					locked as
 					prebuilt->select_lock_type */
-	ulint		mode);		/* in: lock mode of table */
+	ulint		mode);		/* in: lock mode of table
+					(ignored if table==NULL) */
 					   
 /*************************************************************************
 Does an insert for MySQL. */
@@ -599,6 +592,8 @@ struct row_prebuilt_struct {
 					that was decided in ha_innodb.cc,
 					::store_lock(), ::external_lock(),
 					etc. */
+	ulint		mysql_prefix_len;/* byte offset of the end of
+					the last requested column */
 	ulint		mysql_row_len;	/* length in bytes of a row in the
 					MySQL format */
 	ulint		n_rows_fetched;	/* number of rows fetched after

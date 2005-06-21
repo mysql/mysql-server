@@ -56,9 +56,11 @@ Created 11/5/1995 Heikki Tuuri
 #define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
 extern buf_pool_t* 	buf_pool; 	/* The buffer pool of the database */
+#ifdef UNIV_DEBUG
 extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
+#endif /* UNIV_DEBUG */
 extern ulint srv_buf_pool_write_requests; /* variable to count write request
                                           issued */
 
@@ -382,10 +384,10 @@ Returns the value of the modify clock. The caller must have an s-lock
 or x-lock on the block. */
 UNIV_INLINE
 dulint
-buf_frame_get_modify_clock(
+buf_block_get_modify_clock(
 /*=======================*/
 				/* out: value */
-	buf_frame_t*	frame);	/* in: pointer to a frame */
+	buf_block_t*	block);	/* in: block */
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value
@@ -480,12 +482,20 @@ buf_pool_is_block(
 /*==============*/
 			/* out: TRUE if pointer to block */
 	void*	ptr);	/* in: pointer to memory */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer pool data structure. */
 
 ibool
 buf_validate(void);
 /*==============*/
+/*************************************************************************
+Prints info of the buffer pool data structure. */
+
+void
+buf_print(void);
+/*============*/
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Prints a page to stderr. */
 
@@ -493,12 +503,6 @@ void
 buf_page_print(
 /*===========*/
 	byte*	read_buf);	/* in: a database page */
-/*************************************************************************
-Prints info of the buffer pool data structure. */
-
-void
-buf_print(void);
-/*============*/
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 

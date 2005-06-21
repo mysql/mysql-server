@@ -19,7 +19,9 @@ Created 5/7/1996 Heikki Tuuri
 #include "read0types.h"
 #include "hash0hash.h"
 
+#ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
+#endif /* UNIV_DEBUG */
 /* Buffer for storing information about the most recent deadlock error */
 extern FILE*	lock_latest_err_file;
 
@@ -216,6 +218,7 @@ actual record is being moved. */
 void
 lock_rec_store_on_page_infimum(
 /*===========================*/
+	page_t*	page,	/* in: page containing the record */
 	rec_t*	rec);	/* in: record whose lock state is stored
 			on the infimum record of the same page; lock
 			bits are reset on the record */
@@ -412,9 +415,7 @@ lock_table(
 				/* out: DB_SUCCESS, DB_LOCK_WAIT,
 				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing;
-				if LOCK_TABLE_EXP bits are set,
-				creates an explicit table lock */
+				does nothing */
 	dict_table_t*	table,	/* in: database table in dictionary cache */
 	ulint		mode,	/* in: lock mode */
 	que_thr_t*	thr);	/* in: query thread */
@@ -449,15 +450,6 @@ because of these locks. */
 void
 lock_release_off_kernel(
 /*====================*/
-	trx_t*	trx);	/* in: transaction */
-/*************************************************************************
-Releases table locks explicitly requested with LOCK TABLES (indicated by
-lock type LOCK_TABLE_EXP), and releases possible other transactions waiting
-because of these locks. */
-
-void
-lock_release_tables_off_kernel(
-/*===========================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
 Cancels a waiting lock request and releases possible other transactions
@@ -618,9 +610,6 @@ extern lock_sys_t*	lock_sys;
 /* Lock types */
 #define LOCK_TABLE	16	/* these type values should be so high that */
 #define	LOCK_REC	32	/* they can be ORed to the lock mode */
-#define LOCK_TABLE_EXP	80	/* explicit table lock (80 = 16 + 64) */
-#define	LOCK_TABLE_TRANSACTIONAL	144
-				/* transactional table lock (144 = 16 + 128)*/
 #define LOCK_TYPE_MASK	0xF0UL	/* mask used to extract lock type from the
 				type_mode field in a lock */
 /* Waiting lock flag */
