@@ -722,3 +722,22 @@ WHERE hostname LIKE '%aol%'
     GROUP BY hostname;
 hostname	no
 cache-dtc-af05.proxy.aol.com	1
+DROP TABLE t1;
+CREATE TABLE t1 (a  int, b int);
+INSERT INTO t1 VALUES (1,2), (1,3);
+SELECT a, b FROM t1 GROUP BY 'const';
+a	b
+1	2
+SELECT DISTINCT a, b FROM t1 GROUP BY 'const';
+a	b
+1	2
+DROP TABLE t1;
+CREATE TABLE t1 (id INT, dt DATETIME);
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+SELECT dt DIV 1 AS f, id FROM t1 GROUP BY f;
+f	id
+20050501123000	1
+DROP TABLE t1;
