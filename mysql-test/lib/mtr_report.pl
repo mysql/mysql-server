@@ -38,6 +38,13 @@ sub mtr_show_failed_diff ($) {
   my $result_file=  "r/$tname.result";
   my $eval_file=    "r/$tname.eval";
 
+  if ( $::opt_suite ne "main" )
+  {
+    $reject_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$reject_file";
+    $result_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$result_file";
+    $eval_file=   "$::glob_mysql_test_dir/suite/$::opt_suite/$eval_file";
+  }
+
   if ( -f $eval_file )
   { 
     $result_file=  $eval_file;

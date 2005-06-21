@@ -770,146 +770,83 @@ sub executable_setup () {
 
   if ( $opt_source_dist )
   {
+    if ( $glob_win32 )
+    {
+      $path_client_bindir= mtr_path_exists("$glob_basedir/client_release");
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt");
+      $path_language=      mtr_path_exists("$glob_basedir/share/english/");
+      $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
+    }
+    else
+    {
+      $path_client_bindir= mtr_path_exists("$glob_basedir/client");
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/sql/mysqld");
+      $path_language=      mtr_path_exists("$glob_basedir/sql/share/english/");
+      $path_charsetsdir=   mtr_path_exists("$glob_basedir/sql/share/charsets");
+    }
+
     if ( $glob_use_embedded_server )
     {
-      if ( -f "$glob_basedir/libmysqld/examples/mysqltest" )
-      {
-        $exe_mysqltest=  "$glob_basedir/libmysqld/examples/mysqltest";
-      }
-      else
-      {
-        mtr_error("Can't find embedded server 'mysqltest'");
-      }
+      my $path_examples= "$glob_basedir/libmysqld/examples";
+      $exe_mysqltest=    mtr_exe_exists("$path_examples/mysqltest");
       $exe_mysql_client_test=
-        "$glob_basedir/libmysqld/examples/mysql_client_test_embedded";
+        mtr_exe_exists("$path_examples/mysql_client_test_embedded");
     }
     else
     {
-      if ( -f "$glob_basedir/client/.libs/lt-mysqltest" )
-      {
-        $exe_mysqltest=  "$glob_basedir/client/.libs/lt-mysqltest";
-      }
-      elsif ( -f "$glob_basedir/client/.libs/mysqltest" )
-      {
-        $exe_mysqltest=  "$glob_basedir/client/.libs/mysqltest";
-      }
-      else
-      {
-        $exe_mysqltest=  "$glob_basedir/client/mysqltest";
-      }
+      $exe_mysqltest=  mtr_exe_exists("$glob_basedir/client/mysqltest");
       $exe_mysql_client_test=
-        "$glob_basedir/tests/mysql_client_test";
+        mtr_exe_exists("$glob_basedir/tests/mysql_client_test");
     }
-    if ( -f "$glob_basedir/client/.libs/mysqldump" )
-    {
-      $exe_mysqldump=  "$glob_basedir/client/.libs/mysqldump";
-    }
-    else
-    {
-      $exe_mysqldump=  "$glob_basedir/client/mysqldump";
-    }
-    if ( -f "$glob_basedir/client/.libs/mysqlshow" )
-    {
-      $exe_mysqlshow=  "$glob_basedir/client/.libs/mysqlshow";
-    }
-    else
-    {
-      $exe_mysqlshow=  "$glob_basedir/client/mysqlshow";
-    }
-    if ( -f "$glob_basedir/client/.libs/mysqlbinlog" )
-    {
-      $exe_mysqlbinlog=  "$glob_basedir/client/.libs/mysqlbinlog";
-    }
-    else
-    {
-      $exe_mysqlbinlog=   "$glob_basedir/client/mysqlbinlog";
-    }
-
-    $path_client_bindir=  "$glob_basedir/client";
-    $exe_mysqld=          "$glob_basedir/sql/mysqld";
-    $exe_mysqladmin=      "$path_client_bindir/mysqladmin";
-    $exe_mysql=           "$path_client_bindir/mysql";
-    $exe_mysql_fix_system_tables= "$glob_basedir/scripts/mysql_fix_privilege_tables";
-    $path_language=       "$glob_basedir/sql/share/english/";
-    $path_charsetsdir=    "$glob_basedir/sql/share/charsets";
-
-    $path_ndb_tools_dir=  "$glob_basedir/ndb/tools";
-    $exe_ndb_mgm=         "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
+    $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
+    $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
+    $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
+    $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+    $exe_mysql_fix_system_tables=
+      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
+    $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
+    $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
   }
   else
   {
-    my $path_tests_bindir=  "$glob_basedir/tests";
+    $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
+    $exe_mysqltest=      mtr_exe_exists("$path_client_bindir/mysqltest");
+    $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
+    $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
+    $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
+    $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+    $exe_mysql_fix_system_tables=
+      mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables");
 
-    $path_client_bindir=    "$glob_basedir/bin";
-    $exe_mysqltest=         "$path_client_bindir/mysqltest";
-    $exe_mysqldump=         "$path_client_bindir/mysqldump";
-    $exe_mysqlshow=         "$path_client_bindir/mysqlshow";
-    $exe_mysqlbinlog=       "$path_client_bindir/mysqlbinlog";
-    $exe_mysqladmin=        "$path_client_bindir/mysqladmin";
-    $exe_mysql=             "$path_client_bindir/mysql";
-    $exe_mysql_fix_system_tables= "$path_client_bindir/mysql_fix_privilege_tables";
-
-    if ( -d "$glob_basedir/share/mysql/english" )
-    {
-      $path_language    ="$glob_basedir/share/mysql/english/";
-      $path_charsetsdir ="$glob_basedir/share/mysql/charsets";
-    }
-    else
-    {
-      $path_language    ="$glob_basedir/share/english/";
-      $path_charsetsdir ="$glob_basedir/share/charsets";
-    }
-
-    if ( -x "$glob_basedir/libexec/mysqld" )
-    {
-      $exe_mysqld= "$glob_basedir/libexec/mysqld";
-    }
-    else
-    {
-      $exe_mysqld= "$glob_basedir/bin/mysqld";
-    }
+    $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
+                                         "$glob_basedir/share/english/");
+    $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/mysql/charsets",
+                                         "$glob_basedir/share/charsets");
+    $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
+                                         "$glob_basedir/bin/mysqld");
 
     if ( $glob_use_embedded_server )
     {
-      if ( -f "$path_client_bindir/mysqltest_embedded" )
-      {
-        # FIXME valgrind?
-        $exe_mysqltest="$path_client_bindir/mysqltest_embedded";
-      }
-      else
-      {
-        mtr_error("Cannot find embedded server 'mysqltest_embedded'");
-      }
-      if ( -d "$path_tests_bindir/mysql_client_test_embedded" )
-      {
-        $exe_mysql_client_test=
-          "$path_tests_bindir/mysql_client_test_embedded";
-      }
-      else
-      {
-        $exe_mysql_client_test=
-          "$path_client_bindir/mysql_client_test_embedded";
-      }
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest_embedded");
+      $exe_mysql_client_test=
+        mtr_exe_exists("$glob_basedir/tests/mysql_client_test_embedded",
+                       "$path_client_bindir/mysql_client_test_embedded");
     }
     else
     {
-      $exe_mysqltest="$path_client_bindir/mysqltest";
-      $exe_mysql_client_test="$path_client_bindir/mysql_client_test";
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+      $exe_mysql_client_test=
+        mtr_exe_exists("$path_client_bindir/mysql_client_test");
     }
 
     $path_ndb_tools_dir=  "$glob_basedir/bin";
     $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
   }
 
-  if ( ! $exe_master_mysqld )
-  {
-    $exe_master_mysqld=  $exe_mysqld;
-  }
-
-  if ( ! $exe_slave_mysqld )
-  {
-    $exe_slave_mysqld=  $exe_mysqld;
-  }
+  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
+  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
   $path_ndb_backup_dir=
     "$opt_vardir/ndbcluster-$opt_ndbcluster_port";
@@ -928,15 +865,19 @@ sub executable_setup () {
 sub environment_setup () {
 
   # --------------------------------------------------------------------------
-  # Set LD_LIBRARY_PATH if we are using shared libraries
+  # We might not use a standard installation directory, like /usr/lib.
+  # Set LD_LIBRARY_PATH to make sure we find our installed libraries.
   # --------------------------------------------------------------------------
 
-  $ENV{'LD_LIBRARY_PATH'}=
-    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-  $ENV{'DYLD_LIBRARY_PATH'}=
-    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
-      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  unless ( $opt_source_dist )
+  {
+    $ENV{'LD_LIBRARY_PATH'}=
+      "$glob_basedir/lib" .
+        ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+    $ENV{'DYLD_LIBRARY_PATH'}=
+      "$glob_basedir/lib" .
+        ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  }
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
