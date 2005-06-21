@@ -1779,7 +1779,7 @@ Variable_name	Value
 innodb_sync_spin_loops	20
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	20
 set global innodb_thread_concurrency=1000;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
