@@ -815,9 +815,10 @@ row_upd_build_difference_binary(
 			goto skip_compare;
 		}
 
-		extern_bit = rec_offs_nth_extern(offsets, i);
+		extern_bit = upd_ext_vec_contains(ext_vec, n_ext_vec, i);
 		
-		if (extern_bit != upd_ext_vec_contains(ext_vec, n_ext_vec, i)
+		if (UNIV_UNLIKELY(extern_bit ==
+				!rec_offs_nth_extern(offsets, i))
 		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
@@ -826,12 +827,8 @@ row_upd_build_difference_binary(
 
 			upd_field_set_field_no(upd_field, i, index, trx);
 
-			if (upd_ext_vec_contains(ext_vec, n_ext_vec, i)) {
-				upd_field->extern_storage = TRUE;
-			} else {
-				upd_field->extern_storage = FALSE;
-			}
-				
+			upd_field->extern_storage = extern_bit;
+
 			n_diff++;
 		}
 skip_compare:
@@ -1224,7 +1221,7 @@ row_upd_store_row(
 	
 	node->n_ext_vec = btr_push_update_extern_fields(node->ext_vec,
 						offsets, update);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 }
@@ -1270,7 +1267,7 @@ row_upd_sec_index_entry(
 
 	rec = btr_cur_get_rec(btr_cur);
 
-	if (!found) {
+	if (UNIV_UNLIKELY(!found)) {
 		fputs("InnoDB: error in sec index entry update in\n"
 			"InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -1423,7 +1420,7 @@ row_upd_clust_rec_by_insert(
 							index, thr, mtr);
 			if (err != DB_SUCCESS) {
 				mtr_commit(mtr);
-				if (heap) {
+				if (UNIV_LIKELY_NULL(heap)) {
 					mem_heap_free(heap);
 				}
 				return(err);
@@ -1549,7 +1546,7 @@ row_upd_clust_rec(
 			rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap),
 			big_rec, mtr);
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		mtr_commit(mtr);
@@ -1719,7 +1716,7 @@ row_upd_clust_step(
 			node->index = dict_table_get_next_index(index);
 		}
 	exit_func:
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 		return(err);
@@ -1736,7 +1733,7 @@ row_upd_clust_step(
 		row_upd_eval_new_vals(node->update);
 	}
 
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 		
@@ -2016,7 +2013,7 @@ row_upd_in_place_in_select(
 			btr_pcur_get_rec(pcur), btr_cur->index, offsets_,
 			ULINT_UNDEFINED, &heap),
 		UT_LIST_GET_FIRST(node->columns));
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	row_upd_eval_new_vals(node->update);
