@@ -51,8 +51,8 @@ bool Item_str_buff::cmp(void)
   String *res;
   bool tmp;
 
-  res=item->val_str(&tmp_value);
-  res->length(min(res->length(), value.alloced_length()));
+  if ((res=item->val_str(&tmp_value)))
+    res->length(min(res->length(), value.alloced_length()));
   if (null_value != item->null_value)
   {
     if ((null_value= item->null_value))
