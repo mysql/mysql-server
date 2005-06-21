@@ -700,6 +700,8 @@ public:
   virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == INITIALIZED; }
+  inline bool is_first_sp_execute() const
+  { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
