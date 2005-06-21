@@ -511,8 +511,13 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
                       err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
-    m_dupkey= table->s->primary_key;
-  
+  {
+    if (m_rows_to_insert == 1)
+      m_dupkey= table->s->primary_key;
+    else
+      // We are batching inserts, offending key is not available
+      m_dupkey= (uint) -1;
+  }
   DBUG_RETURN(res);
 }
 
@@ -3027,6 +3032,13 @@ double ha_ndbcluster::scan_time()
   DBUG_RETURN(res);
 }
 
+/*
+  Convert MySQL table locks into locks supported by Ndb Cluster.
+  Note that MySQL Cluster does currently not support distributed
+  table locks, so to be safe one should set cluster in Single
+  User Mode, before relying on table locks when updating tables
+  from several MySQL servers
+*/
 
 THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
                                           THR_LOCK_DATA **to,
@@ -3042,7 +3054,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     /* Since NDB does not currently have table locks
        this is treated as a ordinary lock */
 
-    if ((lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
          lock_type <= TL_WRITE) && !thd->in_lock_tables)      
       lock_type= TL_WRITE_ALLOW_WRITE;
     
