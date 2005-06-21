@@ -1409,3 +1409,30 @@ CREATE TABLE `t2` (
 
 DROP TABLE t1, t2;
 DROP DATABASE mysqldump_test_db;
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1(a varchar(30) primary key, b int not null);
+create table t2(a varchar(30) primary key, b int not null);
+create table t3(a varchar(30) primary key, b int not null);
+test_sequence
+------ Testing with illegal table names ------
+MYSQL_DUMP_DIR: Couldn't find table: "\d-2-1.sql"
+
+MYSQL_DUMP_DIR: Couldn't find table: "\t1"
+
+MYSQL_DUMP_DIR: Couldn't find table: "\t1"
+
+MYSQL_DUMP_DIR: Couldn't find table: "\\t1"
+
+MYSQL_DUMP_DIR: Couldn't find table: "t\1"
+
+MYSQL_DUMP_DIR: Couldn't find table: "t\1"
+
+MYSQL_DUMP_DIR: Couldn't find table: "t/1"
+
+test_sequence
+------ Testing with illegal database names ------
+MYSQL_DUMP_DIR: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
+MYSQL_DUMP_DIR: Got error: 1102: Incorrect database name 'mysqld\ump_test_db' when selecting the database
+drop table t1, t2, t3;
+drop database mysqldump_test_db;
