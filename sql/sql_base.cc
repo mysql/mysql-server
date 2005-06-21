@@ -3053,7 +3053,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       }
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it,
-                             any_privileges, arena != 0))
+                             any_privileges))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
@@ -3306,8 +3306,6 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     any_privileges	0 If we should ensure that we have SELECT privileges
 		          for all columns
                         1 If any privilege is ok
-    allocate_view_names if true view names will be copied to current Query_arena
-                        memory (made for SP/PS)
   RETURN
     0	ok
         'it' is updated to point at last inserted
@@ -3317,7 +3315,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool
 insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it,
-              bool any_privileges, bool allocate_view_names)
+              bool any_privileges)
 {
   /* allocate variables on stack to avoid pool alloaction */
   Field_iterator_table table_iter;
@@ -3507,25 +3505,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
             thd->dupp_field=field;
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
-        }
-        else if (allocate_view_names &&
-                 thd->lex->current_select->first_execution)
-        {
-	  Item_field *item;
-	  if (alias_used)
-	    item= new Item_field(0,
-				 thd->strdup(tables->alias),
-				 thd->strdup(field_name));
-	  else
-	    item= new Item_field(thd->strdup(tables->view_db.str),
-				 thd->strdup(tables->view_name.str),
-				 thd->strdup(field_name));
-          /*
-            during cleunup() this item will be put in list to replace
-            expression from VIEW
-          */
-          thd->nocheck_register_item_tree_change(it->ref(), item,
-                                                 thd->mem_root);
         }
       }
       /*

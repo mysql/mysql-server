@@ -894,8 +894,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
-		   List_iterator<Item> *it, bool any_privileges,
-                   bool allocate_view_names);
+		   List_iterator<Item> *it, bool any_privileges);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
 		  TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
