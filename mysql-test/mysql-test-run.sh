@@ -689,6 +689,9 @@ MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --soc
 if [ "x$USE_EMBEDDED_SERVER" = "x1" ]; then
   MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST -A --language=$LANGUAGE -A --datadir=$SLAVE_MYDDIR -A --character-sets-dir=$CHARSETSDIR"
 fi
+# Save path and name of mysqldump
+MYSQL_DUMP_DIR="$MYSQL_DUMP"
+export MYSQL_DUMP_DIR
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"

@@ -77,8 +77,8 @@ int main(int argc, const char** argv){
      */
     
     // Connect to Ndb
+    Ndb::setConnectString(_connectstr);
     Ndb MyNdb( "TEST_DB" );
-    MyNdb.setConnectString(_connectstr);
     
     if(MyNdb.init() != 0){
       ERR(MyNdb.getNdbError());
