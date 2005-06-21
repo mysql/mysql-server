@@ -100,4 +100,4 @@ tags:
 # Test installation
 
 test:
-	cd mysql-test; ./mysql-test-run && ./mysql-test-run --ps-protocol
+	cd mysql-test; perl mysql-test-run.pl && perl mysql-test-run.pl --ps-protocol

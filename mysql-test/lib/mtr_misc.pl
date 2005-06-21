@@ -9,6 +9,9 @@ use strict;
 sub mtr_full_hostname ();
 sub mtr_init_args ($);
 sub mtr_add_arg ($$);
+sub mtr_path_exists(@);
+sub mtr_script_exists(@);
+sub mtr_exe_exists(@);
 
 ##############################################################################
 #
@@ -46,5 +49,54 @@ sub mtr_add_arg ($$) {
 
   push(@$args, sprintf($format, @fargs));
 }
+
+##############################################################################
+
+sub mtr_path_exists (@) {
+  foreach my $path ( @_ )
+  {
+    return $path if -e $path;
+  }
+  if ( @_ == 1 )
+  {
+    mtr_error("Could not find $_[0]");
+  }
+  else
+  {
+    mtr_error("Could not find any of " . join(" ", @_));
+  }
+}
+
+sub mtr_script_exists (@) {
+  foreach my $path ( @_ )
+  {
+    return $path if -x $path;
+  }
+  if ( @_ == 1 )
+  {
+    mtr_error("Could not find $_[0]");
+  }
+  else
+  {
+    mtr_error("Could not find any of " . join(" ", @_));
+  }
+}
+
+sub mtr_exe_exists (@) {
+  foreach my $path ( @_ )
+  {
+    $path.= ".exe" if $::opt_win32;
+    return $path if -x $path;
+  }
+  if ( @_ == 1 )
+  {
+    mtr_error("Could not find $_[0]");
+  }
+  else
+  {
+    mtr_error("Could not find any of " . join(" ", @_));
+  }
+}
+
 
 1;
