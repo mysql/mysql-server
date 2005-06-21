@@ -322,6 +322,10 @@ SOURCE=..\mysys\mulalloc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\my_access.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_alloc.c
 # End Source File
 # Begin Source File
