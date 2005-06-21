@@ -1569,3 +1569,15 @@ drop procedure p1;
 drop view v1;
 drop table t1;
 
+#
+# Bug#7422 "order by" doesn't work
+#
+CREATE TABLE t1(a char(2) primary key, b char(2));
+CREATE TABLE t2(a char(2), b char(2), index i(a));
+INSERT INTO t1 VALUES ('a','1'), ('b','2');
+INSERT INTO t2 VALUES ('a','5'), ('a','6'), ('b','5'), ('b','6');
+CREATE VIEW v1 AS
+  SELECT t1.b as c, t2.b as d FROM t1,t2 WHERE t1.a=t2.a;
+SELECT d, c FROM v1 ORDER BY d;
+DROP VIEW v1;
+DROP TABLE t1, t2;
