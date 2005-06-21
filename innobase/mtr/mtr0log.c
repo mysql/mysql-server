@@ -15,6 +15,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "dict0boot.h"
 #include "log0recv.h"
+#include "page0page.h"
 
 /************************************************************
 Catenates n bytes to the mtr log. */
@@ -22,9 +23,9 @@ Catenates n bytes to the mtr log. */
 void
 mlog_catenate_string(
 /*=================*/
-	mtr_t*	mtr,	/* in: mtr */
-	byte*	str,	/* in: string to write */
-	ulint	len)	/* in: string length */
+	mtr_t*		mtr,	/* in: mtr */
+	const byte*	str,	/* in: string to write */
+	ulint		len)	/* in: string length */
 {
 	dyn_array_t*	mlog;
 
@@ -301,14 +302,15 @@ corresponding log record to the mini-transaction log. */
 void
 mlog_write_string(
 /*==============*/
-	byte*	ptr,	/* in: pointer where to write */
-	byte*	str,	/* in: string to write */
-	ulint	len,	/* in: string length */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	byte*		ptr,	/* in: pointer where to write */
+	const byte*	str,	/* in: string to write */
+	ulint		len,	/* in: string length */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
-	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
+	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
 	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;
@@ -405,7 +407,9 @@ mlog_open_and_write_index(
 	const byte*	log_start;
 	const byte*	log_end;
 
-	if (!index->table->comp) {
+	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+
+	if (!page_rec_is_comp(rec)) {
 		log_start = log_ptr = mlog_open(mtr, 11 + size);
 		if (!log_ptr) {
 			return(NULL); /* logging is disabled */
@@ -497,6 +501,8 @@ mlog_parse_index(
 	ulint		i, n, n_uniq;
 	dict_table_t*	table;
 	dict_index_t*	ind;
+
+	ut_ad(comp == FALSE || comp == TRUE);
 
 	if (comp) {
 		if (end_ptr < ptr + 4) {
