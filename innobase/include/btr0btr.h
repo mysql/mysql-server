@@ -168,7 +168,7 @@ btr_create(
 	ulint	type,	/* in: type of the index */
 	ulint	space,	/* in: space where created */
 	dulint	index_id,/* in: index id */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /****************************************************************
 Frees a B-tree except the root page, which MUST be freed after this
@@ -276,7 +276,7 @@ void
 btr_set_min_rec_mark(
 /*=================*/
 	rec_t*	rec,	/* in: record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	mtr_t*	mtr);	/* in: mtr */
 /*****************************************************************
 Deletes on the upper level the node pointer to a page. */
@@ -336,7 +336,7 @@ btr_parse_set_min_rec_mark(
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr);	/* in: mtr or NULL */
 /***************************************************************
@@ -398,6 +398,7 @@ btr_page_free_low(
 	page_t*		page,	/* in: page to be freed, x-latched */	
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr);	/* in: mtr */
+#ifdef UNIV_BTR_PRINT
 /*****************************************************************
 Prints size info of a B-tree. */
 
@@ -414,6 +415,7 @@ btr_print_tree(
 	dict_tree_t*	tree,	/* in: tree */
 	ulint		width);	/* in: print this many entries from start
 				and end */
+#endif /* UNIV_BTR_PRINT */
 /****************************************************************
 Checks the size and number of fields in a record based on the definition of
 the index. */
@@ -434,7 +436,8 @@ ibool
 btr_validate_tree(
 /*==============*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_tree_t*	tree,	/* in: tree */
+	trx_t*		trx);	/* in: transaction or NULL */
 
 #define BTR_N_LEAF_PAGES 	1
 #define BTR_TOTAL_SIZE		2
