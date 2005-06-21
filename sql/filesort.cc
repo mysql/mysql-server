@@ -631,7 +631,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
 	  String tmp((char*) to,sort_field->length+4,cs);
-	  String *res=item->val_str(&tmp);
+          String *res= item->str_result(&tmp);
 	  if (!res)
 	  {
 	    if (maybe_null)
@@ -673,8 +673,8 @@ static void make_sortkey(register SORTPARAM *param,
 	}
       case INT_RESULT:
 	{
-	  longlong value=item->val_int();
-	  if (maybe_null)
+          longlong value= item->val_int_result();
+          if (maybe_null)
           {
 	    *to++=1;				/* purecov: inspected */
             if (item->null_value)
@@ -715,7 +715,7 @@ static void make_sortkey(register SORTPARAM *param,
 	}
       case DECIMAL_RESULT:
         {
-          my_decimal dec_buf, *dec_val= item->val_decimal(&dec_buf);
+          my_decimal dec_buf, *dec_val= item->val_decimal_result(&dec_buf);
           if (maybe_null)
           {
             if (item->null_value)
@@ -733,7 +733,7 @@ static void make_sortkey(register SORTPARAM *param,
         }
       case REAL_RESULT:
 	{
-	  double value= item->val_real();
+          double value= item->val_result();
 	  if (maybe_null)
           {
             if (item->null_value)
