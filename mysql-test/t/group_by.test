@@ -543,30 +543,6 @@ SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
 DROP TABLE t1;
 
 #
-# Bug#11211: Ambiguous column reference in GROUP BY.
-#
-
-create table t1 (c1 char(3), c2 char(3));
-create table t2 (c3 char(3), c4 char(3));
-insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
-insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
-
-# query with ambiguous column reference 'c2'
---disable_ps_protocol
-select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
-group by c2;
-show warnings;
---enable_ps_protocol
-
-# this query has no ambiguity
-select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
-group by t1.c1;
-
-show warnings;
-
-drop table t1, t2;
-
-#
 # Test for bug #8614: GROUP BY 'const' with DISTINCT  
 #
 
@@ -589,3 +565,18 @@ INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
 SELECT dt DIV 1 AS f, id FROM t1 GROUP BY f;
 
 DROP TABLE t1;
+
+#
+# Test for bug #11295: GROUP BY a BLOB column with COUNT(DISTINCT column1) 
+#                      when the BLOB column takes NULL values
+# 
+
+CREATE TABLE t1 (id varchar(20) NOT NULL);
+INSERT INTO t1 VALUES ('trans1'), ('trans2');
+CREATE TABLE t2 (id varchar(20) NOT NULL, err_comment blob NOT NULL);
+INSERT INTO t2 VALUES ('trans1', 'a problem');
+
+SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS err_comment
+  FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY err_comment;
+
+DROP TABLE t1, t2;
