@@ -563,7 +563,7 @@ innobase_mysql_print_thd(
         thd = (const THD*) input_thd;
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
-		thd->thread_id, thd->query_id);
+		thd->thread_id, (ulong) thd->query_id);
 	if (thd->host) {
 		putc(' ', f);
 		fputs(thd->host, f);
@@ -1805,7 +1805,7 @@ try_again:
                         fprintf(stderr,
 "InnoDB: This transaction needs it to be sent up to\n"
 "InnoDB: file %s, position %lu\n", trx->repl_wait_binlog_name,
-                                        (uint)trx->repl_wait_binlog_pos);
+                                        (ulong)trx->repl_wait_binlog_pos);
 
                         innobase_repl_state = 0;
 

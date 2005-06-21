@@ -52,19 +52,16 @@ row_undo_mod_undo_also_prev_vers(
 				/* out: TRUE if also previous modify or
 				insert of this row should be undone */
  	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr,	/* in: query thread */
 	dulint*		undo_no)/* out: the undo number */
 {
 	trx_undo_rec_t*	undo_rec;
-	ibool		ret;
 	trx_t*		trx;
-
-	UT_NOT_USED(thr);
 
 	trx = node->trx;
 	
 	if (0 != ut_dulint_cmp(node->new_trx_id, trx->id)) {
 
+		*undo_no = ut_dulint_zero;
 		return(FALSE);
 	}
 
@@ -72,13 +69,7 @@ row_undo_mod_undo_also_prev_vers(
 
 	*undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
-	if (ut_dulint_cmp(trx->roll_limit, *undo_no) <= 0) {
-		ret = TRUE;
-	} else {
-		ret = FALSE;
-	}
-	
-	return(ret);
+	return(ut_dulint_cmp(trx->roll_limit, *undo_no) <= 0);
 }
 	
 /***************************************************************
@@ -214,7 +205,7 @@ row_undo_mod_clust(
 	/* Check if also the previous version of the clustered index record
 	should be undone in this same rollback operation */
 
-	more_vers = row_undo_mod_undo_also_prev_vers(node, thr, &new_undo_no);
+	more_vers = row_undo_mod_undo_also_prev_vers(node, &new_undo_no);
 
 	pcur = &(node->pcur);
 
