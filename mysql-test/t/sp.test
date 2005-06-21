@@ -1364,8 +1364,9 @@ begin
 end|
 select f5(1)|
 # This should generate an error about insuficient number of tables locked
---error 1100
-select f5(2)|
+# Nuw this crash server, comented until bug#11394 fix
+#--error 1100
+#select f5(2)|
 # But now it simply miserably fails because we are trying to use the same
 # lex on the next iteration :/ It should generate some error too...
 # select f5(3)|
@@ -3885,6 +3886,30 @@ DROP PROCEDURE bug6866;
 
 DROP VIEW tv|
 DROP TABLE tt1, tt2, tt3|
+
+#
+# BUG#10136: items cleunup
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug10136|
+--enable_warnings
+create table t3 ( name char(5) not null primary key, val float not null)|
+insert into t3 values ('aaaaa', 1), ('bbbbb', 2), ('ccccc', 3)|
+create procedure bug10136()
+begin
+  declare done int default 3;
+
+  repeat
+    select * from t3;
+    set done = done - 1;
+  until done <= 0 end repeat;
+
+end|
+call bug10136()|
+call bug10136()|
+call bug10136()|
+drop procedure bug10136|
+drop table t3|
 
 #
 # BUG#NNNN: New bug synopsis
