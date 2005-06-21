@@ -477,6 +477,7 @@ recv_find_max_checkpoint(
 
 	max_no = ut_dulint_zero;
 	*max_group = NULL;
+	*max_field = 0;
 	
 	buf = log_sys->checkpoint_buf;
 	
@@ -543,7 +544,6 @@ recv_find_max_checkpoint(
 "InnoDB: to create the InnoDB data files, but log file creation failed.\n"
 "InnoDB: If that is the case, please refer to\n"
 "InnoDB: http://dev.mysql.com/doc/mysql/en/Error_creating_InnoDB.html\n");
-		*max_field = 0;
 		return(DB_ERROR);
 	}
 
@@ -1168,6 +1168,7 @@ recv_recover_page(
 	}
 
 	modification_to_page = FALSE;
+	start_lsn = end_lsn = ut_dulint_zero;
 
 	recv = UT_LIST_GET_FIRST(recv_addr->rec_list);
 	
@@ -1795,6 +1796,8 @@ recv_parse_log_rec(
 	byte**	body)	/* out: log record body start */
 {
 	byte*	new_ptr;
+
+	*body = NULL;
 
 	if (ptr == end_ptr) {
 
