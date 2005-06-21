@@ -166,3 +166,12 @@ INSERT INTO t1 (SEQ, NO) SELECT "1" AS SEQ, IF(MAX(NO) IS NULL, 0, MAX(NO)) + 1 
 select SQL_BUFFER_RESULT * from t1 WHERE (SEQ = 1);
 drop table t1;
 
+#
+# Bug#10886 - Have to restore default values after update ON DUPLICATE KEY
+#
+create table t1 (f1 int);
+create table t2 (ff1 int unique, ff2 int default 1);
+insert into t1 values (1),(1),(2);
+insert into t2(ff1) select f1 from t1 on duplicate key update ff2=ff2+1;
+select * from t2;
+drop table t1, t2;
