@@ -373,12 +373,20 @@ page_dir_find_owner_slot(
 /****************************************************************
 Determine whether the page is in new-style compact format. */
 UNIV_INLINE
-ibool
+ulint
 page_is_comp(
 /*=========*/
-			/* out: TRUE if the page is in compact format
-			FALSE if it is in old-style format */
+			/* out: nonzero if the page is in compact
+			format, zero if it is in old-style format */
 	page_t*	page);	/* in: index page */
+/****************************************************************
+TRUE if the record is on a page in compact format. */
+UNIV_INLINE
+ulint
+page_rec_is_comp(
+/*=============*/
+				/* out: nonzero if in compact format */
+	const rec_t*	rec);	/* in: record */
 /****************************************************************
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
@@ -407,6 +415,30 @@ page_rec_get_prev(
 				/* out: pointer to previous record */
 	rec_t*		rec);	/* in: pointer to record,
 				must not be page infimum */
+/****************************************************************
+TRUE if the record is a user record on the page. */
+UNIV_INLINE
+ibool
+page_rec_is_user_rec_low(
+/*=====================*/
+			/* out: TRUE if a user record */
+	ulint	offset);/* in: record offset on page */
+/****************************************************************
+TRUE if the record is the supremum record on a page. */
+UNIV_INLINE
+ibool
+page_rec_is_supremum_low(
+/*=====================*/
+			/* out: TRUE if the supremum record */
+	ulint	offset);/* in: record offset on page */
+/****************************************************************
+TRUE if the record is the infimum record on a page. */
+UNIV_INLINE
+ibool
+page_rec_is_infimum_low(
+/*=====================*/
+			/* out: TRUE if the infimum record */
+	ulint	offset);/* in: record offset on page */
 
 /****************************************************************
 TRUE if the record is a user record on the page. */
@@ -414,40 +446,24 @@ UNIV_INLINE
 ibool
 page_rec_is_user_rec(
 /*=================*/
-			/* out: TRUE if a user record */
-	rec_t*	rec);	/* in: record */
+				/* out: TRUE if a user record */
+	const rec_t*	rec);	/* in: record */
 /****************************************************************
 TRUE if the record is the supremum record on a page. */
 UNIV_INLINE
 ibool
 page_rec_is_supremum(
 /*=================*/
-			/* out: TRUE if the supremum record */
-	rec_t*	rec);	/* in: record */
+				/* out: TRUE if the supremum record */
+	const rec_t*	rec);	/* in: record */
 /****************************************************************
 TRUE if the record is the infimum record on a page. */
 UNIV_INLINE
 ibool
 page_rec_is_infimum(
 /*================*/
-			/* out: TRUE if the infimum record */
-	rec_t*	rec);	/* in: record */
-/****************************************************************
-TRUE if the record is the first user record on the page. */
-UNIV_INLINE
-ibool
-page_rec_is_first_user_rec(
-/*=======================*/
-			/* out: TRUE if first user record */
-	rec_t*	rec);	/* in: record */
-/****************************************************************
-TRUE if the record is the last user record on the page. */
-UNIV_INLINE
-ibool
-page_rec_is_last_user_rec(
-/*======================*/
-			/* out: TRUE if last user record */
-	rec_t*	rec);	/* in: record */
+				/* out: TRUE if the infimum record */
+	const rec_t*	rec);	/* in: record */
 /*******************************************************************
 Looks for the record which owns the given record. */
 UNIV_INLINE
@@ -495,7 +511,7 @@ ulint
 page_get_free_space_of_empty(
 /*=========================*/
 			/* out: free space */
-	ibool	comp)	/* in: TRUE=compact page format */
+	ulint	comp)	/* in: nonzero=compact page format */
 		__attribute__((const));
 /****************************************************************
 Returns the sum of the sizes of the records in the record list
@@ -539,7 +555,7 @@ page_create(
 	buf_frame_t*	frame,		/* in: a buffer frame where the page is
 					created */
 	mtr_t*		mtr,		/* in: mini-transaction handle */
-	ibool		comp);		/* in: TRUE=compact page format */
+	ulint		comp);		/* in: nonzero=compact page format */
 /*****************************************************************
 Differs from page_copy_rec_list_end, because this function does not
 touch the lock table and max trx id on page. */
@@ -673,7 +689,7 @@ page_parse_create(
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr);	/* in: mtr or NULL */
 /****************************************************************

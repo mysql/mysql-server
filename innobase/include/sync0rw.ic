@@ -138,7 +138,7 @@ rw_lock_s_lock_low(
 #endif /* UNIV_SYNC_DEBUG */
 	/* Check if the writer field is free */
 
-	if (lock->writer == RW_LOCK_NOT_LOCKED) {
+	if (UNIV_LIKELY(lock->writer == RW_LOCK_NOT_LOCKED)) {
 		/* Set the shared lock by incrementing the reader count */
 		lock->reader_count++;
 
@@ -243,7 +243,7 @@ rw_lock_s_lock_func(
 
 	mutex_enter(rw_lock_get_mutex(lock));
 
-	if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
+	if (UNIV_LIKELY(rw_lock_s_lock_low(lock, pass, file_name, line))) {
 		mutex_exit(rw_lock_get_mutex(lock));
 
 		return; /* Success */
@@ -307,21 +307,18 @@ rw_lock_x_lock_func_nowait(
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
-	ibool	success	= FALSE;
-	
+	ibool		success		= FALSE;
+	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
 	mutex_enter(rw_lock_get_mutex(lock));
 
-	if ((rw_lock_get_reader_count(lock) == 0)
-	     && ((rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED)
-	     	 || ((rw_lock_get_writer(lock) == RW_LOCK_EX)
-	     	     && (lock->pass == 0)
-	     	     && os_thread_eq(lock->writer_thread,
-					os_thread_get_curr_id())))) {
-
+	if (UNIV_UNLIKELY(rw_lock_get_reader_count(lock) != 0)) {
+	} else if (UNIV_LIKELY(rw_lock_get_writer(lock)
+			       == RW_LOCK_NOT_LOCKED)) {
 		rw_lock_set_writer(lock, RW_LOCK_EX);
-		lock->writer_thread = os_thread_get_curr_id();
-		lock->writer_count++;
+		lock->writer_thread = curr_thread;
 		lock->pass = 0;
+	relock:
+		lock->writer_count++;
 			
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
@@ -331,6 +328,10 @@ rw_lock_x_lock_func_nowait(
 		lock->last_x_line = line;
 
 		success = TRUE;
+	} else if (rw_lock_get_writer(lock) == RW_LOCK_EX
+			&& lock->pass == 0
+			&& os_thread_eq(lock->writer_thread, curr_thread)) {
+		goto relock;
 	}
 
 	mutex_exit(rw_lock_get_mutex(lock));
@@ -361,7 +362,7 @@ rw_lock_s_unlock_func(
 
 	/* Reset the shared lock by decrementing the reader count */
 
-	ut_a(lock->reader_count > 0);
+	ut_ad(lock->reader_count > 0);
 	lock->reader_count--;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -371,7 +372,8 @@ rw_lock_s_unlock_func(
 	/* If there may be waiters and this was the last s-lock,
 	signal the object */
 
-	if (lock->waiters && (lock->reader_count == 0)) {
+	if (UNIV_UNLIKELY(lock->waiters)
+			&& lock->reader_count == 0) {
 	       	sg = TRUE;
 
 		rw_lock_set_waiters(lock, 0);
@@ -379,7 +381,7 @@ rw_lock_s_unlock_func(
 	
 	mutex_exit(mutex);
 
-	if (sg == TRUE) {
+	if (UNIV_UNLIKELY(sg)) {
 		sync_array_signal_object(sync_primary_wait_array, lock);
 	}
 
@@ -450,7 +452,8 @@ rw_lock_x_unlock_func(
 #endif
 	
 	/* If there may be waiters, signal the lock */
-	if (lock->waiters && (lock->writer_count == 0)) {
+	if (UNIV_UNLIKELY(lock->waiters)
+			&& lock->writer_count == 0) {
 
 	       	sg = TRUE;
 		rw_lock_set_waiters(lock, 0);
@@ -458,7 +461,7 @@ rw_lock_x_unlock_func(
 	
 	mutex_exit(&(lock->mutex));
 
-	if (sg == TRUE) {
+	if (UNIV_UNLIKELY(sg)) {
 		sync_array_signal_object(sync_primary_wait_array, lock);
 	}
 
