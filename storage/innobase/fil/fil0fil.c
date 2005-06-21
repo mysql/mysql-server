@@ -99,7 +99,6 @@ ulint	fil_n_pending_tablespace_flushes	= 0;
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
 /* File node of a tablespace or the log data space */
-typedef	struct fil_node_struct	fil_node_t;
 struct fil_node_struct {
 	fil_space_t*	space;	/* backpointer to the space where this node
 				belongs */
@@ -4046,7 +4045,7 @@ fil_aio_wait(
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
-		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
+		ret = os_aio_simulated_handle(segment, &fil_node,
 	                                               &message, &type);
 	}
 	

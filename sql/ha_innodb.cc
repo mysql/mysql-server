@@ -146,8 +146,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_buffer_pool_awe_mem_mb,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads,  innobase_lock_wait_timeout,
-     innobase_thread_concurrency, innobase_force_recovery,
-     innobase_open_files;
+     innobase_force_recovery, innobase_open_files;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -327,7 +326,7 @@ innodb_srv_conc_enter_innodb(
 /*=========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (srv_thread_concurrency >= 500) {
+	if (UNIV_LIKELY(srv_thread_concurrency >= 20)) {
 
 		return;
 	}
@@ -344,7 +343,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (srv_thread_concurrency >= 500) {
+	if (UNIV_LIKELY(srv_thread_concurrency >= 20)) {
 
 		return;
 	}
@@ -1045,6 +1044,18 @@ mysql_get_identifier_quote_char(
 }
 
 /**************************************************************************
+Determines if the currently running transaction has been interrupted. */
+extern "C"
+ibool
+trx_is_interrupted(
+/*===============*/
+			/* out: TRUE if interrupted */
+	trx_t*	trx)	/* in: transaction */
+{
+	return(trx && trx->mysql_thd && ((THD*) trx->mysql_thd)->killed);
+}
+
+/**************************************************************************
 Obtain a pointer to the MySQL THD object, as in current_thd().  This
 definition must match the one in sql/ha_innodb.cc! */
 extern "C"
@@ -1302,8 +1313,8 @@ innobase_init(void)
 
 	data_mysql_default_charset_coll = (ulint)default_charset_info->number;
 
-	data_mysql_latin1_swedish_charset_coll =
-					(ulint)my_charset_latin1.number;
+	ut_a(DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL ==
+					my_charset_latin1.number);
 
 	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
 	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
@@ -2867,6 +2878,8 @@ build_template(
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i;
+	/* byte offset of the end of last requested column */
+	ulint		mysql_prefix_len	= 0;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
 		/* We always retrieve the whole clustered index record if we
@@ -2988,6 +3001,11 @@ build_template(
 					get_field_offset(table, field);
 
 		templ->mysql_col_len = (ulint) field->pack_length();
+		if (mysql_prefix_len < templ->mysql_col_offset
+				+ templ->mysql_col_len) {
+			mysql_prefix_len = templ->mysql_col_offset
+				+ templ->mysql_col_len;
+		}
 		templ->type = index->table->cols[i].type.mtype;
 		templ->mysql_type = (ulint)field->type();
 
@@ -3010,6 +3028,7 @@ skip_field:
 	}
 
 	prebuilt->n_template = n_requested_fields;
+	prebuilt->mysql_prefix_len = mysql_prefix_len;
 
 	if (index != clust_index && prebuilt->need_to_access_clustered) {
 		/* Change rec_field_no's to correspond to the clustered index
@@ -3081,7 +3100,7 @@ ha_innobase::write_row(
 		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
 
 		dict_table_t*	src_table;
-		ibool		mode;
+		ulint		mode;
 
 		num_write_row = 0;
 
@@ -5992,7 +6011,7 @@ ha_innobase::external_lock(
 
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt,
-							NULL, LOCK_TABLE_EXP);
+							NULL, 0);
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
@@ -6012,9 +6031,6 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 
-	if (trx->n_lock_table_exp) {
-		row_unlock_tables_for_mysql(trx);
-	}
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -6056,7 +6072,7 @@ user issued query LOCK TABLES..WHERE ENGINE = InnoDB. */
 int
 ha_innobase::transactional_table_lock(
 /*==================================*/
-			        /* out: 0 */
+			        /* out: error code */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
@@ -6120,8 +6136,7 @@ ha_innobase::transactional_table_lock(
 	if (thd->in_lock_tables && thd->variables.innodb_table_locks) {
 		ulint	error = DB_SUCCESS;
 
-		error = row_lock_table_for_mysql(prebuilt,NULL,
-						LOCK_TABLE_TRANSACTIONAL);
+		error = row_lock_table_for_mysql(prebuilt, NULL, 0);
 
 		if (error != DB_SUCCESS) {
 			error = convert_error_code_to_mysql((int) error, user_thd);

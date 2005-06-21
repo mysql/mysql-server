@@ -52,6 +52,27 @@ mach_read_from_2(
 /*=============*/
 			/* out: ulint integer, >= 0, < 64k */
 	byte*   b);      /* in: pointer to two bytes */
+
+/************************************************************
+The following function is used to convert a 16-bit data item
+to the canonical format, for fast bytewise equality test
+against memory. */
+UNIV_INLINE
+uint16
+mach_encode_2(
+/*==========*/
+			/* out: 16-bit integer in canonical format */
+	ulint	n);	/* in: integer in machine-dependent format */
+/************************************************************
+The following function is used to convert a 16-bit data item
+from the canonical format, for fast bytewise equality test
+against memory. */
+UNIV_INLINE
+ulint
+mach_decode_2(
+/*==========*/
+			/* out: integer in machine-dependent format */
+	uint16	n);	/* in: 16-bit integer in canonical format */
 /***********************************************************
 The following function is used to store data in 3 consecutive
 bytes. We store the most significant byte to the lowest address. */

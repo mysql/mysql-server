@@ -122,6 +122,7 @@ void
 buf_LRU_make_block_old(
 /*===================*/
 	buf_block_t*	block);	/* in: control block */
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Validates the LRU list. */
 
@@ -134,6 +135,7 @@ Prints the LRU list. */
 void
 buf_LRU_print(void);
 /*===============*/
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "buf0lru.ic"
