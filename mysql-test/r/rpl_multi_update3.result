@@ -40,3 +40,4 @@ SELECT * FROM t2 ORDER BY a;
 a	b
 1	6
 2	6
+drop table t1,t2;
