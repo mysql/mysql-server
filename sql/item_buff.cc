@@ -60,8 +60,8 @@ bool Cached_item_str::cmp(void)
   String *res;
   bool tmp;
 
-  res=item->val_str(&tmp_value);
-  res->length(min(res->length(), value.alloced_length()));
+  if ((res=item->val_str(&tmp_value)))
+    res->length(min(res->length(), value.alloced_length()));
   if (null_value != item->null_value)
   {
     if ((null_value= item->null_value))
@@ -146,7 +146,7 @@ bool Cached_item_decimal::cmp()
 ** Instansiate templates
 *****************************************************************************/
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<Cached_item>;
 template class List_iterator<Cached_item>;
 #endif

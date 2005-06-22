@@ -1133,8 +1133,6 @@ end|
 select f5(1)|
 f5(1)
 1
-select f5(2)|
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
 create function f6() returns int
 begin
 declare n int;
@@ -3174,4 +3172,56 @@ a1	a2	a3	data	data2	data3
 DROP PROCEDURE bug6866;
 DROP VIEW tv|
 DROP TABLE tt1, tt2, tt3|
+DROP PROCEDURE IF EXISTS bug10136|
+create table t3 ( name char(5) not null primary key, val float not null)|
+insert into t3 values ('aaaaa', 1), ('bbbbb', 2), ('ccccc', 3)|
+create procedure bug10136()
+begin
+declare done int default 3;
+repeat
+select * from t3;
+set done = done - 1;
+until done <= 0 end repeat;
+end|
+call bug10136()|
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+call bug10136()|
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+call bug10136()|
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+drop procedure bug10136|
+drop table t3|
 drop table t1,t2;
