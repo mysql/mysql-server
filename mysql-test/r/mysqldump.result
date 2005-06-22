@@ -1530,7 +1530,7 @@ CREATE TABLE `t2` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 <?xml version="1.0"?>
-<mysqldump>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
@@ -1541,7 +1541,7 @@ CREATE TABLE `t2` (
 </database>
 </mysqldump>
 <?xml version="1.0"?>
-<mysqldump>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />

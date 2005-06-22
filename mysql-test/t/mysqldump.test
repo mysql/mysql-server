@@ -664,7 +664,7 @@ select '------ Testing with illegal database names ------' as test_sequence ;
 
 drop table t1, t2, t3;
 drop database mysqldump_test_db;
-
+use test;
 
 #
 # Bug #9657 mysqldump xml ( -x ) does not format NULL fields correctly
