@@ -2002,7 +2002,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     {
       DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!cursor &&
-          !(cursor= stmt->cursor= new (&stmt->main_mem_root) Cursor()))
+          !(cursor= stmt->cursor= new (stmt->mem_root) Cursor(thd)))
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
       stmt->lex->result= &cursor->result;
