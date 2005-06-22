@@ -710,3 +710,30 @@ fi
 ])
 
 
+AC_DEFUN([MYSQL_CHECK_CXX_VERSION], [
+case $SYSTEM_TYPE in
+  *netware*)
+    CXX_VERSION=`$CXX -version | grep -i version`
+  ;;
+  *)
+    CXX_VERSION=`$CXX --version | sed 1q`
+    if test $? -ne "0" -o -z "$CXX_VERSION"
+    then
+      CXX_VERSION=`$CXX -V 2>&1|sed 1q` # trying harder for Sun and SGI
+    fi
+    if test $? -ne "0" -o -z "$CXX_VERSION"
+    then
+      CXX_VERSION=`$CXX -v 2>&1|sed 1q` # even harder for Alpha
+    fi
+    if test $? -ne "0" -o -z "$CXX_VERSION"
+    then
+      CXX_VERSION=""
+    fi
+esac
+if test "$CXX_VERSION"
+then
+  AC_MSG_CHECKING("C++ compiler version");
+  AC_MSG_RESULT("$CXX $CXX_VERSION")
+fi
+AC_SUBST(CXX_VERSION)
+])
