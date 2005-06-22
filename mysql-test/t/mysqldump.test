@@ -636,3 +636,16 @@ drop table t1, t2, t3;
 drop database mysqldump_test_db;
 
 
+
+#
+# Bug #9657 mysqldump xml ( -x ) does not format NULL fields correctly
+#
+
+create table t1 (a int(10));
+create table t2 (pk int primary key auto_increment,
+a int(10), b varchar(30), c datetime, d blob, e text);
+insert into t1 values (NULL), (10), (20);
+insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thirty");
+--exec $MYSQL_DUMP  --skip-comments --xml --no-create-info test
+drop table t1, t2;
+
