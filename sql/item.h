@@ -1345,8 +1345,7 @@ public:
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
-  int save_in_field(Field *field, bool no_conversions)
-  { return (*ref)->save_in_field(field, no_conversions); }
+  int save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
