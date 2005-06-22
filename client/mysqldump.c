@@ -2407,6 +2407,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     {
       table_name= hash_element(&dump_tables, i);
       get_view_structure(table_name, db);
+    }
   }
   hash_free(&dump_tables);
   my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
