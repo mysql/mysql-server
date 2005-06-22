@@ -354,15 +354,7 @@ then
     [1], [Defined by configure. Use explicit template instantiation.])
 fi
 
-case $CXX_VERSION in
-  MIPSpro*)
-    AR=$CXX
-    ARFLAGS="-ar -o"
-  ;;
-  *Forte*)
-    AR=$CXX
-    ARFLAGS="-xar -o"
-esac
+MYSQL_PROG_AR
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")

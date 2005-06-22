@@ -737,3 +737,32 @@ then
 fi
 AC_SUBST(CXX_VERSION)
 ])
+
+AC_DEFUN([MYSQL_PROG_AR], [
+AC_REQUIRE([MYSQL_CHECK_CXX_VERSION])
+case $CXX_VERSION in
+  MIPSpro*)
+    AR=$CXX
+    ARFLAGS="-ar -o"
+  ;;
+  *Forte*)
+    AR=$CXX
+    ARFLAGS="-xar -o"
+  ;;
+  *)
+    if test -z "$AR"
+    then
+      AC_CHECK_PROG([AR], [ar], [ar])
+    fi
+    if test -z "$AR"
+    then
+      AC_MSG_ERROR([You need ar to build the library])
+    fi
+    if test -z "$ARFLAGS"
+    then
+      ARFLAGS="cru"
+    fi
+esac
+AC_SUBST(AR)
+AC_SUBST(ARFLAGS)
+])
