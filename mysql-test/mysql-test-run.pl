@@ -772,7 +772,8 @@ sub executable_setup () {
   {
     if ( $glob_win32 )
     {
-      $path_client_bindir= mtr_path_exists("$glob_basedir/client_release");
+      $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
+                                           "$glob_basedir/bin");
       $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt");
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
@@ -794,7 +795,7 @@ sub executable_setup () {
     }
     else
     {
-      $exe_mysqltest=  mtr_exe_exists("$glob_basedir/client/mysqltest");
+      $exe_mysqltest=  mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test");
     }
@@ -2013,6 +2014,14 @@ sub run_mysqltest ($$) {
     "--port=$master->[0]->{'path_myport'} " .
     "--socket=$master->[0]->{'path_mysock'}";
 
+  if ( $glob_use_embedded_server )
+  {
+    $cmdline_mysql_client_test.=
+      " -A --language=$path_language" .
+      " -A --datadir=$slave->[0]->{'path_myddir'}" .
+      " -A --character-sets-dir=$path_charsetsdir";
+  }
+
   my $cmdline_mysql_fix_system_tables=
     "$exe_mysql_fix_system_tables --no-defaults --host=localhost --user=root --password= " .
     "--basedir=$glob_basedir --bindir=$path_client_bindir --verbose " .
@@ -2129,8 +2138,7 @@ sub run_mysqltest ($$) {
 #
 ##############################################################################
 
-sub usage ($)
-{
+sub usage ($) {
   print STDERR <<HERE;
 
 mysql-test-run [ OPTIONS ] [ TESTCASE ]
