@@ -2,10 +2,7 @@
 --source include/not_embedded.inc
 
 --disable_warnings
-DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
-drop database if exists mysqldump_test_db;
-drop database if exists db1;
-drop view if exists v1, v2;
+DROP TABLE IF EXISTS t1, `"t"1`;
 --enable_warnings
 
 # XML output
@@ -19,7 +16,7 @@ DROP TABLE t1;
 # Bug #2005
 #
 
-CREATE TABLE t1 (a decimal(64, 20));
+CREATE TABLE t1 (a decimal(240, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
 --exec $MYSQL_DUMP --compact test t1
@@ -30,7 +27,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a double);
-INSERT INTO t1 VALUES ('-9e999999');
+INSERT INTO t1 VALUES (-9e999999);
 # The following replaces is here because some systems replaces the above
 # double with '-inf' and others with MAX_DOUBLE
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
@@ -135,15 +132,6 @@ insert into t1 values (1),(2),(3);
 drop table t1;
 
 #
-# dump of view
-#
-create table t1(a int);
-create view v1 as select * from t1;
---exec $MYSQL_DUMP --skip-comments test
-drop view v1;
-drop table t1;
-
-#
 # Bug #6101: create database problem
 #
 
@@ -198,23 +186,14 @@ INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 DROP TABLE t1;
 
 #
-# Bug #9756
-#
-
-CREATE TABLE t1 (a char(10));
-INSERT INTO t1 VALUES ('\'');
---exec $MYSQL_DUMP --skip-comments test t1
-DROP TABLE t1;
-
-#
 # Test for --insert-ignore
 #
 
-CREATE TABLE t1 (a int);
-INSERT INTO t1 VALUES (1),(2),(3);
-INSERT INTO t1 VALUES (4),(5),(6);
---exec $MYSQL_DUMP --skip-comments --insert-ignore test t1
---exec $MYSQL_DUMP --skip-comments --insert-ignore --delayed-insert test t1
+CREATE TABLE t1 (a decimal(240, 20));
+INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
+("0987654321098765432109876543210987654321");
+--exec $MYSQL_DUMP --insert-ignore --skip-comments test t1
+--exec $MYSQL_DUMP --insert-ignore --skip-comments --delayed-insert test t1
 DROP TABLE t1;
 
 #
@@ -565,26 +544,95 @@ INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
 
+#
+# Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
+#
+
+CREATE DATABASE mysqldump_test_db;
+USE mysqldump_test_db;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db t1 t2
+DROP TABLE t1, t2;
+DROP DATABASE mysqldump_test_db;
 
 #
-# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#  Testing with tables and databases that don't exists
+#  or contains illegal characters
+# (Bug #9358 mysqldump crashes if tablename starts with \)
 #
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1(a varchar(30) primary key, b int not null);
+create table t2(a varchar(30) primary key, b int not null);
+create table t3(a varchar(30) primary key, b int not null);
 
-create database db1;
-use db1;
+--disable_query_log
+select '------ Testing with illegal table names ------' as test_sequence ;
+--enable_query_log
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "\d-2-1.sql" 2>&1
 
-CREATE TABLE t2 (
-  a varchar(30) default NULL,
-  KEY a (a(5))
-);
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\t1" 2>&1
 
-INSERT INTO t2 VALUES ('alfred');
-INSERT INTO t2 VALUES ('angie');
-INSERT INTO t2 VALUES ('bingo');
-INSERT INTO t2 VALUES ('waffle');
-INSERT INTO t2 VALUES ('lemon');
-create view v2 as select * from t2 where a like 'a%' with check option;
---exec $MYSQL_DUMP  --skip-comments db1
-drop table t2;
-drop view v2;
-drop database db1;
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
+ 
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t\1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments  mysqldump_test_db  "t\\1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t/1" 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T%1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T'1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_"
+
+--disable_query_log
+select '------ Testing with illegal database names ------' as test_sequence ;
+--enable_query_log
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 2
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_d 2>&1
+
+--replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+--error 2
+--exec $MYSQL_DUMP --compact --skip-comments "mysqld\ump_test_db" 2>&1
+
+drop table t1, t2, t3;
+drop database mysqldump_test_db;
+
+
