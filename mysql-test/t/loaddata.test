@@ -31,3 +31,11 @@ load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated 
 select * from t1;
 drop table t1;
 
+#
+# Bug #11203: LOAD DATA does not accept same characters for ESCAPED and
+# ENCLOSED
+#
+create table t1 (a varchar(20), b varchar(20));
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
+select * from t1;
+drop table t1;
