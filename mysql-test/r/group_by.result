@@ -741,3 +741,13 @@ SELECT dt DIV 1 AS f, id FROM t1 GROUP BY f;
 f	id
 20050501123000	1
 DROP TABLE t1;
+CREATE TABLE t1 (id varchar(20) NOT NULL);
+INSERT INTO t1 VALUES ('trans1'), ('trans2');
+CREATE TABLE t2 (id varchar(20) NOT NULL, err_comment blob NOT NULL);
+INSERT INTO t2 VALUES ('trans1', 'a problem');
+SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS err_comment
+FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY err_comment;
+COUNT(DISTINCT(t1.id))	err_comment
+1	NULL
+1	a problem
+DROP TABLE t1, t2;
