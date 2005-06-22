@@ -701,10 +701,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
             key_part->key_part_flag|= HA_BIT_PART;
 
 	  if (i == 0 && key != primary_key)
-	    field->flags |=
-	      ((keyinfo->flags & HA_NOSAME) &&
-	       field->key_length() ==
-	       keyinfo->key_length ? UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
+	    field->flags |= ((keyinfo->flags & HA_NOSAME) &&
+                             (keyinfo->key_parts == 1)) ?
+                            UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG;
 	  if (i == 0)
 	    field->key_start.set_bit(key);
 	  if (field->key_length() == key_part->length &&

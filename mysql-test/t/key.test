@@ -337,3 +337,19 @@ show create table t1;
 alter table t1 modify a varchar(20);
 show create table t1;
 drop table t1;
+
+#
+# Bug #11227: Incorrectly reporting 'MUL' vs. 'UNI' on varchar
+#
+create table t1 (a int not null primary key, b varchar(20) not null unique);
+desc t1;
+drop table t1;
+create table t1 (a int not null primary key, b int not null unique);
+desc t1;
+drop table t1;
+create table t1 (a int not null primary key, b varchar(20) not null, unique (b(10)));
+desc t1;
+drop table t1;
+create table t1 (a int not null primary key, b varchar(20) not null, c varchar(20) not null, unique(b(10),c(10)));
+desc t1;
+drop table t1;
