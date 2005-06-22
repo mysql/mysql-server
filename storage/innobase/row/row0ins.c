@@ -533,9 +533,11 @@ row_ins_cascade_calc_update_vec(
 				        ufield->new_val.data =
 						mem_heap_alloc(heap,
 								min_size);
-					pad_start = ufield->new_val.data
+					pad_start =
+						((char*) ufield->new_val.data)
 						+ ufield->new_val.len;
-					pad_end = ufield->new_val.data
+					pad_end =
+						((char*) ufield->new_val.data)
 						+ min_size;
 					ufield->new_val.len = min_size;
 					ut_memcpy(ufield->new_val.data,
@@ -1578,7 +1580,6 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
 	mtr_t		mtr;
-	trx_t*		trx;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1618,11 +1619,6 @@ row_ins_scan_sec_index_for_duplicate(
 			goto next_rec;
 		}
 				
-		/* Try to place a lock on the index record */
-
-		trx = thr_get_trx(thr);      
-		ut_ad(trx);
-
 		offsets = rec_get_offsets(rec, index, offsets,
 					ULINT_UNDEFINED, &heap);
 

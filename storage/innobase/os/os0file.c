@@ -1672,7 +1672,6 @@ os_file_set_size(
 	ibool		ret;
 	byte*   	buf;
 	byte*   	buf2;
-	ulint   	i;
 
 	ut_a(size == (size & 0xFFFFFFFF));
 
@@ -1685,9 +1684,7 @@ os_file_set_size(
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	/* Write buffer full of zeros */
-	for (i = 0; i < UNIV_PAGE_SIZE * 512; i++) {
-	        buf[i] = '\0';
-	}
+	memset(buf, 0, UNIV_PAGE_SIZE * 512);
 
 	offset = 0;
 	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);

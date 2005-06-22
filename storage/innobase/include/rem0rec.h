@@ -282,7 +282,7 @@ rec_get_nth_field_size(
  	ulint	n);	/* in: index of the field */
 /****************************************************************
 The following function is used to get a pointer to the nth
-data field in an old-style record. */
+data field in a record. */
 UNIV_INLINE
 byte*
 rec_get_nth_field(

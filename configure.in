@@ -196,25 +196,8 @@ then
 else
 CC_VERSION=""
 fi
-case $SYSTEM_TYPE in
-  *netware*)
-CXX_VERSION=`$CXX -version | grep -i version`
-    ;;
-  *)
-CXX_VERSION=`$CXX --version | sed 1q`
-CXX_VERSION=${CXX_VERSION:-`$CXX -V|sed 1q`} # trying harder for Sun and SGI
-CXX_VERSION=${CXX_VERSION:-`$CXX -V 2>&1|sed 1q`} # even harder for Alpha
-    ;;
-esac
-if test $? -eq "0"
-then
-  AC_MSG_CHECKING("C++ compiler version");
-  AC_MSG_RESULT("$CXX $CXX_VERSION")
-else
-CXX_VERSION=""
-fi
-AC_SUBST(CXX_VERSION)
 AC_SUBST(CC_VERSION)
+MYSQL_CHECK_CXX_VERSION
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -368,19 +351,11 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
-  CXXFLAGS="$CXXFLAGS -DEXPLICIT_TEMPLATE_INSTANTIATION"
+  AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
+    [1], [Defined by configure. Use explicit template instantiation.])
 fi
 
-case $CXX_VERSION in
-  MIPSpro*)
-    CXXFLAGS="$CXXFLAGS -no_prelink -DEXPLICIT_TEMPLATE_INSTANTIATION"
-  ;;
-  Compaq*)
-    CXXFLAGS="$CXXFLAGS -nopt -DEXPLICIT_TEMPLATE_INSTANTIATION"
-  ;;
-  Forte*)
-    CXXFLAGS="$CXXFLAGS -instance=explicit -DEXPLICIT_TEMPLATE_INSTANTIATION"
-esac
+MYSQL_PROG_AR
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
