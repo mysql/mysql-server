@@ -1529,6 +1529,28 @@ CREATE TABLE `t2` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+<?xml version="1.0"?>
+<mysqldump>
+<database name="mysqldump_test_db">
+	<table_structure name="t1">
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+	</table_structure>
+	<table_structure name="t2">
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+	</table_structure>
+</database>
+</mysqldump>
+<?xml version="1.0"?>
+<mysqldump>
+<database name="mysqldump_test_db">
+	<table_structure name="t1">
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+	</table_structure>
+	<table_structure name="t2">
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+	</table_structure>
+</database>
+</mysqldump>
 DROP TABLE t1, t2;
 DROP DATABASE mysqldump_test_db;
 create database mysqldump_test_db;

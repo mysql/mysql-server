@@ -600,6 +600,8 @@ INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db
 --exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db t1 t2
+--exec $MYSQL_DUMP --skip-comments --skip-create --xml --no-data mysqldump_test_db
+--exec $MYSQL_DUMP --skip-comments --skip-create --xml --no-data mysqldump_test_db t1 t2
 DROP TABLE t1, t2;
 DROP DATABASE mysqldump_test_db;
 
