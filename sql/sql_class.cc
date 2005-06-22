@@ -420,8 +420,6 @@ THD::~THD()
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
-  /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
-  clear_alloc_root(&stmt_backup.main_mem_root);
   DBUG_VOID_RETURN;
 }
 
@@ -1474,52 +1472,6 @@ void select_dumpvar::cleanup()
 }
 
 
-/*
-  Create arena for already constructed THD.
-
-  SYNOPSYS
-    Query_arena()
-      thd - thread for which arena is created
-
-  DESCRIPTION
-    Create arena for already existing THD using its variables as parameters
-    for memory root initialization.
-*/
-Query_arena::Query_arena(THD* thd)
-  :free_list(0), mem_root(&main_mem_root),
-   state(INITIALIZED)
-{
-  init_sql_alloc(&main_mem_root,
-                 thd->variables.query_alloc_block_size,
-                 thd->variables.query_prealloc_size);
-}
-
-
-/*
-  Create arena and optionally initialize memory root.
-
-  SYNOPSYS
-    Query_arena()
-      init_mem_root - whenever we need to initialize memory root
-
-  DESCRIPTION
-    Create arena and optionally initialize memory root with minimal
-    possible parameters.
-
-  NOTE
-    We use this constructor when arena is part of THD, but reinitialize
-    its memory root in THD::init_for_queries() before execution of real
-    statements.
-*/
-Query_arena::Query_arena(bool init_mem_root)
-  :free_list(0), mem_root(&main_mem_root),
-  state(CONVENTIONAL_EXECUTION)
-{
-  if (init_mem_root)
-    init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-}
-
-
 Query_arena::Type Query_arena::type() const
 {
   DBUG_ASSERT(0); /* Should never be called */
@@ -1532,7 +1484,7 @@ Query_arena::Type Query_arena::type() const
 */
 
 Statement::Statement(THD *thd)
-  :Query_arena(thd),
+  :Query_arena(&main_mem_root, INITIALIZED),
   id(++thd->statement_id_counter),
   set_query_id(1),
   allow_sum_func(0),
@@ -1542,16 +1494,19 @@ Statement::Statement(THD *thd)
   cursor(0)
 {
   name.str= NULL;
+  init_sql_alloc(&main_mem_root,
+                 thd->variables.query_alloc_block_size,
+                 thd->variables.query_prealloc_size);
 }
 
 /*
-  This constructor is called when statement is a subobject of THD:
-  Some variables are initialized in THD::init due to locking problems
-  This statement object will be used to 
+  This constructor is called when Statement is a parent of THD and
+  for the backup statement. Some variables are initialized in
+  THD::init due to locking problems.
 */
 
 Statement::Statement()
-  :Query_arena((bool)TRUE),
+  :Query_arena(&main_mem_root, CONVENTIONAL_EXECUTION),
   id(0),
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
@@ -1560,6 +1515,12 @@ Statement::Statement()
   query_length(0),                              /* in alloc_query() */
   cursor(0)
 {
+  /*
+    This is just to ensure that the destructor works correctly in
+    case of an error and the backup statement. The memory root will
+    be re-initialized in THD::init.
+  */
+  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
 
 
@@ -1632,16 +1593,6 @@ void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backu
 #ifndef DBUG_OFF
   backup_arena= 0;
 #endif
-#ifdef NOT_NEEDED_NOW
-  /*
-    Reset backup mem_root to avoid its freeing.
-    Since Query_arena's mem_root is freed only when it is part of Statement
-    we need this only if we use some Statement's arena as backup storage.
-    But we do this only with THD::stmt_backup and this Statement is specially
-    handled in this respect. So this code is not really needed now.
-  */
-  clear_alloc_root(&backup->mem_root);
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1654,6 +1605,11 @@ void Query_arena::set_item_arena(Query_arena *set)
 
 Statement::~Statement()
 {
+  /*
+    We must free `main_mem_root', not `mem_root' (pointer), to work
+    correctly if this statement is used as a backup statement,
+    for which `mem_root' may point to some other statement.
+  */
   free_root(&main_mem_root, MYF(0));
 }
 
