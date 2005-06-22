@@ -1755,9 +1755,7 @@ page_validate(
 	records in the page record heap do not overlap */
 
 	buf = mem_heap_alloc(heap, UNIV_PAGE_SIZE);
-	for (i = 0; i < UNIV_PAGE_SIZE; i++) {
-		buf[i] = 0;
-	}
+	memset(buf, 0, UNIV_PAGE_SIZE);
 
 	/* Check first that the record heap and the directory do not
 	overlap. */
