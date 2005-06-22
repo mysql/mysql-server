@@ -310,7 +310,8 @@ sp_head::operator delete(void *ptr, size_t size)
 
 
 sp_head::sp_head()
-  :Query_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
+  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+   m_returns_cs(NULL), m_has_return(FALSE),
    m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
   extern byte *
@@ -319,7 +320,6 @@ sp_head::sp_head()
     *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
-  state= INITIALIZED_FOR_SP;
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
