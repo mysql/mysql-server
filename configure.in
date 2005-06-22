@@ -351,7 +351,7 @@ then
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
   AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
-    [1], [Defined by configure. Explicit template instantiation.])
+    [1], [Defined by configure. Use explicit template instantiation.])
 fi
 
 case $CXX_VERSION in
