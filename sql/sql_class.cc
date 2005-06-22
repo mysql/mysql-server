@@ -49,7 +49,7 @@ char internal_table_name[2]= "*";
 ** Instansiate templates
 *****************************************************************************/
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 /* Used templates */
 template class List<Key>;
 template class List_iterator<Key>;
