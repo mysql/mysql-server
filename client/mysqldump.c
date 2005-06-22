@@ -2835,7 +2835,7 @@ int main(int argc, char **argv)
   compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
 
-  MY_INIT(argv[0]);
+  MY_INIT("mysqldump");
   if (get_options(&argc, &argv))
   {
     my_end(0);
