@@ -1732,7 +1732,7 @@ INSERT INTO t1 VALUES ('a','1'), ('b','2');
 INSERT INTO t2 VALUES ('a','5'), ('a','6'), ('b','5'), ('b','6');
 CREATE VIEW v1 AS
 SELECT t1.b as c, t2.b as d FROM t1,t2 WHERE t1.a=t2.a;
-SELECT d, c FROM v1 ORDER BY d;
+SELECT d, c FROM v1 ORDER BY d,c;
 d	c
 5	1
 5	2
