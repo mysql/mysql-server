@@ -2119,9 +2119,12 @@ bool select_insert::send_data(List<Item> &values)
   }
   if (!(error= write_record(thd, table, &info)))
   {
-    if (table->triggers)
+    if (table->triggers || info.handle_duplicates == DUP_UPDATE)
     {
       /*
+        Restore fields of the record since it is possible that they were
+        changed by ON DUPLICATE KEY UPDATE clause.
+    
         If triggers exist then whey can modify some fields which were not
         originally touched by INSERT ... SELECT, so we have to restore
         their original values for the next row.
