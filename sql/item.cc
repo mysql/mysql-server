@@ -65,6 +65,7 @@ Item::Item():
 	place == IN_HAVING)
       thd->lex->current_select->select_n_having_items++;
   }
+  item_flags= 0;
 }
 
 /*
@@ -83,7 +84,8 @@ Item::Item(THD *thd, Item *item):
   unsigned_flag(item->unsigned_flag),
   with_sum_func(item->with_sum_func),
   fixed(item->fixed),
-  collation(item->collation)
+  collation(item->collation),
+  item_flags(item->item_flags)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;

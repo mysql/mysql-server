@@ -2086,7 +2086,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     return (Field*) 0;
   }
   bool allow_rowid= tables && !tables->next;	// Only one table
-  for (; tables ; tables=tables->next)
+  uint table_idx= 0;
+  for (; tables ; tables=tables->next, table_idx++)
   {
     if (!tables->table)
     {
@@ -2114,7 +2115,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			name,thd->where);
 	return (Field*) 0;
       }
-      found=field;
+      found= field;
+      if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
+        break;
     }
   }
   if (found)
