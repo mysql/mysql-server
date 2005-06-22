@@ -1595,6 +1595,26 @@ static void dump_table(uint numFields, char *table)
   const char    *table_type;
   int error= 0;
 
+  /* Check --no-data flag */
+  if (dFlag)
+  {
+    if (verbose)
+      fprintf(stderr,
+              "-- Skipping dump data for table '%s', --no-data was used\n",
+	      table);
+    return;
+  }
+
+  /* Check that there are any fields in the table */
+  if(numFields == 0)
+  {
+    if (verbose)
+      fprintf(stderr,
+	      "-- Skipping dump data for table '%s', it has no fields\n",
+	      table);
+    return;
+  }
+
   result_table= quote_name(table,table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
@@ -2204,8 +2224,7 @@ static int dump_all_tables_in_db(char *database)
     if (include_table(hash_key, end - hash_key))
     {
       numrows = get_table_structure(table, database);
-      if (!dFlag && numrows > 0)
-	dump_table(numrows,table);
+      dump_table(numrows,table);
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
       order_by= 0;
     }
@@ -2392,6 +2411,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
+
   /* Dump each selected table */
   const char *table_name;
   for (i= 0; i < dump_tables.records; i++)
@@ -2401,6 +2421,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     numrows = get_table_structure(table_name, db);
     dump_table(numrows, table_name);
   }
+
+  /* Dump each selected view */
   if (was_views)
   {
     for(i=0; i < dump_tables.records; i++)
