@@ -1994,7 +1994,7 @@ sub run_mysqltest ($$) {
   }
 
   my $cmdline_mysqlbinlog=
-    "$exe_mysqlbinlog --no-defaults --local-load=$opt_tmpdir";
+    "$exe_mysqlbinlog --no-defaults --local-load=$opt_tmpdir --character-sets-dir=$path_charsetsdir";
 
   if ( $opt_debug )
   {
