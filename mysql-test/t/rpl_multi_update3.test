@@ -1,0 +1,34 @@
+# Let's verify that multi-update with a subselect does not cause the slave to crash
+# (BUG#10442)
+
+source include/master-slave.inc;
+
+CREATE TABLE t1 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (NULL, 0);
+INSERT INTO t1 SELECT NULL, 0 FROM t1;
+
+INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
+
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+UPDATE t2, (SELECT a FROM t1) AS t SET t2.b = t.a+5 ;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+drop table t1,t2;
