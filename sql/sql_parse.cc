@@ -2856,17 +2856,14 @@ unsent_create_error:
     if ((res= open_and_lock_tables(thd, tables)))
       break;
       
-    TABLE *table= tables->table;
     /* Skip first table, which is the table we are inserting in */
     select_lex->table_list.first= (byte*) first_local_table->next;
-    tables= (TABLE_LIST *) select_lex->table_list.first;
-    first_local_table->next= 0;
     
     if (!(res= mysql_prepare_insert(thd, tables, first_local_table, 
-				    table, lex->field_list, 0,
+				    tables->table, lex->field_list, 0,
 				    lex->update_list, lex->value_list,
 				    lex->duplicates)) &&
-        (result= new select_insert(table, &lex->field_list,
+        (result= new select_insert(tables->table, &lex->field_list,
 				   &lex->update_list, &lex->value_list,
                                    lex->duplicates, lex->ignore)))
     {
@@ -2879,7 +2876,7 @@ unsent_create_error:
       /* revert changes for SP */
       lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       delete result;
-      table->insert_values= 0;
+      tables->table->insert_values= 0;
       if (thd->net.report_error)
         res= -1;
     }
