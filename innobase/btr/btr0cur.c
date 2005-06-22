@@ -2847,9 +2847,7 @@ btr_estimate_number_of_different_key_vals(
 
 	n_diff = mem_alloc((n_cols + 1) * sizeof(ib_longlong));
 
-	for (j = 0; j <= n_cols; j++) {
-		n_diff[j] = 0;
-	}
+	memset(n_diff, 0, (n_cols + 1) * sizeof(ib_longlong));
 
 	/* We sample some pages in the index to get an estimate */
 	
