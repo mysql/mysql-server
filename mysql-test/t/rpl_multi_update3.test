@@ -31,3 +31,4 @@ sync_with_master;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
+drop table t1,t2;
