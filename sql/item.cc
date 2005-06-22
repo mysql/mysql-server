@@ -4360,6 +4360,28 @@ my_decimal *Item_ref::val_decimal(my_decimal *decimal_value)
   return val;
 }
 
+int Item_ref::save_in_field(Field *to, bool no_conversions)
+{
+  int res;
+  if(result_field){
+    if (result_field->is_null())
+    {
+      null_value= 1;
+      return set_field_to_null_with_conversions(to, no_conversions);
+    }
+    else
+    {
+      to->set_notnull();
+      field_conv(to, result_field);
+      null_value= 0;
+    }
+    return 0;
+  }
+  res= (*ref)->save_in_field(to, no_conversions);
+  null_value= (*ref)->null_value;
+  return res;
+}
+
 
 void Item_ref_null_helper::print(String *str)
 {
