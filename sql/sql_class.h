@@ -809,13 +809,11 @@ public:
 
 public:
 
-  /*
-    This constructor is called when statement is a subobject of THD:
-    some variables are initialized in THD::init due to locking problems
-  */
-  Statement();
+  /* This constructor is called for backup statements */
+  Statement() { clear_alloc_root(&main_mem_root); }
 
-  Statement(THD *thd);
+  Statement(enum enum_state state_arg, ulong id_arg,
+            ulong alloc_block_size, ulong prealloc_size);
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
@@ -957,11 +955,6 @@ public:
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
-  /*
-    keeps THD state while it is used for active statement
-    Note: we perform special cleanup for it in THD destructor.
-  */
-  Statement stmt_backup;
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
