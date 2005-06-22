@@ -20,6 +20,7 @@
  */
 
 
+#include "runtime.hpp"
 #include "dsa.hpp"
 #include "sha.hpp"
 #include "asn.hpp"
