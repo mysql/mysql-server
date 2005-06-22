@@ -8,7 +8,7 @@
 #include "ripemd.hpp"
 #include "openssl/ssl.h"
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 #if !defined(USE_CRYPTOPP_LIB)
 namespace TaoCrypt {
 template class HMAC<MD5>;

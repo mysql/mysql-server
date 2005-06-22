@@ -2236,7 +2236,7 @@ const char *Field_iterator_view::name()
 ** Instansiate templates
 *****************************************************************************/
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<String>;
 template class List_iterator<String>;
 #endif
