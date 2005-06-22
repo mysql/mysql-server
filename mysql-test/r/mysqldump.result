@@ -1416,26 +1416,27 @@ create table t2(a varchar(30) primary key, b int not null);
 create table t3(a varchar(30) primary key, b int not null);
 test_sequence
 ------ Testing with illegal table names ------
-MYSQL_DUMP_DIR: Couldn't find table: "\d-2-1.sql"
+mysqldump: Couldn't find table: "\d-2-1.sql"
 
-MYSQL_DUMP_DIR: Couldn't find table: "\t1"
+mysqldump: Couldn't find table: "\t1"
 
-MYSQL_DUMP_DIR: Couldn't find table: "\t1"
+mysqldump: Couldn't find table: "\t1"
 
-MYSQL_DUMP_DIR: Couldn't find table: "\\t1"
+mysqldump: Couldn't find table: "\\t1"
 
-MYSQL_DUMP_DIR: Couldn't find table: "t\1"
+mysqldump: Couldn't find table: "t\1"
 
-MYSQL_DUMP_DIR: Couldn't find table: "t\1"
+mysqldump: Couldn't find table: "t\1"
 
-MYSQL_DUMP_DIR: Couldn't find table: "t/1"
+mysqldump: Couldn't find table: "t/1"
 
 test_sequence
 ------ Testing with illegal database names ------
-MYSQL_DUMP_DIR: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
-MYSQL_DUMP_DIR: Got error: 1102: Incorrect database name 'mysqld\ump_test_db' when selecting the database
+mysqldump: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
+mysqldump: Got error: 1102: Incorrect database name 'mysqld\ump_test_db' when selecting the database
 drop table t1, t2, t3;
 drop database mysqldump_test_db;
+use test;
 create table t1 (a int(10));
 create table t2 (pk int primary key auto_increment,
 a int(10), b varchar(30), c datetime, d blob, e text);
@@ -1453,7 +1454,7 @@ insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thir
 	</row>
 	<row>
 		<field name="a">20</field>
- 	</row>
+	</row>
 	</table_data>
 	<table_data name="t2">
 	<row>
