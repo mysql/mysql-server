@@ -1708,7 +1708,16 @@ JOIN::cleanup()
 
 
 /************************* Cursor ******************************************/
-  
+
+Cursor::Cursor(THD *thd)
+  :Query_arena(&main_mem_root, INITIALIZED),
+   join(0), unit(0)
+{
+  /* We will overwrite it at open anyway. */
+  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+}
+
+
 void
 Cursor::init_from_thd(THD *thd)
 {
