@@ -1599,6 +1599,19 @@ drop table t1;
 create view v1 as select cast(1 as decimal);
 select * from v1;
 drop view v1;
+#
+# Bug#11298 insert into select from VIEW produces incorrect result when 
+#           using ORDER BY
+create table t1(f1 int);
+create table t2(f2 int);
+insert into t1 values(1),(2),(3);
+insert into t2 values(1),(2),(3);
+create view v1 as select * from t1,t2 where f1=f2;
+create table t3 (f1 int, f2 int);
+insert into t3 select * from v1 order by 1;
+select * from t3;
+drop view v1;
+drop table t1,t2,t3;
 
 #
 # Generation unique names for columns, and correct names check (BUG#7448)
