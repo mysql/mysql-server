@@ -59,6 +59,22 @@ select hex(des_encrypt("hello")),hex(des_encrypt("hello",5)),hex(des_encrypt("he
 select des_decrypt(des_encrypt("hello"),'default_password');
 select des_decrypt(des_encrypt("hello",4),'password4');
 
+# Test use of invalid parameters
+select des_encrypt("hello",10);
+select des_encrypt(NULL);
+select des_encrypt(NULL, 10);
+select des_encrypt(NULL, NULL);
+select des_encrypt(10, NULL);
+select des_encrypt("hello", NULL);
+
+select des_decrypt("hello",10);
+select des_decrypt(NULL);
+select des_decrypt(NULL, 10);
+select des_decrypt(NULL, NULL);
+select des_decrypt(10, NULL);
+select des_decrypt("hello", NULL);
+
+
 # Test flush
 SET @a=des_decrypt(des_encrypt("hello"));
 flush des_key_file;

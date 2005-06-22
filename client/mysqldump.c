@@ -57,6 +57,7 @@
 #define EX_CONSCHECK 3
 #define EX_EOM 4
 #define EX_EOF 5 /* ferror for output file was got */
+#define EX_ILLEGAL_TABLE 6
 
 /* index into 'show fields from table' */
 
@@ -141,14 +142,6 @@ const char *compatible_mode_names[]=
 )
 TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 				  "", compatible_mode_names, NULL};
-
-#define TABLE_RULE_HASH_SIZE   16
-
-typedef struct st_table_rule_ent
-{
-  char* key;    /* dbname.tablename */
-  uint key_len;
-} TABLE_RULE_ENT;
 
 HASH ignore_table;
 
@@ -544,28 +537,20 @@ static void write_footer(FILE *sql_file)
 } /* write_footer */
 
 
-static void free_table_ent(TABLE_RULE_ENT* e)
+byte* get_table_key(const char *entry, uint *length,
+				my_bool not_used __attribute__((unused)))
 {
-  my_free((gptr) e, MYF(0));
-}
-
-
-static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
-			   my_bool not_used __attribute__((unused)))
-{
-  *len= e->key_len;
-  return (byte*)e->key;
+  *length= strlen(entry);
+  return (byte*) entry;
 }
 
 
 void init_table_rule_hash(HASH* h)
 {
-  if(hash_init(h, charset_info, TABLE_RULE_HASH_SIZE, 0, 0,
-	       (hash_get_key) get_table_key,
-	       (hash_free_key) free_table_ent, 0))
+  if(hash_init(h, charset_info, 16, 0, 0,
+	       (hash_get_key) get_table_key, 0, 0))
     exit(EX_EOM);
 }
-
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -639,25 +624,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_IGNORE_TABLE:
   {
-    uint len= (uint)strlen(argument);
-    TABLE_RULE_ENT* e;
     if (!strchr(argument, '.'))
     {
       fprintf(stderr, "Illegal use of option --ignore-table=<database>.<table>\n");
       exit(1);
     }
-    /* len is always > 0 because we know the there exists a '.' */
-    e= (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT) + len, MYF(MY_WME));
-    if (!e)
-      exit(EX_EOM);
-    e->key= (char*)e + sizeof(TABLE_RULE_ENT);
-    e->key_len= len;
-    memcpy(e->key, argument, len);
-
     if (!hash_inited(&ignore_table))
       init_table_rule_hash(&ignore_table);
 
-    if(my_hash_insert(&ignore_table, (byte*)e))
+    if (my_hash_insert(&ignore_table, (byte*)my_strdup(argument, MYF(0))))
       exit(EX_EOM);
     break;
   }
@@ -980,7 +955,28 @@ static char *quote_name(const char *name, char *buff, my_bool force)
   return buff;
 } /* quote_name */
 
+/*
+  Quote a table name so it can be used in "SHOW TABLES LIKE <tabname>"
 
+  SYNOPSIS
+    quote_for_like
+    name     - name of the table
+    buff     - quoted name of the table
+
+  DESCRIPTION
+    Quote \, _, ' and % characters
+
+    Note: Because MySQL uses the C escape syntax in strings
+    (for example, '\n' to represent newline), you must double
+    any '\' that you use in your LIKE  strings. For example, to
+    search for '\n', specify it as '\\n'. To search for '\', specify
+    it as '\\\\' (the backslashes are stripped once by the parser
+    and another time when the pattern match is done, leaving a
+    single backslash to be matched).
+
+    Example: "t\1" => "t\\\\1"
+
+*/
 
 static char *quote_for_like(const char *name, char *buff)
 {
@@ -988,7 +984,13 @@ static char *quote_for_like(const char *name, char *buff)
   *to++= '\'';
   while (*name)
   {
-    if (*name == '\'' || *name == '_' || *name == '\\' || *name == '%')
+    if (*name == '\\')
+    {
+      *to++='\\';
+      *to++='\\';
+      *to++='\\';
+    }
+    else if (*name == '\'' || *name == '_'  || *name == '%')
       *to++= '\\';
     *to++= *name++;
   }
@@ -1139,6 +1141,7 @@ static uint get_table_structure(char *table, char *db)
   FILE       *sql_file = md_result_file;
   int        len;
   DBUG_ENTER("get_table_structure");
+  DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
 
   if (!insert_pat_inited)
   {
@@ -2327,27 +2330,60 @@ static int get_actual_table_name(const char *old_table_name,
 
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
-  uint numrows;
-  int i;
+  uint numrows, i;
   char table_buff[NAME_LEN*+3];
+  char new_table_name[NAME_LEN];
+  DYNAMIC_STRING lock_tables_query;
+  HASH dump_tables;
+
+  DBUG_ENTER("dump_selected_tables");
 
   if (init_dumping(db))
     return 1;
+
+  /* Init hash table for storing the actual name of tables to dump */
+  if (hash_init(&dump_tables, charset_info, 16, 0, 0,
+                (hash_get_key) get_table_key, 0, 0))
+    exit(EX_EOM);
+
+  init_dynamic_string(&lock_tables_query, "LOCK TABLES ", 256, 1024);
+  for (; tables > 0 ; tables-- , table_names++)
+  {
+    /* the table name passed on commandline may be wrong case */
+    if (!get_actual_table_name( *table_names,
+                                new_table_name, sizeof(new_table_name) ))
+    {
+      /* Add found table name to lock_tables_query */
+      if (lock_tables)
+      {
+        dynstr_append(&lock_tables_query,
+                      quote_name(new_table_name, table_buff, 1));
+        dynstr_append(&lock_tables_query, " READ /*!32311 LOCAL */,");
+      }
+
+      /* Add found table name to dump_tables list */
+      if (my_hash_insert(&dump_tables,
+                         (byte*)my_strdup(new_table_name, MYF(0))))
+        exit(EX_EOM);
+
+    }
+    else
+    {
+       my_printf_error(0,"Couldn't find table: \"%s\"\n", MYF(0),
+                       *table_names);
+       safe_exit(EX_ILLEGAL_TABLE);
+       /* We shall countinue here, if --force was given */
+    }
+  }
+
   if (lock_tables)
   {
-    DYNAMIC_STRING query;
-
-    init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
-    for (i=0 ; i < tables ; i++)
-    {
-      dynstr_append(&query, quote_name(table_names[i], table_buff, 1));
-      dynstr_append(&query, " READ /*!32311 LOCAL */,");
-    }
-    if (mysql_real_query(sock, query.str, query.length-1))
+    if (mysql_real_query(sock, lock_tables_query.str,
+                         lock_tables_query.length-1))
       DB_error(sock, "when doing LOCK TABLES");
        /* We shall countinue here, if --force was given */
-    dynstr_free(&query);
   }
+  dynstr_free(&lock_tables_query);
   if (flush_logs)
   {
     if (mysql_refresh(sock, REFRESH_LOG))
@@ -2356,25 +2392,25 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
-  for (i=0 ; i < tables ; i++)
+  /* Dump each selected table */
+  const char *table_name;
+  for (i= 0; i < dump_tables.records; i++)
   {
-    char new_table_name[NAME_LEN];
-
-    /* the table name passed on commandline may be wrong case */
-    if (!get_actual_table_name( table_names[i], new_table_name,
-                                sizeof(new_table_name)))
-    {
-      numrows= get_table_structure(new_table_name, db);
-      dump_table(numrows, new_table_name);
-    }
-    my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
-    order_by= 0;
+    table_name= hash_element(&dump_tables, i);
+    DBUG_PRINT("info",("Dumping table %s", table_name));
+    numrows = get_table_structure(table_name, db);
+    dump_table(numrows, table_name);
   }
   if (was_views)
   {
-    for (i=0 ; i < tables ; i++)
-      get_view_structure(table_names[i], db);
+    for(i=0; i < dump_tables.records; i++)
+    {
+      table_name= hash_element(&dump_tables, i);
+      get_view_structure(table_name, db);
   }
+  hash_free(&dump_tables);
+  my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+  order_by= 0;
   if (opt_xml)
   {
     fputs("</database>\n", md_result_file);
@@ -2382,7 +2418,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   if (lock_tables)
     mysql_query_with_error_report(sock, 0, "UNLOCK TABLES");
-  return 0;
+  DBUG_RETURN(0);
 } /* dump_selected_tables */
 
 
