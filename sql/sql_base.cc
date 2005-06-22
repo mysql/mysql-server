@@ -2756,9 +2756,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	return (Field*) not_found_field;
     return (Field*) 0;
   }
-
   bool allow_rowid= tables && !tables->next_local;	// Only one table
-  for (; tables ; tables= tables->next_local)
+  uint table_idx= 0;
+  for (; tables ; tables= tables->next_local, table_idx++)
   {
     if (!tables->table && !tables->ancestor)
     {
@@ -2793,7 +2793,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
           my_error(ER_NON_UNIQ_ERROR, MYF(0), name, thd->where);
 	return (Field*) 0;
       }
-      found=field;
+      found= field;
+      if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
+        break;
     }
   }
   if (found)
