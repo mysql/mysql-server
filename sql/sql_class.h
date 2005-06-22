@@ -661,7 +661,6 @@ public:
     itself to the list on creation (see Item::Item() for details))
   */
   Item *free_list;
-  MEM_ROOT main_mem_root;
   MEM_ROOT *mem_root;                   // Pointer to current memroot
 #ifndef DBUG_OFF
   bool backup_arena;
@@ -680,21 +679,14 @@ public:
     STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
   };
 
+  Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg) :
+    free_list(0), mem_root(mem_root_arg), state(state_arg)
+  {}
   /*
     This constructor is used only when Query_arena is created as
     backup storage for another instance of Query_arena.
   */
   Query_arena() {};
-  /*
-    Create arena for already constructed THD using its variables as
-    parameters for memory root initialization.
-  */
-  Query_arena(THD *thd);
-  /*
-    Create arena and optionally init memory root with minimal values.
-    Particularly used if Query_arena is part of Statement.
-  */
-  Query_arena(bool init_mem_root);
   virtual Type type() const;
   virtual ~Query_arena() {};
 
@@ -708,6 +700,7 @@ public:
   { return state == PREPARED || state == EXECUTED; }
   inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
+
   inline gptr alloc(unsigned int size) { return alloc_root(mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
@@ -757,7 +750,8 @@ class Statement: public Query_arena
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
 public:
-  /* FIXME: must be private */
+  /* FIXME: these must be protected */
+  MEM_ROOT main_mem_root;
   LEX     main_lex;
 
   /*
@@ -1388,7 +1382,7 @@ public:
       already changed to use this arena.
     */
     if (!current_arena->is_conventional() &&
-        mem_root != &current_arena->main_mem_root)
+        mem_root != current_arena->mem_root)
     {
       set_n_backup_item_arena(current_arena, backup);
       return current_arena;

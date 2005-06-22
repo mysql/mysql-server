@@ -3956,7 +3956,7 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
     return p * (u * (xq-xp) % q) + xp;
 }
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 #ifndef TAOCRYPT_NATIVE_DWORD_AVAILABLE
 template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
 #endif

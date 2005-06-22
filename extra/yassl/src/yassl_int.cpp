@@ -24,6 +24,7 @@
  * draft along with type conversion functions.
  */
 
+#include "runtime.hpp"
 #include "yassl_int.hpp"
 #include "handshake.hpp"
 #include "timer.hpp"
@@ -1975,7 +1976,7 @@ X509_NAME* X509::GetSubject()
 
 } // namespace
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 namespace mySTL {
 template yaSSL::yassl_int_cpp_local1::SumData for_each<mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData>(mySTL::list<yaSSL::input_buffer*>::iterator, mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData);
 template yaSSL::yassl_int_cpp_local1::SumBuffer for_each<mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer>(mySTL::list<yaSSL::output_buffer*>::iterator, mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer);
