@@ -2101,10 +2101,6 @@ buf_print(void)
 	
 	n_found = 0;
 
-	for (i = 0 ; i < size; i++) {
-		counts[i] = 0;
-	}
-
 	for (i = 0; i < size; i++) {
 		frame = buf_pool_get_nth_block(buf_pool, i)->frame;
 

@@ -7049,7 +7049,7 @@ static void create_pid_file()
   Instantiate templates
 *****************************************************************************/
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 /* Used templates */
 template class I_List<THD>;
 template class I_List_iterator<THD>;

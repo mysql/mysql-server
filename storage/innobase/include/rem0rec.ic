@@ -886,7 +886,7 @@ rec_offs_make_valid(
 
 /****************************************************************
 The following function is used to get a pointer to the nth
-data field in an old-style record. */
+data field in a record. */
 UNIV_INLINE
 byte*
 rec_get_nth_field(
