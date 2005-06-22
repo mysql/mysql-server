@@ -1578,7 +1578,7 @@ INSERT INTO t1 VALUES ('a','1'), ('b','2');
 INSERT INTO t2 VALUES ('a','5'), ('a','6'), ('b','5'), ('b','6');
 CREATE VIEW v1 AS
   SELECT t1.b as c, t2.b as d FROM t1,t2 WHERE t1.a=t2.a;
-SELECT d, c FROM v1 ORDER BY d;
+SELECT d, c FROM v1 ORDER BY d,c;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 #
@@ -1599,6 +1599,7 @@ drop table t1;
 create view v1 as select cast(1 as decimal);
 select * from v1;
 drop view v1;
+
 #
 # Bug#11298 insert into select from VIEW produces incorrect result when 
 #           using ORDER BY
@@ -1665,3 +1666,10 @@ drop table t1;
 # set names differ by case only
 -- error 1060
 create view v1(k, K) as select 1,2;
+
+#
+# using time_format in view (BUG#7521)
+#
+create view v1 as SELECT TIME_FORMAT(SEC_TO_TIME(3600),'%H:%i') as t;
+select * from v1;
+drop view v1;

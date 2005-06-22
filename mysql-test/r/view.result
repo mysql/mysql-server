@@ -1732,7 +1732,7 @@ INSERT INTO t1 VALUES ('a','1'), ('b','2');
 INSERT INTO t2 VALUES ('a','5'), ('a','6'), ('b','5'), ('b','6');
 CREATE VIEW v1 AS
 SELECT t1.b as c, t2.b as d FROM t1,t2 WHERE t1.a=t2.a;
-SELECT d, c FROM v1 ORDER BY d;
+SELECT d, c FROM v1 ORDER BY d,c;
 d	c
 5	1
 5	2
@@ -1826,3 +1826,8 @@ ERROR 42S21: Duplicate column name 's1'
 drop table t1;
 create view v1(k, K) as select 1,2;
 ERROR 42S21: Duplicate column name 'K'
+create view v1 as SELECT TIME_FORMAT(SEC_TO_TIME(3600),'%H:%i') as t;
+select * from v1;
+t
+01:00
+drop view v1;

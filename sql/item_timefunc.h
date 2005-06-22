@@ -503,7 +503,8 @@ public:
   Item_func_date_format(Item *a,Item *b,bool is_time_format_arg)
     :Item_str_func(a,b),is_time_format(is_time_format_arg) {}
   String *val_str(String *str);
-  const char *func_name() const { return "date_format"; }
+  const char *func_name() const
+    { return is_time_format ? "time_format" : "date_format"; }
   void fix_length_and_dec();
   uint format_length(const String *format);
 };
