@@ -2,7 +2,10 @@
 --source include/not_embedded.inc
 
 --disable_warnings
-DROP TABLE IF EXISTS t1, `"t"1`;
+DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
+drop database if exists mysqldump_test_db;
+drop database if exists db1;
+drop view if exists v1, v2;
 --enable_warnings
 
 # XML output
@@ -16,7 +19,7 @@ DROP TABLE t1;
 # Bug #2005
 #
 
-CREATE TABLE t1 (a decimal(240, 20));
+CREATE TABLE t1 (a decimal(64, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
 --exec $MYSQL_DUMP --compact test t1
@@ -27,7 +30,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a double);
-INSERT INTO t1 VALUES (-9e999999);
+INSERT INTO t1 VALUES ('-9e999999');
 # The following replaces is here because some systems replaces the above
 # double with '-inf' and others with MAX_DOUBLE
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
@@ -132,6 +135,15 @@ insert into t1 values (1),(2),(3);
 drop table t1;
 
 #
+# dump of view
+#
+create table t1(a int);
+create view v1 as select * from t1;
+--exec $MYSQL_DUMP --skip-comments test
+drop view v1;
+drop table t1;
+
+#
 # Bug #6101: create database problem
 #
 
@@ -149,7 +161,7 @@ drop database mysqldump_test_db;
 # if it is explicitely set.
 
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 'ƒ÷‹ﬂ');
+INSERT INTO t1  VALUES (_latin1 '√Ñ√ñ√ú√ü');
 --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments test t1
 #
 # Bug#8063: make test mysqldump [ fail ]
@@ -186,14 +198,23 @@ INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 DROP TABLE t1;
 
 #
+# Bug #9756
+#
+
+CREATE TABLE t1 (a char(10));
+INSERT INTO t1 VALUES ('\'');
+--exec $MYSQL_DUMP --skip-comments test t1
+DROP TABLE t1;
+
+#
 # Test for --insert-ignore
 #
 
-CREATE TABLE t1 (a decimal(240, 20));
-INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
-("0987654321098765432109876543210987654321");
---exec $MYSQL_DUMP --insert-ignore --skip-comments test t1
---exec $MYSQL_DUMP --insert-ignore --skip-comments --delayed-insert test t1
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t1 VALUES (4),(5),(6);
+--exec $MYSQL_DUMP --skip-comments --insert-ignore test t1
+--exec $MYSQL_DUMP --skip-comments --insert-ignore --delayed-insert test t1
 DROP TABLE t1;
 
 #
@@ -636,3 +657,27 @@ drop table t1, t2, t3;
 drop database mysqldump_test_db;
 
 
+
+
+#
+# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#
+
+create database db1;
+use db1;
+
+CREATE TABLE t2 (
+  a varchar(30) default NULL,
+  KEY a (a(5))
+);
+
+INSERT INTO t2 VALUES ('alfred');
+INSERT INTO t2 VALUES ('angie');
+INSERT INTO t2 VALUES ('bingo');
+INSERT INTO t2 VALUES ('waffle');
+INSERT INTO t2 VALUES ('lemon');
+create view v2 as select * from t2 where a like 'a%' with check option;
+--exec $MYSQL_DUMP  --skip-comments db1
+drop table t2;
+drop view v2;
+drop database db1;
