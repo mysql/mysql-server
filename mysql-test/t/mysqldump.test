@@ -619,62 +619,47 @@ create table t3(a varchar(30) primary key, b int not null);
 --disable_query_log
 select '------ Testing with illegal table names ------' as test_sequence ;
 --enable_query_log
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "\d-2-1.sql" 2>&1
-
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\t1" 2>&1
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
- 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
+
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t\1" 2>&1
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments  mysqldump_test_db  "t\\1" 2>&1
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t/1" 2>&1
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T%1"
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T'1"
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_"
 
 --disable_query_log
 select '------ Testing with illegal database names ------' as test_sequence ;
 --enable_query_log
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 2
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_d 2>&1
 
---replace_result $MYSQL_DUMP_DIR MYSQL_DUMP_DIR
 --error 2
 --exec $MYSQL_DUMP --compact --skip-comments "mysqld\ump_test_db" 2>&1
 
