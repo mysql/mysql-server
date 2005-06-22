@@ -6277,7 +6277,7 @@ public:
   COND_CMP(Item *a,Item_func *b) :and_level(a),cmp_func(b) {}
 };
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List<COND_CMP>;
 template class I_List_iterator<COND_CMP>;
 template class List<Item_func_match>;

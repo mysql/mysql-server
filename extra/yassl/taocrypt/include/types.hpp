@@ -25,6 +25,10 @@
 #ifndef TAO_CRYPT_TYPES_HPP
 #define TAO_CRYPT_TYPES_HPP
 
+#ifdef HAVE_CONFIG_H
+    #include "config.h"
+#endif
+
 namespace TaoCrypt {
 
 // define this if running on a big-endian CPU
