@@ -310,7 +310,8 @@ sp_head::operator delete(void *ptr, size_t size)
 
 
 sp_head::sp_head()
-  :Query_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
+  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+   m_returns_cs(NULL), m_has_return(FALSE),
    m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
   extern byte *
@@ -319,7 +320,6 @@ sp_head::sp_head()
     *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
-  state= INITIALIZED_FOR_SP;
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
@@ -636,7 +636,21 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     thd->set_time();		// Make current_time() et al work
-    ret= i->execute(thd, &ip);
+    {
+      /*
+        We have to substitute free_list of executing statement to
+        current_arena to store there all new items created during execution
+        (for example '*' expanding, or items made during permanent subquery
+        transformation)
+        Note: Every statement have to have all its items listed in free_list
+        for correct cleaning them up
+      */
+      Item *save_free_list= thd->current_arena->free_list;
+      thd->current_arena->free_list= i->free_list;
+      ret= i->execute(thd, &ip);
+      i->free_list= thd->current_arena->free_list;
+      thd->current_arena->free_list= save_free_list;
+    }
     if (i->free_list)
       cleanup_items(i->free_list);
     // Check if an exception has occurred and a handler has been found

@@ -21,6 +21,7 @@
 
 /* based on Wei Dai's rsa.cpp from CryptoPP */
 
+#include "runtime.hpp"
 #include "rsa.hpp"
 #include "asn.hpp"
 #include "modarith.hpp"

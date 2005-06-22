@@ -79,6 +79,7 @@ class sp_head :private Query_arena
   sp_head(const sp_head &);	/* Prevent use of these */
   void operator=(sp_head &);
 
+  MEM_ROOT main_mem_root;
 public:
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE

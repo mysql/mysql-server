@@ -1708,7 +1708,16 @@ JOIN::cleanup()
 
 
 /************************* Cursor ******************************************/
-  
+
+Cursor::Cursor(THD *thd)
+  :Query_arena(&main_mem_root, INITIALIZED),
+   join(0), unit(0)
+{
+  /* We will overwrite it at open anyway. */
+  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+}
+
+
 void
 Cursor::init_from_thd(THD *thd)
 {
@@ -6277,7 +6286,7 @@ public:
   COND_CMP(Item *a,Item_func *b) :and_level(a),cmp_func(b) {}
 };
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List<COND_CMP>;
 template class I_List_iterator<COND_CMP>;
 template class List<Item_func_match>;

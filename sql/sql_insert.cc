@@ -2119,9 +2119,12 @@ bool select_insert::send_data(List<Item> &values)
   }
   if (!(error= write_record(thd, table, &info)))
   {
-    if (table->triggers)
+    if (table->triggers || info.handle_duplicates == DUP_UPDATE)
     {
       /*
+        Restore fields of the record since it is possible that they were
+        changed by ON DUPLICATE KEY UPDATE clause.
+    
         If triggers exist then whey can modify some fields which were not
         originally touched by INSERT ... SELECT, so we have to restore
         their original values for the next row.
@@ -2374,11 +2377,11 @@ void select_create::abort()
   Instansiate templates
 *****************************************************************************/
 
-#ifdef EXPLICIT_TEMPLATE_INSTANTIATION
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List_iterator_fast<List_item>;
 #ifndef EMBEDDED_LIBRARY
 template class I_List<delayed_insert>;
 template class I_List_iterator<delayed_insert>;
 template class I_List<delayed_row>;
 #endif /* EMBEDDED_LIBRARY */
-#endif /* EXPLICIT_TEMPLATE_INSTANTIATION */
+#endif /* HAVE_EXPLICIT_TEMPLATE_INSTANTIATION */
