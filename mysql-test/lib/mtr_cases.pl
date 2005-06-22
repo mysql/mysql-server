@@ -154,6 +154,14 @@ sub collect_one_test_case($$$$$) {
     }
   }
 
+  if ( defined mtr_match_prefix($tname,"federated") )
+  {
+    $tinfo->{'slave_num'}= 1;           # Default, use one slave
+
+    # FIXME currently we always restart slaves
+    $tinfo->{'slave_restart'}= 1;
+  }
+
   # FIXME what about embedded_server + ndbcluster, skip ?!
 
   my $master_opt_file= "$testdir/$tname-master.opt";
