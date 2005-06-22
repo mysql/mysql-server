@@ -156,9 +156,15 @@ bool foreign_key_prefix(Key *a, Key *b)
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/
+/*
+  Pass nominal parameters to Statement constructor only to ensure that
+  the destructor works OK in case of error. The main_mem_root will be
+  re-initialized in init().
+*/
 
 THD::THD()
-  :user_time(0), global_read_lock(0), is_fatal_error(0),
+  :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
+   user_time(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
@@ -1483,9 +1489,10 @@ Query_arena::Type Query_arena::type() const
   Statement functions 
 */
 
-Statement::Statement(THD *thd)
-  :Query_arena(&main_mem_root, INITIALIZED),
-  id(++thd->statement_id_counter),
+Statement::Statement(enum enum_state state_arg, ulong id_arg,
+                     ulong alloc_block_size, ulong prealloc_size)
+  :Query_arena(&main_mem_root, state_arg),
+  id(id_arg),
   set_query_id(1),
   allow_sum_func(0),
   lex(&main_lex),
@@ -1494,33 +1501,7 @@ Statement::Statement(THD *thd)
   cursor(0)
 {
   name.str= NULL;
-  init_sql_alloc(&main_mem_root,
-                 thd->variables.query_alloc_block_size,
-                 thd->variables.query_prealloc_size);
-}
-
-/*
-  This constructor is called when Statement is a parent of THD and
-  for the backup statement. Some variables are initialized in
-  THD::init due to locking problems.
-*/
-
-Statement::Statement()
-  :Query_arena(&main_mem_root, CONVENTIONAL_EXECUTION),
-  id(0),
-  set_query_id(1),
-  allow_sum_func(0),                            /* initialized later */
-  lex(&main_lex),
-  query(0),                                     /* these two are set */ 
-  query_length(0),                              /* in alloc_query() */
-  cursor(0)
-{
-  /*
-    This is just to ensure that the destructor works correctly in
-    case of an error and the backup statement. The memory root will
-    be re-initialized in THD::init.
-  */
-  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+  init_sql_alloc(&main_mem_root, alloc_block_size, prealloc_size);
 }
 
 

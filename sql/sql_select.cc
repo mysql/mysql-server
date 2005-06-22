@@ -1824,6 +1824,7 @@ Cursor::fetch(ulong num_rows)
   THD *thd= join->thd;
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
+  Query_arena backup_arena;
   DBUG_ENTER("Cursor::fetch");
   DBUG_PRINT("enter",("rows: %lu", num_rows));
 
@@ -1835,7 +1836,7 @@ Cursor::fetch(ulong num_rows)
   thd->lock= lock;
   thd->query_id= query_id;
   /* save references to memory, allocated during fetch */
-  thd->set_n_backup_item_arena(this, &thd->stmt_backup);
+  thd->set_n_backup_item_arena(this, &backup_arena);
 
   join->fetch_limit+= num_rows;
 
@@ -1851,7 +1852,7 @@ Cursor::fetch(ulong num_rows)
     ha_release_temporary_latches(thd);
 #endif
 
-  thd->restore_backup_item_arena(this, &thd->stmt_backup);
+  thd->restore_backup_item_arena(this, &backup_arena);
   DBUG_ASSERT(thd->free_list == 0);
   reset_thd(thd);
 
