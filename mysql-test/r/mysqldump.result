@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS t1, `"t"1`;
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
 <?xml version="1.0"?>
-<mysqldump>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
@@ -103,7 +103,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a int, b text, c varchar(3));
 INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 <?xml version="1.0"?>
-<mysqldump>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
@@ -128,7 +128,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
 <?xml version="1.0"?>
-<mysqldump>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
 		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" />
@@ -1436,3 +1436,59 @@ MYSQL_DUMP_DIR: Got error: 1049: Unknown database 'mysqldump_test_d' when select
 MYSQL_DUMP_DIR: Got error: 1102: Incorrect database name 'mysqld\ump_test_db' when selecting the database
 drop table t1, t2, t3;
 drop database mysqldump_test_db;
+create table t1 (a int(10));
+create table t2 (pk int primary key auto_increment,
+a int(10), b varchar(30), c datetime, d blob, e text);
+insert into t1 values (NULL), (10), (20);
+insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thirty");
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test">
+	<table_data name="t1">
+	<row>
+		<field name="a" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="a">10</field>
+	</row>
+	<row>
+		<field name="a">20</field>
+ 	</row>
+	</table_data>
+	<table_data name="t2">
+	<row>
+		<field name="pk">1</field>
+		<field name="a" xsi:nil="true" />
+		<field name="b" xsi:nil="true" />
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="pk">2</field>
+		<field name="a">10</field>
+		<field name="b" xsi:nil="true" />
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="pk">3</field>
+		<field name="a" xsi:nil="true" />
+		<field name="b">twenty</field>
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="pk">4</field>
+		<field name="a">30</field>
+		<field name="b">thirty</field>
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	</table_data>
+</database>
+</mysqldump>
+drop table t1, t2;

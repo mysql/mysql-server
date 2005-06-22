@@ -463,7 +463,10 @@ static void write_header(FILE *sql_file, char *db_name)
   if (opt_xml)
   {
     fputs("<?xml version=\"1.0\"?>\n", sql_file);
-    fputs("<mysqldump>\n", sql_file);
+    fputs("<mysqldump ", sql_file);
+    fputs("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"",
+          sql_file);
+    fputs(">\n", sql_file);
     check_io(sql_file);
   }
   else if (!opt_compact)
@@ -1045,6 +1048,40 @@ static void print_xml_tag1(FILE * xml_file, const char* sbeg,
   fputs("\"", xml_file);
   print_quoted_xml(xml_file, sval, strlen(sval));
   fputs("\">", xml_file);
+  fputs(send, xml_file);
+  check_io(xml_file);
+}
+
+
+/*
+  Print xml tag with for a field that is null
+
+  SYNOPSIS
+    print_xml_null_tag()
+    xml_file	- output file
+    sbeg	- line beginning
+    stag_atr	- tag and attribute
+    sval	- value of attribute
+    send	- line ending
+
+  DESCRIPTION
+    Print tag with one attribute to the xml_file. Format is:
+      <stag_atr="sval" xsi:nil="true"/>
+  NOTE
+    sval MUST be a NULL terminated string.
+    sval string will be qouted before output.
+*/
+
+static void print_xml_null_tag(FILE * xml_file, const char* sbeg,
+                               const char* stag_atr, const char* sval,
+                               const char* send)
+{
+  fputs(sbeg, xml_file);
+  fputs("<", xml_file);
+  fputs(stag_atr, xml_file);
+  fputs("\"", xml_file);
+  print_quoted_xml(xml_file, sval, strlen(sval));
+  fputs("\" xsi:nil=\"true\" />", xml_file);
   fputs(send, xml_file);
   check_io(xml_file);
 }
@@ -1870,7 +1907,14 @@ static void dumpTable(uint numFields, char *table)
 	    }
 	  }
 	  else
-            fputs("NULL", md_result_file);
+          {
+            /* The field value is NULL */
+            if (!opt_xml)
+              fputs("NULL", md_result_file);
+            else
+              print_xml_null_tag(md_result_file, "\t\t", "field name=",
+                                 field->name, "\n");
+          }
           check_io(md_result_file);
 	}
       }
