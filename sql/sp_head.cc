@@ -636,7 +636,21 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     thd->set_time();		// Make current_time() et al work
-    ret= i->execute(thd, &ip);
+    {
+      /*
+        We have to substitute free_list of executing statement to
+        current_arena to store there all new items created during execution
+        (for example '*' expanding, or items made during permanent subquery
+        transformation)
+        Note: Every statement have to have all its items listed in free_list
+        for correct cleaning them up
+      */
+      Item *save_free_list= thd->current_arena->free_list;
+      thd->current_arena->free_list= i->free_list;
+      ret= i->execute(thd, &ip);
+      i->free_list= thd->current_arena->free_list;
+      thd->current_arena->free_list= save_free_list;
+    }
     if (i->free_list)
       cleanup_items(i->free_list);
     // Check if an exception has occurred and a handler has been found
