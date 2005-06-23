@@ -2114,6 +2114,13 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   for (n=0; tables_used; tables_used=tables_used->next, n++, block_table++)
   {
+    if (tables_used->derived)
+    {
+      DBUG_PRINT("qcache", ("derived table skipped"));
+      n--;
+      block_table--;
+      continue;
+    }
     DBUG_PRINT("qcache",
 	       ("table %s, db %s, openinfo at 0x%lx, keylen %u, key at 0x%lx",
 		tables_used->real_name, tables_used->db,
@@ -2671,7 +2678,8 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	table_alias_charset used here because it depends of
 	lower_case_table_names variable
       */
-      if (tables_used->table->tmp_table != NO_TMP_TABLE ||
+      if ((tables_used->table->tmp_table != NO_TMP_TABLE &&
+           !tables_used->derived) ||
 	  (*tables_type & HA_CACHE_TBL_NOCACHE) ||
 	  (tables_used->db_length == 5 &&
 	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
@@ -2682,7 +2690,12 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 other non-cacheable table(s)"));
 	DBUG_RETURN(0);
       }
-      if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
+      if (tables_used->derived)
+      {
+        table_count--;
+        DBUG_PRINT("qcache", ("derived table skipped"));
+      }
+      else if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
       {
 	ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
 	MYRG_INFO *file = handler->myrg_info();
