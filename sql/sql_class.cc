@@ -171,9 +171,6 @@ THD::THD()
    spcont(NULL)
 {
   current_arena= this;
-#ifndef DBUG_OFF
-  backup_arena= 0;
-#endif
   host= user= priv_user= db= ip= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
@@ -528,7 +525,7 @@ void THD::cleanup_after_query()
     next_insert_id= 0;
   }
   /* Free Items that were created during this execution */
-  free_items(free_list);
+  free_items();
   /*
     In the rest of code we assume that free_list never points to garbage:
     Keep this predicate true.
@@ -1485,6 +1482,21 @@ Query_arena::Type Query_arena::type() const
 }
 
 
+void Query_arena::free_items()
+{
+  Item *next;
+  DBUG_ENTER("Query_arena::free_items");
+  /* This works because items are allocated with sql_alloc() */
+  for (; free_list; free_list= next)
+  {
+    next= free_list->next;
+    free_list->delete_self();
+  }
+  /* Postcondition: free_list is 0 */
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Statement functions 
 */
@@ -1556,11 +1568,11 @@ void THD::end_statement()
 void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
   DBUG_ENTER("Query_arena::set_n_backup_item_arena");
-  DBUG_ASSERT(backup_arena == 0);
+  DBUG_ASSERT(backup->is_backup_arena == FALSE);
   backup->set_item_arena(this);
   set_item_arena(set);
 #ifndef DBUG_OFF
-  backup_arena= 1;
+  backup->is_backup_arena= TRUE;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -1569,10 +1581,11 @@ void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
   DBUG_ENTER("Query_arena::restore_backup_item_arena");
+  DBUG_ASSERT(backup->is_backup_arena);
   set->set_item_arena(this);
   set_item_arena(backup);
 #ifndef DBUG_OFF
-  backup_arena= 0;
+  backup->is_backup_arena= FALSE;
 #endif
   DBUG_VOID_RETURN;
 }
