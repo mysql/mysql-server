@@ -336,7 +336,7 @@ public:
   virtual bool set_flags_processor(byte *args)
   {
     this->item_flags|= *((uint8*)args);
-    return true;
+    return false;
   }
 };
 
