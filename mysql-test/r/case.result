@@ -154,3 +154,18 @@ t1	CREATE TABLE `t1` (
   `COALESCE('a' COLLATE latin1_bin,'b')` char(1) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+SELECT 'case+union+test'
+UNION 
+SELECT CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END;
+case+union+test
+case+union+test
+nobug
+SELECT CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END;
+CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END
+nobug
+SELECT 'case+union+test'
+UNION 
+SELECT CASE '1' WHEN '2' THEN 'BUG' ELSE 'nobug' END;
+case+union+test
+case+union+test
+nobug
