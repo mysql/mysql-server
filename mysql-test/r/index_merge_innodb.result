@@ -123,3 +123,14 @@ key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 count(*)
 4
 drop table t1,t2;
+create table t1 (
+id1 int,
+id2 date ,
+index idx2 (id1,id2),
+index idx1 (id2)  
+) engine = innodb;
+insert into t1 values(1,'20040101'), (2,'20040102');
+select * from t1  where id1 = 1  and id2= '20040101';
+id1	id2
+1	2004-01-01
+drop table t1;
