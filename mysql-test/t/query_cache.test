@@ -730,4 +730,30 @@ flush query cache;
 
 drop table t1, t2;
 
+create table t1 (a int);
+insert into t1 values (1);
+reset query cache;
+flush status;
+
+#
+# queries with subquery in the FROM clause (BUG#11522)
+#
+select * from (select * from t1) a;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from (select * from t1) a;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+insert into t1 values (2);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from (select * from t1) a;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
 set GLOBAL query_cache_size=0;
