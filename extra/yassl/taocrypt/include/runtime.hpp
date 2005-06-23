@@ -25,7 +25,7 @@
 
 
 
-#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__)
+#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__) && !defined(__ICC)
 
 #define yaSSL_NEW_HPP
 
