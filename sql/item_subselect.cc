@@ -1487,7 +1487,7 @@ int subselect_uniquesubquery_engine::exec()
   TABLE *table= tab->table;
   for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    if (tab->ref.key_err= (*copy)->copy())
+    if ((tab->ref.key_err= (*copy)->copy()) & 1)
     {
       table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(1);
@@ -1540,7 +1540,7 @@ int subselect_indexsubquery_engine::exec()
 
   for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    if (tab->ref.key_err= (*copy)->copy())
+    if ((tab->ref.key_err= (*copy)->copy()) & 1)
     {
       table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(1);
