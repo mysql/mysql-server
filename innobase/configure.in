@@ -117,6 +117,13 @@ case "$target" in
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 esac
 
+# must go in pair with AR as set by MYSQL_CHECK_AR
+if test -z "$ARFLAGS"
+then
+  ARFLAGS="cru"
+fi
+AC_SUBST(ARFLAGS)
+
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile dnl
 		buf/Makefile data/Makefile dnl
 		dict/Makefile dyn/Makefile dnl

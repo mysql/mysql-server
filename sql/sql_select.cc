@@ -1914,8 +1914,7 @@ Cursor::close()
   }
   join= 0;
   unit= 0;
-  free_items(free_list);
-  free_list= 0;
+  free_items();
   /*
     Must be last, as some memory might be allocated for free purposes,
     like in free_tmp_table() (TODO: fix this issue)
