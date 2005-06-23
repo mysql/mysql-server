@@ -1174,6 +1174,8 @@ Item *Item_func_case::find_item(String *str)
   String *first_expr_str,*tmp;
   longlong first_expr_int;
   double   first_expr_real;
+  char buff[MAX_FIELD_WIDTH];
+  String buff_str(buff,sizeof(buff),default_charset());
   
   /* These will be initialized later */
   LINT_INIT(first_expr_str);
@@ -1186,7 +1188,7 @@ Item *Item_func_case::find_item(String *str)
     {
       case STRING_RESULT:
       	// We can't use 'str' here as this may be overwritten
-	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
+	if (!(first_expr_str= args[first_expr_num]->val_str(&buff_str)))
 	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
         break;
       case INT_RESULT:
