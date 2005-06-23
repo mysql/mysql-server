@@ -1831,3 +1831,11 @@ select * from v1;
 t
 01:00
 drop view v1;
+CREATE VIEW v1 AS SELECT ENCRYPT("dhgdhgd");
+SELECT * FROM v1;
+drop view v1;
+CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
+SELECT * FROM v1;
+SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1)
+dkjhgd
+drop view v1;
