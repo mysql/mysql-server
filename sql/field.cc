@@ -3322,7 +3322,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   }
   else if (from+len != end && table->in_use->count_cuted_fields &&
            check_int(from,len,end,cs))
-    error= 1;
+    error= 2;
     
   store_tmp= (long) tmp;
 #ifdef WORDS_BIGENDIAN
@@ -3584,7 +3584,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   }
   else if (from+len != end && table->in_use->count_cuted_fields &&
            check_int(from,len,end,cs))
-    error= 1;
+    error= 2;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -3806,7 +3806,7 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
-    error= 1;
+    error= error ? 1 : 2;
   }
   Field_float::store(nr);
   return error;
@@ -4093,7 +4093,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
-    error= 1;
+    error= error ? 1 : 2;
   }
   Field_double::store(nr);
   return error;
@@ -4495,6 +4495,8 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
   }
+  if (error > 1)
+    error= 2;
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4791,7 +4793,7 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   if (str_to_time(from, len, &ltime, &error))
   {
     tmp=0L;
-    error= 1;
+    error= 2;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_TIME, 1);
   }
@@ -4813,6 +4815,8 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
                            from, len, MYSQL_TIMESTAMP_TIME, !error);
       error= 1;
     }
+    if (error > 1)
+      error= 2;
   }
   
   if (ltime.neg)
@@ -5149,7 +5153,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
                       &error) <= MYSQL_TIMESTAMP_ERROR)
   {
     tmp=0;
-    error= 1;
+    error= 2;
   }
   else
     tmp=(uint32) l_time.year*10000L + (uint32) (l_time.month*100+l_time.day);
@@ -5353,7 +5357,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
                       &error) <= MYSQL_TIMESTAMP_ERROR)
   {
     tmp=0L;
-    error= 1;
+    error= 2;
   }
   else
     tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
@@ -5836,7 +5840,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     from= tmpstr.ptr();
     length=  tmpstr.length();
     if (conv_errors)
-      error= 1;
+      error= 2;
   }
 
   /* 
@@ -5860,7 +5864,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     from+= field_charset->cset->scan(field_charset, from, end,
 				     MY_SEQ_SPACES);
     if (from != end)
-      error= 1;
+      error= 2;
   }
   if (error)
   {
@@ -6242,7 +6246,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
         table->in_use->abort_on_warning)
       error_code= ER_DATA_TOO_LONG;
     set_warning(level, error_code, 1);
-    return 1;
+    return 2;
   }
   return 0;
 }
@@ -6822,7 +6826,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
       from= tmpstr.ptr();
       length=  tmpstr.length();
       if (conv_errors)
-        error= 1;
+        error= 2;
     }
     
     copy_length= max_data_length();
@@ -6837,7 +6841,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
                                                       copy_length,
                                                       &well_formed_error);
     if (copy_length < length)
-      error= 1;
+      error= 2;
     Field_blob::store_length(copy_length);
     if (was_conversion || table->copy_blobs || copy_length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
