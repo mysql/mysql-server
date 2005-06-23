@@ -303,7 +303,7 @@ sub mysqld_arguments ($$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
-sub run_mysqltest ($$);
+sub run_mysqltest ($);
 sub usage ($);
 
 ######################################################################
@@ -1345,10 +1345,11 @@ sub run_testcase ($) {
 
   if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
   {
-    if ( $tinfo->{'master_restart'} or $master->[0]->{'uses_special_flags'} )
+    if ( $tinfo->{'master_restart'} or
+         $master->[0]->{'running_master_is_special'} )
     {
       stop_masters();
-      $master->[0]->{'uses_special_flags'}= 0; # Forget about why we stopped
+      $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
     }
 
     # ----------------------------------------------------------------------
@@ -1426,9 +1427,9 @@ sub run_testcase ($) {
         }
       }
 
-      if ( @{$tinfo->{'master_opt'}} )
+      if ( $tinfo->{'master_restart'} )
       {
-        $master->[0]->{'uses_special_flags'}= 1;
+        $master->[0]->{'running_master_is_special'}= 1;
       }
     }
 
@@ -1475,7 +1476,7 @@ sub run_testcase ($) {
     }
     unlink($path_timefile);
 
-    my $res= run_mysqltest($tinfo, $tinfo->{'master_opt'});
+    my $res= run_mysqltest($tinfo);
 
     if ( $res == 0 )
     {
@@ -1975,9 +1976,8 @@ sub stop_slaves () {
 }
 
 
-sub run_mysqltest ($$) {
+sub run_mysqltest ($) {
   my $tinfo=       shift;
-  my $master_opts= shift;
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
