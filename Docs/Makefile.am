@@ -36,19 +36,19 @@ CLEAN_FILES:		$(txt_files)
 GT = $(srcdir)/Support/generate-text-files.pl
 
 ../INSTALL-SOURCE:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "Installing" "Tutorial" > $@
+	perl -w $(GT) mysql.info "installing-source" "windows-source-build" > $@
 
 # We put the description for the binary installation here so that
 # people who download source wont have to see it. It is moved up to
 # the toplevel by the script that makes the binary tar files.
 INSTALL-BINARY:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "Installing binary" "Installing source" > $@
+	perl -w $(GT) mysql.info "installing-binary" "installing-source" > $@
 
 ../EXCEPTIONS-CLIENT: mysql.info $(GT)
-	perl -w $(GT) mysql.info "MySQL FLOSS License Exception" "Function Index" > $@
+	perl -w $(GT) mysql.info "mysql-floss-license-exception" "function-index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "Mac OS X installation" "NetWare installation" > $@
+	perl -w $(GT) mysql.info "mac-os-x-installation" "netware-installation" > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
