@@ -4828,7 +4828,6 @@ Item_func_sp::execute(Item **itp)
   thd->net.no_send_ok= TRUE;
 #endif
 
-  res= -1;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
