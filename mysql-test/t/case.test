@@ -111,6 +111,17 @@ explain extended SELECT
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+# Test for BUG#10151
+SELECT 'case+union+test'
+UNION 
+SELECT CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END;
+
+SELECT CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END;
+
+SELECT 'case+union+test'
+UNION 
+SELECT CASE '1' WHEN '2' THEN 'BUG' ELSE 'nobug' END;
+
 #
 # Tests for bug #9939: conversion of the arguments for COALESCE and IFNULL
 #
