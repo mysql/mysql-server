@@ -5992,7 +5992,10 @@ int QUICK_RANGE_SELECT::reset()
   next=0;
   range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
-  
+
+  if (file->inited == handler::NONE && (error= file->ha_index_init(index)))
+      DBUG_RETURN(error);
+ 
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {
