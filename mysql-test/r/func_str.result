@@ -789,3 +789,14 @@ field(0,NULL,1,0)	field("",NULL,"bar","")	field(0.0,NULL,1.0,0.0)
 select field(NULL,1,2,NULL), field(NULL,1,2,0);
 field(NULL,1,2,NULL)	field(NULL,1,2,0)
 0	0
+CREATE TABLE t1 (str varchar(20) PRIMARY KEY);
+CREATE TABLE t2 (num int primary key);
+INSERT INTO t1 VALUES ('notnumber');
+INSERT INTO t2 VALUES (0), (1);
+SELECT * FROM t1, t2 WHERE num=str;
+str	num
+notnumber	0
+SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
+str	num
+notnumber	0
+DROP TABLE t1,t2;
