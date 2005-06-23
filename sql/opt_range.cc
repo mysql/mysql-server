@@ -2593,12 +2593,12 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       {
         tuple_arg= scan->sel_arg;
         /* Here we use the length of the first key part */
-        tuple_arg->store_min(key_part->length, &key_ptr, 0);
+        tuple_arg->store_min(key_part->store_length, &key_ptr, 0);
       }
       while (tuple_arg->next_key_part != sel_arg)
       {
         tuple_arg= tuple_arg->next_key_part;
-        tuple_arg->store_min(key_part[tuple_arg->part].length, &key_ptr, 0);
+        tuple_arg->store_min(key_part[tuple_arg->part].store_length, &key_ptr, 0);
       }
       min_range.length= max_range.length= ((char*) key_ptr - (char*) key_val);
       records= (info->param->table->file->
@@ -5992,7 +5992,10 @@ int QUICK_RANGE_SELECT::reset()
   next=0;
   range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
-  
+
+  if (file->inited == handler::NONE && (error= file->ha_index_init(index)))
+    DBUG_RETURN(error);
+ 
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {
