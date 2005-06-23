@@ -2429,7 +2429,7 @@ Prepared_statement::~Prepared_statement()
 {
   if (cursor)
     cursor->Cursor::~Cursor();
-  free_items(free_list);
+  free_items();
   delete lex->result;
 }
 
