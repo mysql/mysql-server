@@ -1025,7 +1025,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select sql_no_cache (select sql_no_cache ecrypt(_latin1'test') AS `ENCRYPT('test')` from `test`.`t1`) AS `(SELECT ENCRYPT('test') FROM t1)` from `test`.`t1`
+Note	1003	select sql_no_cache (select sql_no_cache encrypt(_latin1'test') AS `ENCRYPT('test')` from `test`.`t1`) AS `(SELECT ENCRYPT('test') FROM t1)` from `test`.`t1`
 EXPLAIN EXTENDED SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
