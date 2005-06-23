@@ -914,10 +914,7 @@ void Item_func_abs::fix_length_and_dec()
   max_length=args[0]->max_length;
   hybrid_type= REAL_RESULT;
   if (args[0]->result_type() == INT_RESULT)
-  {
     hybrid_type= INT_RESULT;
-    unsigned_flag= 1;
-  }
 }
 
 
