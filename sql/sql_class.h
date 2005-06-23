@@ -1420,10 +1420,10 @@ public:
 };
 
 #define tmp_disable_binlog(A)       \
-  ulong save_options= (A)->options; \
-  (A)->options&= ~OPTION_BIN_LOG;
+  {ulong tmp_disable_binlog__save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG
 
-#define reenable_binlog(A)          (A)->options= save_options;
+#define reenable_binlog(A)   (A)->options= tmp_disable_binlog__save_options;}
 
 /* Flags for the THD::system_thread (bitmap) variable */
 #define SYSTEM_THREAD_DELAYED_INSERT 1
