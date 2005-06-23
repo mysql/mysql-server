@@ -13,7 +13,7 @@ while (<IN>)
 {
   if ($in)
   {
-    if (/Node: $tnode,/)
+    if (/Node: $tnode,/ || /\[index/)
     {
       $in = 0;
     }
