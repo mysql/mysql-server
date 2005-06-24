@@ -148,6 +148,7 @@ enum enum_server_command
 */
 #define SERVER_STATUS_LAST_ROW_SENT 128
 #define SERVER_STATUS_DB_DROPPED        256 /* A database was dropped */
+#define SERVER_STATUS_NO_BACKSLASH_ESCAPES 512
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */

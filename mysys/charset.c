@@ -656,3 +656,67 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
   return overflow ? (ulong)~0 : (ulong) (to - to_start);
 }
 
+
+/*
+  NOTE
+    to be consistent with escape_string_for_mysql(), to_length may be 0 to
+    mean "big enough"
+  RETURN
+    the length of the escaped string or ~0 if it did not fit.
+*/
+ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
+                              char *to, ulong to_length,
+                              const char *from, ulong length)
+{
+  const char *to_start= to;
+  const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
+  my_bool overflow=0;
+#ifdef USE_MB
+  my_bool use_mb_flag= use_mb(charset_info);
+#endif
+  for (end= from + length; from < end; from++)
+  {
+    char escape=0;
+#ifdef USE_MB
+    int tmp_length;
+    if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
+    {
+      if (to + tmp_length > to_end)
+      {
+        overflow=1;
+        break;
+      }
+      while (tmp_length--)
+	*to++= *from++;
+      from--;
+      continue;
+    }
+    /*
+      We don't have the same issue here with a non-multi-byte character being
+      turned into a multi-byte character by the addition of an escaping
+      character, because we are only escaping the ' character with itself.
+     */
+#endif
+    if (*from == '\'')
+    {
+      if (to + 2 > to_end)
+      {
+        overflow=1;
+        break;
+      }
+      *to++= '\'';
+      *to++= '\'';
+    }
+    else
+    {
+      if (to + 1 > to_end)
+      {
+        overflow=1;
+        break;
+      }
+      *to++= *from;
+    }
+  }
+  *to= 0;
+  return overflow ? (ulong)~0 : (ulong) (to - to_start);
+}
