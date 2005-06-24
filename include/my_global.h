@@ -295,10 +295,8 @@ C_MODE_END
 #include <alloca.h>
 #endif
 #ifdef HAVE_ATOMIC_ADD
-#if defined(__ia64__)
 #define new my_arg_new
 #define need_to_restore_new 1
-#endif
 C_MODE_START
 #include <asm/atomic.h>
 C_MODE_END
