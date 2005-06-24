@@ -231,18 +231,19 @@ explain select * from t1 where a='aaad';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	8	const	1	Using where
 insert into t1 select * from t1;
+flush tables;
 explain select * from t1 where a='aaaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 explain select * from t1 where a='aaab';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 explain select * from t1 where a='aaac';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 explain select * from t1 where a='aaad';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 flush tables;
 explain select * from t1 where a='aaaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -261,16 +262,16 @@ delete from t1;
 insert into t1 select * from t2;
 explain select * from t1 where a='aaaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 explain select * from t1 where a='aaab';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 explain select * from t1 where a='aaac';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 explain select * from t1 where a='aaad';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
 drop table t1, t2;
 create table t1 (
 id int unsigned not null primary key auto_increment, 
@@ -345,14 +346,14 @@ insert into t3 select name, name from t1;
 show index from t3;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH	
-t3	1	a	2	b	NULL	15	NULL	NULL		HASH	
+t3	1	a	2	b	NULL	13	NULL	NULL		HASH	
 show index from t3;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH	
-t3	1	a	2	b	NULL	15	NULL	NULL		HASH	
+t3	1	a	2	b	NULL	13	NULL	NULL		HASH	
 explain select * from t1 ignore key(btree_idx), t3 where t1.name='matt' and t3.a = concat('',t1.name) and t3.b=t1.name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ref	a	a	44	const,const	6	Using where
+1	SIMPLE	t3	ref	a	a	44	const,const	7	Using where
 1	SIMPLE	t1	ref	heap_idx	heap_idx	22	const	7	Using where
 drop table t1, t2, t3;
 create temporary table t1 ( a int, index (a) ) engine=memory;
