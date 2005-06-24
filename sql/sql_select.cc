@@ -5902,8 +5902,7 @@ void JOIN::join_free(bool full)
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  full= full || (!select_lex->uncacheable && !thd->lex->subqueries &&
-                 !thd->lex->describe);
+  full= full || (!select_lex->uncacheable && !thd->lex->describe);
 
   cleanup(full);
 
