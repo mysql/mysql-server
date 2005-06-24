@@ -2304,6 +2304,19 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
   DBUG_RETURN(0);
 }
 
+
+static void *my_str_malloc_mysqld(size_t size)
+{
+  return my_malloc(size, MYF(MY_FAE));
+}
+
+
+static void my_str_free_mysqld(void *ptr)
+{
+  my_free((gptr)ptr, MYF(MY_FAE));
+}
+
+
 #ifdef __WIN__
 
 struct utsname
@@ -3159,10 +3172,16 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
 
   /*
+   Initialize my_str_malloc() and my_str_free()
+  */
+  my_str_malloc= &my_str_malloc_mysqld;
+  my_str_free= &my_str_free_mysqld;
+
+  /*
     init signals & alarm
     After this we can't quit by a simple unireg_abort
   */
-  error_handler_hook = my_message_sql;
+  error_handler_hook= my_message_sql;
   start_signal_handler();				// Creates pidfile
   if (acl_init((THD *)0, opt_noacl) || 
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))

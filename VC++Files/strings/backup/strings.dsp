@@ -238,7 +238,12 @@ InputName=Strxmov
 # End Source File
 # Begin Source File
 
-SOURCE=.\strxnmov.c
+SOURCE=.\strxnmov.c 
+# End Source File 
+# Begin Source File
+
+SOURCE=.\str_alloc.c 
 # End Source File
+
 # End Target
 # End Project
