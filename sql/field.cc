@@ -3317,7 +3317,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   }
   if (error)
   {
-    error= 1;
+    error= error != MY_ERRNO_EDOM ? 1 : 2;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
   }
   else if (from+len != end && table->in_use->count_cuted_fields &&
