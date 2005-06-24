@@ -325,7 +325,7 @@ class JOIN :public Sql_alloc
   int optimize();
   int reinit();
   void exec();
-  int cleanup();
+  int destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
@@ -349,7 +349,15 @@ class JOIN :public Sql_alloc
   int rollup_send_data(uint idx);
   int rollup_write_data(uint idx, TABLE *table);
   bool test_in_subselect(Item **where);
+  /*
+    Release memory and, if possible, the open tables held by this execution
+    plan (and nested plans). It's used to release some tables before
+    the end of execution in order to increase concurrency and reduce
+    memory consumption.
+  */
   void join_free(bool full);
+  /* Cleanup this JOIN, possibly for reuse */
+  void cleanup(bool full);
   void clear();
   bool save_join_tab();
   bool send_row_on_empty_set()
