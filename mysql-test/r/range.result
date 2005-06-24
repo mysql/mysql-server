@@ -544,7 +544,7 @@ count(*)
 1
 select count(*) from t2 where x > -16;
 count(*)
-2
+1
 select count(*) from t2 where x = 18446744073709551601;
 count(*)
 0
