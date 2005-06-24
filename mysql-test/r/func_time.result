@@ -611,3 +611,18 @@ SELECT count(*) FROM t1 WHERE d>FROM_DAYS(TO_DAYS(@TMP)) AND d<=FROM_DAYS(TO_DAY
 count(*)
 3
 DROP TABLE t1;
+select last_day('2005-00-00');
+last_day('2005-00-00')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2005-00-00'
+select last_day('2005-00-01');
+last_day('2005-00-01')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2005-00-01'
+select last_day('2005-01-00');
+last_day('2005-01-00')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2005-01-00'
