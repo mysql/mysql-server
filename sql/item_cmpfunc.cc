@@ -238,9 +238,10 @@ void Item_bool_func2::fix_length_and_dec()
     return;
   }
     
-  if (args[0]->type() == FIELD_ITEM)
+  Item *real_item= args[0]->real_item();
+  if (real_item->type() == FIELD_ITEM)
   {
-    Field *field=((Item_field*) args[0])->field;
+    Field *field= ((Item_field*) real_item)->field;
     if (field->can_be_compared_as_longlong())
     {
       if (convert_constant_item(thd, field,&args[1]))
@@ -251,9 +252,10 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
-  if (args[1]->type() == FIELD_ITEM /* && !args[1]->const_item() */)
+  real_item= args[1]->real_item();
+  if (real_item->type() == FIELD_ITEM)
   {
-    Field *field=((Item_field*) args[1])->field;
+    Field *field= ((Item_field*) real_item)->field;
     if (field->can_be_compared_as_longlong())
     {
       if (convert_constant_item(thd, field,&args[0]))
