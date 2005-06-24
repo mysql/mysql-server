@@ -3272,7 +3272,6 @@ end_with_restore_list:
 
     if (first_table->view && !first_table->contain_auto_increment)
       thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
-
     break;
   }
   case SQLCOM_TRUNCATE:
