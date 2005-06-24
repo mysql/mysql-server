@@ -865,6 +865,9 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
                                      char *to, ulong to_length,
                                      const char *from, ulong length);
+extern ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
+                                     char *to, ulong to_length,
+                                     const char *from, ulong length);
 
 extern void thd_increment_bytes_sent(ulong length);
 extern void thd_increment_bytes_received(ulong length);

@@ -3238,7 +3238,16 @@ void fix_sql_mode_var(THD *thd, enum_var_type type)
     global_system_variables.sql_mode=
       fix_sql_mode(global_system_variables.sql_mode);
   else
+  {
     thd->variables.sql_mode= fix_sql_mode(thd->variables.sql_mode);
+    /*
+      Update thd->server_status
+     */
+    if (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
+      thd->server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
+    else
+      thd->server_status&= ~SERVER_STATUS_NO_BACKSLASH_ESCAPES;
+  }
 }
 
 /* Map database specific bits to function bits */
