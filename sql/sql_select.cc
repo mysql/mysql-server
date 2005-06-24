@@ -87,10 +87,9 @@ static void update_depend_map(JOIN *join, ORDER *order);
 static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
 			   bool change_list, bool *simple_order);
 static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
-			    List<Item> &fields, bool send_row,
-			    uint select_options, const char *info,
-			    Item *having, Procedure *proc,
-			    SELECT_LEX_UNIT *unit);
+                            List<Item> &fields, bool send_row,
+                            uint select_options, const char *info,
+                            Item *having);
 static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
@@ -1227,8 +1226,7 @@ JOIN::exec()
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
-			    having, procedure,
-			    unit);
+			    having);
     DBUG_VOID_RETURN;
   }
 
@@ -1437,7 +1435,7 @@ JOIN::exec()
 	DBUG_VOID_RETURN;
       }
       end_read_record(&curr_join->join_tab->read_record);
-      curr_join->const_tables= curr_join->tables; // Mark free for join_free()
+      curr_join->const_tables= curr_join->tables; // Mark free for cleanup()
       curr_join->join_tab[0].table= 0;           // Table is freed
       
       // No sum funcs anymore
@@ -1667,9 +1665,9 @@ JOIN::exec()
 */
 
 int
-JOIN::cleanup()
+JOIN::destroy()
 {
-  DBUG_ENTER("JOIN::cleanup");
+  DBUG_ENTER("JOIN::destroy");
   select_lex->join= 0;
 
   if (tmp_join)
@@ -1684,12 +1682,11 @@ JOIN::cleanup()
     }
     tmp_join->tmp_join= 0;
     tmp_table_param.copy_field=0;
-    DBUG_RETURN(tmp_join->cleanup());
+    DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
 
-  lock=0;                                     // It's faster to unlock later
-  join_free(1);
+  cleanup(1);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -1697,12 +1694,6 @@ JOIN::cleanup()
   delete select;
   delete_dynamic(&keyuse);
   delete procedure;
-  for (SELECT_LEX_UNIT *lex_unit= select_lex->first_inner_unit();
-       lex_unit != 0;
-       lex_unit= lex_unit->next_unit())
-  {
-    error|= lex_unit->cleanup();
-  }
   DBUG_RETURN(error);
 }
 
@@ -1885,17 +1876,14 @@ Cursor::close()
   THD *thd= join->thd;
   DBUG_ENTER("Cursor::close");
 
-  join->join_free(0);
+  /*
+    In case of UNIONs JOIN is freed inside of unit->cleanup(),
+    otherwise in select_lex->cleanup().
+  */
   if (unit)
-  {
-    /* In case of UNIONs JOIN is freed inside unit->cleanup() */
-    unit->cleanup();
-  }
+    (void) unit->cleanup();
   else
-  {
-    join->cleanup();
-    delete join;
-  }
+    (void) join->select_lex->cleanup();
   {
     /* XXX: Another hack: closing tables used in the cursor */
     DBUG_ASSERT(lock || open_tables || derived_tables);
@@ -2071,8 +2059,7 @@ err:
   if (free_join)
   {
     thd->proc_info="end";
-    err= join->cleanup();
-    delete join;
+    err= select_lex->cleanup();
     DBUG_RETURN(err || thd->net.report_error);
   }
   DBUG_RETURN(join->error);
@@ -5905,29 +5892,75 @@ void JOIN_TAB::cleanup()
 }
 
 
+void JOIN::join_free(bool full)
+{
+  SELECT_LEX_UNIT *unit;
+  SELECT_LEX *sl;
+  DBUG_ENTER("JOIN::join_free");
+
+  /*
+    Optimization: if not EXPLAIN and we are done with the JOIN,
+    free all tables.
+  */
+  full= full || (!select_lex->uncacheable && !thd->lex->subqueries &&
+                 !thd->lex->describe);
+
+  cleanup(full);
+
+  for (unit= select_lex->first_inner_unit(); unit; unit= unit->next_unit())
+    for (sl= unit->first_select_in_union(); sl; sl= sl->next_select())
+    {
+      JOIN *join= sl->join;
+      if (join)
+      {
+        /* Check that we don't occasionally clean up an uncacheable JOIN */
+#if 0
+        DBUG_ASSERT(! (!select_lex->uncacheable && sl->uncacheable));
+#endif
+        join->join_free(full);
+      }
+    }
+
+  /*
+    We are not using tables anymore
+    Unlock all tables. We may be in an INSERT .... SELECT statement.
+  */
+  if (full && lock && thd->lock && !(select_options & SELECT_NO_UNLOCK) &&
+      !select_lex->subquery_in_having &&
+      (select_lex == (thd->lex->unit.fake_select_lex ?
+                      thd->lex->unit.fake_select_lex : &thd->lex->select_lex)))
+  {
+    /*
+      TODO: unlock tables even if the join isn't top level select in the
+      tree.
+    */
+    mysql_unlock_read_tables(thd, lock);           // Don't free join->lock
+    lock= 0;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Free resources of given join
 
   SYNOPSIS
-    JOIN::join_free()
+    JOIN::cleanup()
     fill - true if we should free all resources, call with full==1 should be
            last, before it this function can be called with full==0
 
   NOTE: with subquery this function definitely will be called several times,
     but even for simple query it can be called several times.
 */
-void
-JOIN::join_free(bool full)
-{
-  JOIN_TAB *tab,*end;
-  DBUG_ENTER("JOIN::join_free");
 
-  full= full || (!select_lex->uncacheable &&
-                 !thd->lex->subqueries &&
-                 !thd->lex->describe); // do not cleanup too early on EXPLAIN
+void JOIN::cleanup(bool full)
+{
+  DBUG_ENTER("JOIN::cleanup");
 
   if (table)
   {
+    JOIN_TAB *tab,*end;
     /*
       Only a sorted table may be cached.  This sorted table is always the
       first non const table in join->table
@@ -5936,16 +5969,6 @@ JOIN::join_free(bool full)
     {
       free_io_cache(table[const_tables]);
       filesort_free_buffers(table[const_tables]);
-    }
-
-    for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit(); unit;
-         unit= unit->next_unit())
-    {
-      JOIN *join;
-      for (SELECT_LEX *sl= unit->first_select_in_union(); sl;
-           sl= sl->next_select())
-        if ((join= sl->join))
-          join->join_free(full);
     }
 
     if (full)
@@ -5964,23 +5987,10 @@ JOIN::join_free(bool full)
       }
     }
   }
-
   /*
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (full && lock && thd->lock && !(select_options & SELECT_NO_UNLOCK) &&
-      !select_lex->subquery_in_having)
-  {
-    // TODO: unlock tables even if the join isn't top level select in the tree
-    if (select_lex == (thd->lex->unit.fake_select_lex ?
-                       thd->lex->unit.fake_select_lex : &thd->lex->select_lex))
-    {
-      mysql_unlock_read_tables(thd, lock);        // Don't free join->lock
-      lock=0;
-    }
-  }
-
   if (full)
   {
     group_fields.delete_elements();
@@ -6217,8 +6227,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
 static int
 return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 		 List<Item> &fields, bool send_row, uint select_options,
-		 const char *info, Item *having, Procedure *procedure,
-		 SELECT_LEX_UNIT *unit)
+		 const char *info, Item *having)
 {
   DBUG_ENTER("return_zero_rows");
 
