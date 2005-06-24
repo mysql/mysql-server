@@ -256,6 +256,10 @@ SOURCE=.\strxnmov.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\str_alloc.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\xml.c
 # End Source File
 # End Target
