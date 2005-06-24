@@ -5912,13 +5912,7 @@ void JOIN::join_free(bool full)
     {
       JOIN *join= sl->join;
       if (join)
-      {
-        /* Check that we don't occasionally clean up an uncacheable JOIN */
-#if 0
-        DBUG_ASSERT(! (!select_lex->uncacheable && sl->uncacheable));
-#endif
         join->join_free(full);
-      }
     }
 
   /*
