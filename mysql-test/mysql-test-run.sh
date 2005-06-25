@@ -307,7 +307,7 @@ while test $# -gt 0; do
      --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
      --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem \
      --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem"
-     MYSQL_TEST_SSL_OPTS="--ssl-ca=$BASEDIR/SSL/cacert.pem \
+     MYSQL_TEST_SSL_OPTS="--ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
      --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem \
      --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem" ;;
     --no-manager | --skip-manager) USE_MANAGER=0 ;;
