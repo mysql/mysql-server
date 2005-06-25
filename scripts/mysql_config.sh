@@ -60,11 +60,19 @@ fix_path ()
 
 get_full_path ()
 {
-  case $1 in
-    /*)	echo "$1";;
-    ./*) tmp=`pwd`/$1; echo $tmp | sed -e 's;/\./;/;' ;;
-     *) which $1 ;;
-   esac
+  file=$1
+
+  # if the file is a symlink, try to resolve it
+  if [ -h $file ];
+  then
+    file=`ls -l $file | awk '{ print $NF }'`
+  fi
+
+  case $file in
+    /*) echo "$file";;
+    */*) tmp=`pwd`/$file; echo $tmp | sed -e 's;/\./;/;' ;;
+    *) which $file ;;
+  esac
 }
 
 me=`get_full_path $0`
