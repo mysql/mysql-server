@@ -529,3 +529,17 @@ DROP TABLE t1, t2;
 #
 select field(0,NULL,1,0), field("",NULL,"bar",""), field(0.0,NULL,1.0,0.0);
 select field(NULL,1,2,NULL), field(NULL,1,2,0);
+
+#
+# Bug #10124: access by integer index with a string key that is not a number  
+#
+
+CREATE TABLE t1 (str varchar(20) PRIMARY KEY);
+CREATE TABLE t2 (num int primary key);
+INSERT INTO t1 VALUES ('notnumber');
+INSERT INTO t2 VALUES (0), (1); 
+
+SELECT * FROM t1, t2 WHERE num=str;
+SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
+
+DROP TABLE t1,t2;

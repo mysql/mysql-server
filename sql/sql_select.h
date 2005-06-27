@@ -325,7 +325,7 @@ class JOIN :public Sql_alloc
   int optimize();
   int reinit();
   void exec();
-  int cleanup();
+  int destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
@@ -349,7 +349,15 @@ class JOIN :public Sql_alloc
   int rollup_send_data(uint idx);
   int rollup_write_data(uint idx, TABLE *table);
   bool test_in_subselect(Item **where);
+  /*
+    Release memory and, if possible, the open tables held by this execution
+    plan (and nested plans). It's used to release some tables before
+    the end of execution in order to increase concurrency and reduce
+    memory consumption.
+  */
   void join_free(bool full);
+  /* Cleanup this JOIN, possibly for reuse */
+  void cleanup(bool full);
   void clear();
   bool save_join_tab();
   bool send_row_on_empty_set()
@@ -448,6 +456,7 @@ class store_key :public Sql_alloc
   char *null_ptr;
   char err;
  public:
+  enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
     :null_ptr(null),err(0)
   {
@@ -463,7 +472,7 @@ class store_key :public Sql_alloc
                                         ptr, (uchar*) null, 1);
   }
   virtual ~store_key() {}			/* Not actually needed */
-  virtual bool copy()=0;
+  virtual enum store_key_result copy()=0;
   virtual const char *name() const=0;
 };
 
@@ -484,10 +493,10 @@ class store_key_field: public store_key
       copy_field.set(to_field,from_field,0);
     }
   }
-  bool copy()
+  enum store_key_result copy()
   {
     copy_field.do_copy(&copy_field);
-    return err != 0;
+    return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
   }
   const char *name() const { return field_name; }
 };
@@ -504,9 +513,11 @@ public:
 	       null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
 	       &err : NullS, length), item(item_arg)
   {}
-  bool copy()
+  enum store_key_result copy()
   {
-    return item->save_in_field_no_warnings(to_field, 1) || err != 0;
+    int res= item->save_in_field(to_field, 1);
+    return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
+	                 
   }
   const char *name() const { return "func"; }
 };
@@ -524,15 +535,19 @@ public:
 		    &err : NullS, length, item_arg), inited(0)
   {
   }
-  bool copy()
+  enum store_key_result copy()
   {
+    int res;
     if (!inited)
     {
       inited=1;
-      if (item->save_in_field(to_field, 1))
-	err= 1;
+      if ((res= item->save_in_field(to_field, 1)))
+      {       
+        if (!err)
+          err= res;
+      }
     }
-    return err != 0;
+    return (err > 2 ?  STORE_KEY_FATAL : (store_key_result) err);
   }
   const char *name() const { return "const"; }
 };

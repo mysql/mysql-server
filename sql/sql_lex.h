@@ -642,6 +642,11 @@ public:
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
   void fix_prepare_information(THD *thd, Item **conds);
+  /*
+    Destroy the used execution plan (JOIN) of this subtree (this
+    SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
+  */
+  bool cleanup();
 };
 typedef class st_select_lex SELECT_LEX;
 
