@@ -4807,42 +4807,36 @@ Item_func_sp::execute(Item **itp)
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
   ulong old_client_capabilites;
-  int res;
+  int res= -1;
   bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
+  my_bool nsok;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
 
-  if (! m_sp)
+  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
   {
-    if (!(m_sp= sp_find_function(thd, m_name, TRUE)))
-    {
-      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-      DBUG_RETURN(-1);
-    }
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    goto error;
   }
 
   old_client_capabilites= thd->client_capabilities;
   thd->client_capabilities &= ~CLIENT_MULTI_RESULTS;
 
 #ifndef EMBEDDED_LIBRARY
-  my_bool nsok= thd->net.no_send_ok;
+  nsok= thd->net.no_send_ok;
   thd->net.no_send_ok= TRUE;
 #endif
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-      DBUG_RETURN(-1);
+    goto error_check;
   sp_change_security_context(thd, m_sp, &save_ctx);
   if (save_ctx.changed && 
       check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-  {
-    sp_restore_security_context(thd, m_sp, &save_ctx);
-    thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
-    DBUG_RETURN(-1);
-  }
+    goto error_check;
 #endif
   /*
     Like for SPs, we don't binlog the substatements. If the statement which
@@ -4850,6 +4844,7 @@ Item_func_sp::execute(Item **itp)
     it's not (e.g. SELECT myfunc()) it won't be binlogged (documented known
     problem).
   */
+
   tmp_disable_binlog(thd); /* don't binlog the substatements */
   thd->transaction.in_sub_stmt= TRUE;
 
@@ -4864,16 +4859,21 @@ Item_func_sp::execute(Item **itp)
                  ER_FAILED_ROUTINE_BREAK_BINLOG,
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
+error_check_ctx:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, m_sp, &save_ctx);
 #endif
 
+  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
+
+error_check:
 #ifndef EMBEDDED_LIBRARY
   thd->net.no_send_ok= nsok;
 #endif
 
   thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
 
+error:
   DBUG_RETURN(res);
 }
 

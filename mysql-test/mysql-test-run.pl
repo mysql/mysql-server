@@ -303,7 +303,7 @@ sub mysqld_arguments ($$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
-sub run_mysqltest ($$);
+sub run_mysqltest ($);
 sub usage ($);
 
 ######################################################################
@@ -1342,10 +1342,11 @@ sub run_testcase ($) {
 
   if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
   {
-    if ( $tinfo->{'master_restart'} or $master->[0]->{'uses_special_flags'} )
+    if ( $tinfo->{'master_restart'} or
+         $master->[0]->{'running_master_is_special'} )
     {
       stop_masters();
-      $master->[0]->{'uses_special_flags'}= 0; # Forget about why we stopped
+      $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
     }
 
     # ----------------------------------------------------------------------
@@ -1423,9 +1424,9 @@ sub run_testcase ($) {
         }
       }
 
-      if ( @{$tinfo->{'master_opt'}} )
+      if ( $tinfo->{'master_restart'} )
       {
-        $master->[0]->{'uses_special_flags'}= 1;
+        $master->[0]->{'running_master_is_special'}= 1;
       }
     }
 
@@ -1472,7 +1473,7 @@ sub run_testcase ($) {
     }
     unlink($path_timefile);
 
-    my $res= run_mysqltest($tinfo, $tinfo->{'master_opt'});
+    my $res= run_mysqltest($tinfo);
 
     if ( $res == 0 )
     {
@@ -1553,11 +1554,12 @@ sub do_before_start_master ($$) {
     }
   }
 
+  # FIXME only remove the ones that are tied to this master
   # Remove old master.info and relay-log.info files
-  unlink("$opt_vardir/master-data/master.info");
-  unlink("$opt_vardir/master-data/relay-log.info");
-  unlink("$opt_vardir/master1-data/master.info");
-  unlink("$opt_vardir/master1-data/relay-log.info");
+  unlink("$master->[0]->{'path_myddir'}/master.info");
+  unlink("$master->[0]->{'path_myddir'}/relay-log.info");
+  unlink("$master->[1]->{'path_myddir'}/master.info");
+  unlink("$master->[1]->{'path_myddir'}/relay-log.info");
 
   # Run master initialization shell script if one exists
   if ( $init_script )
@@ -1651,18 +1653,26 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $type eq 'master' )
   {
-    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin", $prefix, $opt_vardir);
+    my $id= $idx > 0 ? $idx + 101 : 1;
+
+    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
+                $opt_vardir, $sidx);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $master->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
                 $master->[$idx]->{'path_myport'});
-    mtr_add_arg($args, "%s--server-id=1", $prefix);
+    mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
     mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
+
+    if ( $idx > 0 )
+    {
+      mtr_add_arg($args, "%s--skip-innodb", $prefix);
+    }
 
     if ( $opt_skip_ndbcluster )
     {
@@ -1673,7 +1683,7 @@ sub mysqld_arguments ($$$$$) {
   if ( $type eq 'slave' )
   {
     my $slave_server_id=  2 + $idx;
-    my $slave_rpl_rank= $idx > 0 ? 2 : $slave_server_id;
+    my $slave_rpl_rank= $slave_server_id;
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
@@ -1973,9 +1983,8 @@ sub stop_slaves () {
 }
 
 
-sub run_mysqltest ($$) {
+sub run_mysqltest ($) {
   my $tinfo=       shift;
-  my $master_opts= shift;
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";

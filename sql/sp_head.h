@@ -274,7 +274,7 @@ private:
 // "Instructions"...
 //
 
-class sp_instr : public Sql_alloc
+class sp_instr :public Query_arena, public Sql_alloc
 {
   sp_instr(const sp_instr &);	/* Prevent use of these */
   void operator=(sp_instr &);
@@ -282,17 +282,16 @@ class sp_instr : public Sql_alloc
 public:
 
   uint marked;
-  Item *free_list;              // My Items
   uint m_ip;			// My index
   sp_pcontext *m_ctx;		// My parse context
 
   // Should give each a name or type code for debugging purposes?
   sp_instr(uint ip, sp_pcontext *ctx)
-    :Sql_alloc(), marked(0), free_list(0), m_ip(ip), m_ctx(ctx)
+    :Query_arena(0, INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
   {}
 
   virtual ~sp_instr()
-  { free_items(free_list); }
+  { free_items(); }
 
   // Execute this instrution. '*nextp' will be set to the index of the next
   // instruction to execute. (For most instruction this will be the
