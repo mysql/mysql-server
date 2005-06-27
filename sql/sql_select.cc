@@ -5986,6 +5986,8 @@ void JOIN::cleanup(bool full)
   */
   if (full)
   {
+    if (tmp_join)
+      tmp_table_param.copy_field= 0;
     group_fields.delete_elements();
     /*
       We can't call delete_elements() on copy_funcs as this will cause
