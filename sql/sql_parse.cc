@@ -1943,10 +1943,10 @@ mysql_execute_command(THD *thd)
   if (tables || &lex->select_lex != lex->all_selects_list)
     mysql_reset_errors(thd);
 
-  /* 
-     When subselects or time_zone info is used in a query
-     we create a new TABLE_LIST containing all referenced tables
-     and set local variable 'tables' to point to this list.
+  /*
+    When subselects or time_zone info is used in a query
+    we create a new TABLE_LIST containing all referenced tables
+    and set local variable 'tables' to point to this list.
   */
   if ((&lex->select_lex != lex->all_selects_list ||
        lex->time_zone_tables_used) &&
@@ -2831,6 +2831,8 @@ unsent_create_error:
   case SQLCOM_INSERT_SELECT:
   {
     TABLE_LIST *first_local_table= (TABLE_LIST *) select_lex->table_list.first;
+    TABLE_LIST dup_tables;
+    TABLE *insert_table;
     if ((res= insert_precheck(thd, tables)))
       break;
 
@@ -2856,14 +2858,27 @@ unsent_create_error:
     if ((res= open_and_lock_tables(thd, tables)))
       break;
       
+    insert_table= tables->table;
     /* Skip first table, which is the table we are inserting in */
     select_lex->table_list.first= (byte*) first_local_table->next;
-    
-    if (!(res= mysql_prepare_insert(thd, tables, first_local_table, 
-				    tables->table, lex->field_list, 0,
+    tables= (TABLE_LIST *) select_lex->table_list.first;
+    dup_tables= *first_local_table;
+    first_local_table->next= 0;
+    if (select_lex->group_list.elements != 0)
+    {
+      /*
+        When we are using GROUP BY we can't refere to other tables in the
+        ON DUPLICATE KEY part
+      */         
+      dup_tables.next= 0;
+    }
+
+    if (!(res= mysql_prepare_insert(thd, tables, first_local_table,
+				    &dup_tables, insert_table,
+                                    lex->field_list, 0,
 				    lex->update_list, lex->value_list,
 				    lex->duplicates)) &&
-        (result= new select_insert(tables->table, &lex->field_list,
+        (result= new select_insert(insert_table, &lex->field_list,
 				   &lex->update_list, &lex->value_list,
                                    lex->duplicates, lex->ignore)))
     {
@@ -2876,7 +2891,7 @@ unsent_create_error:
       /* revert changes for SP */
       lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       delete result;
-      tables->table->insert_values= 0;
+      insert_table->insert_values= 0;
       if (thd->net.report_error)
         res= -1;
     }
@@ -4950,10 +4965,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       the slow query log, and the relay log (if it exists).
     */
 
-    /* 
-     Writing this command to the binlog may result in infinite loops when doing
-     mysqlbinlog|mysql, and anyway it does not really make sense to log it
-     automatically (would cause more trouble to users than it would help them)
+    /*
+      Writing this command to the binlog may result in infinite loops when
+      doing mysqlbinlog|mysql, and anyway it does not really make sense to
+      log it automatically (would cause more trouble to users than it would
+      help them)
     */
     tmp_write_to_binlog= 0;
     mysql_log.new_file(1);

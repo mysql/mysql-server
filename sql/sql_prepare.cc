@@ -918,6 +918,7 @@ static int mysql_test_insert(Prepared_statement *stmt,
 
     table_list->table->insert_values=(byte *)1; // don't allocate insert_values
     if ((res= mysql_prepare_insert(thd, table_list, insert_table_list,
+                                   insert_table_list,
 				   table_list->table, fields, values,
 				   update_fields, update_values, duplic)))
       goto error;
