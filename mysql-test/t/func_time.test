@@ -307,3 +307,10 @@ INSERT INTO t1 VALUES (NOW());
 SELECT count(*) FROM t1 WHERE d>FROM_DAYS(TO_DAYS(@TMP)) AND d<=FROM_DAYS(TO_DAYS(@TMP)+1);
 DROP TABLE t1;
 
+#
+# Bug #10568
+#
+
+select last_day('2005-00-00');
+select last_day('2005-00-01');
+select last_day('2005-01-00');
