@@ -60,7 +60,7 @@
 #include <sys/stat.h>
 #include <violite.h>
 #include <regex.h>                        /* Our own version of lib */
-#include <stdlib.h>
+#include <sys/wait.h>
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
