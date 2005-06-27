@@ -6098,9 +6098,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
     break;
-  case (int) OPT_LOG_SLOW_ADMIN_STATEMENTS:
-    opt_log_slow_admin_statements= 1;
-    break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;

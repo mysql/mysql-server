@@ -439,8 +439,10 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
     if (m_rows_to_insert == 1)
       m_dupkey= table->primary_key;
     else
-      // We are batching inserts, offending key is not available
+    {
+      /* We are batching inserts, offending key is not available */
       m_dupkey= (uint) -1;
+    }
   }
   DBUG_RETURN(res);
 }
