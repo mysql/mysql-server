@@ -381,8 +381,8 @@ String *Item_func_des_encrypt::val_str(String *str)
   uint key_number, res_length, tail;
   String *res= args[0]->val_str(str);
 
-  if ((null_value=args[0]->null_value))
-    goto error;
+  if ((null_value= args[0]->null_value))
+    return 0;                                   // ENCRYPT(NULL) == NULL
   if ((res_length=res->length()) == 0)
     return &my_empty_string;
 
@@ -474,7 +474,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   uint length=res->length(),tail;
 
   if ((null_value=args[0]->null_value))
-    goto error;
+    return 0;
   length=res->length();
   if (length < 9 || (length % 8) != 1 || !((*res)[0] & 128))
     return res;				// Skip decryption if not encrypted
