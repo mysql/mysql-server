@@ -681,7 +681,8 @@ int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
                           const char *wild, bool dir, List<char> *files);
-int ndbcluster_table_exists(THD* thd, const char *db, const char *name);
+int ndbcluster_table_exists_in_engine(THD* thd,
+                                      const char *db, const char *name);
 int ndbcluster_drop_database(const char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);

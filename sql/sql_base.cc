@@ -1611,8 +1611,18 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       */
       if (discover_retry_count++ != 0)
         goto err;
-      if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
+      if (ha_create_table_from_engine(thd, db, name) > 0)
+      {
+        /* Give right error message */
+        thd->clear_error();
+        DBUG_PRINT("error", ("Dicovery of %s/%s failed", db, name));
+        my_printf_error(ER_UNKNOWN_ERROR,
+                        "Failed to open '%-.64s', error while "
+                        "unpacking from engine",
+                        MYF(0), name);
+
         goto err;
+      }
 
       mysql_reset_errors(thd, 1);    // Clear warnings
       thd->clear_error();            // Clear error message

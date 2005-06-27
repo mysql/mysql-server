@@ -494,6 +494,27 @@ select * from t1;
 use test;
 drop database test_only_ndb_tables;
 
+#####################################################
+# Test that it's not possible to create tables
+# with same name as NDB internal tables
+# This will also test that it's not possible to create
+# a table with tha same name as a table that can't be
+# discovered( for example a table created via NDBAPI)
+
+--error 1050
+CREATE TABLE sys.SYSTAB_0 (a int);
+--error 1105
+select * from sys.SYSTAB_0;
+
+CREATE TABLE IF NOT EXISTS sys.SYSTAB_0 (a int);
+show warnings;
+--error 1105
+select * from sys.SYSTAB_0;
+
+--error 1051
+drop table sys.SYSTAB_0;
+drop table IF EXISTS sys.SYSTAB_0;
+
 ######################################################
 # Note! This should always be the last step in this 
 # file, the table t9 will be used and dropped 
