@@ -294,7 +294,12 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   DBUG_ENTER("send_ok");
 
   if (net->no_send_ok || !net->vio)	// hack for re-parsing queries
+  {
+    DBUG_PRINT("info", ("no send ok: %s, vio present: %s",
+                        (net->no_send_ok ? "YES" : "NO"),
+                        (net->vio ? "YES" : "NO")));
     DBUG_VOID_RETURN;
+  }
 
   buff[0]=0;					// No fields
   pos=net_store_length(buff+1,(ulonglong) affected_rows);
