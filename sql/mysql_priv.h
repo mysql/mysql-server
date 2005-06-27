@@ -576,7 +576,8 @@ int mysql_multi_update_lock(THD *thd,
 			    List<Item> *fields,
 			    SELECT_LEX *select_lex);
 int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
-			 TABLE_LIST *insert_table_list, TABLE *table,
+			 TABLE_LIST *insert_table_list,
+                         TABLE_LIST *dup_table_list, TABLE *table,
 			 List<Item> &fields, List_item *values,
 			 List<Item> &update_fields,
 			 List<Item> &update_values, enum_duplicates duplic);
