@@ -483,7 +483,7 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 	}
 
-	ut_a(!!page_is_comp(new_page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(new_page) == index->table->comp);
 	ut_a(page_is_comp(new_page) == page_is_comp(page));
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
 		(page_is_comp(new_page)
@@ -1347,7 +1347,7 @@ page_print_list(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_a(!!page_is_comp(page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(page) == index->table->comp);
 
 	fprintf(stderr,
 		"--------------------------------\n"
@@ -1741,7 +1741,7 @@ page_validate(
 	ulint*		offsets		= NULL;
 	ulint*		old_offsets	= NULL;
 
-	if (!!comp != index->table->comp) {
+	if ((ibool)!!comp != index->table->comp) {
 		fputs("InnoDB: 'compact format' flag mismatch\n", stderr);
 		goto func_exit2;
 	}

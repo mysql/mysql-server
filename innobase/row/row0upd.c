@@ -818,7 +818,7 @@ row_upd_build_difference_binary(
 		extern_bit = upd_ext_vec_contains(ext_vec, n_ext_vec, i);
 		
 		if (UNIV_UNLIKELY(extern_bit ==
-				!rec_offs_nth_extern(offsets, i))
+			    (ibool)!rec_offs_nth_extern(offsets, i))
 		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);

@@ -507,7 +507,7 @@ retry_page_get:
 				/* x-latch the page */
 				page = btr_page_get(space,
 						page_no, RW_X_LATCH, mtr);
-				ut_a(!!page_is_comp(page)
+				ut_a((ibool)!!page_is_comp(page)
 						== index->table->comp);
 			}
 
@@ -1385,7 +1385,7 @@ btr_cur_parse_update_in_place(
 		goto func_exit;
 	}
 
-	ut_a(!!page_is_comp(page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(page) == index->table->comp);
 	rec = page + rec_offset;
 	
 	/* We do not need to reserve btr_search_latch, as the page is only
