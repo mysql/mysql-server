@@ -730,4 +730,23 @@ flush query cache;
 
 drop table t1, t2;
 
+#
+# Query with warning prohibited to query cache (BUG#9414)
+#
+flush status;
+CREATE TABLE t1 (
+  `date` datetime NOT NULL default '0000-00-00 00:00:00',
+  KEY `date` (`date`)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES ('20050326');
+INSERT INTO t1 VALUES ('20050325');
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 0:0:0';
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050328 0:0:0';
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 0:0:0';
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
 set GLOBAL query_cache_size=0;
