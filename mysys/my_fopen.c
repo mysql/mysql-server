@@ -19,27 +19,36 @@
 #include <errno.h>
 #include "mysys_err.h"
 
-static void	make_ftype(my_string to,int flag);
+static void make_ftype(my_string to,int flag);
 
-	/* Open a file as stream */
+/*
+  Open a file as stream
 
-FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
-					/* Path-name of file */
-					/* Read | write .. */
-					/* Special flags */
+  SYNOPSIS
+    my_fopen()
+    FileName	Path-name of file
+    Flags	Read | write | append | trunc (like for open())
+    MyFlags	Flags for handling errors
+
+  RETURN
+    0	Error
+    #	File handler
+*/
+
+FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 {
   FILE *fd;
   char type[5];
   DBUG_ENTER("my_fopen");
-  DBUG_PRINT("my",("Name: '%s'  Flags: %d  MyFlags: %d",
-		   FileName, Flags, MyFlags));
+  DBUG_PRINT("my",("Name: '%s'  flags: %d  MyFlags: %d",
+		   filename, flags, MyFlags));
   /* 
     if we are not creating, then we need to use my_access to make sure  
     the file exists since Windows doesn't handle files like "com1.sym" 
     very  well 
   */
 #ifdef __WIN__
-  if (check_if_legal_filename(FileName))
+  if (check_if_legal_filename(filename))
   {
     errno= EACCES;
     fd= 0;
@@ -47,8 +56,8 @@ FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
   else
 #endif
   {
-    make_ftype(type,Flags);
-    fd = fopen(FileName, type);
+    make_ftype(type,flags);
+    fd = fopen(filename, type);
   }
   
   if (fd != 0)
@@ -65,7 +74,7 @@ FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
     }
     pthread_mutex_lock(&THR_LOCK_open);
     if ((my_file_info[fileno(fd)].name = (char*)
-	 my_strdup(FileName,MyFlags)))
+	 my_strdup(filename,MyFlags)))
     {
       my_stream_opened++;
       my_file_info[fileno(fd)].type = STREAM_BY_FOPEN;
@@ -81,9 +90,9 @@ FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
     my_errno=errno;
   DBUG_PRINT("error",("Got error %d on open",my_errno));
   if (MyFlags & (MY_FFNF | MY_FAE | MY_WME))
-    my_error((Flags & O_RDONLY) || (Flags == O_RDONLY ) ? EE_FILENOTFOUND :
+    my_error((flags & O_RDONLY) || (flags == O_RDONLY ) ? EE_FILENOTFOUND :
 	     EE_CANTCREATEFILE,
-	     MYF(ME_BELL+ME_WAITTANG), FileName,my_errno);
+	     MYF(ME_BELL+ME_WAITTANG), filename, my_errno);
   DBUG_RETURN((FILE*) 0);
 } /* my_fopen */
 
@@ -158,33 +167,39 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
   DBUG_RETURN(fd);
 } /* my_fdopen */
 
-/*   
-  make_ftype    
-  Make a filehandler-open-typestring from ordinary inputflags  
 
-  Note:  This routine attempts to find the best possible match 
-  between  a numeric option and a string option that could be 
-  fed to fopen.  There is not a 1 to 1 mapping between the two.  
+/*   
+  Make a fopen() typestring from a open() type bitmap
+
+  SYNOPSIS
+    make_ftype()
+    to		String for fopen() is stored here
+    flag	Flag used by open()
+
+  IMPLEMENTATION
+    This routine attempts to find the best possible match 
+    between  a numeric option and a string option that could be 
+    fed to fopen.  There is not a 1 to 1 mapping between the two.  
   
-  r == O_RDONLY   
-  w == O_WRONLY|O_TRUNC|O_CREAT  
-  a == O_WRONLY|O_APPEND|O_CREAT  
-  r+ == O_RDWR  
-  w+ == O_RDWR|O_TRUNC|O_CREAT  
-  a+ == O_RDWR|O_APPEND|O_CREAT
+  NOTE
+    On Unix, O_RDONLY is usually 0
+
+  MAPPING
+    r  == O_RDONLY   
+    w  == O_WRONLY|O_TRUNC|O_CREAT  
+    a  == O_WRONLY|O_APPEND|O_CREAT  
+    r+ == O_RDWR  
+    w+ == O_RDWR|O_TRUNC|O_CREAT  
+    a+ == O_RDWR|O_APPEND|O_CREAT
 */
+
 static void make_ftype(register my_string to, register int flag)
 {
-#if FILE_BINARY
-  /* If we have binary-files */  
-  reg3 int org_flag=flag;
-#endif  
-  flag&= ~FILE_BINARY;             /* remove binary bit */  
-  
   /* check some possible invalid combinations */  
-  DBUG_ASSERT(flag & (O_TRUNC|O_APPEND) != O_TRUNC|O_APPEND);  
+  DBUG_ASSERT((flag & (O_TRUNC | O_APPEND)) != (O_TRUNC | O_APPEND));
+  DBUG_ASSERT((flag & (O_WRONLY | O_RDWR)) != (O_WRONLY | O_RDWR));
 
-  if (flag & (O_RDONLY|O_WRONLY) == O_WRONLY)    
+  if ((flag & (O_RDONLY|O_WRONLY)) == O_WRONLY)    
     *to++= (flag & O_APPEND) ? 'a' : 'w';  
   else if (flag & O_RDWR)          
   {
@@ -201,9 +216,8 @@ static void make_ftype(register my_string to, register int flag)
     *to++= 'r';
 
 #if FILE_BINARY            /* If we have binary-files */  
-  if (org_flag & FILE_BINARY)    
+  if (flag & FILE_BINARY)    
     *to++='b';
 #endif  
   *to='\0';
 } /* make_ftype */
-

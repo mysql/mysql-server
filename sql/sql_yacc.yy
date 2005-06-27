@@ -4239,24 +4239,9 @@ insert_update_elem:
 	simple_ident equal expr_or_default
 	{
 	  LEX *lex= Lex;
-          uint8 tmp= MY_ITEM_PREFER_1ST_TABLE;
 	  if (lex->update_list.push_back($1) || 
 	      lex->value_list.push_back($3))
 	    YYABORT;
-          /* 
-            INSERT INTO a1(a) SELECT b1.a FROM b1 ON DUPLICATE KEY 
-              UPDATE a= a + b1.b
-   
-            Set MY_ITEM_PREFER_1ST_TABLE flag to $1 and $3 items
-            to prevent find_field_in_tables() doing further item searching 
-            if it finds item occurence in first table in insert_table_list. 
-            This allows to avoid ambiguity in resolving 'a' field in 
-            example above.
-          */
-          $1->walk(&Item::set_flags_processor,
-                  (byte *) &tmp);
-          $3->walk(&Item::set_flags_processor,
-                  (byte *) &tmp);
 	};
 
 opt_low_priority:

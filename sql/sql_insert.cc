@@ -271,7 +271,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->used_tables=0;
   values= its++;
 
-  if (mysql_prepare_insert(thd, table_list, insert_table_list, table,
+  if (mysql_prepare_insert(thd, table_list, insert_table_list,
+                           insert_table_list, table,
 			   fields, values, update_fields,
 			   update_values, duplic))
     goto abort;
@@ -499,22 +500,37 @@ abort:
 
   SYNOPSIS
     mysql_prepare_insert()
-    thd			- thread handler
-    table_list		- global table list
-    insert_table_list	- local table list of INSERT SELECT_LEX
-    values              - values to insert. NULL for INSERT ... SELECT
+    thd			thread handler
+    table_list		global table list (not including first table for
+			INSERT ... SELECT)
+    insert_table_list	Table we are inserting into (for INSERT ... SELECT)
+    dup_table_list	Tables to be used in ON DUPLICATE KEY
+			It's either all global tables or only the table we
+                        insert into, depending on if we are using GROUP BY
+                        in the SELECT clause).
+    values              Values to insert. NULL for INSERT ... SELECT
+
+  TODO (in far future)
+    In cases of:
+    INSERT INTO t1 SELECT a, sum(a) as sum1 from t2 GROUP BY a
+    ON DUPLICATE KEY ...
+    we should be able to refer to sum1 in the ON DUPLICATE KEY part
 
   RETURN VALUE
-    0  - OK
-    -1 - error (message is not sent to user)
+    0   OK
+    -1  error (message is not sent to user)
 */
+
 int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
-			 TABLE_LIST *insert_table_list, TABLE *table,
+			 TABLE_LIST *insert_table_list,
+                         TABLE_LIST *dup_table_list,
+                         TABLE *table,
 			 List<Item> &fields, List_item *values,
 			 List<Item> &update_fields, List<Item> &update_values,
 			 enum_duplicates duplic)
 {
   DBUG_ENTER("mysql_prepare_insert");
+
   if (duplic == DUP_UPDATE && !table->insert_values)
   {
     /* it should be allocated before Item::fix_fields() */
@@ -528,7 +544,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       (values && setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0)) ||
       (duplic == DUP_UPDATE &&
        (check_update_fields(thd, table, insert_table_list, update_fields) ||
-        setup_fields(thd, 0, insert_table_list, update_values, 1, 0, 0))))
+        setup_fields(thd, 0, dup_table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(-1);
   if (values && find_real_table_in_list(table_list->next, table_list->db,
                                         table_list->real_name))
