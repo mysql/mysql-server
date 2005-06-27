@@ -120,3 +120,14 @@ select count(*) from t1 where
 
 drop table t1,t2;
 
+# Test for BUG#8441
+create table t1 (
+  id1 int,
+  id2 date ,
+  index idx2 (id1,id2),
+  index idx1 (id2)  
+) engine = innodb;
+insert into t1 values(1,'20040101'), (2,'20040102');
+select * from t1  where id1 = 1  and id2= '20040101'; 
+drop table t1;
+
