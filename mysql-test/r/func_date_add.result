@@ -4,7 +4,7 @@ visitor_id int(10) unsigned DEFAULT '0' NOT NULL,
 group_id int(10) unsigned DEFAULT '0' NOT NULL,
 hits int(10) unsigned DEFAULT '0' NOT NULL,
 sessions int(10) unsigned DEFAULT '0' NOT NULL,
-ts timestamp(14),
+ts timestamp,
 PRIMARY KEY (visitor_id,group_id)
 )/*! engine=MyISAM */;
 INSERT INTO t1 VALUES (465931136,7,2,2,20000318160952);

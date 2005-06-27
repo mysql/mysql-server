@@ -256,16 +256,18 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       build_table_path(path, sizeof(path), db, alias, reg_ext);
     }
     if (drop_temporary ||
-        (access(path,F_OK) &&
-         ha_create_table_from_engine(thd,db,alias,TRUE)) ||
+       (access(path,F_OK) &&
+         ha_create_table_from_engine(thd,db,alias)) ||
         (!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
     {
+      // Table was not found on disk and table can't be created from engine
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
 			    table->table_name);
       else
-	error= 1;
+        error= 1;
+
     }
     else
     {
@@ -1604,15 +1606,14 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
-    if (!ha_create_table_from_engine(thd, db, table_name,
-				     create_if_not_exists))
+    if (ha_table_exists_in_engine(thd, db, table_name))
     {
-      DBUG_PRINT("info", ("Table already existed in handler"));
+      DBUG_PRINT("info", ("Table with same name already existed in handler"));
 
       if (create_if_not_exists)
       {
-       create_info->table_existed= 1;   // Mark that table existed
-       error= FALSE;
+        create_info->table_existed= 1;   // Mark that table existed
+        error= FALSE;
       }
       else
        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);

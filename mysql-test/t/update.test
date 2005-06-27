@@ -31,7 +31,7 @@ CREATE TABLE t1
  clicks int(10) unsigned DEFAULT '0' NOT NULL,
  iclicks int(10) unsigned DEFAULT '0' NOT NULL,
  uclicks int(10) unsigned DEFAULT '0' NOT NULL,
- ts timestamp(14),
+ ts timestamp,
  PRIMARY KEY (place_id,ts)
  );
 
@@ -52,7 +52,7 @@ CREATE TABLE t1 (
   replyto varchar(255) NOT NULL default '',
   subject varchar(100) NOT NULL default '',
   timestamp int(10) unsigned NOT NULL default '0',
-  tstamp timestamp(14) NOT NULL,
+  tstamp timestamp NOT NULL,
   status int(3) NOT NULL default '0',
   type varchar(15) NOT NULL default '',
   assignment int(10) unsigned NOT NULL default '0',

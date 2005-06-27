@@ -1928,21 +1928,19 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 }
 
 /*
-  Try to discover table from engine and 
+  Try to discover table from engine and
   if found, write the frm file to disk.
-  
+
   RETURN VALUES:
-   0 : Table existed in engine and created 
-       on disk if so requested
-   1 : Table does not exist
-  >1 : error
+  -1 : Table did not exists
+   0 : Table created ok
+   > 0 : Error, table existed but could not be created
 
 */
 
-int ha_create_table_from_engine(THD* thd, 
-				const char *db, 
-				const char *name,
-				bool create_if_found)
+int ha_create_table_from_engine(THD* thd,
+				const char *db,
+				const char *name)
 {
   int error;
   const void *frmblob;
@@ -1951,45 +1949,47 @@ int ha_create_table_from_engine(THD* thd,
   HA_CREATE_INFO create_info;
   TABLE table;
   DBUG_ENTER("ha_create_table_from_engine");
-  DBUG_PRINT("enter", ("name '%s'.'%s'  create_if_found: %d",
-                       db, name, create_if_found));
+  DBUG_PRINT("enter", ("name '%s'.'%s'",
+                       db, name));
 
   bzero((char*) &create_info,sizeof(create_info));
 
-  if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
-    DBUG_RETURN(error); 
-  /*
-    Table exists in handler
-    frmblob and frmlen are set
-  */
-
-  if (create_if_found)
+  if(error= ha_discover(thd, db, name, &frmblob, &frmlen))
   {
-    (void)strxnmov(path,FN_REFLEN,mysql_data_home,"/",db,"/",name,NullS);
-    // Save the frm file    
-    if ((error = writefrm(path, frmblob, frmlen)))
-      goto err_end;
-
-    if (openfrm(thd, path,"",0,(uint) READ_ALL, 0, &table))
-      DBUG_RETURN(1);
-
-    update_create_info_from_table(&create_info, &table);
-    create_info.table_options|= HA_CREATE_FROM_ENGINE;
-
-    if (lower_case_table_names == 2 &&
-	!(table.file->table_flags() & HA_FILE_BASED))
-    {
-      /* Ensure that handler gets name in lower case */
-      my_casedn_str(files_charset_info, path);
-    }
-    
-    error=table.file->create(path,&table,&create_info);
-    VOID(closefrm(&table));
+    // Table could not be discovered and thus not created
+    DBUG_RETURN(error);
   }
 
-err_end:
+  /*
+    Table exists in handler and could be discovered
+    frmblob and frmlen are set, write the frm to disk
+  */
+
+  (void)strxnmov(path,FN_REFLEN,mysql_data_home,"/",db,"/",name,NullS);
+  // Save the frm file
+  if (writefrm(path, frmblob, frmlen))
+  {
+    my_free((char*) frmblob, MYF(MY_ALLOW_ZERO_PTR));
+    DBUG_RETURN(2);
+  }
+
+  if (openfrm(thd, path,"",0,(uint) READ_ALL, 0, &table))
+    DBUG_RETURN(3);
+
+  update_create_info_from_table(&create_info, &table);
+  create_info.table_options|= HA_CREATE_FROM_ENGINE;
+
+  if (lower_case_table_names == 2 &&
+      !(table.file->table_flags() & HA_FILE_BASED))
+  {
+    /* Ensure that handler gets name in lower case */
+    my_casedn_str(files_charset_info, path);
+  }
+  error=table.file->create(path,&table,&create_info);
+  VOID(closefrm(&table));
   my_free((char*) frmblob, MYF(MY_ALLOW_ZERO_PTR));
-  DBUG_RETURN(error);  
+
+  DBUG_RETURN(error != 0);
 }
 
 void st_ha_check_opt::init()
@@ -2092,14 +2092,15 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
   Try to discover one table from handler(s)
 
   RETURN
-    0  ok. In this case *frmblob and *frmlen are set
-    1  error.  frmblob and frmlen may not be set
+   -1  : Table did not exists
+    0  : OK. In this case *frmblob and *frmlen are set
+    >0 : error.  frmblob and frmlen may not be set
 */
 
 int ha_discover(THD *thd, const char *db, const char *name,
 		const void **frmblob, uint *frmlen)
 {
-  int error= 1; // Table does not exist in any handler
+  int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 #ifdef HAVE_NDBCLUSTER_DB
@@ -2131,11 +2132,8 @@ ha_find_files(THD *thd,const char *db,const char *path,
     error= ndbcluster_find_files(thd, db, path, wild, dir, files);
 #endif
   DBUG_RETURN(error);
-  
-  
 }
 
-#ifdef NOT_YET_USED
 
 /*
   Ask handler if the table exists in engine
@@ -2146,19 +2144,18 @@ ha_find_files(THD *thd,const char *db,const char *path,
     #                   Error code
 
  */
-int ha_table_exists(THD* thd, const char* db, const char* name)
+int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 {
-  int error= 2;
-  DBUG_ENTER("ha_table_exists");
+  int error= 0;
+  DBUG_ENTER("ha_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_table_exists(thd, db, name);
+    error= ndbcluster_table_exists_in_engine(thd, db, name);
 #endif
+  DBUG_PRINT("exit", ("error: %d", error));
   DBUG_RETURN(error);
 }
-
-#endif
 
 
 /*
