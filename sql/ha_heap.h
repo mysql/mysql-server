@@ -29,8 +29,10 @@ class ha_heap: public handler
   key_map btree_keys;
   /* number of records changed since last statistics update */
   uint    records_changed;
+  bool    key_stats_ok;
 public:
-  ha_heap(TABLE *table): handler(table), file(0), records_changed(0) {}
+  ha_heap(TABLE *table): handler(table), file(0), records_changed(0),
+      key_stats_ok(0) {}
   ~ha_heap() {}
   const char *table_type() const { return "HEAP"; }
   const char *index_type(uint inx)
