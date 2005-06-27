@@ -3296,7 +3296,7 @@ os_aio(
 	ibool		retval;
 	BOOL		ret		= TRUE;
 	DWORD		len		= (DWORD) n;
-	void*		dummy_mess1;
+	struct fil_node_struct * dummy_mess1;
 	void*		dummy_mess2;
 	ulint		dummy_type;
 #endif

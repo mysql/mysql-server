@@ -4034,7 +4034,7 @@ fil_aio_wait(
 	if (os_aio_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
-		ret = os_aio_windows_handle(segment, 0, (void**) &fil_node,
+		ret = os_aio_windows_handle(segment, 0, &fil_node,
 					    &message, &type);
 #elif defined(POSIX_ASYNC_IO)
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
