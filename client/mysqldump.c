@@ -533,6 +533,12 @@ static void write_footer(FILE *sql_file)
   }
 } /* write_footer */
 
+static void free_table_ent(char *key)
+
+{
+  my_free((gptr) key, MYF(0));
+}
+
 
 byte* get_table_key(const char *entry, uint *length,
 				my_bool not_used __attribute__((unused)))
@@ -544,8 +550,9 @@ byte* get_table_key(const char *entry, uint *length,
 
 void init_table_rule_hash(HASH* h)
 {
-  if(hash_init(h, charset_info, 16, 0, 0,
-	       (hash_get_key) get_table_key, 0, 0))
+  if (hash_init(h, charset_info, 16, 0, 0,
+                (hash_get_key) get_table_key,
+                (hash_free_key) free_table_ent, 0))
     exit(EX_EOM);
 }
 
@@ -933,13 +940,14 @@ static char *quote_name(const char *name, char *buff, my_bool force)
   return buff;
 } /* quote_name */
 
+
 /*
   Quote a table name so it can be used in "SHOW TABLES LIKE <tabname>"
 
   SYNOPSIS
-    quote_for_like
-    name     - name of the table
-    buff     - quoted name of the table
+    quote_for_like()
+    name     name of the table
+    buff     quoted name of the table
 
   DESCRIPTION
     Quote \, _, ' and % characters
@@ -955,7 +963,6 @@ static char *quote_name(const char *name, char *buff, my_bool force)
     Example: "t\1" => "t\\\\1"
 
 */
-
 static char *quote_for_like(const char *name, char *buff)
 {
   char *to= buff;
@@ -2228,17 +2235,17 @@ static int get_actual_table_name(const char *old_table_name,
   retval = 1;
   if (tableRes != NULL)
   {
-	my_ulonglong numRows = mysql_num_rows(tableRes);
-	if (numRows > 0)
-	{
-	  	row= mysql_fetch_row( tableRes );
-	  	strmake(new_table_name, row[0], buf_size-1);
-		retval = 0;
-                DBUG_PRINT("info", ("new_table_name: %s", new_table_name));
-	}
-  	mysql_free_result(tableRes);
+    my_ulonglong numRows= mysql_num_rows(tableRes);
+    if (numRows > 0)
+    {
+      row= mysql_fetch_row( tableRes );
+      strmake(new_table_name, row[0], buf_size-1);
+      retval= 0;
+      DBUG_PRINT("info", ("new_table_name: %s", new_table_name));
+    }
+    mysql_free_result(tableRes);
   }
-    DBUG_PRINT("exit", ("retval: %d", retval));
+  DBUG_PRINT("exit", ("retval: %d", retval));
   DBUG_RETURN(retval);
 }
 
@@ -2250,7 +2257,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   char new_table_name[NAME_LEN];
   DYNAMIC_STRING lock_tables_query;
   HASH dump_tables;
-
   DBUG_ENTER("dump_selected_tables");
 
   if (init_dumping(db))
@@ -2258,7 +2264,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
 
   /* Init hash table for storing the actual name of tables to dump */
   if (hash_init(&dump_tables, charset_info, 16, 0, 0,
-                (hash_get_key) get_table_key, 0, 0))
+                (hash_get_key) get_table_key, (hash_free_key) free_table_ent,
+                0))
     exit(EX_EOM);
 
   init_dynamic_string(&lock_tables_query, "LOCK TABLES ", 256, 1024);
@@ -2266,8 +2273,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   {
 
     /* the table name passed on commandline may be wrong case */
-    if (!get_actual_table_name( *table_names,
-                                new_table_name, sizeof(new_table_name) ))
+    if (!get_actual_table_name(*table_names,
+                               new_table_name, sizeof(new_table_name) ))
     {
       /* Add found table name to lock_tables_query */
       if (lock_tables)
@@ -2310,12 +2317,11 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
 
   /* Dump each selected table */
-  const char *table_name;
   for (i= 0 ; i < dump_tables.records ; i++)
   {
-    table_name= hash_element(&dump_tables, i);
+    const char *table_name= hash_element(&dump_tables, i);
     DBUG_PRINT("info",("Dumping table %s", table_name));
-    numrows = getTableStructure(table_name, db);
+    numrows= getTableStructure(table_name, db);
     if (!dFlag && numrows > 0)
       dumpTable(numrows, table_name);
   }
@@ -2620,6 +2626,7 @@ int main(int argc, char **argv)
 {
   compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
+  bzero((char*) &ignore_table, sizeof(ignore_table));
 
   MY_INIT("mysqldump");
   if (get_options(&argc, &argv))
@@ -2678,6 +2685,8 @@ err:
   if (md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  if (hash_inited(&ignore_table))
+    hash_free(&ignore_table);
   if (extended_insert)
     dynstr_free(&extended_row);
   if (insert_pat_inited)

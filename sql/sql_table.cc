@@ -255,7 +255,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			    table->real_name);
       else
         error= 1;
-
     }
     else
     {

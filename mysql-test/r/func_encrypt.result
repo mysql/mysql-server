@@ -128,18 +128,12 @@ Error	1108	Incorrect parameters to procedure 'des_encrypt'
 select des_encrypt(NULL);
 des_encrypt(NULL)
 NULL
-Warnings:
-Error	1108	Incorrect parameters to procedure 'des_encrypt'
 select des_encrypt(NULL, 10);
 des_encrypt(NULL, 10)
 NULL
-Warnings:
-Error	1108	Incorrect parameters to procedure 'des_encrypt'
 select des_encrypt(NULL, NULL);
 des_encrypt(NULL, NULL)
 NULL
-Warnings:
-Error	1108	Incorrect parameters to procedure 'des_encrypt'
 select des_encrypt(10, NULL);
 des_encrypt(10, NULL)
 NULL
@@ -156,18 +150,12 @@ hello
 select des_decrypt(NULL);
 des_decrypt(NULL)
 NULL
-Warnings:
-Error	1108	Incorrect parameters to procedure 'des_decrypt'
 select des_decrypt(NULL, 10);
 des_decrypt(NULL, 10)
 NULL
-Warnings:
-Error	1108	Incorrect parameters to procedure 'des_decrypt'
 select des_decrypt(NULL, NULL);
 des_decrypt(NULL, NULL)
 NULL
-Warnings:
-Error	1108	Incorrect parameters to procedure 'des_decrypt'
 select des_decrypt(10, NULL);
 des_decrypt(10, NULL)
 10

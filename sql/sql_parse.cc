@@ -2897,6 +2897,7 @@ unsent_create_error:
     }
     else
       res= -1;
+    first_local_table->next= tables;
     lex->select_lex.table_list.first= (byte*) first_local_table;
     break;
   }

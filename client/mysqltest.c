@@ -964,28 +964,27 @@ static void do_exec(struct st_query* q)
   error= pclose(res_file);
   if (error != 0)
   {
-    uint status= WEXITSTATUS(error);
-    if(q->abort_on_error)
+    uint status= WEXITSTATUS(error), i;
+    my_bool ok= 0;
+
+    if (q->abort_on_error)
       die("At line %u: command \"%s\" failed", start_lineno, cmd);
-    else
+
+    DBUG_PRINT("info",
+               ("error: %d, status: %d", error, status));
+    for (i=0 ; (uint) i < q->expected_errors ; i++)
     {
-      DBUG_PRINT("info",
-                 ("error: %d, status: %d", error, status));
-      bool ok= 0;
-      uint i;
-      for (i=0 ; (uint) i < q->expected_errors ; i++)
-      {
-        DBUG_PRINT("info", ("expected error: %d", q->expected_errno[i].code.errnum));
-        if ((q->expected_errno[i].type == ERR_ERRNO) &&
-            (q->expected_errno[i].code.errnum == status))
-          ok= 1;
-        verbose_msg("At line %u: command \"%s\" failed with expected error: %d",
-                    start_lineno, cmd, status);
-      }
-      if (!ok)
-        die("At line: %u: command \"%s\" failed with wrong error: %d",
-            start_lineno, cmd, status);
+      DBUG_PRINT("info", ("expected error: %d",
+                          q->expected_errno[i].code.errnum));
+      if ((q->expected_errno[i].type == ERR_ERRNO) &&
+          (q->expected_errno[i].code.errnum == status))
+        ok= 1;
+      verbose_msg("At line %u: command \"%s\" failed with expected error: %d",
+                  start_lineno, cmd, status);
     }
+    if (!ok)
+      die("At line: %u: command \"%s\" failed with wrong error: %d",
+          start_lineno, cmd, status);
   }
   else if (q->expected_errno[0].type == ERR_ERRNO &&
            q->expected_errno[0].code.errnum != 0)
