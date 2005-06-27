@@ -23,6 +23,7 @@ des_encrypt("test", NULL)
 NULL
 Warnings:
 Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_encrypt(NULL, NULL);
 des_encrypt(NULL, NULL)
 NULL
 Warnings:
