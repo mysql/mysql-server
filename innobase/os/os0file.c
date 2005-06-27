@@ -1668,7 +1668,8 @@ os_file_set_size(
 	desired_size = (ib_longlong)size + (((ib_longlong)size_high) << 32);
 
 	/* Write up to 1 megabyte at a time. */
-	buf_size = ut_min(UNIV_PAGE_SIZE * 64, desired_size);
+	buf_size = ut_min(64, (ulint) (desired_size / UNIV_PAGE_SIZE))
+							* UNIV_PAGE_SIZE;
 	buf2 = ut_malloc(buf_size + UNIV_PAGE_SIZE);
 
 	/* Align the buffer for possible raw i/o */
@@ -1683,8 +1684,14 @@ os_file_set_size(
 	}
 
 	while (current_size < desired_size) {
-		ulint	n_bytes = ut_min(buf_size,
-				(ulint) (desired_size - current_size));
+		ulint	n_bytes;
+
+		if (desired_size - current_size < (ib_longlong) buf_size) {
+			n_bytes = (ulint) (desired_size - current_size);
+		} else {
+			n_bytes = buf_size;
+		}
+
 	        ret = os_file_write(name, file, buf,
 				(ulint)(current_size & 0xFFFFFFFF),
 				    (ulint)(current_size >> 32),
