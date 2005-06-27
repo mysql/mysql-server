@@ -373,6 +373,16 @@ use test2;
 drop table t2;
 drop database test2;
 use test;
+drop database if exists test_only_ndb_tables;
+create database test_only_ndb_tables;
+use test_only_ndb_tables;
+create table t1 (a int primary key) engine=ndb;
+select * from t1;
+a
+select * from t1;
+ERROR HY000: Can't lock file (errno: 4009)
+use test;
+drop database test_only_ndb_tables;
 CREATE TABLE sys.SYSTAB_0 (a int);
 ERROR 42S01: Table 'SYSTAB_0' already exists
 select * from sys.SYSTAB_0;
@@ -387,16 +397,6 @@ ERROR 42S02: Unknown table 'SYSTAB_0'
 drop table IF EXISTS sys.SYSTAB_0;
 Warnings:
 Note	1051	Unknown table 'SYSTAB_0'
-drop database if exists test_only_ndb_tables;
-create database test_only_ndb_tables;
-use test_only_ndb_tables;
-create table t1 (a int primary key) engine=ndb;
-select * from t1;
-a
-select * from t1;
-ERROR HY000: Can't lock file (errno: 4009)
-use test;
-drop database test_only_ndb_tables;
 CREATE TABLE t9 (
 a int NOT NULL PRIMARY KEY,
 b int
