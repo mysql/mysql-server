@@ -211,7 +211,7 @@ drop table t1;
 
 CREATE TABLE t1 ( start datetime default NULL);
 INSERT INTO t1 VALUES ('2002-10-21 00:00:00'),('2002-10-28 00:00:00'),('2002-11-04 00:00:00');
-CREATE TABLE t2 ( ctime1 timestamp(14) NOT NULL, ctime2 timestamp(14) NOT NULL);
+CREATE TABLE t2 ( ctime1 timestamp NOT NULL, ctime2 timestamp NOT NULL);
 INSERT INTO t2 VALUES (20021029165106,20021105164731);
 CREATE TABLE t3 (ctime1 char(19) NOT NULL, ctime2 char(19) NOT NULL);
 INSERT INTO t3 VALUES ("2002-10-29 16:51:06","2002-11-05 16:47:31");
