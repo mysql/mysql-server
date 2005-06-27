@@ -304,3 +304,39 @@ drop database sptest;
 delete from mysql.user where user='usera' or user='userb' or user='userc';
 delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
 
+#
+# BUG#9503: reseting correct parameters of thread after error in SP function
+#
+connect (root,localhost,root,,test);
+connection root;
+
+--disable_warnings
+drop function if exists bug_9503;
+--enable_warnings
+delimiter //;
+create database mysqltest//
+use mysqltest//
+create table t1 (s1 int)//
+grant select on t1 to user1@localhost//
+create function bug_9503 () returns int sql security invoker begin declare v int;
+select min(s1) into v from t1; return v; end//
+delimiter ;//
+
+connect (user1,localhost,user1,,test);
+connection user1;
+use mysqltest;
+-- error 1370
+select bug_9503();
+
+connection root;
+grant execute on function bug_9503 to user1@localhost;
+
+connection user1;
+do 1;
+use test;
+
+connection root;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
+drop function bug_9503;
+use test;
+drop database mysqltest;

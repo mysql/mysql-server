@@ -1,5 +1,5 @@
 --disable_warnings
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 
 CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), UNIQUE(B));

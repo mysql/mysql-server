@@ -35,7 +35,8 @@
 #endif
 
 
-#if defined(_MSC_VER) && defined(_WIN64)  // 64 bit X overflow intrinsic
+#if defined(_MSC_VER) && defined(_WIN64) && \
+    !defined(__INTEL_COMPILER) // 64 bit X overflow intrinsic
     #ifdef __ia64__
         #define myUMULH __UMULH
     #elif  __x86_64__
