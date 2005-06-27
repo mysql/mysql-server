@@ -108,6 +108,8 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   if (level == MYSQL_ERROR::WARN_LEVEL_NOTE && !(thd->options & OPTION_SQL_NOTES))
     return(0);
 
+  query_cache_abort(&thd->net);
+
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
 
