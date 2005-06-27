@@ -107,11 +107,6 @@ public:
 
 typedef bool (Item::*Item_processor)(byte *arg);
 
-/*
- See comments for sql_yacc.yy: insert_update_elem rule
- */
-#define MY_ITEM_PREFER_1ST_TABLE 1
-
 class Item {
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
@@ -147,7 +142,6 @@ public:
   my_bool with_sum_func;
   my_bool fixed;                        /* If item fixed with fix_fields */
   DTCollation collation;
-  uint8 item_flags;		/* Flags on how item should be processed */
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -332,11 +326,6 @@ public:
   {
     cleanup();
     delete this;
-  }
-  virtual bool set_flags_processor(byte *args)
-  {
-    this->item_flags|= *((uint8*)args);
-    return false;
   }
 };
 
