@@ -1706,6 +1706,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
                         LEX_STRING *name)
 {
   LEX *lex;
+  Statement stmt_backup;
   Prepared_statement *stmt= new Prepared_statement(thd);
   bool error;
   DBUG_ENTER("mysql_stmt_prepare");
@@ -1739,13 +1740,13 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     DBUG_RETURN(TRUE);
   }
 
-  thd->set_n_backup_statement(stmt, &thd->stmt_backup);
-  thd->set_n_backup_item_arena(stmt, &thd->stmt_backup);
+  thd->set_n_backup_statement(stmt, &stmt_backup);
+  thd->set_n_backup_item_arena(stmt, &stmt_backup);
 
   if (alloc_query(thd, packet, packet_length))
   {
-    thd->restore_backup_statement(stmt, &thd->stmt_backup);
-    thd->restore_backup_item_arena(stmt, &thd->stmt_backup);
+    thd->restore_backup_statement(stmt, &stmt_backup);
+    thd->restore_backup_item_arena(stmt, &stmt_backup);
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     DBUG_RETURN(TRUE);
@@ -1770,7 +1771,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     transformation can be reused on execute, we set again thd->mem_root from
     stmt->mem_root (see setup_wild for one place where we do that).
   */
-  thd->restore_backup_item_arena(stmt, &thd->stmt_backup);
+  thd->restore_backup_item_arena(stmt, &stmt_backup);
 
   if (!error)
     error= check_prepared_statement(stmt, test(name));
@@ -1786,7 +1787,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex_end(lex);
   close_thread_tables(thd);
   cleanup_stmt_and_thd_after_use(stmt, thd);
-  thd->restore_backup_statement(stmt, &thd->stmt_backup);
+  thd->restore_backup_statement(stmt, &stmt_backup);
   thd->current_arena= thd;
 
   if (error)
@@ -1949,6 +1950,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
+  Statement stmt_backup;
   Cursor *cursor;
   /*
     Query text for binary log, or empty string if the query is not put into
@@ -2026,8 +2028,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
-  thd->stmt_backup.set_statement(thd);
-  thd->set_statement(stmt);
+  thd->set_n_backup_statement(stmt, &stmt_backup);
   thd->current_arena= stmt;
   reinit_stmt_before_use(thd, stmt->lex);
   /* From now cursors assume that thd->mem_root is clean */
@@ -2064,7 +2065,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     reset_stmt_params(stmt);
   }
 
-  thd->set_statement(&thd->stmt_backup);
+  thd->set_statement(&stmt_backup);
   thd->current_arena= thd;
   DBUG_VOID_RETURN;
 
@@ -2089,6 +2090,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     binary log.
   */
   String expanded_query;
+  Statement stmt_backup;
   DBUG_ENTER("mysql_sql_stmt_execute");
 
   DBUG_ASSERT(thd->free_list == NULL);
@@ -2110,16 +2112,16 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
 
   /* Must go before setting variables, as it clears thd->user_var_events */
   mysql_reset_thd_for_next_command(thd);
-  thd->set_n_backup_statement(stmt, &thd->stmt_backup);
-  thd->set_statement(stmt);
+  thd->set_n_backup_statement(stmt, &stmt_backup);
   if (stmt->set_params_from_vars(stmt,
-                                 thd->stmt_backup.lex->prepared_stmt_params,
+                                 stmt_backup.lex->prepared_stmt_params,
                                  &expanded_query))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
   }
   thd->command= COM_STMT_EXECUTE; /* For nice messages in general log */
   execute_stmt(thd, stmt, &expanded_query);
+  thd->set_statement(&stmt_backup);
   DBUG_VOID_RETURN;
 }
 
@@ -2176,7 +2178,6 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   close_thread_tables(thd);                    // to close derived tables
   cleanup_stmt_and_thd_after_use(stmt, thd);
   reset_stmt_params(stmt);
-  thd->set_statement(&thd->stmt_backup);
   thd->current_arena= thd;
 
   if (stmt->state == Query_arena::PREPARED)
@@ -2201,6 +2202,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   ulong stmt_id= uint4korr(packet);
   ulong num_rows= uint4korr(packet+4);
   Prepared_statement *stmt;
+  Statement stmt_backup;
   DBUG_ENTER("mysql_stmt_fetch");
 
   statistic_increment(thd->status_var.com_stmt_fetch, &LOCK_status);
@@ -2214,7 +2216,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   }
 
   thd->current_arena= stmt;
-  thd->set_n_backup_statement(stmt, &thd->stmt_backup);
+  thd->set_n_backup_statement(stmt, &stmt_backup);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
@@ -2226,7 +2228,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  thd->restore_backup_statement(stmt, &thd->stmt_backup);
+  thd->restore_backup_statement(stmt, &stmt_backup);
   thd->current_arena= thd;
 
   if (!stmt->cursor->is_open())
@@ -2386,7 +2388,9 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
 
 Prepared_statement::Prepared_statement(THD *thd_arg)
-  :Statement(thd_arg),
+  :Statement(INITIALIZED, ++thd_arg->statement_id_counter,
+             thd_arg->variables.query_alloc_block_size,
+             thd_arg->variables.query_prealloc_size),
   thd(thd_arg),
   param_array(0),
   param_count(0),
@@ -2425,7 +2429,7 @@ Prepared_statement::~Prepared_statement()
 {
   if (cursor)
     cursor->Cursor::~Cursor();
-  free_items(free_list);
+  free_items();
   delete lex->result;
 }
 

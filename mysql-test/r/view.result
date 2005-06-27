@@ -1831,3 +1831,22 @@ select * from v1;
 t
 01:00
 drop view v1;
+create table t1 (f1 date);
+insert into t1 values ('2005-01-01'),('2005-02-02');
+create view v1 as select * from t1;
+select * from v1 where f1='2005.02.02';
+f1
+2005-02-02
+select * from v1 where '2005.02.02'=f1;
+f1
+2005-02-02
+drop view v1;
+drop table t1;
+CREATE VIEW v1 AS SELECT ENCRYPT("dhgdhgd");
+SELECT * FROM v1;
+drop view v1;
+CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
+SELECT * FROM v1;
+SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1)
+dkjhgd
+drop view v1;
