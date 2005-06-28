@@ -3703,7 +3703,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 
   /*
     We need to restore the runtime mem_root of the thread in this
-    function becuase it evaluates the value of its argument, while
+    function because it evaluates the value of its argument, while
     the argument can be any, e.g. a subselect. The subselect
     items, in turn, assume that all the memory allocated during
     the evaluation has the same life span as the item itself.

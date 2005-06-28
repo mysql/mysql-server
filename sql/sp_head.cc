@@ -1474,13 +1474,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     they want to store some value in local variable, pass return value and
     etc... So their life time should be longer than one instruction.
 
-    Probably we can call destructors for most of them then we are leaving
-    routine. But this won't help much as they are allocated in main query
-    MEM_ROOT anyway. So they all go to global thd->free_list.
-
-    May be we can use some other MEM_ROOT for this purprose ???
-
-    What else should we do for cleanup ?
     cleanup_items() is called in sp_head::execute()
   */
   return res;
