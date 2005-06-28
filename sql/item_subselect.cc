@@ -194,15 +194,8 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 bool Item_subselect::exec()
 {
   int res;
-  MEM_ROOT *old_root= thd->mem_root;
 
-  /*
-    As this is execution, all objects should be allocated through the main
-    mem root
-  */
-  thd->mem_root= &thd->main_mem_root;
   res= engine->exec();
-  thd->mem_root= old_root;
 
   if (engine_changed)
   {
