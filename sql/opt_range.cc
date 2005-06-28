@@ -3871,9 +3871,8 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     negative integers (which otherwise fails because at query execution time
     negative integers are cast to unsigned if compared with unsigned).
    */
-  Item_result field_result_type= field->result_type();
-  Item_result value_result_type= value->result_type();
-  if (field_result_type == INT_RESULT && value_result_type == INT_RESULT &&
+  if (field->result_type() == INT_RESULT &&
+      value->result_type() == INT_RESULT &&
       ((Field_num*)field)->unsigned_flag && !((Item_int*)value)->unsigned_flag)
   {
     longlong item_val= value->val_int();
