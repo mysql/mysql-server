@@ -1642,7 +1642,7 @@ os_file_get_size_as_iblonglong(
 }
 
 /***************************************************************************
-Sets a file size. This function can be used to extend or truncate a file. */
+Write the specified number of zeros to a newly created file. */
 
 ibool
 os_file_set_size(
@@ -1655,47 +1655,46 @@ os_file_set_size(
 				size */
 	ulint		size_high)/* in: most significant 32 bits of size */
 {
-	ib_longlong	offset;
-	ib_longlong	low;
-	ulint   	n_bytes;
+	ib_longlong	current_size;
+	ib_longlong	desired_size;
 	ibool		ret;
 	byte*   	buf;
 	byte*   	buf2;
-	ulint   	i;
+	ulint		buf_size;
 
 	ut_a(size == (size & 0xFFFFFFFF));
 
-	/* We use a very big 8 MB buffer in writing because Linux may be
-	extremely slow in fsync on 1 MB writes */
+	current_size = 0;
+	desired_size = (ib_longlong)size + (((ib_longlong)size_high) << 32);
 
-	buf2 = ut_malloc(UNIV_PAGE_SIZE * 513);
+	/* Write up to 1 megabyte at a time. */
+	buf_size = ut_min(64, (ulint) (desired_size / UNIV_PAGE_SIZE))
+							* UNIV_PAGE_SIZE;
+	buf2 = ut_malloc(buf_size + UNIV_PAGE_SIZE);
 
 	/* Align the buffer for possible raw i/o */
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	/* Write buffer full of zeros */
-	for (i = 0; i < UNIV_PAGE_SIZE * 512; i++) {
-	        buf[i] = '\0';
-	}
+	memset(buf, 0, buf_size);
 
-	offset = 0;
-	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);
-
-	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
 				
 		fprintf(stderr, "InnoDB: Progress in MB:");
 	}
 
-	while (offset < low) {
-	        if (low - offset < UNIV_PAGE_SIZE * 512) {
-	        	n_bytes = (ulint)(low - offset);
-	        } else {
-	        	n_bytes = UNIV_PAGE_SIZE * 512;
-	        }
-	  
+	while (current_size < desired_size) {
+		ulint	n_bytes;
+
+		if (desired_size - current_size < (ib_longlong) buf_size) {
+			n_bytes = (ulint) (desired_size - current_size);
+		} else {
+			n_bytes = buf_size;
+		}
+
 	        ret = os_file_write(name, file, buf,
-				(ulint)(offset & 0xFFFFFFFF),
-				    (ulint)(offset >> 32),
+				(ulint)(current_size & 0xFFFFFFFF),
+				    (ulint)(current_size >> 32),
 				n_bytes);
 	        if (!ret) {
 			ut_free(buf2);
@@ -1703,18 +1702,18 @@ os_file_set_size(
 	        }
 				
 		/* Print about progress for each 100 MB written */
-		if ((offset + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
-		    != offset / (ib_longlong)(100 * 1024 * 1024)) {
+		if ((current_size + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
+		    != current_size / (ib_longlong)(100 * 1024 * 1024)) {
 
 		        fprintf(stderr, " %lu00",
-				(ulong) ((offset + n_bytes)
+				(ulong) ((current_size + n_bytes)
 					/ (ib_longlong)(100 * 1024 * 1024)));
 		}
 		
-	        offset += n_bytes;
+	        current_size += n_bytes;
 	}
 
-	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
 				
 		fprintf(stderr, "\n");
 	}
