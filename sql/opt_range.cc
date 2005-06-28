@@ -982,7 +982,7 @@ get_mm_parts(PARAM *param, COND *cond_func, Field *field,
 				  field, Item_func::GT_FUNC,
                                   value, cmp_type);
     if (!tree2)
-      DBUG_RETURN(0)
+      DBUG_RETURN(0);
     tree= tree_or(param,tree,tree2);
   }
   DBUG_RETURN(tree);
