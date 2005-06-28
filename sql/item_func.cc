@@ -161,7 +161,7 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
   }
 
   THD *thd= current_thd;
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   bool res= FALSE;
   /*
     In case we're in statement prepare, create conversion item
@@ -879,11 +879,11 @@ longlong Item_func_numhybrid::val_int()
     return (longlong)real_op();
   case STRING_RESULT:
   {
-    char *end_not_used;
     int err_not_used;
     String *res= str_op(&str_value);
+    char *end= (char*) res->ptr() + res->length();
     CHARSET_INFO *cs= str_value.charset();
-    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end_not_used,
+    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end,
                                            &err_not_used) : 0);
   }
   default:
@@ -1022,7 +1022,8 @@ longlong Item_func_unsigned::val_int()
 String *Item_decimal_typecast::val_str(String *str)
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
-  my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, &tmp_buf);
+  if (null_value)
+    return NULL;
   my_decimal2string(E_DEC_FATAL_ERROR, &tmp_buf, 0, 0, 0, str);
   return str;
 }
@@ -1032,6 +1033,8 @@ double Item_decimal_typecast::val_real()
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   double res;
+  if (null_value)
+    return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, tmp, &res);
   return res;
 }
@@ -1041,6 +1044,8 @@ longlong Item_decimal_typecast::val_int()
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   longlong res;
+  if (null_value)
+    return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, tmp, unsigned_flag, &res);
   return res;
 }
@@ -1049,8 +1054,18 @@ longlong Item_decimal_typecast::val_int()
 my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
+  if ((null_value= args[0]->null_value))
+    return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
   return dec;
+}
+
+
+void Item_decimal_typecast::print(String *str)
+{
+  str->append("cast(", 5);
+  args[0]->print(str);
+  str->append(" as decimal)", 12);
 }
 
 
@@ -1876,7 +1891,8 @@ void Item_func_round::fix_length_and_dec()
     max_length= float_length(decimals);
     break;
   case INT_RESULT:
-    if (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
+    if ((decimals_to_set==0) &&
+        (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)))
     {
       /* Here we can keep INT_RESULT */
       hybrid_type= INT_RESULT;
@@ -1890,18 +1906,12 @@ void Item_func_round::fix_length_and_dec()
     hybrid_type= DECIMAL_RESULT;
     int decimals_delta= args[0]->decimals - decimals_to_set;
     int precision= args[0]->decimal_precision();
-    if (decimals_delta > 0)
-    {
-      int length_increase= truncate ? 0:1;
-      precision-= decimals_delta - length_increase;
-      decimals= decimals_to_set;
-    }
-    else
-      /* Decimals to set is bigger that the original scale */
-      /* we keep original decimals value                   */
-      decimals= args[0]->decimals;
+    int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
+
+    precision-= decimals_delta - length_increase;
+    decimals= decimals_to_set;
     max_length= my_decimal_precision_to_length(precision, decimals,
-                                              unsigned_flag);
+                                               unsigned_flag);
     break;
   }
   default:
@@ -4109,7 +4119,7 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
     return 1;					// Same item is same.
   /* Check if other type is also a get_user_var() object */
   if (item->type() != FUNC_ITEM ||
-      ((Item_func*) item)->func_name() != func_name())
+      ((Item_func*) item)->functype() != functype())
     return 0;
   Item_func_get_user_var *other=(Item_func_get_user_var*) item;
   return (name.length == other->name.length &&
@@ -4610,7 +4620,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
   if (!(item=var->item(thd, var_type, &null_lex_string)))
     return 0;						// Impossible
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  item->set_name(item_name, 0, system_charset_info);	// Will use original name
+  item->set_name(item_name, 0, system_charset_info);  // Will use original name
   return item;
 }
 
@@ -4697,6 +4707,16 @@ Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
 
+void
+Item_func_sp::cleanup()
+{
+  if (result_field)
+  {
+    delete result_field;
+    result_field= NULL;
+  }
+  Item_func::cleanup();
+}
 
 const char *
 Item_func_sp::func_name() const
@@ -4723,6 +4743,7 @@ Item_func_sp::func_name() const
 Field *
 Item_func_sp::sp_result_field(void) const
 {
+  Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
 
   if (!m_sp)
@@ -4744,7 +4765,8 @@ Item_func_sp::sp_result_field(void) const
     share->table_cache_key = empty_name;
     share->table_name = empty_name;
   }
-  DBUG_RETURN(m_sp->make_field(max_length, name, dummy_table));
+  field= m_sp->make_field(max_length, name, dummy_table);
+  DBUG_RETURN(field);
 }
 
 

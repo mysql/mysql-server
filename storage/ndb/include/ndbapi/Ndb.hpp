@@ -1583,15 +1583,17 @@ private:
   void    abortTransactionsAfterNodeFailure(Uint16 aNodeId);
 
   static
-  const char * externalizeTableName(const char * internalTableName, bool fullyQualifiedNames);
+  const char * externalizeTableName(const char * internalTableName,
+                                    bool fullyQualifiedNames);
   const char * externalizeTableName(const char * internalTableName);
-  const char * internalizeTableName(const char * externalTableName);
+  const BaseString internalize_table_name(const char * external_name) const;
 
   static
-  const char * externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames);
+  const char * externalizeIndexName(const char * internalIndexName,
+                                    bool fullyQualifiedNames);
   const char * externalizeIndexName(const char * internalIndexName);
-  const char * internalizeIndexName(const NdbTableImpl * table,
-				    const char * externalIndexName);
+  const BaseString internalize_index_name(const NdbTableImpl * table,
+                                          const char * external_name) const;
 
   static
   const BaseString getDatabaseFromInternalName(const char * internalName);
@@ -1614,7 +1616,7 @@ private:
   Uint32                theNoOfPreparedTransactions;
   Uint32                theNoOfSentTransactions;
   Uint32                theNoOfCompletedTransactions;
-  Uint32                theNoOfAllocatedTransactions;
+  Uint32                theRemainingStartTransactions;
   Uint32                theMaxNoOfTransactions;
   Uint32                theMinNoOfEventsToWakeUp;
 

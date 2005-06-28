@@ -2191,7 +2191,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
 {
   int error;
   int last_errno= 0;
-  uint count= end-cache;
+  uint count= (uint) (end-cache);
 
   /* Don't lock the cache during the flush */
   keycache_pthread_mutex_unlock(&keycache->cache_lock);

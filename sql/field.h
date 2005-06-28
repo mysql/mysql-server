@@ -25,6 +25,7 @@
 #endif
 
 #define NOT_FIXED_DEC			31
+#define DATETIME_DEC                     6
 
 class Send_field;
 class Protocol;
@@ -123,6 +124,7 @@ public:
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
   virtual Item_result cast_to_int_type () const { return result_type(); }
+  static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
   bool eq(Field *field)
@@ -384,7 +386,6 @@ public:
                field_name_arg, table_arg, charset)
     {}
 
-  my_decimal *val_decimal(my_decimal *);
   int store_decimal(const my_decimal *d);
 };
 
@@ -945,6 +946,7 @@ public:
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
   enum Item_result cmp_type () const { return INT_RESULT; }
+  uint decimals() const { return DATETIME_DEC; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
@@ -996,6 +998,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
@@ -1054,6 +1057,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void get_key_image(char *buff,uint length, imagetype type);
@@ -1109,6 +1113,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);

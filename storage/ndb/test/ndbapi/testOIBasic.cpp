@@ -31,6 +31,7 @@
 #include <NdbSleep.h>
 #include <my_sys.h>
 #include <NdbSqlUtil.hpp>
+#include <ndb_version.h>
 
 // options
 
@@ -169,6 +170,47 @@ randompct(unsigned pct)
   if (pct >= 100)
     return true;
   return urandom(100) < pct;
+}
+
+static unsigned
+random_coprime(unsigned n)
+{
+    unsigned prime[] = { 101, 211, 307, 401, 503, 601, 701, 809, 907 };
+    unsigned count = sizeof(prime) / sizeof(prime[0]);
+    if (n == 0)
+      return 0;
+    while (1) {
+      unsigned i = urandom(count);
+      if (n % prime[i] != 0)
+        return prime[i];
+    }
+}
+
+// random re-sequence of 0...(n-1)
+
+struct Rsq {
+  Rsq(unsigned n);
+  unsigned next();
+private:
+  unsigned m_n;
+  unsigned m_i;
+  unsigned m_start;
+  unsigned m_prime;
+};
+
+Rsq::Rsq(unsigned n)
+{
+  m_n = n;
+  m_i = 0;
+  m_start = urandom(n);
+  m_prime = random_coprime(n);
+}
+
+unsigned
+Rsq::next()
+{
+  assert(m_n != 0);
+  return (m_start + m_i++ * m_prime) % m_n;
 }
 
 // log and error macros
@@ -1032,8 +1074,8 @@ makebuiltintables(Par par)
     // name - pk - type - length - nullable - cs
     t->coladd(0, new Col(*t, 0, "a", 0, Col::Unsigned, 1, 0, 0));
     t->coladd(1, new Col(*t, 1, "b", 1, Col::Unsigned, 1, 0, 0));
-    t->coladd(2, new Col(*t, 2, "c", 0, Col::Char, 20, 1, getcs(par)));
-    t->coladd(3, new Col(*t, 3, "d", 0, Col::Varchar, 5, 0, getcs(par)));
+    t->coladd(2, new Col(*t, 2, "c", 0, Col::Varchar, 20, 0, getcs(par)));
+    t->coladd(3, new Col(*t, 3, "d", 0, Col::Char, 5, 0, getcs(par)));
     t->coladd(4, new Col(*t, 4, "e", 0, Col::Longvarchar, 5, 1, getcs(par)));
     if (useindex(par, 0)) {
       // b
@@ -1071,10 +1113,10 @@ makebuiltintables(Par par)
       t->itabadd(4, x);
     }
     if (useindex(par, 5)) {
-      // a, b, d
+      // b, c, d
       ITab* x = new ITab(*t, "ti1z5", ITab::UniqueHashIndex, 3);
-      x->icoladd(0, new ICol(*x, 0, *t->m_col[0]));
-      x->icoladd(1, new ICol(*x, 1, *t->m_col[1]));
+      x->icoladd(0, new ICol(*x, 0, *t->m_col[1]));
+      x->icoladd(1, new ICol(*x, 1, *t->m_col[2]));
       x->icoladd(2, new ICol(*x, 2, *t->m_col[3]));
       t->itabadd(5, x);
     }
@@ -2254,14 +2296,18 @@ Row::insrow(Par par)
   assert(! m_exist);
   CHK(con.getNdbOperation(tab) == 0);
   CHKCON(con.m_op->insertTuple() == 0, con);
+  Rsq rsq1(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq1.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (col.m_pk)
       CHK(val.equal(par) == 0);
   }
+  Rsq rsq2(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq2.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (! col.m_pk)
       CHK(val.setval(par) == 0);
@@ -2278,14 +2324,18 @@ Row::updrow(Par par)
   assert(m_exist);
   CHK(con.getNdbOperation(tab) == 0);
   CHKCON(con.m_op->updateTuple() == 0, con);
+  Rsq rsq1(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq1.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (col.m_pk)
       CHK(val.equal(par) == 0);
   }
+  Rsq rsq2(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq2.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (! col.m_pk)
       CHK(val.setval(par) == 0);
@@ -2303,15 +2353,19 @@ Row::updrow(Par par, const ITab& itab)
   assert(m_exist);
   CHK(con.getNdbIndexOperation(itab, tab) == 0);
   CHKCON(con.m_op->updateTuple() == 0, con);
+  Rsq rsq1(itab.m_icols);
   for (unsigned k = 0; k < itab.m_icols; k++) {
-    const ICol& icol = *itab.m_icol[k];
+    unsigned k2 = rsq1.next();
+    const ICol& icol = *itab.m_icol[k2];
     const Col& col = icol.m_col;
     unsigned m = col.m_num;
     const Val& val = *m_val[m];
     CHK(val.equal(par, icol) == 0);
   }
+  Rsq rsq2(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq2.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (! col.m_pk)
       CHK(val.setval(par) == 0);
@@ -2328,8 +2382,10 @@ Row::delrow(Par par)
   assert(m_exist);
   CHK(con.getNdbOperation(m_tab) == 0);
   CHKCON(con.m_op->deleteTuple() == 0, con);
+  Rsq rsq1(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq1.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (col.m_pk)
       CHK(val.equal(par) == 0);
@@ -2347,8 +2403,10 @@ Row::delrow(Par par, const ITab& itab)
   assert(m_exist);
   CHK(con.getNdbIndexOperation(itab, tab) == 0);
   CHKCON(con.m_op->deleteTuple() == 0, con);
+  Rsq rsq1(itab.m_icols);
   for (unsigned k = 0; k < itab.m_icols; k++) {
-    const ICol& icol = *itab.m_icol[k];
+    unsigned k2 = rsq1.next();
+    const ICol& icol = *itab.m_icol[k2];
     const Col& col = icol.m_col;
     unsigned m = col.m_num;
     const Val& val = *m_val[m];
@@ -2365,8 +2423,10 @@ Row::selrow(Par par)
   const Tab& tab = m_tab;
   CHK(con.getNdbOperation(m_tab) == 0);
   CHKCON(con.m_op->readTuple() == 0, con);
+  Rsq rsq1(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq1.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (col.m_pk)
       CHK(val.equal(par) == 0);
@@ -2382,8 +2442,10 @@ Row::selrow(Par par, const ITab& itab)
   assert(itab.m_type == ITab::UniqueHashIndex && &itab.m_tab == &tab);
   CHK(con.getNdbIndexOperation(itab, tab) == 0);
   CHKCON(con.m_op->readTuple() == 0, con);
+  Rsq rsq1(itab.m_icols);
   for (unsigned k = 0; k < itab.m_icols; k++) {
-    const ICol& icol = *itab.m_icol[k];
+    unsigned k2 = rsq1.next();
+    const ICol& icol = *itab.m_icol[k2];
     const Col& col = icol.m_col;
     unsigned m = col.m_num;
     const Val& val = *m_val[m];
@@ -2397,8 +2459,10 @@ Row::setrow(Par par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
+  Rsq rsq1(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    const Val& val = *m_val[k];
+    unsigned k2 = rsq1.next();
+    const Val& val = *m_val[k2];
     const Col& col = val.m_col;
     if (! col.m_pk)
       CHK(val.setval(par) == 0);
@@ -2810,8 +2874,10 @@ Set::getval(Par par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
+  Rsq rsq1(tab.m_cols);
   for (unsigned k = 0; k < tab.m_cols; k++) {
-    CHK(con.getValue(k, m_rec[k]) == 0);
+    unsigned k2 = rsq1.next();
+    CHK(con.getValue(k2, m_rec[k2]) == 0);
   }
   return 0;
 }
@@ -3093,18 +3159,16 @@ int
 BSet::setbnd(Par par) const
 {
   if (m_bvals != 0) {
-    unsigned p1 = urandom(m_bvals);
-    unsigned p2 = 10009;        // prime
-    // random order
+    Rsq rsq1(m_bvals);
     for (unsigned j = 0; j < m_bvals; j++) {
-      unsigned k = p1 + p2 * j;
-      const BVal& bval = *m_bval[k % m_bvals];
+      unsigned j2 = rsq1.next();
+      const BVal& bval = *m_bval[j2];
       CHK(bval.setbnd(par) == 0);
     }
     // duplicate
     if (urandom(5) == 0) {
-      unsigned k = urandom(m_bvals);
-      const BVal& bval = *m_bval[k];
+      unsigned j3 = urandom(m_bvals);
+      const BVal& bval = *m_bval[j3];
       CHK(bval.setbnd(par) == 0);
     }
   }
@@ -3118,19 +3182,16 @@ BSet::setflt(Par par) const
   CHK(con.getNdbScanFilter() == 0);
   CHK(con.beginFilter(NdbScanFilter::AND) == 0);
   if (m_bvals != 0) {
-    unsigned p1 = urandom(m_bvals);
-    unsigned p2 = 10009;        // prime
-    const unsigned extras = 5;
-    // random order
-    for (unsigned j = 0; j < m_bvals + extras; j++) {
-      unsigned k = p1 + p2 * j;
-      const BVal& bval = *m_bval[k % m_bvals];
+    Rsq rsq1(m_bvals);
+    for (unsigned j = 0; j < m_bvals; j++) {
+      unsigned j2 = rsq1.next();
+      const BVal& bval = *m_bval[j2];
       CHK(bval.setflt(par) == 0);
     }
     // duplicate
     if (urandom(5) == 0) {
-      unsigned k = urandom(m_bvals);
-      const BVal& bval = *m_bval[k];
+      unsigned j3 = urandom(m_bvals);
+      const BVal& bval = *m_bval[j3];
       CHK(bval.setflt(par) == 0);
     }
   }
@@ -4176,7 +4237,8 @@ readverifyfull(Par par)
     CHK(scanreadtable(par) == 0);
     // once more via tup scan
     par.m_tupscan = true;
-    CHK(scanreadtable(par) == 0);
+    if (NDB_VERSION < MAKE_VERSION(5, 1, 0)) //TODO
+      CHK(scanreadtable(par) == 0);
   }
   // each thread scans different indexes
   for (unsigned i = 0; i < tab.m_itabs; i++) {

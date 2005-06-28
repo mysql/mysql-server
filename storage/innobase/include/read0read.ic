@@ -71,13 +71,8 @@ read_view_sees_trx_id(
 
 		cmp = ut_dulint_cmp(trx_id,
 				read_view_get_nth_trx_id(view, n_ids - i - 1));
-		if (0 == cmp) {
-
-			return(FALSE);
-
-		} else if (cmp < 0) {
-
-			return(TRUE);
+		if (cmp <= 0) {
+			return(cmp < 0);
 		}
 	}
 	

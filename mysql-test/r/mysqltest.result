@@ -148,3 +148,19 @@ a'b	a"b
 select 'aaa\\','aa''a',"aa""a";
 aaa\	aa'a	aa"a
 aaa\	aa'a	aa"a
+
+Here comes a message
+--------------------
+
+root@localhost
+--------------
+
+"Here comes a very very long message that
+    - is longer then 80 characters    and
+    - consists of several lines"
+--------------------------------------------------------------------------------
+
+. Here comes a very very long message that
+.      - is longer then 80 characters    and
+.      - consists of several lines
+--------------------------------------------------------------------------------

@@ -2682,3 +2682,23 @@ AND FK_firma_id = 2;
 COUNT(*)
 0
 drop table t1;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (2), (4), (6);
+SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
+a
+2
+4
+EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+DROP TABLE t1,t2;
+select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
+x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
+16	16	2	2

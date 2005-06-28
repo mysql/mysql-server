@@ -274,7 +274,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       all collations together for UNION.
     */
     List_iterator_fast<Item> tp(types);
-    Item_arena *arena= thd->current_arena;
+    Query_arena *arena= thd->current_arena;
     Item *type;
 
     while ((type= tp++))
@@ -308,7 +308,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (!item_list.elements)
     {
       Field **field;
-      Item_arena *tmp_arena,backup;
+      Query_arena *tmp_arena,backup;
       tmp_arena= thd->change_arena_if_needed(&backup);
 
       for (field= table->field; *field; field++)
@@ -448,7 +448,7 @@ bool st_select_lex_unit::exec()
 	  table->no_keyread=1;
 	}
 	res= sl->join->error;
-	offset_limit_cnt= sl->offset_limit;
+	offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : 0;
 	if (!res)
 	{
 	  examined_rows+= thd->examined_row_count;

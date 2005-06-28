@@ -36,3 +36,10 @@ lock table t1 write, t2 write;
 drop table t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
+create table t1(a int);
+lock tables t1 write;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+unlock tables;
+drop table t1;

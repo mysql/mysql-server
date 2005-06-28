@@ -55,32 +55,14 @@ void operator delete[](void* ptr, TaoCrypt::new_t)
 
 /* uncomment to test
 // make sure not using globals anywhere by forgetting to use overloaded
-void* operator new(size_t sz)
-{
-    assert(0);
-    return malloc(sz);
-}
+void* operator new(size_t sz);
 
-void operator delete(void* ptr)
-{
-    assert(0);
-}
+void operator delete(void* ptr);
 
-void* operator new[](size_t sz)
-{
-    assert(0);
-    return malloc(sz);
-}
+void* operator new[](size_t sz);
 
-void operator delete[](void* ptr)
-{
-    assert(0);
-}
+void operator delete[](void* ptr);
 */
-
-/* namespace GCC_ABI {
-    extern "C" int __cxa_pure_virtual() { assert(0); return 0; }
-} */
 
 
 namespace TaoCrypt {
@@ -146,18 +128,6 @@ unsigned long Crop(unsigned long value, unsigned int size)
         return (value & ((1L << size) - 1));
     else
         return value;
-}
-
-
-#if !(defined(_MSC_VER) && (_MSC_VER < 1300)) && \
-    !(defined(__HP_aCC) && (__HP_aCC <= 35700))
-using std::new_handler;
-using std::set_new_handler;
-#endif
-
-void CallNewHandler()
-{
-    abort();
 }
 
 

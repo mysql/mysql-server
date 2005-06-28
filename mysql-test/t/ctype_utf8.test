@@ -731,3 +731,60 @@ select ifnull(NULL, _utf8'string');
 create table t1 (a varchar(255)) default character set utf8;
 insert into t1 values (1.0);
 drop table t1;
+
+#
+# Bug#10253 compound index length and utf8 char set
+# produces invalid query results
+#
+create table t1 (
+ id int not null,
+ city varchar(20) not null,
+ key (city(7),id)
+) character set=utf8;
+insert into t1 values (1,'Durban North');
+insert into t1 values (2,'Durban');
+select * from t1 where city = 'Durban';
+select * from t1 where city = 'Durban ';
+drop table t1;
+
+#
+# Test for bug #11167: join for utf8 varchar value longer than 255 bytes 
+#
+
+SET NAMES UTF8;
+
+CREATE TABLE t1 (
+  `id` int(20) NOT NULL auto_increment,
+  `country` varchar(100) NOT NULL default '',
+  `shortcode` varchar(100) NOT NULL default '',
+  `operator` varchar(100) NOT NULL default '',
+  `momid` varchar(30) NOT NULL default '',
+  `keyword` varchar(160) NOT NULL default '',
+  `content` varchar(160) NOT NULL default '',
+  `second_token` varchar(160) default NULL,
+  `gateway_id` int(11) NOT NULL default '0',
+  `created` datetime NOT NULL default '0000-00-00 00:00:00',
+  `msisdn` varchar(15) NOT NULL default '',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `MSCCSPK_20030521130957121` (`momid`),
+  KEY `IX_mobile_originated_message_keyword` (`keyword`),
+  KEY `IX_mobile_originated_message_created` (`created`),
+  KEY `IX_mobile_originated_message_support` (`msisdn`,`momid`,`keyword`,`gateway_id`,`created`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES 
+(1,'blah','464','aaa','fkc1c9ilc20x0hgae7lx6j09','ERR','ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми','ИМРИ.АФИМИМ.АЕИМИМРИМДМРИМРМРИРОР',3,'2005-06-01 17:30:43','1234567890'),
+(2,'blah','464','aaa','haxpl2ilc20x00bj4tt2m5ti','11','11 g','G',3,'2005-06-02 22:43:10','1234567890');
+
+CREATE TABLE t2 (
+  `msisdn` varchar(15) NOT NULL default '',
+  `operator_id` int(11) NOT NULL default '0',
+  `created` datetime NOT NULL default '0000-00-00 00:00:00',
+  UNIQUE KEY `PK_user` (`msisdn`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
+
+SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
+
+DROP TABLE t1,t2;

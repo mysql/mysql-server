@@ -220,7 +220,7 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
-  if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
+  if (emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE,0,0,
                            header, sizeof(header), 1) ||
       emb_mysql_read_query_result(stmt->mysql))
   {

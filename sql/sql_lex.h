@@ -114,6 +114,14 @@ enum enum_sp_data_access
   SP_MODIFIES_SQL_DATA
 };
 
+const LEX_STRING sp_data_access_name[]=
+{
+  { (char*) STRING_WITH_LEN("") },
+  { (char*) STRING_WITH_LEN("CONTAINS SQL") },
+  { (char*) STRING_WITH_LEN("NO SQL") },
+  { (char*) STRING_WITH_LEN("READS SQL DATA") },
+  { (char*) STRING_WITH_LEN("MODIFIES SQL DATA") }
+};
 
 #define DERIVED_SUBQUERY	1
 #define DERIVED_VIEW		2
@@ -297,13 +305,13 @@ protected:
 public:
 
   uint32 options;
-  uint32 options2;
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
       UNCACHEABLE_EXPLAIN
+      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
@@ -489,7 +497,7 @@ public:
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
   SQL_LIST *gorder_list;
-  ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
 
@@ -522,7 +530,19 @@ public:
     query processing end even if we use temporary table
   */
   bool subquery_in_having;
-  bool first_execution; /* first execution in SP or PS */
+  /*
+    This variable is required to ensure proper work of subqueries and
+    stored procedures. Generally, one should use the states of
+    Query_arena to determine if it's a statement prepare or first
+    execution of a stored procedure. However, in case when there was an
+    error during the first execution of a stored procedure, the SP body
+    is not expelled from the SP cache. Therefore, a deeply nested
+    subquery might be left unoptimized. So we need this per-subquery
+    variable to inidicate the optimization/execution state of every
+    subquery. Prepared statements work OK in that regard, as in
+    case of an error during prepare the PS is not created.
+  */
+  bool first_execution;
   bool first_cond_optimization;
   /* do not wrap view fields with Item_ref */
   bool no_wrap_view_item;
@@ -751,7 +771,12 @@ typedef struct st_lex
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt, start_transaction_opt;
-  uint table_count; /* used when usual update transformed in multiupdate */
+  /*
+    In LEX representing update which were transformed to multi-update
+    stores total number of tables. For LEX representing multi-delete
+    holds number of tables from which we will delete records.
+  */
+  uint table_count;
   uint8 describe;
   uint8 derived_tables;
   uint8 create_view_algorithm;

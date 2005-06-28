@@ -74,11 +74,12 @@ sp_name *
 sp_name_current_db_new(THD *thd, LEX_STRING name);
 
 
-class sp_head :private Item_arena
+class sp_head :private Query_arena
 {
   sp_head(const sp_head &);	/* Prevent use of these */
   void operator=(sp_head &);
 
+  MEM_ROOT main_mem_root;
 public:
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
@@ -377,6 +378,10 @@ public:
     return (uint)m_lex->sql_command;
   }
 
+  void disable_query_cache()
+  {
+    m_lex->safe_to_cache_query= 0;
+  }
 private:
 
   LEX *m_lex;

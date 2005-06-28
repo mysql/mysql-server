@@ -735,19 +735,19 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
 }
 
 Ndb_local_table_info *
-NdbDictionaryImpl::fetchGlobalTableImpl(const char * internalTableName)
+NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
 {
   NdbTableImpl *impl;
 
   m_globalHash->lock();
-  impl = m_globalHash->get(internalTableName);
+  impl = m_globalHash->get(internalTableName.c_str());
   m_globalHash->unlock();
 
   if (impl == 0){
     impl = m_receiver.getTable(internalTableName,
 			       m_ndb.usingFullyQualifiedNames());
     m_globalHash->lock();
-    m_globalHash->put(internalTableName, impl);
+    m_globalHash->put(internalTableName.c_str(), impl);
     m_globalHash->unlock();
     
     if(impl == 0){
@@ -758,7 +758,7 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const char * internalTableName)
   Ndb_local_table_info *info=
     Ndb_local_table_info::create(impl, m_local_table_data_size);
 
-  m_localHash.put(internalTableName, info);
+  m_localHash.put(internalTableName.c_str(), info);
 
   m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
   m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
@@ -806,14 +806,13 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
   return false;
 }
 
-NdbTableImpl * 
-NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index, 
+NdbTableImpl *
+NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index,
 				 NdbTableImpl * table)
 {
-  const char * internalName = 
-    m_ndb.internalizeIndexName(table, index->getName());
-  
-  return getTable(m_ndb.externalizeTableName(internalName));
+  const BaseString internalName(
+    m_ndb.internalize_index_name(table, index->getName()));
+  return getTable(m_ndb.externalizeTableName(internalName.c_str()));
 }
 
 #if 0
@@ -1055,7 +1054,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
   }
   DBUG_RETURN(-1);
 }
-
+#if 0
 /*
   Get dictionary information for a table using table id as reference
 
@@ -1079,6 +1078,7 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
 
   return getTable(&tSignal, 0, 0, fullyQualifiedNames);
 }
+#endif
 
 
 /*
@@ -1090,36 +1090,31 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
 */
 
 NdbTableImpl *
-NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
+NdbDictInterface::getTable(const BaseString& name, bool fullyQualifiedNames)
 {
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq* const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  const Uint32 str_len= strlen(name) + 1; // NULL terminated
-  const Uint32 str_len_words= (str_len + 3) / 4; // Size in words
-
-  if (str_len > MAX_SECTION_SIZE)
-  {
-    m_error.code= 4307;
-    return 0;
-  }
-
-  m_namebuf.clear();
-  m_namebuf.grow(str_len_words*4); // Word size aligned number of bytes
-  m_namebuf.append(name, str_len);
+  const Uint32 namelen= name.length() + 1; // NULL terminated
+  const Uint32 namelen_words= (namelen + 3) >> 2; // Size in words
 
   req->senderRef= m_reference;
   req->senderData= 0;
   req->requestType=
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
-  req->tableNameLen= str_len;
+  req->tableNameLen= namelen;
   tSignal.theReceiversBlockNumber= DBDICT;
   tSignal.theVerId_signalNumber= GSN_GET_TABINFOREQ;
   tSignal.theLength= GetTabInfoReq::SignalLength;
 
+  // Copy name to m_buffer to get a word sized buffer
+  m_buffer.clear();
+  m_buffer.grow(namelen_words*4);
+  m_buffer.append(name.c_str(), namelen);
+
   LinearSectionPtr ptr[1];
-  ptr[0].p= (Uint32*)m_namebuf.get_data();
-  ptr[0].sz= str_len_words; 
+  ptr[0].p= (Uint32*)m_buffer.get_data();
+  ptr[0].sz= namelen_words;
 
   return getTable(&tSignal, ptr, 1, fullyQualifiedNames);
 }
@@ -1463,7 +1458,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
     return 0;
   // update table def from DICT
   Ndb_local_table_info *info=
-    get_local_table_info(t.m_internalName.c_str(),false);
+    get_local_table_info(t.m_internalName,false);
   if (info == NULL) {
     m_error.code= 709;
     return -1;
@@ -1490,7 +1485,7 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
       return -1;
     // Save BLOB table handle
     Ndb_local_table_info *info=
-      get_local_table_info(bt.m_internalName.c_str(), false);
+      get_local_table_info(bt.m_internalName, false);
     if (info == 0) {
       return -1;
     }
@@ -1534,12 +1529,11 @@ NdbDictInterface::createTable(Ndb & ndb,
 
 int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
 {
-  BaseString internalName = impl.m_internalName;
+  BaseString internalName(impl.m_internalName);
   const char * originalInternalName = internalName.c_str();
-  BaseString externalName = impl.m_externalName;
 
   DBUG_ENTER("NdbDictionaryImpl::alterTable");
-  if(!get_local_table_info(originalInternalName, false)){
+  if(!get_local_table_info(internalName, false)){
     m_error.code= 709;
     DBUG_RETURN(-1);
   }
@@ -1594,14 +1588,14 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   //validate();
   //aggregate();
 
-  const char * internalName = 
-    ndb.internalizeTableName(impl.m_externalName.c_str());
+  const BaseString internalName(
+    ndb.internalize_table_name(impl.m_externalName.c_str()));
   impl.m_internalName.assign(internalName);
   UtilBufferWriter w(m_buffer);
   DictTabInfo::Table tmpTab; tmpTab.init();
-  BaseString::snprintf(tmpTab.TableName, 
-	   sizeof(tmpTab.TableName), 
-	   internalName);
+  BaseString::snprintf(tmpTab.TableName,
+	   sizeof(tmpTab.TableName),
+	   internalName.c_str());
 
   bool haveAutoIncrement = false;
   Uint64 autoIncrementValue = 0;
@@ -1865,14 +1859,14 @@ NdbDictionaryImpl::dropTable(const char * name)
   // If table stored in cache is incompatible with the one in the kernel
   // we must clear the cache and try again
   if (ret == INCOMPATIBLE_VERSION) {
-    const char * internalTableName = m_ndb.internalizeTableName(name);
+    const BaseString internalTableName(m_ndb.internalize_table_name(name));
 
-    DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s", internalTableName));
-    m_localHash.drop(internalTableName);
+    DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s", internalTableName.c_str()));
+    m_localHash.drop(internalTableName.c_str());
     m_globalHash->lock();
     tab->m_status = NdbDictionary::Object::Invalid;
     m_globalHash->drop(tab);
-    m_globalHash->unlock();   
+    m_globalHash->unlock();
     DBUG_RETURN(dropTable(name));
   }
 
@@ -2013,13 +2007,14 @@ int
 NdbDictionaryImpl::invalidateObject(NdbTableImpl & impl)
 {
   const char * internalTableName = impl.m_internalName.c_str();
-
-  m_localHash.drop(internalTableName);  
+  DBUG_ENTER("NdbDictionaryImpl::invalidateObject");
+  DBUG_PRINT("enter", ("internal_name: %s", internalTableName));
+  m_localHash.drop(internalTableName);
   m_globalHash->lock();
   impl.m_status = NdbDictionary::Object::Invalid;
   m_globalHash->drop(&impl);
   m_globalHash->unlock();
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int
@@ -2038,8 +2033,8 @@ NdbDictionaryImpl::removeCachedObject(NdbTableImpl & impl)
  * Get index info
  */
 NdbIndexImpl*
-NdbDictionaryImpl::getIndexImpl(const char * externalName, 
-				const char * internalName)
+NdbDictionaryImpl::getIndexImpl(const char * externalName,
+				const BaseString& internalName)
 {
   Ndb_local_table_info * info = get_local_table_info(internalName,
 						     false);
@@ -2055,21 +2050,11 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
     return 0;
   }
 
-  /*
-   * internalName may be pointer to m_ndb.theImpl->m_internalname.c_str()
-   * and may get deallocated in next call.
-   *
-   * Passing around pointers to volatile internal members may not be
-   * optimal.  Suggest use BaseString instances passed by value.
-   */
-
-  BaseString save_me(internalName);
   NdbTableImpl* prim = getTable(tab->m_primaryTable.c_str());
   if(prim == 0){
     m_error.code = 4243;
     return 0;
   }
-  internalName = save_me.c_str();
 
   /**
    * Create index impl
@@ -2175,12 +2160,11 @@ NdbDictInterface::createIndex(Ndb & ndb,
     m_error.code = 4241;
     return -1;
   }
-  const char * internalName = 
-    ndb.internalizeIndexName(&table, impl.getName());
-  
+  const BaseString internalName(
+    ndb.internalize_index_name(&table, impl.getName()));
   impl.m_internalName.assign(internalName);
 
-  w.add(DictTabInfo::TableName, internalName);
+  w.add(DictTabInfo::TableName, internalName.c_str());
   w.add(DictTabInfo::TableLoggedFlag, impl.m_logging);
 
   NdbApiSignal tSignal(m_reference);
@@ -2286,20 +2270,20 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
   // If index stored in cache is incompatible with the one in the kernel
   // we must clear the cache and try again
   if (ret == INCOMPATIBLE_VERSION) {
-    const char * internalIndexName = (tableName)
+    const BaseString internalIndexName((tableName)
       ?
-      m_ndb.internalizeIndexName(getTable(tableName), indexName)
+      m_ndb.internalize_index_name(getTable(tableName), indexName)
       :
-      m_ndb.internalizeTableName(indexName); // Index is also a table
-    
-    m_localHash.drop(internalIndexName);
+      m_ndb.internalize_table_name(indexName)); // Index is also a table
+
+    m_localHash.drop(internalIndexName.c_str());
     m_globalHash->lock();
     idx->m_table->m_status = NdbDictionary::Object::Invalid;
     m_globalHash->drop(idx->m_table);
-    m_globalHash->unlock();   
+    m_globalHash->unlock();
     return dropIndex(indexName, tableName);
   }
-  
+
   return ret;
 }
 
@@ -2315,19 +2299,19 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
       return -1;
     }
 
-    const char * internalIndexName = (tableName)
+    const BaseString internalIndexName((tableName)
       ?
-      m_ndb.internalizeIndexName(getTable(tableName), indexName)
+      m_ndb.internalize_index_name(getTable(tableName), indexName)
       :
-      m_ndb.internalizeTableName(indexName); // Index is also a table
+      m_ndb.internalize_table_name(indexName)); // Index is also a table
 
     if(impl.m_status == NdbDictionary::Object::New){
       return dropIndex(indexName, tableName);
     }
-    
+
     int ret = m_receiver.dropIndex(impl, *timpl);
     if(ret == 0){
-      m_localHash.drop(internalIndexName);
+      m_localHash.drop(internalIndexName.c_str());
       m_globalHash->lock();
       impl.m_table->m_status = NdbDictionary::Object::Invalid;
       m_globalHash->drop(impl.m_table);
@@ -2532,8 +2516,12 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   w.add(SimpleProperties::StringValue, evnt.m_externalName.c_str());
 
   if (getFlag == 0)
+  {
+    const BaseString internal_tabname(
+      ndb.internalize_table_name(evnt.m_tableName.c_str()));
     w.add(SimpleProperties::StringValue,
-	  ndb.internalizeTableName(evnt.m_tableName.c_str()));
+	 internal_tabname.c_str());
+  }
 
   LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32*)m_buffer.get_data();

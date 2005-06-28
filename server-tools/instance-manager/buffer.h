@@ -52,7 +52,7 @@ public:
 
   ~Buffer()
   {
-    free(buffer);
+    my_free(buffer, MYF(0));
   }
 
 public:

@@ -696,3 +696,8 @@ drop table t1;
 create table t1 (a int not null, b int not null auto_increment,
 primary key(a, b)) engine=heap;
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
+create table t1 (c char(255), primary key(c(90)));
+insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+ERROR 23000: Duplicate entry 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl' for key 1
+drop table t1;

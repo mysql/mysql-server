@@ -42,7 +42,6 @@ static my_bool open_new_frm(const char *path, const char *alias,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static void relink_tables_for_multidelete(THD *thd);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -2089,7 +2088,6 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  relink_tables_for_multidelete(thd);
   DBUG_RETURN(0);
 }
 
@@ -2119,33 +2117,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
   if (open_tables(thd, &tables, &counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  relink_tables_for_multidelete(thd);           // Not really needed, but
   DBUG_RETURN(0);
-}
-
-
-/*
-  Let us propagate pointers to open tables from global table list
-  to table lists for multi-delete
-*/
-
-static void relink_tables_for_multidelete(THD *thd)
-{
-  if (thd->lex->all_selects_list->next_select_in_list())
-  {
-    for (SELECT_LEX *sl= thd->lex->all_selects_list;
-	 sl;
-	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= (TABLE_LIST *) sl->table_list.first;
-           cursor;
-           cursor=cursor->next_local)
-      {
-        if (cursor->correspondent_table)
-          cursor->table= cursor->correspondent_table->table;
-      }
-    }
-  }
 }
 
 
@@ -2656,7 +2628,6 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   uint length=(uint) strlen(name);
   char name_buff[NAME_LEN+1];
 
-
   if (item->cached_table)
   {
     /*
@@ -2723,10 +2694,13 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     db= name_buff;
   }
 
+  bool search_global= item->item_flags & MY_ITEM_PREFER_1ST_TABLE;
   if (table_name && table_name[0])
   {						/* Qualified field */
-    bool found_table=0;
-    for (; tables; tables= tables->next_local)
+    bool found_table=0;    
+    uint table_idx= 0;
+    for (; tables; tables= search_global?tables->next_global:tables->next_local,
+        table_idx++)
     {
       /* TODO; Ensure that db and tables->db always points to something ! */
       if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
@@ -2762,6 +2736,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	    return (Field*) 0;
 	  }
 	  found=find;
+          if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
+            break;
 	}
       }
     }
@@ -2786,9 +2762,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	return (Field*) not_found_field;
     return (Field*) 0;
   }
-
   bool allow_rowid= tables && !tables->next_local;	// Only one table
-  for (; tables ; tables= tables->next_local)
+  uint table_idx= 0;
+  for (; tables ; tables= search_global?tables->next_global:tables->next_local, 
+      table_idx++)
   {
     if (!tables->table && !tables->ancestor)
     {
@@ -2823,7 +2800,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
           my_error(ER_NON_UNIQ_ERROR, MYF(0), name, thd->where);
 	return (Field*) 0;
       }
-      found=field;
+      found= field;
+      if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
+        break;
     }
   }
   if (found)
@@ -3050,7 +3029,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
   Item *item;
   List_iterator<Item> it(fields);
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   DBUG_ENTER("setup_wild");
 
   /*
@@ -3081,7 +3060,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       }
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it,
-                             any_privileges, arena != 0))
+                             any_privileges))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
@@ -3334,8 +3313,6 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     any_privileges	0 If we should ensure that we have SELECT privileges
 		          for all columns
                         1 If any privilege is ok
-    allocate_view_names if true view names will be copied to current Item_arena
-                        memory (made for SP/PS)
   RETURN
     0	ok
         'it' is updated to point at last inserted
@@ -3345,7 +3322,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool
 insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it,
-              bool any_privileges, bool allocate_view_names)
+              bool any_privileges)
 {
   /* allocate variables on stack to avoid pool alloaction */
   Field_iterator_table table_iter;
@@ -3536,25 +3513,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
         }
-        else if (allocate_view_names &&
-                 thd->lex->current_select->first_execution)
-        {
-	  Item_field *item;
-	  if (alias_used)
-	    item= new Item_field(0,
-				 thd->strdup(tables->alias),
-				 thd->strdup(field_name));
-	  else
-	    item= new Item_field(thd->strdup(tables->view_db.str),
-				 thd->strdup(tables->view_name.str),
-				 thd->strdup(field_name));
-          /*
-            during cleunup() this item will be put in list to replace
-            expression from VIEW
-          */
-          thd->nocheck_register_item_tree_change(it->ref(), item,
-                                                 thd->mem_root);
-        }
       }
       /*
 	All fields are used in case if usual tables (in case of view used
@@ -3594,7 +3552,7 @@ err:
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Item_arena *arena= thd->current_arena, backup;
+  Query_arena *arena= thd->current_arena, backup;
   bool save_wrapper= thd->lex->current_select->no_wrap_view_item;
   TABLE_LIST *table= NULL;	// For HP compilers
   DBUG_ENTER("setup_conds");

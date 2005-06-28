@@ -29,7 +29,7 @@
 
 namespace TaoCrypt {
 
-#define blk0(i) (W[i] = (*reinterpret_cast<word32*>(&buffer_[i*4])))
+#define blk0(i) (W[i] = buffer_[i])
 #define blk1(i) (W[i&15] = \
                  rotlFixed(W[(i+13)&15]^W[(i+8)&15]^W[(i+2)&15]^W[i&15],1))
 
@@ -85,10 +85,11 @@ SHA& SHA::operator= (const SHA& that)
 
 void SHA::Swap(SHA& other)
 {
-    mySTL::swap(buffer_,  other.buffer_);
-    mySTL::swap(buffLen_, other.buffLen_);
-    mySTL::swap(digest_,  other.digest_);
     mySTL::swap(length_,  other.length_);
+    mySTL::swap(buffLen_, other.buffLen_);
+
+    memcpy(digest_, other.digest_, DIGEST_SIZE);
+    memcpy(buffer_, other.buffer_, BLOCK_SIZE);
 }
 
 

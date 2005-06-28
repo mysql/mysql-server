@@ -49,7 +49,7 @@ char internal_table_name[2]= "*";
 ** Instansiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 /* Used templates */
 template class List<Key>;
 template class List_iterator<Key>;
@@ -156,9 +156,15 @@ bool foreign_key_prefix(Key *a, Key *b)
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/
+/*
+  Pass nominal parameters to Statement constructor only to ensure that
+  the destructor works OK in case of error. The main_mem_root will be
+  re-initialized in init().
+*/
 
 THD::THD()
-  :user_time(0), global_read_lock(0), is_fatal_error(0),
+  :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
+   user_time(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
@@ -420,8 +426,6 @@ THD::~THD()
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
-  /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
-  clear_alloc_root(&stmt_backup.main_mem_root);
   DBUG_VOID_RETURN;
 }
 
@@ -714,8 +718,10 @@ int THD::send_explain_fields(select_result *result)
   CHARSET_INFO *cs= system_charset_info;
   field_list.push_back(new Item_return_int("id",3, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
-  field_list.push_back(new Item_empty_string("table", NAME_LEN, cs));
-  field_list.push_back(new Item_empty_string("type", 10, cs));
+  field_list.push_back(item= new Item_empty_string("table", NAME_LEN, cs));
+  item->maybe_null= 1;
+  field_list.push_back(item= new Item_empty_string("type", 10, cs));
+  item->maybe_null= 1;
   field_list.push_back(item=new Item_empty_string("possible_keys",
 						  NAME_LEN*MAX_KEY, cs));
   item->maybe_null=1;
@@ -727,7 +733,9 @@ int THD::send_explain_fields(select_result *result)
   field_list.push_back(item=new Item_empty_string("ref",
 						  NAME_LEN*MAX_REF_PARTS, cs));
   item->maybe_null=1;
-  field_list.push_back(new Item_return_int("rows", 10, MYSQL_TYPE_LONGLONG));
+  field_list.push_back(item= new Item_return_int("rows", 10,
+                                                 MYSQL_TYPE_LONGLONG));
+  item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
   return (result->send_fields(field_list,
                               Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
@@ -1470,53 +1478,7 @@ void select_dumpvar::cleanup()
 }
 
 
-/*
-  Create arena for already constructed THD.
-
-  SYNOPSYS
-    Item_arena()
-      thd - thread for which arena is created
-
-  DESCRIPTION
-    Create arena for already existing THD using its variables as parameters
-    for memory root initialization.
-*/
-Item_arena::Item_arena(THD* thd)
-  :free_list(0), mem_root(&main_mem_root),
-   state(INITIALIZED)
-{
-  init_sql_alloc(&main_mem_root,
-                 thd->variables.query_alloc_block_size,
-                 thd->variables.query_prealloc_size);
-}
-
-
-/*
-  Create arena and optionally initialize memory root.
-
-  SYNOPSYS
-    Item_arena()
-      init_mem_root - whenever we need to initialize memory root
-
-  DESCRIPTION
-    Create arena and optionally initialize memory root with minimal
-    possible parameters.
-
-  NOTE
-    We use this constructor when arena is part of THD, but reinitialize
-    its memory root in THD::init_for_queries() before execution of real
-    statements.
-*/
-Item_arena::Item_arena(bool init_mem_root)
-  :free_list(0), mem_root(&main_mem_root),
-  state(CONVENTIONAL_EXECUTION)
-{
-  if (init_mem_root)
-    init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-}
-
-
-Item_arena::Type Item_arena::type() const
+Query_arena::Type Query_arena::type() const
 {
   DBUG_ASSERT(0); /* Should never be called */
   return STATEMENT;
@@ -1527,9 +1489,10 @@ Item_arena::Type Item_arena::type() const
   Statement functions 
 */
 
-Statement::Statement(THD *thd)
-  :Item_arena(thd),
-  id(++thd->statement_id_counter),
+Statement::Statement(enum enum_state state_arg, ulong id_arg,
+                     ulong alloc_block_size, ulong prealloc_size)
+  :Query_arena(&main_mem_root, state_arg),
+  id(id_arg),
   set_query_id(1),
   allow_sum_func(0),
   lex(&main_lex),
@@ -1538,28 +1501,11 @@ Statement::Statement(THD *thd)
   cursor(0)
 {
   name.str= NULL;
-}
-
-/*
-  This constructor is called when statement is a subobject of THD:
-  Some variables are initialized in THD::init due to locking problems
-  This statement object will be used to 
-*/
-
-Statement::Statement()
-  :Item_arena((bool)TRUE),
-  id(0),
-  set_query_id(1),
-  allow_sum_func(0),                            /* initialized later */
-  lex(&main_lex),
-  query(0),                                     /* these two are set */ 
-  query_length(0),                              /* in alloc_query() */
-  cursor(0)
-{
+  init_sql_alloc(&main_mem_root, alloc_block_size, prealloc_size);
 }
 
 
-Item_arena::Type Statement::type() const
+Query_arena::Type Statement::type() const
 {
   return STATEMENT;
 }
@@ -1607,9 +1553,9 @@ void THD::end_statement()
 }
 
 
-void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
+void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Item_arena::set_n_backup_item_arena");
+  DBUG_ENTER("Query_arena::set_n_backup_item_arena");
   DBUG_ASSERT(backup_arena == 0);
   backup->set_item_arena(this);
   set_item_arena(set);
@@ -1620,28 +1566,18 @@ void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 }
 
 
-void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
+void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Item_arena::restore_backup_item_arena");
+  DBUG_ENTER("Query_arena::restore_backup_item_arena");
   set->set_item_arena(this);
   set_item_arena(backup);
 #ifndef DBUG_OFF
   backup_arena= 0;
 #endif
-#ifdef NOT_NEEDED_NOW
-  /*
-    Reset backup mem_root to avoid its freeing.
-    Since Item_arena's mem_root is freed only when it is part of Statement
-    we need this only if we use some Statement's arena as backup storage.
-    But we do this only with THD::stmt_backup and this Statement is specially
-    handled in this respect. So this code is not really needed now.
-  */
-  clear_alloc_root(&backup->mem_root);
-#endif
   DBUG_VOID_RETURN;
 }
 
-void Item_arena::set_item_arena(Item_arena *set)
+void Query_arena::set_item_arena(Query_arena *set)
 {
   mem_root=  set->mem_root;
   free_list= set->free_list;
@@ -1650,6 +1586,11 @@ void Item_arena::set_item_arena(Item_arena *set)
 
 Statement::~Statement()
 {
+  /*
+    We must free `main_mem_root', not `mem_root' (pointer), to work
+    correctly if this statement is used as a backup statement,
+    for which `mem_root' may point to some other statement.
+  */
   free_root(&main_mem_root, MYF(0));
 }
 

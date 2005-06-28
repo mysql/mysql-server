@@ -80,6 +80,11 @@ create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 drop table t1 ;
 
+#
+# Bug #10732: Set SQL_MODE to NULL gives garbled error message
+#
+--error 1231
+set @@SQL_MODE=NULL;
 
 #
 # test for 
@@ -183,5 +188,25 @@ SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
 SET @@SQL_MODE='';
 SELECT 'a\\b', 'a\\\"b', 'a''\\b', 'a''\\\"b';
 SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
+
+
+#
+# Bug#6877: MySQL should give an error if the requested table type 
+#           is not available
+#
+
+set session sql_mode = 'NO_ENGINE_SUBSTITUTION';
+--error 1289
+create table t1 (a int) engine=isam;
+--error 1146
+show create table t1;
+drop table if exists t1;
+
+# for comparison, lets see the warnings...
+set session sql_mode = '';
+create table t1 (a int) engine=isam;
+show create table t1;
+drop table t1;
+
 
 SET @@SQL_MODE=@OLD_SQL_MODE;

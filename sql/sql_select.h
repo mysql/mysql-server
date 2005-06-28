@@ -178,7 +178,7 @@ class JOIN :public Sql_alloc
   table_map const_table_map,found_const_table_map,outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
   /*
-    Used to fetch no more than given amount of rows per one 
+    Used to fetch no more than given amount of rows per one
     fetch operation of server side cursor.
     The value is checked in end_send and end_send_group in fashion, similar
     to offset_limit_cnt:
@@ -190,7 +190,7 @@ class JOIN :public Sql_alloc
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;
   List<Item> *fields;
-  List<Item_buff> group_fields, group_fields_cache;
+  List<Cached_item> group_fields, group_fields_cache;
   TABLE    *tmp_table;
   // used to store 2 possible tmp table of SELECT
   TABLE    *exec_tmp_table1, *exec_tmp_table2;
@@ -370,8 +370,9 @@ class JOIN :public Sql_alloc
   statement for many cursors.
 */
 
-class Cursor: public Sql_alloc, public Item_arena
+class Cursor: public Sql_alloc, public Query_arena
 {
+  MEM_ROOT main_mem_root;
   JOIN *join;
   SELECT_LEX_UNIT *unit;
 
@@ -386,8 +387,6 @@ public:
   /* Temporary implementation as now we replace THD state by value */
   /* Save THD state into cursor */
   void init_from_thd(THD *thd);
-  /* Restore THD from cursor to continue cursor execution */
-  void init_thd(THD *thd);
   /* bzero cursor state in THD */
   void reset_thd(THD *thd);
 
@@ -398,7 +397,7 @@ public:
   void close();
 
   void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
-  Cursor() :Item_arena(TRUE), join(0), unit(0) {}
+  Cursor(THD *thd);
   ~Cursor();
 };
 
