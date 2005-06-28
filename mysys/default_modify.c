@@ -70,8 +70,9 @@ int modify_defaults_file(const char *file_location, const char *option,
   char linebuff[BUFF_SIZE], *src_ptr, *dst_ptr, *file_buffer;
   uint opt_len, optval_len, sect_len, nr_newlines= 0, buffer_size;
   my_bool in_section= FALSE, opt_applied= 0;
-  int reserve_occupied= 0, reserve_extended= 1, old_opt_len;
-  int new_opt_len= opt_len + 1 + optval_len + NEWLINE_LEN;
+  uint reserve_extended= 1, old_opt_len= 0;
+  uint new_opt_len= opt_len + 1 + optval_len + NEWLINE_LEN;
+  int reserve_occupied= 0;
   DBUG_ENTER("modify_defaults_file");
 
   if (!(cnf_file= my_fopen(file_location, O_RDWR | O_BINARY, MYF(0))))
@@ -133,14 +134,20 @@ int modify_defaults_file(const char *file_location, const char *option,
       */
       if (opt_applied)
       {
-        old_opt_len= strlen(linebuff);
+        src_ptr+= opt_len; /* If we correct an option, we know it's name */
+        old_opt_len= opt_len;
+
+        while (*src_ptr++) /* Find the end of the line */
+          old_opt_len++;
+
         /* could be negative */
-        reserve_occupied+= new_opt_len - old_opt_len;
-        if (reserve_occupied > RESERVE*reserve_extended)
+        reserve_occupied+= (int) new_opt_len - (int) old_opt_len;
+        if ((int) reserve_occupied > (int) (RESERVE*reserve_extended))
         {
-          file_buffer= (char*) my_realloc(file_buffer, buffer_size +
-                                          RESERVE*reserve_extended,
-                                          MYF(MY_WME));
+          if (!(file_buffer= (char*) my_realloc(file_buffer, buffer_size +
+                                                RESERVE*reserve_extended,
+                                                MYF(MY_WME|MY_FREE_ON_ERROR))))
+            goto malloc_err;
           reserve_extended++;
         }
       }
