@@ -192,7 +192,7 @@ template <class C>
 inline
 Int32
 NdbLinHash<C>::insertKey( const char* str, Uint32 len, Uint32 lkey1, C* data )
-{
+{ 
   const Uint32 hash = Hash(str, len);
   int dir, seg;
   getBucket(hash, &dir, &seg);
@@ -219,8 +219,9 @@ NdbLinHash<C>::insertKey( const char* str, Uint32 len, Uint32 lkey1, C* data )
   chain->localkey1 = lkey1;
   chain->next = 0;
   chain->theData = data;
+  len++; // Null terminated
   chain->str = new Uint32[((len + 3) >> 2)];
-  memcpy( &chain->str[0], str, len );
+  memcpy( &chain->str[0], str, len);
   if (oldChain != 0) 
     oldChain->next = chain;
   else

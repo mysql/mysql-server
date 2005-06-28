@@ -634,3 +634,50 @@ id
 3
 deallocate prepare stmt;
 drop table t1, t2;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select * from t1 limit ?, ?";
+set @offset=0, @limit=1;
+execute stmt using @offset, @limit;
+a
+1
+select * from t1 limit 0, 1;
+a
+1
+set @offset=3, @limit=2;
+execute stmt using @offset, @limit;
+a
+4
+5
+select * from t1 limit 3, 2;
+a
+4
+5
+prepare stmt from "select * from t1 limit ?";
+execute stmt using @limit;
+a
+1
+2
+prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
+set @offset=9;
+set @limit=2;
+execute stmt using @offset, @limit;
+a
+10
+1
+prepare stmt from "(select * from t1 limit ?, ?) union all
+                   (select * from t1 limit ?, ?) order by a limit ?";
+execute stmt using @offset, @limit, @offset, @limit, @limit;
+a
+10
+10
+drop table t1;
+deallocate prepare stmt;
+create table t1 (id int);
+prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop table t1;

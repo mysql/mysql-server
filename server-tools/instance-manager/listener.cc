@@ -163,7 +163,7 @@ void Listener_thread::run()
   unix_socket_address.sun_family= AF_UNIX;
   strmake(unix_socket_address.sun_path, options.socket_file_name,
           sizeof(unix_socket_address.sun_path));
-  unlink(unix_socket_address.sun_path); // in case we have stale socket file
+  unlink(unix_socket_address.sun_path); /* in case we have stale socket file */
 
   {
     /*

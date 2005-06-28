@@ -83,7 +83,7 @@ struct os_aio_slot_struct{
 					made and only the slot message
 					needs to be passed to the caller
 					of os_aio_simulated_handle */
-	void*		message1;	/* message which is given by the */
+	fil_node_t*	message1;	/* message which is given by the */
 	void*		message2;	/* the requester of an aio operation
 					and which can be used to identify
 					which pending aio operation was
@@ -133,17 +133,17 @@ os_event_t*	os_aio_segment_wait_events	= NULL;
 
 /* The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. */
-os_aio_array_t*	os_aio_read_array	= NULL;
-os_aio_array_t*	os_aio_write_array	= NULL;
-os_aio_array_t*	os_aio_ibuf_array	= NULL;
-os_aio_array_t*	os_aio_log_array	= NULL;
-os_aio_array_t*	os_aio_sync_array	= NULL;
+static os_aio_array_t*	os_aio_read_array	= NULL;
+static os_aio_array_t*	os_aio_write_array	= NULL;
+static os_aio_array_t*	os_aio_ibuf_array	= NULL;
+static os_aio_array_t*	os_aio_log_array	= NULL;
+static os_aio_array_t*	os_aio_sync_array	= NULL;
 
-ulint	os_aio_n_segments	= ULINT_UNDEFINED;
+static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
 /* If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
-ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
 
 ulint	os_n_file_reads		= 0;
 ulint	os_bytes_read_since_printout = 0;
@@ -158,7 +158,7 @@ ibool	os_has_said_disk_full	= FALSE;
 
 /* The mutex protecting the following counts of pending pread and pwrite
 operations */
-os_mutex_t os_file_count_mutex;
+static os_mutex_t os_file_count_mutex;
 ulint	os_file_n_pending_preads  = 0;
 ulint	os_file_n_pending_pwrites = 0;
 
@@ -605,7 +605,7 @@ os_file_opendir(
 
 	lpFindFileData = ut_malloc(sizeof(WIN32_FIND_DATA));
 
-	dir = FindFirstFile(path, lpFindFileData);
+	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
 
 	ut_free(lpFindFileData);
 
@@ -686,15 +686,15 @@ next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
 	if (ret) {
-	        ut_a(strlen(lpFindFileData->cFileName) < OS_FILE_MAX_PATH);
+	        ut_a(strlen((char *) lpFindFileData->cFileName) < OS_FILE_MAX_PATH);
 
-		if (strcmp(lpFindFileData->cFileName, ".") == 0
-		    || strcmp(lpFindFileData->cFileName, "..") == 0) {
+		if (strcmp((char *) lpFindFileData->cFileName, ".") == 0
+		    || strcmp((char *) lpFindFileData->cFileName, "..") == 0) {
 
 		        goto next_file;
 		}
 
-		strcpy(info->name, lpFindFileData->cFileName);
+		strcpy(info->name, (char *) lpFindFileData->cFileName);
 
 		info->size = (ib_longlong)(lpFindFileData->nFileSizeLow)
 		     + (((ib_longlong)(lpFindFileData->nFileSizeHigh)) << 32);
@@ -830,7 +830,7 @@ os_file_create_directory(
 #ifdef __WIN__
 	BOOL	rcode;
     
-	rcode = CreateDirectory(pathname, NULL);
+	rcode = CreateDirectory((LPCTSTR) pathname, NULL);
 	if (!(rcode != 0 ||
 	   (GetLastError() == ERROR_ALREADY_EXISTS && !fail_if_exists))) {
 		/* failure */
@@ -914,7 +914,7 @@ try_again:
 		ut_error;
 	}
 
-	file = CreateFile(name,
+	file = CreateFile((LPCTSTR) name,
 			access,
 			FILE_SHARE_READ | FILE_SHARE_WRITE,
 					/* file can be read ansd written also
@@ -1053,7 +1053,7 @@ os_file_create_simple_no_error_handling(
 		ut_error;
 	}
 
-	file = CreateFile(name,
+	file = CreateFile((LPCTSTR) name,
 			access,
 			share_mode,
 			NULL,	/* default security attributes */
@@ -1200,7 +1200,7 @@ try_again:
 		ut_error;
 	}
 
-	file = CreateFile(name,
+	file = CreateFile((LPCTSTR) name,
 			GENERIC_READ | GENERIC_WRITE, /* read and write
 							access */
 			share_mode,     /* File can be read also by other
@@ -1672,7 +1672,6 @@ os_file_set_size(
 	ibool		ret;
 	byte*   	buf;
 	byte*   	buf2;
-	ulint   	i;
 
 	ut_a(size == (size & 0xFFFFFFFF));
 
@@ -1685,9 +1684,7 @@ os_file_set_size(
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	/* Write buffer full of zeros */
-	for (i = 0; i < UNIV_PAGE_SIZE * 512; i++) {
-	        buf[i] = '\0';
-	}
+	memset(buf, 0, UNIV_PAGE_SIZE * 512);
 
 	offset = 0;
 	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);
@@ -3025,7 +3022,7 @@ os_aio_array_reserve_slot(
 				/* out: pointer to slot */
 	ulint		type,	/* in: OS_FILE_READ or OS_FILE_WRITE */
 	os_aio_array_t*	array,	/* in: aio array */
-	void*		message1,/* in: message to be passed along with
+	fil_node_t*	message1,/* in: message to be passed along with
 				the aio operation */
 	void*		message2,/* in: message to be passed along with
 				the aio operation */
@@ -3287,7 +3284,7 @@ os_aio(
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
 	ulint		n,	/* in: number of bytes to read or write */
-	void*		message1,/* in: messages for the aio handler (these
+	fil_node_t*	message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
 				are ignored */
@@ -3472,7 +3469,7 @@ os_aio_windows_handle(
 				ignored */
 	ulint	pos,		/* this parameter is used only in sync aio:
 				wait for the aio slot at this position */  
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -3563,7 +3560,7 @@ os_aio_posix_handle(
 /*================*/
 				/* out: TRUE if the aio operation succeeded */
 	ulint	array_no,	/* in: array number 0 - 3 */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -3644,7 +3641,7 @@ os_aio_simulated_handle(
 				i/o thread, segment 1 the log i/o thread,
 				then follow the non-ibuf read threads, and as
 				the last are the non-ibuf write threads */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -4182,6 +4179,7 @@ os_aio_refresh_stats(void)
 	os_last_printout = time(NULL);
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
@@ -4241,3 +4239,4 @@ os_aio_all_slots_free(void)
 
 	return(FALSE);
 }
+#endif /* UNIV_DEBUG */

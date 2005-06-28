@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "." /I "..\include" /I "../zlib" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /D "NDEBUG" /D "MYSQL_CLIENT" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "." /I "..\include" /I "../zlib" /I "../extra/yassl/include" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /D "NDEBUG" /D "MYSQL_CLIENT" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
@@ -54,7 +54,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386
-# ADD LINK32 mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386 /def:"libmysql.def" /out:"..\lib_release\libmysql.dll" /libpath:"." /libpath:"..\lib_release"
+# ADD LINK32 mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\extra\yassl\Release\yassl.lib /nologo /subsystem:windows /dll /machine:I386 /def:"libmysql.def" /out:"..\lib_release\libmysql.dll" /libpath:"." /libpath:"..\lib_release"
 # SUBTRACT LINK32 /pdb:none
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
@@ -76,7 +76,7 @@ PostBuild_Cmds=xcopy release\libmysql.lib ..\lib_release /y
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "." /I "..\include" /I "../zlib" /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "." /I "..\include" /I "../zlib" /I "../extra/yassl/include" /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /o "NUL" /win32
@@ -87,7 +87,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 zlib.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /incremental:no /map /debug /machine:I386 /def:"libmysql.def" /out:"..\lib_debug\libmysql.dll" /pdbtype:sept /libpath:"." /libpath:"..\lib_debug"
+# ADD LINK32 zlib.lib mysys.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\extra\yassl\Debug\yassl.lib /nologo /subsystem:windows /dll /incremental:no /map /debug /machine:I386 /def:"libmysql.def" /out:"..\lib_debug\libmysql.dll" /pdbtype:sept /libpath:"." /libpath:"..\lib_debug"
 # SUBTRACT LINK32 /pdb:none
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
@@ -300,6 +300,10 @@ SOURCE=..\mysys\mf_wcomp.c
 # Begin Source File
 
 SOURCE=..\mysys\mulalloc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_access.c
 # End Source File
 # Begin Source File
 

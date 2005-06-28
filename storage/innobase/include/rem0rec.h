@@ -51,7 +51,7 @@ rec_get_next_offs(
 			/* out: the page offset of the next 
 			chained record */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp);	/* in: TRUE=compact page format */
+	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
 The following function is used to set the next record offset field
 of the record. */
@@ -60,7 +60,7 @@ void
 rec_set_next_offs(
 /*==============*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	next);	/* in: offset of the next record */
 /**********************************************************
 The following function is used to get the number of fields
@@ -90,7 +90,7 @@ rec_get_n_owned(
 /*============*/
 			/* out: number of owned records */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp);	/* in: TRUE=compact page format */
+	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
 The following function is used to set the number of owned
 records. */
@@ -99,7 +99,7 @@ void
 rec_set_n_owned(
 /*============*/
 	rec_t*	rec,		/* in: physical record */
-	ibool	comp,		/* in: TRUE=compact page format */
+	ulint	comp,		/* in: nonzero=compact page format */
 	ulint	n_owned);	/* in: the number of owned */
 /**********************************************************
 The following function is used to retrieve the info bits of
@@ -110,7 +110,7 @@ rec_get_info_bits(
 /*==============*/
 			/* out: info bits */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp);	/* in: TRUE=compact page format */
+	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
 The following function is used to set the info bits of a record. */
 UNIV_INLINE
@@ -118,7 +118,7 @@ void
 rec_set_info_bits(
 /*==============*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	bits);	/* in: info bits */
 /**********************************************************
 The following function retrieves the status bits of a new-style record. */
@@ -147,7 +147,7 @@ rec_get_info_and_status_bits(
 /*=========================*/
 			/* out: info bits */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp);	/* in: TRUE=compact page format */
+	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
 The following function is used to set the info and status
 bits of a record.  (Only compact records have status bits.) */
@@ -156,18 +156,18 @@ void
 rec_set_info_and_status_bits(
 /*=========================*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	bits);	/* in: info bits */
 
 /**********************************************************
 The following function tells if record is delete marked. */
 UNIV_INLINE
-ibool
+ulint
 rec_get_deleted_flag(
 /*=================*/
-			/* out: TRUE if delete marked */
+			/* out: nonzero if delete marked */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp);	/* in: TRUE=compact page format */
+	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
 The following function is used to set the deleted bit. */
 UNIV_INLINE
@@ -175,8 +175,8 @@ void
 rec_set_deleted_flag(
 /*=================*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
-	ibool	flag);	/* in: TRUE if delete marked */
+	ulint	comp,	/* in: nonzero=compact page format */
+	ulint	flag);	/* in: nonzero if delete marked */
 /**********************************************************
 The following function tells if a new-style record is a node pointer. */
 UNIV_INLINE
@@ -186,14 +186,6 @@ rec_get_node_ptr_flag(
 			/* out: TRUE if node pointer */
 	rec_t*	rec);	/* in: physical record */
 /**********************************************************
-The following function is used to flag a record as a node pointer. */
-UNIV_INLINE
-void
-rec_set_node_ptr_flag(
-/*=================*/
-	rec_t*	rec,	/* in: physical record */
-	ibool	flag);	/* in: TRUE if the record is a node pointer */
-/**********************************************************
 The following function is used to get the order number
 of the record in the heap of the index page. */
 UNIV_INLINE
@@ -202,7 +194,7 @@ rec_get_heap_no(
 /*=============*/
 			/* out: heap order number */
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp);	/* in: TRUE=compact page format */
+	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
 The following function is used to set the heap number
 field in the record. */
@@ -211,7 +203,7 @@ void
 rec_set_heap_no(
 /*=============*/
 	rec_t*	rec,	/* in: physical record */
-	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	heap_no);/* in: the heap number */
 /**********************************************************
 The following function is used to test whether the data offsets
@@ -290,7 +282,7 @@ rec_get_nth_field_size(
  	ulint	n);	/* in: index of the field */
 /****************************************************************
 The following function is used to get a pointer to the nth
-data field in an old-style record. */
+data field in a record. */
 UNIV_INLINE
 byte*
 rec_get_nth_field(
@@ -305,27 +297,18 @@ rec_get_nth_field(
 Determine if the offsets are for a record in the new
 compact format. */
 UNIV_INLINE
-ibool
+ulint
 rec_offs_comp(
 /*==========*/
-				/* out: TRUE if compact format */
+				/* out: nonzero if compact format */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**********************************************************
-Returns TRUE if the nth field of rec is SQL NULL. */
+Returns nonzero if the extern bit is set in nth field of rec. */
 UNIV_INLINE
-ibool
-rec_offs_nth_null(
-/*==============*/
-				/* out: TRUE if SQL NULL */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint		n);	/* in: nth field */
-/**********************************************************
-Returns TRUE if the extern bit is set in nth field of rec. */
-UNIV_INLINE
-ibool
+ulint
 rec_offs_nth_extern(
 /*================*/
-				/* out: TRUE if externally stored */
+				/* out: nonzero if externally stored */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n);	/* in: nth field */
 /**********************************************************

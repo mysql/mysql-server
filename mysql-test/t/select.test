@@ -2255,3 +2255,24 @@ AND FK_firma_id = 2;
 
 drop table t1;
 
+#
+# Test for bug #10084: STRAIGHT_JOIN with ON expression 
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (2), (4), (6);
+
+SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
+
+EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
+EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
+
+DROP TABLE t1,t2;
+
+#
+# Bug #10650
+#
+
+select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;

@@ -45,9 +45,8 @@ enum SendStatus {
  * Protocol6 Header + 
  *  (optional signal id) + (optional checksum) + (signal data)
  */
-const Uint32 MAX_SECTION_SIZE= 4096;
 //const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25));
-const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*MAX_SECTION_SIZE);
+const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*4096);
 
 /**
  * TransporterConfiguration
@@ -56,7 +55,7 @@ const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*MAX_SECTION_SIZE);
  * information specific to a transporter type.
  */
 struct TransporterConfiguration {
-  Uint32 port;
+  Int32 s_port; // negative port number implies dynamic port
   const char *remoteHostName;
   const char *localHostName;
   NodeId remoteNodeId;

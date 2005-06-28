@@ -17,6 +17,11 @@
 
 ## Process this file with automake to create Makefile.in
 
+if HAVE_YASSL
+  yassl_dummy_link_fix= $(top_srcdir)/extra/yassl/src/dummy.cpp
+else
+  yassl_dummy_link_fix=
+endif
 EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			function.res function.tst lock_test.pl lock_test.res \
 			export.pl big_record.pl \
@@ -38,7 +43,9 @@ LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
                         $(top_builddir)/libmysql/libmysqlclient.la
 mysql_client_test_LDADD= $(LDADD) $(CXXLDFLAGS) \
                         $(top_builddir)/mysys/libmysys.a
-mysql_client_test_SOURCES= mysql_client_test.c
+mysql_client_test_SOURCES= mysql_client_test.c $(yassl_dummy_link_fix)
+insert_test_SOURCES=       insert_test.c $(yassl_dummy_link_fix)
+select_test_SOURCES=       select_test.c $(yassl_dummy_link_fix)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 

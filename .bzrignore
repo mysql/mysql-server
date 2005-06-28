@@ -102,6 +102,7 @@ Makefile.in
 Makefile.in'
 PENDING/*
 TAGS
+VC++Files/client/mysql_amd64.dsp
 ac_available_languages_fragment
 acinclude.m4
 aclocal.m4
@@ -274,6 +275,8 @@ client/mysqlmanager-pwgen
 client/mysqlmanagerc
 client/mysqlshow
 client/mysqltest
+client/mysqltestmanager-pwgen
+client/mysqltestmanagerc
 client/mysys_priv.h
 client/select_test
 client/ssl_test
@@ -284,10 +287,12 @@ cmd-line-utils/libedit/common.h
 cmd-line-utils/libedit/makelist
 comon.h
 config.cache
+config.guess
 config.h
 config.h.in
 config.log
 config.status
+config.sub
 configure
 configure.lineno
 core
@@ -355,6 +360,7 @@ innobase/ib_config.h.in
 innobase/stamp-h1
 insert_test
 install
+install-sh
 isam/isamchk
 isam/isamlog
 isam/pack_isam
@@ -519,7 +525,9 @@ linked_libmysqldex_sources
 linked_server_sources
 linked_tools_sources
 locked
+ltmain.sh
 man/*.1
+missing
 mit-pthreads/config.flags
 mit-pthreads/include/bits
 mit-pthreads/include/pthread/machdep.h
@@ -936,6 +944,7 @@ scripts/mysqld_multi
 scripts/mysqld_safe
 scripts/mysqldumpslow
 scripts/mysqlhotcopy
+scripts/mysqlhotcopy.sh.rej
 scripts/safe_mysqld
 select_test
 server-tools/instance-manager/client.c
@@ -1100,18 +1109,11 @@ tmp/*
 tools/my_vsnprintf.c
 tools/mysqlmanager
 tools/mysqlmngd
+tools/mysqltestmanager
 tools/mysys_priv.h
 vi.h
 vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-VC++Files/client/mysql_amd64.dsp
-client/mysqltestmanager-pwgen
-client/mysqltestmanagerc
-tools/mysqltestmanager
-config.guess
-config.sub
-install-sh
-ltmain.sh
-missing
+ndb/src/dummy.cpp

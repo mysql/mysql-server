@@ -146,8 +146,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_buffer_pool_awe_mem_mb,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads,  innobase_lock_wait_timeout,
-     innobase_thread_concurrency, innobase_force_recovery,
-     innobase_open_files;
+     innobase_force_recovery, innobase_open_files;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -327,7 +326,7 @@ innodb_srv_conc_enter_innodb(
 /*=========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (srv_thread_concurrency >= 500) {
+	if (UNIV_LIKELY(srv_thread_concurrency >= 20)) {
 
 		return;
 	}
@@ -344,7 +343,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (srv_thread_concurrency >= 500) {
+	if (UNIV_LIKELY(srv_thread_concurrency >= 20)) {
 
 		return;
 	}
@@ -564,7 +563,7 @@ innobase_mysql_print_thd(
         thd = (const THD*) input_thd;
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
-		thd->thread_id, thd->query_id);
+		thd->thread_id, (ulong) thd->query_id);
 	if (thd->host) {
 		putc(' ', f);
 		fputs(thd->host, f);
@@ -1041,7 +1040,19 @@ mysql_get_identifier_quote_char(
 		return(EOF);
 	}
 	return(get_quote_char_for_identifier((THD*) trx->mysql_thd,
-						name, namelen));
+						name, (int) namelen));
+}
+
+/**************************************************************************
+Determines if the currently running transaction has been interrupted. */
+extern "C"
+ibool
+trx_is_interrupted(
+/*===============*/
+			/* out: TRUE if interrupted */
+	trx_t*	trx)	/* in: transaction */
+{
+	return(trx && trx->mysql_thd && ((THD*) trx->mysql_thd)->killed);
 }
 
 /**************************************************************************
@@ -1302,8 +1313,8 @@ innobase_init(void)
 
 	data_mysql_default_charset_coll = (ulint)default_charset_info->number;
 
-	data_mysql_latin1_swedish_charset_coll =
-					(ulint)my_charset_latin1.number;
+	ut_a(DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL ==
+					my_charset_latin1.number);
 
 	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
 	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
@@ -1794,7 +1805,7 @@ try_again:
                         fprintf(stderr,
 "InnoDB: This transaction needs it to be sent up to\n"
 "InnoDB: file %s, position %lu\n", trx->repl_wait_binlog_name,
-                                        (uint)trx->repl_wait_binlog_pos);
+                                        (ulong)trx->repl_wait_binlog_pos);
 
                         innobase_repl_state = 0;
 
@@ -2022,7 +2033,7 @@ innobase_rollback_to_savepoint(
 
         longlong2str((ulonglong)savepoint, name, 36);
 
-        error = trx_rollback_to_savepoint_for_mysql(trx, name,
+        error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -2051,7 +2062,7 @@ innobase_release_savepoint(
 
         longlong2str((ulonglong)savepoint, name, 36);
 
-	error = trx_release_savepoint_for_mysql(trx, name);
+	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -2092,7 +2103,7 @@ innobase_savepoint(
         char name[64];
         longlong2str((ulonglong)savepoint,name,36);
 
-        error = trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
+        error = (int) trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -2663,7 +2674,7 @@ innobase_read_from_2_little_endian(
 			/* out: value */
 	const mysql_byte*	buf)	/* in: from where to read */
 {
-	return((ulint)(buf[0]) + 256 * ((ulint)(buf[1])));
+	return (uint) ((ulint)(buf[0]) + 256 * ((ulint)(buf[1])));
 }
 
 /***********************************************************************
@@ -2867,6 +2878,8 @@ build_template(
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i;
+	/* byte offset of the end of last requested column */
+	ulint		mysql_prefix_len	= 0;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
 		/* We always retrieve the whole clustered index record if we
@@ -2988,6 +3001,11 @@ build_template(
 					get_field_offset(table, field);
 
 		templ->mysql_col_len = (ulint) field->pack_length();
+		if (mysql_prefix_len < templ->mysql_col_offset
+				+ templ->mysql_col_len) {
+			mysql_prefix_len = templ->mysql_col_offset
+				+ templ->mysql_col_len;
+		}
 		templ->type = index->table->cols[i].type.mtype;
 		templ->mysql_type = (ulint)field->type();
 
@@ -3010,6 +3028,7 @@ skip_field:
 	}
 
 	prebuilt->n_template = n_requested_fields;
+	prebuilt->mysql_prefix_len = mysql_prefix_len;
 
 	if (index != clust_index && prebuilt->need_to_access_clustered) {
 		/* Change rec_field_no's to correspond to the clustered index
@@ -3081,7 +3100,7 @@ ha_innobase::write_row(
 		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
 
 		dict_table_t*	src_table;
-		ibool		mode;
+		ulint		mode;
 
 		num_write_row = 0;
 
@@ -3744,7 +3763,7 @@ ha_innobase::index_read(
 		match_mode = ROW_SEL_EXACT_PREFIX;
 	}
 
-	last_match_mode = match_mode;
+	last_match_mode = (uint) match_mode;
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -3764,7 +3783,7 @@ ha_innobase::index_read(
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
 	} else {
-		error = convert_error_code_to_mysql(ret, user_thd);
+		error = convert_error_code_to_mysql((int) ret, user_thd);
 		table->status = STATUS_NOT_FOUND;
 	}
 
@@ -3916,7 +3935,7 @@ ha_innobase::general_fetch(
 		error = HA_ERR_END_OF_FILE;
 		table->status = STATUS_NOT_FOUND;
 	} else {
-		error = convert_error_code_to_mysql(ret, user_thd);
+		error = convert_error_code_to_mysql((int) ret, user_thd);
 		table->status = STATUS_NOT_FOUND;
 	}
 
@@ -4865,7 +4884,7 @@ innobase_drop_database(
 	}
 
 	ptr++;
-	namebuf = my_malloc(len + 2, MYF(0));
+	namebuf = my_malloc((uint) len + 2, MYF(0));
 
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
@@ -5431,7 +5450,7 @@ ha_innobase::update_table_comment(
 				info on foreign keys */
         const char*	comment)/* in: table comment defined by user */
 {
-	uint	length			= strlen(comment);
+	uint	length			= (uint) strlen(comment);
 	char*				str;
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
 
@@ -5483,7 +5502,7 @@ ha_innobase::update_table_comment(
 				*pos++ = ' ';
 			}
 			rewind(file);
-			flen = fread(pos, 1, flen, file);
+			flen = (uint) fread(pos, 1, flen, file);
 			pos[flen] = 0;
 		}
 
@@ -5546,7 +5565,7 @@ ha_innobase::get_foreign_key_create_info(void)
 
 		if (str) {
 			rewind(file);
-			flen = fread(str, 1, flen, file);
+			flen = (uint) fread(str, 1, flen, file);
 			str[flen] = 0;
 		}
 
@@ -5586,8 +5605,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
     while (tmp_buff[i] != '/')
       i++;
     tmp_buff+= i + 1;
-    f_key_info.forein_id= make_lex_string(thd, 0,
-                                          tmp_buff, strlen(tmp_buff), 1);
+    f_key_info.forein_id= make_lex_string(thd, 0, tmp_buff,
+                                          (uint) strlen(tmp_buff), 1);
     tmp_buff= foreign->referenced_table_name;
     i= 0;
     while (tmp_buff[i] != '/')
@@ -5595,16 +5614,16 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
     f_key_info.referenced_db= make_lex_string(thd, 0,
                                               tmp_buff, i, 1);
     tmp_buff+= i + 1;
-    f_key_info.referenced_table= make_lex_string(thd, 0,
-                                               tmp_buff, strlen(tmp_buff), 1);
+    f_key_info.referenced_table= make_lex_string(thd, 0, tmp_buff, 
+                                               (uint) strlen(tmp_buff), 1);
 
     for (i= 0;;)
     {
       tmp_buff= foreign->foreign_col_names[i];
-      name= make_lex_string(thd, name, tmp_buff, strlen(tmp_buff), 1);
+      name= make_lex_string(thd, name, tmp_buff, (uint) strlen(tmp_buff), 1);
       f_key_info.foreign_fields.push_back(name);
       tmp_buff= foreign->referenced_col_names[i];
-      name= make_lex_string(thd, name, tmp_buff, strlen(tmp_buff), 1);
+      name= make_lex_string(thd, name, tmp_buff, (uint) strlen(tmp_buff), 1);
       f_key_info.referenced_fields.push_back(name);
       if (++i >= foreign->n_fields)
         break;
@@ -5992,12 +6011,12 @@ ha_innobase::external_lock(
 
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt,
-							NULL, LOCK_TABLE_EXP);
+							NULL, 0);
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
-						error, user_thd);
-					DBUG_RETURN(error);
+						(int) error, user_thd);
+					DBUG_RETURN((int) error);
 				}
 			}
 
@@ -6012,9 +6031,6 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 
-	if (trx->n_lock_table_exp) {
-		row_unlock_tables_for_mysql(trx);
-	}
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -6056,7 +6072,7 @@ user issued query LOCK TABLES..WHERE ENGINE = InnoDB. */
 int
 ha_innobase::transactional_table_lock(
 /*==================================*/
-			        /* out: 0 */
+			        /* out: error code */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
@@ -6120,12 +6136,11 @@ ha_innobase::transactional_table_lock(
 	if (thd->in_lock_tables && thd->variables.innodb_table_locks) {
 		ulint	error = DB_SUCCESS;
 
-		error = row_lock_table_for_mysql(prebuilt,NULL,
-						LOCK_TABLE_TRANSACTIONAL);
+		error = row_lock_table_for_mysql(prebuilt, NULL, 0);
 
 		if (error != DB_SUCCESS) {
-			error = convert_error_code_to_mysql(error, user_thd);
-			DBUG_RETURN(error);
+			error = convert_error_code_to_mysql((int) error, user_thd);
+			DBUG_RETURN((int) error);
 		}
 
 		if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -6215,22 +6230,22 @@ innodb_show_status(
 	rewind(srv_monitor_file);
 	if (flen < MAX_STATUS_SIZE) {
 		/* Display the entire output. */
-		flen = fread(str, 1, flen, srv_monitor_file);
+		flen = (long) fread(str, 1, flen, srv_monitor_file);
 	} else if (trx_list_end < (ulint) flen
 			&& trx_list_start < trx_list_end
 			&& trx_list_start + (flen - trx_list_end)
 			< MAX_STATUS_SIZE - sizeof truncated_msg - 1) {
 		/* Omit the beginning of the list of active transactions. */
-		long	len = fread(str, 1, trx_list_start, srv_monitor_file);
+		long len = (long) fread(str, 1, trx_list_start, srv_monitor_file);
 		memcpy(str + len, truncated_msg, sizeof truncated_msg - 1);
 		len += sizeof truncated_msg - 1;
 		usable_len = (MAX_STATUS_SIZE - 1) - len;
 		fseek(srv_monitor_file, flen - usable_len, SEEK_SET);
-		len += fread(str + len, 1, usable_len, srv_monitor_file);
+		len += (long) fread(str + len, 1, usable_len, srv_monitor_file);
 		flen = len;
 	} else {
 		/* Omit the end of the output. */
-		flen = fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
+		flen = (long) fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
 	}
 
 	mutex_exit_noninline(&srv_monitor_file_mutex);
@@ -6792,7 +6807,7 @@ innobase_get_at_most_n_mbchars(
 	ulint n_chars;		/* number of characters in prefix */
 	CHARSET_INFO* charset;	/* charset used in the field */
 
-	charset = get_charset(charset_id, MYF(MY_WME));
+	charset = get_charset((uint) charset_id, MYF(MY_WME));
 
 	ut_ad(charset);
 	ut_ad(charset->mbmaxlen);
@@ -6826,7 +6841,7 @@ innobase_get_at_most_n_mbchars(
 		whole string. */
 
 		char_length = my_charpos(charset, str,
-						str + data_len, n_chars);
+						str + data_len, (int) n_chars);
 		if (char_length > data_len) {
 			char_length = data_len;
 		}		
@@ -6949,7 +6964,7 @@ innobase_xa_prepare(
 
                 ut_ad(trx->active_trans);
 
-		error = trx_prepare_for_mysql(trx);
+		error = (int) trx_prepare_for_mysql(trx);
 	} else {
 	        /* We just mark the SQL statement ended and do not do a
 		transaction prepare */

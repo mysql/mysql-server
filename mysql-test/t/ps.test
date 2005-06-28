@@ -664,3 +664,44 @@ select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
 
 deallocate prepare stmt;
 drop table t1, t2;
+
+#
+# Bug#7306 LIMIT ?, ? and also WL#1785 " Prepared statements: implement
+# support for placeholders in LIMIT clause."
+# Add basic test coverage for the feature.
+# 
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select * from t1 limit ?, ?";
+set @offset=0, @limit=1;
+execute stmt using @offset, @limit;
+select * from t1 limit 0, 1;
+set @offset=3, @limit=2;
+execute stmt using @offset, @limit;
+select * from t1 limit 3, 2;
+prepare stmt from "select * from t1 limit ?";
+execute stmt using @limit;
+--error 1235
+prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
+prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
+set @offset=9;
+set @limit=2;
+execute stmt using @offset, @limit;
+prepare stmt from "(select * from t1 limit ?, ?) union all
+                   (select * from t1 limit ?, ?) order by a limit ?";
+execute stmt using @offset, @limit, @offset, @limit, @limit;
+
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Bug#11060 "Server crashes on calling stored procedure with INSERT SELECT
+# UNION SELECT" aka "Server crashes on re-execution of prepared INSERT ...
+# SELECT with UNION".
+#
+create table t1 (id int);
+prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop table t1;

@@ -29,6 +29,7 @@
 #define yaSSL_INT_HPP
 
 #include "yassl_imp.hpp"
+#include "yassl_error.hpp"
 #include "crypto_wrapper.hpp"
 #include "cert_wrapper.hpp"
 #include "log.hpp"
@@ -129,6 +130,8 @@ private:
 };
 
 
+#undef X509_NAME  // wincrypt.h clash
+
 // openSSL X509 names
 class X509_NAME {
     char* name_;
@@ -161,7 +164,12 @@ private:
 
 // openSSL bignum
 struct BIGNUM {
-    Integer int_;
+    /*
+      gcc 2.96 fix: because of two Integer classes (yaSSL::Integer and
+      TaoCrypt::Integer), we need to explicitly state the namespace
+      here to let gcc 2.96 deduce the correct type.
+    */
+    yaSSL::Integer int_;
     void assign(const byte* b, uint s) { int_.assign(b,s); }
 };
 

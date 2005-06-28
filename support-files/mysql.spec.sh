@@ -1,5 +1,9 @@
 %define mysql_version		@VERSION@
-%ifarch i386
+# use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
+# to enable static linking (off by default)
+%{?_with_static:%define STATIC_BUILD 1}
+%{!?_with_static:%define STATIC_BUILD 0}
+%if %{STATIC_BUILD}
 %define release 0
 %else
 %define release 0.glibc23
@@ -331,6 +335,7 @@ fi
 # Save libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
+(cd ndb/src/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
 # Now clean up
 make clean
@@ -341,7 +346,7 @@ make clean
 # so don't link statically there
 #
 BuildMySQL "--disable-shared \
-%ifarch i386
+%if %{STATIC_BUILD}
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
@@ -630,6 +635,8 @@ fi
 %{_libdir}/mysql/libmysqlclient_r.la
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
+%{_libdir}/mysql/libndbclient.a
+%{_libdir}/mysql/libndbclient.la
 %{_libdir}/mysql/libvio.a
 
 %files shared
@@ -659,9 +666,17 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue Jun 14 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Do not build statically on i386 by default, only when adding either "--with
+  static" or "--define '_with_static 1'" to the RPM build options. Static
+  linking really only makes sense when linking against the specially patched
+  glibc 2.2.5.
+
 * Mon Jun 06 2005 Lenz Grimmer <lenz@mysql.com>
 
 - added mysql_client_test to the "bench" subpackage (BUG 10676)
+- added the libndbclient static and shared libraries (BUG 10676)
 
 * Wed Jun 01 2005 Lenz Grimmer <lenz@mysql.com>
 

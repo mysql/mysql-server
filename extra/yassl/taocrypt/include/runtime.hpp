@@ -34,6 +34,8 @@
 extern "C" {
 #include <assert.h>
 
+/* Disallow inline __cxa_pure_virtual() */
+static int __cxa_pure_virtual() __attribute__((noinline, used));
 static int __cxa_pure_virtual()
 {
     // oops, pure virtual called!

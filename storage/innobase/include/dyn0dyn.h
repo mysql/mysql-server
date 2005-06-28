@@ -132,7 +132,7 @@ void
 dyn_push_string(
 /*============*/
 	dyn_array_t*	arr,	/* in: dyn array */
-	byte*		str,	/* in: string to write */
+	const byte*	str,	/* in: string to write */
 	ulint		len);	/* in: string length */
 
 /*#################################################################*/

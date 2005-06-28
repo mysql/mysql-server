@@ -32,10 +32,9 @@
 #include "common.hpp"
 
 static const char *work_dir = CPCD_DEFAULT_WORK_DIR;
-static short unsigned int port;
+static int unsigned port;
 static int use_syslog;
 static const char *logfile = NULL;
-static const char *config_file = CPCD_DEFAULT_CONFIG_FILE;
 static const char *user = 0;
 
 static struct my_option my_long_options[] =
@@ -55,9 +54,6 @@ static struct my_option my_long_options[] =
   { "debug", 'D', "Enable debug mode",
     (gptr*) &debug, (gptr*) &debug, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "config", 'c', "Config file",
-    (gptr*) &config_file, (gptr*) &config_file, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "user", 'u', "Run as user",
     (gptr*) &user, (gptr*) &user, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -142,7 +138,8 @@ int main(int argc, char** argv){
   
   SocketServer * ss = new SocketServer();
   CPCDAPIService * serv = new CPCDAPIService(cpcd);
-  if(!ss->setup(serv, &port)){
+  unsigned short real_port= port; // correct type
+  if(!ss->setup(serv, &real_port)){
     logger.critical("Cannot setup server: %s", strerror(errno));
     sleep(1);
     delete ss;

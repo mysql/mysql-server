@@ -31,6 +31,7 @@
  --defaults-file=full-path-to-default-file	; Only this file will be read.
  --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
  --print-defaults	; Print the modified command line and exit
+ --instance ; also read groups with concat(group, instance)
 ****************************************************************************/
 
 #include "mysys_priv.h"
@@ -41,6 +42,8 @@
 #include <winbase.h>
 #endif
 
+const char *defaults_instance=0;
+static const char instance_option[] = "--instance=";
 char *defaults_extra_file=0;
 
 /* Which directories are searched for options (and in which order) */
@@ -115,7 +118,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   DBUG_ENTER("my_search_option_files");
 
   /* Check if we want to force the use a specific default file */
-  get_defaults_files(*argc, *argv,
+  get_defaults_files(*argc - *args_used, *argv + *args_used,
                       (char **)&forced_default_file,
                       (char **)&forced_extra_defaults);
   if (forced_default_file)
@@ -325,6 +328,49 @@ int load_defaults(const char *conf_file, const char **groups,
   ctx.args= &args;
   ctx.group= &group;
 
+  if (*argc >= 2 + args_used && 
+      is_prefix(argv[0][1+args_used], instance_option))
+  {
+    args_used++;
+    defaults_instance= argv[0][args_used]+sizeof(instance_option)-1;
+  }
+  else 
+  {
+    defaults_instance= getenv("MYSQL_INSTANCE");
+  }
+  
+  if (defaults_instance)
+  {
+    /** Handle --instance= */
+    uint i, len;
+    const char **extra_groups;
+    const uint instance_len= strlen(defaults_instance);
+    
+    if (!(extra_groups= 
+	  (const char**)alloc_root(&alloc, (2*group.count+1)*sizeof(char*))))
+      goto err;
+    
+    for (i= 0; i<group.count; i++)
+    {
+      extra_groups[i]= group.type_names[i]; /** copy group */
+      
+      len= strlen(extra_groups[i]);
+      if (!(ptr= alloc_root(&alloc, len+instance_len+1)))
+	goto err;
+      
+      extra_groups[i+group.count]= ptr;
+      
+      /** Construct new group */
+      memcpy(ptr, extra_groups[i], len);
+      ptr+= len;
+      memcpy(ptr, defaults_instance, instance_len+1);
+    }
+    
+    group.count*= 2;
+    group.type_names= extra_groups;
+    group.type_names[group.count]= 0;
+  }
+  
   error= my_search_option_files(conf_file, argc, argv, &args_used,
                       handle_default_option, (void *) &ctx);
   /*
@@ -794,6 +840,7 @@ void my_print_default_files(const char *conf_file)
 
 void print_defaults(const char *conf_file, const char **groups)
 {
+  const char **groups_save= groups;
   my_print_default_files(conf_file);
 
   fputs("The following groups are read:",stdout);
@@ -801,6 +848,17 @@ void print_defaults(const char *conf_file, const char **groups)
   {
     fputc(' ',stdout);
     fputs(*groups,stdout);
+  }
+
+  if (defaults_instance)
+  {
+    groups= groups_save;
+    for ( ; *groups ; groups++)
+    {
+      fputc(' ',stdout);
+      fputs(*groups,stdout);
+      fputs(defaults_instance,stdout);
+    }
   }
   puts("\nThe following options may be given as the first argument:\n\
 --print-defaults	Print the program argument list and exit\n\
@@ -856,7 +914,7 @@ static void init_default_directories()
   /* Only add shared system directory if different from default. */
   if (GetSystemWindowsDirectory(shared_system_dir,sizeof(shared_system_dir)) &&
       strcmp(system_dir, shared_system_dir))
-    *ptr++= &shared_system_dir;
+    *ptr++= (char *)&shared_system_dir;
 #endif
 
 #elif defined(__NETWARE__)
