@@ -530,3 +530,26 @@ SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
 
 DROP TABLE t1;
+
+#
+# Test for bug #10031: range to be used over a view
+#
+
+CREATE TABLE  t1 (a int, b int, primary key(a,b));
+
+INSERT INTO  t1 VALUES
+  (1,1),(1,2),(1,3),(2,1),(2,2),(2,3),(3,1),(3,2),(3,3),(4,1),(4,2),(4,3);
+
+CREATE VIEW v1 as SELECT a,b FROM t1 WHERE b=3;
+
+EXPLAIN SELECT a,b FROM t1 WHERE a < 2 and b=3;
+EXPLAIN SELECT a,b FROM v1 WHERE a < 2 and b=3;
+
+EXPLAIN SELECT a,b FROM t1 WHERE a < 2;
+EXPLAIN SELECT a,b FROM v1 WHERE a < 2;
+
+SELECT a,b FROM t1 WHERE a < 2 and b=3;
+SELECT a,b FROM v1 WHERE a < 2 and b=3; 
+
+DROP VIEW v1;
+DROP TABLE t1;
