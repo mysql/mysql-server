@@ -253,9 +253,9 @@ insert into t2 values (3, 1, 'xxbuz');
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
 
 #
-# bug with many short (< ft_min_word_len) words in boolean search
+# Bug #7858: bug with many short (< ft_min_word_len) words in boolean search
 #
-select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
+select * from t2 where match name against ('*a*b*c*d*e*f*' in boolean mode);
 drop table t1,t2;
 
 #

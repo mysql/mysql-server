@@ -1068,7 +1068,7 @@ bool ha_myisam::check_and_repair(THD *thd)
   old_query_length= thd->query_length;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->query= (char*) table->s->table_name;
-  thd->query_length= strlen(table->s->table_name);
+  thd->query_length= (uint32) strlen(table->s->table_name);
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))

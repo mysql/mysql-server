@@ -72,7 +72,6 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
-static void log_slow_query(THD *thd);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1512,10 +1511,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thd->command=command;
   /*
-    Commands which will always take a long time should be marked with
-    this so that they will not get logged to the slow query log
+    Commands which always take a long time are logged into
+    the slow log only if opt_log_slow_admin_statements is set.
   */
-  thd->slow_command=FALSE;
+  thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1555,7 +1554,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint tbl_len= *(uchar*) (packet + db_len + 1);
 
     statistic_increment(thd->status_var.com_other, &LOCK_status);
-    thd->slow_command= TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     db= thd->alloc(db_len + tbl_len + 2);
     tbl_name= strmake(db, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
@@ -1639,32 +1638,32 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     break;
   }
-  case COM_EXECUTE:
+  case COM_STMT_EXECUTE:
   {
     mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
-  case COM_FETCH:
+  case COM_STMT_FETCH:
   {
     mysql_stmt_fetch(thd, packet, packet_length);
     break;
   }
-  case COM_LONG_DATA:
+  case COM_STMT_SEND_LONG_DATA:
   {
     mysql_stmt_get_longdata(thd, packet, packet_length);
     break;
   }
-  case COM_PREPARE:
+  case COM_STMT_PREPARE:
   {
     mysql_stmt_prepare(thd, packet, packet_length, 0);
     break;
   }
-  case COM_CLOSE_STMT:
+  case COM_STMT_CLOSE:
   {
-    mysql_stmt_free(thd, packet);
+    mysql_stmt_close(thd, packet);
     break;
   }
-  case COM_RESET_STMT:
+  case COM_STMT_RESET:
   {
     mysql_stmt_reset(thd, packet);
     break;
@@ -1693,7 +1692,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
       ulong length= (ulong)(packet_end-packet);
 
-      log_slow_query(thd);
+      log_slow_statement(thd);
 
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -1862,7 +1861,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       uint32 slave_server_id;
 
       statistic_increment(thd->status_var.com_other,&LOCK_status);
-      thd->slow_command = TRUE;
+      thd->enable_slow_log= opt_log_slow_admin_statements;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
 
@@ -2047,7 +2046,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->net.report_error)
     net_send_error(thd);
 
-  log_slow_query(thd);
+  log_slow_statement(thd);
 
   thd->proc_info="cleaning up";
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
@@ -2063,13 +2062,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 }
 
 
-static void log_slow_query(THD *thd)
+void log_slow_statement(THD *thd)
 {
   time_t start_of_query=thd->start_time;
   thd->end_time();				// Set start time
 
-  /* If not reading from backup and if the query took too long */
-  if (!thd->slow_command && !thd->user_time) // do not log 'slow_command' queries
+  /*
+    Do not log administrative statements unless the appropriate option is
+    set; do not log into slow log if reading from backup.
+  */
+  if (thd->enable_slow_log && !thd->user_time)
   {
     thd->proc_info="logging slow query";
 
@@ -2201,7 +2203,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 /*
   Read query from packet and store in thd->query
-  Used in COM_QUERY and COM_PREPARE
+  Used in COM_QUERY and COM_STMT_PREPARE
 
   DESCRIPTION
     Sets the following THD variables:
@@ -2378,7 +2380,8 @@ mysql_execute_command(THD *thd)
     {
       SELECT_LEX *param= lex->unit.global_parameters;
       if (!param->explicit_limit)
-	param->select_limit= thd->variables.select_limit;
+	param->select_limit=
+          new Item_int((ulonglong)thd->variables.select_limit);
     }
 
     select_result *result=lex->result;
@@ -2502,7 +2505,7 @@ mysql_execute_command(THD *thd)
                           lex->prepared_stmt_name.str,
                           query_len, query_str));
     }
-    thd->command= COM_PREPARE;
+    thd->command= COM_STMT_PREPARE;
     if (!(res= mysql_stmt_prepare(thd, query_str, query_len + 1,
                                   &lex->prepared_stmt_name)))
       send_ok(thd, 0L, 0L, "Statement prepared");
@@ -2523,6 +2526,8 @@ mysql_execute_command(THD *thd)
     DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
                         lex->prepared_stmt_name.length,
                         lex->prepared_stmt_name.str));
+    /* We account deallocate in the same manner as mysql_stmt_close */
+    statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
     if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
     {
       thd->stmt_map.erase(stmt);
@@ -2640,7 +2645,7 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd, SELECT_ACL, all_tables, 0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_backup_table(thd, first_table);
 
     break;
@@ -2652,7 +2657,7 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd, INSERT_ACL, all_tables, 0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_restore_table(thd, first_table);
     break;
   }
@@ -2767,6 +2772,20 @@ mysql_execute_command(THD *thd)
 
   case SQLCOM_CREATE_TABLE:
   {
+    /* If CREATE TABLE of non-temporary table, do implicit commit */
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      if (end_active_trans(thd))
+      {
+	res= -1;
+	break;
+      }
+    }
+    else 
+    {
+      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+    }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     bool link_to_local;
     // Skip first table, which is the table we are creating
@@ -2909,7 +2928,7 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_one_table_access(thd, INDEX_ACL, all_tables))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     if (end_active_trans(thd))
       goto error;
     else
@@ -2998,7 +3017,7 @@ end_with_restore_list:
 	goto error;
       else
       {
-        thd->slow_command=TRUE;
+        thd->enable_slow_log= opt_log_slow_admin_statements;
 	res= mysql_alter_table(thd, select_lex->db, lex->name,
 			       &lex->create_info,
 			       first_table, lex->create_list,
@@ -3097,7 +3116,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res= mysql_repair_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -3117,7 +3136,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
     break;
   }
@@ -3127,7 +3146,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_analyze_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -3148,7 +3167,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
       mysql_recreate_table(thd, first_table, 1) :
       mysql_optimize_table(thd, first_table, &lex->check_opt);
@@ -3168,13 +3187,15 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+    DBUG_ASSERT(select_lex->offset_limit == 0);
+    unit->set_limit(select_lex);
     res= (result= mysql_update(thd, all_tables,
                                select_lex->item_list,
                                lex->value_list,
                                select_lex->where,
                                select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-                               select_lex->select_limit,
+                               unit->select_limit_cnt,
                                lex->duplicates, lex->ignore));
     /* mysql_update return 2 if we need to switch to multi-update */
     if (result != 2)
@@ -3259,6 +3280,11 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_TRUNCATE:
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_one_table_access(thd, DELETE_ACL, all_tables))
       goto error;
@@ -3280,9 +3306,11 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= delete_precheck(thd, all_tables)))
       break;
+    DBUG_ASSERT(select_lex->offset_limit == 0);
+    unit->set_limit(select_lex);
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
-                       select_lex->select_limit, select_lex->options);
+                       unit->select_limit_cnt, select_lex->options);
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -3290,10 +3318,9 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *aux_tables=
       (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-    uint table_count;
     multi_delete *result;
 
-    if ((res= multi_delete_precheck(thd, all_tables, &table_count)))
+    if ((res= multi_delete_precheck(thd, all_tables)))
       break;
 
     /* condition will be TRUE on SP re-excuting */
@@ -3310,7 +3337,7 @@ end_with_restore_list:
       goto error;
 
     if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
-							  table_count)))
+							  lex->table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
 			select_lex->get_table_list(),
@@ -3351,6 +3378,9 @@ end_with_restore_list:
       */
       if (thd->slave_thread)
 	lex->drop_if_exists= 1;
+
+      /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
     }
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
@@ -3489,6 +3519,11 @@ end_with_restore_list:
     break;
   case SQLCOM_CREATE_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     char *alias;
     if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
@@ -3519,6 +3554,11 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     if (check_db_name(lex->name))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
@@ -3869,9 +3909,10 @@ end_with_restore_list:
     */
     if (check_db_used(thd, all_tables))
       goto error;
+    unit->set_limit(select_lex);
     res= mysql_ha_read(thd, first_table, lex->ha_read_mode, lex->ident.str,
                        lex->insert_list, lex->ha_rkey_mode, select_lex->where,
-                       select_lex->select_limit, select_lex->offset_limit);
+                       unit->select_limit_cnt, unit->offset_limit_cnt);
     break;
 
   case SQLCOM_BEGIN:
@@ -5153,7 +5194,6 @@ mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex= lex->current_select;
   select_lex->init_select();
-  select_lex->select_limit= HA_POS_ERROR;
   lex->orig_sql_command= SQLCOM_END;
   lex->wild= 0;
   if (select_lex == &lex->select_lex)
@@ -5168,25 +5208,28 @@ bool
 mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex;
+  THD *thd= lex->thd;
   DBUG_ENTER("mysql_new_select");
 
-  if (!(select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+  if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
     DBUG_RETURN(1);
-  select_lex->select_number= ++lex->thd->select_number;
+  select_lex->select_number= ++thd->select_number;
   select_lex->init_query();
   select_lex->init_select();
   select_lex->parent_lex= lex;
+  if (thd->current_arena->is_stmt_prepare())
+    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
     lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
-    if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
+    if (!(unit= new (thd->mem_root) SELECT_LEX_UNIT()))
       DBUG_RETURN(1);
 
     unit->init_query();
     unit->init_select();
-    unit->thd= lex->thd;
+    unit->thd= thd;
     unit->include_down(lex->current_select);
     unit->link_next= 0;
     unit->link_prev= 0;
@@ -5210,14 +5253,14 @@ mysql_new_select(LEX *lex, bool move_down)
 	as far as we included SELECT_LEX for UNION unit should have
 	fake SELECT_LEX for UNION processing
       */
-      if (!(fake= unit->fake_select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+      if (!(fake= unit->fake_select_lex= new (thd->mem_root) SELECT_LEX()))
         DBUG_RETURN(1);
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
-      fake->select_limit= HA_POS_ERROR;
+      fake->select_limit= 0;
     }
   }
 
@@ -5265,8 +5308,8 @@ void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command=  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select_lex.select_limit= lex->unit.select_limit_cnt=
-    HA_POS_ERROR;
+  lex->select_lex.select_limit= 0;
+  lex->unit.select_limit_cnt= HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
   lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
   lex->query_tables= 0;
@@ -6780,8 +6823,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 
   if (select_lex->order_list.elements)
     msg= "ORDER BY";
-  else if (select_lex->select_limit && select_lex->select_limit !=
-	   HA_POS_ERROR)
+  else if (select_lex->select_limit)
     msg= "LIMIT";
   if (msg)
   {
@@ -6798,22 +6840,18 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     multi_delete_precheck()
     thd			Thread handler
     tables		Global/local table list
-    table_count		Pointer to table counter
 
   RETURN VALUE
     FALSE OK
     TRUE  error
 */
 
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
+bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
     (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-  TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_precheck");
-
-  *table_count= 0;
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
@@ -6827,9 +6865,35 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
     DBUG_RETURN(TRUE);
   }
-  for (target_tbl= aux_tables; target_tbl; target_tbl= target_tbl->next_local)
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Link tables in auxilary table list of multi-delete with corresponding
+  elements in main table list, and set proper locks for them.
+
+  SYNOPSIS
+    multi_delete_set_locks_and_link_aux_tables()
+      lex - pointer to LEX representing multi-delete
+
+  RETURN VALUE
+    FALSE - success
+    TRUE  - error
+*/
+
+bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
+{
+  TABLE_LIST *tables= (TABLE_LIST*)lex->select_lex.table_list.first;
+  TABLE_LIST *target_tbl;
+  DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
+
+  lex->table_count= 0;
+
+  for (target_tbl= (TABLE_LIST *)lex->auxilliary_table_list.first;
+       target_tbl; target_tbl= target_tbl->next_local)
   {
-    (*table_count)++;
+    lex->table_count++;
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk;
     for (walk= tables; walk; walk= walk->next_local)
@@ -6847,14 +6911,6 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
-    
-    /* in case of subselects, we need to set lock_type in
-     * corresponding table in list of all tables */
-    if (walk->correspondent_table)
-    {
-      target_tbl->correspondent_table= walk->correspondent_table;
-      walk->correspondent_table->lock_type= walk->lock_type;
-    }
   }
   DBUG_RETURN(FALSE);
 }

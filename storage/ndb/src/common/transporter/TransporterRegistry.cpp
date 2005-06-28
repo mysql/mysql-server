@@ -290,7 +290,7 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 					    config->tcp.maxReceiveSize,
 					    config->localHostName,
 					    config->remoteHostName,
-					    config->port,
+					    config->s_port,
 					    config->isMgmConnection,
 					    localNodeId,
 					    config->remoteNodeId,
@@ -392,7 +392,7 @@ TransporterRegistry::createSCITransporter(TransporterConfiguration *config) {
   SCI_Transporter * t = new SCI_Transporter(*this,
                                             config->localHostName,
                                             config->remoteHostName,
-                                            config->port,
+                                            config->s_port,
 					    config->isMgmConnection,
                                             config->sci.sendLimit, 
 					    config->sci.bufferSize,
@@ -458,7 +458,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
   SHM_Transporter * t = new SHM_Transporter(*this,
 					    config->localHostName,
 					    config->remoteHostName,
-					    config->port,
+					    config->s_port,
 					    config->isMgmConnection,
 					    localNodeId,
 					    config->remoteNodeId,
@@ -1170,7 +1170,10 @@ TransporterRegistry::do_connect(NodeId node_id)
   case DISCONNECTING:
     break;
   }
+  DBUG_ENTER("TransporterRegistry::do_connect");
+  DBUG_PRINT("info",("performStates[%d]=CONNECTING",node_id));
   curr_state= CONNECTING;
+  DBUG_VOID_RETURN;
 }
 void
 TransporterRegistry::do_disconnect(NodeId node_id)
@@ -1186,21 +1189,30 @@ TransporterRegistry::do_disconnect(NodeId node_id)
   case DISCONNECTING:
     return;
   }
+  DBUG_ENTER("TransporterRegistry::do_disconnect");
+  DBUG_PRINT("info",("performStates[%d]=DISCONNECTING",node_id));
   curr_state= DISCONNECTING;
+  DBUG_VOID_RETURN;
 }
 
 void
 TransporterRegistry::report_connect(NodeId node_id)
 {
+  DBUG_ENTER("TransporterRegistry::report_connect");
+  DBUG_PRINT("info",("performStates[%d]=CONNECTED",node_id));
   performStates[node_id] = CONNECTED;
   reportConnect(callbackObj, node_id);
+  DBUG_VOID_RETURN;
 }
 
 void
 TransporterRegistry::report_disconnect(NodeId node_id, int errnum)
 {
+  DBUG_ENTER("TransporterRegistry::report_disconnect");
+  DBUG_PRINT("info",("performStates[%d]=DISCONNECTED",node_id));
   performStates[node_id] = DISCONNECTED;
   reportDisconnect(callbackObj, node_id, errnum);
+  DBUG_VOID_RETURN;
 }
 
 void

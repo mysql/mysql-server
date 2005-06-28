@@ -251,7 +251,7 @@ call sub1("sub1a", (select 7))|
 call sub1("sub1b", (select max(i) from t2))|
 call sub1("sub1c", (select i,d from t2 limit 1))|
 call sub1("sub1d", (select 1 from (select 1) a))|
-call sub2("sub2");
+call sub2("sub2")|
 select * from t1|
 id	data
 sub1a	7
@@ -265,6 +265,7 @@ sub3((select max(i) from t2))
 drop procedure sub1|
 drop procedure sub2|
 drop function sub3|
+delete from t1|
 delete from t2|
 drop procedure if exists a0|
 create procedure a0(x int)
@@ -275,11 +276,6 @@ end while|
 call a0(3)|
 select * from t1|
 id	data
-sub1a	7
-sub1b	3
-sub1c	1
-sub1d	1
-sub2	6
 a0	2
 a0	1
 a0	0
@@ -1137,8 +1133,6 @@ end|
 select f5(1)|
 f5(1)
 1
-select f5(2)|
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
 create function f6() returns int
 begin
 declare n int;
@@ -3178,4 +3172,56 @@ a1	a2	a3	data	data2	data3
 DROP PROCEDURE bug6866;
 DROP VIEW tv|
 DROP TABLE tt1, tt2, tt3|
+DROP PROCEDURE IF EXISTS bug10136|
+create table t3 ( name char(5) not null primary key, val float not null)|
+insert into t3 values ('aaaaa', 1), ('bbbbb', 2), ('ccccc', 3)|
+create procedure bug10136()
+begin
+declare done int default 3;
+repeat
+select * from t3;
+set done = done - 1;
+until done <= 0 end repeat;
+end|
+call bug10136()|
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+call bug10136()|
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+call bug10136()|
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+name	val
+aaaaa	1
+bbbbb	2
+ccccc	3
+drop procedure bug10136|
+drop table t3|
 drop table t1,t2;

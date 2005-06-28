@@ -348,7 +348,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
                       table_list->table_name));
 
   /* Only one table for now, but VIEW can involve several tables */
-  if (open_and_lock_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list))
   {
     DBUG_RETURN(TRUE);
   }
@@ -448,25 +448,32 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(TRUE);
   }
 #endif
-
-  (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
-  length=unpack_dirname(path,path);		// Convert if not unix
-  found_libchar= 0;
-  if (length && path[length-1] == FN_LIBCHAR)
+  if (!my_strcasecmp(system_charset_info, dbname,
+                     information_schema_name.str))
   {
-    found_libchar= 1;
-    path[length-1]=0;				// remove ending '\'
+    dbname= information_schema_name.str;
+    create.default_table_charset= system_charset_info;
   }
-  if (access(path,F_OK))
+  else
   {
-    my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-    DBUG_RETURN(TRUE);
+    (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
+    length=unpack_dirname(path,path);		// Convert if not unix
+    found_libchar= 0;
+    if (length && path[length-1] == FN_LIBCHAR)
+    {
+      found_libchar= 1;
+      path[length-1]=0;				// remove ending '\'
+    }
+    if (access(path,F_OK))
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
+      DBUG_RETURN(TRUE);
+    }
+    if (found_libchar)
+      path[length-1]= FN_LIBCHAR;
+    strmov(path+length, MY_DB_OPT_FILE);
+    load_db_opt(thd, path, &create);
   }
-  if (found_libchar)
-    path[length-1]= FN_LIBCHAR;
-  strmov(path+length, MY_DB_OPT_FILE);
-  load_db_opt(thd, path, &create);
-
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));
   field_list.push_back(new Item_empty_string("Create Database",1024));
@@ -540,8 +547,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
-  table_list->lock_type= TL_UNLOCK;
-  if (open_and_lock_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list))
     DBUG_VOID_RETURN;
   table= table_list->table;
 
@@ -1096,7 +1102,7 @@ public:
   char *query;
 };
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List<thread_info>;
 #endif
 
@@ -1945,7 +1951,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     bool res;
 
     lex->all_selects_list= lsel;
-    res= open_and_lock_tables(thd, show_table_list);
+    res= open_normal_and_derived_tables(thd, show_table_list);
     if (schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
                                     show_table_list->alias))
@@ -2050,7 +2056,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             show_table_list->lock_type= lock_type;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
-            res= open_and_lock_tables(thd, show_table_list);
+            res= open_normal_and_derived_tables(thd, show_table_list);
             if (schema_table->process_table(thd, show_table_list, table,
                                             res, base_name,
                                             show_table_list->alias))
@@ -2646,6 +2652,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
     restore_record(table, s->default_values);
     if (!wild || !wild[0] || !wild_compare(sp_name, wild, 0))
     {
+      int enum_idx= proc_table->field[5]->val_int();
       table->field[3]->store(sp_name, strlen(sp_name), cs);
       get_field(thd->mem_root, proc_table->field[3], &tmp_string);
       table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
@@ -2667,10 +2674,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       table->field[10]->store("SQL", 3, cs);
       get_field(thd->mem_root, proc_table->field[6], &tmp_string);
       table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      if (proc_table->field[5]->val_int() == SP_CONTAINS_SQL)
-      {
-        table->field[12]->store("CONTAINS SQL", 12 , cs);
-      }
+      table->field[12]->store(sp_data_access_name[enum_idx].str, 
+                              sp_data_access_name[enum_idx].length , cs);
       get_field(thd->mem_root, proc_table->field[7], &tmp_string);
       table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
       bzero((char *)&time, sizeof(time));
@@ -3874,7 +3879,7 @@ ST_SCHEMA_TABLE schema_tables[]=
 };
 
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List_iterator_fast<char>;
 template class List<char>;
 #endif

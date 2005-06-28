@@ -38,7 +38,7 @@
   Instansiate templates and static variables
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<create_field>;
 template class List_iterator<create_field>;
 #endif
@@ -982,6 +982,39 @@ Item_result Field::result_merge_type(enum_field_types field_type)
   Static help functions
 *****************************************************************************/
 
+
+/*
+  Check whether a field type can be partially indexed by a key
+
+  This is a static method, rather than a virtual function, because we need
+  to check the type of a non-Field in mysql_alter_table().
+
+  SYNOPSIS
+   type_can_have_key_part()
+   type                 field type
+
+  RETURN
+    TRUE  Type can have a prefixed key
+    FALSE Type can not have a prefixed key
+*/
+
+bool Field::type_can_have_key_part(enum enum_field_types type)
+{
+  switch (type) {
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+
 /*
   Numeric fields base class constructor
 */
@@ -1888,7 +1921,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 	int_digits_added_zeros=0;
       }
     }
-    tmp_uint= (tmp_dec+(int_digits_end-int_digits_from)+
+    tmp_uint= (uint) (tmp_dec+(int_digits_end-int_digits_from)+
                (uint)(frac_digits_from-int_digits_tail_from)+
                int_digits_added_zeros);
   }
@@ -2447,7 +2480,7 @@ int Field_new_decimal::store(longlong nr)
   int err;
 
   if ((err= int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                           nr, unsigned_flag, &decimal_value)))
+                           nr, false, &decimal_value)))
   {
     if (check_overflow(err))
       set_value_on_overflow(&decimal_value, decimal_value.sign());
@@ -5924,14 +5957,6 @@ longlong Field_string::val_int(void)
 }
 
 
-my_decimal *Field_longstr::val_decimal(my_decimal *decimal_value)
-{
-  str2my_decimal(E_DEC_FATAL_ERROR, ptr, field_length, charset(),
-                 decimal_value);
-  return decimal_value;
-}
-
-
 String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 			      String *val_ptr)
 {
@@ -5940,6 +5965,14 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
   DBUG_ASSERT(table->in_use == current_thd);
   val_ptr->set((const char*) ptr, length, field_charset);
   return val_ptr;
+}
+
+
+my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
+{
+  str2my_decimal(E_DEC_FATAL_ERROR, ptr, field_length, charset(),
+                 decimal_value);
+  return decimal_value;
 }
 
 
@@ -6253,6 +6286,15 @@ String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
   uint length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   val_ptr->set((const char*) ptr+length_bytes, length, field_charset);
   return val_ptr;
+}
+
+
+my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
+{
+  uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+  str2my_decimal(E_DEC_FATAL_ERROR, ptr+length_bytes, length, charset(),
+                 decimal_value);
+  return decimal_value;
 }
 
 
@@ -6871,6 +6913,18 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
   else
     val_ptr->set((const char*) blob,get_length(ptr),charset());
   return val_ptr;
+}
+
+
+my_decimal *Field_blob::val_decimal(my_decimal *decimal_value)
+{
+  char *blob;
+  memcpy_fixed(&blob, ptr+packlength, sizeof(char*));
+  if (!blob)
+    blob= "";
+  str2my_decimal(E_DEC_FATAL_ERROR, blob, get_length(ptr), charset(),
+                 decimal_value);
+  return decimal_value;
 }
 
 
@@ -7702,9 +7756,9 @@ bool Field_enum::eq_def(Field *field)
   for (uint i=0 ; i < from_lib->count ; i++)
     if (my_strnncoll(field_charset,
                      (const uchar*)typelib->type_names[i],
-                     strlen(typelib->type_names[i]),
+                     (uint) strlen(typelib->type_names[i]),
                      (const uchar*)from_lib->type_names[i],
-                     strlen(from_lib->type_names[i])))
+                     (uint) strlen(from_lib->type_names[i])))
       return 0;
   return 1;
 }
@@ -8562,7 +8616,8 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     char str_nr[22];
     char *str_end= longlong10_to_str(nr, str_nr, -10);
-    make_truncated_value_warning(table->in_use, str_nr, str_end - str_nr, 
+    make_truncated_value_warning(table->in_use, str_nr, 
+                                 (uint) (str_end - str_nr), 
                                  ts_type, field_name);
   }
 }

@@ -172,6 +172,8 @@ public:
     virtual bool reset() = 0;
     virtual bool putWord(Uint32 val) = 0;
     virtual bool putWords(const Uint32 * src, Uint32 len) = 0;
+  private:
+    bool add(const char* value, int len);
   };
 };
 
@@ -211,7 +213,7 @@ private:
 };
 
 /**
- * Writer for linear memory
+ * Writer for UtilBuffer
  */
 class UtilBufferWriter : public SimpleProperties::Writer {
 public:

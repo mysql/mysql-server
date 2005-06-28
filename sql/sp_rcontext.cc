@@ -32,6 +32,7 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
     m_hfound(-1), m_ccount(0)
 {
+  callers_mem_root= NULL;
   in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
@@ -167,6 +168,17 @@ sp_rcontext::pop_cursors(uint count)
  *  sp_cursor
  *
  */
+
+sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper)
+  :m_lex_keeper(lex_keeper), m_prot(NULL), m_isopen(0), m_current_row(NULL)
+{
+  /*
+    currsor can't be stored in QC, so we should prevent opening QC for
+    try to write results which are absent.
+  */
+  lex_keeper->disable_query_cache();
+}
+
 
 /*
   pre_open cursor

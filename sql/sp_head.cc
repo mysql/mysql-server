@@ -310,16 +310,16 @@ sp_head::operator delete(void *ptr, size_t size)
 
 
 sp_head::sp_head()
-  :Item_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
+  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+   m_returns_cs(NULL), m_has_return(FALSE),
    m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
-  extern byte 
+  extern byte
     *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
-  state= INITIALIZED;
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
@@ -533,17 +533,35 @@ sp_head::destroy()
 }
 
 
+/*
+ *  This is only used for result fields from functions (both during
+ *  fix_length_and_dec() and evaluation).
+ *
+ *  Since the current mem_root during a will be freed and the result
+ *  field will be used by the caller, we have to put it in the caller's
+ *  or main mem_root.
+ */
 Field *
 sp_head::make_field(uint max_length, const char *name, TABLE *dummy)
 {
   Field *field;
+  MEM_ROOT *tmp_mem_root;
+  THD *thd;
   DBUG_ENTER("sp_head::make_field");
+
+  thd= current_thd;
+  tmp_mem_root= thd->mem_root;
+  if (thd->spcont && thd->spcont->callers_mem_root)
+    thd->mem_root= thd->spcont->callers_mem_root;
+  else
+    thd->mem_root= &thd->main_mem_root;
   field= ::make_field((char *)0,
 		!m_returns_len ? max_length : m_returns_len, 
 		(uchar *)"", 0, m_returns_pack, m_returns, m_returns_cs,
 		(enum Field::geometry_type)0, Field::NONE, 
 		m_returns_typelib,
 		name ? name : (const char *)m_name.str, dummy);
+  thd->mem_root= tmp_mem_root;
   DBUG_RETURN(field);
 }
 
@@ -556,7 +574,7 @@ sp_head::execute(THD *thd)
   sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
-  Item_arena *old_arena;
+  Query_arena *old_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
   LEX *old_lex;
@@ -618,7 +636,21 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     thd->set_time();		// Make current_time() et al work
-    ret= i->execute(thd, &ip);
+    {
+      /*
+        We have to substitute free_list of executing statement to
+        current_arena to store there all new items created during execution
+        (for example '*' expanding, or items made during permanent subquery
+        transformation)
+        Note: Every statement have to have all its items listed in free_list
+        for correct cleaning them up
+      */
+      Item *save_free_list= thd->current_arena->free_list;
+      thd->current_arena->free_list= i->free_list;
+      ret= i->execute(thd, &ip);
+      i->free_list= thd->current_arena->free_list;
+      thd->current_arena->free_list= save_free_list;
+    }
     if (i->free_list)
       cleanup_items(i->free_list);
     // Check if an exception has occurred and a handler has been found
@@ -664,6 +696,7 @@ sp_head::execute(THD *thd)
 
   cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
+  state= EXECUTED;
 
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
@@ -695,6 +728,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   sp_rcontext *nctx = NULL;
   uint i;
   int ret;
+  MEM_ROOT *old_mem_root, call_mem_root;
+  Item *old_free_list, *call_free_list;
 
   if (argcount != params)
   {
@@ -705,9 +740,16 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     DBUG_RETURN(-1);
   }
 
+  init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  old_mem_root= thd->mem_root;
+  thd->mem_root= &call_mem_root;
+  old_free_list= thd->free_list; // Keep the old list
+  thd->free_list= NULL;	// Start a new one
+
   // QQ Should have some error checking here? (types, etc...)
   nctx= new sp_rcontext(csize, hmax, cmax);
-  for (i= 0 ; i < params && i < argcount ; i++)
+  nctx->callers_mem_root= old_mem_root;
+  for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
     Item *it= sp_eval_func_item(thd, argp++, pvar->type, NULL);
@@ -735,13 +777,20 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
   ret= execute(thd);
 
+  // Partially restore context now.
+  // We still need the call mem root and free list for processing
+  // of the result.
+  call_free_list= thd->free_list;
+  thd->free_list= old_free_list;
+  thd->mem_root= old_mem_root;
+
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
   {
     /* We need result only in function but not in trigger */
     Item *it= nctx->get_result();
 
     if (it)
-      *resp= it;
+      *resp= sp_eval_func_item(thd, &it, m_returns, NULL);
     else
     {
       my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
@@ -751,6 +800,12 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
   thd->spcont= octx;
+
+  // Now get rid of the rest of the callee context
+  cleanup_items(call_free_list);
+  free_items(call_free_list);
+  free_root(&call_mem_root, MYF(0));
+
   DBUG_RETURN(ret);
 }
 
@@ -780,6 +835,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
+  MEM_ROOT *old_mem_root, call_mem_root;
+  Item *old_free_list, *call_free_list;
 
   if (args->elements != params)
   {
@@ -787,6 +844,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
              m_qname.str, params, args->elements);
     DBUG_RETURN(-1);
   }
+
+  init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  old_mem_root= thd->mem_root;
+  thd->mem_root= &call_mem_root;
+  old_free_list= thd->free_list; // Keep the old list
+  thd->free_list= NULL;	// Start a new one
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
@@ -853,9 +916,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (! ret)
     ret= execute(thd);
 
+  // Partially restore context now.
+  // We still need the call mem root and free list for processing
+  // of out parameters.
+  call_free_list= thd->free_list;
+  thd->free_list= old_free_list;
+  thd->mem_root= old_mem_root;
+
   if (!ret && csize > 0)
   {
-    List_iterator_fast<Item> li(*args);
+    List_iterator<Item> li(*args);
     Item *it;
 
     // Copy back all OUT or INOUT values to the previous frame, or
@@ -867,8 +937,34 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (pvar->mode != sp_param_in)
       {
 	if (it->is_splocal())
-	  octx->set_item(static_cast<Item_splocal *>(it)->get_offset(),
-			 nctx->get_item(i));
+	{
+	  // Have to copy the item to the caller's mem_root
+	  Item *copy;
+	  uint offset= static_cast<Item_splocal *>(it)->get_offset();
+	  Item *val= nctx->get_item(i);
+	  Item *orig= octx->get_item(offset);
+	  Item *o_item_next;
+	  Item *o_free_list= thd->free_list;
+	  LINT_INIT(o_item_next);
+
+	  if (orig)
+	    o_item_next= orig->next;
+	  copy= sp_eval_func_item(thd, &val, pvar->type, orig); // Copy
+	  if (!copy)
+	  {
+	    ret= -1;
+	    break;
+	  }
+	  if (copy != orig)
+	    octx->set_item(offset, copy);
+	  if (orig && copy == orig)
+	  {
+	    // A reused item slot, where the constructor put it in the
+	    // free_list, so we have to restore the list.
+	    thd->free_list= o_free_list;
+	    copy->next= o_item_next;
+	  }
+	}
 	else
 	{
 	  Item_func_get_user_var *guv= item_is_user_var(it);
@@ -898,6 +994,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (nctx)
     nctx->pop_all_cursors();	// To avoid memory leaks after an error
   thd->spcont= octx;
+
+  // Now get rid of the rest of the callee context
+  cleanup_items(call_free_list);
+  free_items(call_free_list);
+  thd->lex->unit.cleanup();
+  free_root(&call_mem_root, MYF(0));
 
   DBUG_RETURN(ret);
 }
@@ -1077,7 +1179,7 @@ sp_head::restore_thd_mem_root(THD *thd)
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;	// The old list
   set_item_arena(thd);          // Get new free_list and mem_root
-  state= INITIALIZED;
+  state= INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
@@ -1355,7 +1457,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
            implemented at the same time as ability not to store LEX for
            instruction if it is not really used.
   */
-  reset_stmt_for_execute(thd, m_lex);
+  reinit_stmt_before_use(thd, m_lex);
 
   /*
     If requested check whenever we have access to tables in LEX's table list
@@ -2225,7 +2327,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
                                        TABLE_LIST ***query_tables_last_ptr)
 {
   uint i;
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   bool result= FALSE;
   DBUG_ENTER("sp_head::add_used_tables_to_table_list");
 

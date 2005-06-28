@@ -12995,6 +12995,19 @@ static void test_bug9478()
     rc= mysql_stmt_fetch(stmt);
     DIE_UNLESS(rc == MYSQL_NO_DATA);
 
+    {
+      char buff[8];
+      /* Fill in the fethc packet */
+      int4store(buff, stmt->stmt_id);
+      buff[4]= 1;                               /* prefetch rows */
+      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH, buff,
+                                               sizeof(buff), 0,0,1) ||
+           (*mysql->methods->read_query_result)(mysql));
+      DIE_UNLESS(rc);
+      if (!opt_silent && i == 0)
+        printf("Got error (as expected): %s\n", mysql_error(mysql));
+    }
+
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
 
@@ -13039,8 +13052,8 @@ static void test_bug9478()
       /* Fill in the execute packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 0;                               /* Flag */
-      int4store(buff+5, 1);                     /* Return 1 row */
-      rc= ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff,
+      int4store(buff+5, 1);                     /* Reserved for array bind */
+      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_EXECUTE, buff,
                                                sizeof(buff), 0,0,1) ||
            (*mysql->methods->read_query_result)(mysql));
       DIE_UNLESS(rc);
@@ -13143,6 +13156,180 @@ static void test_bug9643()
 
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
+}
+
+/*
+  Bug#11111: fetch from view returns wrong data
+*/
+
+static void test_bug11111()
+{
+  MYSQL_STMT    *stmt;
+  MYSQL_BIND    bind[2];
+  char          buf[2][20];
+  ulong         len[2];
+  int i;
+  int rc;
+  const char *query= "SELECT DISTINCT f1,ff2 FROM v1";
+
+  myheader("test_bug11111");
+
+  rc= mysql_query(mysql, "drop table if exists t1, t2, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "drop view if exists t1, t2, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (f1 int, f2 int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t2 (ff1 int, ff2 int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create view v1 as select * from t1, t2 where f1=ff1");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1,1), (2,2), (3,3)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (1,1), (2,2), (3,3)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+
+  mysql_stmt_prepare(stmt, query, strlen(query));
+  mysql_stmt_execute(stmt);
+
+  bzero(bind, sizeof(bind));
+  for (i=0; i < 2; i++)
+  {
+    bind[i].buffer_type= MYSQL_TYPE_STRING;
+    bind[i].buffer= (gptr *)&buf[i];
+    bind[i].buffer_length= 20;
+    bind[i].length= &len[i];
+  }
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  if (!opt_silent)
+    printf("return: %s", buf[1]);
+  DIE_UNLESS(!strcmp(buf[1],"1"));
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop view v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "drop table t1, t2");
+  myquery(rc);
+}
+
+/*
+  Check that proper cleanups are done for prepared statement when
+  fetching thorugh a cursor.
+*/
+
+static void test_bug10729()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  char a[21];
+  int rc;
+  const char *stmt_text;
+  int i= 0;
+  char *name_array[3]= { "aaa", "bbb", "ccc" };
+  ulong type;
+
+  myheader("test_bug10729");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (id integer not null primary key,"
+                                      "name VARCHAR(20) NOT NULL)");
+  rc= mysql_query(mysql, "insert into t1 (id, name) values "
+                         "(1, 'aaa'), (2, 'bbb'), (3, 'ccc')");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
+  check_execute(stmt, rc);
+  stmt_text= "select name from t1";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (void*) a;
+  bind[0].buffer_length= sizeof(a);
+  mysql_stmt_bind_result(stmt, bind);
+
+  for (i= 0; i < 3; i++)
+  {
+    int row_no= 0;
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    while ((rc= mysql_stmt_fetch(stmt)) == 0)
+    {
+      DIE_UNLESS(strcmp(a, name_array[row_no]) == 0);
+      if (!opt_silent)
+        printf("%d: %s\n", row_no, a);
+      ++row_no;
+    }
+    DIE_UNLESS(rc == MYSQL_NO_DATA);
+  }
+  rc= mysql_stmt_close(stmt);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
+/*
+  Check that mysql_next_result works properly in case when one of
+  the statements used in a multi-statement query is erroneous
+*/
+
+static void test_bug9992()
+{
+  MYSQL *mysql1;
+  MYSQL_RES* res ;
+  int   rc;
+
+  myheader("test_bug9992");
+
+  if (!opt_silent)
+    printf("Establishing a connection with option CLIENT_MULTI_STATEMENTS..\n");
+
+  mysql1= mysql_init(NULL);
+
+  if (!mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          CLIENT_MULTI_STATEMENTS))
+  {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+
+
+  /* Sic: SHOW DATABASE is incorrect syntax. */
+  rc= mysql_query(mysql1, "SHOW TABLES; SHOW DATABASE; SELECT 1;");
+
+  if (rc)
+  {
+    fprintf(stderr, "[%d] %s\n", mysql_errno(mysql1), mysql_error(mysql1));
+    DIE_UNLESS(0);
+  }
+
+  if (!opt_silent)
+    printf("Testing mysql_store_result/mysql_next_result..\n");
+
+  res= mysql_store_result(mysql1);
+  DIE_UNLESS(res);
+  mysql_free_result(res);
+  rc= mysql_next_result(mysql1);
+  DIE_UNLESS(rc == 1);                         /* Got errors, as expected */
+
+  if (!opt_silent)
+    fprintf(stdout, "Got error, sa expected:\n [%d] %s\n",
+            mysql_errno(mysql1), mysql_error(mysql1));
+
+  mysql_close(mysql1);
 }
 
 /*
@@ -13377,6 +13564,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9520", test_bug9520 },
   { "test_bug9478", test_bug9478 },
   { "test_bug9643", test_bug9643 },
+  { "test_bug10729", test_bug10729 },
+  { "test_bug11111", test_bug11111 },
+  { "test_bug9992", test_bug9992 },
   { 0, 0 }
 };
 
@@ -13481,23 +13671,6 @@ static void print_test_output()
   }
 }
 
-
-static void check_mupltiquery_bug9992()
-{
-
-  MYSQL_RES* res ;
-  mysql_query(mysql,"SHOW TABLES;SHOW DATABASE;SELECT 1;");
-  
-  fprintf(stdout, "\n\n!!! check_mupltiquery_bug9992 !!!\n");
-  do
-  {
-    if (!(res= mysql_store_result(mysql)))
-      return;
-    mysql_free_result(res);
-  } while (!mysql_next_result(mysql));
-  fprintf(stdout, "\n\n!!! SUCCESS !!!\n");
-  return;
-}
 /***************************************************************************
   main routine
 ***************************************************************************/
@@ -13563,10 +13736,7 @@ int main(int argc, char **argv)
   }
 
   client_disconnect();    /* disconnect from server */
-  
-  client_connect(CLIENT_MULTI_STATEMENTS);
-  check_mupltiquery_bug9992();
-  client_disconnect(); 
+
   free_defaults(defaults_argv);
   print_test_output();
 

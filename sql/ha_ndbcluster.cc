@@ -41,7 +41,7 @@ static const int parallelism= 0;
 
 // Default value for max number of transactions
 // createable against NDB from this handler
-static const int max_transactions= 256;
+static const int max_transactions= 3; // should really be 2 but there is a transaction to much allocated when loch table is used
 
 static const char *ha_ndb_ext=".ndb";
 
@@ -511,8 +511,13 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
                       err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
-    m_dupkey= table->s->primary_key;
-  
+  {
+    if (m_rows_to_insert == 1)
+      m_dupkey= table->s->primary_key;
+    else
+      // We are batching inserts, offending key is not available
+      m_dupkey= (uint) -1;
+  }
   DBUG_RETURN(res);
 }
 
@@ -540,13 +545,12 @@ bool ha_ndbcluster::get_error_message(int error,
 }
 
 
+#ifndef DBUG_OFF
 /*
   Check if type is supported by NDB.
-  TODO Use this once in open(), not in every operation
-
 */
 
-static inline bool ndb_supported_type(enum_field_types type)
+static bool ndb_supported_type(enum_field_types type)
 {
   switch (type) {
   case MYSQL_TYPE_TINY:        
@@ -581,6 +585,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   }
   return FALSE;
 }
+#endif /* !DBUG_OFF */
 
 
 /*
@@ -610,15 +615,10 @@ int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
                        pack_len));
   DBUG_DUMP("key", (char*)field_ptr, pack_len);
   
-  if (ndb_supported_type(field->type()))
-  {
-    if (! (field->flags & BLOB_FLAG))
-      // Common implementation for most field types
-      DBUG_RETURN(ndb_op->equal(fieldnr, (char*) field_ptr, pack_len) != 0);
-  }
-  // Unhandled field types
-  DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-  DBUG_RETURN(2);
+  DBUG_ASSERT(ndb_supported_type(field->type()));
+  DBUG_ASSERT(! (field->flags & BLOB_FLAG));
+  // Common implementation for most field types
+  DBUG_RETURN(ndb_op->equal(fieldnr, (char*) field_ptr, pack_len) != 0);
 }
 
 
@@ -637,7 +637,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
                        pack_len, field->is_null()?"Y":"N"));
   DBUG_DUMP("value", (char*) field_ptr, pack_len);
 
-  if (ndb_supported_type(field->type()))
+  DBUG_ASSERT(ndb_supported_type(field->type()));
   {
     // ndb currently does not support size 0
     uint32 empty_field;
@@ -715,9 +715,6 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
     }
     DBUG_RETURN(1);
   }
-  // Unhandled field types
-  DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-  DBUG_RETURN(2);
 }
 
 
@@ -812,9 +809,8 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 
   if (field != NULL)
   {
-    DBUG_ASSERT(buf);
-    if (ndb_supported_type(field->type()))
-    {
+      DBUG_ASSERT(buf);
+      DBUG_ASSERT(ndb_supported_type(field->type()));
       DBUG_ASSERT(field->ptr != NULL);
       if (! (field->flags & BLOB_FLAG))
       { 
@@ -845,10 +841,6 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
         DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
       DBUG_RETURN(1);
-    }
-    // Unhandled field types
-    DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-    DBUG_RETURN(2);
   }
 
   // Used for hidden key only
@@ -3040,6 +3032,13 @@ double ha_ndbcluster::scan_time()
   DBUG_RETURN(res);
 }
 
+/*
+  Convert MySQL table locks into locks supported by Ndb Cluster.
+  Note that MySQL Cluster does currently not support distributed
+  table locks, so to be safe one should set cluster in Single
+  User Mode, before relying on table locks when updating tables
+  from several MySQL servers
+*/
 
 THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
                                           THR_LOCK_DATA **to,
@@ -3055,7 +3054,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     /* Since NDB does not currently have table locks
        this is treated as a ordinary lock */
 
-    if ((lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
          lock_type <= TL_WRITE) && !thd->in_lock_tables)      
       lock_type= TL_WRITE_ALLOW_WRITE;
     
@@ -4611,7 +4610,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   List_iterator_fast<char> it2(create_list);
   while ((file_name=it2++))
   {  
-    DBUG_PRINT("info", ("Table %s need discovery", name));
+    DBUG_PRINT("info", ("Table %s need discovery", file_name));
     if (ha_create_table_from_engine(thd, db, file_name, TRUE) == 0)
       files->push_back(thd->strdup(file_name)); 
   }
@@ -6302,6 +6301,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                   case(REAL_RESULT):
                     context->expect_only(Item::REAL_ITEM);
                     context->expect(Item::DECIMAL_ITEM);
+                    context->expect(Item::INT_ITEM);
                     break;
                   case(INT_RESULT):
                     context->expect_only(Item::INT_ITEM);
@@ -6310,6 +6310,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                   case(DECIMAL_RESULT):
                     context->expect_only(Item::DECIMAL_ITEM);
                     context->expect(Item::REAL_ITEM);
+                    context->expect(Item::INT_ITEM);
                     break;
                   default:
                     break;
@@ -6712,6 +6713,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
               context->expect_only_field_result(INT_RESULT);
+              context->expect_field_result(REAL_RESULT);
+              context->expect_field_result(DECIMAL_RESULT);
             }
             else
             {

@@ -24,6 +24,7 @@
 
 #include "runtime.hpp"
 #include <string.h>
+#include <assert.h>
 
 #include "hash.hpp"
 
@@ -31,21 +32,30 @@
 namespace TaoCrypt {
 
 
+HASHwithTransform::HASHwithTransform(word32 digSz, word32 buffSz)
+{
+    assert(digSz  <= MaxDigestSz);
+    assert(buffSz <= MaxBufferSz);
+}
+
+
 // Update digest with data of size len, do in blocks
 void HASHwithTransform::Update(const byte* data, word32 len)
 {
     // do block size increments
     word32 blockSz = getBlockSize();
+    byte*  local   = reinterpret_cast<byte*>(buffer_);
+
     while (len) {
         word32 add = min(len, blockSz - buffLen_);
-        memcpy(&buffer_[buffLen_], data, add);
+        memcpy(&local[buffLen_], data, add);
 
         buffLen_ += add;
         data     += add;
         len      -= add;
 
         if (buffLen_ == blockSz) {
-            ByteReverseIf(buffer_, buffer_, blockSz, getByteOrder());
+            ByteReverseIf(local, local, blockSz, getByteOrder());
             Transform();
         }
     }
@@ -60,22 +70,23 @@ void HASHwithTransform::Final(byte* hash)
     word32    padSz     = getPadSize();
     ByteOrder order     = getByteOrder();
     word32    prePadLen = length_ + buffLen_ * 8;  // in bits
+    byte*     local     = reinterpret_cast<byte*>(buffer_);
 
-    buffer_[buffLen_++] = 0x80;  // add 1
+    local[buffLen_++] = 0x80;  // add 1
 
     // pad with zeros
     if (buffLen_ > padSz) {
-        while (buffLen_ < blockSz) buffer_[buffLen_++] = 0;
-        ByteReverseIf(buffer_, buffer_, blockSz, order);
+        while (buffLen_ < blockSz) local[buffLen_++] = 0;
+        ByteReverseIf(local, local, blockSz, order);
         Transform();
     }
-    while (buffLen_ < padSz) buffer_[buffLen_++] = 0;
+    while (buffLen_ < padSz) local[buffLen_++] = 0;
 
-    ByteReverseIf(buffer_, buffer_, blockSz, order);
+    ByteReverseIf(local, local, blockSz, order);
     
     word32 hiSize = 0;  // for future 64 bit length TODO:
-    memcpy(&buffer_[padSz],   order ? &hiSize : &prePadLen, sizeof(prePadLen));
-    memcpy(&buffer_[padSz+4], order ? &prePadLen : &hiSize, sizeof(prePadLen));
+    memcpy(&local[padSz],   order ? &hiSize : &prePadLen, sizeof(prePadLen));
+    memcpy(&local[padSz+4], order ? &prePadLen : &hiSize, sizeof(prePadLen));
 
 
     Transform();

@@ -170,7 +170,8 @@ cd ..
 BASEDIR=`pwd`
 cd $CWD
 MYSQL_TEST_DIR=$BASEDIR/mysql-test
-export MYSQL_TEST_DIR
+MYSQL_TEST_WINDIR=$MYSQL_TEST_DIR
+export MYSQL_TEST_DIR MYSQL_TEST_WINDIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
 
@@ -299,16 +300,16 @@ while test $# -gt 0; do
     --ndbcluster_port=*) NDBCLUSTER_PORT=`$ECHO "$1" | $SED -e "s;--ndbcluster_port=;;"` ;;
     --with-openssl)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-     --ssl-ca=$BASEDIR/SSL/cacert.pem \
-     --ssl-cert=$BASEDIR/SSL/server-cert.pem \
-     --ssl-key=$BASEDIR/SSL/server-key.pem"
+     --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
+     --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem \
+     --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
-     --ssl-ca=$BASEDIR/SSL/cacert.pem \
-     --ssl-cert=$BASEDIR/SSL/server-cert.pem \
-     --ssl-key=$BASEDIR/SSL/server-key.pem"
+     --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
+     --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem \
+     --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem"
      MYSQL_TEST_SSL_OPTS="--ssl-ca=$BASEDIR/SSL/cacert.pem \
-     --ssl-cert=$BASEDIR/SSL/client-cert.pem \
-     --ssl-key=$BASEDIR/SSL/client-key.pem" ;;
+     --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem \
+     --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem" ;;
     --no-manager | --skip-manager) USE_MANAGER=0 ;;
     --manager)
      USE_MANAGER=1
@@ -1792,6 +1793,11 @@ then
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
   $ECHO "Installing Test Databases"
   mysql_install_db
+
+  if [ -n "$1" -a `expr "X$*" : '.*ndb'` -eq 0 ]
+  then
+    USE_NDBCLUSTER=""
+  fi
 
   start_manager
 

@@ -121,7 +121,7 @@ os_event_create(
 	event->handle = CreateEvent(NULL,/* No security attributes */
 			TRUE,		/* Manual reset */
 			FALSE,		/* Initial state nonsignaled */
-			name);
+			(LPCTSTR) name);
 	if (!event->handle) {
 	        fprintf(stderr,
 "InnoDB: Could not create a Windows event semaphore; Windows error %lu\n",
@@ -177,7 +177,7 @@ os_event_create_auto(
 	event->handle = CreateEvent(NULL,/* No security attributes */
 			FALSE,		/* Auto-reset */
 			FALSE,		/* Initial state nonsignaled */
-			name);
+			(LPCTSTR) name);
 
 	if (!event->handle) {
 	        fprintf(stderr,
@@ -440,7 +440,7 @@ os_mutex_create(
 
 	mutex = CreateMutex(NULL,	/* No security attributes */
 			FALSE,		/* Initial state: no owner */
-			name);
+			(LPCTSTR) name);
 	ut_a(mutex);
 #else
 	os_fast_mutex_t*	mutex;

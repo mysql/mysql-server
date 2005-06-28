@@ -28,6 +28,8 @@
 #include <hash.h>
 #include <ft_global.h>
 
+typedef uint32 cache_rec_length_type;
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -136,7 +138,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
-static int test_if_group_changed(List<Item_buff> &list);
+static int test_if_group_changed(List<Cached_item> &list);
 static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
@@ -580,7 +582,7 @@ JOIN::optimize()
       MEMROOT for prepared statements and stored procedures.
     */
 
-    Item_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->current_arena, backup;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
     else
@@ -812,9 +814,14 @@ JOIN::optimize()
       DBUG_RETURN(1);
   }
   simple_group= 0;
-  group_list= remove_const(this, group_list, conds,
-                           rollup.state == ROLLUP::STATE_NONE,
-                           &simple_group);
+  {
+    ORDER *old_group_list;
+    group_list= remove_const(this, (old_group_list= group_list), conds,
+                             rollup.state == ROLLUP::STATE_NONE,
+			     &simple_group);
+    if (old_group_list && !group_list)
+      select_distinct= 0;
+  }
   if (!group_list && group)
   {
     order=0;					// The output has only one row
@@ -1697,7 +1704,16 @@ JOIN::cleanup()
 
 
 /************************* Cursor ******************************************/
-  
+
+Cursor::Cursor(THD *thd)
+  :Query_arena(&main_mem_root, INITIALIZED),
+   join(0), unit(0)
+{
+  /* We will overwrite it at open anyway. */
+  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+}
+
+
 void
 Cursor::init_from_thd(THD *thd)
 {
@@ -1705,10 +1721,11 @@ Cursor::init_from_thd(THD *thd)
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
 
-    We can't just change the thd->mem_root here as we want to keep the things
-    that is already allocated in thd->mem_root for Cursor::fetch()
+    We can't just change the thd->mem_root here as we want to keep the
+    things that are already allocated in thd->mem_root for Cursor::fetch()
   */
   main_mem_root=  *thd->mem_root;
+  state= thd->current_arena->state;
   /* Allocate new memory root for thd */
   init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1731,24 +1748,6 @@ Cursor::init_from_thd(THD *thd)
     What problems can we have with it if cursor is open?
     TODO: must be fixed because of the prelocked mode.
   */
-  /*
-    TODO: grab thd->free_list here?
-  */
-}
-
-
-void
-Cursor::init_thd(THD *thd)
-{
-  DBUG_ASSERT(thd->derived_tables == 0);
-  thd->derived_tables= derived_tables;
-
-  DBUG_ASSERT(thd->open_tables == 0);
-  thd->open_tables= open_tables;
-
-  DBUG_ASSERT(thd->lock== 0);
-  thd->lock= lock;
-  thd->query_id= query_id;
 }
 
 
@@ -1821,11 +1820,19 @@ Cursor::fetch(ulong num_rows)
   THD *thd= join->thd;
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
+  Query_arena backup_arena;
   DBUG_ENTER("Cursor::fetch");
   DBUG_PRINT("enter",("rows: %lu", num_rows));
 
+  DBUG_ASSERT(thd->derived_tables == 0 && thd->open_tables == 0 &&
+              thd->lock == 0);
+
+  thd->derived_tables= derived_tables;
+  thd->open_tables= open_tables;
+  thd->lock= lock;
+  thd->query_id= query_id;
   /* save references to memory, allocated during fetch */
-  thd->set_n_backup_item_arena(this, &thd->stmt_backup);
+  thd->set_n_backup_item_arena(this, &backup_arena);
 
   join->fetch_limit+= num_rows;
 
@@ -1841,7 +1848,10 @@ Cursor::fetch(ulong num_rows)
     ha_release_temporary_latches(thd);
 #endif
 
-  thd->restore_backup_item_arena(this, &thd->stmt_backup);
+  thd->restore_backup_item_arena(this, &backup_arena);
+  DBUG_ASSERT(thd->free_list == 0);
+  reset_thd(thd);
+
   if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
     /* Fetch limit worked, possibly more rows are there */
@@ -1882,8 +1892,8 @@ Cursor::close()
     join->cleanup();
     delete join;
   }
-  /* XXX: Another hack: closing tables used in the cursor */
   {
+    /* XXX: Another hack: closing tables used in the cursor */
     DBUG_ASSERT(lock || open_tables || derived_tables);
 
     TABLE *tmp_derived_tables= thd->derived_tables;
@@ -2161,7 +2171,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
-      if (!table->file->records)
+      if (!table->file->records && !embedding)
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
 	set_position(join,const_count++,s,(KEYUSE*) 0);
@@ -6273,7 +6283,7 @@ public:
   COND_CMP(Item *a,Item_func *b) :and_level(a),cmp_func(b) {}
 };
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List<COND_CMP>;
 template class I_List_iterator<COND_CMP>;
 template class List<Item_func_match>;
@@ -7067,7 +7077,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
       while ((item_equal= it++))
       {
-        eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
       }
     }
   }
@@ -7960,6 +7970,19 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                        modify_item ? (Item_field*) item : NULL,
                                        convert_blob_length);
   }
+  case Item::REF_ITEM:
+    if ( item->real_item()->type() == Item::FIELD_ITEM)
+    {
+      Item_field *field= (Item_field*) *((Item_ref*)item)->ref;
+      Field *new_field= create_tmp_field_from_field(thd, 
+                               (*from_field= field->field),
+                               item->name, table,
+                               NULL,
+                               convert_blob_length);
+      if (modify_item)
+        item->set_result_field(new_field);
+      return new_field;
+    }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
@@ -7971,7 +7994,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REAL_ITEM:
   case Item::DECIMAL_ITEM:
   case Item::STRING_ITEM:
-  case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
@@ -10080,7 +10102,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  join->do_send_rows= 0;
 	  if (join->unit->fake_select_lex)
-	    join->unit->fake_select_lex->select_limit= HA_POS_ERROR;
+	    join->unit->fake_select_lex->select_limit= 0;
 	  DBUG_RETURN(NESTED_LOOP_OK);
 	}
       }
@@ -11597,7 +11619,7 @@ used_blob_length(CACHE_FIELD **ptr)
 static bool
 store_record_in_cache(JOIN_CACHE *cache)
 {
-  ulong length;
+  cache_rec_length_type length;
   uchar *pos;
   CACHE_FIELD *copy,*end_field;
   bool last_record;
@@ -11642,9 +11664,9 @@ store_record_in_cache(JOIN_CACHE *cache)
 	     end > str && end[-1] == ' ' ;
 	     end--) ;
 	length=(uint) (end-str);
-	memcpy(pos+1,str,length);
-	*pos=(uchar) length;
-	pos+=length+1;
+	memcpy(pos+sizeof(length), str, length);
+	memcpy_fixed(pos, &length, sizeof(length));
+	pos+= length+sizeof(length);
       }
       else
       {
@@ -11678,7 +11700,7 @@ static void
 read_cached_record(JOIN_TAB *tab)
 {
   uchar *pos;
-  uint length;
+  cache_rec_length_type length;
   bool last_record;
   CACHE_FIELD *copy,*end_field;
 
@@ -11707,9 +11729,10 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (copy->strip)
       {
-	memcpy(copy->str,pos+1,length=(uint) *pos);
-	memset(copy->str+length,' ',copy->length-length);
-	pos+=1+length;
+        memcpy_fixed(&length, pos, sizeof(length));
+	memcpy(copy->str, pos+sizeof(length), length);
+	memset(copy->str+length, ' ', copy->length-length);
+	pos+= sizeof(length)+length;
       }
       else
       {
@@ -11788,11 +11811,11 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
     ref_pointer_array.
 
   RETURN
-    0 if OK
-    1 if error occurred
+    FALSE if OK
+    TRUE  if error occurred
 */
 
-static int
+static bool
 find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
                    ORDER *order, List<Item> &fields, List<Item> &all_fields,
                    bool is_group_field)
@@ -11809,13 +11832,13 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0),
                order_item->full_name(), thd->where);
-      return 1;
+      return TRUE;
     }
     order->item= ref_pointer_array + count - 1;
     order->in_field_list= 1;
     order->counter= count;
     order->counter_used= 1;
-    return 0;
+    return FALSE;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   uint counter;
@@ -11823,7 +11846,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   select_item= find_item_in_list(order_item, fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND, &unaliased);
   if (!select_item)
-    return 1; /* Some error occured. */
+    return TRUE; /* The item is not unique, or some other error occured. */
 
 
   /* Check whether the resolved field is not ambiguos. */
@@ -11837,7 +11860,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     */
     if (unaliased && !order_item->fixed && order_item->fix_fields(thd, tables,
                                                                   order->item))
-      return 1;
+      return TRUE;
 
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
@@ -11877,27 +11900,42 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     {
       order->item= ref_pointer_array + counter;
       order->in_field_list=1;
-      return 0;
+      return FALSE;
     }
+    else
+      /*
+        There is a field with the same name in the FROM clause. This is the field
+        that will be chosen. In this case we issue a warning so the user knows
+        that the field from the FROM clause overshadows the column reference from
+        the SELECT list.
+      */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
+                          ER(ER_NON_UNIQ_ERROR), from_field->field_name,
+                          current_thd->where);
   }
 
   order->in_field_list=0;
   /*
+    The call to order_item->fix_fields() means that here we resolve 'order_item'
+    to a column from a table in the list 'tables', or to a column in some outer
+    query. Exactly because of the second case we come to this point even if
+    (select_item == not_found_item), inspite of that fix_fields() calls
+    find_item_in_list() one more time.
+
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
-
-    'it' reassigned in if condition because fix_field can change it.
   */
   if (!order_item->fixed &&
       (order_item->fix_fields(thd, tables, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
-    return 1;					// Wrong field 
+    return TRUE; /* Wrong field. */
+
   uint el= all_fields.elements;
-  all_fields.push_front(order_item);		        // Add new field to field list
+  all_fields.push_front(order_item); /* Add new field to field list. */
   ref_pointer_array[el]= order_item;
   order->item= ref_pointer_array + el;
-  return 0;
+  return FALSE;
 }
 
 
@@ -12284,7 +12322,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Item_buff *tmp=new_Item_buff(*group->item);
+      Cached_item *tmp=new_Cached_item(join->thd, *group->item);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
@@ -12295,12 +12333,12 @@ alloc_group_fields(JOIN *join,ORDER *group)
 
 
 static int
-test_if_group_changed(List<Item_buff> &list)
+test_if_group_changed(List<Cached_item> &list)
 {
   DBUG_ENTER("test_if_group_changed");
-  List_iterator<Item_buff> li(list);
+  List_iterator<Cached_item> li(list);
   int idx= -1,i;
-  Item_buff *buff;
+  Cached_item *buff;
 
   for (i=(int) list.elements-1 ; (buff=li++) ; i--)
   {

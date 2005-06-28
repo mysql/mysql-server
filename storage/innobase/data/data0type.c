@@ -39,7 +39,6 @@ column definitions, or records in the insert buffer, we use this
 charset-collation code for them. */
 
 ulint	data_mysql_default_charset_coll		= 99999999;
-ulint	data_mysql_latin1_swedish_charset_coll	= 99999999;
 
 dtype_t		dtype_binary_val = {DATA_BINARY, 0, 0, 0, 0, 0};
 dtype_t* 	dtype_binary 	= &dtype_binary_val;
@@ -64,9 +63,10 @@ dtype_get_at_most_n_mbchars(
 {
 #ifndef UNIV_HOTBACKUP
 	ut_a(data_len != UNIV_SQL_NULL);
-	ut_a(!(prefix_len % dtype->mbmaxlen));
+	ut_ad(!dtype->mbmaxlen || !(prefix_len % dtype->mbmaxlen));
 
 	if (dtype->mbminlen != dtype->mbmaxlen) {
+		ut_a(!(prefix_len % dtype->mbmaxlen));
 		return(innobase_get_at_most_n_mbchars(
 				dtype_get_charset_coll(dtype->prtype),
 				prefix_len, data_len, str));

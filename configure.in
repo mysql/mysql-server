@@ -196,23 +196,8 @@ then
 else
 CC_VERSION=""
 fi
-case $SYSTEM_TYPE in
-  *netware*)
-CXX_VERSION=`$CXX -version | grep -i version`
-    ;;
-  *)
-CXX_VERSION=`$CXX --version | sed 1q`
-    ;;
-esac
-if test $? -eq "0"
-then
-  AC_MSG_CHECKING("C++ compiler version");
-  AC_MSG_RESULT("$CXX $CXX_VERSION")
-else
-CXX_VERSION=""
-fi
-AC_SUBST(CXX_VERSION)
 AC_SUBST(CC_VERSION)
+MYSQL_CHECK_CXX_VERSION
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -366,7 +351,11 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+  AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
+    [1], [Defined by configure. Use explicit template instantiation.])
 fi
+
+MYSQL_PROG_AR
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
@@ -443,33 +432,33 @@ PS=$ac_cv_path_PS
 # Linux style
 if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS p \$\$PID | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 # Solaris
 elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 # BSD style
 elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
 # SysV style
 elif $PS -ef 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
 elif $PS $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 else
   case $SYSTEM_TYPE in
     *freebsd*)
-      FIND_PROC="$PS p \$\$PID | grep \$\$MYSQLD > /dev/null"
+      FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
       ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware*)
       FIND_PROC=
@@ -2274,7 +2263,7 @@ AC_ARG_WITH([mysqlmanager],
   [if test "x${withval}" != "xno"; then
     tools_dirs="$tools_dirs server-tools"
    fi],
-  [if test "x${with_server}" == "xyes"; then
+  [if test "x${with_server}" = "xyes"; then
      tools_dirs="$tools_dirs server-tools"
    fi]
 )

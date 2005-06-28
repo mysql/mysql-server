@@ -447,7 +447,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
       We just hijack the 'rows' variable for a bit to store the escaped
       table name
     */
-    mysql_escape_string(rows, table, sizeof(rows));
+    mysql_real_escape_string(mysql, rows, table, (unsigned long)strlen(table));
     my_snprintf(query, sizeof(query), "show%s tables like '%s'",
                 opt_table_type ? " full" : "", rows);
   }

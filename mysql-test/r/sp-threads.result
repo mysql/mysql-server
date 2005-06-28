@@ -40,3 +40,18 @@ Id	User	Host	db	Command	Time	State	Info
 unlock tables;
 drop procedure bug9486;
 drop table t1, t2;
+drop procedure if exists bug11158;
+create procedure bug11158() delete t1 from t1, t2 where t1.id = t2.id;
+create table t1 (id int, j int);
+insert into t1 values (1, 1), (2, 2);
+create table t2 (id int);
+insert into t2 values (1);
+call bug11158();
+select * from t1;
+id	j
+2	2
+lock tables t2 read;
+call bug11158();
+unlock tables;
+drop procedure bug11158;
+drop table t1, t2;

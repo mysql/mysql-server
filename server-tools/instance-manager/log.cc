@@ -76,7 +76,7 @@ static inline void log(FILE *file,  const char *format, va_list args)
       if (buff_msg == 0)
       {
         strmake(buff_stack, "log(): message is too big, my_malloc() failed",
-                sizeof(buff_stack));
+                sizeof(buff_stack) - 1);
         buff_msg= buff_stack;
         break;
       }

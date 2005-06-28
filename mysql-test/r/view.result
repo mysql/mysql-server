@@ -1726,3 +1726,108 @@ sum(a)
 drop procedure p1;
 drop view v1;
 drop table t1;
+CREATE TABLE t1(a char(2) primary key, b char(2));
+CREATE TABLE t2(a char(2), b char(2), index i(a));
+INSERT INTO t1 VALUES ('a','1'), ('b','2');
+INSERT INTO t2 VALUES ('a','5'), ('a','6'), ('b','5'), ('b','6');
+CREATE VIEW v1 AS
+SELECT t1.b as c, t2.b as d FROM t1,t2 WHERE t1.a=t2.a;
+SELECT d, c FROM v1 ORDER BY d,c;
+d	c
+5	1
+5	2
+6	1
+6	2
+DROP VIEW v1;
+DROP TABLE t1, t2;
+create table t1 (s1 int);
+create view  v1 as select sum(distinct s1) from t1;
+select * from v1;
+sum(distinct s1)
+NULL
+drop view v1;
+create view  v1 as select avg(distinct s1) from t1;
+select * from v1;
+avg(distinct s1)
+NULL
+drop view v1;
+drop table t1;
+create view v1 as select cast(1 as decimal);
+select * from v1;
+cast(1 as decimal)
+1.00
+drop view v1;
+create table t1(f1 int);
+create table t2(f2 int);
+insert into t1 values(1),(2),(3);
+insert into t2 values(1),(2),(3);
+create view v1 as select * from t1,t2 where f1=f2;
+create table t3 (f1 int, f2 int);
+insert into t3 select * from v1 order by 1;
+select * from t3;
+f1	f2
+1	1
+2	2
+3	3
+drop view v1;
+drop table t1,t2,t3;
+create view v1 as select '\\','\\shazam';
+select * from v1;
+\	\shazam
+\	\shazam
+drop view v1;
+create view v1 as select '\'','\shazam';
+select * from v1;
+'	shazam
+'	shazam
+drop view v1;
+create view v1 as select 'k','K';
+select * from v1;
+k	My_exp_K
+k	K
+drop view v1;
+create table t1 (s1 int);
+create view v1 as select s1, 's1' from t1;
+select * from v1;
+s1	My_exp_s1
+drop view v1;
+create view v1 as select 's1', s1 from t1;
+select * from v1;
+My_exp_s1	s1
+drop view v1;
+create view v1 as select 's1', s1, 1 as My_exp_s1 from t1;
+select * from v1;
+My_exp_1_s1	s1	My_exp_s1
+drop view v1;
+create view v1 as select 1 as My_exp_s1, 's1', s1  from t1;
+select * from v1;
+My_exp_s1	My_exp_1_s1	s1
+drop view v1;
+create view v1 as select 1 as s1, 's1', 's1' from t1;
+select * from v1;
+s1	My_exp_s1	My_exp_1_s1
+drop view v1;
+create view v1 as select 's1', 's1', 1 as s1 from t1;
+select * from v1;
+My_exp_1_s1	My_exp_s1	s1
+drop view v1;
+create view v1 as select s1, 's1', 's1' from t1;
+select * from v1;
+s1	My_exp_s1	My_exp_1_s1
+drop view v1;
+create view v1 as select 's1', 's1', s1 from t1;
+select * from v1;
+My_exp_1_s1	My_exp_s1	s1
+drop view v1;
+create view v1 as select 1 as s1, 's1', s1 from t1;
+ERROR 42S21: Duplicate column name 's1'
+create view v1 as select 's1', s1, 1 as s1 from t1;
+ERROR 42S21: Duplicate column name 's1'
+drop table t1;
+create view v1(k, K) as select 1,2;
+ERROR 42S21: Duplicate column name 'K'
+create view v1 as SELECT TIME_FORMAT(SEC_TO_TIME(3600),'%H:%i') as t;
+select * from v1;
+t
+01:00
+drop view v1;

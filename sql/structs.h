@@ -20,6 +20,8 @@
 struct st_table;
 class Field;
 
+#define STRING_WITH_LEN(X)  X, (sizeof(X)-1)
+
 typedef struct st_lex_string
 {
   char *str;

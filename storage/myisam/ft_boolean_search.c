@@ -447,7 +447,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
     Hack: instead of init_queue, we'll use reinit queue to be able
     to alloc queue with alloc_root()
   */
-  res=ftb->queue.max_elements=1+query_len/(min(ft_min_word_len,2)+1);
+  res=ftb->queue.max_elements=1+query_len/2;
   if (!(ftb->queue.root=
         (byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*))))
     goto err;

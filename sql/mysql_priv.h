@@ -218,66 +218,75 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 #define TEST_NO_STACKTRACE	512
 #define TEST_SIGINT		1024	/* Allow sigint on threads */
-#define TEST_SYNCHRONIZATION	2048	/* get server to do sleep in some 
-                                                                       places */
+#define TEST_SYNCHRONIZATION    2048    /* get server to do sleep in
+                                           some places */
 #endif
 
-/* 
+/*
    This is included in the server and in the client.
    Options for select set by the yacc parser (stored in lex->options).
-   None of the 32 defines below should have its value changed, or this will
-   break replication.
+
+   XXX:
+   log_event.h defines OPTIONS_WRITTEN_TO_BIN_LOG to specify what THD
+   options list are written into binlog. These options can NOT change their
+   values, or it will break replication between version.
+
+   context is encoded as following:
+   SELECT - SELECT_LEX_NODE::options
+   THD    - THD::options
+   intern - neither. used only as
+            func(..., select_node->options | thd->options | OPTION_XXX, ...)
+
+   TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT		(1L << 0)
-#define SELECT_STRAIGHT_JOIN	(1L << 1)
-#define SELECT_DESCRIBE		(1L << 2)
-#define SELECT_SMALL_RESULT	(1L << 3)
-#define SELECT_BIG_RESULT	(1L << 4)
-#define OPTION_FOUND_ROWS	(1L << 5)
-#define OPTION_TO_QUERY_CACHE   (1L << 6)
-#define SELECT_NO_JOIN_CACHE	(1L << 7)       /* Intern */
-#define OPTION_BIG_TABLES       (1L << 8)       /* for SQL OPTION */
-#define OPTION_BIG_SELECTS      (1L << 9)       /* for SQL OPTION */
-#define OPTION_LOG_OFF          (1L << 10)
-#define OPTION_UPDATE_LOG       (1L << 11)      /* update log flag */
-#define TMP_TABLE_ALL_COLUMNS   (1L << 12)
-#define OPTION_WARNINGS         (1L << 13)
-#define OPTION_AUTO_IS_NULL     (1L << 14)
-#define OPTION_FOUND_COMMENT    (1L << 15)
-#define OPTION_SAFE_UPDATES     (1L << 16)
-#define OPTION_BUFFER_RESULT    (1L << 17)
-#define OPTION_BIN_LOG          (1L << 18)
-#define OPTION_NOT_AUTOCOMMIT   (1L << 19)
-#define OPTION_BEGIN            (1L << 20)
-#define OPTION_TABLE_LOCK       (1L << 21)
-#define OPTION_QUICK            (1L << 22)
-#define OPTION_QUOTE_SHOW_CREATE (1L << 23)
-#define OPTION_INTERNAL_SUBTRANSACTIONS (1L << 24)
+#define SELECT_DISTINCT         (1L << 0)       // SELECT, user
+#define SELECT_STRAIGHT_JOIN    (1L << 1)       // SELECT, user
+#define SELECT_DESCRIBE         (1L << 2)       // SELECT, user
+#define SELECT_SMALL_RESULT     (1L << 3)       // SELECT, user
+#define SELECT_BIG_RESULT       (1L << 4)       // SELECT, user
+#define OPTION_FOUND_ROWS       (1L << 5)       // SELECT, user
+#define OPTION_TO_QUERY_CACHE   (1L << 6)       // SELECT, user
+#define SELECT_NO_JOIN_CACHE    (1L << 7)       // intern
+#define OPTION_BIG_TABLES       (1L << 8)       // THD, user
+#define OPTION_BIG_SELECTS      (1L << 9)       // THD, user
+#define OPTION_LOG_OFF          (1L << 10)      // THD, user
+#define OPTION_UPDATE_LOG       (1L << 11)      // THD, user, unused
+#define TMP_TABLE_ALL_COLUMNS   (1L << 12)      // SELECT, intern
+#define OPTION_WARNINGS         (1L << 13)      // THD, user
+#define OPTION_AUTO_IS_NULL     (1L << 14)      // THD, user, binlog
+#define OPTION_FOUND_COMMENT    (1L << 15)      // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES     (1L << 16)      // THD, user
+#define OPTION_BUFFER_RESULT    (1L << 17)      // SELECT, user
+#define OPTION_BIN_LOG          (1L << 18)      // THD, user
+#define OPTION_NOT_AUTOCOMMIT   (1L << 19)      // THD, user
+#define OPTION_BEGIN            (1L << 20)      // THD, intern
+#define OPTION_TABLE_LOCK       (1L << 21)      // THD, intern
+#define OPTION_QUICK            (1L << 22)      // SELECT (for DELETE)
+#define OPTION_QUOTE_SHOW_CREATE (1L << 23)     // THD, user
+
+/* Thr following is used to detect a conflict with DISTINCT
+   in the user query has requested */
+#define SELECT_ALL              (1L << 24)      // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25)
+#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25) // THD, intern
 
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26)
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26) // THD, user, binlog
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
-#define SELECT_NO_UNLOCK                (1L << 28)
-#define OPTION_SCHEMA_TABLE             (1L << 29)
+#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27) // THD, user, binlog
+#define SELECT_NO_UNLOCK                (1L << 28) // SELECT, intern
+#define OPTION_SCHEMA_TABLE             (1L << 29) // SELECT, intern
 /* Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE        (1L << 30)
+#define OPTION_SETUP_TABLES_DONE        (1L << 30) // intern
+/* If not set then the thread will ignore all warnings with level notes. */
+#define OPTION_SQL_NOTES                (1L << 31) // THD, user
 
-/* Options for select set by the yacc parser (stored in lex->options2). */
-
-
-/* The following is used to detect a conflict with DISTINCT
-   in the user query has requested */
-#define SELECT_ALL			(1L << 0)
-
-/* 
-  Maximum length of time zone name that we support 
+/*
+  Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
 */
 #define MAX_TIME_ZONE_NAME_LENGTH 72
@@ -285,13 +294,10 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
 
-/* If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (1L << 31)
-
 /* Bits for different SQL modes modes (including ANSI mode) */
-#define MODE_REAL_AS_FLOAT      	1
-#define MODE_PIPES_AS_CONCAT    	2
-#define MODE_ANSI_QUOTES        	4
+#define MODE_REAL_AS_FLOAT              1
+#define MODE_PIPES_AS_CONCAT            2
+#define MODE_ANSI_QUOTES                4
 #define MODE_IGNORE_SPACE		8
 #define MODE_NOT_USED			16
 #define MODE_ONLY_FULL_GROUP_BY		32
@@ -319,6 +325,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
+#define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -340,6 +347,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define UNCACHEABLE_SIDEEFFECT	4
 // forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
+/* Don't evaluate subqueries in prepare even if they're not correlated */
+#define UNCACHEABLE_PREPARE    16
 
 #ifdef EXTRA_DEBUG
 /*
@@ -484,7 +493,7 @@ bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
+bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
 bool mysql_multi_update_prepare(THD *thd);
 bool mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
@@ -551,8 +560,6 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
-#define prepare_execute(A) ((A)->command == COM_EXECUTE)
-
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -579,6 +586,7 @@ void mysql_init_query(THD *thd, uchar *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
+bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
@@ -590,6 +598,7 @@ bool mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 
 bool table_cache_init(void);
@@ -832,10 +841,10 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
 void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_free(THD *thd, char *packet);
+void mysql_stmt_close(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
-void reset_stmt_for_execute(THD *thd, LEX *lex);
+void reinit_stmt_before_use(THD *thd, LEX *lex);
 void init_stmt_after_parse(THD*, LEX*);
 
 /* sql_handler.cc */
@@ -885,8 +894,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
-		   List_iterator<Item> *it, bool any_privileges,
-                   bool allocate_view_names);
+		   List_iterator<Item> *it, bool any_privileges);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
 		  TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
@@ -1107,6 +1115,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
+extern my_bool opt_log_slow_admin_statements;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_routine_creators;
 extern uint opt_crash_binlog_innodb;
@@ -1220,7 +1229,7 @@ int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int closefrm(TABLE *table);
-db_type get_table_type(const char *name);
+db_type get_table_type(THD *thd, const char *name);
 int read_string(File file, gptr *to, uint length);
 void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
@@ -1277,7 +1286,7 @@ ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
 void append_unescaped(String *res, const char *pos, uint length);
-int create_frm(char *name,uint reclength,uchar *fileinfo,
+int create_frm(THD *thd, char *name,uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);

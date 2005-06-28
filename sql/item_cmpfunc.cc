@@ -649,7 +649,7 @@ bool Item_in_optimizer::fix_left(THD *thd,
     If it is preparation PS only then we do not know values of parameters =>
     cant't get there values and do not need that values.
   */
-  if (!thd->only_prepare())
+  if (!thd->current_arena->is_stmt_prepare())
     cache->store(args[0]);
   if (cache->cols() == 1)
   {
@@ -1109,12 +1109,14 @@ void Item_func_between::print(String *str)
 void
 Item_func_ifnull::fix_length_and_dec()
 {
+  agg_result_type(&hybrid_type, args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
-  max_length= (max(args[0]->max_length - args[0]->decimals,
-                   args[1]->max_length - args[1]->decimals) +
-               decimals);
-  agg_result_type(&hybrid_type, args, 2);
+  max_length= (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) ?
+    (max(args[0]->max_length - args[0]->decimals,
+         args[1]->max_length - args[1]->decimals) + decimals) :
+    max(args[0]->max_length, args[1]->max_length);
+
   switch (hybrid_type) {
   case STRING_RESULT:
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
@@ -1225,16 +1227,7 @@ Item_func_if::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null || args[2]->maybe_null;
   decimals= max(args[1]->decimals, args[2]->decimals);
-  if (decimals == NOT_FIXED_DEC)
-  {
-    max_length= max(args[1]->max_length, args[2]->max_length);
-  }
-  else
-  {
-    max_length= (max(args[1]->max_length - args[1]->decimals,
-                   args[2]->max_length - args[2]->decimals) +
-               decimals);
-  }
+
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
   bool null1=args[1]->const_item() && args[1]->null_value;
@@ -1263,6 +1256,11 @@ Item_func_if::fix_length_and_dec()
       collation.set(&my_charset_bin);	// Number
     }
   }
+  max_length=
+    (cached_result_type == DECIMAL_RESULT || cached_result_type == INT_RESULT) ?
+    (max(args[1]->max_length - args[1]->decimals,
+         args[2]->max_length - args[2]->decimals) + decimals) :
+    max(args[1]->max_length, args[2]->max_length);
 }
 
 
@@ -1408,9 +1406,7 @@ Item_func_nullif::val_decimal(my_decimal * decimal_value)
 bool
 Item_func_nullif::is_null()
 {
-  if (!cmp.compare())
-    return (null_value=1);
-  return 0;
+  return (null_value= (!cmp.compare() ? 1 : args[0]->null_value)); 
 }
 
 /*
@@ -2796,10 +2792,11 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
       if (canDoTurboBM)
       {
         pattern     = first + 1;
-        pattern_len = len - 2;
+        pattern_len = (int) len - 2;
         DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
-        int *suff = (int*) thd->alloc(sizeof(int)*((pattern_len + 1)*2+
-                                      alphabet_size));
+        int *suff = (int*) thd->alloc((int) (sizeof(int)*
+                                      ((pattern_len + 1)*2+
+                                      alphabet_size)));
         bmGs      = suff + pattern_len + 1;
         bmBc      = bmGs + pattern_len + 1;
         turboBM_compute_good_suffix_shifts(suff);

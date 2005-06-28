@@ -216,7 +216,7 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s;
-  int    state= (s=cs_file_sec(st->attr,strlen(st->attr))) ? s->state : 0;
+  int    state= (int)((s=cs_file_sec(st->attr, (int) strlen(st->attr))) ? s->state : 0);
   
 #ifndef DBUG_OFF
   if(0){
