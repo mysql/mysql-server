@@ -769,6 +769,12 @@ class Item_func_in :public Item_int_func
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  /*
+    IN() protect from NULL only first argument, if construction like
+    "expression IN ()" will be allowed, we will need to check number of
+    argument here, because "NOT(NULL IN ())" is TRUE.
+  */
+  table_map not_null_tables() const { return args[0]->not_null_tables(); }
 };
 
 /* Functions used by where clause */
