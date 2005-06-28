@@ -3581,15 +3581,16 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     DBUG_RETURN(ftree);
   }
   default:
-    if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
+    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[0]);
+      field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
       value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : 0;
     }
     else if (cond_func->have_rev_func() &&
-             cond_func->arguments()[1]->type() == Item::FIELD_ITEM)
+             cond_func->arguments()[1]->real_item()->type() ==
+                                                            Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[1]);
+      field_item= (Item_field*) (cond_func->arguments()[1]->real_item());
       value= cond_func->arguments()[0];
     }
     else
@@ -3610,7 +3611,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
      
   for (uint i= 0; i < cond_func->arg_count; i++)
   {
-    Item *arg= cond_func->arguments()[i];
+    Item *arg= cond_func->arguments()[i]->real_item();
     if (arg != field_item)
       ref_tables|= arg->used_tables();
   }
