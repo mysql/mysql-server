@@ -1399,27 +1399,25 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
 
 int ha_federated::delete_row(const byte *buf)
 {
-  uint x= 0;
   char delete_buffer[IO_SIZE];
   char data_buffer[IO_SIZE];
-
   String delete_string(delete_buffer, sizeof(delete_buffer), &my_charset_bin);
-  delete_string.length(0);
   String data_string(data_buffer, sizeof(data_buffer), &my_charset_bin);
-  data_string.length(0);
-
   DBUG_ENTER("ha_federated::delete_row");
 
+  delete_string.length(0);
   delete_string.append("DELETE FROM `");
   delete_string.append(share->table_base_name);
   delete_string.append("`");
   delete_string.append(" WHERE ");
 
-  for (Field **field= table->field; *field; field++, x++)
+  for (Field **field= table->field; *field; field++)
   {
-    delete_string.append((*field)->field_name);
+    Field *cur_field= *field;
+    data_string.length(0);
+    delete_string.append(cur_field->field_name);
 
-    if ((*field)->is_null())
+    if (cur_field->is_null_in_record((const uchar*) buf))
     {
       delete_string.append(" IS ");
       data_string.append("NULL");
@@ -1427,17 +1425,15 @@ int ha_federated::delete_row(const byte *buf)
     else
     {
       delete_string.append("=");
-      (*field)->val_str(&data_string);
-      (*field)->quote_data(&data_string);
+      cur_field->val_str(&data_string, (char*) buf+ cur_field->offset());
+      cur_field->quote_data(&data_string);
     }
 
     delete_string.append(data_string);
-    data_string.length(0);
-
-    if (x + 1 < table->s->fields)
-      delete_string.append(" AND ");
+    delete_string.append(" AND ");
   }
 
+  delete_string.length(delete_string.length()-5); // Remove AND
   delete_string.append(" LIMIT 1");
   DBUG_PRINT("info",
              ("Delete sql: %s", delete_string.c_ptr_quick()));
