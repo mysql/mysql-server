@@ -2398,6 +2398,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   char new_table_name[NAME_LEN];
   DYNAMIC_STRING lock_tables_query;
   HASH dump_tables;
+  char *table_name;
 
   DBUG_ENTER("dump_selected_tables");
 
@@ -2457,7 +2458,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
 
   /* Dump each selected table */
-  const char *table_name;
   for (i= 0; i < dump_tables.records; i++)
   {
     table_name= hash_element(&dump_tables, i);
