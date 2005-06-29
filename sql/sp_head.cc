@@ -735,11 +735,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
   init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
-  thd->set_n_backup_item_arena(&call_arena, &backup_arena);
 
   // QQ Should have some error checking here? (types, etc...)
   nctx= new sp_rcontext(csize, hmax, cmax);
-  nctx->callers_mem_root= backup_arena.mem_root;
+  nctx->callers_mem_root= thd->mem_root;
   for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
@@ -765,6 +764,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     }
   }
   thd->spcont= nctx;
+  thd->set_n_backup_item_arena(&call_arena, &backup_arena);
+  /* mem_root was moved to backup_arena */
+  DBUG_ASSERT(nctx->callers_mem_root == backup_arena.mem_root);
 
   ret= execute(thd);
 
@@ -834,7 +836,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
 
   init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
-  thd->set_n_backup_item_arena(&call_arena, &backup_arena);
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
@@ -899,12 +900,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
 
   if (! ret)
+  {
+    thd->set_n_backup_item_arena(&call_arena, &backup_arena);
     ret= execute(thd);
-
-  // Partially restore context now.
-  // We still need the call mem root and free list for processing
-  // of out parameters.
-  thd->restore_backup_item_arena(&call_arena, &backup_arena);
+    thd->restore_backup_item_arena(&call_arena, &backup_arena);
+  }
 
   if (!ret && csize > 0)
   {
