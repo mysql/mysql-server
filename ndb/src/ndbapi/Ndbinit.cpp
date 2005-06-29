@@ -59,7 +59,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theNoOfPreparedTransactions= 0;
   theNoOfSentTransactions= 0;
   theNoOfCompletedTransactions= 0;
-  theNoOfAllocatedTransactions= 0;
+  theRemainingStartTransactions= 0;
   theMaxNoOfTransactions= 0;
   theMinNoOfEventsToWakeUp= 0;
   theConIdleList= NULL;
