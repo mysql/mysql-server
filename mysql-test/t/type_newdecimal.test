@@ -964,3 +964,12 @@ insert into t1 values (0.00);
 select * from t1 where a > -0.00;
 select * from t1 where a = -0.00;
 drop table t1;
+
+#
+# Bug #11215: a problem with LONGLONG_MIN
+#
+
+create table t1 (col1 bigint default -9223372036854775808);
+insert into t1 values (default);
+select * from t1;
+drop table t1;
