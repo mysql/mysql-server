@@ -994,10 +994,10 @@ static void do_exec(struct st_query* q)
       die("At line %u: command \"%s\" failed", start_lineno, cmd);
     else
     {
-      DBUG_PRINT("info",
-                 ("error: %d, status: %d", error, status));
       bool ok= 0;
       uint i;
+      DBUG_PRINT("info",
+                 ("error: %d, status: %d", error, status));
       for (i=0 ; (uint) i < q->expected_errors ; i++)
       {
         DBUG_PRINT("info", ("expected error: %d", q->expected_errno[i].code.errnum));
