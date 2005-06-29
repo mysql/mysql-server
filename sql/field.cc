@@ -6822,7 +6822,12 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 						  &not_used)))
     { 
       uint conv_errors;
-      tmpstr.copy(from, length, cs, field_charset, &conv_errors);
+      if (tmpstr.copy(from, length, cs, field_charset, &conv_errors))
+      {
+        /* Fatal OOM error */
+        bzero(ptr,Field_blob::pack_length());
+        return -1;
+      }
       from= tmpstr.ptr();
       length=  tmpstr.length();
       if (conv_errors)
