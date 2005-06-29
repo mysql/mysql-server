@@ -1131,25 +1131,6 @@ int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *old
 }
 
 /*
-int ha_ndbcluster::set_primary_key(NdbOperation *op)
-{
-  DBUG_ENTER("set_primary_key");
-  KEY* key_info= table->key_info + table->primary_key;
-  KEY_PART_INFO* key_part= key_info->key_part;
-  KEY_PART_INFO* end= key_part+key_info->key_parts;
-
-  for (; key_part != end; key_part++) 
-  {
-    Field* field= key_part->field;
-    if (set_ndb_key(op, field, 
-                    key_part->fieldnr-1, field->ptr))
-      ERR_RETURN(op->getNdbError());
-  }
-  DBUG_RETURN(0);
-}
-*/
-
-/*
   Read one record from NDB using primary key
 */
 
