@@ -7,6 +7,13 @@ DROP TABLE IF EXISTS t1;
 drop database if exists mysqltest;
 --enable_warnings
 
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+connection con2;
+-- sleep 2
+connection con1;
+
 #
 # Basic test to show that the ALTER TABLE
 #  is working
@@ -88,10 +95,6 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (9410,9412);
 
-connect (con1,localhost,,,test);
-connect (con2,localhost,,,test);
-
-connection con1;
 ALTER TABLE t1 ADD COLUMN c int not null;
 select * from t1 order by a;
 
