@@ -140,6 +140,7 @@ int deny_severity = LOG_WARNING;
 #define zVOLSTATE_DEACTIVE 2
 #define zVOLSTATE_MAINTENANCE 3
 
+#include <nks/netware.h>
 #include <nks/vm.h>
 #include <library.h>
 #include <monitor.h>
