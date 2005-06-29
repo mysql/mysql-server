@@ -71,7 +71,7 @@ int modify_defaults_file(const char *file_location, const char *option,
   uint opt_len, optval_len, sect_len, nr_newlines= 0, buffer_size;
   my_bool in_section= FALSE, opt_applied= 0;
   uint reserve_extended= 1, old_opt_len= 0;
-  uint new_opt_len= opt_len + 1 + optval_len + NEWLINE_LEN;
+  uint new_opt_len;
   int reserve_occupied= 0;
   DBUG_ENTER("modify_defaults_file");
 
@@ -80,10 +80,12 @@ int modify_defaults_file(const char *file_location, const char *option,
 
   /* my_fstat doesn't use the flag parameter */
   if (my_fstat(fileno(cnf_file), &file_stat, MYF(0)))
-    goto err;
+    goto malloc_err;
 
   opt_len= (uint) strlen(option);
   optval_len= (uint) strlen(option_value);
+
+  new_opt_len= opt_len + 1 + optval_len + NEWLINE_LEN;
 
   /* calculate the size of the buffer we need */
   buffer_size= sizeof(char) * (file_stat.st_size +
