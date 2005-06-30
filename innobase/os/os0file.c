@@ -83,7 +83,7 @@ struct os_aio_slot_struct{
 					made and only the slot message
 					needs to be passed to the caller
 					of os_aio_simulated_handle */
-	void*		message1;	/* message which is given by the */
+	fil_node_t*	message1;	/* message which is given by the */
 	void*		message2;	/* the requester of an aio operation
 					and which can be used to identify
 					which pending aio operation was
@@ -133,17 +133,17 @@ os_event_t*	os_aio_segment_wait_events	= NULL;
 
 /* The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. */
-os_aio_array_t*	os_aio_read_array	= NULL;
-os_aio_array_t*	os_aio_write_array	= NULL;
-os_aio_array_t*	os_aio_ibuf_array	= NULL;
-os_aio_array_t*	os_aio_log_array	= NULL;
-os_aio_array_t*	os_aio_sync_array	= NULL;
+static os_aio_array_t*	os_aio_read_array	= NULL;
+static os_aio_array_t*	os_aio_write_array	= NULL;
+static os_aio_array_t*	os_aio_ibuf_array	= NULL;
+static os_aio_array_t*	os_aio_log_array	= NULL;
+static os_aio_array_t*	os_aio_sync_array	= NULL;
 
-ulint	os_aio_n_segments	= ULINT_UNDEFINED;
+static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
 /* If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
-ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
 
 ulint	os_n_file_reads		= 0;
 ulint	os_bytes_read_since_printout = 0;
@@ -158,7 +158,7 @@ ibool	os_has_said_disk_full	= FALSE;
 
 /* The mutex protecting the following counts of pending pread and pwrite
 operations */
-os_mutex_t os_file_count_mutex;
+static os_mutex_t os_file_count_mutex;
 ulint	os_file_n_pending_preads  = 0;
 ulint	os_file_n_pending_pwrites = 0;
 
@@ -1653,7 +1653,7 @@ os_file_get_size_as_iblonglong(
 }
 
 /***************************************************************************
-Sets a file size. This function can be used to extend or truncate a file. */
+Write the specified number of zeros to a newly created file. */
 
 ibool
 os_file_set_size(
@@ -1666,47 +1666,46 @@ os_file_set_size(
 				size */
 	ulint		size_high)/* in: most significant 32 bits of size */
 {
-	ib_longlong	offset;
-	ib_longlong	low;
-	ulint   	n_bytes;
+	ib_longlong	current_size;
+	ib_longlong	desired_size;
 	ibool		ret;
 	byte*   	buf;
 	byte*   	buf2;
-	ulint   	i;
+	ulint		buf_size;
 
 	ut_a(size == (size & 0xFFFFFFFF));
 
-	/* We use a very big 8 MB buffer in writing because Linux may be
-	extremely slow in fsync on 1 MB writes */
+	current_size = 0;
+	desired_size = (ib_longlong)size + (((ib_longlong)size_high) << 32);
 
-	buf2 = ut_malloc(UNIV_PAGE_SIZE * 513);
+	/* Write up to 1 megabyte at a time. */
+	buf_size = ut_min(64, (ulint) (desired_size / UNIV_PAGE_SIZE))
+							* UNIV_PAGE_SIZE;
+	buf2 = ut_malloc(buf_size + UNIV_PAGE_SIZE);
 
 	/* Align the buffer for possible raw i/o */
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	/* Write buffer full of zeros */
-	for (i = 0; i < UNIV_PAGE_SIZE * 512; i++) {
-	        buf[i] = '\0';
-	}
+	memset(buf, 0, buf_size);
 
-	offset = 0;
-	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);
-
-	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
 				
 		fprintf(stderr, "InnoDB: Progress in MB:");
 	}
 
-	while (offset < low) {
-	        if (low - offset < UNIV_PAGE_SIZE * 512) {
-	        	n_bytes = (ulint)(low - offset);
-	        } else {
-	        	n_bytes = UNIV_PAGE_SIZE * 512;
-	        }
-	  
+	while (current_size < desired_size) {
+		ulint	n_bytes;
+
+		if (desired_size - current_size < (ib_longlong) buf_size) {
+			n_bytes = (ulint) (desired_size - current_size);
+		} else {
+			n_bytes = buf_size;
+		}
+
 	        ret = os_file_write(name, file, buf,
-				(ulint)(offset & 0xFFFFFFFF),
-				    (ulint)(offset >> 32),
+				(ulint)(current_size & 0xFFFFFFFF),
+				    (ulint)(current_size >> 32),
 				n_bytes);
 	        if (!ret) {
 			ut_free(buf2);
@@ -1714,18 +1713,18 @@ os_file_set_size(
 	        }
 				
 		/* Print about progress for each 100 MB written */
-		if ((ib_longlong) (offset + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
-		    != offset / (ib_longlong)(100 * 1024 * 1024)) {
+		if ((current_size + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
+		    != current_size / (ib_longlong)(100 * 1024 * 1024)) {
 
 		        fprintf(stderr, " %lu00",
-				(ulong) ((offset + n_bytes)
+				(ulong) ((current_size + n_bytes)
 					/ (ib_longlong)(100 * 1024 * 1024)));
 		}
 		
-	        offset += n_bytes;
+	        current_size += n_bytes;
 	}
 
-	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
 				
 		fprintf(stderr, "\n");
 	}
@@ -3025,7 +3024,7 @@ os_aio_array_reserve_slot(
 				/* out: pointer to slot */
 	ulint		type,	/* in: OS_FILE_READ or OS_FILE_WRITE */
 	os_aio_array_t*	array,	/* in: aio array */
-	void*		message1,/* in: message to be passed along with
+	fil_node_t*	message1,/* in: message to be passed along with
 				the aio operation */
 	void*		message2,/* in: message to be passed along with
 				the aio operation */
@@ -3287,7 +3286,7 @@ os_aio(
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
 	ulint		n,	/* in: number of bytes to read or write */
-	void*		message1,/* in: messages for the aio handler (these
+	fil_node_t*	message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
 				are ignored */
@@ -3299,7 +3298,7 @@ os_aio(
 	ibool		retval;
 	BOOL		ret		= TRUE;
 	DWORD		len		= (DWORD) n;
-	void*		dummy_mess1;
+	struct fil_node_struct * dummy_mess1;
 	void*		dummy_mess2;
 	ulint		dummy_type;
 #endif
@@ -3472,7 +3471,7 @@ os_aio_windows_handle(
 				ignored */
 	ulint	pos,		/* this parameter is used only in sync aio:
 				wait for the aio slot at this position */  
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -3563,7 +3562,7 @@ os_aio_posix_handle(
 /*================*/
 				/* out: TRUE if the aio operation succeeded */
 	ulint	array_no,	/* in: array number 0 - 3 */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -3644,7 +3643,7 @@ os_aio_simulated_handle(
 				i/o thread, segment 1 the log i/o thread,
 				then follow the non-ibuf read threads, and as
 				the last are the non-ibuf write threads */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -4182,6 +4181,7 @@ os_aio_refresh_stats(void)
 	os_last_printout = time(NULL);
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
@@ -4241,3 +4241,4 @@ os_aio_all_slots_free(void)
 
 	return(FALSE);
 }
+#endif /* UNIV_DEBUG */

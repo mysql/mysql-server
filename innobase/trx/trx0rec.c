@@ -941,13 +941,11 @@ trx_undo_erase_page_end(
 	mtr_t*	mtr)		/* in: mtr */
 {
 	ulint	first_free;
-	ulint	i;
-	
+
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 							+ TRX_UNDO_PAGE_FREE);
-	for (i = first_free; i < UNIV_PAGE_SIZE - FIL_PAGE_DATA_END; i++) {
-		undo_page[i] = 0xFF;
-	}
+	memset(undo_page + first_free, 0xff,
+		(UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) - first_free);
 
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_ERASE_END, mtr);
 }
@@ -1134,7 +1132,7 @@ trx_undo_report_row_operation(
 
 			mutex_exit(&(trx->undo_mutex));
 			mtr_commit(&mtr);
-			if (heap) {
+			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
 			return(DB_OUT_OF_FILE_SPACE);
@@ -1153,7 +1151,7 @@ trx_undo_report_row_operation(
 
 	*roll_ptr = trx_undo_build_roll_ptr(is_insert, rseg->id, page_no,
 								offset);
-	if (heap) {
+	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(DB_SUCCESS);

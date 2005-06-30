@@ -3131,7 +3131,7 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
     if (!(res=var->value->val_str(&str)) ||
 	!(var->save_result.ulong_value=
           (ulong) (db_type= ha_resolve_by_name(res->ptr(), res->length()))) ||
-        ha_checktype(db_type) != db_type)
+        ha_checktype(thd, db_type, 1, 0) != db_type)
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;
@@ -3406,7 +3406,7 @@ bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
   Used templates
 ****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<set_var_base>;
 template class List_iterator_fast<set_var_base>;
 template class I_List_iterator<NAMED_LIST>;

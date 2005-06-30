@@ -81,7 +81,7 @@ gptr my_once_alloc(unsigned int Size, myf MyFlags)
 
 char *my_once_strdup(const char *src,myf myflags)
 {
-  uint len=strlen(src)+1;
+  uint len= (uint) strlen(src)+1;
   char *dst=my_once_alloc(len, myflags);
   if (dst)
     memcpy(dst, src, len);

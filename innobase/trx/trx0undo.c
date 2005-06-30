@@ -556,19 +556,19 @@ void
 trx_undo_write_xid(
 /*===============*/
 	trx_ulogf_t*	log_hdr,/* in: undo log header */
-	XID*		xid,	/* in: X/Open XA Transaction Identification */
+	const XID*	xid,	/* in: X/Open XA Transaction Identification */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	mlog_write_ulint(log_hdr + TRX_UNDO_XA_FORMAT, xid->formatID,
-							MLOG_4BYTES, mtr);
+	mlog_write_ulint(log_hdr + TRX_UNDO_XA_FORMAT,
+			(ulint)xid->formatID, MLOG_4BYTES, mtr);
 
-	mlog_write_ulint(log_hdr + TRX_UNDO_XA_TRID_LEN, xid->gtrid_length,
-							MLOG_4BYTES, mtr);
+	mlog_write_ulint(log_hdr + TRX_UNDO_XA_TRID_LEN,
+			(ulint)xid->gtrid_length, MLOG_4BYTES, mtr);
 
-	mlog_write_ulint(log_hdr + TRX_UNDO_XA_BQUAL_LEN, xid->bqual_length,
-							MLOG_4BYTES, mtr);
+	mlog_write_ulint(log_hdr + TRX_UNDO_XA_BQUAL_LEN,
+			(ulint)xid->bqual_length, MLOG_4BYTES, mtr);
 
-	mlog_write_string(log_hdr + TRX_UNDO_XA_XID, xid->data,
+	mlog_write_string(log_hdr + TRX_UNDO_XA_XID, (const byte*) xid->data,
 							XIDDATASIZE, mtr);
 }
 
@@ -581,18 +581,14 @@ trx_undo_read_xid(
 	trx_ulogf_t*	log_hdr,/* in: undo log header */
 	XID*		xid)	/* out: X/Open XA Transaction Identification */
 {
-	ulint i;
-
-	xid->formatID = mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
+	xid->formatID = (long)mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
 	
-	xid->gtrid_length = mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
+	xid->gtrid_length =
+			(long)mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
+	xid->bqual_length =
+		  (long)mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
 
-	xid->bqual_length = mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
-
-	for (i = 0; i < XIDDATASIZE; i++) {
-		xid->data[i] = (char)mach_read_from_1(log_hdr + 
-							TRX_UNDO_XA_XID + i);
-	}
+	memcpy(xid->data, log_hdr + TRX_UNDO_XA_XID, XIDDATASIZE);
 }
 
 /*******************************************************************

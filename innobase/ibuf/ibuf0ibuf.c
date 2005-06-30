@@ -1889,7 +1889,7 @@ ibuf_get_merge_page_nos(
 				contract the tree, FALSE if this is called
 				when a single page becomes full and we look
 				if it pays to read also nearby pages */
-	rec_t*		first_rec,/* in: record from which we read up and down
+	rec_t*		rec,	/* in: record from which we read up and down
 				in the chain of records */
 	ulint*		space_ids,/* in/out: space id's of the pages */
 	ib_longlong*	space_versions,/* in/out: tablespace version
@@ -1907,47 +1907,42 @@ ibuf_get_merge_page_nos(
 	ulint	first_space_id;
 	ulint	rec_page_no;
 	ulint	rec_space_id;
-	rec_t*	rec;
 	ulint	sum_volumes;
 	ulint	volume_for_page;
 	ulint	rec_volume;
 	ulint	limit;
-	page_t*	page;
 	ulint	n_pages;
 
 	*n_stored = 0;
 
 	limit = ut_min(IBUF_MAX_N_PAGES_MERGED, buf_pool->curr_size / 4);
 
-	page = buf_frame_align(first_rec);
-	
-	if (first_rec == page_get_supremum_rec(page)) {
+	if (page_rec_is_supremum(rec)) {
 
-		first_rec = page_rec_get_prev(first_rec);
+		rec = page_rec_get_prev(rec);
 	}
 
-	if (first_rec == page_get_infimum_rec(page)) {
+	if (page_rec_is_infimum(rec)) {
 
-		first_rec = page_rec_get_next(first_rec);
+		rec = page_rec_get_next(rec);
 	}
 
-	if (first_rec == page_get_supremum_rec(page)) {
+	if (page_rec_is_supremum(rec)) {
 
 		return(0);
 	}
 
-	rec = first_rec;
-	first_page_no = ibuf_rec_get_page_no(first_rec);
-	first_space_id = ibuf_rec_get_space(first_rec);
+	first_page_no = ibuf_rec_get_page_no(rec);
+	first_space_id = ibuf_rec_get_space(rec);
 	n_pages = 0;
 	prev_page_no = 0;
 	prev_space_id = 0;
 	
-	/* Go backwards from the first_rec until we reach the border of the
+	/* Go backwards from the first rec until we reach the border of the
 	'merge area', or the page start or the limit of storeable pages is
 	reached */
 
-	while ((rec != page_get_infimum_rec(page)) && (n_pages < limit)) {
+	while (!page_rec_is_infimum(rec) && UNIV_LIKELY(n_pages < limit)) {
 
 		rec_page_no = ibuf_rec_get_page_no(rec);
 		rec_space_id = ibuf_rec_get_space(rec);
@@ -1982,7 +1977,7 @@ ibuf_get_merge_page_nos(
 	volume_for_page = 0;
 	
 	while (*n_stored < limit) {
-		if (rec == page_get_supremum_rec(page)) {
+		if (page_rec_is_supremum(rec)) {
 			/* When no more records available, mark this with
 			another 'impossible' pair of space id, page no */
 			rec_page_no = 1;
@@ -2311,12 +2306,12 @@ ibuf_get_volume_buffered(
 
 	page = buf_frame_align(rec);
 
-	if (rec == page_get_supremum_rec(page)) {
+	if (page_rec_is_supremum(rec)) {
 		rec = page_rec_get_prev(rec);
 	}
 
 	for (;;) {
-		if (rec == page_get_infimum_rec(page)) {
+		if (page_rec_is_infimum(rec)) {
 
 			break;
 		}
@@ -2351,7 +2346,7 @@ ibuf_get_volume_buffered(
 	rec = page_rec_get_prev(rec);
 	
 	for (;;) {
-		if (rec == page_get_infimum_rec(prev_page)) {
+		if (page_rec_is_infimum(rec)) {
 
 			/* We cannot go to yet a previous page, because we
 			do not have the x-latch on it, and cannot acquire one
@@ -2374,12 +2369,12 @@ ibuf_get_volume_buffered(
 count_later:
 	rec = btr_pcur_get_rec(pcur);
 
-	if (rec != page_get_supremum_rec(page)) {
+	if (!page_rec_is_supremum(rec)) {
 		rec = page_rec_get_next(rec);
 	}
 
 	for (;;) {
-		if (rec == page_get_supremum_rec(page)) {
+		if (page_rec_is_supremum(rec)) {
 
 			break;
 		}
@@ -2414,7 +2409,7 @@ count_later:
 	rec = page_rec_get_next(rec);
 
 	for (;;) {
-		if (rec == page_get_supremum_rec(next_page)) {
+		if (page_rec_is_supremum(rec)) {
 
 			/* We give up */
 		
@@ -2815,7 +2810,7 @@ ibuf_insert_to_index_page(
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
 
-	if (index->table->comp != page_is_comp(page)) {
+	if (UNIV_UNLIKELY(index->table->comp != (ibool)!!page_is_comp(page))) {
 		fputs(
 "InnoDB: Trying to insert a record from the insert buffer to an index page\n"
 "InnoDB: but the 'compact' flag does not match!\n", stderr);
@@ -2824,7 +2819,8 @@ ibuf_insert_to_index_page(
 
 	rec = page_rec_get_next(page_get_infimum_rec(page));
 
-	if (rec_get_n_fields(rec, index) != dtuple_get_n_fields(entry)) {
+	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
+			!= dtuple_get_n_fields(entry))) {
 		fputs(
 "InnoDB: Trying to insert a record from the insert buffer to an index page\n"
 "InnoDB: but the number of fields does not match!\n", stderr);
@@ -2848,7 +2844,7 @@ ibuf_insert_to_index_page(
 	if (low_match == dtuple_get_n_fields(entry)) {
 		rec = page_cur_get_rec(&page_cur);
 		
-		btr_cur_del_unmark_for_ibuf(rec, index, mtr);
+		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
 		rec = page_cur_tuple_insert(&page_cur, entry, index, mtr);
 		
@@ -2861,8 +2857,8 @@ ibuf_insert_to_index_page(
 						PAGE_CUR_LE, &page_cur);
 
 			/* This time the record must fit */
-			if (!page_cur_tuple_insert(&page_cur, entry,
-								index, mtr)) {
+			if (UNIV_UNLIKELY(!page_cur_tuple_insert(
+					&page_cur, entry, index, mtr))) {
 
 				ut_print_timestamp(stderr);
 
@@ -2969,7 +2965,9 @@ ibuf_delete_rec(
 		btr_pcur_commit_specify_mtr(pcur, mtr);
 
 		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		ut_a(btr_validate_tree(ibuf_data->index->tree));
+		if (!btr_validate_tree(ibuf_data->index->tree, NULL)) {
+			ut_error;
+		}
 
 		fprintf(stderr, "InnoDB: ibuf tree ok\n");
 		fflush(stderr);

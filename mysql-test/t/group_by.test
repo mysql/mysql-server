@@ -1,3 +1,4 @@
+
 # Initialise
 --disable_warnings
 drop table if exists t1,t2,t3;
@@ -134,7 +135,7 @@ CREATE TABLE t1 (
   bug_severity enum('blocker','critical','major','normal','minor','trivial','enhancement') DEFAULT 'blocker' NOT NULL,
   bug_status enum('','NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
   creation_ts datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
-  delta_ts timestamp(14),
+  delta_ts timestamp,
   short_desc mediumtext,
   long_desc mediumtext,
   op_sys enum('All','Windows 3.1','Windows 95','Windows 98','Windows NT','Windows 2000','Linux','other') DEFAULT 'All' NOT NULL,
@@ -524,7 +525,7 @@ select min(b) from t1;
 drop table t1;
 
 #
-# Test for bug #11088: GROUP BY a BLOB colimn with COUNT(DISTINCT column1) 
+# Test for bug #11088: GROUP BY a BLOB column with COUNT(DISTINCT column1) 
 #
 
 CREATE TABLE t1 (id int PRIMARY KEY, user_id int, hostname longtext);
@@ -539,3 +540,43 @@ SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
   WHERE hostname LIKE '%aol%'
     GROUP BY hostname;
 
+DROP TABLE t1;
+
+#
+# Test for bug #8614: GROUP BY 'const' with DISTINCT  
+#
+
+CREATE TABLE t1 (a  int, b int);
+INSERT INTO t1 VALUES (1,2), (1,3);
+SELECT a, b FROM t1 GROUP BY 'const';
+SELECT DISTINCT a, b FROM t1 GROUP BY 'const';
+
+DROP TABLE t1;
+
+#
+# Test for bug #11385: GROUP BY for datetime converted to decimals  
+#
+
+CREATE TABLE t1 (id INT, dt DATETIME);
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+SELECT dt DIV 1 AS f, id FROM t1 GROUP BY f;
+
+DROP TABLE t1;
+
+#
+# Test for bug #11295: GROUP BY a BLOB column with COUNT(DISTINCT column1) 
+#                      when the BLOB column takes NULL values
+# 
+
+CREATE TABLE t1 (id varchar(20) NOT NULL);
+INSERT INTO t1 VALUES ('trans1'), ('trans2');
+CREATE TABLE t2 (id varchar(20) NOT NULL, err_comment blob NOT NULL);
+INSERT INTO t2 VALUES ('trans1', 'a problem');
+
+SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS comment
+  FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY comment;
+
+DROP TABLE t1, t2;

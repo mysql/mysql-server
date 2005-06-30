@@ -1611,8 +1611,18 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       */
       if (discover_retry_count++ != 0)
         goto err;
-      if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
+      if (ha_create_table_from_engine(thd, db, name) > 0)
+      {
+        /* Give right error message */
+        thd->clear_error();
+        DBUG_PRINT("error", ("Dicovery of %s/%s failed", db, name));
+        my_printf_error(ER_UNKNOWN_ERROR,
+                        "Failed to open '%-.64s', error while "
+                        "unpacking from engine",
+                        MYF(0), name);
+
         goto err;
+      }
 
       mysql_reset_errors(thd, 1);    // Clear warnings
       thd->clear_error();            // Clear error message
@@ -2626,7 +2636,6 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   uint length=(uint) strlen(name);
   char name_buff[NAME_LEN+1];
 
-
   if (item->cached_table)
   {
     /*
@@ -2693,10 +2702,13 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     db= name_buff;
   }
 
+  bool search_global= item->item_flags & MY_ITEM_PREFER_1ST_TABLE;
   if (table_name && table_name[0])
   {						/* Qualified field */
-    bool found_table=0;
-    for (; tables; tables= tables->next_local)
+    bool found_table=0;    
+    uint table_idx= 0;
+    for (; tables; tables= search_global?tables->next_global:tables->next_local,
+        table_idx++)
     {
       /* TODO; Ensure that db and tables->db always points to something ! */
       if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
@@ -2732,6 +2744,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	    return (Field*) 0;
 	  }
 	  found=find;
+          if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
+            break;
 	}
       }
     }
@@ -2756,9 +2770,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	return (Field*) not_found_field;
     return (Field*) 0;
   }
-
   bool allow_rowid= tables && !tables->next_local;	// Only one table
-  for (; tables ; tables= tables->next_local)
+  uint table_idx= 0;
+  for (; tables ; tables= search_global?tables->next_global:tables->next_local, 
+      table_idx++)
   {
     if (!tables->table && !tables->ancestor)
     {
@@ -2793,7 +2808,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
           my_error(ER_NON_UNIQ_ERROR, MYF(0), name, thd->where);
 	return (Field*) 0;
       }
-      found=field;
+      found= field;
+      if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
+        break;
     }
   }
   if (found)
@@ -3020,7 +3037,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
   Item *item;
   List_iterator<Item> it(fields);
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   DBUG_ENTER("setup_wild");
 
   /*
@@ -3051,7 +3068,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       }
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it,
-                             any_privileges, arena != 0))
+                             any_privileges))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
@@ -3304,8 +3321,6 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     any_privileges	0 If we should ensure that we have SELECT privileges
 		          for all columns
                         1 If any privilege is ok
-    allocate_view_names if true view names will be copied to current Item_arena
-                        memory (made for SP/PS)
   RETURN
     0	ok
         'it' is updated to point at last inserted
@@ -3315,7 +3330,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool
 insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it,
-              bool any_privileges, bool allocate_view_names)
+              bool any_privileges)
 {
   /* allocate variables on stack to avoid pool alloaction */
   Field_iterator_table table_iter;
@@ -3506,25 +3521,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
         }
-        else if (allocate_view_names &&
-                 thd->lex->current_select->first_execution)
-        {
-	  Item_field *item;
-	  if (alias_used)
-	    item= new Item_field(0,
-				 thd->strdup(tables->alias),
-				 thd->strdup(field_name));
-	  else
-	    item= new Item_field(thd->strdup(tables->view_db.str),
-				 thd->strdup(tables->view_name.str),
-				 thd->strdup(field_name));
-          /*
-            during cleunup() this item will be put in list to replace
-            expression from VIEW
-          */
-          thd->nocheck_register_item_tree_change(it->ref(), item,
-                                                 thd->mem_root);
-        }
       }
       /*
 	All fields are used in case if usual tables (in case of view used
@@ -3561,7 +3557,7 @@ err:
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Item_arena *arena= thd->current_arena, backup;
+  Query_arena *arena= thd->current_arena, backup;
   bool save_wrapper= thd->lex->current_select->no_wrap_view_item;
   TABLE_LIST *table= NULL;	// For HP compilers
   DBUG_ENTER("setup_conds");

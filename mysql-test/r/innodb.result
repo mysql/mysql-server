@@ -909,7 +909,6 @@ set autocommit=0;
 create table t1 (a int not null) engine= innodb;
 insert into t1 values(1),(2);
 truncate table t1;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 commit;
 truncate table t1;
 truncate table t1;
@@ -973,9 +972,9 @@ number bigint(20) NOT NULL default '0',
 cname char(15) NOT NULL default '',
 carrier_id smallint(6) NOT NULL default '0',
 privacy tinyint(4) NOT NULL default '0',
-last_mod_date timestamp(14) NOT NULL,
+last_mod_date timestamp NOT NULL,
 last_mod_id smallint(6) NOT NULL default '0',
-last_app_date timestamp(14) NOT NULL,
+last_app_date timestamp NOT NULL,
 last_app_id smallint(6) default '-1',
 version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
@@ -992,9 +991,9 @@ number bigint(20) NOT NULL default '0',
 cname char(15) NOT NULL default '',
 carrier_id smallint(6) NOT NULL default '0',
 privacy tinyint(4) NOT NULL default '0',
-last_mod_date timestamp(14) NOT NULL,
+last_mod_date timestamp NOT NULL,
 last_mod_id smallint(6) NOT NULL default '0',
-last_app_date timestamp(14) NOT NULL,
+last_app_date timestamp NOT NULL,
 last_app_id smallint(6) default '-1',
 version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
@@ -1638,14 +1637,14 @@ t2	CREATE TABLE `t2` (
 drop table t2, t1;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	153
+Binlog_cache_use	155
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	154
+Binlog_cache_use	156
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1654,7 +1653,7 @@ delete from t1;
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	155
+Binlog_cache_use	157
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1722,12 +1721,13 @@ count(*)
 0
 explain select count(*) from t1 where x > -16;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	8	NULL	1	Using where; Using index
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	8	NULL	2	Using where; Using index
 select count(*) from t1 where x > -16;
 count(*)
-1
+2
 select * from t1 where x > -16;
 x
+18446744073709551600
 18446744073709551601
 select count(*) from t1 where x = 18446744073709551601;
 count(*)
@@ -1780,7 +1780,7 @@ Variable_name	Value
 innodb_sync_spin_loops	20
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	20
 set global innodb_thread_concurrency=1000;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value

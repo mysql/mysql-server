@@ -159,22 +159,20 @@ rec_init_offsets(
 	ulint*		offsets)/* in/out: array of offsets;
 				in: n=rec_offs_n_fields(offsets) */
 {
-	ulint	n_fields = rec_offs_n_fields(offsets);
 	ulint	i	= 0;
 	ulint	offs;
 
 	rec_offs_make_valid(rec, index, offsets);
 
-	if (index->table->comp) {
+	if (UNIV_LIKELY(index->table->comp)) {
 		const byte*	nulls;
 		const byte*	lens;
 		dict_field_t*	field;
-		dtype_t*	type;
 		ulint		null_mask;
 		ulint		status = rec_get_status(rec);
 		ulint		n_node_ptr_field = ULINT_UNDEFINED;
 
-		switch (status) {
+		switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
 		case REC_STATUS_INFIMUM:
 		case REC_STATUS_SUPREMUM:
 			/* the field is 8 bytes long */
@@ -196,56 +194,69 @@ rec_init_offsets(
 		null_mask = 1;
 
 		/* read the lengths of fields 0..n */
-		for (; i < n_fields; i++) {
-			ibool	is_null = FALSE, is_external = FALSE;
+		do {
 			ulint	len;
-			if (i == n_node_ptr_field) {
-				len = 4;
+			if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
+				len = offs += 4;
 				goto resolved;
 			}
 
 			field = dict_index_get_nth_field(index, i);
-			type = dict_col_get_type(dict_field_get_col(field));
-			if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
+			if (!(dtype_get_prtype(dict_col_get_type(
+						dict_field_get_col(field)))
+						& DATA_NOT_NULL)) {
 				/* nullable field => read the null flag */
-				is_null = (*nulls & null_mask) != 0;
-				null_mask <<= 1;
-				if (null_mask == 0x100) {
+
+				if (UNIV_UNLIKELY(!(byte) null_mask)) {
 					nulls--;
 					null_mask = 1;
 				}
+
+				if (*nulls & null_mask) {
+					null_mask <<= 1;
+					/* No length is stored for NULL fields.
+					We do not advance offs, and we set
+					the length to zero and enable the
+					SQL NULL flag in offsets[]. */
+					len = offs | REC_OFFS_SQL_NULL;
+					goto resolved;
+				}
+				null_mask <<= 1;
 			}
 
-			if (is_null) {
-				/* No length is stored for NULL fields. */
-				len = 0;
-			} else if (!field->fixed_len) {
+			if (UNIV_UNLIKELY(!field->fixed_len)) {
 				/* Variable-length field: read the length */
+				dtype_t*	type = dict_col_get_type(
+						dict_field_get_col(field));
 				len = *lens--;
-				if (dtype_get_len(type) > 255
-				    || dtype_get_mtype(type) == DATA_BLOB) {
+				if (UNIV_UNLIKELY(dtype_get_len(type) > 255)
+				    || UNIV_UNLIKELY(dtype_get_mtype(type)
+							== DATA_BLOB)) {
 					if (len & 0x80) {
 						/* 1exxxxxxx xxxxxxxx */
-						is_external = !!(len & 0x40);
-						len &= 0x3f;
 						len <<= 8;
 						len |= *lens--;
+
+						offs += len & 0x3fff;
+						if (UNIV_UNLIKELY(len
+								& 0x4000)) {
+							len = offs
+							| REC_OFFS_EXTERNAL;
+						} else {
+							len = offs;
+						}
+
+						goto resolved;
 					}
 				}
+
+				len = offs += len;
 			} else {
-				len = field->fixed_len;
+				len = offs += field->fixed_len;
 			}
 		resolved:
-			offs += len;
-			len = offs;
-			if (is_external) {
-				len |= REC_OFFS_EXTERNAL;
-			}
-			if (is_null) {
-				len |= REC_OFFS_SQL_NULL;
-			}
 			rec_offs_base(offsets)[i + 1] = len;
-		}
+		} while (++i < rec_offs_n_fields(offsets));
 
 		*rec_offs_base(offsets) =
 			(rec - (lens + 1)) | REC_OFFS_COMPACT;
@@ -253,22 +264,22 @@ rec_init_offsets(
 		/* Old-style record: determine extra size and end offsets */
 		offs = REC_N_OLD_EXTRA_BYTES;
 		if (rec_get_1byte_offs_flag(rec)) {
-			offs += n_fields;
+			offs += rec_offs_n_fields(offsets);
 			*rec_offs_base(offsets) = offs;
 			/* Determine offsets to fields */
-			for (; i < n_fields; i++) {
+			do {
 				offs = rec_1_get_field_end_info(rec, i);
 				if (offs & REC_1BYTE_SQL_NULL_MASK) {
 					offs &= ~REC_1BYTE_SQL_NULL_MASK;
 					offs |= REC_OFFS_SQL_NULL;
 				}
 				rec_offs_base(offsets)[1 + i] = offs;
-			}
+			} while (++i < rec_offs_n_fields(offsets));
 		} else {
-			offs += 2 * n_fields;
+			offs += 2 * rec_offs_n_fields(offsets);
 			*rec_offs_base(offsets) = offs;
 			/* Determine offsets to fields */
-			for (; i < n_fields; i++) {
+			do {
 				offs = rec_2_get_field_end_info(rec, i);
 				if (offs & REC_2BYTE_SQL_NULL_MASK) {
 					offs &= ~REC_2BYTE_SQL_NULL_MASK;
@@ -279,7 +290,7 @@ rec_init_offsets(
 					offs |= REC_OFFS_EXTERNAL;
 				}
 				rec_offs_base(offsets)[1 + i] = offs;
-			}
+			} while (++i < rec_offs_n_fields(offsets));
 		}
 	}
 }
@@ -310,8 +321,9 @@ rec_get_offsets_func(
 	ut_ad(index);
 	ut_ad(heap);
 
-	if (index->table->comp) {
-		switch (rec_get_status(rec)) {
+	if (UNIV_LIKELY(index->table->comp)) {
+		switch (UNIV_EXPECT(rec_get_status(rec),
+				REC_STATUS_ORDINARY)) {
 		case REC_STATUS_ORDINARY:
 			n = dict_index_get_n_fields(index);
 			break;
@@ -331,13 +343,14 @@ rec_get_offsets_func(
 		n = rec_get_n_fields_old(rec);
 	}
 
-	if (n_fields < n) {
+	if (UNIV_UNLIKELY(n_fields < n)) {
 		n = n_fields;
 	}
 
 	size = n + (1 + REC_OFFS_HEADER_SIZE);
 
-	if (!offsets || rec_offs_get_n_alloc(offsets) < size) {
+	if (UNIV_UNLIKELY(!offsets) ||
+			UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
 		if (!*heap) {
 			*heap = mem_heap_create_func(size * sizeof(ulint),
 				NULL, MEM_HEAP_DYNAMIC, file, line);
@@ -652,9 +665,17 @@ rec_set_field_extern_bits(
 				to log about the change */
 {
 	ulint	i;
-	
-	for (i = 0; i < n_fields; i++) {
-		rec_set_nth_field_extern_bit(rec, index, vec[i], TRUE, mtr);
+
+	if (UNIV_LIKELY(index->table->comp)) {
+		for (i = 0; i < n_fields; i++) {
+			rec_set_nth_field_extern_bit_new(rec, index, vec[i],
+								TRUE, mtr);
+		}
+	} else {
+		for (i = 0; i < n_fields; i++) {
+			rec_set_nth_field_extern_bit_old(rec, vec[i],
+								TRUE, mtr);
+		}
 	}
 }
 
@@ -949,7 +970,7 @@ rec_convert_dtuple_to_rec(
 	ut_ad(dtuple_validate(dtuple));
 	ut_ad(dtuple_check_typed(dtuple));
 
-	if (index->table->comp) {
+	if (UNIV_LIKELY(index->table->comp)) {
 		rec = rec_convert_dtuple_to_rec_new(buf, index, dtuple);
 	} else {
 		rec = rec_convert_dtuple_to_rec_old(buf, dtuple);
@@ -965,7 +986,7 @@ rec_convert_dtuple_to_rec(
 		offsets = rec_get_offsets(rec, index,
 					offsets_, ULINT_UNDEFINED, &heap);
 		ut_ad(rec_validate(rec, offsets));
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}
@@ -1078,17 +1099,19 @@ rec_copy_prefix_to_buf(
 					for the copied prefix, or NULL */
 	ulint*		buf_size)	/* in/out: buffer size */
 {
-	byte*		nulls	= rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	byte*		lens	= nulls - (index->n_nullable + 7) / 8;
+	byte*		nulls;
+	byte*		lens;
 	dict_field_t*	field;
 	dtype_t*	type;
 	ulint		i;
-	ulint		prefix_len	= 0;
+	ulint		prefix_len;
 	ibool		is_null;
-	ulint		null_mask	= 1;
+	ulint		null_mask;
 	ulint		status;
 
-	if (!index->table->comp) {
+	UNIV_PREFETCH_RW(*buf);
+
+	if (UNIV_UNLIKELY(!index->table->comp)) {
 		ut_ad(rec_validate_old(rec));
 		return(rec_copy_prefix_to_buf_old(rec, n_fields,
 			rec_get_field_start_offs(rec, n_fields),
@@ -1109,9 +1132,15 @@ rec_copy_prefix_to_buf(
 	case REC_STATUS_SUPREMUM:
 		/* infimum or supremum record: no sense to copy anything */
 	default:
-		ut_a(0);
+		ut_error;
 		return(NULL);
 	}
+
+	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
+	lens = nulls - (index->n_nullable + 7) / 8;
+	UNIV_PREFETCH_R(lens);
+	prefix_len = 0;
+	null_mask = 1;
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
@@ -1122,8 +1151,11 @@ rec_copy_prefix_to_buf(
 			/* nullable field => read the null flag */
 			is_null = !!(*nulls & null_mask);
 			null_mask <<= 1;
-			if (null_mask == 0x100)
-				nulls--, null_mask = 1;
+			if (null_mask == 0x100) {
+				--nulls;
+				UNIV_PREFETCH_R(nulls);
+				null_mask = 1;
+			}
 		}
 
 		if (is_null) {
@@ -1138,11 +1170,14 @@ rec_copy_prefix_to_buf(
 					len &= 0x3f;
 					len <<= 8;
 					len |= *lens--;
+					UNIV_PREFETCH_R(lens);
 				}
 			}
 			prefix_len += len;
 		}
 	}
+
+	UNIV_PREFETCH_R(rec + prefix_len);
 
 	prefix_len += rec - (lens + 1);
 
@@ -1412,7 +1447,7 @@ rec_print(
 
 		rec_print_new(file, rec, rec_get_offsets(rec, index, offsets_,
 						ULINT_UNDEFINED, &heap));
-		if (heap) {
+		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
 	}

@@ -25,6 +25,7 @@
 #endif
 
 #define NOT_FIXED_DEC			31
+#define DATETIME_DEC                     6
 
 class Send_field;
 class Protocol;
@@ -381,7 +382,6 @@ public:
                field_name_arg, table_arg, charset)
     {}
 
-  my_decimal *val_decimal(my_decimal *);
   int store_decimal(const my_decimal *d);
 };
 
@@ -942,6 +942,7 @@ public:
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
   enum Item_result cmp_type () const { return INT_RESULT; }
+  uint decimals() const { return DATETIME_DEC; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
@@ -993,6 +994,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
@@ -1051,6 +1053,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void get_key_image(char *buff,uint length, imagetype type);
@@ -1106,6 +1109,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  my_decimal *val_decimal(my_decimal *);
   int cmp(const char *,const char*);
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);
@@ -1284,7 +1288,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
   uint32 key_length() const { return (uint32) field_length + (bit_len > 0); }
-  uint32 max_length() { return (uint32) field_length + (bit_len > 0); }
+  uint32 max_length() { return (uint32) field_length * 8 + bit_len; }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
   void reset(void) { bzero(ptr, field_length); }
@@ -1316,6 +1320,11 @@ public:
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
+  void set_bit_ptr(uchar *bit_ptr_arg, uchar bit_ofs_arg)
+  {
+    bit_ptr= bit_ptr_arg;
+    bit_ofs= bit_ofs_arg;
+  }
 };
 
   
@@ -1327,6 +1336,7 @@ public:
                     enum utype unireg_check_arg, const char *field_name_arg,
                     struct st_table *table_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
+  uint32 max_length() { return (uint32) create_length; }
   uint size_of() const { return sizeof(*this); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr) { return Field_bit::store(nr); }

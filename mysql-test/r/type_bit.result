@@ -466,3 +466,90 @@ select a+0 from t1;
 a+0
 255
 drop table t1;
+create table t1 (a bit(7));
+insert into t1 values (120), (0), (111);
+select a+0 from t1 union select a+0 from t1;
+a+0
+120
+0
+111
+select a+0 from t1 union select NULL;
+a+0
+120
+0
+111
+NULL
+select NULL union select a+0 from t1;
+NULL
+NULL
+120
+0
+111
+create table t2 select a from t1 union select a from t1;
+select a+0 from t2;
+a+0
+120
+0
+111
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` bit(7) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;
+create table t1 (id1 int(11), b1 bit(1));
+create table t2 (id2 int(11), b2 bit(1));
+insert into t1 values (1, 1), (2, 0), (3, 1);
+insert into t2 values (2, 1), (3, 0), (4, 0);
+create algorithm=undefined view v1 as 
+select b1+0, b2+0 from t1, t2 where id1 = id2 and b1 = 0
+union
+select b1+0, b2+0 from t1, t2 where id1 = id2 and b2 = 1;
+select * from v1;
+b1+0	b2+0
+0	1
+drop table t1, t2;
+drop view v1;
+create table t1(a bit(4));
+insert into t1(a) values (1), (2), (5), (4), (3);
+insert into t1 select * from t1;
+select a+0 from t1;
+a+0
+1
+2
+5
+4
+3
+1
+2
+5
+4
+3
+drop table t1;
+create table t1 (a1 int(11), b1 bit(2));
+create table t2 (a2 int(11), b2 bit(2));
+insert into t1 values (1, 1), (2, 0), (3, 1), (4, 2);
+insert into t2 values (2, 1), (3, 0), (4, 1), (5, 2);
+select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2;
+a1	a2	b1+0	b2+0
+2	2	0	1
+3	3	1	0
+4	4	2	1
+select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2 order by a1;
+a1	a2	b1+0	b2+0
+2	2	0	1
+3	3	1	0
+4	4	2	1
+select a1, a2, b1+0, b2+0 from t1 join t2 on b1 = b2;
+a1	a2	b1+0	b2+0
+1	2	1	1
+3	2	1	1
+2	3	0	0
+1	4	1	1
+3	4	1	1
+4	5	2	2
+select sum(a1), b1+0, b2+0 from t1 join t2 on b1 = b2 group by b1 order by 1;
+sum(a1)	b1+0	b2+0
+2	0	0
+4	2	2
+8	1	1

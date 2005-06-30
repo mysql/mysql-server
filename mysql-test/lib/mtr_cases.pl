@@ -4,6 +4,7 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
+use File::Basename;
 use strict;
 
 sub collect_test_cases ($);
@@ -39,6 +40,7 @@ sub collect_test_cases ($) {
   if ( @::opt_cases )
   {
     foreach my $tname ( @::opt_cases ) { # Run in specified order, no sort
+      $tname= basename($tname, ".test");
       my $elem= "$tname.test";
       if ( ! -f "$testdir/$elem")
       {
@@ -126,16 +128,6 @@ sub collect_one_test_case($$$$$) {
     return;
   }
 
-  # FIXME temporary solution, we have a hard coded list of test cases to
-  # skip if we are using the embedded server
-
-  if ( $::glob_use_embedded_server and
-       mtr_match_any_exact($tname,\@::skip_if_embedded_server) )
-  {
-    $tinfo->{'skip'}= 1;
-    return;
-  }
-
   # ----------------------------------------------------------------------
   # Collect information about test case
   # ----------------------------------------------------------------------
@@ -162,6 +154,14 @@ sub collect_one_test_case($$$$$) {
     }
   }
 
+  if ( defined mtr_match_prefix($tname,"federated") )
+  {
+    $tinfo->{'slave_num'}= 1;           # Default, use one slave
+
+    # FIXME currently we always restart slaves
+    $tinfo->{'slave_restart'}= 1;
+  }
+
   # FIXME what about embedded_server + ndbcluster, skip ?!
 
   my $master_opt_file= "$testdir/$tname-master.opt";
@@ -171,54 +171,73 @@ sub collect_one_test_case($$$$$) {
   my $slave_sh=        "$testdir/$tname-slave.sh";
   my $disabled=        "$testdir/$tname.disabled";
 
-  $tinfo->{'master_opt'}= [];
-  $tinfo->{'slave_opt'}=  [];
+  $tinfo->{'master_opt'}= $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
+  $tinfo->{'slave_opt'}=  $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
   $tinfo->{'slave_mi'}=   [];
 
   if ( -f $master_opt_file )
   {
     $tinfo->{'master_restart'}= 1;    # We think so for now
-    # This is a dirty hack from old mysql-test-run, we use the opt file
-    # to flag other things as well, it is not a opt list at all
-    my $extra_master_opt= mtr_get_opts_from_file($master_opt_file);
 
-    foreach my $opt (@$extra_master_opt)
+  MASTER_OPT:
     {
-      my $value;
+      my $master_opt= mtr_get_opts_from_file($master_opt_file);
 
-      $value= mtr_match_prefix($opt, "--timezone=");
-
-      if ( defined $value )
+      foreach my $opt ( @$master_opt )
       {
-        $tinfo->{'timezone'}= $value;
-        $extra_master_opt= [];
-        $tinfo->{'master_restart'}= 0;
-        last;
-      }
+        my $value;
 
-      $value= mtr_match_prefix($opt, "--result-file=");
+        # This is a dirty hack from old mysql-test-run, we use the opt
+        # file to flag other things as well, it is not a opt list at
+        # all
 
-      if ( defined $value )
-      {
-        $tinfo->{'result_file'}= "r/$value.result";
-        if ( $::opt_result_ext and $::opt_record or
-             -f "$tinfo->{'result_file'}$::opt_result_ext")
+        $value= mtr_match_prefix($opt, "--timezone=");
+        if ( defined $value )
         {
-          $tinfo->{'result_file'}.= $::opt_result_ext;
+          $tinfo->{'timezone'}= $value;
+          $tinfo->{'skip'}= 1 if $::glob_win32; # FIXME server unsets TZ
+          last MASTER_OPT;
         }
-        $extra_master_opt= [];
-        $tinfo->{'master_restart'}= 0;
-        last;
-      }
-    }
 
-    $tinfo->{'master_opt'}= $extra_master_opt;
+        $value= mtr_match_prefix($opt, "--result-file=");
+        if ( defined $value )
+        {
+          $tinfo->{'result_file'}= "r/$value.result";
+          if ( $::opt_result_ext and $::opt_record or
+               -f "$tinfo->{'result_file'}$::opt_result_ext")
+          {
+            $tinfo->{'result_file'}.= $::opt_result_ext;
+          }
+          $tinfo->{'master_restart'}= 0;
+          last MASTER_OPT;
+        }
+
+        # If we set default time zone, remove the one we have
+        $value= mtr_match_prefix($opt, "--default-time-zone=");
+        if ( defined $value )
+        {
+          $tinfo->{'master_opt'}= [];
+        }
+
+      }
+
+      # Ok, this was a real option list, add it
+      push(@{$tinfo->{'master_opt'}}, @$master_opt);
+    }
   }
 
   if ( -f $slave_opt_file )
   {
-    $tinfo->{'slave_opt'}= mtr_get_opts_from_file($slave_opt_file);
     $tinfo->{'slave_restart'}= 1;
+    my $slave_opt= mtr_get_opts_from_file($slave_opt_file);
+
+    foreach my $opt ( @$slave_opt )
+    {
+      # If we set default time zone, remove the one we have
+      my $value= mtr_match_prefix($opt, "--default-time-zone=");
+      $tinfo->{'slave_opt'}= [] if defined $value;
+    }
+    push(@{$tinfo->{'slave_opt'}}, @$slave_opt);
   }
 
   if ( -f $slave_mi_file )

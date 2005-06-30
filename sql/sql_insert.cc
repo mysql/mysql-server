@@ -1988,10 +1988,22 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
 int
 select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
+  int res;
+  LEX *lex= thd->lex;
+  SELECT_LEX *lex_current_select_save= lex->current_select;
   DBUG_ENTER("select_insert::prepare");
 
   unit= u;
-  if (check_insert_fields(thd, table_list, *fields, values, !insert_into_view))
+  /*
+    Since table in which we are going to insert is added to the first
+    select, LEX::current_select should point to the first select while
+    we are fixing fields from insert list.
+  */
+  lex->current_select= &lex->select_lex;
+  res= check_insert_fields(thd, table_list, *fields, values,
+                           !insert_into_view);
+  lex->current_select= lex_current_select_save;
+  if (res)
     DBUG_RETURN(1);
   /*
     if it is INSERT into join view then check_insert_fields already found
@@ -2003,12 +2015,12 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     Is table which we are changing used somewhere in other parts of
     query
   */
-  if (!(thd->lex->current_select->options & OPTION_BUFFER_RESULT) &&
+  if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
       unique_table(table_list, table_list->next_global))
   {
     /* Using same table for INSERT and SELECT */
-    thd->lex->current_select->options|= OPTION_BUFFER_RESULT;
-    thd->lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
+    lex->current_select->options|= OPTION_BUFFER_RESULT;
+    lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
   else
   {
@@ -2107,9 +2119,12 @@ bool select_insert::send_data(List<Item> &values)
   }
   if (!(error= write_record(thd, table, &info)))
   {
-    if (table->triggers)
+    if (table->triggers || info.handle_duplicates == DUP_UPDATE)
     {
       /*
+        Restore fields of the record since it is possible that they were
+        changed by ON DUPLICATE KEY UPDATE clause.
+    
         If triggers exist then whey can modify some fields which were not
         originally touched by INSERT ... SELECT, so we have to restore
         their original values for the next row.
@@ -2362,11 +2377,11 @@ void select_create::abort()
   Instansiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List_iterator_fast<List_item>;
 #ifndef EMBEDDED_LIBRARY
 template class I_List<delayed_insert>;
 template class I_List_iterator<delayed_insert>;
 template class I_List<delayed_row>;
 #endif /* EMBEDDED_LIBRARY */
-#endif /* __GNUC__ */
+#endif /* HAVE_EXPLICIT_TEMPLATE_INSTANTIATION */

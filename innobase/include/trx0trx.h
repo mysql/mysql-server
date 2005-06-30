@@ -312,6 +312,19 @@ trx_print(
 	FILE*	f,	/* in: output stream */
 	trx_t*	trx);	/* in: transaction */
 
+#ifndef UNIV_HOTBACKUP
+/**************************************************************************
+Determines if the currently running transaction has been interrupted. */
+
+ibool
+trx_is_interrupted(
+/*===============*/
+			/* out: TRUE if interrupted */
+	trx_t*	trx);	/* in: transaction */
+#else /* !UNIV_HOTBACKUP */
+#define trx_is_interrupted(trx) FALSE
+#endif /* !UNIV_HOTBACKUP */
+
 
 /* Signal to a transaction */
 struct trx_sig_struct{
@@ -484,13 +497,6 @@ struct trx_struct{
 					in the lock list trx_locks */
 	ibool		trx_create_lock;/* this is TRUE if we have created a
 					new lock for a record accessed */
-	ulint		n_lock_table_exp;/* number of explicit table locks
-					(LOCK TABLES) reserved by the
-					transaction, stored in trx_locks */
-	ulint		n_lock_table_transactional;
-					/* number of transactional table locks
-					(LOCK TABLES..WHERE ENGINE) reserved by
-					the transaction, stored in trx_locks */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)

@@ -114,6 +114,14 @@ enum enum_sp_data_access
   SP_MODIFIES_SQL_DATA
 };
 
+const LEX_STRING sp_data_access_name[]=
+{
+  { (char*) STRING_WITH_LEN("") },
+  { (char*) STRING_WITH_LEN("CONTAINS SQL") },
+  { (char*) STRING_WITH_LEN("NO SQL") },
+  { (char*) STRING_WITH_LEN("READS SQL DATA") },
+  { (char*) STRING_WITH_LEN("MODIFIES SQL DATA") }
+};
 
 #define DERIVED_SUBQUERY	1
 #define DERIVED_VIEW		2
@@ -522,7 +530,19 @@ public:
     query processing end even if we use temporary table
   */
   bool subquery_in_having;
-  bool first_execution; /* first execution in SP or PS */
+  /*
+    This variable is required to ensure proper work of subqueries and
+    stored procedures. Generally, one should use the states of
+    Query_arena to determine if it's a statement prepare or first
+    execution of a stored procedure. However, in case when there was an
+    error during the first execution of a stored procedure, the SP body
+    is not expelled from the SP cache. Therefore, a deeply nested
+    subquery might be left unoptimized. So we need this per-subquery
+    variable to inidicate the optimization/execution state of every
+    subquery. Prepared statements work OK in that regard, as in
+    case of an error during prepare the PS is not created.
+  */
+  bool first_execution;
   bool first_cond_optimization;
   /* do not wrap view fields with Item_ref */
   bool no_wrap_view_item;
@@ -622,6 +642,11 @@ public:
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
   void fix_prepare_information(THD *thd, Item **conds);
+  /*
+    Destroy the used execution plan (JOIN) of this subtree (this
+    SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
+  */
+  bool cleanup();
 };
 typedef class st_select_lex SELECT_LEX;
 

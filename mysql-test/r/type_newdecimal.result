@@ -928,3 +928,9 @@ select * from t1 where a = -0.00;
 a
 0.00
 drop table t1;
+create table t1 (col1 bigint default -9223372036854775808);
+insert into t1 values (default);
+select * from t1;
+col1
+-9223372036854775808
+drop table t1;

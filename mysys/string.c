@@ -91,7 +91,7 @@ my_bool dynstr_realloc(DYNAMIC_STRING *str, ulong additional_size)
 
 my_bool dynstr_append(DYNAMIC_STRING *str, const char *append)
 {
-  return dynstr_append_mem(str,append,strlen(append));
+  return dynstr_append_mem(str,append,(uint) strlen(append));
 }
 
 

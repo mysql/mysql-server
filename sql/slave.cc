@@ -5002,7 +5002,7 @@ end:
 }
 
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
